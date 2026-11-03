@@ -56,6 +56,7 @@ internal sealed record InboundTriggerSaveRequest
     public string? PayloadPath { get; init; }
 
     [Description("Gets whether the trigger accepts requests. Default `true`.")]
+    [DefaultValue(true)]
     public bool Enabled { get; init; } = true;
 }
 

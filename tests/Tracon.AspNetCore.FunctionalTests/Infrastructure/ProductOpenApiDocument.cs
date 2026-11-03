@@ -42,6 +42,9 @@ internal static class ProductOpenApiDocument
     /// <param name="options">The OpenAPI options of the host under test.</param>
     public static void Configure(OpenApiOptions options)
     {
+        // The corrections the reference host applies to its own document: the snapshot is written by the same code.
+        Tracon.Api.PublishedDocumentCorrections.Configure(options);
+
         options.AddDocumentTransformer(static (document, _, _) =>
         {
             document.Info = new OpenApiInfo

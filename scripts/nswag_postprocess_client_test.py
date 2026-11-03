@@ -490,5 +490,120 @@ class ValueTypeBodyGuardTests(unittest.TestCase):
         self.assertEqual(rewritten, source)
 
 
+class DocumentedDefaultTests(unittest.TestCase):
+    """The seventh pass: an integer or enum default the generator did not write correctly."""
+
+    SOURCE = """\
+namespace Tracon.Client.Generated
+{
+    public partial class CanaryPolicy
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("minSampleSize")]
+        public int MinSampleSize { get; set; } = "20";
+
+        [System.Text.Json.Serialization.JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = true;
+
+    }
+
+    public partial class RunReplayRequest
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("toolMode")]
+        public ReplayToolMode ToolMode { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.IDictionary<string, string>? Parameters { get; set; } = default!;
+
+    }
+
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ReplayToolMode>))]
+    public enum ReplayToolMode
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"NoTools")]
+        NoTools = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"ReplayTools")]
+        ReplayTools = 1,
+
+    }
+}
+"""
+
+    DOCUMENT = {
+        "components": {
+            "schemas": {
+                "ReplayToolMode": {"enum": ["NoTools", "ReplayTools"]},
+                "CanaryPolicy": {
+                    "properties": {
+                        "minSampleSize": {"type": ["integer", "string"], "format": "int32", "default": 20},
+                        "enabled": {"type": "boolean", "default": True},
+                    }
+                },
+                "RunReplayRequest": {
+                    "properties": {
+                        "toolMode": {"default": "ReplayTools", "$ref": "#/components/schemas/ReplayToolMode"},
+                        "parameters": {"type": ["null", "object"]},
+                    }
+                },
+            }
+        }
+    }
+
+    def test_an_integer_default_written_as_a_string_literal_becomes_a_number(self):
+        source, _ = nswag_postprocess_client.rewrite_documented_defaults(self.SOURCE, self.DOCUMENT)
+
+        self.assertIn("public int MinSampleSize { get; set; } = 20;", source)
+        self.assertNotIn('= "20"', source)
+
+    def test_an_enum_default_the_generator_ignored_becomes_the_named_member(self):
+        source, _ = nswag_postprocess_client.rewrite_documented_defaults(self.SOURCE, self.DOCUMENT)
+
+        self.assertIn("public ReplayToolMode ToolMode { get; set; } = ReplayToolMode.ReplayTools;", source)
+
+    def test_a_boolean_default_and_a_property_without_a_default_are_left_alone(self):
+        source, changed = nswag_postprocess_client.rewrite_documented_defaults(self.SOURCE, self.DOCUMENT)
+
+        self.assertEqual(2, changed)
+        self.assertIn("public bool Enabled { get; set; } = true;", source)
+        self.assertIn("IDictionary<string, string>? Parameters { get; set; } = default!;", source)
+
+    def test_a_second_run_changes_nothing(self):
+        once, _ = nswag_postprocess_client.rewrite_documented_defaults(self.SOURCE, self.DOCUMENT)
+        twice, changed = nswag_postprocess_client.rewrite_documented_defaults(once, self.DOCUMENT)
+
+        self.assertEqual(once, twice)
+        self.assertEqual(0, changed)
+
+    def test_a_default_for_a_property_the_file_lacks_is_refused(self):
+        document = {
+            "components": {
+                "schemas": {
+                    "CanaryPolicy": {"properties": {"rampCount": {"type": "integer", "default": 3}}},
+                }
+            }
+        }
+
+        with self.assertRaises(SystemExit):
+            nswag_postprocess_client.rewrite_documented_defaults(self.SOURCE, document)
+
+    def test_an_enum_default_with_no_matching_member_is_refused(self):
+        document = {
+            "components": {
+                "schemas": {
+                    "ReplayToolMode": {"enum": ["NoTools", "ReplayTools"]},
+                    "RunReplayRequest": {
+                        "properties": {"toolMode": {"default": "Gone", "$ref": "#/components/schemas/ReplayToolMode"}}
+                    },
+                }
+            }
+        }
+
+        with self.assertRaises(SystemExit):
+            nswag_postprocess_client.rewrite_documented_defaults(self.SOURCE, document)
+
+
 if __name__ == "__main__":
     unittest.main()

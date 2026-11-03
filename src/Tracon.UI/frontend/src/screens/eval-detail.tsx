@@ -130,11 +130,9 @@ function toInput({ toolCalls, ...rest }: CaseDraft): EvalCaseInput {
     expectedToolCalls: toolCalls.map((call) => {
       const parsed = parseArguments(call.arguments);
 
-      // The generated type calls the arguments `Record<string, never>`: the
-      // schema says "an object" without saying what is in it.
       return {
         name: call.name.trim(),
-        ...(parsed.state === 'object' ? { arguments: parsed.value as Record<string, never> } : {}),
+        ...(parsed.state === 'object' ? { arguments: parsed.value } : {}),
       };
     }),
   };

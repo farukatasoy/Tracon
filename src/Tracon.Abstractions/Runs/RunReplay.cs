@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
@@ -60,6 +61,7 @@ public sealed record RunReplayRequest
     public string? ModelId { get; init; }
 
     /// <summary>The tool behavior. Defaults to <see cref="ReplayToolMode.ReplayTools"/>.</summary>
+    [DefaultValue(ReplayToolMode.ReplayTools)]
     public ReplayToolMode ToolMode { get; init; } = ReplayToolMode.ReplayTools;
 
     /// <summary>

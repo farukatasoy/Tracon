@@ -8,10 +8,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// client.
 /// </summary>
 /// <remarks>
-/// Red on purpose until the generator is changed (see the report): the generated types leave a non-nullable
-/// <c>object</c> property at <see langword="null"/> and a non-nullable <c>JsonElement</c> property at
-/// <c>default</c>, so the first request fails with a 400 the server's contract gives for a null, or with an
-/// <see cref="InvalidOperationException"/> from the serializer. Not committed: it asserts the behavior after the fix.
+/// The document says a free-form member (<c>providerSettings</c>, <c>metadata</c>, <c>checks</c>, <c>payload</c>) is
+/// optional and accepts <c>null</c>, so the generated type is nullable and the client leaves it unset. A member that
+/// has a server default carries that default in the generated type. Before that, the first request of a caller that
+/// set only the required members failed with a <c>400</c> the server's contract gives for a null, or with an
+/// <see cref="InvalidOperationException"/> from the serializer.
 /// </remarks>
 public sealed class GeneratedClientMinimalRequestTests
 {

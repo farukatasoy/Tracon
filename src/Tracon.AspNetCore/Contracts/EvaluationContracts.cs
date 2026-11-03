@@ -16,8 +16,8 @@ internal sealed record EvalSuiteSaveRequest
     [Description("Name of the agent this suite measures.")]
     public required string AgentName { get; init; }
 
-    [Description("Check definitions. See `EvalSuite.Checks`.")]
-    public JsonElement Checks { get; init; }
+    [Description("Check definitions. See `EvalSuite.Checks`. Left out or null, the suite has no checks.")]
+    public JsonElement? Checks { get; init; }
 }
 
 [Description("Input shape of an eval case (in a request).")]

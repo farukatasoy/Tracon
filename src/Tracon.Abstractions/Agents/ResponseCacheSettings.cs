@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
 /// <summary>Response caching settings for a <see cref="ModelBinding"/>.</summary>
@@ -26,5 +28,6 @@ public sealed record ResponseCacheSettings
     /// this bounds both risks to a limited window instead of leaving a cached
     /// response valid forever.
     /// </remarks>
+    [DefaultValue(typeof(TimeSpan), "00:10:00")]
     public TimeSpan Lifetime { get; init; } = TimeSpan.FromMinutes(10);
 }

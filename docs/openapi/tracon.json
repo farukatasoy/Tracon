@@ -2014,6 +2014,16 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -2578,6 +2588,16 @@
                   "items": {
                     "$ref": "#/components/schemas/WorkflowPendingRequest"
                   }
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -6026,6 +6046,16 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -6929,6 +6959,16 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -6962,6 +7002,16 @@
                   "items": {
                     "$ref": "#/components/schemas/McpPromptSummary"
                   }
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -7015,6 +7065,16 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -7048,6 +7108,16 @@
                   "items": {
                     "$ref": "#/components/schemas/McpResourceSummary"
                   }
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -7092,6 +7162,16 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -7122,6 +7202,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/McpOAuthStartResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -8379,6 +8469,7 @@
           },
           "metadata": {
             "type": "object",
+            "additionalProperties": {},
             "description": "Gets free-form, application-specific metadata."
           },
           "parameters": {
@@ -8554,7 +8645,11 @@
             ]
           },
           "metadata": {
-            "type": "object",
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {},
             "description": "Free-form, application-specific metadata. See \u0060AgentDefinition.Metadata\u0060."
           },
           "parameters": {
@@ -8804,7 +8899,7 @@
             "$ref": "#/components/schemas/AgentResponseFormatKind"
           },
           "schema": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "null"
               },
@@ -9008,7 +9103,8 @@
           },
           "metadata": {
             "type": "object",
-            "description": "Application-specific free-form metadata."
+            "additionalProperties": {},
+            "description": "Application-specific free-form metadata. Reads as the empty dictionary when it was never set."
           },
           "enabled": {
             "type": "boolean",
@@ -9103,12 +9199,17 @@
             "description": "Allowed-tools declaration from the MAF frontmatter."
           },
           "metadata": {
-            "type": "object",
-            "description": "Application-specific metadata."
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {},
+            "description": "Application-specific metadata. A null value is the empty dictionary."
           },
           "enabled": {
             "type": "boolean",
-            "description": "Whether the skill is enabled."
+            "description": "Whether the skill is enabled.",
+            "default": true
           },
           "resources": {
             "type": "array",
@@ -9147,7 +9248,8 @@
           },
           "mediaType": {
             "type": "string",
-            "description": "The resource media type."
+            "description": "The resource media type.",
+            "default": "text/plain"
           },
           "content": {
             "type": "string",
@@ -10837,7 +10939,8 @@
               "string"
             ],
             "description": "Gets the minimum completed run count that both the canary and control\nvariants must reach before a decision is made.",
-            "format": "int32"
+            "format": "int32",
+            "default": 20
           },
           "rampSteps": {
             "type": "array",
@@ -10854,7 +10957,8 @@
           "rampInterval": {
             "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
             "type": "string",
-            "description": "Gets the minimum time between steps."
+            "description": "Gets the minimum time between steps.",
+            "default": "01:00:00"
           }
         },
         "description": "Defines automatic rollback and gradual traffic-increase rules for an experiment canary variant."
@@ -11433,7 +11537,7 @@
             "description": "The JSON paths whose values differ between \u0060current\u0060 and \u0060incoming\u0060."
           },
           "current": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "null"
               },
@@ -11444,7 +11548,7 @@
             ]
           },
           "incoming": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "null"
               },
@@ -11850,8 +11954,7 @@
         "enum": [
           "FailedRun",
           "NegativeScore",
-          "ReferenceRun",
-          null
+          "ReferenceRun"
         ]
       },
       "EvalExpectedToolCall": {
@@ -11869,6 +11972,7 @@
               "null",
               "object"
             ],
+            "additionalProperties": {},
             "description": "The arguments the call must carry, or \u0060null\u0060 to check only\nthat the tool was called."
           }
         },
@@ -12217,8 +12321,15 @@
             "description": "Name of the agent this suite measures."
           },
           "checks": {
-            "description": "Check definitions. See \u0060EvalSuite.Checks\u0060.",
-            "$ref": "#/components/schemas/JsonElement"
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Check definitions. See \u0060EvalSuite.Checks\u0060. Left out or null, the suite has no checks.",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         },
         "description": "Request to create/update an eval suite."
@@ -12782,8 +12893,7 @@
         "enum": [
           "WebSearch",
           "CodeInterpreter",
-          "FileSearch",
-          null
+          "FileSearch"
         ],
         "description": "The kind of a tool the model provider runs on its own side: a web search, a code interpreter or a file search."
       },
@@ -12986,7 +13096,8 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Gets whether the trigger accepts requests. Default \u0060true\u0060."
+            "description": "Gets whether the trigger accepts requests. Default \u0060true\u0060.",
+            "default": true
           }
         },
         "description": "The request body for creating or replacing an inbound trigger."
@@ -13469,7 +13580,8 @@
           },
           "timeZone": {
             "type": "string",
-            "description": "Time zone the \u0060Cron\u0060 expression is interpreted in."
+            "description": "Time zone the \u0060Cron\u0060 expression is interpreted in.",
+            "default": "UTC"
           },
           "lane": {
             "type": [
@@ -13479,12 +13591,20 @@
             "description": "The lane the jobs this schedule produces run in. See\n\u0060JobLanes\u0060. Left empty, the jobs run in \u0060JobLanes.Default\u0060\n(or whatever \u0060TraconSchedulingOptions.LaneByHandlerKey\u0060 maps\nHandlerKey to)."
           },
           "payload": {
-            "description": "Input set or parameters.",
-            "$ref": "#/components/schemas/JsonElement"
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Input set or parameters. Left out or null, the schedule has no payload.",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "enabled": {
             "type": "boolean",
-            "description": "Whether the schedule is enabled."
+            "description": "Whether the schedule is enabled.",
+            "default": true
           }
         },
         "description": "Request to create/update a schedule."
@@ -13504,7 +13624,7 @@
         "type": "object",
         "properties": {
           "payload": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "null"
               },
@@ -14208,11 +14328,13 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Whether the server is enabled."
+            "description": "Whether the server is enabled.",
+            "default": true
           },
           "requiresApproval": {
             "type": "boolean",
-            "description": "Whether this server\u0027s tools require approval. Default \u0060true\u0060."
+            "description": "Whether this server\u0027s tools require approval. Default \u0060true\u0060.",
+            "default": true
           },
           "oauthEnabled": {
             "type": "boolean",
@@ -14353,7 +14475,11 @@
             "description": "Gets the reasoning effort level. Models that support it use the value; the other\nproviders ignore it."
           },
           "providerSettings": {
-            "type": "object",
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {},
             "description": "Gets the provider-specific extra settings. A key has the form \u0060{provider}.{setting}\u0060."
           },
           "responseFormat": {
@@ -15168,7 +15294,8 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Gets whether the rule is enabled."
+            "description": "Gets whether the rule is enabled.",
+            "default": true
           }
         },
         "description": "Request body for saving a quota rule."
@@ -15299,7 +15426,8 @@
           "lifetime": {
             "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
             "type": "string",
-            "description": "Gets how long a cached response stays valid."
+            "description": "Gets how long a cached response stays valid.",
+            "default": "00:10:00"
           }
         },
         "description": "Response caching settings for a ModelBinding."
@@ -15425,7 +15553,8 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Whether the policy is enabled."
+            "description": "Whether the policy is enabled.",
+            "default": true
           }
         },
         "description": "Request body for saving a retention policy."
@@ -15951,8 +16080,7 @@
           "StructuredResponseInvalid",
           "LoopUnsatisfied",
           "OutputTruncated",
-          "TenantProviderRefused",
-          null
+          "TenantProviderRefused"
         ]
       },
       "RunErrorCluster": {
@@ -16606,6 +16734,7 @@
           },
           "toolMode": {
             "description": "The tool behavior. Defaults to ReplayToolMode.ReplayTools.",
+            "default": "ReplayTools",
             "$ref": "#/components/schemas/ReplayToolMode"
           },
           "parameters": {
@@ -16856,8 +16985,7 @@
         "enum": [
           "Hour",
           "Day",
-          "Week",
-          null
+          "Week"
         ]
       },
       "RunScoreBucketAggregate": {
@@ -16939,8 +17067,7 @@
         "enum": [
           "Any",
           "Run",
-          "Message",
-          null
+          "Message"
         ]
       },
       "RunStatistics": {
@@ -17717,7 +17844,7 @@
             "format": "date-time"
           },
           "messages": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "null"
               },
@@ -18379,8 +18506,7 @@
       "TimeSeriesBucket": {
         "enum": [
           "Hour",
-          "Day",
-          null
+          "Day"
         ]
       },
       "TimeSeriesPoint": {
@@ -19063,6 +19189,7 @@
               "null",
               "object"
             ],
+            "additionalProperties": {},
             "description": "The values of the requested fields, by field name. Meaningful only with\nToolInputAction.Accept; sending it with another action is rejected."
           }
         },
@@ -19924,8 +20051,7 @@
           "Error",
           "ServerShutdown",
           "Abandoned",
-          "Provider",
-          null
+          "Provider"
         ]
       },
       "VoiceSessionRecord": {
@@ -20191,7 +20317,8 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Whether the subscription is enabled."
+            "description": "Whether the subscription is enabled.",
+            "default": true
           }
         },
         "description": "The request body for saving a webhook subscription."
@@ -20668,7 +20795,7 @@
             "description": "The display name of the CLR type the function returns."
           },
           "settingsSchema": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "null"
               },
@@ -20817,8 +20944,7 @@
           "Concurrent",
           "Handoff",
           "GroupChat",
-          "Magentic",
-          null
+          "Magentic"
         ]
       },
       "WorkflowNodeKind": {
@@ -20848,7 +20974,7 @@
             "$ref": "#/components/schemas/WorkflowNodeKind"
           },
           "settings": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "null"
               },
@@ -21003,7 +21129,7 @@
             "description": "Text response; in a plan approval this is the correction instruction, in a tool approval the\nreason the model reads."
           },
           "data": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "null"
               },

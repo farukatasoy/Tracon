@@ -615,6 +615,7 @@ internal sealed record WebhookSaveRequest
     public IReadOnlyDictionary<string, string>? HeaderConfigurationKeys { get; init; }
 
     [Description("Whether the subscription is enabled.")]
+    [DefaultValue(true)]
     public bool Enabled { get; init; } = true;
 }
 

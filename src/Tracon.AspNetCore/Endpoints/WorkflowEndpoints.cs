@@ -100,6 +100,7 @@ internal static class WorkflowEndpoints
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
             .WithName("TraconGetWorkflowGraph")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Workflows")
             .WithSummary("Returns the compiled graph of the workflow.")
             .WithDescription(
@@ -359,6 +360,7 @@ internal static class WorkflowEndpoints
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("TraconListWorkflowRequests")
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithTags("Tracon", "Workflows")
             .WithSummary("Lists a run's pending human input requests.")
             .WithDescription(

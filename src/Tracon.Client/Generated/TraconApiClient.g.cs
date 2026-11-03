@@ -4389,6 +4389,16 @@ namespace Tracon.Client.Generated
                             return objectResponse_.Object;
                         }
                         else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -5640,6 +5650,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -13272,6 +13292,16 @@ namespace Tracon.Client.Generated
                             return objectResponse_.Object;
                         }
                         else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -15133,6 +15163,16 @@ namespace Tracon.Client.Generated
                             return objectResponse_.Object;
                         }
                         else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -15213,6 +15253,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -15305,6 +15355,16 @@ namespace Tracon.Client.Generated
                             return objectResponse_.Object;
                         }
                         else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -15385,6 +15445,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -15475,6 +15545,16 @@ namespace Tracon.Client.Generated
                             return objectResponse_.Object;
                         }
                         else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -15556,6 +15636,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -18135,7 +18225,7 @@ namespace Tracon.Client.Generated
         /// Gets free-form, application-specific metadata.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("metadata")]
-        public object Metadata { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, object> Metadata { get; set; } = new System.Collections.Generic.Dictionary<string, object>();
 
         /// <summary>
         /// Gets the schema of named placeholders (`{{name}}`) this definition's
@@ -18293,7 +18383,7 @@ namespace Tracon.Client.Generated
         /// Free-form, application-specific metadata. See `AgentDefinition.Metadata`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("metadata")]
-        public object Metadata { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, object>? Metadata { get; set; } = default!;
 
         /// <summary>
         /// The parameter schema. See IReadOnlyList&amp;lt;AgentParameter&amp;gt; AgentDefinition.Parameters.
@@ -18764,10 +18854,10 @@ namespace Tracon.Client.Generated
         public string? AllowedTools { get; set; } = default!;
 
         /// <summary>
-        /// Application-specific free-form metadata.
+        /// Application-specific free-form metadata. Reads as the empty dictionary when it was never set.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("metadata")]
-        public object Metadata { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, object> Metadata { get; set; } = new System.Collections.Generic.Dictionary<string, object>();
 
         /// <summary>
         /// Whether the skill is included in compilation.
@@ -18866,16 +18956,16 @@ namespace Tracon.Client.Generated
         public string? AllowedTools { get; set; } = default!;
 
         /// <summary>
-        /// Application-specific metadata.
+        /// Application-specific metadata. A null value is the empty dictionary.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("metadata")]
-        public object Metadata { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, object>? Metadata { get; set; } = default!;
 
         /// <summary>
         /// Whether the skill is enabled.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = default!;
+        public bool Enabled { get; set; } = true;
 
         /// <summary>
         /// Skill resources.
@@ -18914,7 +19004,7 @@ namespace Tracon.Client.Generated
         /// The resource media type.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("mediaType")]
-        public string MediaType { get; set; } = default!;
+        public string MediaType { get; set; } = "text/plain";
 
         /// <summary>
         /// The resource's text content.
@@ -20248,7 +20338,7 @@ namespace Tracon.Client.Generated
         /// <br/>variants must reach before a decision is made.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("minSampleSize")]
-        public int MinSampleSize { get; set; } = default!;
+        public int MinSampleSize { get; set; } = 20;
 
         /// <summary>
         /// Gets the canary-weight steps that increase over time, for example
@@ -20263,7 +20353,7 @@ namespace Tracon.Client.Generated
         /// Gets the minimum time between steps.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("rampInterval")]
-        public string RampInterval { get; set; } = default!;
+        public string RampInterval { get; set; } = "01:00:00";
 
     }
 
@@ -21191,7 +21281,7 @@ namespace Tracon.Client.Generated
         /// <br/>that the tool was called.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("arguments")]
-        public object? Arguments { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, object>? Arguments { get; set; } = default!;
 
     }
 
@@ -21521,10 +21611,10 @@ namespace Tracon.Client.Generated
         public string AgentName { get; set; } = default!;
 
         /// <summary>
-        /// Check definitions. See `EvalSuite.Checks`.
+        /// Check definitions. See `EvalSuite.Checks`. Left out or null, the suite has no checks.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("checks")]
-        public System.Text.Json.JsonElement Checks { get; set; } = default!;
+        public System.Text.Json.JsonElement? Checks { get; set; } = default!;
 
     }
 
@@ -22284,7 +22374,7 @@ namespace Tracon.Client.Generated
         /// Gets whether the trigger accepts requests. Default `true`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = default!;
+        public bool Enabled { get; set; } = true;
 
     }
 
@@ -22738,7 +22828,7 @@ namespace Tracon.Client.Generated
         /// Time zone the `Cron` expression is interpreted in.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("timeZone")]
-        public string TimeZone { get; set; } = default!;
+        public string TimeZone { get; set; } = "UTC";
 
         /// <summary>
         /// The lane the jobs this schedule produces run in. See
@@ -22750,16 +22840,16 @@ namespace Tracon.Client.Generated
         public string? Lane { get; set; } = default!;
 
         /// <summary>
-        /// Input set or parameters.
+        /// Input set or parameters. Left out or null, the schedule has no payload.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
-        public System.Text.Json.JsonElement Payload { get; set; } = default!;
+        public System.Text.Json.JsonElement? Payload { get; set; } = default!;
 
         /// <summary>
         /// Whether the schedule is enabled.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = default!;
+        public bool Enabled { get; set; } = true;
 
     }
 
@@ -23568,13 +23658,13 @@ namespace Tracon.Client.Generated
         /// Whether the server is enabled.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = default!;
+        public bool Enabled { get; set; } = true;
 
         /// <summary>
         /// Whether this server's tools require approval. Default `true`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("requiresApproval")]
-        public bool RequiresApproval { get; set; } = default!;
+        public bool RequiresApproval { get; set; } = true;
 
         /// <summary>
         /// Whether OAuth authentication is enabled. While on,
@@ -23744,7 +23834,7 @@ namespace Tracon.Client.Generated
         /// Gets the provider-specific extra settings. A key has the form `{provider}.{setting}`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("providerSettings")]
-        public object ProviderSettings { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, object>? ProviderSettings { get; set; } = default!;
 
         /// <summary>
         /// Gets the requested output format. When it is `null` today's
@@ -24504,7 +24594,7 @@ namespace Tracon.Client.Generated
         /// Gets whether the rule is enabled.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = default!;
+        public bool Enabled { get; set; } = true;
 
     }
 
@@ -24648,7 +24738,7 @@ namespace Tracon.Client.Generated
         /// Gets how long a cached response stays valid.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("lifetime")]
-        public string Lifetime { get; set; } = default!;
+        public string Lifetime { get; set; } = "00:10:00";
 
     }
 
@@ -24787,7 +24877,7 @@ namespace Tracon.Client.Generated
         /// Whether the policy is enabled.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = default!;
+        public bool Enabled { get; set; } = true;
 
     }
 
@@ -25858,7 +25948,7 @@ namespace Tracon.Client.Generated
         /// The tool behavior. Defaults to ReplayToolMode.ReplayTools.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("toolMode")]
-        public ReplayToolMode ToolMode { get; set; } = default!;
+        public ReplayToolMode ToolMode { get; set; } = ReplayToolMode.ReplayTools;
 
         /// <summary>
         /// Parameter values laid over the ones the source run was bound with.
@@ -28173,7 +28263,7 @@ namespace Tracon.Client.Generated
         /// <br/>ToolInputAction.Accept; sending it with another action is rejected.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("content")]
-        public object? Content { get; set; } = default!;
+        public System.Collections.Generic.IDictionary<string, object>? Content { get; set; } = default!;
 
     }
 
@@ -29266,7 +29356,7 @@ namespace Tracon.Client.Generated
         /// Whether the subscription is enabled.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = default!;
+        public bool Enabled { get; set; } = true;
 
     }
 

@@ -61,9 +61,11 @@ public sealed record McpServerRequest
     public IReadOnlyDictionary<string, string>? HeaderConfigurationKeys { get; init; }
 
     /// <summary>Whether the server is enabled.</summary>
+    [DefaultValue(true)]
     public bool Enabled { get; init; } = true;
 
     /// <summary>Whether this server's tools require approval. Default <see langword="true"/>.</summary>
+    [DefaultValue(true)]
     public bool RequiresApproval { get; init; } = true;
 
     /// <summary>

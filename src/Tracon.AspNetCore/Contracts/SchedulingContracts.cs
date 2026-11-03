@@ -30,6 +30,7 @@ internal sealed record JobScheduleSaveRequest
     public string? Cron { get; init; }
 
     [Description("Time zone the `Cron` expression is interpreted in.")]
+    [DefaultValue("UTC")]
     public string TimeZone { get; init; } = "UTC";
 
     [Description(
@@ -39,10 +40,11 @@ internal sealed record JobScheduleSaveRequest
         "HandlerKey to).")]
     public string? Lane { get; init; }
 
-    [Description("Input set or parameters.")]
-    public JsonElement Payload { get; init; }
+    [Description("Input set or parameters. Left out or null, the schedule has no payload.")]
+    public JsonElement? Payload { get; init; }
 
     [Description("Whether the schedule is enabled.")]
+    [DefaultValue(true)]
     public bool Enabled { get; init; } = true;
 }
 

@@ -63,6 +63,11 @@ export function generateSchema(outputPath) {
         // migrated call sites already spell today.
         '--root-types',
         '--root-types-no-schema-prefix',
+        // A property that carries `default` in the document is a request member the server fills in
+        // when it is left out. The generator's own behaviour is to type such a member as required
+        // (the right reading for a response, the wrong one for a request), which would make every
+        // caller write `enabled: true` again by hand. The `@default` note stays in the doc comment.
+        '--default-non-nullable=false',
       ],
       { stdio: 'inherit' },
     );

@@ -271,7 +271,8 @@ internal static class SchedulingEndpoints
         // A workflow or agent batch payload may be an attribution
         // envelope. One that is malformed, or breaks a RunLabels limit, is
         // refused here rather than run without its attribution.
-        var content = JobPayload.Read(request.HandlerKey, request.Payload);
+        var payload = request.Payload ?? default;
+        var content = JobPayload.Read(request.HandlerKey, payload);
 
         if (content.Problem is { } payloadProblem)
         {
@@ -309,7 +310,7 @@ internal static class SchedulingEndpoints
             TargetName = request.TargetName,
             Cron = request.Cron,
             TimeZone = request.TimeZone,
-            Payload = request.Payload,
+            Payload = payload,
             Enabled = request.Enabled,
             NextRunAt = nextRunAt,
             LastRunAt = existing?.LastRunAt,

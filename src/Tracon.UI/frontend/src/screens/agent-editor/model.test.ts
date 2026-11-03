@@ -49,7 +49,7 @@ describe('definition round trip', () => {
       maxOutputTokens: null,
       topP: null,
       fallbacks: [],
-      providerSettings: { 'anthropic.promptCaching': true } as never,
+      providerSettings: { 'anthropic.promptCaching': true },
       responseCache: { enabled: true, lifetime: '00:05:00' },
       seed: 42,
       topK: 40,
