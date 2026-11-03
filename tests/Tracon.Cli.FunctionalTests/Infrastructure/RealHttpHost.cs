@@ -43,10 +43,14 @@ internal sealed class RealHttpHost : IAsyncDisposable
     /// provider or a code-defined agent (an eval suite needs a real agent to
     /// measure).
     /// </param>
+    /// <param name="configureEndpoints">
+    /// Changes the endpoint options, for example to require a bearer token.
+    /// </param>
     public static async Task<RealHttpHost> StartAsync(
         string prefix = "tracon",
         Action<IServiceCollection>? configureServices = null,
-        Action<ITraconBuilder>? configureTracon = null)
+        Action<ITraconBuilder>? configureTracon = null,
+        Action<TraconEndpointOptions>? configureEndpoints = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -58,7 +62,7 @@ internal sealed class RealHttpHost : IAsyncDisposable
         configureTracon?.Invoke(tracon);
 
         var app = builder.Build();
-        app.MapTracon('/' + prefix.Trim('/'));
+        app.MapTracon('/' + prefix.Trim('/'), configureEndpoints);
 
         await app.StartAsync().ConfigureAwait(false);
 
