@@ -154,6 +154,29 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
+    public async Task Mcp_server_saved_by_a_caller_that_names_only_the_endpoint_has_its_approval_gate_on_and_is_enabled()
+    {
+        // A caller that does not generate its types from the published document (curl, a hand-written client, a
+        // client in another language) leaves the two members out. The server's own start value decides what is
+        // stored, and for the approval gate the unsafe value is the one a missing member must never produce.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var saved = await host.Client.PutAsJsonAsync(
+            new Uri("/tracon/api/mcp-servers/endpoint-only", UriKind.Relative),
+            new { endpoint = "https://mcp.example.com/mcp" });
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var servers = await host.Client.GetFromJsonAsync<List<McpServerDefinition>>(
+            new Uri("/tracon/api/mcp-servers", UriKind.Relative));
+
+        var server = servers.ShouldNotBeNull().ShouldHaveSingleItem();
+
+        server.RequiresApproval.ShouldBeTrue();
+        server.Enabled.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Mcp_response_carries_no_secret()
     {
         // The server record never carries the authentication VALUE; it

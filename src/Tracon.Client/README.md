@@ -86,7 +86,11 @@ await client.TraconSaveMcpServerAsync("docs", new McpServerRequest { Endpoint = 
 A free-form member (`ModelBinding.ProviderSettings`, the `Metadata` of an agent or a
 skill, `EvalSuiteSaveRequest.Checks`, `JobScheduleSaveRequest.Payload`) is nullable and
 starts unset: the server reads an unset or `null` value as empty. A dictionary is an
-`IDictionary<string, object>?`, and `Checks` and `Payload` are `JsonElement?`.
+`IDictionary<string, object>?`, and `Checks` and `Payload` are `JsonElement?`. The client
+writes a dictionary value only if its type is one its JSON context knows: booleans,
+integers, `double`, `string`, `JsonElement`, nested dictionaries and `string[]`. A value of
+another type, such as `decimal` or a `List<object>`, throws `NotSupportedException` before
+the request is sent; pass it as a `JsonElement`.
 
 A member the server fills in when it is left out starts with that value in the type, so
 the call means the same thing from every client. The MCP server above is registered

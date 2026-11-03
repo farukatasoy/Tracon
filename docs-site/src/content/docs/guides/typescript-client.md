@@ -85,9 +85,11 @@ await client.POST('/api/agents', {
 });
 ```
 
-A free-form member — a model's `providerSettings`, the `metadata` of an agent or a skill,
-an eval suite's `checks`, a schedule's `payload` — takes a string-keyed object, `null`, or
-nothing at all. The server reads `null` and a missing member the same way: as empty.
+A free-form member — a model's `providerSettings`, the `metadata` of an agent or a skill —
+takes a string-keyed object, `null`, or nothing at all. An eval suite's `checks` takes an
+array of checks, and a schedule's `payload` takes any JSON value (usually an array of
+items); both also take `null` or nothing. The server reads `null` and a missing member the
+same way: as empty.
 
 ```ts
 await client.POST('/api/agents', {

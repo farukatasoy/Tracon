@@ -47,8 +47,9 @@ await client.POST('/api/agents', {
 });
 ```
 
-A free-form member (`providerSettings`, `metadata`, `checks`, `payload`) takes a
-string-keyed object, `null`, or nothing; the server reads `null` as empty. A member the
+A free-form member takes `null` or nothing, and the server reads both as empty:
+`providerSettings` and `metadata` take a string-keyed object, `checks` takes an array of
+checks, and `payload` takes any JSON value. A member the
 server fills in when it is left out (an MCP server's `enabled` and `requiresApproval`
 are both `true`) stays optional in the type, and its `@default` note says what the server
 applies.
