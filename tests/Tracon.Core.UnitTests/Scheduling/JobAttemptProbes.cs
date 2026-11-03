@@ -200,6 +200,9 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
     /// <summary>Gets or sets a step that sees every job the store leases.</summary>
     public Action<JobRecord>? Leased { get; set; }
 
+    /// <summary>Gets or sets a step that runs before every lease call and sees the call's token.</summary>
+    public Func<CancellationToken, Task>? BeforeLease { get; set; }
+
     /// <inheritdoc />
     public ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
     {
@@ -220,6 +223,11 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
     /// <inheritdoc />
     public async ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
     {
+        if (BeforeLease is { } before)
+        {
+            await before(cancellationToken).ConfigureAwait(false);
+        }
+
         var job = await inner.LeaseAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (job is not null)
