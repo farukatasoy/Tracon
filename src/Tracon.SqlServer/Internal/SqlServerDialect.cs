@@ -49,6 +49,17 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <summary>The transaction was chosen as the deadlock victim and rolled back.</summary>
     private const int DeadlockVictim = 1205;
 
+    /// <summary>Error numbers for a text that does not fit its column.</summary>
+    /// <remarks>
+    /// 2628 is the text of SQL Server 2019 and later at compatibility level 150, which names the column;
+    /// 8152 is the older text and the one still used when <c>VERBOSE_TRUNCATION_WARNINGS</c> is off. A consumer's
+    /// database can be at either level, so both count.
+    /// </remarks>
+    private static readonly int[] TextTooLong = [2628, 8152];
+
+    /// <summary>Error number for an arithmetic overflow while converting a number to the column's type.</summary>
+    private const int NumberOutOfRange = 8115;
+
     /// <summary>The resource name prefix for the migration lock.</summary>
     /// <remarks>
     /// The value is specific to Tracon and <strong>must not change</strong>.
@@ -210,6 +221,14 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <inheritdoc />
     public override bool IsDeadlock(Exception exception)
         => exception is SqlException { Number: DeadlockVictim };
+
+    /// <inheritdoc />
+    public override bool IsTextTooLong(Exception exception)
+        => exception is SqlException sql && Array.IndexOf(TextTooLong, sql.Number) >= 0;
+
+    /// <inheritdoc />
+    public override bool IsNumberOutOfRange(Exception exception)
+        => exception is SqlException { Number: NumberOutOfRange };
 
     /// <inheritdoc />
     /// <remarks>Every upsert in <see cref="SqlServerQueries"/> is a two-statement text.</remarks>

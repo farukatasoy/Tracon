@@ -103,6 +103,7 @@ public sealed class SqlProviderRegistrationParityTests
         [typeof(IMigrationApplier)] = "`tracon migrate` resolves it with GetRequiredService",
         [typeof(IStatePreflightReader)] = "`tracon state-check` resolves it with GetRequiredService",
         [typeof(ISqlPersistenceDiagnostics)] = "/api/diagnostics and the 503 store-unavailable answer read it",
+        [typeof(IStoreDataFaultClassifier)] = "the 400 answer for a value the store refused reads it",
     };
 
     /// <summary>
@@ -154,6 +155,7 @@ public sealed class SqlProviderRegistrationParityTests
         [typeof(IMigrationApplier)] = "provider-only seam: there is no database to migrate without a provider",
         [typeof(IStatePreflightReader)] = "provider-only seam: there is no stored state without a provider",
         [typeof(ISqlPersistenceDiagnostics)] = "provider-only seam: GetService null means 'no SQL provider'",
+        [typeof(IStoreDataFaultClassifier)] = "provider-only seam: GetService null means 'no column to overflow'",
     };
 
     /// <summary>

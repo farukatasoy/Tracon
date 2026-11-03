@@ -28,6 +28,15 @@ public sealed class StoreFailureTests
         => StoreFailure.Is(new ProviderException()).ShouldBeTrue();
 
     [Fact]
+    public void A_value_the_store_refused_is_still_a_store_failure()
+    {
+        // The two questions are different: this one asks whether the failure came from the store at all, and a refused text
+        // did. The host asks the provider's classifier whether the store refused the value; an answer of "no" here would
+        // send the catalog, the decorator chain and the start-up guard down the wrong branch.
+        StoreFailure.Is(new ProviderException("String or binary data would be truncated.")).ShouldBeTrue();
+    }
+
+    [Fact]
     public void A_connection_pool_that_ran_dry_is_a_store_failure()
         => StoreFailure.Is(new InvalidOperationException(SqlClientPoolTimeout)).ShouldBeTrue();
 
@@ -86,8 +95,8 @@ public sealed class StoreFailureTests
 
     private sealed class ProviderException : DbException
     {
-        public ProviderException()
-            : base("injected")
+        public ProviderException(string message = "injected")
+            : base(message)
         {
         }
     }

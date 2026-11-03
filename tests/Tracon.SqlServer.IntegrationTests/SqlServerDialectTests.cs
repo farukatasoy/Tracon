@@ -242,6 +242,10 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
 
             new SqlServerDialect("dbo").IsDeadlock(victim).ShouldBeTrue();
 
+            // A deadlock is the server answering and the request being worth repeating; it is not a value the server refused.
+            new SqlServerDialect("dbo").IsTextTooLong(victim).ShouldBeFalse();
+            new SqlServerDialect("dbo").IsNumberOutOfRange(victim).ShouldBeFalse();
+
             await RollbackAsync(firstTx);
             await RollbackAsync(secondTx);
         }

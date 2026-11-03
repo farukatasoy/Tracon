@@ -33,6 +33,14 @@ builder.AddTracon()
 > **The connection string is a secret and is not written to a file.** Use
 > `dotnet user-secrets`, an environment variable, or a secret manager.
 
+## Text length
+
+The identifier columns (names, tenant slugs, keys, display names) are `nvarchar(200)`, which holds
+200 UTF-16 code units. A request that stores a longer value in a field it does not bound answers
+`400` with the title `Value too long for the store`; the reply names no field, column or value.
+PostgreSQL and SQLite keep text of any length and take the same request, so check the length in your
+own client if the code runs on more than one store.
+
 ## Sharing a connection pool
 
 Give `DataSource` instead of `ConnectionString` when your host already owns a

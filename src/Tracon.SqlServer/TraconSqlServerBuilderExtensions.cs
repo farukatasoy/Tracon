@@ -140,6 +140,13 @@ public static class TraconSqlServerBuilderExtensions
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
+        // The host answers a 400 instead of a 503 when the store rejected a value
+        // (a text over its column, a number out of its range); only the provider
+        // knows its own error numbers.
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IStoreDataFaultClassifier>(
+            static provider => new SqlStoreDataFaultClassifier(
+                provider.GetRequiredService<SqlStoreContext>().Dialect)));
+
         // Same reasoning, for the `tracon migrate` CLI command:
         // MigrationRunner is linked-source, so a consumer that
         // references more than one provider sees ambiguous types with the

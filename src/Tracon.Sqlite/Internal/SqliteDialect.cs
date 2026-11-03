@@ -314,6 +314,14 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             && Array.IndexOf(WriteLockConflicts, sql.SqliteErrorCode) >= 0;
 
     /// <inheritdoc />
+    /// <remarks>Every column is an untyped <c>TEXT</c> without a length, so SQLite never refuses a text for its size.</remarks>
+    public override bool IsTextTooLong(Exception exception) => false;
+
+    /// <inheritdoc />
+    /// <remarks>SQLite stores a number of any size in an untyped column, so it never refuses one for its range.</remarks>
+    public override bool IsNumberOutOfRange(Exception exception) => false;
+
+    /// <inheritdoc />
     public override bool SerializesWriters => true;
 
     /// <inheritdoc />

@@ -33,6 +33,12 @@ internal sealed class PostgresDialect : SqlDialect
     /// <summary>SQLSTATE code for an invalid regular expression.</summary>
     private const string InvalidRegularExpression = "2201B";
 
+    /// <summary><c>string_data_right_truncation</c>: a text does not fit a <c>varchar(n)</c> or <c>char(n)</c> column.</summary>
+    private const string StringDataRightTruncation = "22001";
+
+    /// <summary><c>numeric_value_out_of_range</c>: a number does not fit the precision of the column.</summary>
+    private const string NumericValueOutOfRange = "22003";
+
     private readonly PostgresQueries _queries;
     private readonly long _advisoryLockKey;
 
@@ -141,6 +147,18 @@ internal sealed class PostgresDialect : SqlDialect
     /// <inheritdoc />
     public override bool IsDeadlock(Exception exception)
         => exception is PostgresException { SqlState: DeadlockDetected };
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Text columns are <c>text</c> and take any length; only the two bounded columns (a <c>varchar(128)</c> and a
+    /// <c>char(64)</c>) can refuse one.
+    /// </remarks>
+    public override bool IsTextTooLong(Exception exception)
+        => exception is PostgresException { SqlState: StringDataRightTruncation };
+
+    /// <inheritdoc />
+    public override bool IsNumberOutOfRange(Exception exception)
+        => exception is PostgresException { SqlState: NumericValueOutOfRange };
 
     /// <inheritdoc />
     public override bool IsInvalidRegexError(Exception exception)

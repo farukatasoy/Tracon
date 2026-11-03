@@ -197,6 +197,32 @@ internal abstract class SqlDialect
     /// </remarks>
     public abstract bool IsDeadlock(Exception exception);
 
+    /// <summary>Determines whether the exception is the server refusing a text that does not fit its column.</summary>
+    /// <param name="exception">The caught exception.</param>
+    /// <returns><see langword="true"/> when it is.</returns>
+    /// <remarks>
+    /// <para>
+    /// The server ANSWERED: the caller's value is what it rejected, and sending the same request again gets the same
+    /// answer. That is the opposite of a deadlock (<see cref="IsDeadlock"/>) and of a connection that never opened, which
+    /// is why the host tells it apart from them.
+    /// </para>
+    /// <para>
+    /// SQL Server reports error 2628 (SQL Server 2019 and later at compatibility level 150) or 8152 (the older text, also
+    /// used when <c>VERBOSE_TRUNCATION_WARNINGS</c> is off); PostgreSQL gives SQLSTATE <c>22001</c>. SQLite keeps every text
+    /// in a column without a length and never refuses one.
+    /// </para>
+    /// </remarks>
+    public abstract bool IsTextTooLong(Exception exception);
+
+    /// <summary>Determines whether the exception is the server refusing a number that does not fit its column.</summary>
+    /// <param name="exception">The caught exception.</param>
+    /// <returns><see langword="true"/> when it is.</returns>
+    /// <remarks>
+    /// SQL Server reports error 8115 (arithmetic overflow) and PostgreSQL gives SQLSTATE <c>22003</c>. SQLite stores a
+    /// number of any size in an untyped column and never refuses one.
+    /// </remarks>
+    public abstract bool IsNumberOutOfRange(Exception exception);
+
     /// <summary>
     /// Gets a value indicating whether this provider's upsert texts are more than one
     /// statement and therefore must run inside a transaction to be atomic.

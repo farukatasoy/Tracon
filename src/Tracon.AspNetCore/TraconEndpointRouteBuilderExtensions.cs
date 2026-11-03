@@ -156,6 +156,11 @@ public static class TraconEndpointRouteBuilderExtensions
         // while that middleware is unwinding.
         app.Use(StoreUnavailableProblemMiddleware.InvokeAsync);
 
+        // A store that ANSWERED and refused a value (a text over its column) is the caller's
+        // fault, not an outage. Attached INSIDE the mapping above so that the exception
+        // reaches it first; whatever it does not recognize still becomes the 503.
+        app.Use(StoreDataFaultProblemMiddleware.InvokeAsync);
+
         // A route segment that is only whitespace is not found; a store's argument guard must not turn it into a 500.
         app.Use(BlankRouteValueProblemMiddleware.InvokeAsync);
 

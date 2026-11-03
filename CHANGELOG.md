@@ -515,6 +515,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Two requests the in-memory and SQLite stores used to take are refused with `400`.** `PUT /api/quotas` with a `maxCost` of 10 000 000 000 or more (the money columns of the other stores cannot hold it), and `?bucket=` with a number that names no bucket.
 
+- **On SQL Server, a request that stores a value too long for its column answers `400`, no longer `503`.** The identifier columns of the schema hold 200 characters
+  (`nvarchar(200)`), and a longer `displayName`, `toolName`, `messageId`, suite `agentName` or `oauthClientId` made the server refuse the write. The host took every
+  provider exception for "the store could not answer" and returned `503 Persistence store unavailable`, so a client or proxy that retries a `503` sent the same value again and got
+  the same answer, and an operator saw a database alarm for a caller's input. The same applies to a number that does not fit its column (`400`, title `Number out of range for the
+  store`); PostgreSQL keeps text of any length, so a number is the only value it can refuse there. Each provider recognizes its own errors: SQL Server `2628` and `8152`
+  (text), `8115` (number); PostgreSQL SQLSTATE `22001` and `22003`. A connection that cannot be opened, a schema that is not current, a deadlock and a timeout stay `503`.
+  What to do:
+  - **Stop retrying `400` for this title.** The body is `application/problem+json` with the title `Value too long for the store`; sending the same request again gives the same answer.
+    A client, proxy or queue that retried these as `503` now sees a request it should not repeat. The `detail` and the log name no field, column, table or value: the provider's
+    message carries the value that was cut, and a value can be a secret pasted into the wrong field.
+  - **The stores still differ.** SQL Server counts UTF-16 code units (100 emoji fit in `nvarchar(200)`, 101 do not); PostgreSQL and SQLite keep text of any length, so the same request
+    succeeds there. Validate the length in your own client when the same code runs on both.
+  - **A store you wrote yourself is not covered.** Only the SQL Server, PostgreSQL and SQLite providers recognize a refused value; an exception from another provider is still `503`.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
@@ -849,6 +863,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A value too long for its SQL Server column answers `400 Value too long for the store`, not `503 Persistence store unavailable`.** `PUT /api/tenants/{slug}`, `POST /api/approvals/rules`, `POST /api/runs/{runId}/feedback`, `PUT /api/evals/{name}` and `PUT /api/mcp-servers/{name}` each stored a field their own validation did not bound. See *Upgrading*.
 - **An agent run no longer leaves a telemetry `Meter` behind.** With `Observability.Enabled` on (the default), every `IAgentCatalog.ResolveAsync` built a new Microsoft Agent Framework `OpenTelemetryAgent`, and nothing disposed it. Each one made a `Meter`, an `ActivitySource` and four histograms, and the runtime keeps a meter in a process-wide list until it is disposed, so the live managed heap grew by about 6.5–8.2 KiB per run with the tenant count fixed (three soak runs, 9 of 9 plateaus rising; the same load with `Observability.Enabled = false` stayed flat). The agent is no longer built per run. A pool of lanes lends one telemetry agent to a run for the length of the call and takes it back when the call or the stream ends, however it ends. A lane is built for what the chat client says about itself (provider, default model, host and port of the endpoint), because the framework's agent reads those once and writes them on every span and metric, so a run borrows a lane of its own identity. The number of meters is, for each such identity, the runs of that identity in flight at the busiest moment, and no longer the number of runs. The `invoke_agent` span, its attributes and the `gen_ai.client.*` metrics are unchanged.
 - **`?bucket=` with a number that names no member answers `400` instead of `500`.** `GET /api/evaluation/scores/summary` and `GET /api/stats/timeseries` accepted `?bucket=99` (the binder takes any integer for an enum) and a store `switch` threw once any row existed.
 - **`POST /api/runs/{runId}/replay` and `POST /api/sessions/{id}/branch` answer `400 Agent compilation failed` when the agent cannot be compiled** (a tenant provider binding whose configuration key has no value, an egress policy that no longer allows the provider), as running the agent does. Both answered `500`.

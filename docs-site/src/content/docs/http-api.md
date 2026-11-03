@@ -170,7 +170,7 @@ shows server text as it is.
 
 | Status | Means |
 |---|---|
-| `400` | The request is malformed or fails validation. A query parameter that names no member of its enum is `400` whether it is written as text or as a number (`?bucket=99`), and a value that is only whitespace is no value: a blank `model`, a blank OAuth `state` |
+| `400` | The request is malformed or fails validation. A query parameter that names no member of its enum is `400` whether it is written as text or as a number (`?bucket=99`), and a value that is only whitespace is no value: a blank `model`, a blank OAuth `state`. A value the store itself refuses is `400` too (below) |
 | `401` | Missing or invalid credentials |
 | `403` | Authenticated, but not allowed — including the loopback restriction |
 | `404` | Not found, or not yours. A path segment that is only whitespace is a name nobody can have saved, so it is `404` too |
@@ -209,6 +209,28 @@ the caller, and the two causes are told apart by `title`:
 
 The `detail` never carries the schema name or the statement text; that stays in
 your server's log, for the same reason a `502`'s detail is shallow.
+
+**A value the store refuses is a `400`, not a `503`.** SQL Server holds the identifier
+columns to 200 characters, and a longer value in a field the request does not bound
+(a tenant's `displayName`, an approval rule's `toolName`) is refused by the server
+itself. That is not an outage: the store answered, and the same request gets the same
+answer. The reply is `application/problem+json` with `400` and one of two titles:
+
+| `title` | What it means | Does retrying help |
+|---|---|---|
+| `Value too long for the store` | A text in the request is longer than its column | No — shorten the value |
+| `Number out of range for the store` | A number in the request does not fit its column | No — use a smaller number |
+
+The `detail` is fixed text. It names no field, column, table or value: the provider's
+own message carries the value that was cut, and that can be a secret pasted into the
+wrong field. Only your server's log records that the store refused something, and not
+what. A connection that cannot be opened, a schema that is not current, a deadlock and
+a timeout stay `503`.
+
+The stores do not agree on the longest text. SQL Server counts UTF-16 code units, so
+100 emoji fit in 200 and 101 do not; PostgreSQL and SQLite keep text of any length and
+take the same request. Check the length in your own client if the code runs on more than
+one of them.
 
 **A `502`'s `detail` is deliberately shallow** — it never carries the failing
 provider's own error text, only its exception type and a correlation id you can
