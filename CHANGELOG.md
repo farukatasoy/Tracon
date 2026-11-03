@@ -545,6 +545,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `AgentSkillResourceDefinition.MediaType`, `CanaryPolicy.MinSampleSize`, `CanaryPolicy.RampInterval` and `ResponseCacheSettings.Lifetime` start at `text/plain`, `20`, `01:00:00`
     and `00:10:00`. **This changes what a call that did not set the member records.** The one to check first is `TraconSaveMcpServerAsync`: a server saved with only an `Endpoint`
     used to be saved disabled with its approval gate off; it is saved enabled with the gate on. Set `RequiresApproval = false` on a server you meant to run without approval.
+    The other `Enabled` members change what the saved record does, so read the calls that leave `Enabled` out before you upgrade. Raw HTTP callers and `@tracon/client` never saw a
+    change: the server has always filled in `true`, and `enabled` was already optional in the TypeScript types. Only a `Tracon.Client` call that did not set the member sent `false`:
+    - **`TraconSaveRetentionPolicyAsync` saves an enabled policy, and that policy deletes data.** A policy with `MaxAgeDays` or `MaxRows` used to be saved disabled when `Enabled` was
+      left out; it now removes rows older than the limit (or beyond the row count) the next time the cleanup job runs, and `Archive = false` deletes them without a copy. A policy with
+      neither limit still removes nothing. Preview the target first, and set `Enabled = false` on a policy you want to keep paused.
+    - **`TraconSaveWebhookAsync` saves a subscription that delivers events.** Payloads leave for the subscription's URL from the first matching event. Set `Enabled = false` to register one without sending.
+    - **`TraconSaveInboundTriggerAsync` saves a trigger that accepts requests**, and each request it accepts starts its agent or workflow. `TraconSaveScheduleAsync` saves a schedule that dispatches on its cron
+      expression, and `TraconSaveQuotaAsync` saves a rule that refuses runs once its limit is reached (`429`).
   - **Nine operations list the `501` they have always answered when the capability is not registered**, so the client raises `TraconApiException<ProblemDetails>` instead of the bare
     `TraconApiException`: `TraconVoiceHealthAsync`, `TraconRefreshMcpToolsAsync`, `TraconListMcpPromptsAsync`, `TraconGetMcpPromptAsync`, `TraconListMcpResourcesAsync`,
     `TraconReadMcpResourceAsync`, `TraconStartMcpOAuthAsync`, `TraconGetWorkflowGraphAsync` and `TraconListWorkflowRequestsAsync`. A `catch (TraconApiException)` still catches it.
@@ -563,7 +571,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A request body that writes an enum member as a number no member has is refused with `400`.** The converter that reads the enum fields of a body took any integer (and any string of
   digits) as the enum with that number, whether or not a member had it. `POST /api/runs/{runId}/feedback` with `"kind": 0` answered `200` and stored a score of kind `0`
   (`RunScoreKind` starts at `1`); every list that held it then wrote `"kind": 0` where the document says one of four names. It answers `400` now, with the message that lists the members, like an
-  unknown name. A number that is a member (`"kind": 1`) is accepted as before, and a `[Flags]` enum still takes a combination. What to do: nothing, unless a client sends numbers; send the name.
+  unknown name. A number that is a member (`"kind": 1`) is accepted as before, a nullable enum (`sourceKind` of the eval-case promotion body) is refused the same way and still takes `null`, and a `[Flags]` enum still takes a combination. What to do: nothing, unless a client sends numbers; send the name.
 
 ### Added
 
