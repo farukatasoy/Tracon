@@ -7,6 +7,8 @@
     "src/Tracon.SqlServer/Migrations/0050_remove_authorization_configuration_key.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
     "src/Tracon.SqlServer/Migrations/0059_ordinal_key_collation.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
     "src/Tracon.SqlServer/Migrations/0060_ordinal_definition_names.sql": "558d88d60a0b9280f041bf1784e75d2289187d55",
-    "src/Tracon.SqlServer/Migrations/0061_ordinal_identity_columns.sql": "f18d51f66c08fd294eb9f41b8465d6f7b8664c8d"
+    "src/Tracon.SqlServer/Migrations/0061_ordinal_identity_columns.sql": "f18d51f66c08fd294eb9f41b8465d6f7b8664c8d",
+    "src/Tracon.Sqlite/Migrations/0058_decimal_columns_as_text.sql": "1dfe0adc010c83a96327ba62204df14f76b30633",
+    "src/Tracon.Sqlite/MigrationsViews/0003_read_views_text_cost_columns.sql": "1dfe0adc010c83a96327ba62204df14f76b30633"
   }
 }
