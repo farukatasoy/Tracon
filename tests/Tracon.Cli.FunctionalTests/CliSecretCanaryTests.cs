@@ -139,8 +139,8 @@ public sealed class CliSecretCanaryTests
         var password = $"{PasswordStem}-{provider}-e49a01d3";
 
         var connection = string.Equals(provider, "postgresql", StringComparison.Ordinal)
-            ? $"Host=127.0.0.1;Port=1;Database=canary;Username=canary_login;Password={password};Timeout=1;Command Timeout=1"
-            : $"Server=127.0.0.1,1;Database=canary;User Id=canary_login;Password={password};TrustServerCertificate=true;Connect Timeout=1";
+            ? $"Host=127.0.0.1;Port=1;Database=canary;Username=canary_login;Password={password};Timeout=1;Command Timeout=1" // SYNTHETIC-CREDENTIAL: a canary password for a port nothing listens on
+            : $"Server=127.0.0.1,1;Database=canary;User Id=canary_login;Password={password};TrustServerCertificate=true;Connect Timeout=1"; // SYNTHETIC-CREDENTIAL: a canary password for a port nothing listens on
 
         Environment.SetEnvironmentVariable("TRACON_CONNECTION", fromEnvironment ? connection : null);
 

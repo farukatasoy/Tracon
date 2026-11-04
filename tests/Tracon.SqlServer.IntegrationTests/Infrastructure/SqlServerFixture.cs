@@ -107,7 +107,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
                 previousStart = null;
             }
 
-            await Task.Delay(CollationProbeInterval);
+            await Task.Delay(CollationProbeInterval); // delay: fixture
         }
 
         throw new TimeoutException(string.Create(CultureInfo.InvariantCulture, $"The server did not report the collation '{expected}' within {CollationChangeBudget}."));
