@@ -174,7 +174,7 @@ Every migration and every query the store contracts reach ran on 12.
 
 ### SQL Server
 
-`Tracon.SqlServer.IntegrationTests`, 1 557 tests. The servers run in an emulated amd64 container on this machine, which is
+`Tracon.SqlServer.IntegrationTests`, 1 558 tests. The servers run in an emulated amd64 container on this machine, which is
 slower than a native one and changes no result.
 
 | Server | Collation | Result | Run |
@@ -182,7 +182,7 @@ slower than a native one and changes no result.
 | 2017 | server default | **Partly verified.** Every migration applies and 1 555 of 1 557 tests pass. The two that fail pin the error number 2628, which the engine reports from 2019 on for a text longer than its column; 2017 reports 8152 instead. Tracon treats both numbers as a text-too-long fault, but no test proves it on 2017 | 2026-11-04, local only · no CI cell |
 | 2019 | server default | Verified: 1 557 of 1 557. One case timed out in the first full run (a migration took longer than its 30-second command timeout on the emulated server under load) and passed when run alone | 2026-11-04 · cell `2019` |
 | 2022 | server default | Verified: the default image of every run of the project | job `build` (Linux) runs it by default; the previous full-solution run on a development machine was 2026-11-03 |
-| 2022 | `Turkish_CI_AS`, language 1055 | **Partly verified.** The classes that exercise the collation (the tenant alphabet and the provider-name migration, with the check that the server reports `Turkish_CI_AS`) pass, 4 of 4, on 2026-11-04. The whole project was last run green on this cell on 2026-11-01 (1 190 of 1 190, before the project had its present size); the run on 2026-11-04 failed in 1 518 of 1 557 cases until the test fixture waited for the server to finish applying the collation, and its repeat with the wait was not finished when this page was written | cell `2022, Turkish_CI_AS` |
+| 2022 | `Turkish_CI_AS`, language 1055 | Verified: 1 558 of 1 558, once the test fixture waits for the server to finish applying the collation (the image applies it after the server first accepts connections; without the wait 1 518 of 1 557 cases failed on 2026-11-04) | 2026-11-04 · cell `2022, Turkish_CI_AS` |
 | Azure SQL Database | not verified: it cannot be started as a container | none |
 
 The two settings of the Turkish cell are given together: a server started with only the collation keeps English as its language, and a pooled connection fails when it is reset. The image also applies the collation after the server first accepts connections, by rebuilding the system databases and dropping every connection; a run waits until the server reports the collation before it starts.
