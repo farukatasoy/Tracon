@@ -257,6 +257,47 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
         checkpoints[0].GetProperty("state").GetString().ShouldBe(CheckpointState);
     }
 
+
+    /// <summary>
+    /// The export and the retention archive write a row's columns with the same writer, which writes a text column as a JSON
+    /// string. The seven cost and price columns of <c>runs</c> are text on SQLite, so they leave as strings, like the other
+    /// cost columns; PostgreSQL and SQL Server hold them as <c>numeric</c> and write numbers.
+    /// </summary>
+    [Fact]
+    public async Task Export_writes_the_seven_decimal_columns_of_a_run_as_JSON_strings()
+    {
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+        var runId = await SeedRunAsync(context, "tenant-a");
+        string[] columns =
+        [
+            "cached_input_cost",
+            "non_token_cost",
+            "input_price_per_mtok",
+            "output_price_per_mtok",
+            "cached_input_price_per_mtok",
+            "cache_write_price_per_mtok",
+            "cache_write_long_price_per_mtok",
+        ];
+
+        var assignments = string.Join(", ", columns.Select(static column => column + " = '0.5'"));
+
+        await context.ExecuteAsync(
+            "UPDATE " + context.TablePrefix + "runs SET " + assignments + ", input_cost = '0.25' WHERE id = '" + Sql(runId) + "';");
+
+        var export = await context.DataSubjects.ExportAsync("tenant-a", Scope(runIds: [runId]));
+
+        using var document = System.Text.Json.JsonDocument.Parse(export.Json);
+        var run = document.RootElement.GetProperty("runs")[0];
+
+        foreach (var column in columns)
+        {
+            run.GetProperty(column).ValueKind.ShouldBe(System.Text.Json.JsonValueKind.String, column);
+            run.GetProperty(column).GetString().ShouldBe("0.5", column);
+        }
+
+        run.GetProperty("input_cost").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.String);
+    }
+
     [Fact]
     public async Task Erase_and_export_reach_the_scores_of_runs_found_through_a_session()
     {

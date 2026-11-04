@@ -256,7 +256,9 @@ the migration drops that view first (`error in view <yours>: no such table: main
 Nothing is changed in either case: drop yours first and create it again afterwards. The `runs_v1`
 view is dropped and, when `EnableReadViews` is on, built again in the same run; a database that had
 it enabled and later switched it off loses the view that was left behind
-([Read contract views](/reference/read-views/)).
+([Read contract views](/reference/read-views/)). The data subject export and the retention archive
+write these seven fields as JSON strings on SQLite from then on (`"0.5"`, like `input_cost` already was);
+PostgreSQL and SQL Server write numbers.
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
