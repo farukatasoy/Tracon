@@ -228,26 +228,33 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
         bool retryDeadlockVictim,
         CancellationToken cancellationToken)
     {
-        async ValueTask<T> AttemptAsync()
+        // The common path (a provider that does not send the statement again) allocates nothing of its own: it is the
+        // command, the caller's delegates and the task execute returns.
+        if (!retryDeadlockVictim)
         {
-            var command = CreateCommand(sql);
+            return Attempt(sql, bind, execute, cancellationToken);
+        }
+
+        return RetryDeadlockVictimAsync(() => Attempt(sql, bind, execute, cancellationToken), cancellationToken);
+
+        ValueTask<T> Attempt(string text, Action<DbCommand> bindParameters, Func<DbCommand, CancellationToken, ValueTask<T>> run, CancellationToken token)
+        {
+            var command = CreateCommand(text);
 
             try
             {
-                bind(command);
+                bindParameters(command);
             }
             catch
             {
                 // Nothing disposes a command that was never given to execute.
-                await command.DisposeAsync().ConfigureAwait(false);
+                command.Dispose();
 
                 throw;
             }
 
-            return await execute(command, cancellationToken).ConfigureAwait(false);
+            return run(command, token);
         }
-
-        return retryDeadlockVictim ? RetryDeadlockVictimAsync(AttemptAsync, cancellationToken) : AttemptAsync();
     }
 
     /// <summary>Runs an upsert so that it is atomic on every provider.</summary>
