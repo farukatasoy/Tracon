@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Data.SqlClient;
 using Npgsql;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
@@ -27,6 +28,14 @@ public abstract class TwoNodeServer : IAsyncLifetime
     /// <summary>Gets a schema no other test uses, on this server.</summary>
     /// <returns>The database the two hosts of one test connect to.</returns>
     public abstract TwoNodeDatabase NewDatabase();
+
+    /// <summary>
+    /// Gets a schema no other test uses, owned by a login of its own with the given password, so the connection string
+    /// a host reads carries a value nobody could guess.
+    /// </summary>
+    /// <param name="password">The login's password.</param>
+    /// <returns>The database the hosts of one test connect to, through that login.</returns>
+    public abstract Task<TwoNodeDatabase> NewDatabaseForLoginAsync(string password);
 
     /// <inheritdoc />
     public abstract ValueTask InitializeAsync();
@@ -59,6 +68,23 @@ public sealed class PostgreSqlTwoNodeServer : TwoNodeServer
         => new PostgreSqlTwoNodeDatabase(_container.GetConnectionString(), NewSchemaName());
 
     /// <inheritdoc />
+    public override async Task<TwoNodeDatabase> NewDatabaseForLoginAsync(string password)
+    {
+        var login = "canary_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..10];
+
+        await using var connection = new NpgsqlConnection(_container.GetConnectionString());
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE ROLE {login} LOGIN PASSWORD '{password}'; GRANT ALL ON DATABASE tracon_two_node TO {login};";
+        await command.ExecuteNonQueryAsync();
+
+        var connectionString = new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Username = login, Password = password }.ConnectionString;
+
+        return new PostgreSqlTwoNodeDatabase(connectionString, NewSchemaName());
+    }
+
+    /// <inheritdoc />
     public override async ValueTask InitializeAsync()
     {
         await _container.StartAsync();
@@ -88,6 +114,23 @@ public sealed class SqlServerTwoNodeServer : TwoNodeServer
     /// <inheritdoc />
     public override TwoNodeDatabase NewDatabase()
         => new SqlServerTwoNodeDatabase(_container.GetConnectionString(), NewSchemaName());
+
+    /// <inheritdoc />
+    public override async Task<TwoNodeDatabase> NewDatabaseForLoginAsync(string password)
+    {
+        var login = "canary_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..10];
+
+        await using var connection = new SqlConnection(_container.GetConnectionString());
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE LOGIN [{login}] WITH PASSWORD = '{password}', CHECK_POLICY = OFF; ALTER SERVER ROLE sysadmin ADD MEMBER [{login}];";
+        await command.ExecuteNonQueryAsync();
+
+        var connectionString = new SqlConnectionStringBuilder(_container.GetConnectionString()) { UserID = login, Password = password }.ConnectionString;
+
+        return new SqlServerTwoNodeDatabase(connectionString, NewSchemaName());
+    }
 
     /// <inheritdoc />
     public override async ValueTask InitializeAsync() => await _container.StartAsync();

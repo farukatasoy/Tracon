@@ -357,7 +357,9 @@ public sealed class LiveVoiceTests
         Action<IServiceCollection>? configureServices = null,
         Action<VoiceLiveOptions>? configureLive = null,
         bool allowPrivateNetworkTargets = true,
-        bool multiTenant = false)
+        bool multiTenant = false,
+        string apiKey = "test-openai-key",
+        Action<ITraconBuilder>? configureStore = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -370,11 +372,13 @@ public sealed class LiveVoiceTests
                     });
                 }
 
+                configureStore?.Invoke(builder);
+
                 builder
                     .AddAgent(TestData.Definition(Agent))
                     .UseOpenAI(options =>
                     {
-                        options.ApiKey = "test-openai-key";
+                        options.ApiKey = apiKey;
                         options.Endpoint = provider.BaseAddress;
                     })
                     .UseOpenAILive(options => options.Endpoint = provider.BaseAddress)

@@ -21,6 +21,8 @@
     <!-- The committed snapshots of the surfaces that are not .NET API. -->
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
     <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" LinkBase="Shared" />
+    <!-- The secret canary's search, the same one the host tests use. -->
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/SecretHits.cs" LinkBase="Shared" />
   </ItemGroup>
 
 </Project>

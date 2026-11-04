@@ -16,6 +16,8 @@
     <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
     <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
     <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
+    <!-- The secret canary registers model providers by their key. -->
+    <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
     <!-- Fake model provider (FakeModelProvider). -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
@@ -51,6 +53,12 @@
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/OAuthFlowClient.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/LookupMcpServer.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/QueuedWorkflowHarness.cs" LinkBase="Shared" />
+    <!-- The secret canary: the same drive, wire server and searches that run on SQLite, here on the two server databases. -->
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/CanaryWireServer.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/CanaryDrive.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/StructuredLogProbe.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/SecretHits.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/LeakProbe.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>

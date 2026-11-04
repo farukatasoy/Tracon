@@ -1,0 +1,49 @@
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+
+namespace Tracon.AspNetCore.FunctionalTests;
+
+/// <summary>
+/// PROBE, not a gate: a provider that refuses the key a host was registered with at setup, and quotes it back in the
+/// body of its answer, puts the key into every output that carries the text of a provider failure.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Measured on 2026-11-04 (HEAD cfdabecec), four providers (Anthropic, Azure OpenAI, Google, OpenAI) by two routes
+/// (the key given in code, the key read from a configuration section): 8 of 8 cases leak. In every case the key is in the
+/// responses the caller reads (the run's error text and the run records the API returns), in the log lines, in the log
+/// records an exporter would send (state, exception message and the stack trace text) and in the status of the chat span.
+/// It is in no byte of the SQLite database, with the trace content setting on.
+/// </para>
+/// <para>
+/// The key of a tenant binding is replaced in all of those places; the key registered at setup is not, because the
+/// replacement is built from the credential a call was resolved with and a setup key has none. The gate beside this
+/// probe, which runs the same scenarios with a provider that refuses without quoting, is green, so the key reaches no
+/// other path: the leak is the provider's own quote, and only for the shared key. A provider that quotes a masked form
+/// (the first and last characters) leaves nothing to find; a provider that quotes the whole key leaves it everywhere.
+/// </para>
+/// <para>
+/// To run it: rename this file to <c>StartupProviderKeyQuotedProbe.cs</c>. It turns green when the setup key is
+/// replaced in a failure's text; then it replaces this file as a gate.
+/// </para>
+/// </remarks>
+public sealed class StartupProviderKeyQuotedProbe
+{
+    [Theory]
+    [MemberData(nameof(StartupProviderKeyCanaryTests.Slots), MemberType = typeof(StartupProviderKeyCanaryTests))]
+    public async Task A_provider_that_quotes_the_setup_key_back_leaves_it_in_no_output(string provider, bool fromConfiguration)
+    {
+        using var database = new TempSqliteDatabase("setup-key-quote");
+        var key = StartupProviderKeyCanaryTests.Key(provider, fromConfiguration, "quoted");
+        var stem = StartupProviderKeyCanaryTests.Stem(provider, fromConfiguration, "quoted");
+
+        var evidence = await StartupProviderKeyCanaryTests.DriveAsync(provider, key, fromConfiguration, database, CanaryWireServer.Behavior.RefuseAndQuote);
+        var hits = SecretHits.Find(evidence.Outputs, [new(provider + " setup key", stem)]);
+
+        foreach (var encoding in SecretHits.FindInBytes(database.ReadAllBytes(), stem))
+        {
+            hits.Add($"the {provider} setup key is in the database as {encoding}");
+        }
+
+        hits.ShouldBeEmpty();
+    }
+}
