@@ -218,6 +218,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   rule. A workflow written in code is not checked when it is registered. Shorten the chain, split it into two workflows, or raise `MaxSuperSteps`. The other patterns are not
   counted: they reach the limit through the conversation they hold.
 
+- **Behavioural breaking change: a retention policy saved without `enabled` is saved paused.** `PUT /api/retention/{target}` filled in `enabled: true` when the body left the member out, so a body
+  that carried only `maxAgeDays` or `maxRows` saved a policy that removes the rows older than the limit (or beyond the row count) the next time the cleanup job runs, for good, and without a copy when `archive` is `false`.
+  The server now fills in `false`. The published document says `default: false`, `Tracon.Client` starts `RetentionPolicySaveRequest.Enabled` at `false`, and `@tracon/client` documents the same default.
+  What to do:
+  - **A caller that leans on the old default sends `"enabled": true`** (`Enabled = true` in `Tracon.Client`). Look for `PUT /api/retention/…` bodies that name a limit and no `enabled`: they save a policy that
+    removes nothing until it is switched on, and `GET /api/retention/preview` shows `enabled: false` for it.
+  - **Nothing already saved changes.** A stored policy keeps its `enabled` value, and a body that names `enabled` is read as before. Preview a target before you switch its policy on.
+
 - **Four migrations changed in place, and a database that applied one of them before must be recreated.** `lower()` follows the locale
   of the database, and in a Turkish one `lower('OpenAI')` ends in a dotless i (U+0131) instead of the i of `openai`. PostgreSQL `0038` and `0062` and SQL Server `0025`
   and `0050` folded names with it: on such a database `0038` and `0025` rewrote a tenant's provider binding to a name no agent
@@ -589,16 +597,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     its key.
   - **`EvalSuiteSaveRequest.Checks` and `JobScheduleSaveRequest.Payload` are `JsonElement?`, no longer `JsonElement`.** Code that reads them needs `.Value` or a null test.
   - **A request member the server fills in when it is left out starts with that value.** `McpServerRequest.Enabled` and `RequiresApproval`, and the `Enabled` of `AgentSkillRequest`,
-    `InboundTriggerSaveRequest`, `JobScheduleSaveRequest`, `QuotaSaveRequest`, `RetentionPolicySaveRequest` and `WebhookSaveRequest` start at `true`, no longer `false`;
+    `InboundTriggerSaveRequest`, `JobScheduleSaveRequest`, `QuotaSaveRequest` and `WebhookSaveRequest` start at `true`, no longer `false`;
     `JobScheduleSaveRequest.TimeZone` starts at `"UTC"` (it was `null`, which the server refused); `RunReplayRequest.ToolMode` starts at `ReplayTools` (it was `NoTools`);
     `AgentSkillResourceDefinition.MediaType`, `CanaryPolicy.MinSampleSize`, `CanaryPolicy.RampInterval` and `ResponseCacheSettings.Lifetime` start at `text/plain`, `20`, `01:00:00`
     and `00:10:00`. **This changes what a call that did not set the member records.** The one to check first is `TraconSaveMcpServerAsync`: a server saved with only an `Endpoint`
     used to be saved disabled with its approval gate off; it is saved enabled with the gate on. Set `RequiresApproval = false` on a server you meant to run without approval.
     The other `Enabled` members change what the saved record does, so read the calls that leave `Enabled` out before you upgrade. Raw HTTP callers and `@tracon/client` never saw a
-    change: the server has always filled in `true`, and `enabled` was already optional in the TypeScript types. Only a `Tracon.Client` call that did not set the member sent `false`:
-    - **`TraconSaveRetentionPolicyAsync` saves an enabled policy, and that policy deletes data.** A policy with `MaxAgeDays` or `MaxRows` used to be saved disabled when `Enabled` was
-      left out; it now removes rows older than the limit (or beyond the row count) the next time the cleanup job runs, and `Archive = false` deletes them without a copy. A policy with
-      neither limit still removes nothing. Preview the target first, and set `Enabled = false` on a policy you want to keep paused.
+    change: the server has always filled in `true`, and `enabled` was already optional in the TypeScript types. Only a `Tracon.Client` call that did not set the member sent `false` (`RetentionPolicySaveRequest.Enabled` is not one of them: the server saves a retention policy that leaves it out paused, see the entry on `PUT /api/retention/{target}`):
     - **`TraconSaveWebhookAsync` saves a subscription that delivers events.** Payloads leave for the subscription's URL from the first matching event. Set `Enabled = false` to register one without sending.
     - **`TraconSaveInboundTriggerAsync` saves a trigger that accepts requests**, and each request it accepts starts its agent or workflow. `TraconSaveScheduleAsync` saves a schedule that dispatches on its cron
       expression, and `TraconSaveQuotaAsync` saves a rule that refuses runs once its limit is reached (`429`).

@@ -5665,7 +5665,7 @@
           "Retention"
         ],
         "summary": "Creates or updates the retention policy for a target.",
-        "description": "\u0027maxAgeDays\u0027 and \u0027maxRows\u0027 are independent limits and both may be set; each must be at least 1 when given, and leaving both unset means the policy removes nothing. Saving does not delete anything by itself \u2014 the cleanup runs from the queue, so preview first. Every save is written to the audit trail with the previous and the new values. An unrecognized target returns 400.",
+        "description": "\u0027maxAgeDays\u0027 and \u0027maxRows\u0027 are independent limits and both may be set; each must be at least 1 when given, and leaving both unset means the policy removes nothing. Saving does not delete anything by itself \u2014 the cleanup runs from the queue, so preview first. A policy is saved paused unless the body says \u0027enabled: true\u0027, because an enabled policy with a limit deletes rows for good. Every save is written to the audit trail with the previous and the new values. An unrecognized target returns 400.",
         "operationId": "TraconSaveRetentionPolicy",
         "parameters": [
           {
@@ -15553,8 +15553,8 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Whether the policy is enabled.",
-            "default": true
+            "description": "Whether the policy is enabled. Left out, the policy is saved paused: set \u0060true\u0060 to start deleting.",
+            "default": false
           }
         },
         "description": "Request body for saving a retention policy."

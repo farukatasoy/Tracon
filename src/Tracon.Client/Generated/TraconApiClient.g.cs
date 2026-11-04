@@ -12496,7 +12496,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates the retention policy for a target.
         /// </summary>
         /// <remarks>
-        /// 'maxAgeDays' and 'maxRows' are independent limits and both may be set; each must be at least 1 when given, and leaving both unset means the policy removes nothing. Saving does not delete anything by itself — the cleanup runs from the queue, so preview first. Every save is written to the audit trail with the previous and the new values. An unrecognized target returns 400.
+        /// 'maxAgeDays' and 'maxRows' are independent limits and both may be set; each must be at least 1 when given, and leaving both unset means the policy removes nothing. Saving does not delete anything by itself — the cleanup runs from the queue, so preview first. A policy is saved paused unless the body says 'enabled: true', because an enabled policy with a limit deletes rows for good. Every save is written to the audit trail with the previous and the new values. An unrecognized target returns 400.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -24874,10 +24874,10 @@ namespace Tracon.Client.Generated
         public bool Archive { get; set; } = default!;
 
         /// <summary>
-        /// Whether the policy is enabled.
+        /// Whether the policy is enabled. Left out, the policy is saved paused: set `true` to start deleting.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; set; } = false;
 
     }
 
