@@ -3,11 +3,12 @@
   "sourceCommits": {
     "src/Tracon.PostgreSql/Migrations/0038_provider_name_case.sql": "7443d030930ab0fe379709f84d25ec03d4fd1439",
     "src/Tracon.PostgreSql/Migrations/0062_remove_authorization_configuration_key.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
-    "src/Tracon.SqlServer/Migrations/0025_provider_name_case.sql": "d78091a4c46b40a1ac8876b557fe0a02ec5eea3e",
+    "src/Tracon.SqlServer/Migrations/0025_provider_name_case.sql": "44e53057827f6a7fe299c4f47e7d72182cc35911",
     "src/Tracon.SqlServer/Migrations/0050_remove_authorization_configuration_key.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
     "src/Tracon.SqlServer/Migrations/0059_ordinal_key_collation.sql": "d00e621a7a45574f5c712effedf06f8acfe14c5c",
     "src/Tracon.SqlServer/Migrations/0060_ordinal_definition_names.sql": "558d88d60a0b9280f041bf1784e75d2289187d55",
     "src/Tracon.SqlServer/Migrations/0061_ordinal_identity_columns.sql": "f18d51f66c08fd294eb9f41b8465d6f7b8664c8d",
+    "src/Tracon.SqlServer/Migrations/0062_ordinal_lease_owner.sql": "44e53057827f6a7fe299c4f47e7d72182cc35911",
     "src/Tracon.Sqlite/Migrations/0058_decimal_columns_as_text.sql": "1dfe0adc010c83a96327ba62204df14f76b30633",
     "src/Tracon.Sqlite/MigrationsViews/0003_read_views_text_cost_columns.sql": "1dfe0adc010c83a96327ba62204df14f76b30633"
   }
