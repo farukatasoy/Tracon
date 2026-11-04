@@ -28,7 +28,9 @@ function settingNames(markdown) {
 
 test('every setting the support page names is listed in the configuration reference', () => {
   const guide = readFileSync(join(docs, 'guides/multiple-instances.md'), 'utf8');
-  const reference = readFileSync(join(docs, 'reference/configuration.md'), 'utf8');
+  const reference = ['reference/configuration.md', 'reference/configuration-packages.md']
+    .map((page) => readFileSync(join(docs, page), 'utf8'))
+    .join('\n');
   const names = settingNames(guide);
 
   assert.ok(names.length >= 6, `the page names ${names.length} settings; the extractor has stopped finding them`);

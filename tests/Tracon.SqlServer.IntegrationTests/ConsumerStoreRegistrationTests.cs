@@ -53,13 +53,17 @@ public sealed class ConsumerStoreRegistrationTests
     }
 
     [Fact]
-    public void UseSqlServer_says_its_state_is_shared_between_processes()
+    public void UseSqlServer_says_its_state_is_shared_between_processes_and_outlives_one()
     {
         // The production profile reads this to refuse a declared multi-instance host whose store serves one
-        // process. A database server is the answer it accepts.
+        // process (a database server is the answer it accepts), and to ask whether a run that a restart cut off is
+        // still there to find (it is: the row stays in the database).
         using var provider = Build(static _ => { });
 
-        provider.GetRequiredService<StateSharing>().AcrossProcesses.ShouldBeTrue();
+        var sharing = provider.GetRequiredService<StateSharing>();
+
+        sharing.AcrossProcesses.ShouldBeTrue();
+        sharing.OutlivesProcess.ShouldBeTrue();
     }
 
     private static ServiceProvider Build(Action<IServiceCollection> registerConsumerStores)

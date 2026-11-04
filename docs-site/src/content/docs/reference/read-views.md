@@ -94,7 +94,10 @@ cost and price columns of `runs` are text there, and the view casts `cached_inpu
 and the five unit prices to `REAL` so that they stay numbers, as they were when the view
 was first published. Its `total_cost` is a `REAL` sum of the four terms, and a sum of
 `REAL` values can differ from the API's in the last digits. Read the exact amount from
-`IRunStore` or from the table's own columns.
+`IRunStore` or from the table's own columns. The SQLite migration that made these columns text
+replaces `runs_v1`, and SQLite refuses to drop a view that another view reads from: drop a view of your own
+that is built on `runs_v1` before that upgrade and create it again after
+([Persistence](/getting-started/persistence/)).
 
 `total_cost` is the **token** cost. What a run reported beyond tokens (a workflow function
 node's or a tool's speech characters, render seconds) is a separate total, `nonTokenCost` on

@@ -1,6 +1,20 @@
 namespace Tracon;
 
 /// <summary>Settings that control workflow execution.</summary>
+/// <remarks>
+/// <para>
+/// Tracon reads its options once, when the host starts, and a change to the configuration needs a restart. These options
+/// are the one exception: <c>UseWorkflows</c> binds this section through the framework's configuration binder, which
+/// registers a change token source, so a configuration provider that reloads reaches the readers that look the value up through
+/// <see cref="Microsoft.Extensions.Options.IOptionsMonitor{TOptions}"/> on every call. Those are the run limits
+/// (<see cref="RunTimeout"/>, <see cref="MaxRunTimeout"/>, <see cref="MaxSuperSteps"/>) that a save checks, the recovery
+/// settings (<see cref="ResumeInterruptedRuns"/>, <see cref="MaxResumeAttempts"/>) the job handlers read, and the cap of
+/// the request-expiration sweep (<see cref="MaxRequestExpirationsPerScan"/>). The runner reads
+/// <see cref="Microsoft.Extensions.Options.IOptions{TOptions}"/> and keeps the value it built at start. A reload therefore
+/// splits the settings between readers until the host restarts, and a new value that fails validation makes every later
+/// read through the monitor throw. Restart the host to apply a change to all of them.
+/// </para>
+/// </remarks>
 public sealed class TraconWorkflowOptions
 {
     /// <summary>The name of the configuration section.</summary>
@@ -129,7 +143,8 @@ public sealed class TraconWorkflowOptions
     /// <para>
     /// A definition whose value is above the ceiling is refused when it is saved
     /// (<c>400</c>). A stored definition whose value is above a ceiling that was
-    /// lowered later still runs, cut to the ceiling, and a warning is logged.
+    /// lowered later (by a new deployment: a configuration reload does not lower the ceiling the runner
+    /// applies) still runs, cut to the ceiling, and a warning is logged.
     /// </para>
     /// <para>
     /// Must be from one millisecond to about 49.7 days, and not below

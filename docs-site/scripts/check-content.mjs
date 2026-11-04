@@ -1307,6 +1307,7 @@ const DIAGRAM_THRESHOLD = 6500;
 const DIAGRAM_EXEMPT = new Map([
   ['troubleshooting.md', 'a symptom catalogue read by search; its navigation is the symptom index'],
   ['reference/configuration.md', 'a table of keys, defaults, and the package that reads each section'],
+  ['reference/configuration-packages.md', 'a table of keys and defaults for the sections a package reads, split from the configuration reference'],
   ['reference/compatibility.md', 'support matrices, which are already tables'],
   ['reference/glossary.md', 'alphabetical definitions with no flow between them'],
   ['reference/changelog.md', 'a dated list of released versions, with no flow between entries'],

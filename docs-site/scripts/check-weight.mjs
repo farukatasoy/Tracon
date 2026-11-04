@@ -72,6 +72,13 @@ const dist = resolve(here, '../dist');
 // filler words out of the page itself recovered 3 B, because gzip already removes them, so the page was
 // restored. 200 B is about 0.3% headroom, which covers the 56 B gap between CI and a local build and one more
 // sidebar entry. The next raise should split the page, as the three entries above did.
+//
+// Split 2026-11-04 instead of raised: reference/configuration measured 59 585 B locally with the Mcp option rules and
+// the reload paragraph added (it was already about 190 B over the ceiling before them). The sections a package of its
+// own reads (SQL stores, model providers, MCP, workflows, voice) moved to reference/configuration-packages, which
+// weighs 38 978 B; the configuration page dropped to 54 967 B. The new sidebar entry costs every page about 10 B.
+// Ceiling unchanged. concepts/governance (59 732 B) and guides/model-providers (59 323 B) were over it before this
+// split and are the next two to split.
 const CEILING = 59_200;
 
 // The release notes were one generated page that grew with every release, not with what a reader

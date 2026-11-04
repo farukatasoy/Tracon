@@ -47,7 +47,9 @@ internal static class SqliteDecimalFunctions
     /// <summary>The name of the scalar.</summary>
     internal const string AddName = "tracon_decimal_add";
 
-    private const NumberStyles Style = NumberStyles.Number | NumberStyles.AllowExponent;
+    // The text of a decimal the way the driver writes one: a sign, digits, a point, an exponent. A thousands separator, a
+    // trailing sign or blanks are not part of it, and read leniently they would turn a hand-written '1,5' into 15.
+    private const NumberStyles Style = NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent;
 
     /// <summary>Registers both functions on an open connection. Registering again replaces them, so it is safe on a pooled one.</summary>
     /// <param name="connection">The open connection.</param>

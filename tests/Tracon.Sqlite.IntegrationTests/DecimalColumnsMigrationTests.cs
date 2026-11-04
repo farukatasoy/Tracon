@@ -279,6 +279,30 @@ public sealed class DecimalColumnsMigrationTests(SqliteFixture fixture)
     }
 
     [Fact]
+    public async Task A_view_of_the_host_built_on_the_read_view_stops_the_migration_and_leaves_both_views_as_they_were()
+    {
+        var prefix = SqliteTestContext.NewTablePrefix();
+        await using var context = SqliteTestContext.Create(fixture, prefix, Tenant, enableReadViews: true);
+
+        await ApplyThroughAsync(context, prefix, MigrationId - 1);
+        await ApplyViewsThroughAsync(context, prefix, lastId: 2);
+
+        // The host does not name one of the seven columns: it reads the published view, which is the supported way in.
+        await context.ExecuteAsync($"CREATE VIEW {prefix}host_runs AS SELECT run_id, total_cost FROM {prefix}runs_v1;");
+
+        var failure = await Should.ThrowAsync<TraconException>(async () => await context.Migrations.ApplyAsync());
+
+        // The migration drops runs_v1 to build it again, and SQLite refuses to drop a view another view reads from.
+        failure.Message.ShouldContain($"error in view {prefix}host_runs");
+        failure.Message.ShouldContain($"no such table: main.{prefix}runs_v1");
+
+        (await context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name IN ('{prefix}runs_v1', '{prefix}host_runs');")).ShouldBe(2);
+        (await context.ScalarAsync<string>($"SELECT type FROM pragma_table_info('{prefix}runs') WHERE name = 'cached_input_cost';")).ShouldBe("NUMERIC");
+        (await context.ScalarAsync<long>($"SELECT COUNT(*) FROM {prefix}__migrations WHERE set_name = 'core' AND id = {MigrationId};")).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task The_read_view_is_rebuilt_over_the_new_columns_and_keeps_its_number_types()
     {
         var prefix = SqliteTestContext.NewTablePrefix();

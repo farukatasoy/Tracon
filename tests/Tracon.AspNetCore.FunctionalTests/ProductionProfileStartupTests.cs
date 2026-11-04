@@ -972,6 +972,56 @@ public sealed class ProductionProfileStartupTests
     }
 
     [Fact]
+    public async Task A_host_on_a_shared_in_memory_SQLite_database_is_not_asked_the_restart_decision()
+    {
+        // The provider is the real one: a shared in-memory database is a supported setup and dies with the process,
+        // so a restart leaves no run Running and there is nothing to decide.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, null);
+                builder.UseSqlite(static options =>
+                {
+                    options.ConnectionString = $"Data Source=file:profile-restart-{Guid.NewGuid():N}?mode=memory&cache=shared";
+                });
+                builder.RequireProductionProfile();
+            });
+
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.OrphanedRunsAfterRestart)} is not applicable", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_host_on_a_SQLite_file_is_asked_the_restart_decision()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"profile-restart-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var exception = await Should.ThrowAsync<InvalidOperationException>(
+                async () => await TraconTestHost.StartAsync(
+                    configureTracon: builder =>
+                    {
+                        AnswerAllExcept(builder, TraconProductionRisk.OrphanedRunsAfterRestart);
+                        builder.UseSqlite(options => options.ConnectionString = $"Data Source={path}");
+                        builder.RequireProductionProfile();
+                    }));
+
+            exception.Message.ShouldContain($"  {nameof(TraconProductionRisk.OrphanedRunsAfterRestart)}");
+            exception.Message.ShouldContain("SQLite file");
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+            foreach (var file in new[] { path, path + "-wal", path + "-shm" })
+            {
+                File.Delete(file);
+            }
+        }
+    }
+
+    [Fact]
     public async Task A_host_that_declares_two_instances_is_asked_the_instance_decision_and_not_the_restart_one()
     {
         // UnreconciledRuns asks the same setting for this case and says the same of a run whose instance died: asking

@@ -135,6 +135,7 @@ export const sidebar = [
     label: 'Reference',
     items: [
       { label: 'Configuration', slug: 'reference/configuration' },
+      { label: 'Package configuration', slug: 'reference/configuration-packages' },
       { label: 'Compatibility matrices', slug: 'reference/compatibility' },
       { label: 'Read contract views', slug: 'reference/read-views' },
       { label: 'Versions and upgrades', slug: 'reference/versioning' },
