@@ -7,9 +7,10 @@ slug: reference/configuration
 This page lists values that the current option types define. It does not infer a
 default from provider behavior. `null`, empty, and off mean exactly that.
 
-The sections that a package of its own reads (the three SQL stores, the model providers,
-MCP, workflows, and voice) are on [Package configuration](/reference/configuration-packages/);
-the section index below lists all of them.
+The sections that a package of its own reads (`Tracon.PostgreSql`, `Tracon.SqlServer`,
+`Tracon.Sqlite`, the model provider packages, `Tracon.Mcp`, `Tracon.Workflows`, and
+`Tracon.Voice`) are on [Package configuration](/reference/configuration-packages/); the
+section index below lists all of them.
 
 ## Binding rules
 
