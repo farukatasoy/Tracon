@@ -431,6 +431,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     }
 
     /// <inheritdoc />
+    public override void AddLeaseNow(DbCommand command, DateTimeOffset now) => AddTimestamp(command, "now", now);
+
+    /// <inheritdoc />
     public override void AddLeaseInstant(DbCommand command, string name, TimeProvider clock, TimeSpan? after)
     {
         ArgumentNullException.ThrowIfNull(clock);

@@ -400,7 +400,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // so the owner finds a cancel in the same round trip that writes its heartbeat.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}runs
-            SET heartbeat_at = @at
+            SET heartbeat_at = {LeaseNow}
             WHERE id = @id AND status IN (@status_running, @status_queued)
             RETURNING tenant_id, cancel_requested_at;
             """;

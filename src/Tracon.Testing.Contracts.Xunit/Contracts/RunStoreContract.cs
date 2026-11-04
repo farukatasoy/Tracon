@@ -3230,7 +3230,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = startedAt });
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         var record = claimed.ShouldHaveSingleItem();
@@ -3280,7 +3280,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         });
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         claimed.Count.ShouldBe(2);
@@ -3316,7 +3316,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         });
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         var workflow = claimed.Single(record => record.Id == workflowRunId);
@@ -3341,7 +3341,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         claimed.ShouldNotContain(record => record.Id == runId);
@@ -3358,7 +3358,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = startedAt, Status = RunStatus.Queued });
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         claimed.ShouldNotContain(record => record.Id == runId);
@@ -3375,10 +3375,14 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         var runId = TraconId.NewId();
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10), Status = RunStatus.Queued });
-        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow.AddMinutes(-9));
+        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+
+        // The heartbeat is stamped with the store's own clock (a database server's, for a store that shares its
+        // database), so it cannot be backdated: the test lets a short threshold pass instead.
+        await Task.Delay(TimeSpan.FromMilliseconds(1300)); // delay: product
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromSeconds(1),
             max: 10);
 
         var record = claimed.ShouldHaveSingleItem();
@@ -3406,7 +3410,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         claimed.ShouldNotContain(record => record.Id == runId);
@@ -3428,7 +3432,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.StartRunAsync(queued with { Status = RunStatus.Running });
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         claimed.ShouldNotContain(record => record.Id == runId);
@@ -3449,7 +3453,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         claimed.ShouldNotContain(record => record.Id == runId);
@@ -3653,7 +3657,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow.AddMinutes(-9));
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         var record = claimed.Single(candidate => candidate.Id == runId);

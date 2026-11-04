@@ -364,7 +364,7 @@ public sealed class JsonFileRunStore : IRunStore
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-        DateTimeOffset staleBefore,
+        TimeSpan staleAfter,
         int max,
         CancellationToken cancellationToken = default)
     {
@@ -373,6 +373,7 @@ public sealed class JsonFileRunStore : IRunStore
         lock (_gate)
         {
             var now = DateTimeOffset.UtcNow;
+            var staleBefore = now - staleAfter;
 
             // A Queued row belongs to the job queue unless it sent a heartbeat: then it is a run waiting in a
             // process that is gone.

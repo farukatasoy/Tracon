@@ -598,7 +598,7 @@ public sealed class RunRecordingFailureMetricTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
+        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 
@@ -693,7 +693,7 @@ public sealed class RunRecordingFailureMetricTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
+        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 

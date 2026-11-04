@@ -358,7 +358,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // so the owner finds a cancel in the same round trip that writes its heartbeat.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
-            SET heartbeat_at = @at
+            SET heartbeat_at = {LeaseNow}
             WHERE id = @id AND status IN (@status_running, @status_queued)
             RETURNING tenant_id, cancel_requested_at;
             """;
@@ -386,8 +386,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 event_count       = event_count + 1
             WHERE id IN (
                 SELECT id FROM {Schema}.runs
-                WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < @stale_before)
-                    OR (status = @status_queued AND heartbeat_at < @stale_before))
+                WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < {LeaseInstant("stale_before")})
+                    OR (status = @status_queued AND heartbeat_at < {LeaseInstant("stale_before")}))
                 ORDER BY COALESCE(heartbeat_at, started_at) ASC
                 LIMIT @max
             )

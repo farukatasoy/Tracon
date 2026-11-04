@@ -577,7 +577,7 @@ public sealed class StructuredResponseValidatingAgentTests
             => _inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-            DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
-            => _inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken);
+            TimeSpan staleAfter, int max, CancellationToken cancellationToken = default)
+            => _inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken);
     }
 }

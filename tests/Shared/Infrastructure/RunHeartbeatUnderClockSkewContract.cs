@@ -5,35 +5,29 @@ using Tracon.Testing.Contracts.Storage;
 namespace Tracon.Tests.Common;
 
 /// <summary>
-/// PROBE, not a gate: what the SQL run store does with a run that is alive when the node that closes orphaned runs reads a
-/// clock that runs ahead of the node that runs it, written once for every SQL provider.
+/// What the SQL run store does with a run that is alive when the node that closes orphaned runs reads a clock that runs
+/// ahead of the node that runs it, written once for every SQL provider whose statements read the database server's clock.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The run's node stamps <c>runs.heartbeat_at</c> with its OWN clock (<c>RunHeartbeatWriter</c> passes
-/// <c>GetUtcNow()</c> to <see cref="IRunStore.TouchHeartbeatAsync"/>), and the node that closes orphaned runs
-/// (<c>RunReconciliationService</c>) compares the column with ITS clock minus
-/// <see cref="RunReconciliationOptions.OrphanThreshold"/>. A run that is beating is therefore closed as <c>Failed</c> by a
-/// node whose clock is ahead by more than the threshold minus the age of the last beat: with the defaults (a beat every
-/// 30 seconds, a threshold of 5 minutes) the margin is between 4 and a half and 5 minutes. The database server's own clock is
-/// never read.
+/// The run's node marks <c>runs.heartbeat_at</c> (<c>RunHeartbeatWriter</c> calls
+/// <see cref="IRunStore.TouchHeartbeatAsync"/>), and the node that closes orphaned runs
+/// (<c>RunReconciliationService</c>) asks <see cref="IRunStore.ClaimOrphanedRunsAsync"/> for the rows whose mark is older than
+/// <see cref="RunReconciliationOptions.OrphanThreshold"/>. When the mark was the run's node's clock and the age was the scanning
+/// node's clock, a beating run was closed as <c>Failed</c> by a node whose clock was ahead by more than the threshold minus the age
+/// of the last beat: with the defaults (a beat every 30 seconds, a threshold of 5 minutes) between 4 and a half and 5 minutes.
+/// Both now read the database server's clock, whoever scans.
 /// </para>
 /// <para>
-/// The two services run for real, on the real SQL store, each with its own <see cref="TimeProvider"/>: the second one's
-/// wall clock is shifted by the skew, its timers are the system's. The intervals are shortened so that a case ends in about a
-/// second; what is measured is the shape (the threshold minus the age of the last beat), not the defaults.
+/// The two services run for real, on the real SQL store, each with its own <see cref="TimeProvider"/>: the second one's wall clock
+/// is shifted by the skew, its timers are the system's. The intervals are shortened so that a case ends in about a second; what is
+/// measured is the shape (the threshold minus the age of the last beat), not the defaults.
 /// </para>
 /// <para>
-/// The scenarios state what a healthy cluster must do: a beating run stays <c>Running</c> whoever scans. The ones past the
-/// margin fail, which is the finding.
-/// </para>
-/// <para>
-/// <strong>Measured (2026-11-04, PostgreSQL 18 and SQL Server 2022, this file compiled into both provider projects):</strong>
-/// the run stays <c>Running</c> with the scanning node 0, 240 and 299 seconds ahead and is closed <c>Failed</c> (error class
-/// Infrastructure) with it 301 and 900 seconds ahead, on both servers. The control (a run with no heartbeat at all) is closed at
-/// no skew, so the harness can see a closed run. The file is kept as <c>.cs.finding</c>, outside the build, because the scenarios
-/// past the margin fail until the clock the two columns are compared on is one clock; rename it to <c>.cs</c> and add it to
-/// the provider projects (as the clock skew lease contract is) to run it.
+/// <strong>Measured before the change</strong> (PostgreSQL 18 and SQL Server 2022, the same on both): the run stayed
+/// <c>Running</c> with the scanning node 0, 240 and 299 seconds ahead and was closed <c>Failed</c> (error class Infrastructure) with it
+/// 301 and 900 seconds ahead. The control (a run with no heartbeat at all) is closed at no skew, so the harness can see a closed
+/// run. The scenarios state what a healthy cluster must do: a beating run stays <c>Running</c> whoever scans.
 /// </para>
 /// </remarks>
 public abstract class RunHeartbeatUnderClockSkewContract

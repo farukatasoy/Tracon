@@ -691,6 +691,17 @@ internal abstract class SqlDialect
         => AddLeaseInstant(command, "lease_until", clock, duration);
 
     /// <summary>
+    /// Binds the time a statement stamps when it reads the lease clock as a parameter (<c>now</c>), for a statement that
+    /// takes no duration (a run's heartbeat).
+    /// </summary>
+    /// <param name="command">The command.</param>
+    /// <param name="now">The application's reading of the time; a provider that reads the database server's clock does not use it.</param>
+    /// <remarks>The default binds nothing: the statement reads the database server's clock itself. See <see cref="AddLeaseWindow"/>.</remarks>
+    public virtual void AddLeaseNow(DbCommand command, DateTimeOffset now)
+    {
+    }
+
+    /// <summary>
     /// Binds the instant that lies <paramref name="after"/> from now on the lease clock, for a statement that writes it
     /// (a lease renewal, the end of a retry delay).
     /// </summary>

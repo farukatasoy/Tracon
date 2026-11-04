@@ -22,6 +22,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **A node whose clock is wrong no longer takes a lease it should not, and the clocks of your nodes no longer matter for leases.** They still matter for the deployment rate-limit windows, which each instance cuts from its own clock,
     and for the time an instance writes when it queues a job to run at once (a job is due when the server's clock passes it, so an instance that is ahead queues its jobs that much late).
   - **The database server's clock is now the one to keep right.** After a failover to a server whose clock differs, the leases the old server held are read on the new server's clock.
+  - **A run that is beating is no longer closed as orphaned by a node whose clock is ahead.** The same shape held for the run heartbeat: the node that runs a run marked `runs.heartbeat_at` with its own clock, and the node that
+    closes orphaned runs compared the mark with its own clock minus `OrphanThreshold`. Measured on both servers: a run that kept its heartbeat stayed `Running` with the scanning node 0, 240 and 299 seconds ahead and was closed
+    `Failed` (`orphaned`, Infrastructure) with it 301 and 900 seconds ahead, with the defaults (a beat every 30 seconds, a threshold of 5 minutes). On PostgreSQL and SQL Server the mark and the age now both read the database server's clock.
+    A `Running` row that never sent a heartbeat is still judged by the time its own node wrote when it started.
+  - **Breaking, for a custom `IRunStore`: `ClaimOrphanedRunsAsync` takes an age instead of an instant.** `ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, …)` is now `ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, …)`:
+    a store that shares its database between nodes can only measure the age on the clock it marked the heartbeat with. Compute the instant inside the store (`now - staleAfter`). `RunStoreContract` no longer backdates a heartbeat; it lets a
+    short age pass in real time. `TouchHeartbeatAsync` keeps its `at`: the in-memory store marks with it, and the SQL stores that share a database ignore it.
   - `TestData.Job()` in `Tracon.Testing.Contracts.Xunit` is due a minute ago instead of now: a job that is due "now" on the test process's clock is not yet due on a database server's clock that runs a few milliseconds behind it.
 
 - **The compiled agent cache holds at most 4096 agents and drops one that is unused for an hour.** It kept one agent for every tenant, agent, definition version and culture for the life

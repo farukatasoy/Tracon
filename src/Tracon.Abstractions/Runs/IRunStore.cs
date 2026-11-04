@@ -383,7 +383,11 @@ public interface IRunStore
     /// cancellation requests that wait on them.
     /// </summary>
     /// <param name="runIds">The ids of the runs to mark.</param>
-    /// <param name="at">The mark time (UTC).</param>
+    /// <param name="at">
+    /// The mark time (UTC) on the caller's clock. A store that shares its database between nodes (PostgreSQL, SQL
+    /// Server) marks the row with the database server's clock instead and ignores it, so that the node that closes
+    /// orphaned runs compares the mark with a clock that is the same for every node.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// The runs among <paramref name="runIds"/> that are still <c>Running</c> or
@@ -461,10 +465,14 @@ public interface IRunStore
     /// Closes <c>Running</c> rows, and <c>Queued</c> rows that sent a heartbeat, that have
     /// not sent one for a long time as <c>Failed</c> and records the reason.
     /// </summary>
-    /// <param name="staleBefore">
+    /// <param name="staleAfter">
     /// <c>Running</c> rows whose last heartbeat is older than this — or that never
     /// sent one — count as orphaned, and so do <c>Queued</c> rows whose last heartbeat
-    /// is older than this (UTC).
+    /// is older than this. The age is measured on the store's clock: the database
+    /// server's on PostgreSQL and SQL Server, the same clock the heartbeat was
+    /// marked with, so a node whose own clock is ahead cannot close a run that is
+    /// beating. A <c>Running</c> row that never sent a heartbeat is judged by the time
+    /// it started, which its own node wrote.
     /// </param>
     /// <param name="max">The maximum number of rows to close in this round.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -490,7 +498,7 @@ public interface IRunStore
     /// </para>
     /// </remarks>
     ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-        DateTimeOffset staleBefore,
+        TimeSpan staleAfter,
         int max,
         CancellationToken cancellationToken = default);
 }

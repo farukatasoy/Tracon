@@ -81,7 +81,7 @@ internal sealed class NoOpRunStore : IRunStore
     public ValueTask<bool> RequestCancellationAsync(Guid runId, string tenantId, DateTimeOffset at, CancellationToken cancellationToken = default)
         => new(false);
 
-    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
+    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken cancellationToken = default)
         => new(EmptyRuns);
 
 #pragma warning disable CS1998 // no await needed - this is a fixed empty sequence

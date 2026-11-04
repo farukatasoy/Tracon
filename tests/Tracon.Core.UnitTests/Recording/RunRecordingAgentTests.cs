@@ -735,7 +735,7 @@ public sealed class RunRecordingAgentTests
             => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-            DateTimeOffset staleBefore,
+            TimeSpan staleAfter,
             int max,
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unavailable");

@@ -475,7 +475,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // upsert, so the two-branch OUTPUT trap does not apply.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
-               SET heartbeat_at = @at
+               SET heartbeat_at = {LeaseNow}
             OUTPUT inserted.tenant_id, inserted.cancel_requested_at
              WHERE id = @id AND status IN (@status_running, @status_queued);
             """;
@@ -505,8 +505,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               FROM {Schema}.runs AS r
              WHERE r.id IN (
                        SELECT TOP (@max) id FROM {Schema}.runs
-                        WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < @stale_before)
-                            OR (status = @status_queued AND heartbeat_at < @stale_before))
+                        WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < {LeaseInstant("stale_before")})
+                            OR (status = @status_queued AND heartbeat_at < {LeaseInstant("stale_before")}))
                      ORDER BY COALESCE(heartbeat_at, started_at) ASC
                    );
             """;
