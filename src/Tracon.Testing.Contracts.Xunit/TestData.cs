@@ -74,7 +74,11 @@ public static class TestData
 
     /// <summary>Produces a sample queued job. Ready to pass to <c>EnqueueAsync</c>.</summary>
     /// <param name="tenantId">The tenant ID.</param>
-    /// <param name="scheduledFor">The time the job is due to run. Defaults to now.</param>
+    /// <param name="scheduledFor">
+    /// The time the job is due to run. Defaults to a minute ago: a job that is due "now" on the test process's clock is
+    /// not yet due on a database server's clock that runs a few milliseconds behind it, and a store that reads its own
+    /// clock must see the job as ready whichever of the two is ahead.
+    /// </param>
     /// <returns>The job record.</returns>
     public static JobRecord Job(string tenantId = "default", DateTimeOffset? scheduledFor = null)
     {
@@ -88,7 +92,7 @@ public static class TestData
             TargetName = "test-agent",
             Status = JobStatus.Pending,
             Payload = State("""["input"]"""),
-            ScheduledFor = scheduledFor ?? now,
+            ScheduledFor = scheduledFor ?? now - TimeSpan.FromMinutes(1),
             CreatedAt = now,
         };
     }
