@@ -124,6 +124,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **Start the new nodes after the migration has been applied.** It changes the column's collation without rewriting a row (measured: about ten milliseconds for a million jobs on SQL Server 2022), but it takes a schema lock on `jobs` and on `singleton_leases` until the statement ends, and a worker that leases a job waits for it.
   - **Check the SQL you wrote against these columns.** A comparison of `lease_owner` or `owner_id` with a column of another collation fails with "Cannot resolve the collation conflict"; write `COLLATE Latin1_General_BIN2` on your side.
 
+- **Breaking: a provider name of a tenant binding holds only the ASCII letters, the digits, `_`, `.` and `-`.** `TenantProviderBinding.NormalizeProviderName` folds the name to lower case as before and now
+  refuses any other character with an `ArgumentException` that names the index and the code point, never the value; every store (in memory, PostgreSQL, SQL Server, SQLite) refuses it on write, on read and on delete, and
+  `PUT` and `DELETE /api/tenants/{tenantId}/providers/{provider}` answer `400`. Outside that alphabet the engines disagreed on what one name is: SQL Server's default collation reads a full-width `ｏ` as `o`, so
+  `ｏpenai` and `openai` were one binding there and two elsewhere, and the migrations that folded stored names to lower case turned `É` into `é` on SQL Server and left it alone on PostgreSQL. A caller that holds client text asks
+  the new `TenantProviderBinding.TryNormalizeProviderName` first and answers the client.
+  What to do:
+  - **Check the names you pass.** The built-in providers (`openai`, `azure-openai`, `anthropic`, `google` and the like) are inside the alphabet. A provider you registered under a name with a space, an accent or another script has
+    to be renamed, in the registration and in every binding, egress policy and agent definition that names it.
+  - **A stored binding outside the alphabet is not read any more.** The call that looks it up throws; delete or rename the row before you roll the new version.
+
 - **A tenant identifier holds only ASCII letters, digits, `_`, `.` and `-`; every other character is refused.** `AmbientTenantScope.Normalize`, `AmbientTenantScope.Begin`, the
   tenant an `ITenantContext` returns and every store now throw an `ArgumentException` (the message names the index and the code point of the first character, never the value)
   for a tenant with a space, an accented letter, a full-width letter, `*`, `:`, a control character or anything else outside that set. The HTTP surface already allowed
@@ -249,7 +259,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   They now fold with the ASCII rules (`COLLATE "C"`, `COLLATE Latin1_General_BIN2`), whatever the database. A migration changes the
   checksum the database recorded, so a database that applied one before fails the check at start. This is a release candidate
   cost taken before `1.0.0-rc.1`, as `0059` was; a database created by this release is not affected. A new test reads every
-  migration and refuses a `lower()` or `upper()` without an ordinal collation.
+  migration and refuses a `lower()` or `upper()` without an ordinal collation. SQL Server `0025` changed once more: the tie-break between two spellings of one
+  provider saved at the same instant now names the ordinal collation too, so a case-sensitive database keeps the row PostgreSQL keeps (the one whose name sorts last by its code points).
 
 - **On SQL Server, the identifiers a client chooses are compared by their characters, letter case included. `Session-A` and `session-a` are two sessions,
   as they already were on PostgreSQL and SQLite.** SQL Server compared them by the collation of the database, and its default ignores
@@ -1049,6 +1060,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **On SQL Server, a store call that is one statement is sent again when the server picks it as a deadlock victim; it used to throw `SqlException` 1205 at its caller.** A transaction was sent again for a long time (an upsert, a
+  multi-statement write), but an event append, a read and a delete were not. The second start of a queued run writes the time the run started, which moves the row in the clustered index of `runs` and so rewrites the
+  entry of `runs_pk`; an event append (its foreign key check) and a read of the run take the shared lock on `runs_pk` first and the clustered row second, and the two orders cross. Measured with the `system_health`
+  deadlock report: 6 victims in 300 rounds (2 appends, 4 reads) when the second write changed `started_at`, none when it did not. The run event writer takes its first failed append for a store failure and drops the rest of the run's
+  events, so a run could lose its tail. Such a statement is now sent again on a new command, up to five attempts with a random pause (an error that is not a deadlock, and the fifth victim's, reach the caller unchanged); a read builds a new
+  list on every attempt. PostgreSQL did not produce a victim in the same race, and on SQLite a repeat would multiply the busy timeout, so they keep sending only what they sent. The report of a job item is two statements on SQL Server and SQLite
+  and runs in a transaction now: sending the whole text again after the second statement was the victim counted nothing (measured), because the first had committed.
+- **A retention sweep for one tenant no longer reaches the rows of a tenant whose name only looks the same to the database.** On SQL Server, whose default collation ignores case and width, `tenant_id = @tenant_id` was true for `acme` and for
+  the same name with a full-width `a`, so the sweep for one counted and deleted the rows of the other (measured on `jobs` and `sessions`: 2 rows where 1 was expected). The stores never write such a name, but a row from an earlier release or from a
+  script can hold one, and the migration check that rejects it runs only when migrations are applied. The sweep adds a binary condition to the one the index serves.
+- **`GET /api/runs` and `GET /api/voice/sessions` answer `400` for a `sessionId` filter of more than 200 characters or one that starts or ends with whitespace.** SQL Server ignores trailing spaces in a comparison of any collation, so the filter `abc ` returned the
+  session `abc` there and nothing on the other stores; every other entry that carries a session id already refused the edge. An empty filter is still no filter.
 - **Compiling an agent no longer leaves a telemetry meter and an activity source behind, so dropping an agent from the compiled-agent cache frees its memory.** The chat client that writes the `chat` span and the
   `gen_ai.client.*` metrics of every model call was built again with every model-call pipeline, and the library makes a `Meter`, an `ActivitySource` and four histograms in its constructor and frees them only when
   the client is disposed. The runtime keeps both in process-wide lists until then, and a compiled agent is dropped, never disposed, because a run may still hold it. The bounded cache therefore bounded the agents and not what
