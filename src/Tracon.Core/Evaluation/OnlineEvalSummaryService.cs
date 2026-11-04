@@ -31,6 +31,10 @@ internal sealed class OnlineEvalSummaryService(
     TimeProvider? timeProvider = null)
 {
     private readonly ConcurrentDictionary<string, TenantWindow> _windows = new(StringComparer.Ordinal);
+    private long _nextSweepTicks;
+
+    /// <summary>Gets how many tenants have a window: a tenant whose scores have all left the window is not kept.</summary>
+    internal int TrackedTenants => _windows.Count;
 
     /// <summary>
     /// Adds a newly written judge score to the window and publishes
@@ -51,14 +55,29 @@ internal sealed class OnlineEvalSummaryService(
 
         var options = optionsMonitor.CurrentValue;
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
-        var window = _windows.GetOrAdd(tenantId, static _ => new TenantWindow());
+
+        DropEmptyWindows(now, options.EvaluationWindow);
 
         ScoreWindowSnapshot snapshot;
 
-        lock (window)
+        while (true)
         {
-            window.Add(now, score, options.EvaluationWindow);
-            snapshot = window.Summarize(now, options.EvaluationWindow);
+            var window = _windows.GetOrAdd(tenantId, static _ => new TenantWindow());
+
+            lock (window)
+            {
+                // The sweep removed this window between the lookup and the lock: the score goes into the
+                // window that replaces it, or it would be counted in one nobody reads.
+                if (window.Retired)
+                {
+                    continue;
+                }
+
+                window.Add(now, score, options.EvaluationWindow);
+                snapshot = window.Summarize(now, options.EvaluationWindow);
+            }
+
+            break;
         }
 
         var belowThreshold = snapshot.SampleCount >= options.MinSampleSize &&
@@ -166,12 +185,55 @@ internal sealed class OnlineEvalSummaryService(
         };
     }
 
+    /// <summary>
+    /// Removes the windows that hold no score, once per evaluation window.
+    /// </summary>
+    /// <remarks>
+    /// A window whose scores have all left it summarizes to nothing, the same as no window at all. It was kept
+    /// for good all the same, one entry for every tenant that ever had a score recorded, and the tenant comes from
+    /// the request.
+    /// </remarks>
+    private void DropEmptyWindows(DateTimeOffset now, TimeSpan windowSize)
+    {
+        var due = Volatile.Read(ref _nextSweepTicks);
+
+        // A floor of a minute: a window of a few seconds must not turn every score into a scan.
+        var interval = Math.Max(windowSize.Ticks, TimeSpan.TicksPerMinute);
+
+        if (now.UtcTicks < due
+            || Interlocked.CompareExchange(ref _nextSweepTicks, now.UtcTicks + interval, due) != due)
+        {
+            return;
+        }
+
+        foreach (var pair in _windows)
+        {
+            lock (pair.Value)
+            {
+                if (pair.Value.IsEmptyAt(now, windowSize))
+                {
+                    pair.Value.Retired = true;
+                    _windows.TryRemove(pair);
+                }
+            }
+        }
+    }
+
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct ScoreWindowSnapshot(long SampleCount, double? AverageScore);
 
     private sealed class TenantWindow
     {
         private readonly Queue<(DateTimeOffset At, double Score)> _samples = new();
+
+        public bool Retired { get; set; }
+
+        public bool IsEmptyAt(DateTimeOffset now, TimeSpan windowSize)
+        {
+            Prune(now, windowSize);
+
+            return _samples.Count == 0;
+        }
 
         public void Add(DateTimeOffset at, double score, TimeSpan windowSize)
         {

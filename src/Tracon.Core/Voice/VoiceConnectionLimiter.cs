@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 namespace Tracon;
 
 /// <summary>
@@ -19,7 +17,7 @@ namespace Tracon;
 /// </remarks>
 internal sealed class VoiceConnectionLimiter
 {
-    private readonly ConcurrentDictionary<string, int> _counts = new(StringComparer.Ordinal);
+    private readonly TenantSlotCounter _slots = new();
 
     /// <summary>Initializes a new limiter.</summary>
     /// <param name="limit">The maximum concurrent connections per tenant.</param>
@@ -39,45 +37,21 @@ internal sealed class VoiceConnectionLimiter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        while (true)
-        {
-            var current = _counts.GetOrAdd(tenantId, 0);
-
-            if (current >= Limit)
-            {
-                return null;
-            }
-
-            // 🚨 Compare-and-swap is required. If two requests read together,
-            // both see a value under the limit and the limit is exceeded by one.
-            if (_counts.TryUpdate(tenantId, current + 1, current))
-            {
-                return new VoiceConnectionLease(this, tenantId);
-            }
-        }
+        // 🚨 Compare-and-swap is required (TenantSlotCounter). If two requests read together,
+        // both see a value under the limit and the limit is exceeded by one.
+        return _slots.TryReserve(tenantId, Limit) ? new VoiceConnectionLease(this, tenantId) : null;
     }
 
     /// <summary>Gets a tenant's active connection count.</summary>
     /// <param name="tenantId">The tenant.</param>
     /// <returns>The active connection count.</returns>
     public int CountFor(string tenantId)
-        => tenantId is not null && _counts.TryGetValue(tenantId, out var count) ? count : 0;
+        => tenantId is not null ? _slots.CountFor(tenantId) : 0;
 
-    internal void Release(string tenantId)
-    {
-        while (true)
-        {
-            if (!_counts.TryGetValue(tenantId, out var current) || current <= 0)
-            {
-                return;
-            }
+    /// <summary>Gets how many tenants hold a connection: a tenant that holds none is not kept.</summary>
+    internal int TrackedTenants => _slots.TrackedTenants;
 
-            if (_counts.TryUpdate(tenantId, current - 1, current))
-            {
-                return;
-            }
-        }
-    }
+    internal void Release(string tenantId) => _slots.Release(tenantId);
 }
 
 /// <summary>Represents a reserved voice connection slot.</summary>

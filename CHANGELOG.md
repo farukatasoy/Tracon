@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **The compiled agent cache holds at most 4096 agents and drops one that is unused for an hour.** It kept one agent for every tenant, agent, definition version and culture for the life
+  of the process, so an installation that takes the tenant from a header and lists no `AllowedTenants` let the caller choose how much memory it held: a compiled agent weighs 8.3 KiB with no tools
+  and a short instruction and 42 KiB with sixty tools and an 8 KiB instruction (measured; the instruction counts about four bytes per character). An agent that leaves the cache is not
+  disposed: a run that holds it keeps using it, and the next run compiles it again, which took 46 to 138 µs and allocated 20 to 66 KiB per agent in the measurement, against the seconds of a model call.
+  What to do:
+  - **A host with more than 4096 (tenant, agent, definition version, culture) combinations in use at once can raise `Tracon:AgentCache:MaxEntries`.** The default holds 900 entries for a single
+    tenant with a hundred agents, three cultures and three live versions of each without reaching it. A cache whose `CompiledAgentCache.Count` sits at the limit all the time is the sign.
+  - **`Tracon:AgentCache:IdleLifetime` (one hour) is what removes the entry of a definition version that was saved over.** Raise it for agents that run once a day and must not compile again;
+    the value is at most 30 days. The cache has no timer: the check runs while the cache is in use.
+  - Nothing else changes: the empty `AllowedTenants` default, the cache key and what a tenant can see are the same.
+
 - **Hosts that restart on a timer to get memory back can restart less often.** Before this release the telemetry agent of every run stayed in memory, about 7 KiB per run, and a periodic restart (or a memory limit that recycled the container) was the only thing that returned it. Measure the live heap over a day before you lengthen the interval. The telemetry itself is the same: spans, attributes and metrics are not renamed or reshaped.
   - **If you export `gen_ai.client.operation.duration` and `gen_ai.client.token.usage`, do not work around the old leak by disposing the agent.** With the OpenTelemetry SDK 1.20.1 a meter disposed after its run retired its series: each run became a series of its own that held one measurement, and a collection while idle returned none. Measured with a collection after every 20 runs: 20 series of count 1 for disposed meters, one series of count 200 for meters that stay alive. The pool therefore keeps its lanes while the host lives and disposes them when the host stops.
   - A stream your code never disposes (a hand-written `GetAsyncEnumerator` that is dropped without `DisposeAsync`) still holds the lane it took. Use `await foreach`, which disposes it.
@@ -612,6 +623,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`Tracon:AgentCache:MaxEntries` (4096) and `Tracon:AgentCache:IdleLifetime` (one hour) bound the compiled agent cache.** When a new entry would pass the limit the entries used least
+  recently are dropped, down to a tenth below it, and an entry that was not used for the lifetime is dropped by a check that runs while the cache is in use. A hit takes no lock and allocates nothing.
+  Both values are checked when the host starts: zero, a negative value, more than 1,000,000 entries or more than 30 days is refused. New public type `TraconAgentCacheOptions` and property
+  `TraconOptions.AgentCache`; the cache stays registered with `TryAdd`, so a registration of your own wins. The two keys are in the `AgentCache` rows of the configuration reference.
+
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
   stores its response. A process that died in between left a reservation nobody finished, and every later request with the key answered `409` until
   retention deleted the record. The next request now takes a reservation that is older than `ReservationTimeout` (default one hour, `00:00:00`
@@ -971,6 +987,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and the meta package `Tracon` carries one `net10.0` dependency group.
 
 ### Fixed
+
+- **In-memory state that is kept per tenant is removed when its window is over, so it no longer grows with the number of tenants a caller makes up.** The tenant identifier comes from a request, and
+  six maps kept one entry for every identifier they ever saw: the hourly sampling budget and the score window of online evaluation (an entry whose hour is over, or that holds no score, counts for
+  nothing), the in-memory counter behind `RateLimitScope.Deployment` (an entry whose window has ended restarts at one anyway), the slot counts of the live voice sessions and of the voice connection
+  limit (the entry stayed at zero after the last slot was given back), the warnings the rate limiter writes when its counter store fails (one a minute for each partition), and the audit chain's
+  key-off warning (one line for each tenant; it now names the first 1024 tenants and says once that more were left out). The limits themselves do not change: a window that is still open keeps
+  counting, and a tenant is not given a second budget for the hour by the removal.
 
 - **The AG-UI endpoint writes one text message for an answer a model streams in chunks that carry no message id.** A model provider that streams a word at a time without a message id on the chunks (the example host's echo model is one; so is a provider written against the minimum of `IChatClient`) produced a `TEXT_MESSAGE_START` ... `TEXT_MESSAGE_END` pair for every chunk, so the official AG-UI JavaScript client assembled seven assistant messages for one seven-word answer and a front end drew seven bubbles. A chunk without an id now belongs to the message before it, unless its role changes; a chunk that has an id keeps it, which is what a provider that sets one always got. Nothing changes for a front end that already read one message per answer. `Tracon.AGUI` only.
 - **A skill script or a voice request still running when the host stops no longer ends with an `ObjectDisposedException`.** The script runner's concurrency limiter and the speech client's request limit were disposed with their owner, so the slot a running script or request gave back at its end met a disposed semaphore and the exception replaced the script's result or the request's response. Both limits are disposed with the last slot returned, as the job worker's and the workflow runner's are.

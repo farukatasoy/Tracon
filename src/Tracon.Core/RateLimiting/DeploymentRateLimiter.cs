@@ -35,6 +35,11 @@ internal sealed class DeploymentRateLimiter
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastWarning = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastSkewWarning = new(StringComparer.Ordinal);
     private int _scopeWarningLogged;
+    private long _longestWindowTicks;
+    private long _nextWarningPruneTicks;
+
+    /// <summary>Gets how many partitions the two warning maps remember.</summary>
+    internal int WarnedPartitions => _lastWarning.Count + _lastSkewWarning.Count;
 
     /// <summary>Creates a new deployment rate limiter.</summary>
     /// <param name="store">The counter store.</param>
@@ -100,9 +105,18 @@ internal sealed class DeploymentRateLimiter
         var now = _clock.GetUtcNow();
         var windowStart = FixedWindowDecision.AlignWindowStart(now, window);
 
+        RaiseLongestWindow(window);
+
         try
         {
             var counted = await _store.IncrementAsync(key.Value, windowStart, cancellationToken).ConfigureAwait(false);
+
+            // The in-memory store keeps one entry per partition. It cannot tell a partition's own window from the
+            // entry, so it is told the longest window this limiter has seen and removes by that.
+            if (_store is InMemoryRateLimitCounterStore inMemory)
+            {
+                inMemory.RemoveEndedWindows(now, TimeSpan.FromTicks(Volatile.Read(ref _longestWindowTicks)));
+            }
 
             // The stored window never moves back, so a clock that jumped far ahead holds the partition's counter
             // until real time catches up. One window ahead is the ordinary case at a boundary; more is skew.
@@ -121,11 +135,80 @@ internal sealed class DeploymentRateLimiter
         }
     }
 
-    private static bool DueForWarning(ConcurrentDictionary<string, DateTimeOffset> lastWarnings, string key, DateTimeOffset now)
+    private void RaiseLongestWindow(TimeSpan window)
     {
-        var last = lastWarnings.GetOrAdd(key, DateTimeOffset.MinValue);
+        var seen = Volatile.Read(ref _longestWindowTicks);
 
-        return now - last >= WarningInterval && lastWarnings.TryUpdate(key, now, last);
+        while (window.Ticks > seen)
+        {
+            var before = Interlocked.CompareExchange(ref _longestWindowTicks, window.Ticks, seen);
+
+            if (before == seen)
+            {
+                return;
+            }
+
+            seen = before;
+        }
+    }
+
+    private bool DueForWarning(ConcurrentDictionary<string, DateTimeOffset> lastWarnings, string key, DateTimeOffset now)
+    {
+        ForgetPartitionsWarnedLongAgo(now);
+
+        while (true)
+        {
+            var last = lastWarnings.GetOrAdd(key, DateTimeOffset.MinValue);
+
+            if (now - last < WarningInterval)
+            {
+                return false;
+            }
+
+            if (lastWarnings.TryUpdate(key, now, last))
+            {
+                return true;
+            }
+
+            // Another caller took the warning, or the entry was forgotten between the read and the update: only
+            // the second is worth another try.
+            if (lastWarnings.ContainsKey(key))
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes the partitions that were last warned about longer ago than <see cref="WarningInterval"/>, at most once
+    /// per interval.
+    /// </summary>
+    /// <remarks>
+    /// A partition whose last warning is older than the interval would be warned about again at once, so forgetting
+    /// it changes nothing. The maps grew by one entry for every partition that ever failed or skewed, and the partition
+    /// key carries a tenant that comes from a request: an outage that touched many partitions left every one of them
+    /// in memory for good.
+    /// </remarks>
+    private void ForgetPartitionsWarnedLongAgo(DateTimeOffset now)
+    {
+        var due = Volatile.Read(ref _nextWarningPruneTicks);
+
+        if (now.UtcTicks < due
+            || Interlocked.CompareExchange(ref _nextWarningPruneTicks, now.UtcTicks + WarningInterval.Ticks, due) != due)
+        {
+            return;
+        }
+
+        foreach (var warnings in new[] { _lastWarning, _lastSkewWarning })
+        {
+            foreach (var pair in warnings)
+            {
+                if (now - pair.Value >= WarningInterval)
+                {
+                    warnings.TryRemove(pair);
+                }
+            }
+        }
     }
 
     private void WarnClockSkew(RateLimitPartitionKey key, TimeSpan ahead, DateTimeOffset now)

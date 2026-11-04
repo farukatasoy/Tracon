@@ -21,7 +21,7 @@ namespace Tracon;
 internal sealed class LiveVoiceSessionRegistry : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<Guid, LiveVoiceSessionHost> _sessions = new();
-    private readonly ConcurrentDictionary<string, int> _counts = new(StringComparer.Ordinal);
+    private readonly TenantSlotCounter _slots = new();
     private readonly IOptionsMonitor<VoiceLiveOptions> _options;
     private readonly ILogger<LiveVoiceSessionRegistry> _logger;
     private readonly TimeProvider _timeProvider;
@@ -65,24 +65,15 @@ internal sealed class LiveVoiceSessionRegistry : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(host);
 
-        // 🚨 Compare-and-swap, for the same reason VoiceConnectionLimiter uses one.
-
-        while (true)
+        // 🚨 Compare-and-swap (TenantSlotCounter), for the same reason VoiceConnectionLimiter uses one.
+        if (!_slots.TryReserve(host.TenantId, limit))
         {
-            var current = _counts.GetOrAdd(host.TenantId, 0);
-
-            if (current >= limit)
-            {
-                return false;
-            }
-
-            if (_counts.TryUpdate(host.TenantId, current + 1, current))
-            {
-                _sessions[host.Id] = host;
-
-                return true;
-            }
+            return false;
         }
+
+        _sessions[host.Id] = host;
+
+        return true;
     }
 
     /// <summary>Finds a session a tenant owns.</summary>
@@ -104,7 +95,7 @@ internal sealed class LiveVoiceSessionRegistry : IAsyncDisposable
     /// <param name="tenantId">The tenant.</param>
     /// <returns>The count.</returns>
     public int CountFor(string tenantId)
-        => _counts.TryGetValue(tenantId, out var count) ? count : 0;
+        => _slots.CountFor(tenantId);
 
     /// <summary>Closes a session and removes it.</summary>
     /// <param name="host">The session.</param>
@@ -178,18 +169,7 @@ internal sealed class LiveVoiceSessionRegistry : IAsyncDisposable
             return;
         }
 
-        while (true)
-        {
-            if (!_counts.TryGetValue(host.TenantId, out var current) || current == 0)
-            {
-                return;
-            }
-
-            if (_counts.TryUpdate(host.TenantId, current - 1, current))
-            {
-                return;
-            }
-        }
+        _slots.Release(host.TenantId);
     }
 
     private async Task SweepAsync()

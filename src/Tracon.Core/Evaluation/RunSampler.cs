@@ -28,6 +28,7 @@ internal sealed class RunSampler
     private readonly ILogger<RunSampler>? _logger;
     private readonly TimeProvider _clock;
     private readonly ConcurrentDictionary<string, HourlyWindow> _windows = new(StringComparer.Ordinal);
+    private long _sweptWindowTicks = long.MinValue;
 
     internal RunSampler(
         IJobStore jobStore,
@@ -40,6 +41,9 @@ internal sealed class RunSampler
         _logger = logger;
         _clock = timeProvider ?? TimeProvider.System;
     }
+
+    /// <summary>Gets how many tenants have a budget window: a tenant sampled in an earlier hour is not kept.</summary>
+    internal int TrackedTenants => _windows.Count;
 
     /// <summary>Evaluates a run for sampling and queues it when required.</summary>
     /// <param name="request">The summary of the run to sample.</param>
@@ -176,23 +180,68 @@ internal sealed class RunSampler
 
         var now = _clock.GetUtcNow();
         var windowStart = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, now.Offset);
-        var window = _windows.GetOrAdd(tenantId, static _ => new HourlyWindow());
 
-        lock (window)
+        DropWindowsOfEarlierHours(windowStart);
+
+        while (true)
         {
-            if (window.WindowStart != windowStart)
-            {
-                window.WindowStart = windowStart;
-                window.Count = 0;
-            }
+            var window = _windows.GetOrAdd(tenantId, static _ => new HourlyWindow());
 
-            if (window.Count >= maxPerHour)
+            lock (window)
             {
-                return false;
-            }
+                // The sweep removed this window between the lookup and the lock: count in the one that
+                // replaces it, or the tenant would have two budgets for the hour.
+                if (window.Retired)
+                {
+                    continue;
+                }
 
-            window.Count++;
-            return true;
+                if (window.WindowStart != windowStart)
+                {
+                    window.WindowStart = windowStart;
+                    window.Count = 0;
+                }
+
+                if (window.Count >= maxPerHour)
+                {
+                    return false;
+                }
+
+                window.Count++;
+                return true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes the windows of hours that are over, once per hour.
+    /// </summary>
+    /// <remarks>
+    /// A window that belongs to an earlier hour counts for nothing: the next sample of its tenant starts a new
+    /// count. It was kept for good all the same, one entry for every tenant that ever had a run sampled, and the
+    /// tenant comes from the request. Which hour is checked on every call, so the sweep costs one comparison until
+    /// the hour changes.
+    /// </remarks>
+    private void DropWindowsOfEarlierHours(DateTimeOffset windowStart)
+    {
+        var swept = Volatile.Read(ref _sweptWindowTicks);
+
+        if (windowStart.UtcTicks <= swept
+            || Interlocked.CompareExchange(ref _sweptWindowTicks, windowStart.UtcTicks, swept) != swept)
+        {
+            return;
+        }
+
+        foreach (var pair in _windows)
+        {
+            lock (pair.Value)
+            {
+                if (pair.Value.WindowStart < windowStart)
+                {
+                    pair.Value.Retired = true;
+                    _windows.TryRemove(pair);
+                }
+            }
         }
     }
 
@@ -200,6 +249,7 @@ internal sealed class RunSampler
     {
         public DateTimeOffset WindowStart;
         public int Count;
+        public bool Retired;
     }
 }
 
