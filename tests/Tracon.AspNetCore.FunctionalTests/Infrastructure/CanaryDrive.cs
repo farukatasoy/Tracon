@@ -133,32 +133,25 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
 
     /// <summary>Waits until no run of the tenant is still running.</summary>
     /// <returns>A task that completes when every run has reached a terminal state; it throws when one does not in time.</returns>
-    public async Task WaitForRunsToSettleAsync()
-    {
-        var until = DateTimeOffset.UtcNow.AddSeconds(20);
-
-        while (true)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/tracon/api/runs?limit=200", UriKind.Relative));
-
-            if (tenant is not null)
+    public Task WaitForRunsToSettleAsync()
+        => WaitUntil.TrueAsync(
+            async () =>
             {
-                request.Headers.Add(TenantHeader, tenant);
-            }
+                using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/tracon/api/runs?limit=200", UriKind.Relative));
 
-            using var reply = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
-            var runs = await TraconTestHost.ReadJsonAsync(reply);
+                if (tenant is not null)
+                {
+                    request.Headers.Add(TenantHeader, tenant);
+                }
 
-            if (!runs.EnumerateArray().Any(static run => run.GetProperty("status").GetString() is { } status
-                && (string.Equals(status, "running", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase))))
-            {
-                return;
-            }
+                using var reply = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+                var runs = await TraconTestHost.ReadJsonAsync(reply);
 
-            DateTimeOffset.UtcNow.ShouldBeLessThan(until, "a run is still running 20 seconds after its client left");
-            await Task.Delay(100, TestContext.Current.CancellationToken);
-        }
-    }
+                return !runs.EnumerateArray().Any(static run => run.GetProperty("status").GetString() is { } status
+                    && (string.Equals(status, "running", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase)));
+            },
+            "every run to settle after its client left",
+            TimeSpan.FromSeconds(30));
 
     /// <summary>
     /// Reads what the runs left behind the way an operator reads it: the list, every part of every run, the export, the

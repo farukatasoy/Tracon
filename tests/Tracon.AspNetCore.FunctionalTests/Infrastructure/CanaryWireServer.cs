@@ -151,7 +151,7 @@ internal sealed class CanaryWireServer : IAsyncDisposable
         switch (Mode)
         {
             case Behavior.Hold:
-                await Task.Delay(Timeout.Infinite, context.RequestAborted);
+                await Task.Delay(Timeout.Infinite, context.RequestAborted); // delay: simulated
 
                 return;
 
