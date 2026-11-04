@@ -61,11 +61,7 @@ var tracon = builder.AddTracon()
 
 Each options type validates at startup. Missing required configuration stops the host
 before the first run. A named compatible endpoint can be keyless, and Azure can use a
-credential factory instead of an API key. Tracon removes white space at both ends of a
-provider key before it sends the key, so a key read from a file with a trailing newline
-works; a key that still holds a control character, or another character an HTTP header
-cannot carry, stops the host at start with a message that names the option and never
-repeats the key.
+credential factory instead of an API key. Tracon trims a provider key; one a header cannot carry stops the host at start.
 
 ## Live voice providers
 

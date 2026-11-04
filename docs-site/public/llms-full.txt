@@ -1821,9 +1821,8 @@ Two consequences are worth planning for:
   may be two real tenants, and merging two tenants cannot be undone: decide per table
   whether the rows are one tenant or two, then start again.
 
-Contract tests check isolation in both directions across the in-memory store and all
-three SQL providers, and a coverage gate requires every public store method to be tested
-or exempted with a documented reason.
+Contract tests check isolation in both directions on the in-memory store and the three SQL
+providers, and a coverage gate requires every public store method to be tested or exempted.
 
 Isolation lives in the application layer, deliberately: every query carries the
 resolved tenant, and Tracon neither creates row level security policies nor assumes you
@@ -6883,6 +6882,32 @@ commits. Measured in an emulated container on Apple Silicon: 1.3 s over 100 000 
 million runs with two million events. The default `CommandTimeoutSeconds` of 30 covers that; raise
 it for the run that applies the migration if your storage is slower
 ([Compatibility](/reference/compatibility/)).
+
+The `decimal_columns_as_text` migration (`0058`, SQLite only) rewrites `runs`. Seven columns were
+declared `NUMERIC` (`cached_input_cost`, `non_token_cost` and the five unit prices), and SQLite turned
+the text of a cost into a double and kept 15 digits of it: `999999999.999999` read back as
+`999999999.99999905`. They are `TEXT` now, like every other cost column, and a cost reads back as it was
+written. A stored value is carried over as its 15-digit decimal. A cost or price written with 15
+digits or fewer, which is every real one, comes back digit for digit. A value written with more had
+been rounded to a double on its way in, and the migration keeps 15 of its digits
+(`1234567890.1234567890` becomes `1234567890.12346`). The quota counters, which the old addition
+left a float tail on (`0.30000000000000004`), are rounded the same way, and from now on every cost
+total and counter is added as a `decimal`. No table is rebuilt (`runs` has children that a rebuild
+would delete), so the migration adds a column, fills it, drops the old one and renames the new one,
+which rewrites `runs` once per column. Measured on an Apple Silicon machine in a busy session: 1.9 s
+over 100 000 runs (with 200 000 run events), and 22 s to 30 s over a million runs with two million
+run events. SQLite does not cut a statement short at `CommandTimeoutSeconds`, but a second process
+that waits for the write lock does give up at it, so apply the migration in your own deployment step
+(`AutoApplyMigrations = false`) before you start the new instances. Two things stop it. A view or
+trigger of your own that names one of the seven columns makes SQLite refuse to drop the column
+(`error in view … after drop column`), and so does a view of your own built on `runs_v1`, because
+the migration drops that view first (`error in view <yours>: no such table: main.<prefix>runs_v1`).
+Nothing is changed in either case: drop yours first and create it again afterwards. The `runs_v1`
+view is dropped and, when `EnableReadViews` is on, built again in the same run; a database that had
+it enabled and later switched it off loses the view that was left behind
+([Read contract views](/reference/read-views/)). The data subject export and the retention archive
+write these seven fields as JSON strings on SQLite from then on (`"0.5"`, like `input_cost` already was);
+PostgreSQL and SQL Server write numbers.
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
@@ -8713,6 +8738,14 @@ shows. `?after=` and `?before=` walk a range and cannot see a signed entry befor
 is the one to trust. Without a key the chain still catches a change made without recomputing it (a manual
 edit, a partial restore, a bug in another writer) and nothing more: anyone who can write the table can
 recompute every hash, and the walk reports `Valid`.
+
+## Labels longer than the column
+
+On SQL Server the actor, action and entity columns hold 200 characters. A longer label (the entity of an
+operation on a session with a 200-character id is `session:` and those 200 characters) is stored as its
+first 167 characters, `~` and 32 hexadecimal digits of its SHA-256, so the entry is never refused and two
+long labels that share their start stay two entries. `?entity=`, `?actor=` and `?action=` shorten the filter
+the same way, and the chain covers the form that is stored. The other stores keep the label whole.
 
 ## Read next
 
@@ -12037,6 +12070,7 @@ repeat it:
 | `UnkeyedAuditChain` | The audit trail's hash chain has no key, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a key under `Tracon:AuditChainKeys:<id>` and set `Tracon:Audit:ChainKeyId` to `<id>`; see [Sign the audit chain with a key](/guides/audit-chain-key/) |
 | `UnauthenticatedLocalOperator` | No `AuthToken` and no authorization policy is configured, so a request with no credential is the local operator with full rights. A reverse proxy on a Unix socket that adds no forwarding header makes a remote caller look local | Set `TraconEndpointOptions.AuthToken`, or `RequireAuthorization(...)` with a policy that authenticates the caller. Accept it only when nothing but this machine can reach the endpoints. An API key does not answer it |
 | `UnenforcedQuotaOnStoreFailure` | Quota enforcement is on and `Tracon:Quotas:AllowOnStoreFailure` is `true` (the default), so a run goes ahead when the quota store fails and a tenant past its ceiling is not stopped while the database is down | Set `Tracon:Quotas:AllowOnStoreFailure` to `false` to refuse runs whose quota cannot be read. Accept it only when an outage of the quota store must not stop the service |
+| `OrphanedRunsAfterRestart` | The state outlives the process (PostgreSQL, SQL Server or a SQLite file) and run reconciliation is off, so a run that a restart, a deploy or a crash cuts off keeps the status `Running` for ever: the model ignored the cancellation and the process ended first, or the process was killed. It stays counted as running and dilutes the error rate | `Tracon:RunReconciliation:Enabled`. Accept it only when you close such runs by hand |
 | `InstanceLocalState` | `Tracon:Deployment:Instances` is above `1` and the store keeps its state in one process (memory, or a SQLite file), so each instance sees its own runs, sessions and job queue | `UsePostgreSql` or `UseSqlServer`, with one database that every instance reaches |
 | `UnreconciledRuns` | `Instances` is above `1` and run reconciliation is off, so a cancel that reaches the other instance answers `409` and a run whose instance died stays `Running` | `Tracon:RunReconciliation:Enabled` |
 | `UnelectedBackgroundWork` | `Instances` is above `1` and single-executor election is off, so every instance runs the periodic background work at the same time | `Tracon:SingletonExecution:Enabled` |
@@ -12068,6 +12102,12 @@ Some rows are not asked in every composition:
   no HTTP surface is not asked them.
 - `UnenforcedQuotaOnStoreFailure` is not asked while `Tracon:Quotas:Enabled` is `false`: no run is checked
   against a quota, so no store failure can let one past it.
+- `OrphanedRunsAfterRestart` is not asked on the in-memory stores or on a shared in-memory SQLite database
+  (`Data Source=file:<name>?mode=memory&cache=shared`), which lose every row with the process, so no
+  row is left `Running`. It is not asked when `Tracon:Deployment:Instances` is above `1` either: `UnreconciledRuns`
+  asks the same setting there and says the same of a run whose instance died, so one answer covers both and a host
+  that already accepted `UnreconciledRuns` is not stopped again. A store you registered yourself is not seen: the
+  decision follows the storage provider Tracon registered.
 
 The startup failure names every open decision at once — the setting, what it is
 today, and how to answer it — so one restart clears all of them rather than one per
@@ -12387,8 +12427,16 @@ app.MapTracon("/tracon", options =>
 app.MapTraconA2A();
 ```
 
-The invocation URL is `/tracon/a2a/support`; its card is under
-`/tracon/a2a/support/.well-known/agent-card.json`.
+The invocation path is `/tracon/a2a/support`; its card is under
+`/tracon/a2a/support/.well-known/agent-card.json`. The card gives the interface as an
+absolute URL (`supportedInterfaces[].url`), because a client outside the host, such as the
+official A2A JavaScript SDK, builds its transport from that value as written. The URL is the
+scheme, host and path base the request arrived on, so a host behind a reverse proxy has to
+tell ASP.NET Core about it: run `UseForwardedHeaders` with `XForwardedHost` and `XForwardedProto`
+(from the proxies you trust) and `UsePathBase` for a prefix the proxy removes, and set
+`AllowedHosts` so the card cannot name a host you do not serve. Tracon reads no forwarding header
+itself: a header the host does not honour changes nothing. The response is marked `Vary` on the
+headers the address depends on.
 
 A2A names are frozen during service registration because the underlying hosting API
 registers one server per name. The agent implementation is still resolved from the
@@ -13922,7 +13970,7 @@ var tracon = builder.AddTracon()
 
 Each options type validates at startup. Missing required configuration stops the host
 before the first run. A named compatible endpoint can be keyless, and Azure can use a
-credential factory instead of an API key.
+credential factory instead of an API key. Tracon trims a provider key; one a header cannot carry stops the host at start.
 
 ## Live voice providers
 
@@ -15599,9 +15647,14 @@ latency and more than two hosts were not measured.
 
 ## What you still own
 
-- **Clocks.** The deployment rate-limit windows are cut from the Unix epoch. Keep the clocks of your instances
-  synchronised with NTP. The stored window never moves back, so an instance whose clock jumps ahead holds a partition
-  closed for as long as the jump lasts.
+- **Clocks.** On PostgreSQL and SQL Server the database server's clock decides every lease, every retry delay and
+  whether a queued job is due, and it ages the heartbeat of a run: an instance whose own clock is wrong cannot take a
+  single-executor lease or a running job that another instance holds, and cannot close a run that is beating as orphaned. The one thing that still reads each instance's own clock is the deployment
+  rate-limit window, which is cut from the Unix epoch. Keep the clocks of your instances synchronised with NTP for that
+  window. The stored window never moves back, so an instance whose clock jumps ahead holds a partition closed for as
+  long as the jump lasts. A job is due when the database server's clock passes the time it was queued for, and an
+  instance writes "now" with its own clock when it queues a job to run at once, so an instance whose clock is ahead
+  queues its jobs that much late.
 - **A shared cache for OAuth.** `DistributedCache` needs an `IDistributedCache` that every instance reaches, for example
   Redis. `AddDistributedMemoryCache` lives in one process; the application starts with a warning, and the production
   profile refuses it when you declare more than one instance.
@@ -17325,7 +17378,9 @@ The job stays leased to the dead worker until its lease expires. No other worker
 touches it before then — the lease is a database row, so a process that dies
 without releasing anything still holds it for the remainder of the term. Once
 `LeaseDuration` elapses, another worker leases the job, `Attempt` increments, and
-the job runs again from the start.
+the job runs again from the start. The term is measured on the database server's
+clock (PostgreSQL and SQL Server), so the clocks of the machines the workers run on
+do not move its end.
 
 Two consequences follow, and both are yours to design for:
 
@@ -17408,6 +17463,12 @@ Unlike the other behaviours on this page, this one is measured with **one** buil
 standing in for both sides — a process that enabled fewer optional migration sets
 than the schema has. Two released Tracon versions running side by side is not
 something we have measured, which is another reason to keep the window short.
+
+A version that reads leases on the database server's clock still has to read the leases
+an older version wrote with its own machine's clock. While both run, a lease written by
+an older node whose clock is an hour ahead stays live for that hour on the newer
+nodes, and one written by a node an hour behind reads as over at once. Check the clocks
+of your nodes (NTP) before you start rolling, then roll.
 
 ## What one environment measured
 
@@ -17720,7 +17781,7 @@ A useful production baseline is:
     },
     "Idempotency": {
       "Enabled": true,
-      "MaxKeyLength": 255,
+      "MaxKeyLength": 200,
       "ReservationTimeout": "01:00:00"
     },
     "SingletonExecution": {
@@ -17916,7 +17977,7 @@ body buffering and the idempotency-store query.
 | Same key is still in progress | `409 Conflict` |
 | Same key, reserved longer ago than `ReservationTimeout` and never completed (the first process died) | The request takes the key and the endpoint executes |
 | Same key, different path or raw body | `422 Unprocessable Entity` |
-| Key longer than 255 characters by default | `400 Bad Request` |
+| Key longer than `MaxKeyLength` (200 characters by default) | `400 Bad Request` |
 | Key on a request whose body sets `stream:true` | `400 Bad Request` |
 | Key on a workflow run, resume or respond request without `Prefer: respond-async` | `400 Bad Request`; nothing is reserved or run |
 | Idempotency is disabled but the header is present | `501 Not Implemented`; the endpoint does not execute |
@@ -19613,6 +19674,11 @@ Install `Tracon.Voice`, keep the provider key out of files, and register it:
 dotnet add package Tracon.Voice --prerelease
 dotnet user-secrets set "Tracon:Voice:ApiKey" "..."
 ```
+
+Tracon removes white space at both ends of the key before it sends it, so a key read from a
+file with a trailing newline works; a key that still holds a control character, or another
+character an HTTP header cannot carry, stops the host at start with a message that names
+the option and never repeats the key.
 
 ```csharp
 var tracon = builder.AddTracon()
@@ -21391,7 +21457,7 @@ public sealed class MyRunStore : IRunStore
     public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
     public ValueTask<bool> RequestCancellationAsync(Guid runId, string tenantId, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
-    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken ct = default) { /* ... */ }
 }
 ```
 
@@ -21591,7 +21657,11 @@ Two more rules carry the
   `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`
   row that never sent a heartbeat belongs to the job queue and is never closed by it.
-  A second `StartRunAsync` leaves the heartbeat as it was.
+  A second `StartRunAsync` leaves the heartbeat as it was. `ClaimOrphanedRunsAsync` takes an age
+  (`staleAfter`), not an instant: a store whose database is shared between nodes stamps the heartbeat
+  and measures that age with one clock, the database server's, so a node whose own clock is ahead
+  cannot close a run that is beating. `RunStoreContract` lets a short age pass in real time, because
+  such a store cannot backdate a heartbeat.
 - **`IRunStore` carries cancellation requests across instances.**
   `RequestCancellationAsync` records a request on the row and `TouchHeartbeatAsync` hands it
   to the instance that owns the run. A store that returns an empty list from
@@ -22929,9 +22999,11 @@ tests. The registration and provider-specific configuration still change.
 | Conversation branching | No | Yes | Yes | Yes |
 | Vector knowledge search | No | Yes, with pgvector | No; knowledge answers `501` | No; knowledge answers `501` |
 | Object isolation | Process | Schema, default `tracon` | Schema, default `tracon` | Table prefix, default `tracon_` |
+| Clock that decides a lease, a retry delay and whether a job is due | The process's clock | The database server's clock (`statement_timestamp()`) | The database server's UTC clock | The process's clock |
 | Migration lock | None | PostgreSQL advisory lock | `sp_getapplock` | Sidecar file lock scoped to the database file and table prefix |
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
+| Cost amounts, unit prices and the quota counter | The whole `decimal` | `numeric(20,10)`: rounded to 10 decimals, summed exactly by the database | `decimal(20,10)`: rounded to 10 decimals, summed exactly by the database | Text of the whole `decimal`, never rounded; summed exactly by two functions (`tracon_decimal_sum`, `tracon_decimal_add`) that Tracon registers on every connection it opens |
 | Identifiers and names a client chooses (session id, idempotency key, file path, checkpoint id, score author, the name of an agent, workflow, skill or other definition, the name of an experiment variant, and the identity of a user: a session owner, a run user, an audit actor) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. SQL Server ignores trailing spaces in any collation, so `abc` and `abc ` are one key there; the run, `/v1/responses`, AG-UI and session-branch endpoints refuse a session id that starts or ends with whitespace (`400`) so the stores agree on the ids that open a session | Exact |
 | Tenant identifier | ASCII letters, digits, `_`, `.` and `-` only, folded to lower case; every store refuses any other character with an `ArgumentException` | Same rule | Same rule. The tenant columns keep the collation of the database, which ignores accents and width: no two different identifiers over that alphabet compare equal there, and that is why the alphabet is closed | Same rule |
 | ORM | None | None | None | None |
@@ -23185,7 +23257,7 @@ The set has grown since the first release that carried it, and each growth was a
 this way. The decisions added after the first six (tenant separation, session ownership,
 at-rest content protection, content inspection, request rate limiting and retention) are
 `UnregisteredRolePolicies`, `UncheckedToolCalls`, `UnrestrictedTenantEgress`,
-`UnverifiedTenantHeader`, `UnlimitedTenantWorkflows`, `UnkeyedAuditChain`, `UnauthenticatedLocalOperator` and `UnenforcedQuotaOnStoreFailure`; `CHANGELOG.md` gives the reason for
+`UnverifiedTenantHeader`, `UnlimitedTenantWorkflows`, `UnkeyedAuditChain`, `UnauthenticatedLocalOperator`, `UnenforcedQuotaOnStoreFailure` and `OrphanedRunsAfterRestart`; `CHANGELOG.md` gives the reason for
 each.
 
 Five more exist only for a deployment that declares more than one instance with `Tracon:Deployment:Instances`:
@@ -23268,12 +23340,258 @@ hashed and the plaintext value is returned only at creation.
 
 ---
 
+# Package configuration
+
+Source: https://tracon.dev/reference/configuration-packages/
+
+These sections are read by a package other than `Tracon.Core`. The binding rules, the
+section index, and the core defaults are on [Configuration](/reference/configuration/);
+everything said there about reading, overriding, and reloading a value applies here
+unchanged.
+
+## Persistence sections
+
+<p class="reads-this">Read by <code>Tracon.PostgreSql</code>, <code>Tracon.SqlServer</code>, and <code>Tracon.Sqlite</code>. A section without its package does nothing.</p>
+
+| Section | Key | Default |
+|---|---|---|
+| `Tracon:PostgreSql` | `ConnectionString` | `null`; required by the configuration registration |
+|  | `SchemaName` | `tracon` |
+|  | `AutoApplyMigrations` | `true` |
+|  | `CommandTimeoutSeconds` | `30` |
+| `Tracon:SqlServer` | `ConnectionString` | `null`; required by the configuration registration |
+|  | `SchemaName` | `tracon` |
+|  | `AutoApplyMigrations` | `true` |
+|  | `CommandTimeoutSeconds` | `30` |
+| `Tracon:Sqlite` | `ConnectionString` | `null`; required by the configuration registration |
+|  | `TablePrefix` | `tracon_` |
+|  | `AutoApplyMigrations` | `true` |
+|  | `CommandTimeoutSeconds` | `30` |
+
+SQLite rejects bare `Data Source=:memory:`. Use a shared in-memory URI when a file is
+not suitable. PostgreSQL and SQL Server use a schema; SQLite uses a table prefix.
+
+## Provider sections
+
+<p class="reads-this">Read by <code>Tracon.OpenAI</code>, <code>Tracon.Anthropic</code>, <code>Tracon.Google</code>, and <code>Tracon.AzureOpenAI</code>, each through its own <code>Use*()</code> call.</p>
+
+All provider model lists start empty. All nullable request timeouts use the provider
+library default.
+
+| Section | Verified defaults |
+|---|---|
+| `Tracon:Providers:OpenAI` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for OpenAI, `Organization=null`, `Timeout=null`, `Models=[]` |
+| `Tracon:Providers:OpenAICompatible:{name}` | Same shape as OpenAI; `EnableResponsesSurface=false` |
+| `Tracon:Providers:Anthropic` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Anthropic, `DefaultMaxOutputTokens=4096`, `Timeout=null`, `MaxRetries=null`, `Models=[]` |
+| `Tracon:Providers:Google` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Google, `ApiVersion=null`, `Timeout=null`, `Models=[]` |
+| `Tracon:Providers:AzureOpenAI` | `Endpoint=null` but required, `ApiKey=null`, `CredentialFactory=null`, `DefaultDeployment=null`, `Audience=null` for public cloud, `Timeout=null`, `Models=[]` |
+
+`CredentialFactory` is code-only because it is a delegate. When it is set, Azure does
+not use `ApiKey`. The consumer chooses and references `Azure.Identity` when managed
+identity is required.
+
+Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
+`ContextWindowTokens`, `MaxOutputTokens`, `SupportsStreaming` (`true`),
+`SupportsTools` (`true`), `SupportsReasoning` (`false`), `SupportsStructuredOutput`
+(`false`), `SupportsSampling` (`null`), `RejectedSamplingFields` (`None`), and the five
+`*CostPerMillionTokens` prices.
+`SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
+to compile. `RejectedSamplingFields` takes a name or a comma-separated list of request
+fields (`Temperature`, `TopP`, `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`,
+`ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`), and makes a definition that sets one fail to compile
+for that model; a name that does not exist stops the host at start. `MaxOutputTokens` lets the
+validation report warn when a binding leaves its own limit to a lower provider default, such as
+Anthropic's `DefaultMaxOutputTokens`. See
+[the model catalog](/guides/model-providers/#model-catalog-is-metadata-not-permission).
+
+```json
+{
+  "Tracon": {
+    "Providers": {
+      "Anthropic": {
+        "DefaultMaxOutputTokens": 4096,
+        "Models": [
+          {
+            "Name": "your-current-claude-model",
+            "MaxOutputTokens": 128000,
+            "SupportsStructuredOutput": true,
+            "SupportsSampling": false
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+| `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"`, `RequireEgressPolicy=false` |
+
+`RequireEgressPolicy` (`TraconTenantProviderOptions`) makes a tenant with no egress policy call no provider. It is off
+by default; see [Per-tenant provider credentials and
+egress](/concepts/governance/#per-tenant-provider-credentials-and-egress).
+
+A tenant provider binding's configuration key name must start with
+`AllowedConfigurationPrefix` followed by the tenant's segment
+(`Tracon:ProviderKeys:acme:...`); a flat name belongs to the default tenant. Any other
+name is rejected with `400`, both when the binding is saved and again when it is
+resolved. See
+[Per-tenant credentials](/guides/model-providers/#per-tenant-credentials-byok).
+
+## MCP, workflows, and voice
+
+<p class="reads-this">Read by <code>Tracon.Mcp</code>, <code>Tracon.Workflows</code>, and <code>Tracon.Voice</code>. Live conversation is the exception: it is in <code>Tracon.Core</code>, behind <code>UseVoiceConversation()</code>.</p>
+
+### MCP client
+
+| Key relative to `Tracon:Mcp` | Default |
+|---|---:|
+| `Enabled` | `true` |
+| `RefreshInterval` | 5 minutes |
+| `StaleToolRetention` | 15 minutes |
+| `ConnectionTimeout` | 30 seconds |
+| `MaxToolsPerServer` | `100`; the tool list is read page by page and the read stops at the first tool past the limit. Must be at least 1 |
+| `MaxResourcesPerServer` | `1000`; the resource list is read the same way. A resource past the limit is not declared, so it cannot be read |
+| `MaxPromptsPerServer` | `100`; the prompt list is read the same way |
+| `MaxResponseBytes` | `16777216` (16 MiB); a larger response fails the call. A stream of events is counted per event. Applies when a connection is opened. Must be at least 1 |
+| `MaxResourceBytesPerResource` | `65536`. Must be at least 1 |
+| `MaxResourceBytesTotal` | `262144`. Must be at least 1 |
+| `OAuthCallbackBaseUri` | `null` |
+| `OAuthTokenStore` | `Memory` |
+| `OAuthTokenSlidingLifetime` | 30 days. Must be greater than zero in both modes |
+| `AllowedConfigurationPrefix` | `Tracon:McpSecrets:` |
+
+`AllowedConfigurationPrefix` belongs to `TraconMcpSecurityOptions` rather than
+`TraconMcpOptions`, and binds through `AddTracon()` — the rule is enforced
+both where a server definition is saved and where its key is resolved, and those two
+live in packages that do not reference each other. The section name is the same, so
+it stays one section to configure. It bounds both `headerConfigurationKeys` and
+`oauthClientSecretConfigurationKey`, and inside it a tenant's server names
+`{prefix}{tenant}:...`; a flat name belongs to the default tenant.
+
+`Mcp:OAuthTokenStore` is `Memory` or `DistributedCache`. `DistributedCache` keeps the OAuth tokens of the
+servers that use OAuth in your `IDistributedCache`, encrypted, and lets the provider's redirect reach any
+instance. The application does not start in that mode without an `IDistributedCache` and content protection.
+`OAuthTokenSlidingLifetime` is how long a token stays in the cache without a read or a write. It is used by
+`DistributedCache` only, but the host does not start with a value of zero or less in either mode. See
+[MCP tools and OAuth across instances](/guides/mcp-across-instances/).
+
+The remaining keys belong to `TraconMcpOptions`. `UseMcp()` without arguments uses
+those defaults but does not read `IConfiguration` implicitly. Use the explicit overload when you want the section:
+
+```csharp
+tracon.UseMcp(
+    builder.Configuration.GetSection(TraconMcpOptions.SectionName),
+    configure: null);
+```
+
+### Workflows
+
+| Key relative to `Tracon:Workflows` | Default |
+|---|---:|
+| `Enabled` | `true` |
+| `EnableCheckpointing` | `true` |
+| `MaxConcurrentRuns` | `4` |
+| `MaxConcurrentRunsPerTenant` | `null`; no per-tenant limit. When set, from `1` to `MaxConcurrentRuns` |
+| `RunTimeout` | 10 minutes |
+| `MaxRunTimeout` | `null`; a definition's `runTimeout` may then only shorten `RunTimeout` |
+| `MaxSuperSteps` | `100`; a sequential chain that needs more super-steps than this is refused when it is saved |
+| `MaxNodeSettingsLength` | `16384` bytes |
+| `KeepCheckpointsAfterCompletion` | `true` |
+| `RequestExpirationScanInterval` | 1 minute |
+| `MaxRequestExpirationsPerScan` | `100` |
+
+`MaxConcurrentRunsPerTenant` limits how many runs one tenant has going at the same time,
+in each process and, for queued workflow jobs, in the job queue (a soft count across
+processes). See [How many runs go at once](/guides/background-work/#limit-workflow-runs-per-tenant).
+
+The section does not register the execution engine. Call `UseWorkflows()`; that call
+binds this section and then applies its optional code override.
+
+`MaxRunTimeout` is the longest run timeout a workflow definition may set. A save above
+it, or above `RunTimeout` while it is unset, is refused with `400`. A workflow defined in code
+sets it with `WorkflowRegistrationOptions.RunTimeout`; a value above the ceiling stops the host at
+startup, naming the workflow, while `Enabled` is `true`. It must be at least
+`RunTimeout` and fails at startup otherwise, even while `Enabled` is `false`. A
+stored definition above a ceiling that was lowered later runs with the ceiling, and a
+warning is logged.
+
+`MaxNodeSettingsLength` caps the JSON text of one function node's settings when a
+workflow is saved; a definition stored before the cap was lowered still runs.
+
+`RequestExpirationScanInterval` is how often the scan that closes the runs of expired
+[workflow requests](/concepts/workflow-requests/#when-the-time-passes) looks; it must be
+from one millisecond to about 49.7 days and fails at startup otherwise, while `Enabled` is
+`true`. `MaxRequestExpirationsPerScan` must be at least `1`.
+
+### Speech tools
+
+| Key relative to `Tracon:Voice` | Default |
+|---|---:|
+| `Provider` | `elevenlabs` |
+| `ApiKey` | `null` |
+| `Endpoint` | `null`; provider public endpoint |
+| `DefaultVoiceId` | `null` |
+| `SynthesisModelId` | `null` |
+| `TranscriptionModelId` | `null` |
+| `DialogueModelId` | `null`; the provider's default dialogue model |
+| `OutputFormat` | `mp3_44100_128` |
+| `MaxCharactersPerRequest` | `5000` |
+| `MaxDialogueCharactersPerRequest` | `2000` |
+| `MaxConcurrentRequests` | `2` |
+| `RequireApproval` | `false` |
+| `Timeout` | `null`; implementation uses 100 seconds |
+
+The section is validated when the application starts. `Provider`, `ApiKey` and
+`Endpoint` configure only the built-in ElevenLabs client; `elevenlabs` is the only
+`Provider` value. When your own `ISpeechSynthesizer` and `ISpeechTranscriber` are
+registered before `UseVoice()`, those three are not required. `Provider` is not a
+price key: `Tracon:Pricing:Voice` is keyed by the `ProviderName` of the implementation
+that did the work. `MaxCharactersPerRequest` is the built-in client's limit; your own
+synthesizer reports its limit through `ISpeechSynthesizer.MaxCharactersPerRequest`.
+
+`DialogueModelId` and `MaxDialogueCharactersPerRequest` apply to a dialogue voiced by
+the built-in client. The single-voice `SynthesisModelId` is never sent for a
+dialogue. `MaxDialogueCharactersPerRequest` must be greater than zero; a longer
+dialogue is refused, not split, and the built-in client reports the value through
+`ISpeechDialogueSynthesizer.DialogueCapabilities`. Synthesis, dialogue and
+transcription share the one `MaxConcurrentRequests` limit.
+
+### Voice conversation
+
+| Key relative to `Tracon:Voice:Conversation` | Default |
+|---|---:|
+| `MaxConcurrentConnectionsPerTenant` | `5` |
+| `MaxConnectionDuration` | 30 minutes |
+| `IdleTimeout` | 2 minutes |
+| `MaxUtteranceDuration` | 60 seconds |
+| `MaxUtteranceBytes` | `8388608` |
+| `PersistAudio` | `false` |
+| `VoiceId` | `null` |
+| `OutputMediaType` | `audio/mpeg` |
+| `InputSampleRate` | `16000` Hz |
+| `MaxSpokenCharactersPerTurn` | `5000` |
+
+The WebSocket route does not exist until `UseVoiceConversation()` is called. A ready
+conversation also needs both `ISpeechTranscriber` and `ISpeechSynthesizer`.
+
+## Read next
+
+- [Configuration](/reference/configuration/) — the binding rules, the section index, and the core sections
+- [Choosing packages](/packages/) — which package brings which section
+
+---
+
 # Configuration
 
 Source: https://tracon.dev/reference/configuration/
 
 This page lists values that the current option types define. It does not infer a
 default from provider behavior. `null`, empty, and off mean exactly that.
+
+The sections that a package of its own reads (`Tracon.PostgreSql`, `Tracon.SqlServer`,
+`Tracon.Sqlite`, the model provider packages, `Tracon.Mcp`, `Tracon.Workflows`, and
+`Tracon.Voice`) are on [Package configuration](/reference/configuration-packages/); the
+section index below lists all of them.
 
 ## Binding rules
 
@@ -23317,7 +23635,11 @@ absolute address such as `https://gateway.example.com/v1/`; `gateway.example.com
 refused. The `Endpoint` keys of the model providers are checked by the provider's own
 validator, which refuses a relative address.
 
-- **Empty means not given.** A key with no text, or only white space, keeps the default.
+- **Empty means not given.** A key with no text keeps the default, and so does a number, flag, duration or
+  address key that holds only white space.
+- **A text option made only of white space stops the host.** `Audit:ChainKeyId` set to `"   "`, a `Provider` or a
+  `Model` of spaces, a mask of blanks: the value would look applied and name nothing, so the message names the member and
+  asks you to write a value or remove the key. This holds for a value assigned in code as well.
 - **A list is written as one entry per key.** `EnvironmentAllowList:0=PATH` is a list of
   one; `EnvironmentAllowList=PATH` is refused, and the message shows the `:0` form. A list
   that is present replaces the default. A JSON `[]` and a key with no text are "not
@@ -23331,6 +23653,30 @@ validator, which refuses a relative address.
   callback replaces the one from configuration, and a typo in the file that you have
   overridden in code does not stop the host. Writing the value the option already has is
   not told apart from leaving it.
+
+### A change to the configuration needs a restart
+
+Tracon reads its options once, when the host starts. A configuration provider that reloads
+(a file added with `reloadOnChange`, a vault, a configuration server) changes `IConfiguration`;
+it does not change the options Tracon reads, and no option of Tracon is meant to change while
+the host runs. Restart the host to apply a change.
+
+One part follows a reload anyway: the `Tracon:Workflows` options. `UseWorkflows()` binds the
+section through the .NET configuration binder, which registers a change token source on its own.
+The readers that look these options up through `IOptionsMonitor` see the new value: the run
+limits a save checks (`RunTimeout`, `MaxRunTimeout`, `MaxSuperSteps`), the resume settings the
+job handlers read (`ResumeInterruptedRuns`, `MaxResumeAttempts`), and the cap of the
+request-expiration sweep. The workflow runner does not: it keeps the values it read at start. A
+reload therefore splits the settings, so a save can check a new limit while the runner applies
+the old one. Treat it as unsupported and restart.
+
+Many readers look an option up on every call, which can look like live reconfiguration. It is
+not supported. A host that registers its own `IOptionsChangeTokenSource<T>` for a Tracon options
+type gets an unsupported half of it: a monitor sees the new value, but a reader that built
+something from the old one keeps it (the model concurrency limit holds a semaphore of the size
+of its first call), and a new value that fails validation makes every later read of that options
+type throw, which for `Tracon:ModelConcurrency` is every model call. Tracon's own tests pin this
+behaviour, so a release that supports reload will say so here.
 
 :::danger[Secrets do not belong in a settings file]
 Provider keys, connection strings, bearer tokens, webhook secrets, and MCP
@@ -23414,6 +23760,16 @@ script.
 | `Tools:DefaultMaxOutputBytes` | `1048576` (1 MiB) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes. A longer result is trimmed into an envelope. Code can set `null` for no limit; a configuration key cannot, so write a large number there |
 | `Tools:MaxToolsPerAgent` | `128` | Most tools one agent may carry (the selected ones, the vector search tool and the sub-agent tools). An agent over it does not compile and the error names this key. Must be at least 1 |
 | `Tools:RequireTenantPolicy` | `false` | When `true`, a tenant with no [tool policy](/concepts/tools/#per-tenant-tool-policy) runs no tool, and the default tenant needs a policy of its own. Read at host start; a value that is not `true` or `false` stops the host |
+| `AgentCache:MaxEntries` | `4096` | Most compiled agents the cache holds (`TraconAgentCacheOptions`), one for each tenant, agent name, definition version and culture. A new one that would pass the limit makes the ones used least recently leave first. From 1 to 1,000,000 |
+| `AgentCache:IdleLifetime` | 1 hour | How long a compiled agent may go unused before it leaves the cache. Checked while the cache is in use, not on a timer. Greater than zero, at most 30 days |
+
+A compiled agent weighs about 8 KiB with no tools and a short instruction, and about 42 KiB with sixty tools and an
+8 KiB instruction (measured; the instruction counts about four bytes per character). The cache used to keep one for every
+tenant that ran an agent and never gave one back, so an installation that takes the tenant from a header and lists no
+`AllowedTenants` let the caller choose its size. An agent that leaves the cache is not disposed: a run that holds it
+keeps it, and the next run compiles the agent again, which costs a fraction of a millisecond. A single tenant with a
+hundred agents, three cultures and three live versions of each holds 900 entries and does not reach the default.
+Read at host start.
 
 Non-positive graph token, cost, or run limits remove that limit. See
 [`TraconAgentGraphOptions`](/api/tracon.traconagentgraphoptions/)
@@ -23796,7 +24152,7 @@ not enable sampling.
 | `RateLimit:Partition` | `Tenant` |
 | `RateLimit:Scope` | `Instance`. `Deployment` counts both rate limiters in the database; it needs `QueueLimit` of `0`, which is checked at startup |
 | `Idempotency:Enabled` | `true` |
-| `Idempotency:MaxKeyLength` | `255` |
+| `Idempotency:MaxKeyLength` | `200`, the width of the narrowest column that stores a key (SQL Server `nvarchar(200)`), so a longer key is a `400` on every store. A higher value is accepted by PostgreSQL and SQLite; SQL Server still refuses a key past 200 |
 | `Idempotency:ReservationTimeout` | 1 hour. A reserved key that no response completed (the process died) is taken over by the next request once it is this old; `00:00:00` never takes one over. Keep it longer than your longest request that carries an `Idempotency-Key` |
 | `ContentGuard:InspectInput` | `true` |
 | `ContentGuard:InspectOutput` | `true` |
@@ -23915,231 +24271,6 @@ Configuration cannot switch off a target that has a default age: an empty value 
 JSON `null` leaves the default in place. To switch one off, save a disabled retention
 policy for it, or set its `MaxAgeDays` to `null` in
 `Configure<TraconRetentionOptions>(...)`.
-
-## Persistence sections
-
-<p class="reads-this">Read by <code>Tracon.PostgreSql</code>, <code>Tracon.SqlServer</code>, and <code>Tracon.Sqlite</code>. A section without its package does nothing.</p>
-
-| Section | Key | Default |
-|---|---|---|
-| `Tracon:PostgreSql` | `ConnectionString` | `null`; required by the configuration registration |
-|  | `SchemaName` | `tracon` |
-|  | `AutoApplyMigrations` | `true` |
-|  | `CommandTimeoutSeconds` | `30` |
-| `Tracon:SqlServer` | `ConnectionString` | `null`; required by the configuration registration |
-|  | `SchemaName` | `tracon` |
-|  | `AutoApplyMigrations` | `true` |
-|  | `CommandTimeoutSeconds` | `30` |
-| `Tracon:Sqlite` | `ConnectionString` | `null`; required by the configuration registration |
-|  | `TablePrefix` | `tracon_` |
-|  | `AutoApplyMigrations` | `true` |
-|  | `CommandTimeoutSeconds` | `30` |
-
-SQLite rejects bare `Data Source=:memory:`. Use a shared in-memory URI when a file is
-not suitable. PostgreSQL and SQL Server use a schema; SQLite uses a table prefix.
-
-## Provider sections
-
-<p class="reads-this">Read by <code>Tracon.OpenAI</code>, <code>Tracon.Anthropic</code>, <code>Tracon.Google</code>, and <code>Tracon.AzureOpenAI</code>, each through its own <code>Use*()</code> call.</p>
-
-All provider model lists start empty. All nullable request timeouts use the provider
-library default.
-
-| Section | Verified defaults |
-|---|---|
-| `Tracon:Providers:OpenAI` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for OpenAI, `Organization=null`, `Timeout=null`, `Models=[]` |
-| `Tracon:Providers:OpenAICompatible:{name}` | Same shape as OpenAI; `EnableResponsesSurface=false` |
-| `Tracon:Providers:Anthropic` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Anthropic, `DefaultMaxOutputTokens=4096`, `Timeout=null`, `MaxRetries=null`, `Models=[]` |
-| `Tracon:Providers:Google` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Google, `ApiVersion=null`, `Timeout=null`, `Models=[]` |
-| `Tracon:Providers:AzureOpenAI` | `Endpoint=null` but required, `ApiKey=null`, `CredentialFactory=null`, `DefaultDeployment=null`, `Audience=null` for public cloud, `Timeout=null`, `Models=[]` |
-
-`CredentialFactory` is code-only because it is a delegate. When it is set, Azure does
-not use `ApiKey`. The consumer chooses and references `Azure.Identity` when managed
-identity is required.
-
-Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
-`ContextWindowTokens`, `MaxOutputTokens`, `SupportsStreaming` (`true`),
-`SupportsTools` (`true`), `SupportsReasoning` (`false`), `SupportsStructuredOutput`
-(`false`), `SupportsSampling` (`null`), `RejectedSamplingFields` (`None`), and the five
-`*CostPerMillionTokens` prices.
-`SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
-to compile. `RejectedSamplingFields` takes a name or a comma-separated list of request
-fields (`Temperature`, `TopP`, `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`,
-`ToolMode`, `AllowMultipleToolCalls`, `ReasoningOutput`), and makes a definition that sets one fail to compile
-for that model; a name that does not exist stops the host at start. `MaxOutputTokens` lets the
-validation report warn when a binding leaves its own limit to a lower provider default, such as
-Anthropic's `DefaultMaxOutputTokens`. See
-[the model catalog](/guides/model-providers/#model-catalog-is-metadata-not-permission).
-
-```json
-{
-  "Tracon": {
-    "Providers": {
-      "Anthropic": {
-        "DefaultMaxOutputTokens": 4096,
-        "Models": [
-          {
-            "Name": "your-current-claude-model",
-            "MaxOutputTokens": 128000,
-            "SupportsStructuredOutput": true,
-            "SupportsSampling": false
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-| `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"`, `RequireEgressPolicy=false` |
-
-`RequireEgressPolicy` makes a tenant with no egress policy call no provider. It is off
-by default; see [Per-tenant provider credentials and
-egress](/concepts/governance/#per-tenant-provider-credentials-and-egress).
-
-A tenant provider binding's configuration key name must start with
-`AllowedConfigurationPrefix` followed by the tenant's segment
-(`Tracon:ProviderKeys:acme:...`); a flat name belongs to the default tenant. Any other
-name is rejected with `400`, both when the binding is saved and again when it is
-resolved. See
-[Per-tenant credentials](/guides/model-providers/#per-tenant-credentials-byok).
-
-## MCP, workflows, and voice
-
-<p class="reads-this">Read by <code>Tracon.Mcp</code>, <code>Tracon.Workflows</code>, and <code>Tracon.Voice</code>. Live conversation is the exception: it is in <code>Tracon.Core</code>, behind <code>UseVoiceConversation()</code>.</p>
-
-### MCP client
-
-| Key relative to `Tracon:Mcp` | Default |
-|---|---:|
-| `Enabled` | `true` |
-| `RefreshInterval` | 5 minutes |
-| `StaleToolRetention` | 15 minutes |
-| `ConnectionTimeout` | 30 seconds |
-| `MaxToolsPerServer` | `100`; the tool list is read page by page and the read stops at the first tool past the limit |
-| `MaxResourcesPerServer` | `1000`; the resource list is read the same way. A resource past the limit is not declared, so it cannot be read |
-| `MaxPromptsPerServer` | `100`; the prompt list is read the same way |
-| `MaxResponseBytes` | `16777216` (16 MiB); a larger response fails the call. A stream of events is counted per event. Applies when a connection is opened. Must be at least 1 |
-| `MaxResourceBytesPerResource` | `65536` |
-| `MaxResourceBytesTotal` | `262144` |
-| `OAuthCallbackBaseUri` | `null` |
-| `OAuthTokenStore` | `Memory` |
-| `OAuthTokenSlidingLifetime` | 30 days |
-| `AllowedConfigurationPrefix` | `Tracon:McpSecrets:` |
-
-`AllowedConfigurationPrefix` belongs to `TraconMcpSecurityOptions` rather than
-`TraconMcpOptions`, and binds through `AddTracon()` — the rule is enforced
-both where a server definition is saved and where its key is resolved, and those two
-live in packages that do not reference each other. The section name is the same, so
-it stays one section to configure. It bounds both `headerConfigurationKeys` and
-`oauthClientSecretConfigurationKey`, and inside it a tenant's server names
-`{prefix}{tenant}:...`; a flat name belongs to the default tenant.
-
-`Mcp:OAuthTokenStore` is `Memory` or `DistributedCache`. `DistributedCache` keeps the OAuth tokens of the
-servers that use OAuth in your `IDistributedCache`, encrypted, and lets the provider's redirect reach any
-instance. The application does not start in that mode without an `IDistributedCache` and content protection.
-`OAuthTokenSlidingLifetime` is how long a token stays in the cache without a read or a write; it applies to
-`DistributedCache` only and must be greater than zero. See
-[MCP tools and OAuth across instances](/guides/mcp-across-instances/).
-
-The remaining keys belong to `TraconMcpOptions`. `UseMcp()` without arguments uses
-those defaults but does not read `IConfiguration` implicitly. Use the explicit overload when you want the section:
-
-```csharp
-tracon.UseMcp(
-    builder.Configuration.GetSection(TraconMcpOptions.SectionName),
-    configure: null);
-```
-
-### Workflows
-
-| Key relative to `Tracon:Workflows` | Default |
-|---|---:|
-| `Enabled` | `true` |
-| `EnableCheckpointing` | `true` |
-| `MaxConcurrentRuns` | `4` |
-| `MaxConcurrentRunsPerTenant` | `null`; no per-tenant limit. When set, from `1` to `MaxConcurrentRuns` |
-| `RunTimeout` | 10 minutes |
-| `MaxRunTimeout` | `null`; a definition's `runTimeout` may then only shorten `RunTimeout` |
-| `MaxSuperSteps` | `100`; a sequential chain that needs more super-steps than this is refused when it is saved |
-| `MaxNodeSettingsLength` | `16384` bytes |
-| `KeepCheckpointsAfterCompletion` | `true` |
-| `RequestExpirationScanInterval` | 1 minute |
-| `MaxRequestExpirationsPerScan` | `100` |
-
-`MaxConcurrentRunsPerTenant` limits how many runs one tenant has going at the same time,
-in each process and, for queued workflow jobs, in the job queue (a soft count across
-processes). See [How many runs go at once](/guides/background-work/#limit-workflow-runs-per-tenant).
-
-The section does not register the execution engine. Call `UseWorkflows()`; that call
-binds this section and then applies its optional code override.
-
-`MaxRunTimeout` is the longest run timeout a workflow definition may set. A save above
-it, or above `RunTimeout` while it is unset, is refused with `400`. A workflow defined in code
-sets it with `WorkflowRegistrationOptions.RunTimeout`; a value above the ceiling stops the host at
-startup, naming the workflow, while `Enabled` is `true`. It must be at least
-`RunTimeout` and fails at startup otherwise, even while `Enabled` is `false`. A
-stored definition above a ceiling that was lowered later runs with the ceiling, and a
-warning is logged.
-
-`MaxNodeSettingsLength` caps the JSON text of one function node's settings when a
-workflow is saved; a definition stored before the cap was lowered still runs.
-
-`RequestExpirationScanInterval` is how often the scan that closes the runs of expired
-[workflow requests](/concepts/workflow-requests/#when-the-time-passes) looks; it must be
-from one millisecond to about 49.7 days and fails at startup otherwise, while `Enabled` is
-`true`. `MaxRequestExpirationsPerScan` must be at least `1`.
-
-### Speech tools
-
-| Key relative to `Tracon:Voice` | Default |
-|---|---:|
-| `Provider` | `elevenlabs` |
-| `ApiKey` | `null` |
-| `Endpoint` | `null`; provider public endpoint |
-| `DefaultVoiceId` | `null` |
-| `SynthesisModelId` | `null` |
-| `TranscriptionModelId` | `null` |
-| `DialogueModelId` | `null`; the provider's default dialogue model |
-| `OutputFormat` | `mp3_44100_128` |
-| `MaxCharactersPerRequest` | `5000` |
-| `MaxDialogueCharactersPerRequest` | `2000` |
-| `MaxConcurrentRequests` | `2` |
-| `RequireApproval` | `false` |
-| `Timeout` | `null`; implementation uses 100 seconds |
-
-The section is validated when the application starts. `Provider`, `ApiKey` and
-`Endpoint` configure only the built-in ElevenLabs client; `elevenlabs` is the only
-`Provider` value. When your own `ISpeechSynthesizer` and `ISpeechTranscriber` are
-registered before `UseVoice()`, those three are not required. `Provider` is not a
-price key: `Tracon:Pricing:Voice` is keyed by the `ProviderName` of the implementation
-that did the work. `MaxCharactersPerRequest` is the built-in client's limit; your own
-synthesizer reports its limit through `ISpeechSynthesizer.MaxCharactersPerRequest`.
-
-`DialogueModelId` and `MaxDialogueCharactersPerRequest` apply to a dialogue voiced by
-the built-in client. The single-voice `SynthesisModelId` is never sent for a
-dialogue. `MaxDialogueCharactersPerRequest` must be greater than zero; a longer
-dialogue is refused, not split, and the built-in client reports the value through
-`ISpeechDialogueSynthesizer.DialogueCapabilities`. Synthesis, dialogue and
-transcription share the one `MaxConcurrentRequests` limit.
-
-### Voice conversation
-
-| Key relative to `Tracon:Voice:Conversation` | Default |
-|---|---:|
-| `MaxConcurrentConnectionsPerTenant` | `5` |
-| `MaxConnectionDuration` | 30 minutes |
-| `IdleTimeout` | 2 minutes |
-| `MaxUtteranceDuration` | 60 seconds |
-| `MaxUtteranceBytes` | `8388608` |
-| `PersistAudio` | `false` |
-| `VoiceId` | `null` |
-| `OutputMediaType` | `audio/mpeg` |
-| `InputSampleRate` | `16000` Hz |
-| `MaxSpokenCharactersPerTurn` | `5000` |
-
-The WebSocket route does not exist until `UseVoiceConversation()` is called. A ready
-conversation also needs both `ISpeechTranscriber` and `ISpeechSynthesizer`.
 
 ## Endpoint options are code-only
 
@@ -24668,9 +24799,19 @@ through the HTTP API and `IRunStore`.
   `input_cost`: the charge for cached and for written tokens is taken out of the input
   charge and billed there. Add all four, never only the first two.
 
-This is the exact value `IRunStore.GetStatisticsAsync` reports for the same run —
+This is the value `IRunStore.GetStatisticsAsync` reports for the same run —
 querying the view and reading the API give you the same number, because both read
 the same underlying columns with the same null-preserving rule.
+
+On SQLite the view is a convenience for a query tool, not the exact amount. The
+cost and price columns of `runs` are text there, and the view casts `cached_input_cost`
+and the five unit prices to `REAL` so that they stay numbers, as they were when the view
+was first published. Its `total_cost` is a `REAL` sum of the four terms, and a sum of
+`REAL` values can differ from the API's in the last digits. Read the exact amount from
+`IRunStore` or from the table's own columns. The SQLite migration that made these columns text
+replaces `runs_v1`, and SQLite refuses to drop a view that another view reads from: drop a view of your own
+that is built on `runs_v1` before that upgrade and create it again after
+([Persistence](/getting-started/persistence/)).
 
 `total_cost` is the **token** cost. What a run reported beyond tokens (a workflow function
 node's or a tool's speech characters, render seconds) is a separate total, `nonTokenCost` on

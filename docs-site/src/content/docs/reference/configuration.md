@@ -179,7 +179,7 @@ script.
 | `Tools:DefaultMaxOutputBytes` | `1048576` (1 MiB) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes. A longer result is trimmed into an envelope. Code can set `null` for no limit; a configuration key cannot, so write a large number there |
 | `Tools:MaxToolsPerAgent` | `128` | Most tools one agent may carry (the selected ones, the vector search tool and the sub-agent tools). An agent over it does not compile and the error names this key. Must be at least 1 |
 | `Tools:RequireTenantPolicy` | `false` | When `true`, a tenant with no [tool policy](/concepts/tools/#per-tenant-tool-policy) runs no tool, and the default tenant needs a policy of its own. Read at host start; a value that is not `true` or `false` stops the host |
-| `AgentCache:MaxEntries` | `4096` | Most compiled agents the cache holds, one for each tenant, agent name, definition version and culture. A new one that would pass the limit makes the ones used least recently leave first. From 1 to 1,000,000 |
+| `AgentCache:MaxEntries` | `4096` | Most compiled agents the cache holds (`TraconAgentCacheOptions`), one for each tenant, agent name, definition version and culture. A new one that would pass the limit makes the ones used least recently leave first. From 1 to 1,000,000 |
 | `AgentCache:IdleLifetime` | 1 hour | How long a compiled agent may go unused before it leaves the cache. Checked while the cache is in use, not on a timer. Greater than zero, at most 30 days |
 
 A compiled agent weighs about 8 KiB with no tools and a short instruction, and about 42 KiB with sixty tools and an

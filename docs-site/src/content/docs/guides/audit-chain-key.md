@@ -87,6 +87,14 @@ is the one to trust. Without a key the chain still catches a change made without
 edit, a partial restore, a bug in another writer) and nothing more: anyone who can write the table can
 recompute every hash, and the walk reports `Valid`.
 
+## Labels longer than the column
+
+On SQL Server the actor, action and entity columns hold 200 characters. A longer label (the entity of an
+operation on a session with a 200-character id is `session:` and those 200 characters) is stored as its
+first 167 characters, `~` and 32 hexadecimal digits of its SHA-256, so the entry is never refused and two
+long labels that share their start stay two entries. `?entity=`, `?actor=` and `?action=` shorten the filter
+the same way, and the chain covers the form that is stored. The other stores keep the label whole.
+
 ## Read next
 
 - [Governance](/concepts/governance/#tamper-detection) — the four answers of `GET /api/audit/verify` and what each means
