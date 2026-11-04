@@ -209,13 +209,45 @@ public sealed class JobLeaseClockStepTests
         }
     }
 
+    [Fact]
+    public async Task A_wall_clock_stepped_back_does_not_keep_a_failing_job_from_being_closed_and_the_stamp_is_the_clocks()
+    {
+        // The failing path stamps the completion with the host's wall clock as the succeeding path does: a record, and
+        // no decision. The close must happen whatever the step, once, on the first and only attempt.
+        var clock = new ManualTimeProvider();
+        var store = new ProbeJobStore(new InMemoryJobStore(clock));
+        var handler = new GatedHandler { FailOnRelease = true };
+        var (worker, host) = Worker(store, handler, OneSlot, clock: clock);
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAtAsync(store, clock, maxAttempts: 1);
+
+            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await handler.Started.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+            clock.StepWallClock(TimeSpan.FromHours(-3));
+            handler.Release.TrySetResult();
+
+            var job = await WaitForAsync(store, id, JobStatus.Failed, JobStatus.Completed);
+
+            await worker.StopAsync(TestContext.Current.CancellationToken);
+
+            job.Status.ShouldBe(JobStatus.Failed);
+            job.Attempt.ShouldBe(1);
+            handler.Calls.ShouldBe(1);
+            job.CompletedAt.ShouldBe(clock.GetUtcNow());
+        }
+    }
+
     private static void OneSlot(TraconSchedulingOptions options)
     {
         options.LeaseDuration = Lease;
         options.MaxConcurrentJobs = 1;
     }
 
-    private static async Task<Guid> EnqueueAtAsync(ProbeJobStore store, TimeProvider clock)
+    private static async Task<Guid> EnqueueAtAsync(ProbeJobStore store, TimeProvider clock, int maxAttempts = 3)
     {
         var id = Guid.NewGuid();
         var now = clock.GetUtcNow();
@@ -228,7 +260,7 @@ public sealed class JobLeaseClockStepTests
                 HandlerKey = JobHandlerKeys.AgentBatch,
                 TargetName = "clock-step",
                 Status = JobStatus.Pending,
-                MaxAttempts = 3,
+                MaxAttempts = maxAttempts,
                 ScheduledFor = now,
                 CreatedAt = now,
             },
@@ -252,6 +284,9 @@ public sealed class JobLeaseClockStepTests
 
         public bool Cancelled => Volatile.Read(ref _cancelled) != 0;
 
+        /// <summary>Gets whether the handler throws when it is released instead of returning.</summary>
+        public bool FailOnRelease { get; init; }
+
         public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _calls);
@@ -260,6 +295,11 @@ public sealed class JobLeaseClockStepTests
             try
             {
                 await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+                if (FailOnRelease)
+                {
+                    throw new InvalidOperationException("The handler fails (probe).");
+                }
             }
             finally
             {
