@@ -63,7 +63,7 @@ public sealed class UpgradeFromReleaseTests(SqlServerFixture fixture) : UpgradeG
                 // Prove the database is the Turkish one before the gate says anything about it: in this collation the capital I
                 // equals the dotless small i and is not the dotted one.
                 await using var probe = connection.CreateCommand();
-                probe.CommandText = "SELECT CASE WHEN N'I' = N'ı' AND N'I' <> N'i' THEN 1 ELSE 0 END;";
+                probe.CommandText = "SELECT CASE WHEN N'I' = N'\u0131' AND N'I' <> N'i' THEN 1 ELSE 0 END;";
                 (await probe.ExecuteScalarAsync(TestContext.Current.CancellationToken)).ShouldBe(1, "the database is not under a Turkish collation");
             }
 

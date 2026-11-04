@@ -117,12 +117,13 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
 
         // The columns are named, not counted: a count passes when a rename makes the query find other columns, and says nothing
         // when a migration adds a column (the next one is a decision made here, in the open).
-        columns.Select(static column => column.Name).Order(StringComparer.Ordinal).ShouldBe(
+        AssertExactColumns(
+            columns,
             [
                 "attachments.session_id", "pending_approvals.session_id", "responses.session_id", "runs.session_id", "sessions.id",
                 "voice_sessions.session_id", "workflow_checkpoints.session_id", "workflow_requests.session_id", "workflow_responses.session_id",
             ],
-            "the query has to find exactly the session id columns it guards; a column a migration adds or renames is listed here");
+            "the session id columns");
         columns
             .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
             .Select(static column => $"{column.Name} ({column.Collation})")
@@ -142,12 +143,13 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
             context,
             "c.name IN (N'request_id', N'parent_id', N'checkpoint_id') AND c.collation_name IS NOT NULL");
 
-        columns.Select(static column => column.Name).Order(StringComparer.Ordinal).ShouldBe(
+        AssertExactColumns(
+            columns,
             [
                 "pending_approvals.request_id", "workflow_checkpoints.checkpoint_id", "workflow_checkpoints.parent_id",
                 "workflow_requests.request_id", "workflow_responses.request_id",
             ],
-            "the query has to find exactly the request, parent and checkpoint id columns it guards; a column a migration adds or renames is listed here");
+            "the request, parent and checkpoint id columns");
         columns
             .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
             .Select(static column => $"{column.Name} ({column.Collation})")
@@ -229,6 +231,16 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
             "OR (t.name = N'spans' AND c.name = N'name') OR (t.name = N'api_keys' AND c.name = N'name'))");
 
         labels.Count.ShouldBe(3, "a label column was renamed or moved: decide again whether it belongs to the family");
+    }
+
+    // The columns are named, not counted: a count passes when a rename makes the query find other columns, and says nothing
+    // when a migration adds a column (the next one is a decision made here, in the open).
+    private static void AssertExactColumns(IReadOnlyList<KeyColumn> found, string[] expected, string what)
+    {
+        var names = found.Select(static column => column.Name).Order(StringComparer.Ordinal).ToArray();
+
+        names.SequenceEqual(expected.Order(StringComparer.Ordinal), StringComparer.Ordinal).ShouldBeTrue(
+            $"the query has to find exactly {what} it guards; a column a migration adds or renames is listed in the test. Found: {string.Join(", ", names)}");
     }
 
     private static bool IsTenantId(KeyColumn key)

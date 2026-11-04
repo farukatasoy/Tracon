@@ -118,6 +118,19 @@ internal sealed record ProviderTraits
     /// </remarks>
     public bool OutcomeAnswersForASubscriptionThatIsOff { get; init; }
 
+    /// <summary>
+    /// Gets a value indicating whether the lease owner of a job is compared by the collation of its column, so two worker names
+    /// that differ only in letter case are one worker.
+    /// </summary>
+    /// <remarks>
+    /// OPEN FINDING, kept visible here until it is fixed: the interface says a write that needs the lease changes the job only
+    /// while the lease is exactly the one the worker was given, the same owner included. On SQL Server <c>lease_owner</c> has
+    /// the collation of the database (case-insensitive by default), so a worker named <c>x3M</c> can renew, complete or release
+    /// the lease of a worker named <c>X3m</c>. The job model draws worker names without such twins on a provider that has this
+    /// trait.
+    /// </remarks>
+    public bool LeaseOwnerComparesByCollation { get; init; }
+
     /// <summary>Applies the store's text rule to a value.</summary>
     /// <param name="value">The text as the caller wrote it.</param>
     /// <returns>The text as the store holds it.</returns>

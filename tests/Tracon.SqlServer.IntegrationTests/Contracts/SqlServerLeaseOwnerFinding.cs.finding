@@ -1,0 +1,39 @@
+using Tracon.SqlServer.IntegrationTests.Infrastructure;
+
+namespace Tracon.SqlServer.IntegrationTests.Contracts;
+
+// FAILING PROBE, NOT COMMITTED. Rename to .cs to run it; it is red on SQL Server today (default and Turkish_CI_AS collation).
+// IJobStore says a write that needs the lease changes the job only while the job's lease is exactly the one the worker was
+// given: the same job, the same owner and the same attempt. lease_owner has the collation of the database, so a worker named
+// "worker-a" renews, completes and releases the lease of a worker named "Worker-A". PostgreSQL, SQLite and the in-memory store
+// compare the owner by its characters and answer false. The fix is a new migration (a binary collation for lease_owner, as
+// 0061 did for the user, variant and actor identities).
+public sealed class SqlServerLeaseOwnerFindingTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
+{
+    [Fact]
+    public async Task A_worker_whose_name_differs_only_in_letter_case_does_not_hold_the_lease()
+    {
+        await schema.ResetAsync();
+        var jobs = schema.Context.Jobs;
+        var now = new DateTimeOffset(2026, 11, 4, 9, 0, 0, TimeSpan.Zero);
+
+        await jobs.EnqueueAsync(
+            new JobRecord
+            {
+                Id = Guid.NewGuid(),
+                TenantId = "default",
+                HandlerKey = "contoso.report",
+                TargetName = "target",
+                Status = JobStatus.Pending,
+                ScheduledFor = now.AddDays(-1),
+                CreatedAt = now.AddDays(-1),
+            },
+            ["a"]);
+
+        var leased = (await jobs.LeaseAsync(new JobLeaseRequest { Owner = "Worker-A", LeaseDuration = TimeSpan.FromMinutes(5) })).ShouldNotBeNull();
+        var impostor = JobLease.Of(leased) with { Owner = "worker-a" };
+
+        (await jobs.RenewLeaseAsync(impostor, TimeSpan.FromMinutes(5))).ShouldBeFalse();
+        (await jobs.MarkRunningAsync(impostor)).ShouldBeFalse();
+    }
+}

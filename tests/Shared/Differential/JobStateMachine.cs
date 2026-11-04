@@ -161,7 +161,7 @@ internal sealed class JobStateMachine : StateMachine<JobPlan, JobStep>
 
         var universe =
             from tenants in BoundaryValues.TenantPool(3)
-            from owners in BoundaryValues.Pool(3, BoundaryValues.Trimmed(60), 60)
+            from owners in traits.LeaseOwnerComparesByCollation ? BoundaryValues.Trimmed(60).Array[3] : BoundaryValues.Pool(3, BoundaryValues.Trimmed(60), 60)
             from targets in BoundaryValues.Trimmed(100).Array[2]
             from inputs in Gen.Frequency((6, BoundaryValues.Text(120)), (1, Gen.Const(string.Empty))).Array[4]
             from payloads in BoundaryValues.JsonDocument.Array[2]

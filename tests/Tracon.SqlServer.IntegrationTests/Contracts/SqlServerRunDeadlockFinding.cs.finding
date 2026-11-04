@@ -1,0 +1,53 @@
+using Tracon.SqlServer.IntegrationTests.Infrastructure;
+
+namespace Tracon.SqlServer.IntegrationTests.Contracts;
+
+// FAILING PROBE, NOT COMMITTED. Rename to .cs to run it; it fails on SQL Server in some rounds (it is a race, so a run may need
+// a few attempts). The run race of the differential suite finds it within a few hundred sequences.
+// A queued run is started twice (the placeholder, then the worker). When that upsert overlaps an event append or a read of the
+// same run, SQL Server can choose the append or the read as the deadlock victim, and the call throws "Transaction ... was
+// deadlocked ... Rerun the transaction" to its caller. The store reruns its transactional writes after a deadlock; a single
+// INSERT of an event and a read are not rerun. The run event writer treats the first failed append as a store failure.
+public sealed class SqlServerRunDeadlockFindingTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
+{
+    [Fact]
+    public async Task An_event_append_that_overlaps_a_start_of_the_same_run_is_not_a_deadlock_victim()
+    {
+        await schema.ResetAsync();
+        schema.Tenant.TenantId = "default";
+        var runs = schema.Context.Runs;
+        var failures = new List<string>();
+
+        for (var round = 0; round < 100; round++)
+        {
+            var id = Guid.NewGuid();
+            var info = new RunStartInfo { RunId = id, AgentName = "agent", StartedAt = DateTimeOffset.UtcNow, Status = RunStatus.Queued };
+
+            await runs.StartRunAsync(info);
+
+            using var barrier = new Barrier(2);
+            var start = Task.Factory.StartNew(() =>
+            {
+                barrier.SignalAndWait();
+                runs.StartRunAsync(info with { Status = RunStatus.Running }).AsTask().GetAwaiter().GetResult();
+            }, TaskCreationOptions.LongRunning);
+            var append = Task.Factory.StartNew(() =>
+            {
+                barrier.SignalAndWait();
+
+                try
+                {
+                    runs.AppendEventAsync(new RunEvent { RunId = id, Sequence = 0, Type = RunEventType.MessageDelta, Text = "x", Timestamp = DateTimeOffset.UtcNow }).AsTask().GetAwaiter().GetResult();
+                }
+                catch (Exception exception)
+                {
+                    failures.Add(exception.Message);
+                }
+            }, TaskCreationOptions.LongRunning);
+
+            await Task.WhenAll(start, append);
+        }
+
+        failures.ShouldBeEmpty("an append failed because it was chosen as a deadlock victim");
+    }
+}

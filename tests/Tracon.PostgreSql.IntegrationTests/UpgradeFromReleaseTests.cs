@@ -71,7 +71,7 @@ public sealed class UpgradeFromReleaseTests(PostgresFixture fixture) : UpgradeGa
                 // Prove the database is the Turkish one before the gate says anything about it: the dotted capital of the
                 // Turkish alphabet lower-cases to the dotted small i, and the English one does not.
                 await using var probe = connection.CreateCommand();
-                probe.CommandText = "SELECT lower('I' COLLATE \"default\") = 'ı';";
+                probe.CommandText = "SELECT lower('I' COLLATE \"default\") = '\u0131';";
                 (await probe.ExecuteScalarAsync(TestContext.Current.CancellationToken)).ShouldBe(true, "the database does not fold I to the dotless i: it is not a Turkish locale database");
             }
 
