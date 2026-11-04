@@ -62,8 +62,50 @@ public sealed class ExternalDataSourceTests(SqliteFixture fixture)
 
         var storeContext = provider.GetRequiredService<SqlStoreContext>();
 
-        storeContext.DataSource.ShouldBeSameAs(external);
         storeContext.OwnsDataSource.ShouldBeFalse();
+        storeContext.DataSource.ConnectionString.ShouldBe(external.ConnectionString, "the wrapper in front of the consumer's source shows the same connection");
+    }
+
+    /// <summary>
+    /// A consumer adapter that hands out a plain <see cref="Microsoft.Data.Sqlite.SqliteConnection"/> (the shape the
+    /// EF Core guide shows) still reads runs and counts quota: the exact decimal functions the cost totals and the quota
+    /// counter are written with are put on the connection Tracon opens from it.
+    /// </summary>
+    [Fact]
+    public async Task A_bare_consumer_adapter_still_gets_the_decimal_functions_on_its_connections()
+    {
+        var tablePrefix = SqliteTestContext.NewTablePrefix();
+        await using var bare = new BareSqliteDataSource(fixture.ConnectionStringFor(tablePrefix));
+
+        var services = new ServiceCollection();
+        services.AddTracon().UseSqlite(options =>
+        {
+            options.DataSource = bare;
+            options.TablePrefix = tablePrefix;
+            options.AutoApplyMigrations = true;
+        });
+
+        await using var provider = services.BuildServiceProvider();
+
+        foreach (var hosted in provider.GetServices<IHostedService>())
+        {
+            await hosted.StartAsync(CancellationToken.None);
+        }
+
+        // The statement names the functions: without them it fails to prepare, row or no row.
+        var run = await provider.GetRequiredService<IRunStore>().GetRunAsync(Guid.NewGuid());
+        run.ShouldBeNull();
+
+        var statistics = await provider.GetRequiredService<IRunStore>().GetStatisticsAsync(new RunStatisticsQuery());
+        statistics.ShouldNotBeNull();
+    }
+
+    /// <summary>The adapter the EF Core guide describes: a plain connection, nothing registered on it.</summary>
+    private sealed class BareSqliteDataSource(string connectionString) : DbDataSource
+    {
+        public override string ConnectionString => connectionString;
+
+        protected override DbConnection CreateDbConnection() => new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
     }
 
     /// <summary>Manual case 4: the host must not kill the consumer's own pool at shutdown.</summary>

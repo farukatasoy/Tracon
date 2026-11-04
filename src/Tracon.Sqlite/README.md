@@ -51,7 +51,9 @@ Tracon never disposes an instance it did not build; the caller keeps
 ownership. `Microsoft.Data.Sqlite` does not itself offer a `DbDataSource`
 implementation, so this is for a `DbDataSource` adapter you write yourself — see
 `Tracon.PostgreSql`'s `https://tracon.dev/guides/ef-core/` for
-the pattern.
+the pattern. The connection your adapter hands out must be a
+`Microsoft.Data.Sqlite.SqliteConnection`: Tracon registers its exact decimal
+functions on it when it opens it.
 
 ## SQLite's real limits
 

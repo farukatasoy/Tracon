@@ -33,8 +33,10 @@ namespace Tracon;
 /// 15 digits <see cref="decimal"/> keeps of a double), because an expression such as <c>COALESCE(x, 0)</c> hands one over.
 /// </para>
 /// <para>
-/// The functions exist on the connections <see cref="SqliteDataSource"/> opens and nowhere else. A query that names them and
-/// runs on a connection from another source fails with <c>no such function</c>; it does not fall back to a float sum.
+/// The functions exist on the connections <see cref="SqliteDataSource"/> opens and on the <see cref="SqliteConnection"/>
+/// a consumer's own data source hands out (Tracon registers them when it opens that connection). A query that names them
+/// and runs on any other connection, such as a profiling wrapper that is not a <see cref="SqliteConnection"/>, fails with
+/// <c>no such function</c>; it does not fall back to a float sum.
 /// </para>
 /// </remarks>
 internal static class SqliteDecimalFunctions

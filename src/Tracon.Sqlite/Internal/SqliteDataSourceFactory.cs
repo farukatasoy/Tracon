@@ -1,4 +1,6 @@
+using System.Data;
 using System.Data.Common;
+using Microsoft.Data.Sqlite;
 
 namespace Tracon;
 
@@ -42,7 +44,42 @@ internal static class SqliteDataSourceFactory
         ArgumentNullException.ThrowIfNull(options);
 
         return options.DataSource is { } dataSource
-            ? (dataSource, false)
+            ? (new DecimalFunctionDataSource(dataSource), false)
             : (Create(options), true);
+    }
+
+    /// <summary>
+    /// Stands in front of a data source the consumer supplied, so the connections Tracon opens from it carry the exact
+    /// decimal functions the cost totals and the quota counter are written with.
+    /// </summary>
+    /// <remarks>
+    /// The consumer's source is the one Tracon opens connections from, and the consumer keeps owning it: this wrapper holds
+    /// nothing to release and never disposes it. A source that hands out a connection that is not a
+    /// <see cref="SqliteConnection"/> (a profiling wrapper, say) cannot carry the functions; the statements that name them
+    /// then fail with <c>no such function</c> and never fall back to a floating-point sum.
+    /// </remarks>
+    private sealed class DecimalFunctionDataSource(DbDataSource inner) : DbDataSource
+    {
+        /// <inheritdoc />
+        public override string ConnectionString => inner.ConnectionString;
+
+        /// <inheritdoc />
+        protected override DbConnection CreateDbConnection()
+        {
+            var connection = inner.CreateConnection();
+
+            if (connection is SqliteConnection sqlite)
+            {
+                sqlite.StateChange += static (sender, eventArgs) =>
+                {
+                    if (eventArgs.CurrentState == ConnectionState.Open && sender is SqliteConnection opened)
+                    {
+                        SqliteDecimalFunctions.Register(opened);
+                    }
+                };
+            }
+
+            return connection;
+        }
     }
 }
