@@ -180,6 +180,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.IProductionProfileCheck | Singleton | Tracon.RateLimitProfileCheck",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.RetentionProfileCheck",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.QuotaProfileCheck",
+        "Tracon.IProductionProfileCheck | Singleton | Tracon.RestartReconciliationProfileCheck",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.ToolAuthorizationProfileCheck",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.TenantEgressProfileCheck",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.InstanceStateProfileCheck",

@@ -489,6 +489,7 @@ repeat it:
 | `UnkeyedAuditChain` | The audit trail's hash chain has no key, so anyone who can write to the audit table can change an entry and recompute every hash after it | Put a key under `Tracon:AuditChainKeys:<id>` and set `Tracon:Audit:ChainKeyId` to `<id>`; see [Sign the audit chain with a key](/guides/audit-chain-key/) |
 | `UnauthenticatedLocalOperator` | No `AuthToken` and no authorization policy is configured, so a request with no credential is the local operator with full rights. A reverse proxy on a Unix socket that adds no forwarding header makes a remote caller look local | Set `TraconEndpointOptions.AuthToken`, or `RequireAuthorization(...)` with a policy that authenticates the caller. Accept it only when nothing but this machine can reach the endpoints. An API key does not answer it |
 | `UnenforcedQuotaOnStoreFailure` | Quota enforcement is on and `Tracon:Quotas:AllowOnStoreFailure` is `true` (the default), so a run goes ahead when the quota store fails and a tenant past its ceiling is not stopped while the database is down | Set `Tracon:Quotas:AllowOnStoreFailure` to `false` to refuse runs whose quota cannot be read. Accept it only when an outage of the quota store must not stop the service |
+| `OrphanedRunsAfterRestart` | The state outlives the process (PostgreSQL, SQL Server or a SQLite file) and run reconciliation is off, so a run that a restart, a deploy or a crash cuts off keeps the status `Running` for ever: the model ignored the cancellation and the process ended first, or the process was killed. It stays counted as running and dilutes the error rate | `Tracon:RunReconciliation:Enabled`. Accept it only when you close such runs by hand |
 | `InstanceLocalState` | `Tracon:Deployment:Instances` is above `1` and the store keeps its state in one process (memory, or a SQLite file), so each instance sees its own runs, sessions and job queue | `UsePostgreSql` or `UseSqlServer`, with one database that every instance reaches |
 | `UnreconciledRuns` | `Instances` is above `1` and run reconciliation is off, so a cancel that reaches the other instance answers `409` and a run whose instance died stays `Running` | `Tracon:RunReconciliation:Enabled` |
 | `UnelectedBackgroundWork` | `Instances` is above `1` and single-executor election is off, so every instance runs the periodic background work at the same time | `Tracon:SingletonExecution:Enabled` |
@@ -520,6 +521,11 @@ Some rows are not asked in every composition:
   no HTTP surface is not asked them.
 - `UnenforcedQuotaOnStoreFailure` is not asked while `Tracon:Quotas:Enabled` is `false`: no run is checked
   against a quota, so no store failure can let one past it.
+- `OrphanedRunsAfterRestart` is not asked on the in-memory stores, which lose every row with the process, so no
+  row is left `Running`. It is not asked when `Tracon:Deployment:Instances` is above `1` either: `UnreconciledRuns`
+  asks the same setting there and says the same of a run whose instance died, so one answer covers both and a host
+  that already accepted `UnreconciledRuns` is not stopped again. A store you registered yourself is not seen: the
+  decision follows the storage provider Tracon registered.
 
 The startup failure names every open decision at once — the setting, what it is
 today, and how to answer it — so one restart clears all of them rather than one per

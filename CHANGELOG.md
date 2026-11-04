@@ -601,6 +601,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   a byte limit of zero trimmed every resource to an empty text, and nothing checked the sliding lifetime; nothing said so when
   the host started, and the setting looked applied. `MaxResourcesPerServer` and `MaxPromptsPerServer` keep their documented meaning of zero (keep none).
 
+- **Behavioural breaking change: `RequireProductionProfile()` asks one more decision, `OrphanedRunsAfterRestart`.** A deploy stops the host, and a run in flight gets the cancellation: a model that honours it
+  ends the run as canceled, and one that does not leaves the process to end first (the host waits its shutdown timeout, then exits). A crash or a kill does the same. With the state in PostgreSQL, SQL Server or a
+  SQLite file, that row is still there when the next process starts, and only run reconciliation closes it; with `Tracon:RunReconciliation:Enabled` at its default of `false` it stays `Running` for ever, counted as
+  running and diluting the error rate. The decision list had a row for this only when more than one instance is declared (`UnreconciledRuns`). A host that calls `RequireProductionProfile()`, keeps its state where it
+  survives a restart and has reconciliation off stops at start until it sets `Tracon:RunReconciliation:Enabled` to `true` or accepts the risk by name with
+  `profile.Accept(TraconProductionRisk.OrphanedRunsAfterRestart)`. It is not asked on the in-memory stores (a restart takes every row with it), and not when `Tracon:Deployment:Instances` is above `1`: `UnreconciledRuns` asks the
+  same setting there, so a host that already answered or accepted it is not stopped again. The default does not change (reconciliation writes a heartbeat for every running run, which a development host does not want),
+  and a host that does not call `RequireProductionProfile()` changes nothing.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
