@@ -84,6 +84,30 @@ public sealed class SqliteDecimalFunctionsTests
         }
     }
 
+    [Theory]
+    [InlineData("0,5")]
+    [InlineData("1,5")]
+    [InlineData("1,000.5")]
+    [InlineData("5-")]
+    [InlineData("(5)")]
+    public async Task A_text_that_a_culture_would_read_as_a_number_but_is_not_one_fails(string text)
+    {
+        await using var connection = await OpenAsync();
+
+        // A thousands separator or a trailing sign is not part of the text a cost is stored as. Read leniently, a hand-written
+        // '1,5' sums as 15 and 'abc' is an error: the rule is that an invalid value is an error, whatever it resembles.
+        foreach (var sql in new[]
+        {
+            "SELECT tracon_decimal_sum(v) FROM (SELECT '" + text + "' AS v)",
+            "SELECT tracon_decimal_add('" + text + "', '1')",
+        })
+        {
+            var failure = await Should.ThrowAsync<SqliteException>(() => ScalarAsync(connection, sql));
+
+            failure.Message.ShouldNotContain("no such function", Case.Insensitive, sql);
+        }
+    }
+
     [Fact]
     public async Task A_sum_past_the_range_of_a_decimal_fails()
     {
