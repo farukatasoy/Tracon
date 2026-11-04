@@ -887,8 +887,10 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     # (SqlProviderRegistrationParityTests) yakaladigi iki vaka -- uc
     # saglayicida birden unutulan yeni store ve yalniz AddTracon'a eklenen
     # Auditing* dekoratoru -- yalniz Core/Abstractions degisikliginde dogar.
-    "Tracon.Abstractions": ("Tracon.Core.UnitTests", "Tracon.Sql.Shared.UnitTests"),
-    "Tracon.Core": ("Tracon.Core.UnitTests", "Tracon.AspNetCore.FunctionalTests", "Tracon.Sql.Shared.UnitTests"),
+    "Tracon.Abstractions": ("Tracon.Core.UnitTests", "Tracon.Sql.Shared.UnitTests", "Tracon.PackageOptions.UnitTests"),
+    "Tracon.Core": (
+        "Tracon.Core.UnitTests", "Tracon.AspNetCore.FunctionalTests", "Tracon.Sql.Shared.UnitTests",
+        "Tracon.PackageOptions.UnitTests"),
     "Tracon.Generators": ("Tracon.Generators.UnitTests",),
     # Uc SQL saglayicisinin ortak kapilari (kayit paritesi, migration paritesi,
     # SQL metni snapshot'i) Tracon.Sql.Shared.UnitTests'te yasar. Tek bir Use*
@@ -897,23 +899,25 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     # Iki dugumlu kabul seti her iki sunucu saglayicisinda calisir; bir saglayicinin sorgusu (sayac
     # upsert'i, kira, iptal istegi) degisince onu da secer. Tracon.Sqlite secilmez: SQLite bu sette yoktur.
     "Tracon.PostgreSql": (
-        "Tracon.PostgreSql.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.TwoNode.IntegrationTests"),
+        "Tracon.PostgreSql.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.TwoNode.IntegrationTests",
+        "Tracon.PackageOptions.UnitTests"),
     "Tracon.SqlServer": (
-        "Tracon.SqlServer.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.TwoNode.IntegrationTests"),
-    "Tracon.Sqlite": ("Tracon.Sqlite.IntegrationTests", "Tracon.Sql.Shared.UnitTests"),
-    "Tracon.OpenAI": ("Tracon.OpenAI.UnitTests", "Tracon.Generators.UnitTests"),
-    "Tracon.Anthropic": ("Tracon.Anthropic.UnitTests",),
-    "Tracon.Google": ("Tracon.Google.UnitTests",),
-    "Tracon.Azure": ("Tracon.Azure.UnitTests",),
+        "Tracon.SqlServer.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.TwoNode.IntegrationTests",
+        "Tracon.PackageOptions.UnitTests"),
+    "Tracon.Sqlite": ("Tracon.Sqlite.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.PackageOptions.UnitTests"),
+    "Tracon.OpenAI": ("Tracon.OpenAI.UnitTests", "Tracon.Generators.UnitTests", "Tracon.PackageOptions.UnitTests"),
+    "Tracon.Anthropic": ("Tracon.Anthropic.UnitTests", "Tracon.PackageOptions.UnitTests"),
+    "Tracon.Google": ("Tracon.Google.UnitTests", "Tracon.PackageOptions.UnitTests"),
+    "Tracon.Azure": ("Tracon.Azure.UnitTests", "Tracon.PackageOptions.UnitTests"),
     # Paket DEGIL, dort saglayici paketine derlenen paylasimli kaynak.
     # Haritada olmasa tam kosuma duserdi; oysa tam etki alani bu dort projedir.
     "Tracon.Providers.Shared": PROVIDER_TEST_PROJECTS,
     # Paket DEGIL; OpenAI istemci kutuphanesini kullanan iki pakete
     # (Tracon.OpenAI, Tracon.Azure) derlenen paylasimli kaynak.
     "Tracon.OpenAI.Shared": ("Tracon.OpenAI.UnitTests", "Tracon.Azure.UnitTests"),
-    "Tracon.Voice": ("Tracon.Voice.UnitTests",),
-    "Tracon.Mcp": ("Tracon.Mcp.UnitTests",),
-    "Tracon.Workflows": ("Tracon.Workflows.UnitTests",),
+    "Tracon.Voice": ("Tracon.Voice.UnitTests", "Tracon.PackageOptions.UnitTests"),
+    "Tracon.Mcp": ("Tracon.Mcp.UnitTests", "Tracon.PackageOptions.UnitTests"),
+    "Tracon.Workflows": ("Tracon.Workflows.UnitTests", "Tracon.PackageOptions.UnitTests"),
     # AG-UI paylasir: tur kurulumu (AgentTurnService) AspNetCore'dadir, bu yuzden onun degisikligi AG-UI testlerini de secer.
     "Tracon.AspNetCore": ("Tracon.AspNetCore.FunctionalTests", "Tracon.AGUI.FunctionalTests"),
     "Tracon.AGUI": ("Tracon.AGUI.FunctionalTests",),
