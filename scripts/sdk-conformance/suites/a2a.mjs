@@ -11,11 +11,6 @@ const AGENT = 'summarizer';
 
 const CARD_CLIENT_CHECK = 'a client built from the card the endpoint publishes can send a message';
 
-// A check that fails today and is written up in a2a.finding. The run stays green while it fails and goes red the day it passes.
-export const KNOWN_OPEN = new Map([
-  [CARD_CLIENT_CHECK, 'the card gives the interface url as a relative path and the SDK needs an absolute one'],
-]);
-
 function userMessage(text) {
   return {
     tenant: '',
@@ -58,19 +53,22 @@ export async function run({ baseUrl }) {
 
   check('the card declares one JSON-RPC interface', published.length === 1 && published[0].protocolBinding === 'JSONRPC', JSON.stringify(published));
 
+  // The SDK builds its transport from the interface address as written, so the address has to be an absolute one.
+  check('the interface address in the card is absolute', published.every((entry) => URL.canParse(entry.url)), JSON.stringify(published.map((entry) => entry.url)));
+
   // What the card says is what a client uses: a client built from the card as it is published is the one a real caller runs.
+  let client = null;
+
   try {
-    const client = await factory.createFromUrl(cardUrl, '');
+    client = await factory.createFromUrl(cardUrl, '');
 
     await client.sendMessage(userMessage('hello from the card as published'));
     check(CARD_CLIENT_CHECK, true, null);
   } catch (error) {
     check(CARD_CLIENT_CHECK, false, fail(error));
-  }
 
-  // The same card with the interface address made absolute, so the rest of the protocol can be walked.
-  const absolute = { ...card, supportedInterfaces: published.map((entry) => ({ ...entry, url: new URL(entry.url, baseUrl).toString() })) };
-  const client = await factory.createFromAgentCard(absolute);
+    return { results };
+  }
 
   try {
     const reply = await client.sendMessage(userMessage('hello from the A2A JavaScript SDK'));

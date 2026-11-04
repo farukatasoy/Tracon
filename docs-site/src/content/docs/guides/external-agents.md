@@ -227,8 +227,16 @@ app.MapTracon("/tracon", options =>
 app.MapTraconA2A();
 ```
 
-The invocation URL is `/tracon/a2a/support`; its card is under
-`/tracon/a2a/support/.well-known/agent-card.json`.
+The invocation path is `/tracon/a2a/support`; its card is under
+`/tracon/a2a/support/.well-known/agent-card.json`. The card gives the interface as an
+absolute URL (`supportedInterfaces[].url`), because a client outside the host, such as the
+official A2A JavaScript SDK, builds its transport from that value as written. The URL is the
+scheme, host and path base the request arrived on, so a host behind a reverse proxy has to
+tell ASP.NET Core about it: run `UseForwardedHeaders` with `XForwardedHost` and `XForwardedProto`
+(from the proxies you trust) and `UsePathBase` for a prefix the proxy removes, and set
+`AllowedHosts` so the card cannot name a host you do not serve. Tracon reads no forwarding header
+itself: a header the host does not honour changes nothing. The response is marked `Vary` on the
+headers the address depends on.
 
 A2A names are frozen during service registration because the underlying hosting API
 registers one server per name. The agent implementation is still resolved from the

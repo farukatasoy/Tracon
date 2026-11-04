@@ -1232,6 +1232,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   has by default (`todos_*`, `mode_get`, `mode_set`) or file memory adds (`file_memory_*`). An agent named `todos-add` made two
   tools of one name and the model provider refused the request with `400`. Validation and the compiler now report it.
 
+- **The A2A agent card gives its interface address as an absolute URL.** `supportedInterfaces[].url` was the path (`/tracon/a2a/support`), built once when the endpoint was mapped. A client that resolves it against the card's own URL
+  worked; the official A2A JavaScript SDK (`@a2a-js/sdk` 1.3.0) builds its transport from the value as written and failed on its first call with `Invalid URL`. The card is built per request now: the scheme, host and
+  path base the request arrived on (`Request.Scheme`, `Request.Host`, `Request.PathBase`), so a host behind a reverse proxy that runs `UseForwardedHeaders` (`XForwardedHost`, `XForwardedProto`) and `UsePathBase`
+  gets the public address, and a host that does not gets the address of the connection. Tracon reads no forwarding header itself: a header the host does not honour changes nothing. A request with no `Host` header gets the
+  path as before. The response carries `Vary` on `Host`, `X-Forwarded-Host` and `X-Forwarded-Proto` so a cache that keys on the URL does not serve one caller's address to another. The card is answered by Tracon and no longer by the
+  SDK's `MapWellKnownAgentCard`; its name, route and cache headers are unchanged. An application that is reachable under any host name sets `AllowedHosts`, as it does for any absolute address it builds. A card with a fixed
+  public address independent of the request (a `PublicBaseUrl` option) was not added: nothing in the options surface asked for it, and it can be added later without breaking anything.
+
 ## [1.0.0-preview.6] - 2026-10-27
 
 Agents and workflows gain the controls a production host needs before the surface

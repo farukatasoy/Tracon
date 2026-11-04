@@ -144,6 +144,8 @@ public static class TraconA2AExtensions
             group.RequireAuthorization(policy);
         }
 
+        var cardLastModified = A2AAgentCardResponse.LastModifiedNow(services.GetService<TimeProvider>() ?? TimeProvider.System);
+
         foreach (var agentName in a2aOptions.ExposedAgents)
         {
             var proxy = services.GetRequiredKeyedService<ExternalAgentProxy>(agentName);
@@ -154,7 +156,7 @@ public static class TraconA2AExtensions
 
             var agentPath = $"/{Uri.EscapeDataString(agentName)}";
             var agentGroup = group.MapGroup(agentPath);
-            var card = BuildAgentCard(agentName, descriptor, pattern + agentPath);
+            var interfacePath = pattern + agentPath;
 
             agentGroup.MapA2A(handler, "/")
                 .WithName($"TraconA2A_{agentName}")
@@ -170,7 +172,15 @@ public static class TraconA2AExtensions
                     "A tool call that needs approval cannot be answered over this surface and " +
                     "ends the run instead of waiting.");
 
-            agentGroup.MapWellKnownAgentCard(card, "")
+            // The card is answered here and not by the SDK's MapWellKnownAgentCard: that one serves a card built once, and
+            // the address in it has to be the one this request arrived on (A2AAgentCardResponse).
+            agentGroup.MapGet(
+                    "/.well-known/agent-card.json",
+                    (HttpContext httpContext) => A2AAgentCardResponse.Create(
+                        httpContext,
+                        interfacePath,
+                        address => BuildAgentCard(agentName, descriptor, address),
+                        cardLastModified))
                 .WithName($"TraconA2AAgentCard_{agentName}")
                 .WithSummary($"Returns the A2A agent card describing the '{agentName}' agent.")
                 .WithDescription(
@@ -178,13 +188,15 @@ public static class TraconA2AExtensions
                     "its name, description, version, supported input and output modes, and " +
                     "declared capabilities. It is generated from the agent's own catalog entry, " +
                     "so editing the agent's description changes the card. Streaming and push " +
-                    "notifications are declared unsupported.");
+                    "notifications are declared unsupported. The interface address in the card is " +
+                    "absolute: the scheme and host of the request (as the host's forwarded headers " +
+                    "middleware sets them) and the application's path base.");
         }
 
         return group;
     }
 
-    private static AgentCard BuildAgentCard(string agentName, AgentDescriptor? descriptor, string relativeUrl)
+    private static AgentCard BuildAgentCard(string agentName, AgentDescriptor? descriptor, string interfaceUrl)
         => new()
         {
             Name = agentName,
@@ -197,7 +209,7 @@ public static class TraconA2AExtensions
             [
                 new AgentInterface
                 {
-                    Url = relativeUrl,
+                    Url = interfaceUrl,
                     ProtocolBinding = ProtocolBindingNames.JsonRpc,
                 },
             ],
