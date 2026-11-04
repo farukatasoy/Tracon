@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **On PostgreSQL and SQL Server a lease ends on the database server's clock, not on the clock of the machine that wrote it.** Every lease row used to carry the instant the writing node computed from its own clock,
+  and every node that read it compared it with its own, so two nodes that disagreed about the time disagreed about when a lease ended. Measured on PostgreSQL 18 and SQL Server 2022, with the same result on
+  both: a node whose clock ran more than two thirds of the lease ahead (more than 20 seconds, on the 30-second single-executor lease that was measured) took the lease while its owner still held it, and both ran as the executor until the
+  owner's next renewal; a node whose clock ran a job lease ahead (five minutes by default) took a job another node was **running**, the owner's renewal and completion were refused, and the job ran twice
+  at the same time (a queued agent run, which has one attempt, was failed by the node that took it without running it, so the run that was healthy lost its result). The lease statements now read the server's clock
+  (`statement_timestamp()` on PostgreSQL, the UTC clock on SQL Server) for the comparison, for the stamp and for the end of the lease, which is passed as a number of milliseconds. The same clock measures a
+  retry delay and decides whether a job is due. SQLite and the in-memory stores keep the clock of the process, as one process is the only place they run in.
+  What to do:
+  - **Before you roll a deployment that runs two versions, check the clocks of your nodes (NTP), then roll.** For as long as a node of the older version and a node of this version run side by side, a lease the older node wrote
+    is read against the server's clock: with a healthy clock on the older node nothing differs, a lease written by an older node whose clock was an hour fast stays live for that hour on the newer nodes, and one written by a node an hour
+    behind reads as over at once. Keep that window short.
+  - **A node whose clock is wrong no longer takes a lease it should not, and the clocks of your nodes no longer matter for leases.** They still matter for the deployment rate-limit windows, which each instance cuts from its own clock,
+    and for the time an instance writes when it queues a job to run at once (a job is due when the server's clock passes it, so an instance that is ahead queues its jobs that much late).
+  - **The database server's clock is now the one to keep right.** After a failover to a server whose clock differs, the leases the old server held are read on the new server's clock.
+  - `TestData.Job()` in `Tracon.Testing.Contracts.Xunit` is due a minute ago instead of now: a job that is due "now" on the test process's clock is not yet due on a database server's clock that runs a few milliseconds behind it.
+
 - **The compiled agent cache holds at most 4096 agents and drops one that is unused for an hour.** It kept one agent for every tenant, agent, definition version and culture for the life
   of the process, so an installation that takes the tenant from a header and lists no `AllowedTenants` let the caller choose how much memory it held: a compiled agent weighs 8.3 KiB with no tools
   and a short instruction and 42 KiB with sixty tools and an 8 KiB instruction (measured; the instruction counts about four bytes per character). An agent that leaves the cache is not

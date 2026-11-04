@@ -354,7 +354,7 @@ public abstract class SqlLeaseUnderClockSkewContract
     {
         while (clock.Elapsed < GiveUpAfter)
         {
-            await Task.Delay(PollEvery, TestContext.Current.CancellationToken);
+            await Task.Delay(PollEvery, TestContext.Current.CancellationToken); // delay: product
 
             if (await attempt())
             {

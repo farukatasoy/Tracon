@@ -441,7 +441,9 @@ The job stays leased to the dead worker until its lease expires. No other worker
 touches it before then — the lease is a database row, so a process that dies
 without releasing anything still holds it for the remainder of the term. Once
 `LeaseDuration` elapses, another worker leases the job, `Attempt` increments, and
-the job runs again from the start.
+the job runs again from the start. The term is measured on the database server's
+clock (PostgreSQL and SQL Server), so the clocks of the machines the workers run on
+do not move its end.
 
 Two consequences follow, and both are yours to design for:
 
@@ -519,6 +521,12 @@ writing the tables it knows while the newer schema is already applied, and both
 lease from the same queue without collision. Verify the window before you open it
 with `tracon state-check`, which reads and writes nothing. Keep the window
 short and planned; an indefinite dual-version deployment is not a supported shape.
+
+A version that reads leases on the database server's clock still has to read the leases
+an older version wrote with its own machine's clock. While both run, a lease written by
+an older node whose clock is an hour ahead stays live for that hour on the newer
+nodes, and one written by a node an hour behind reads as over at once. Check the clocks
+of your nodes (NTP) before you start rolling, then roll.
 
 Unlike the other behaviours on this page, this one is measured with **one** build
 standing in for both sides — a process that enabled fewer optional migration sets

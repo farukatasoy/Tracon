@@ -75,6 +75,13 @@ public interface IJobStore
     /// <returns>The leased job; <see langword="null"/> if none exists.</returns>
     /// <remarks>
     /// <para>
+    /// A job is ready when it is pending and due, or when its lease is over. Both are decided on the store's clock, and the
+    /// lease is taken for <see cref="JobLeaseRequest.LeaseDuration"/> from it: the PostgreSQL and SQL Server stores read the
+    /// database server's clock inside the statement, so the clocks of the nodes that share the database do not enter the
+    /// decision and a node whose clock is ahead cannot take a job another node is running. The in-memory store and SQLite
+    /// are used by one process and read the clock they were given (<see cref="TimeProvider"/>).
+    /// </para>
+    /// <para>
     /// With <see cref="JobLeaseRequest.TenantCap"/> set, a ready job whose handler key is in
     /// the cap's keys is skipped while its tenant already holds the cap's number of live
     /// leases on those keys; the oldest job that is still eligible is leased instead. A job
@@ -100,8 +107,15 @@ public interface IJobStore
     /// cancelled or finished), in which case nothing changed.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// A worker that gets <see langword="false"/> has lost the job and must stop working on it.
     /// A cancelled job answers <see langword="false"/> too, because cancelling clears the lease.
+    /// </para>
+    /// <para>
+    /// The new end is <paramref name="leaseDuration"/> from the store's clock, not from the
+    /// caller's: the PostgreSQL and SQL Server stores read the database server's clock in the
+    /// statement, the same clock that decides whether a lease is over.
+    /// </para>
     /// </remarks>
     ValueTask<bool> RenewLeaseAsync(
         JobLease lease,
@@ -158,7 +172,10 @@ public interface IJobStore
     /// <para>
     /// <paramref name="retryAfter"/> pushes the <see cref="JobRecord.ScheduledFor"/>
     /// field forward; since the lease query already applies
-    /// <c>scheduled_for &lt;= now</c>, backoff needs no additional mechanism.
+    /// <c>scheduled_for &lt;= now</c>, backoff needs no additional mechanism. The delay
+    /// is measured from the same clock that query reads (on PostgreSQL and SQL Server the
+    /// database server's, in whole milliseconds), so the node that releases the job and
+    /// the node that leases it again cannot disagree about when the delay is over.
     /// </para>
     /// <para>
     /// Webhook delivery builds its 1 min / 5 min / 30 min / 2 hr /

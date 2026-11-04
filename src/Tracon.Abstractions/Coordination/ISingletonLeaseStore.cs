@@ -41,6 +41,15 @@ namespace Tracon;
 /// reports it lost the lease. A consumer whose protected job is not idempotent under a
 /// brief overlap must not rely on this store alone.
 /// </para>
+/// <para>
+/// <strong>The clock that ends a lease.</strong> The PostgreSQL and SQL Server stores
+/// measure a lease with the database server's clock, read inside the statement: the
+/// clocks of the instances that share the database do not enter the decision, so an
+/// instance whose clock is ahead cannot take a lease that is live. What remains are the
+/// causes above (a pause, a partition) and the server's own clock. The in-memory store
+/// and SQLite are used by one process and measure with the clock they were given
+/// (<see cref="TimeProvider"/>).
+/// </para>
 /// </remarks>
 public interface ISingletonLeaseStore
 {
