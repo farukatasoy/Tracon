@@ -831,6 +831,56 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
             .Groups.ShouldHaveSingleItem().Count.ShouldBe(1);
     }
 
+    /// <summary>
+    /// A score dated before the year 1900, or before 1753, still lands in the bucket that holds it.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server counted days from 1900-01-01 and took the remainder of a negative number as it is, which is negative:
+    /// every day before that date was truncated to the FOLLOWING Monday. Its legacy <c>datetime</c> type stops at 1753, so
+    /// an earlier score failed the whole summary. The days below are Sundays, so a Monday-based week must start six days
+    /// before each of them.
+    /// </remarks>
+    [Theory]
+    [InlineData("1899-12-31T10:00:00Z", "1899-12-25T00:00:00Z")]
+    [InlineData("1752-12-31T10:00:00Z", "1752-12-25T00:00:00Z")]
+    [InlineData("0441-05-05T10:00:00Z", "0441-04-29T00:00:00Z")]
+    [InlineData("1900-01-01T10:00:00Z", "1900-01-01T00:00:00Z")]
+    public async Task Week_buckets_start_on_Monday_before_1900_too(string createdAt, string expectedWeekStart)
+    {
+        var tenant = UniqueTenant();
+        var created = DateTimeOffset.Parse(createdAt, System.Globalization.CultureInfo.InvariantCulture);
+
+        await Store.UpsertAsync(SummaryScore(tenant, TraconId.NewId()) with { CreatedAt = created, Author = "alice" });
+
+        var summary = await Store.SummarizeAsync(new RunScoreQuery { TenantId = tenant, Bucket = RunScoreBucket.Week });
+
+        var bucket = summary.Series.ShouldHaveSingleItem();
+        bucket.BucketStart.ShouldBe(DateTimeOffset.Parse(expectedWeekStart, System.Globalization.CultureInfo.InvariantCulture));
+        bucket.Groups.ShouldHaveSingleItem().Count.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(RunScoreBucket.Hour, "0441-05-05T10:00:00Z", "0441-05-05T10:00:00Z")]
+    [InlineData(RunScoreBucket.Day, "0441-05-05T10:00:00Z", "0441-05-05T00:00:00Z")]
+    [InlineData(RunScoreBucket.Hour, "1752-12-31T23:30:00Z", "1752-12-31T23:00:00Z")]
+    [InlineData(RunScoreBucket.Day, "0001-01-01T05:00:00Z", "0001-01-01T00:00:00Z")]
+    [InlineData(RunScoreBucket.Day, "9999-12-31T23:30:00Z", "9999-12-31T00:00:00Z")]
+    public async Task Hour_and_day_buckets_hold_a_score_from_any_year_a_date_can_hold(
+        RunScoreBucket bucket,
+        string createdAt,
+        string expectedBucketStart)
+    {
+        var tenant = UniqueTenant();
+        var created = DateTimeOffset.Parse(createdAt, System.Globalization.CultureInfo.InvariantCulture);
+
+        await Store.UpsertAsync(SummaryScore(tenant, TraconId.NewId()) with { CreatedAt = created, Author = "alice" });
+
+        var summary = await Store.SummarizeAsync(new RunScoreQuery { TenantId = tenant, Bucket = bucket });
+
+        summary.Series.ShouldHaveSingleItem().BucketStart
+            .ShouldBe(DateTimeOffset.Parse(expectedBucketStart, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     [Fact]
     public async Task Summary_can_be_read_while_a_score_is_being_written()
     {

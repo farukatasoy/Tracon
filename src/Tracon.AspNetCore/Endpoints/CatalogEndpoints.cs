@@ -146,7 +146,7 @@ internal static class CatalogEndpoints
                 CancellationToken cancellationToken) =>
             {
                 var effectiveTo = to ?? (timeProvider ?? TimeProvider.System).GetUtcNow();
-                var effectiveFrom = from ?? effectiveTo.AddHours(-24);
+                var effectiveFrom = from ?? DayBefore(effectiveTo);
 
                 if (effectiveFrom >= effectiveTo)
                 {
@@ -275,6 +275,18 @@ internal static class CatalogEndpoints
     }
 
     // The function tools are already ordered by name, and so are the hosted ones; a merge keeps one list ordered.
+    /// <summary>
+    /// The start of a range that was given no start: 24 hours before its end, or the first instant a date can hold when
+    /// fewer than 24 hours come before the end.
+    /// </summary>
+    /// <remarks>
+    /// <c>end.AddHours(-24)</c> throws for an end in the first day of the calendar, and the caller got a <c>500</c>
+    /// for a value no one could have known was out of reach. The subtraction is done on the UTC ticks, because the
+    /// offset of the value decides which local time the type is asked to hold.
+    /// </remarks>
+    private static DateTimeOffset DayBefore(DateTimeOffset end)
+        => new(Math.Max(end.UtcTicks - TimeSpan.TicksPerDay, 0), TimeSpan.Zero);
+
     private static IReadOnlyList<ToolDescriptor> ListTools(IToolRegistry tools, HostedToolRegistry hostedTools)
     {
         var functions = tools.List();

@@ -39,6 +39,7 @@ _SEED_PATH = os.environ.get("TRACON_FUZZ_SEED_FILE", "")
 _API_KEY = os.environ.get("TRACON_FUZZ_API_KEY", "")
 
 _LOCK = threading.Lock()
+_DRAWN = threading.local()
 _STATS = openapi_fuzz.RunStats()
 _SEED = openapi_fuzz.load_seed(pathlib.Path(_SEED_PATH)) if _SEED_PATH else None
 
@@ -60,26 +61,49 @@ def before_call(context, case, kwargs):  # noqa: ANN001
 
 
 @schemathesis.hook
-def map_case(context, case):  # noqa: ANN001
-    if _SEED is None:
-        return case
+def map_path_parameters(context, path_parameters):  # noqa: ANN001
+    """Swaps a seeded value into the generated path parameters.
 
-    operation = case.operation
+    🚨 This and `map_body` are two hooks on purpose, and not one `map_case`. A `map_case` hook of ANY body, an identity
+    function included, makes Schemathesis 4.32.7 fail the Hypothesis health check "Too many generated examples are
+    filtered out" for every operation whose only input is a path string, once the run draws 20 examples or fewer
+    (measured: 17 operations on the in-memory store, 2 of 3 on `/agents/{name}`; with no hook, or with
+    `map_path_parameters`/`map_body`/`map_query` as identity functions, none). The harness counted the check as an error
+    and failed the leg for a reason that is not the host's.
+    """
+    if _SEED is None:
+        return path_parameters
+
+    operation = context.operation
+    choice = openapi_fuzz.choose_seed(_SEED, method=operation.method, template=operation.path, path_parameters=path_parameters)
+    chosen = choice.path_parameters if choice.path_parameters is not None else path_parameters
+    _DRAWN.template = operation.path
+    _DRAWN.path_parameters = chosen
+
+    return chosen
+
+
+@schemathesis.hook
+def map_body(context, body):  # noqa: ANN001
+    """Swaps a seeded body in; it renders `{name}` with the path parameters drawn for the same case.
+
+    The path parameters of a case are drawn, and mapped, before its body, so `_DRAWN` holds this case's values. An
+    operation with no path parameter never sets it, and a stale value of another operation is not used.
+    """
+    if _SEED is None:
+        return body
+
+    operation = context.operation
+    drawn = getattr(_DRAWN, "path_parameters", None) if getattr(_DRAWN, "template", None) == operation.path else None
     choice = openapi_fuzz.choose_seed(
         _SEED,
         method=operation.method,
         template=operation.path,
-        path_parameters=case.path_parameters,
-        variation=[case.query, case.body if isinstance(case.body, (dict, list, str, int, float, bool, type(None))) else None],
+        path_parameters=drawn if drawn is not None else {},
+        variation=body if isinstance(body, (dict, list, str, int, float, bool, type(None))) else None,
     )
 
-    if choice.path_parameters is not None:
-        case.path_parameters = choice.path_parameters
-
-    if choice.has_body:
-        case.body = choice.body
-
-    return case
+    return choice.body if choice.has_body else body
 
 
 @schemathesis.hook

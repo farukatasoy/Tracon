@@ -451,7 +451,15 @@ class PolicyFileTests(unittest.TestCase):
             if isinstance(node, ast.FunctionDef) and any("hook" in ast.dump(decorator) for decorator in node.decorator_list)
         }
 
-        self.assertEqual(defined, {"before_call", "map_case", "filter_failure", "after_call", "after_validate"})
+        self.assertEqual(defined, {"before_call", "map_path_parameters", "map_body", "filter_failure", "after_call", "after_validate"})
+
+    def test_the_hooks_do_not_map_the_whole_case(self):
+        # A `map_case` hook of any body makes Schemathesis 4.32.7 fail the "filtered out" health check at 20 examples or fewer for an
+        # operation whose only input is a path string (scripts/openapi_fuzz_hooks.py says what was measured).
+        source = (SCRIPTS / "openapi_fuzz_hooks.py").read_text(encoding="utf-8")
+
+        self.assertNotIn("def map_case", source)
+        self.assertNotIn("flatmap_case", source)
 
     def test_a_path_filter_reaches_the_schemathesis_command_and_nothing_else_changes(self):
         base = dict(store="memory", examples=5, report_examples=5, seed=1, workers=1, phases=None, gating=("a",), reporting=(), seed_data=False, output=pathlib.Path("."), schemathesis=pathlib.Path("st"), base_url="http://h")

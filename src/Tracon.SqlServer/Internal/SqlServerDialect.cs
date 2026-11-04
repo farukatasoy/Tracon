@@ -231,6 +231,13 @@ internal sealed class SqlServerDialect : SqlDialect
         => exception is SqlException { Number: NumberOutOfRange };
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The <c>actor</c>, <c>action</c> and <c>entity</c> columns of <c>audit_log</c> are <c>nvarchar(200)</c>; a test reads
+    /// the width from the database and fails when it is no longer this number.
+    /// </remarks>
+    public override int AuditLabelLimit => 200;
+
+    /// <inheritdoc />
     /// <remarks>Every upsert in <see cref="SqlServerQueries"/> is a two-statement text.</remarks>
     public override bool UpsertRequiresTransaction => true;
 

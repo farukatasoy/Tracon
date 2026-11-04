@@ -333,6 +333,113 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         result.EntriesChecked.ShouldBe(5);
     }
 
+    /// <summary>
+    /// An entry whose actor, action or entity is longer than a store's column is written, found and verified, never lost.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The entity of an audit entry is a prefix and a name the caller chose (<c>session:</c> and a 200-character session
+    /// id), and the actor is whatever the identity provider put in a claim. SQL Server holds each in 200 characters and
+    /// refused a longer one; the recorder logged the refusal and went on, so the entry was gone and nothing told the operator
+    /// who looked at the trail. A store with a limit keeps a shortened form that still names the label (the label, or
+    /// a start of it and a digest), a store without one keeps the label; both give the row back for the whole label.
+    /// </para>
+    /// </remarks>
+    /// <param name="field">Which label is long.</param>
+    /// <param name="label">The long label.</param>
+    [Theory]
+    [MemberData(nameof(LongLabels))]
+    public async Task A_label_longer_than_a_column_is_stored_found_by_the_whole_label_and_verified(string field, string label)
+    {
+        var tenant = $"tenant-long-{field}-{label.Length}-{StableHash(label)}";
+        var entry = WithLabel(Entry(tenant, "agent.update", "agent:x"), field, label);
+
+        await Log.WriteAsync(entry);
+
+        var found = (await Log.QueryAsync(new AuditQuery { TenantId = tenant })).ShouldHaveSingleItem();
+        var stored = LabelOf(found, field)!;
+
+        // What the store holds names the label: it is the label, or a bounded form that keeps its start.
+        (string.Equals(stored, label, StringComparison.Ordinal) ||
+         (stored.Length <= 200 && stored.StartsWith(label[..100], StringComparison.Ordinal))).ShouldBeTrue(stored);
+
+        // A lone half of a surrogate pair does not survive a database: whatever was stored reads back as the text it was.
+        Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(stored)).ShouldBe(stored, "the stored label is well-formed text");
+
+        // The whole label, given as the filter, finds the row.
+        var query = field switch
+        {
+            "actor" => new AuditQuery { TenantId = tenant, Actor = label },
+            "action" => new AuditQuery { TenantId = tenant, Action = label },
+            _ => new AuditQuery { TenantId = tenant, Entity = label },
+        };
+
+        (await Log.QueryAsync(query)).ShouldHaveSingleItem().Id.ShouldBe(entry.Id);
+
+        var verification = await Log.VerifyChainAsync(new AuditChainQuery { TenantId = tenant });
+
+        verification.Status.ShouldBe(AuditChainStatus.Valid);
+        verification.EntriesChecked.ShouldBe(1);
+    }
+
+    /// <summary>Two long entities that share their first 200 characters are two entries, each found by its own label.</summary>
+    [Fact]
+    public async Task Two_long_labels_that_share_their_start_stay_two_entries()
+    {
+        const string Tenant = "tenant-long-twins";
+        var start = "session:" + new string('s', 210);
+        var first = Entry(Tenant, "session.delete", start + "-first");
+        var second = Entry(Tenant, "session.delete", start + "-second");
+
+        await Log.WriteAsync(first);
+        await Log.WriteAsync(second);
+
+        (await Log.QueryAsync(new AuditQuery { TenantId = Tenant })).Count.ShouldBe(2);
+        (await Log.QueryAsync(new AuditQuery { TenantId = Tenant, Entity = start + "-first" })).ShouldHaveSingleItem().Id.ShouldBe(first.Id);
+        (await Log.QueryAsync(new AuditQuery { TenantId = Tenant, Entity = start + "-second" })).ShouldHaveSingleItem().Id.ShouldBe(second.Id);
+        (await Log.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant })).Status.ShouldBe(AuditChainStatus.Valid);
+    }
+
+    /// <summary>Gets the labels the long-label scenario runs on: a field, and a text that is over a 200-character column.</summary>
+    /// <returns>The rows of the theory.</returns>
+    public static TheoryData<string, string> LongLabels()
+        => new()
+        {
+            { "entity", "session:" + new string('s', 200) },
+            { "entity", "tool:" + new string('t', 1000) },
+            { "actor", new string('a', 201) },
+            { "action", "agent." + new string('u', 250) },
+            { "entity", new string('p', 166) + "\U0001F600" + new string('q', 100) },
+        };
+
+    private static AuditEntry WithLabel(AuditEntry entry, string field, string label)
+        => field switch
+        {
+            "actor" => entry with { Actor = label },
+            "action" => entry with { Action = label },
+            _ => entry with { Entity = label },
+        };
+
+    private static string? LabelOf(AuditEntry entry, string field)
+        => field switch
+        {
+            "actor" => entry.Actor,
+            "action" => entry.Action,
+            _ => entry.Entity,
+        };
+
+    private static int StableHash(string value)
+    {
+        var hash = 17;
+
+        foreach (var character in value)
+        {
+            hash = unchecked((hash * 31) + character);
+        }
+
+        return hash & 0x7fffffff;
+    }
+
     [Fact]
     public async Task Two_tenants_chains_verify_independently()
     {

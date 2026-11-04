@@ -86,6 +86,15 @@ internal sealed class SqlServerQueries : SqlQueriesBase
     /// <summary>The zero-guard condition appended to the WHERE clause of paged queries.</summary>
     private const string TakeGuard = "AND @take > 0";
 
+    /// <summary>
+    /// The instant a time bucket is counted from: a Monday, so a week is a whole number of days from it.
+    /// </summary>
+    /// <remarks>
+    /// A <c>datetime2</c>, never the bare <c>0</c> that T-SQL reads as a <c>datetime</c>: that type starts in 1753, and an
+    /// instant before it fails the query with error 242 instead of landing in a bucket.
+    /// </remarks>
+    private const string EpochAnchor = "CONVERT(datetime2(7), '1900-01-01')";
+
     /// <summary>Creates a new query set.</summary>
     /// <param name="schemaName">The schema name to validate.</param>
     /// <exception cref="TraconException">The schema name is not a valid identifier.</exception>
@@ -1043,6 +1052,16 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // converted back with TODATETIMEOFFSET (values are always written in
         // UTC, so the offset is zero).
         //
+        // 🚨 Both ends of DATEDIFF are datetime2. A bare `0` makes the other end an
+        // implicit `datetime`, whose range starts in 1753: every instant before it
+        // answered error 242 and the endpoint said "the store is down".
+        //
+        // 🚨 The recursion never adds a bucket to the last one. `bucket + 1 < to` would
+        // overflow (error 517) in the last bucket of year 9999, so the step is taken only
+        // when `to` lies at least one unit further on, which makes the next bucket at most
+        // the bucket that contains `to`. That bucket is dropped by the final `bucket < to`
+        // when `to` falls exactly on its boundary.
+        //
         // Empty buckets are also returned: otherwise a gap in the chart would
         // look like "zero" instead of "no data".
         // One filter for the buckets and for the series' currency count: a copy
@@ -1055,26 +1074,31 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                   AND (@kind       IS NULL OR kind       = @kind)
             """;
 
+        // The first instant of the bucket that holds `value`, on datetime2 so that no year of the type's range is
+        // left out. `value` is a datetime2 expression.
+        static string TruncateToBucket(string value) => $"""
+            CASE WHEN @bucket_unit = N'hour'
+                 THEN DATEADD(hour, DATEDIFF(hour, {EpochAnchor}, {value}), {EpochAnchor})
+                 ELSE DATEADD(day,  DATEDIFF(day,  {EpochAnchor}, {value}), {EpochAnchor})
+            END
+            """;
+
         SelectRunTimeSeries = $"""
             WITH buckets AS (
-                SELECT CASE WHEN @bucket_unit = N'hour'
-                            THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), @from_ts)), CONVERT(datetime2(7), '1900-01-01'))
-                            ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), @from_ts)), CONVERT(datetime2(7), '1900-01-01'))
-                       END AS bucket
+                SELECT {TruncateToBucket("CONVERT(datetime2(7), @from_ts)")} AS bucket
                 UNION ALL
                 SELECT CASE WHEN @bucket_unit = N'hour'
                             THEN DATEADD(hour, 1, bucket)
                             ELSE DATEADD(day,  1, bucket)
                        END
                 FROM buckets
-                WHERE (CASE WHEN @bucket_unit = N'hour' THEN DATEADD(hour, 1, bucket) ELSE DATEADD(day, 1, bucket) END)
-                      < CONVERT(datetime2(7), @to_ts)
+                WHERE CASE WHEN @bucket_unit = N'hour'
+                           THEN DATEDIFF(hour, bucket, CONVERT(datetime2(7), @to_ts))
+                           ELSE DATEDIFF(day,  bucket, CONVERT(datetime2(7), @to_ts))
+                      END >= 1
             ),
             matched AS (
-                SELECT CASE WHEN @bucket_unit = N'hour'
-                            THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
-                            ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
-                       END AS bucket,
+                SELECT {TruncateToBucket("CONVERT(datetime2(7), started_at)")} AS bucket,
                        CAST(COUNT(*) AS bigint) AS runs,
                        CAST(COALESCE(SUM(CASE WHEN status = @status_failed THEN 1 ELSE 0 END), 0) AS bigint) AS failed_runs,
                        CAST({TreeSum("input_tokens", null, true)} AS bigint) AS input_tokens,
@@ -1085,10 +1109,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                                 THEN CAST(DATEDIFF_BIG(millisecond, started_at, completed_at) AS float) END) AS avg_duration_ms
                 FROM {Schema}.runs
             {timeSeriesFilter}
-                GROUP BY CASE WHEN @bucket_unit = N'hour'
-                              THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
-                              ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
-                         END
+                GROUP BY {TruncateToBucket("CONVERT(datetime2(7), started_at)")}
             ),
             -- A point carries no currency, so the WHOLE series is judged as one.
             series AS (
@@ -1966,17 +1987,21 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY COUNT(*) DESC, r.agent_name;
             """;
 
-        // 1900-01-01 was a Monday, so DATEDIFF(day, 0, x) % 7 gives the number
+        // 1900-01-01 was a Monday, so DATEDIFF(day, anchor, x) modulo 7 gives the number
         // of days since the preceding Monday directly (ISO 8601), without a
         // locale-dependent DATEFIRST/DATEPART(weekday, ...) computation --
-        // matching RunScoreBucketing.Truncate.
+        // matching RunScoreBucketing.Truncate. The remainder of a negative number is
+        // negative in T-SQL, so a day before the anchor is brought back into 0..6
+        // first; without that, every day before 1900 truncated to the FOLLOWING Monday.
+        // Both ends of DATEDIFF are datetime2: a bare `0` is a `datetime`, which stops at 1753.
         static string BucketExpr(string prefix) => $"""
             CASE @bucket_unit
-                WHEN N'hour' THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), {prefix}created_at)), CONVERT(datetime2(7), '1900-01-01'))
-                WHEN N'day'  THEN DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), {prefix}created_at)), CONVERT(datetime2(7), '1900-01-01'))
+                WHEN N'hour' THEN DATEADD(hour, DATEDIFF(hour, {EpochAnchor}, CONVERT(datetime2(7), {prefix}created_at)), {EpochAnchor})
+                WHEN N'day'  THEN DATEADD(day,  DATEDIFF(day,  {EpochAnchor}, CONVERT(datetime2(7), {prefix}created_at)), {EpochAnchor})
                 ELSE DATEADD(day,
-                             DATEDIFF(day, 0, CONVERT(datetime2(7), {prefix}created_at)) - DATEDIFF(day, 0, CONVERT(datetime2(7), {prefix}created_at)) % 7,
-                             CONVERT(datetime2(7), '1900-01-01'))
+                             DATEDIFF(day, {EpochAnchor}, CONVERT(datetime2(7), {prefix}created_at))
+                                 - (DATEDIFF(day, {EpochAnchor}, CONVERT(datetime2(7), {prefix}created_at)) % 7 + 7) % 7,
+                             {EpochAnchor})
             END
             """;
 

@@ -1276,6 +1276,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checked the agent's own tools, skill tools, `search_knowledge` and the session workspace, but not the tools a harness agent
   has by default (`todos_*`, `mode_get`, `mode_set`) or file memory adds (`file_memory_*`). An agent named `todos-add` made two
   tools of one name and the model provider refused the request with `400`. Validation and the compiler now report it.
+- **`GET /api/stats/timeseries` answers for every instant a date can hold, on every store.** `to=0441-05-05T00:00:00Z` answered `503 Persistence store unavailable` on
+  SQL Server (its legacy `datetime` type starts in 1753, and the bucket arithmetic converted to it), as did a range that ends in the last hour of the year 9999 (a bucket
+  added past the end of `datetime2`). On PostgreSQL the first and the last instant of `DateTimeOffset` reach the server as `-infinity` and `infinity`, and the series
+  generated between them never ended: the request ran until the command timeout and answered `503` after 30 s. The in-memory store walked past the last bucket of the year 9999
+  and threw; so did every store when `to` was in the first 24 hours of year 1 and `from` was left out (`500`). The range now starts at the first instant of year 1 in that case.
+  The weekly bucket of the score summary also started on the following Monday for a score dated before 1900 on SQL Server, and a score before 1753 failed the summary.
+  Custom `IRunStore` and `IRunScoreStore` implementations are held to the same: new contract tests `RunStoreContract.Time_series_answers_a_range_anywhere_in_the_years_a_date_can_hold`,
+  `RunStoreContract.Time_series_counts_a_run_that_started_at_either_end_of_the_date_range_in_its_own_bucket`, `RunScoreStoreContract.Week_buckets_start_on_Monday_before_1900_too` and
+  `RunScoreStoreContract.Hour_and_day_buckets_hold_a_score_from_any_year_a_date_can_hold`.
+- **A retention policy of more days than the calendar has keeps everything, and no longer fails the preview.** `PUT /api/retention/{target}` accepts any `maxAgeDays` from 1 up, and the
+  cutoff `now - TimeSpan.FromDays(maxAgeDays)` threw for about 739 000 days and more (a result before year 1) and for more than 10.7 million (a `TimeSpan` cannot hold them):
+  `GET /api/retention/preview` answered `500` and a run of that target could not compute its cutoff. The cutoff is now the first instant a date can hold, and no row is older.
+- **An audit entry whose actor, action or entity is longer than its SQL Server column is stored shortened, no longer lost.** The entity of an entry is a prefix and the name the caller chose
+  (`session:` and the longest session id the API accepts is 208 characters) and the actor is whatever claim the identity provider sent; the `audit_log` columns hold 200 characters. The write
+  failed, the recorder logged it and carried on, and the operation (the delete of that session, for one) left no entry. A label over the column is now stored as its first 167 characters, `~` and
+  the first 32 hexadecimal digits of its SHA-256; the hash chain covers the form that is stored, and `GET /api/audit?entity=` (or `actor`, `action`) shortens the filter the same way, so asking for the whole
+  label finds the row. PostgreSQL, SQLite and the in-memory store keep the label whole. A custom `IAuditLog` is held to storing the entry and finding it by the whole label, either way:
+  new contract tests `AuditLogContract.A_label_longer_than_a_column_is_stored_found_by_the_whole_label_and_verified` and `AuditLogContract.Two_long_labels_that_share_their_start_stay_two_entries`.
+- **`GET /api/data-subjects/{id}/export` and `DELETE /api/data-subjects/{id}` answer `400 Agent compilation failed` when a session of the subject belongs to an agent that cannot be compiled, instead of `500`.**
+  Finding the conversation behind a session restores the session through its agent; a tenant provider binding whose configuration key has no value, or an egress policy that no longer allows the
+  provider, made the catalog refuse the agent, and the three routes (export, erasure preview, erasure) let the exception out. Nothing is exported, deleted or written to the audit trail in that case,
+  as before; the erasure is not skipped for the session, because skipping it would delete the subject's other rows, leave the conversation behind and answer `200`. The MCP server and the A2A
+  endpoint answer a call to such an agent with their protocol's own error and a fixed text that names no configuration; that was already so.
 
 - **The A2A agent card gives its interface address as an absolute URL.** `supportedInterfaces[].url` was the path (`/tracon/a2a/support`), built once when the endpoint was mapped. A client that resolves it against the card's own URL
   worked; the official A2A JavaScript SDK (`@a2a-js/sdk` 1.3.0) builds its transport from the value as written and failed on its first call with `Invalid URL`. The card is built per request now: the scheme, host and

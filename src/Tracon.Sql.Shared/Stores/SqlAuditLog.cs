@@ -104,12 +104,19 @@ internal sealed class SqlAuditLog : IAuditLog
         // 🚨 The hash is computed over exactly what the row will hold. The tenant is folded and U+0000 replaced by the
         // binders below; hashing the text as the caller wrote it made a chain written under another letter case, or
         // with a NUL in a field, fail its own verification (which hashes what it reads back).
+        //
+        // 🚨 The same goes for a label longer than its column. The actor is whatever the identity provider put in a claim,
+        // the entity is a prefix and a name the caller chose, and SQL Server refuses a text over 200 characters: the
+        // write failed, the recorder logged it and went on, and the entry was gone. A label is shortened to a form that
+        // still names it and is hashed in that form (SqlText.Fit).
+        var limit = Dialect.AuditLabelLimit;
+
         entry = entry with
         {
             TenantId = AmbientTenantScope.Normalize(entry.TenantId),
-            Actor = SqlText.WithoutNul(entry.Actor),
-            Action = SqlText.WithoutNul(entry.Action)!,
-            Entity = SqlText.WithoutNul(entry.Entity)!,
+            Actor = SqlText.Fit(SqlText.WithoutNul(entry.Actor), limit),
+            Action = SqlText.Fit(SqlText.WithoutNul(entry.Action), limit)!,
+            Entity = SqlText.Fit(SqlText.WithoutNul(entry.Entity), limit)!,
             Before = SqlText.InJson(entry.Before),
             After = SqlText.InJson(entry.After),
         };
@@ -189,9 +196,12 @@ internal sealed class SqlAuditLog : IAuditLog
 
         var command = CreateCommand(_sql.SelectAuditLog);
         DbHelpers.AddTenant(command, ResolveTenantId(query.TenantId));
-        AddNullableText(command, "actor", query.Actor);
-        AddNullableText(command, "action", query.Action);
-        AddNullableText(command, "entity", query.Entity);
+
+        // A filter is shortened the way a label was when it was written, or the row of a long label could not be found by it.
+        var limit = Dialect.AuditLabelLimit;
+        AddNullableText(command, "actor", SqlText.Fit(query.Actor, limit));
+        AddNullableText(command, "action", SqlText.Fit(query.Action, limit));
+        AddNullableText(command, "entity", SqlText.Fit(query.Entity, limit));
         Dialect.AddTimestamp(command, "started_after", query.After);
         Dialect.AddTimestamp(command, "started_before", query.Before);
         DbHelpers.Add(command, "take", Math.Max(query.Limit, 0));

@@ -159,6 +159,7 @@ Tracon.Testing.Contracts.Storage.AuditLogContract.A_chain_signed_by_two_keys_ver
 Tracon.Testing.Contracts.Storage.AuditLogContract.A_chain_written_under_another_letter_case_verifies() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.A_chain_with_a_NUL_character_in_an_entry_verifies() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.A_keyed_chain_verifies_as_valid() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.A_label_longer_than_a_column_is_stored_found_by_the_whole_label_and_verified(string! field, string! label) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Action_and_entity_filter_works() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.AuditLogContract() -> void
 Tracon.Testing.Contracts.Storage.AuditLogContract.Concurrent_keyed_writes_for_one_tenant_produce_a_single_valid_chain() -> System.Threading.Tasks.Task!
@@ -180,6 +181,7 @@ Tracon.Testing.Contracts.Storage.AuditLogContract.Tampering_a_keyed_row_directly
 Tracon.Testing.Contracts.Storage.AuditLogContract.Tampering_a_row_directly_is_detected_as_broken() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.The_write_path_sets_the_key_id_and_ignores_a_caller_supplied_one() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Turning_the_key_off_keeps_the_entry_and_the_walk_reports_the_downgrade() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AuditLogContract.Two_long_labels_that_share_their_start_stay_two_entries() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Two_tenants_chains_verify_independently() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Two_tenants_keyed_chains_verify_independently() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AuditLogContract.Two_writers_with_a_mixed_key_configuration_leave_the_chain_broken_at_the_unsigned_entry_for_good() -> System.Threading.Tasks.Task!
@@ -484,6 +486,7 @@ Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_authors_score_t
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_kinds_of_the_same_name_are_not_averaged_together() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Different_messages_are_scored_independently() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Empty_author_makes_EVERY_call_open_a_new_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Hour_and_day_buckets_hold_a_score_from_any_year_a_date_can_hold(Tracon.RunScoreBucket bucket, string! createdAt, string! expectedBucketStart) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Hour_buckets_group_scores_within_the_same_hour() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.MessageId_is_never_a_breakdown_dimension() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Repeated_writes_of_the_SAME_name_leave_exactly_one_row() -> System.Threading.Tasks.Task!
@@ -500,6 +503,7 @@ Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Target_Message_excludes_r
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Target_Run_excludes_message_level_scores() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Updating_ONE_name_leaves_the_authors_other_names_untouched() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Week_buckets_start_on_Monday_and_group_the_whole_week() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Week_buckets_start_on_Monday_before_1900_too(string! createdAt, string! expectedWeekStart) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Written_score_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_label_key_without_a_value_matches_any_value_of_that_key() -> System.Threading.Tasks.Task!
@@ -596,6 +600,8 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_sorts_agent_breakdown_
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_cache_charge_round_trips_and_counts_toward_the_total() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_last_event_sequence_is_readable() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_token_breakdown_round_trips_and_stays_null_when_it_was_never_reported() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_answers_a_range_anywhere_in_the_years_a_date_can_hold(string! from, string! to, Tracon.TimeSeriesBucket bucket, int expectedCount, string! expectedFirst, string! expectedLast) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_counts_a_run_that_started_at_either_end_of_the_date_range_in_its_own_bucket(string! startedAt, string! from, string! to, string! expectedBucket) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_does_not_exclude_eval_runs() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_fills_empty_buckets() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_throws_when_the_bucket_limit_is_exceeded() -> System.Threading.Tasks.Task!
@@ -1062,6 +1068,7 @@ override Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.TryDel
 static Tracon.Testing.Contracts.ContractCoverage.ContractTypes(string! namespaceScope) -> System.Collections.Generic.IReadOnlyList<System.Type!>!
 static Tracon.Testing.Contracts.ContractCoverage.MissingDerivedTypes(System.Reflection.Assembly! consumerAssembly, string! namespaceScope, System.Collections.Generic.IReadOnlyCollection<string!>? except = null) -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.Testing.Contracts.Judges.RunJudgeContract.ShouldBeStorable(Tracon.RunJudgment! judgment) -> void
+static Tracon.Testing.Contracts.Storage.AuditLogContract.LongLabels() -> Xunit.TheoryData<string!, string!>!
 static Tracon.Testing.Contracts.Storage.TestData.Definition(string! name) -> Tracon.AgentDefinition!
 static Tracon.Testing.Contracts.Storage.TestData.EvalCase(System.Guid suiteId, string! query = "question") -> Tracon.EvalCase!
 static Tracon.Testing.Contracts.Storage.TestData.EvalCaseDraft(System.Guid? sourceRunId = null, string! query = "question") -> Tracon.EvalCaseDraft!
