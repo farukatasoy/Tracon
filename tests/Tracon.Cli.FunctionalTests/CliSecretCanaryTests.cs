@@ -128,11 +128,11 @@ public sealed class CliSecretCanaryTests
     [Theory]
     [InlineData("postgresql", "migrate", false)]
     [InlineData("postgresql", "migrate", true)]
-    [InlineData("postgresql", "migrate-status", false)]
+    [InlineData("postgresql", "migrate status", false)]
     [InlineData("postgresql", "state-check", true)]
     [InlineData("sqlserver", "migrate", false)]
     [InlineData("sqlserver", "migrate", true)]
-    [InlineData("sqlserver", "migrate-status", false)]
+    [InlineData("sqlserver", "migrate status", false)]
     [InlineData("sqlserver", "state-check", true)]
     public async Task The_connection_password_is_in_no_output_of_a_command_that_cannot_connect(string provider, string command, bool fromEnvironment)
     {
@@ -146,14 +146,17 @@ public sealed class CliSecretCanaryTests
 
         try
         {
+            // "migrate status" is a command of two words.
+            string[] words = command.Split(' ');
             string[] args = fromEnvironment
-                ? [command, "--provider", provider]
-                : [command, "--provider", provider, "--connection", connection];
+                ? [.. words, "--provider", provider]
+                : [.. words, "--provider", provider, "--connection", connection];
 
             var plain = await CliRunner.RunAsync(args);
             var json = await CliRunner.RunAsync([.. args, "--json"]);
 
             plain.ExitCode.ShouldNotBe(0, "the command has to fail to connect, or an empty search proves nothing");
+            plain.Combined.ShouldNotContain("Unknown command", Case.Sensitive, "the command was not found, so it never read the connection string");
 
             SecretHits.Find(
                     [new("standard output and standard error", plain.Combined + "\n" + json.Combined)],
