@@ -17477,6 +17477,15 @@ an older node whose clock is an hour ahead stays live for that hour on the newer
 nodes, and one written by a node an hour behind reads as over at once. Check the clocks
 of your nodes (NTP) before you start rolling, then roll.
 
+### A node's clock is ahead of the database's
+
+A job is stamped with the time of the node that queues it, and the lease statement
+compares that time with the database server's clock. A node whose clock runs ahead
+therefore delays every run and webhook it queues by that much, even when it is the only
+node: a job stamped 90 seconds ahead stayed unleased in the PostgreSQL 18 and SQL Server
+2022 tests. Keep your application clocks within the lease duration of the database's
+(NTP). Stamping the time on the database's clock is not done yet.
+
 ## What one environment measured
 
 The numbers below come from measured runs, not from a model. They describe

@@ -351,6 +351,79 @@ public abstract class SqlLeaseUnderClockSkewContract
     }
 
     /// <summary>
+    /// The time a job is written to run at is the writer's, kept as it is, and the job is ready when the database server's
+    /// clock reaches it. A node whose clock runs ninety seconds ahead of the database that queues a job "to run at once"
+    /// with its own now therefore delays that job by ninety seconds, even when it is the only node: the job waits, and no
+    /// node's clock makes it ready earlier.
+    /// </summary>
+    /// <remarks>
+    /// This pins what the stores do today; it is not a promise that they should. The delay is as long as the writer's
+    /// clock is ahead of the database's, and the second scenario shows the same comparison lets a job in once the database
+    /// reaches the time, so the first one waits for the database and not for something else.
+    /// </remarks>
+    [Fact]
+    public async Task A_job_written_with_a_time_ahead_of_the_database_waits_until_the_database_reaches_it()
+    {
+        var writer = new ShiftedClock(90);
+
+        var stores = await OpenAsync(writer, new ShiftedClock(90));
+
+        // What a node queues "to run at once": its own now, which is ninety seconds past the database's.
+        var atOnce = TestData.Job(scheduledFor: writer.GetUtcNow());
+
+        await stores.FirstJobs.EnqueueAsync(atOnce, ["a"], TestContext.Current.CancellationToken);
+
+        var stored = (await stores.FirstJobs.GetAsync(atOnce.TenantId, atOnce.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        stored.ScheduledFor.ShouldBe(atOnce.ScheduledFor, TimeSpan.FromMilliseconds(1), "the store keeps the writer's time as it was written");
+
+        var leasedEarly = new List<Guid>();
+        var clock = Stopwatch.StartNew();
+
+        // Both nodes poll for as long as the other scenarios wait for a lease to end; each one's own clock is ahead too.
+        while (clock.Elapsed < ShortLease + ShortLease)
+        {
+            foreach (var jobs in (IJobStore[])[stores.FirstJobs, stores.SecondJobs])
+            {
+                if (await jobs.LeaseAsync(Request("poller"), TestContext.Current.CancellationToken) is { } early)
+                {
+                    leasedEarly.Add(early.Id);
+                }
+            }
+
+            await Task.Delay(PollEvery, TestContext.Current.CancellationToken); // delay: product
+        }
+
+        // The same comparison lets a job in when the database reaches its time: this one is due a second and a half from now.
+        var soon = TestData.Job(scheduledFor: DateTimeOffset.UtcNow + ShortLease);
+
+        await stores.FirstJobs.EnqueueAsync(soon, ["b"], TestContext.Current.CancellationToken);
+
+        clock.Restart();
+
+        JobRecord? leasedSoon = null;
+
+        var dueAfter = await PollUntilAsync(
+            async () =>
+            {
+                leasedSoon = await stores.SecondJobs.LeaseAsync(Request("second"), TestContext.Current.CancellationToken);
+
+                return leasedSoon is not null;
+            },
+            clock);
+
+        Report(
+            "scheduled time",
+            $"writer's clock ahead of the database by 90s, job queued to run at once; a second job {ShortLease.TotalMilliseconds} ms ahead",
+            $"the first job was leased {leasedEarly.Count} times in {2 * ShortLease.TotalMilliseconds} ms; the second was leased {Describe(dueAfter)} after it was written");
+
+        leasedEarly.ShouldBeEmpty("the job's time is ninety seconds ahead of the database server's clock");
+        dueAfter.ShouldNotBeNull("the job is ready when the database server's clock reaches its time");
+        dueAfter.Value.ShouldBeGreaterThanOrEqualTo(EarliestEnd, "the job must not be ready before the database server's clock reaches its time");
+        leasedSoon.ShouldNotBeNull().Id.ShouldBe(soon.Id, "the job that is leased is the one whose time has come");
+    }
+
+    /// <summary>
     /// A node whose clock runs ahead polling takes none of another node's running jobs, and the other node completes them.
     /// </summary>
     [Fact]
