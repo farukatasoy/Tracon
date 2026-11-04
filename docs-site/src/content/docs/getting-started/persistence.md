@@ -233,6 +233,28 @@ commits. Measured in an emulated container on Apple Silicon: 1.3 s over 100 000 
 million runs with two million events. The default `CommandTimeoutSeconds` of 30 covers that; raise
 it for the run that applies the migration if your storage is slower
 ([Compatibility](/reference/compatibility/)).
+
+The `decimal_columns_as_text` migration (`0058`, SQLite only) rewrites `runs`. Seven columns were
+declared `NUMERIC` (`cached_input_cost`, `non_token_cost` and the five unit prices), and SQLite turned
+the text of a cost into a double and kept 15 digits of it: `999999999.999999` read back as
+`999999999.99999905`. They are `TEXT` now, like every other cost column, and a cost reads back as it was
+written. A stored value is carried over as its 15-digit decimal. A cost or price written with 15
+digits or fewer, which is every real one, comes back digit for digit. A value written with more had
+been rounded to a double on its way in, and the migration keeps 15 of its digits
+(`1234567890.1234567890` becomes `1234567890.12346`). The quota counters, which the old addition
+left a float tail on (`0.30000000000000004`), are rounded the same way, and from now on every cost
+total and counter is added as a `decimal`. No table is rebuilt (`runs` has children that a rebuild
+would delete), so the migration adds a column, fills it, drops the old one and renames the new one,
+which rewrites `runs` once per column. Measured on an Apple Silicon machine in a busy session: 1.9 s
+over 100 000 runs (with 200 000 run events), and 22 s to 30 s over a million runs with two million
+run events. SQLite does not cut a statement short at `CommandTimeoutSeconds`, but a second process
+that waits for the write lock does give up at it, so apply the migration in your own deployment step
+(`AutoApplyMigrations = false`) before you start the new instances. Two things stop it. A view or
+trigger of your own that names one of the seven columns makes SQLite refuse to drop the column
+(`error in view … after drop column`) and nothing is changed: drop yours first and create it
+again afterwards. The `runs_v1` view is dropped and, when `EnableReadViews` is on, built again in
+the same run; a database that had it enabled and later switched it off loses the view that was left
+behind ([Read contract views](/reference/read-views/)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
