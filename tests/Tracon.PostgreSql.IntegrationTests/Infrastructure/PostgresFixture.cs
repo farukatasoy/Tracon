@@ -89,6 +89,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         var builder = new PostgreSqlBuilder(string.IsNullOrWhiteSpace(image) ? "pgvector/pgvector:pg18" : image)
             .WithDatabase("tracon_tests")
+            // The tests of the project share this server and run in parallel, each host with a pool of its own: the
+            // default limit of 100 connections ran out ("too many clients already") in a full run.
+            .WithCommand("-c", "max_connections=400")
             .WithCleanUp(true);
 
         if (!string.IsNullOrWhiteSpace(icuLocale))
