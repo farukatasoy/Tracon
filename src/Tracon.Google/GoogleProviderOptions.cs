@@ -22,7 +22,8 @@ public sealed class GoogleProviderOptions
     /// <strong>This value is a secret and is not written to a file.</strong> Use
     /// <c>dotnet user-secrets</c>, an environment variable, or a secret manager. The
     /// key is never written to the database, never returned by the API, and never
-    /// shown in the UI, under any condition.
+    /// shown in the UI, under any condition. White space at both ends is removed before the key is sent. A key that still holds a
+    /// control character, or another character an HTTP header cannot carry, stops the host at start.
     /// </remarks>
     public string? ApiKey { get; set; }
 
