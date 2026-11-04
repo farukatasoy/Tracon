@@ -1241,6 +1241,50 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task The_non_token_cost_of_a_tree_is_the_exact_sum_of_its_amounts()
+    {
+        // The amounts a run reports beyond tokens are summed up the tree too, and the sum must not go through a binary double:
+        // 0.1 + 0.2 and 6765.18 + 0.0008977361 are wrong in the last digits that way. The expected sum is written out term by
+        // term and is the oracle.
+        var rootId = TraconId.NewId();
+        var firstChildId = TraconId.NewId();
+        var secondChildId = TraconId.NewId();
+        var thirdChildId = TraconId.NewId();
+
+        foreach (var (runId, parentId) in new (Guid, Guid?)[]
+                 {
+                     (rootId, null), (firstChildId, rootId), (secondChildId, rootId), (thirdChildId, rootId),
+                 })
+        {
+            await Store.StartRunAsync(TestData.Run(runId) with
+            {
+                ParentRunId = parentId,
+                RootRunId = parentId is null ? null : rootId,
+                Depth = parentId is null ? 0 : 1,
+            });
+        }
+
+        await CompleteWithNonTokenCostAsync(rootId, NonTokenAmount(0.1m));
+        await CompleteWithNonTokenCostAsync(firstChildId, NonTokenAmount(0.2m));
+        await CompleteWithNonTokenCostAsync(secondChildId, NonTokenAmount(0.0008977361m));
+        await CompleteWithNonTokenCostAsync(thirdChildId, NonTokenAmount(6765.18m));
+
+        var expected = 0.1m + 0.2m + 0.0008977361m + 6765.18m;
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.NonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.1m);
+
+        var tree = root.TreeNonTokenCost.ShouldNotBeNull();
+        tree.Amount.ShouldBe(expected);
+        tree.CurrencyCount.ShouldBe(1);
+    }
+
+    private static RunNonTokenCost NonTokenAmount(decimal amount)
+        => new() { Amount = amount, Currency = "USD", UnsummedItemCount = 0 };
+
+    [Fact]
     public async Task Applied_unit_prices_round_trip_and_do_not_enter_the_total()
     {
         // The price snapshot carries the RATE that produced
