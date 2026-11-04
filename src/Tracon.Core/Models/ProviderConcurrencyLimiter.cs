@@ -24,9 +24,13 @@ namespace Tracon;
 /// returns immediately with no semaphore allocated and no wait: the hot path
 /// costs a single null check. Once a provider's first limited call creates its
 /// <see cref="SemaphoreSlim"/>, that provider's numeric limit is fixed for the
-/// semaphore's lifetime — <see cref="SemaphoreSlim"/> cannot resize; a runtime
-/// change to the configured number takes effect only for a provider that has
-/// not yet been limited.
+/// semaphore's lifetime: <see cref="SemaphoreSlim"/> cannot resize.
+/// </para>
+/// <para>
+/// Tracon registers no change token source, so a configuration reload never reaches the monitor and the value is the
+/// one the host started with: change it and restart. A host that wires a source of its own sees the new number only for a
+/// provider that has not been limited yet, and a new value that fails validation makes this read throw, which fails every
+/// model call.
 /// </para>
 /// </remarks>
 internal sealed class ProviderConcurrencyLimiter

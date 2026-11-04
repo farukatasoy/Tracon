@@ -15,6 +15,10 @@ namespace Tracon;
 /// <strong>Unlimited by default</strong>: today's behavior is preserved
 /// exactly when this is not configured, and the hot path allocates nothing extra.
 /// </para>
+/// <para>
+/// <strong>The number is the one the host started with.</strong> A provider's limit is a semaphore that is created by its
+/// first call and cannot be resized, and Tracon does not follow a configuration reload: change the value and restart.
+/// </para>
 /// </remarks>
 public sealed class TraconModelConcurrencyOptions
 {

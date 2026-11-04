@@ -60,7 +60,7 @@ public sealed class WorkflowRegistrationOptions
     /// <para>
     /// <strong>A value above the ceiling stops the host at startup</strong> with an error that names the
     /// workflow: the value comes with the deployment, and a deployment that cannot honour it should not start
-    /// and cut every run silently. If the ceiling is lowered later (a configuration reload), a run is cut to
+    /// and cut every run silently. If the ceiling is lowered later (a new deployment), a run is cut to
     /// the new ceiling and the cut is logged. Must be from 1 millisecond to about 49.7 days.
     /// </para>
     /// </remarks>

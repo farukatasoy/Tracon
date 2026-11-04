@@ -68,6 +68,21 @@ validator, which refuses a relative address.
   overridden in code does not stop the host. Writing the value the option already has is
   not told apart from leaving it.
 
+### A change to the configuration needs a restart
+
+Tracon binds its options when the host starts and does not follow a reload. A configuration
+provider that reloads (a file added with `reloadOnChange`, a vault, a configuration server)
+changes `IConfiguration`; it does not change the options Tracon reads, and no option of
+Tracon is meant to change while the host runs. Restart the host to apply a change.
+
+Many readers look an option up on every call, which can look like live reconfiguration. It is
+not supported. A host that registers its own `IOptionsChangeTokenSource<T>` for a Tracon options
+type gets an unsupported half of it: a monitor sees the new value, but a reader that built
+something from the old one keeps it (the model concurrency limit holds a semaphore of the size
+of its first call), and a new value that fails validation makes every later read of that options
+type throw, which for `Tracon:ModelConcurrency` is every model call. Tracon's own tests pin this
+behaviour, so a release that supports reload will say so here.
+
 :::danger[Secrets do not belong in a settings file]
 Provider keys, connection strings, bearer tokens, webhook secrets, and MCP
 credentials must come from user-secrets, environment variables, or a secret manager.

@@ -596,6 +596,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   user's sessions. What to do: a host whose configuration holds such a value (a template that left `"   "` where a value belongs) removes the key or writes the value. `ConfigurationPermutationTests`
   no longer keeps a list of text options that accept blanks: a new text option that does is a failure.
 
+- **Behavioural breaking change: four MCP limits of zero or less stop the host at start.** `Tracon:Mcp:MaxToolsPerServer`, `MaxResourceBytesPerResource` and `MaxResourceBytesTotal` of zero or less must now be at least 1, and
+  `OAuthTokenSlidingLifetime` must be greater than zero (its documentation already said so and nothing checked it). A tool limit of zero kept no tool (the first tool of a server tripped it, with a warning that quoted the limit),
+  a byte limit of zero trimmed every resource to an empty text, and nothing checked the sliding lifetime; nothing said so when
+  the host started, and the setting looked applied. `MaxResourcesPerServer` and `MaxPromptsPerServer` keep their documented meaning of zero (keep none).
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
@@ -932,6 +937,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `TraconSqlServerOptions.SchemaName`) and the descriptions of the `tracon.run.cost`, `tracon.judge.cost` and
   `tracon.judge.score` instruments say the reason in a clause instead. The codes, severities and metric names are unchanged;
   a test or an alert that matches the old message text needs the new text.
+
+- **Documented: a change to the configuration needs a restart.** Tracon binds its options when the host starts and registers no `IOptionsChangeTokenSource`, so a configuration provider that reloads (a file with `reloadOnChange`,
+  a vault) changes `IConfiguration` and not the options Tracon reads. Several readers look an option up on every call, which looked like live reconfiguration; it never was. The configuration reference says so now, and so does the
+  XML documentation of `TraconOptions`, `TraconModelConcurrencyOptions` and the options that claimed a reload reached them (`TraconWorkflowOptions`' recovery settings, the workflow run timeout ceiling, the circuit breaker's
+  `Enabled`). A host that registers its own change token source for a Tracon options type gets an unsupported half of it: the monitor sees the new value, the model concurrency limit keeps the semaphore of its first call, and
+  a new value that fails validation makes every later read of that options type throw (every model call, for `Tracon:ModelConcurrency`). `ConfigurationReloadTests` pins all of it, so a release that supports reload has to
+  decide each reader and change the documentation.
 
 ### Removed
 

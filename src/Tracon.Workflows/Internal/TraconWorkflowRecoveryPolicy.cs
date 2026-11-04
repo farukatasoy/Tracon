@@ -8,9 +8,9 @@ namespace Tracon;
 /// the HTTP layer, which cannot see <see cref="TraconWorkflowOptions"/>.
 /// </summary>
 /// <remarks>
-/// Read through <see cref="IOptionsMonitor{TOptions}"/> on every access, so a
-/// reloaded configuration reaches the next job without a restart, the same way
-/// the runner reads its other settings.
+/// Read through <see cref="IOptionsMonitor{TOptions}"/> on every access, the same way the runner reads its other
+/// settings. Tracon follows no configuration reload (the options are the ones the host started with), so the read is
+/// a lookup and not a promise that a changed file reaches the next job: restart to apply a change.
 /// </remarks>
 internal sealed class TraconWorkflowRecoveryPolicy(IOptionsMonitor<TraconWorkflowOptions> options) : IWorkflowRecoveryPolicy
 {

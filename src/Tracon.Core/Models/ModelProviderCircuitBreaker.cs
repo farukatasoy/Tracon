@@ -26,9 +26,9 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <see cref="TraconCircuitBreakerOptions.Enabled"/> is read via
-/// <see cref="IOptionsMonitor{TOptions}.CurrentValue"/> on every call; if it is
-/// turned off at runtime, the circuit breaker becomes inactive from that
-/// moment on.
+/// <see cref="IOptionsMonitor{TOptions}.CurrentValue"/> on every call; a value
+/// that is replaced while the host runs applies from the next call. Tracon itself follows no
+/// configuration reload, so a change made in a settings file needs a restart.
 /// </para>
 /// </remarks>
 internal sealed class ModelProviderCircuitBreaker
