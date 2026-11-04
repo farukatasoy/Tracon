@@ -478,6 +478,18 @@ class KapiTestleri(unittest.TestCase):
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
+    def test_paketlere_derlenen_paylasimli_kaynak_seceneklerin_proje_kapisini_da_secer(self):
+        # Tracon.PackageOptions.UnitTests her saglayici, Mcp, ses, is akisi ve SQL paketinin ayar bolumunu
+        # gercek kapsayicidan yurutur. Tracon.Providers.Shared ve Tracon.Sql.Shared bu paketlere derlenen paylasimli
+        # kaynaktir; haritada o proje yokken bir kayit ya da dogrulama degisikligi seceneklerin kapisini
+        # yalniz tam kosumda calistirirdi.
+        for path in ("src/Tracon.Providers.Shared/ModelProviderCore.cs",
+                     "src/Tracon.Sql.Shared/Stores/SqlJobStore.cs"):
+            projects, full = kapi.affected_test_projects([path])
+
+            self.assertIn("Tracon.PackageOptions.UnitTests", projects, path)
+            self.assertFalse(full, path)
+
     def test_yukseltme_kapisinin_paylasimli_kaynagi_dort_projeyi_secer_tam_kosuma_dusmez(self):
         for path in ("tests/Shared/Upgrade/UpgradeSeed.json", "tests/Shared/Upgrade/UpgradeProbes.cs"):
             projects, full = kapi.affected_test_projects([path])

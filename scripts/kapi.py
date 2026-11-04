@@ -910,8 +910,9 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     "Tracon.Google": ("Tracon.Google.UnitTests", "Tracon.PackageOptions.UnitTests"),
     "Tracon.Azure": ("Tracon.Azure.UnitTests", "Tracon.PackageOptions.UnitTests"),
     # Paket DEGIL, dort saglayici paketine derlenen paylasimli kaynak.
-    # Haritada olmasa tam kosuma duserdi; oysa tam etki alani bu dort projedir.
-    "Tracon.Providers.Shared": PROVIDER_TEST_PROJECTS,
+    # Haritada olmasa tam kosuma duserdi; oysa tam etki alani bu dort proje ve
+    # saglayici ayar bolumlerini gercek kapsayicidan yurutan PackageOptions projesidir.
+    "Tracon.Providers.Shared": (*PROVIDER_TEST_PROJECTS, "Tracon.PackageOptions.UnitTests"),
     # Paket DEGIL; OpenAI istemci kutuphanesini kullanan iki pakete
     # (Tracon.OpenAI, Tracon.Azure) derlenen paylasimli kaynak.
     "Tracon.OpenAI.Shared": ("Tracon.OpenAI.UnitTests", "Tracon.Azure.UnitTests"),
@@ -935,7 +936,8 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     # Paket DEGIL: uc SQL paketine derlenen paylasimli kaynak.
     "Tracon.Sql.Shared": (
         "Tracon.Sql.Shared.UnitTests", "Tracon.PostgreSql.IntegrationTests",
-        "Tracon.SqlServer.IntegrationTests", "Tracon.Sqlite.IntegrationTests"),
+        "Tracon.SqlServer.IntegrationTests", "Tracon.Sqlite.IntegrationTests",
+        "Tracon.PackageOptions.UnitTests"),
     "Tracon.Client": ("Tracon.Client.UnitTests",),
     "Tracon.Cli": ("Tracon.Cli.FunctionalTests",),
 }
