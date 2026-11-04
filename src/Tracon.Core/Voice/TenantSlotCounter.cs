@@ -10,7 +10,7 @@ namespace Tracon;
 /// by one entry for every identifier it made up. The entry now goes when the count reaches zero.
 /// </para>
 /// <para>
-/// 🚨 Both the reservation and the release are compare-and-swap loops. Two requests that read the count together
+/// Both the reservation and the release are compare-and-swap loops. Two requests that read the count together
 /// would both see a value under the limit and both pass; and a release that removes the zero must remove it only
 /// while it still is zero, because a reservation may have taken the tenant to one between the decrement and the
 /// removal.
