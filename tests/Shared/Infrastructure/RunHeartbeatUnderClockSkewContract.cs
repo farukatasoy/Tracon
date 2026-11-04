@@ -20,9 +20,10 @@ namespace Tracon.Tests.Common;
 /// </para>
 /// <para>
 /// The two services run for real, on the real SQL store, each with its own <see cref="TimeProvider"/>: the scanning node's wall
-/// clock is shifted ahead and the run's node's clock behind, their timers are the system's. The run's node passes its own reading
-/// of the time to <see cref="IRunStore.TouchHeartbeatAsync"/> and the statements ignore it, so a node whose clock is behind by
-/// more than the threshold still keeps its run alive. The intervals are shortened so that a case ends in about a second; what is
+/// clock is shifted ahead (its service and its run store read the same shifted clock) and the run's node's clock behind, their
+/// timers are the system's. The run's node passes its own reading of the time to <see cref="IRunStore.TouchHeartbeatAsync"/>
+/// and the statements ignore it, so a node whose clock is behind by more than the threshold still keeps its run alive; the
+/// scanning node's store cuts the threshold from the database server's clock, not from its own. The intervals are shortened so that a case ends in about a second; what is
 /// measured is the shape (the threshold minus the age of the last beat), not the defaults.
 /// </para>
 /// <para>
@@ -45,6 +46,14 @@ public abstract class RunHeartbeatUnderClockSkewContract
     /// <summary>Opens the stores of one migrated, empty schema.</summary>
     /// <returns>The run store, the single-executor lease store and the job store.</returns>
     protected abstract ValueTask<(IRunStore Runs, ISingletonLeaseStore Leases, IJobStore Jobs)> OpenAsync();
+
+    /// <summary>
+    /// Opens another run store over the schema <see cref="OpenAsync"/> opened: the store of the node that scans, whose
+    /// application clock is <paramref name="clock"/>.
+    /// </summary>
+    /// <param name="clock">The application clock of the node that scans.</param>
+    /// <returns>The run store.</returns>
+    protected abstract IRunStore OpenRunStore(TimeProvider clock);
 
     /// <summary>
     /// A run that is beating is not closed, whatever the clocks of the node that runs it and of the node that scans read.
@@ -117,7 +126,7 @@ public abstract class RunHeartbeatUnderClockSkewContract
         (await runs.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
     }
 
-    private static async Task<RunStatus> RunBothNodesAsync(
+    private async Task<RunStatus> RunBothNodesAsync(
         IRunStore runs,
         ISingletonLeaseStore leases,
         IJobStore jobs,
@@ -135,9 +144,12 @@ public abstract class RunHeartbeatUnderClockSkewContract
         });
         var gate = new SchemaReadyGate([]);
 
+        // The node that scans reads its clock ahead in its store too: the store decides what is old.
+        var scanClock = new SkewedTimeProvider(ahead);
+
         var writer = new RunHeartbeatWriter(runs, registry, options, gate, new SkewedTimeProvider(writerOffset), NullLogger<RunHeartbeatWriter>.Instance);
         var sweeper = new RunReconciliationService(
-            runs,
+            OpenRunStore(scanClock),
             leases,
             jobs,
             new EmptyToolRegistry(),
@@ -145,7 +157,7 @@ public abstract class RunHeartbeatUnderClockSkewContract
             new StaticOptionsMonitor<SingletonExecutionOptions>(new SingletonExecutionOptions()),
             new StaticOptionsMonitor<TraconRunContinuationOptions>(new TraconRunContinuationOptions()),
             gate,
-            new SkewedTimeProvider(ahead),
+            scanClock,
             NullLogger<RunReconciliationService>.Instance);
 
         await writer.StartAsync(CancellationToken.None);

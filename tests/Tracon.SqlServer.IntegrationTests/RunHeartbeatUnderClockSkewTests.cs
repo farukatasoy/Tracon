@@ -21,4 +21,8 @@ public sealed class RunHeartbeatUnderClockSkewTests(SqlServerSchemaFixture schem
 
         return (schema.Context.Runs, new SqlSingletonLeaseStore(context, TimeProvider.System), new SqlJobStore(context, timeProvider: TimeProvider.System));
     }
+
+    /// <inheritdoc />
+    protected override IRunStore OpenRunStore(TimeProvider clock)
+        => new SqlRunStore(schema.Context.StoreContext, schema.Context.TenantContext, clock);
 }
