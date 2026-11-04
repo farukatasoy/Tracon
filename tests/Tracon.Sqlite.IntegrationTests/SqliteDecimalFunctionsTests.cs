@@ -24,8 +24,10 @@ public sealed class SqliteDecimalFunctionsTests
     {
         await using var connection = await OpenAsync();
 
-        (await ScalarAsync(connection, "SELECT CAST(SUM(v) AS TEXT) FROM (SELECT '0.1' AS v UNION ALL SELECT '0.2')"))
-            .ShouldBe("0.30000000000000004", "the premise: SQLite itself adds TEXT decimals as doubles");
+        // The premise, stated so that no SQLite version can hide it: the engine's own sum is a double that is not 0.3
+        // (older versions print it as 0.3 when it is turned into text, newer ones as 0.30000000000000004).
+        (await ScalarAsync(connection, "SELECT SUM(v) = 0.3 FROM (SELECT '0.1' AS v UNION ALL SELECT '0.2')"))
+            .ShouldBe("0", "SQLite itself adds TEXT decimals as doubles");
 
         (await ScalarAsync(connection, "SELECT tracon_decimal_sum(v) FROM (SELECT '0.1' AS v UNION ALL SELECT '0.2')"))
             .ShouldBe("0.3");
