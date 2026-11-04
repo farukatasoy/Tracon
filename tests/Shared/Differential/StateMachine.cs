@@ -1,3 +1,4 @@
+using System.Data.Common;
 using CsCheck;
 
 namespace Tracon.Tests.Differential;
@@ -89,7 +90,7 @@ internal abstract partial class StateMachine<TPlan, TStep>
 
         var scope = DifferentialScope.Next();
         var model = NewModel(plan, stores.Traits);
-        var driver = NewDriver(plan, stores, scope);
+        var driver = new DeadlockRerunDriver<TStep>(NewDriver(plan, stores, scope));
         var steps = Steps(plan);
 
         try
@@ -146,5 +147,59 @@ internal abstract partial class StateMachine<TPlan, TStep>
             time: DifferentialSettings.Seconds,
             threads: 1,
             print: Print);
+    }
+}
+
+/// <summary>
+/// Runs a step again when the database chose its statement as the deadlock victim, the way the caller of a failed call does.
+/// </summary>
+/// <typeparam name="TStep">The step type.</typeparam>
+/// <remarks>
+/// OPEN FINDING (SQL Server): a single statement that overlaps another writer's transaction on the same rows (a delete, an event
+/// append, a read) can be chosen as the deadlock victim ("Rerun the transaction"), and the store lets the exception reach its
+/// caller; only its multi-statement transactions are rerun. The victim is rolled back whole, so running the step again has the
+/// effect of one call. A race is judged on what the calls finally returned; the probes under <c>*.cs.finding</c> show the
+/// exception itself.
+/// </remarks>
+/// <param name="inner">The driver of the store.</param>
+internal sealed class DeadlockRerunDriver<TStep>(IStepDriver<TStep> inner) : IStepDriver<TStep>, IAsyncDisposable
+{
+    private const int Attempts = 4;
+
+    /// <inheritdoc />
+    public async ValueTask<Observation> ApplyAsync(TStep step)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await inner.ApplyAsync(step);
+            }
+            catch (Exception exception) when (attempt < Attempts && IsDeadlockVictim(exception))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(10 * attempt));
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (inner is IAsyncDisposable disposable)
+        {
+            await disposable.DisposeAsync();
+        }
+    }
+
+    private static bool IsDeadlockVictim(Exception exception)
+    {
+        if (exception is not DbException db)
+        {
+            return false;
+        }
+
+        // PostgreSQL says 40P01; SQL Server says error 1205 (its message is in the language of the server, so the number is read).
+        return string.Equals(db.SqlState, "40P01", StringComparison.Ordinal)
+            || (db.GetType().GetProperty("Number")?.GetValue(db) is int number && number == 1205);
     }
 }

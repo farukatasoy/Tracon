@@ -39,6 +39,7 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
                 CreateEchoesInputText = true,
                 OutcomeAnswersForASubscriptionThatIsOff = true,
                 LeaseOwnerComparesByCollation = true,
+                MultiRowReadIsNotASnapshot = true,
                 CostDecimals = 10,
             },
             Tenant = schema.Tenant,

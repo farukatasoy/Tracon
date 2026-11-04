@@ -8,7 +8,8 @@ namespace Tracon.Tests.Differential;
 /// <param name="Tenants">Tenant spellings, some of them twins of others.</param>
 /// <param name="Agents">Agent names, some of them twins of others (a name is compared by its characters).</param>
 /// <param name="Instants">Times a rule is created and updated at.</param>
-internal sealed record QuotaUniverse(string[] Tenants, string[] Agents, DateTimeOffset[] Instants);
+/// <param name="SnapshotReads">Whether a read of several counters sees them all before or all after a concurrent write.</param>
+internal sealed record QuotaUniverse(string[] Tenants, string[] Agents, DateTimeOffset[] Instants, bool SnapshotReads);
 
 /// <summary>A generated quota sequence.</summary>
 /// <param name="Universe">The values the steps draw from.</param>
@@ -115,7 +116,7 @@ internal sealed class QuotaStateMachine : StateMachine<QuotaPlan, QuotaStep>
             from tenants in BoundaryValues.TenantPool(3)
             from agents in BoundaryValues.Pool(3, BoundaryValues.Trimmed(100), 100, traits.TrailingSpaceInsensitiveKeys)
             from instants in BoundaryValues.Instant.Array[3]
-            select new QuotaUniverse(tenants, agents, instants);
+            select new QuotaUniverse(tenants, agents, instants, !traits.MultiRowReadIsNotASnapshot);
 
         return universe.SelectMany(
             u => Step(u, traits.CostRelativeTolerance > 0).List[1, maxSteps],
@@ -132,7 +133,13 @@ internal sealed class QuotaStateMachine : StateMachine<QuotaPlan, QuotaStep>
         // claim, save, delete and read it.
         var setup = new AddUsageStep(0, 0, 1, 10, 0.5m, new PeriodStartsSpec(0, 0));
 
-        return [setup, .. plan.Steps.Where(static step => step is not (AddUsageStep { Starts: { Daily: null, Monthly: null } }))];
+        // A store that reads several rows without a snapshot can show one counter before an AddUsage and its twin after it: the read
+        // of the counters is left out of the tasks there (the read-back is exact).
+        return
+        [
+            setup,
+            .. plan.Steps.Where(step => step is not AddUsageStep { Starts: { Daily: null, Monthly: null } } && (plan.Universe.SnapshotReads || step is not GetUsageStep)),
+        ];
     }
 
     /// <inheritdoc />

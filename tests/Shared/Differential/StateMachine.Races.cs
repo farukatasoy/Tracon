@@ -142,7 +142,7 @@ internal abstract partial class StateMachine<TPlan, TStep>
         }
 
         var scope = DifferentialScope.Next();
-        var driver = NewRaceDriver(plan, stores, scope);
+        var driver = new DeadlockRerunDriver<TStep>(NewRaceDriver(plan, stores, scope));
 
         try
         {

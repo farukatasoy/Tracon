@@ -666,25 +666,6 @@ internal sealed class RunDriver(IRunStore store, Action<string> setAmbientTenant
     /// <inheritdoc />
     public async ValueTask<Observation> ApplyAsync(RunStep step)
     {
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                return await ApplyOnceAsync(step);
-            }
-            catch (System.Data.Common.DbException exception) when (attempt < 4 && exception.Message.Contains("deadlock", StringComparison.OrdinalIgnoreCase))
-            {
-                // OPEN FINDING: on SQL Server a read or an event append that meets a concurrent upsert of the same run can be chosen
-                // as the deadlock victim ("Rerun the transaction"), and the store does not run it again (its transactional writes
-                // are). The victim's statement is rolled back whole, so the driver runs it again, as the caller of a 503 would; the
-                // race is judged on what the calls finally returned.
-                await Task.Delay(TimeSpan.FromMilliseconds(10 * attempt));
-            }
-        }
-    }
-
-    private async ValueTask<Observation> ApplyOnceAsync(RunStep step)
-    {
         setAmbientTenant(scope.Wrap(universe.Tenants[step.Ambient]));
 
         switch (step)

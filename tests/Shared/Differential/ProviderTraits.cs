@@ -131,6 +131,18 @@ internal sealed record ProviderTraits
     /// </remarks>
     public bool LeaseOwnerComparesByCollation { get; init; }
 
+    /// <summary>
+    /// Gets a value indicating whether one call that reads several rows can see some of them before another writer's
+    /// transaction and the rest after it.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server reads at READ COMMITTED with locks, not with row versions: a read of two counters that one transaction updates can
+    /// return the first counter as it was and the second as the transaction left it. PostgreSQL gives a statement one snapshot, and
+    /// SQLite serializes. The race of the quota model leaves the counter read out of its concurrent steps on a provider that has
+    /// this trait; the read-back after the tasks end is exact either way.
+    /// </remarks>
+    public bool MultiRowReadIsNotASnapshot { get; init; }
+
     /// <summary>Applies the store's text rule to a value.</summary>
     /// <param name="value">The text as the caller wrote it.</param>
     /// <returns>The text as the store holds it.</returns>
