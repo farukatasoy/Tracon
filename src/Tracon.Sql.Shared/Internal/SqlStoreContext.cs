@@ -179,6 +179,77 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
         return command;
     }
 
+    /// <summary>Runs one autocommit statement, and sends it again, whole, when the server picks it as a deadlock victim.</summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="sql">The statement text.</param>
+    /// <param name="bind">Adds the parameters to the command; it runs once per attempt, on a new command.</param>
+    /// <param name="execute">
+    /// Runs the command and reads its result; one of the <see cref="DbHelpers"/> methods, which dispose the command.
+    /// It runs once per attempt.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The value <paramref name="execute"/> returned on the attempt that finished.</returns>
+    /// <remarks>
+    /// <para>
+    /// Every store call that is one statement outside a transaction goes through here (<c>SqlStatementSiteTests</c> keeps
+    /// it that way). Where the provider asks for it (<see cref="SqlDialect.RetriesStatementDeadlocks"/>), an attempt the
+    /// server picks as a deadlock victim (<see cref="SqlDialect.IsDeadlock"/>) is run again on a new command, up to
+    /// <see cref="DeadlockAttempts"/> attempts in all, with a random pause between them; any other error, and the last
+    /// victim's, propagates unchanged. A cancellation is not retried.
+    /// </para>
+    /// <para>
+    /// The boundary is one statement. A victim's statement was rolled back whole, so the next attempt starts from the
+    /// state the first one found. A text of several statements is not one unit: the earlier ones are committed when a
+    /// later one is the victim, and running all of them again repeats work that is done (the report of a job item would
+    /// count nothing the second time). Such a text belongs in <see cref="ExecuteInTransactionAsync{T}"/>.
+    /// </para>
+    /// <para>
+    /// A read goes through here too: <see cref="DbHelpers.ReadListAsync{T}"/> builds a new list on every attempt, so the
+    /// rows of a read that fell half way never reach the caller.
+    /// </para>
+    /// </remarks>
+    public ValueTask<T> ExecuteStatementAsync<T>(
+        string sql,
+        Action<DbCommand> bind,
+        Func<DbCommand, CancellationToken, ValueTask<T>> execute,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(sql);
+        ArgumentNullException.ThrowIfNull(bind);
+        ArgumentNullException.ThrowIfNull(execute);
+
+        return ExecuteAutocommitAsync(sql, bind, execute, Dialect.RetriesStatementDeadlocks, cancellationToken);
+    }
+
+    private ValueTask<T> ExecuteAutocommitAsync<T>(
+        string sql,
+        Action<DbCommand> bind,
+        Func<DbCommand, CancellationToken, ValueTask<T>> execute,
+        bool retryDeadlockVictim,
+        CancellationToken cancellationToken)
+    {
+        async ValueTask<T> AttemptAsync()
+        {
+            var command = CreateCommand(sql);
+
+            try
+            {
+                bind(command);
+            }
+            catch
+            {
+                // Nothing disposes a command that was never given to execute.
+                await command.DisposeAsync().ConfigureAwait(false);
+
+                throw;
+            }
+
+            return await execute(command, cancellationToken).ConfigureAwait(false);
+        }
+
+        return retryDeadlockVictim ? RetryDeadlockVictimAsync(AttemptAsync, cancellationToken) : AttemptAsync();
+    }
+
     /// <summary>Runs an upsert so that it is atomic on every provider.</summary>
     /// <typeparam name="T">The result type.</typeparam>
     /// <param name="sql">The upsert text, one of the <c>Upsert*</c> members of <see cref="Sql"/>.</param>
@@ -219,15 +290,9 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
         {
             // One statement in autocommit: a victim's statement was rolled back
             // whole, so sending it again is the same safe boundary as a transaction.
-            return RetryDeadlockVictimAsync(
-                async () =>
-                {
-                    var command = CreateCommand(sql);
-                    bind(command);
-
-                    return await execute(command, cancellationToken).ConfigureAwait(false);
-                },
-                cancellationToken);
+            // An upsert has always been sent again here, whatever the provider says
+            // about the plain statements.
+            return ExecuteAutocommitAsync(sql, bind, execute, retryDeadlockVictim: true, cancellationToken);
         }
 
         return ExecuteInTransactionAsync(

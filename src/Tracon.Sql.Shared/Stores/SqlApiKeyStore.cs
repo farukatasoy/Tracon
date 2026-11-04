@@ -49,19 +49,23 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
             CreatedAt = _timeProvider.GetUtcNow(),
         };
 
-        var command = CreateCommand(_sql.InsertApiKey);
-        DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.AddTenant(command, record.TenantId);
-        DbHelpers.Add(command, "name", record.Name);
-        Dialect.AddBinary(command, "key_hash", generated.KeyHash);
-        DbHelpers.Add(command, "key_prefix", record.KeyPrefix);
-        Dialect.AddTextArray(command, "scopes", ScopeNames(record.Scopes));
-        Dialect.AddTimestamp(command, "expires_at", record.ExpiresAt);
-        Dialect.AddTimestamp(command, "revoked_at", record.RevokedAt);
-        Dialect.AddTimestamp(command, "last_used_at", record.LastUsedAt);
-        Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.InsertApiKey,
+            command =>
+            {
+                DbHelpers.Add(command, "id", record.Id);
+                DbHelpers.AddTenant(command, record.TenantId);
+                DbHelpers.Add(command, "name", record.Name);
+                Dialect.AddBinary(command, "key_hash", generated.KeyHash);
+                DbHelpers.Add(command, "key_prefix", record.KeyPrefix);
+                Dialect.AddTextArray(command, "scopes", ScopeNames(record.Scopes));
+                Dialect.AddTimestamp(command, "expires_at", record.ExpiresAt);
+                Dialect.AddTimestamp(command, "revoked_at", record.RevokedAt);
+                Dialect.AddTimestamp(command, "last_used_at", record.LastUsedAt);
+                Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return new ApiKeyCreationResult { Record = record, PlaintextKey = generated.PlaintextKey };
     }
@@ -71,10 +75,14 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectApiKeys);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadRecord, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectApiKeys,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadRecord, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -82,10 +90,14 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
         "The tenant is the OUTPUT of this call, not its input: while authenticating a request we do not yet know which tenant it belongs to.")]
     public async ValueTask<ApiKeyRecord?> FindByHashAsync(ReadOnlyMemory<byte> keyHash, CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectApiKeyByHash);
-        Dialect.AddBinary(command, "key_hash", keyHash.ToArray());
-
-        return await DbHelpers.ReadSingleAsync(command, ReadRecord, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectApiKeyByHash,
+            command =>
+            {
+                Dialect.AddBinary(command, "key_hash", keyHash.ToArray());
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadRecord, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -93,12 +105,16 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.RevokeApiKey);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "id", id);
-        Dialect.AddTimestamp(command, "revoked_at", _timeProvider.GetUtcNow());
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.RevokeApiKey,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "id", id);
+                Dialect.AddTimestamp(command, "revoked_at", _timeProvider.GetUtcNow());
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -106,11 +122,15 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
         "The caller (ApiKeyAuthenticator) has already found the key by its hash and resolved the tenant; same rationale as FindByHashAsync.")]
     public async ValueTask TouchLastUsedAsync(Guid id, DateTimeOffset usedAt, CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.TouchApiKeyLastUsed);
-        DbHelpers.Add(command, "id", id);
-        Dialect.AddTimestamp(command, "last_used_at", usedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.TouchApiKeyLastUsed,
+            command =>
+            {
+                DbHelpers.Add(command, "id", id);
+                Dialect.AddTimestamp(command, "last_used_at", usedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -118,16 +138,18 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
         "This is a deployment health check (ExternalSurfaceGuard); it is not specific to any one tenant.")]
     public async ValueTask<bool> HasActiveScopeAsync(ApiKeyScope scope, CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.HasApiKeyWithScope);
-        DbHelpers.Add(command, "scope", scope.ToString());
-        Dialect.AddTimestamp(command, "now", _timeProvider.GetUtcNow());
-
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _context.ExecuteStatementAsync(
+            _sql.HasApiKeyWithScope,
+            command =>
+            {
+                DbHelpers.Add(command, "scope", scope.ToString());
+                Dialect.AddTimestamp(command, "now", _timeProvider.GetUtcNow());
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return result is not null && DbHelpers.ToBoolean(result);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static IReadOnlyList<string> ScopeNames(IReadOnlyList<ApiKeyScope> scopes)
         => [.. scopes.Select(static scope => scope.ToString())];

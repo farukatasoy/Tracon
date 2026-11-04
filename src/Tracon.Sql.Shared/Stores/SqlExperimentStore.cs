@@ -44,10 +44,14 @@ internal sealed class SqlExperimentStore : IExperimentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
-        var command = CreateCommand(_sql.SelectExperiments);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadExperiment, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectExperiments,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadExperiment, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -56,11 +60,15 @@ internal sealed class SqlExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
 
-        var command = CreateCommand(_sql.SelectExperiment);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadExperiment, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectExperiment,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadExperiment, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -69,11 +77,15 @@ internal sealed class SqlExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(agentName);
 
-        var command = CreateCommand(_sql.SelectRunningExperiment);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "agent_name", agentName);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadExperiment, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRunningExperiment,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "agent_name", agentName);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadExperiment, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -81,9 +93,11 @@ internal sealed class SqlExperimentStore : IExperimentStore
         "Maintenance work: the canary evaluator sweeps the running canaries of EVERY tenant in one pass, so the query carries no tenant_id by design. The interface documents the same thing; the method used to sit on the coverage list instead, which skipped the written justification.")]
     public async ValueTask<IReadOnlyList<Experiment>> ListRunningWithCanaryAsync(CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectRunningExperimentsWithCanary);
-
-        return await DbHelpers.ReadListAsync(command, ReadExperiment, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRunningExperimentsWithCanary,
+            static command => { },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadExperiment, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -131,11 +145,15 @@ internal sealed class SqlExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
 
-        var command = CreateCommand(_sql.DeleteExperiment);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        var affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        var affected = await _context.ExecuteStatementAsync(
+            _sql.DeleteExperiment,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
 
         if (affected > 0)
         {
@@ -160,14 +178,18 @@ internal sealed class SqlExperimentStore : IExperimentStore
 
         var now = DateTimeOffset.UtcNow;
 
-        var command = CreateCommand(_sql.StartExperiment);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        Dialect.AddTimestamp(command, "now", now);
-
         try
         {
-            _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
+            _ = await _context.ExecuteStatementAsync(
+            _sql.StartExperiment,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false)
                 ?? throw await BuildStartFailureAsync(tenantId, name, cancellationToken).ConfigureAwait(false);
         }
         catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
@@ -193,12 +215,16 @@ internal sealed class SqlExperimentStore : IExperimentStore
 
         var now = DateTimeOffset.UtcNow;
 
-        var command = CreateCommand(_sql.StopExperiment);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        Dialect.AddTimestamp(command, "now", now);
-
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _context.ExecuteStatementAsync(
+            _sql.StopExperiment,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false);
 
         if (result is null)
         {
@@ -226,13 +252,17 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var now = DateTimeOffset.UtcNow;
         var policyJson = policy is null ? null : JsonSerializer.Serialize(policy, TraconJsonContext.Default.CanaryPolicy);
 
-        var command = CreateCommand(_sql.SetExperimentCanaryPolicy);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        Dialect.AddJsonb(command, "canary_policy", policyJson);
-        Dialect.AddTimestamp(command, "now", now);
-
-        _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
+        _ = await _context.ExecuteStatementAsync(
+            _sql.SetExperimentCanaryPolicy,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+                Dialect.AddJsonb(command, "canary_policy", policyJson);
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"No experiment named '{name}' was found.");
 
         return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
@@ -253,13 +283,17 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var now = DateTimeOffset.UtcNow;
         var variantsJson = JsonSerializer.Serialize(variants, TraconJsonContext.Default.IReadOnlyListExperimentVariant);
 
-        var command = CreateCommand(_sql.AdvanceExperimentCanaryRamp);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        Dialect.AddJsonb(command, "variants", variantsJson);
-        Dialect.AddTimestamp(command, "now", now);
-
-        _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
+        _ = await _context.ExecuteStatementAsync(
+            _sql.AdvanceExperimentCanaryRamp,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+                Dialect.AddJsonb(command, "variants", variantsJson);
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"Experiment '{name}' is not running.");
 
         return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
@@ -282,14 +316,18 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var now = DateTimeOffset.UtcNow;
         var variantsJson = JsonSerializer.Serialize(variants, TraconJsonContext.Default.IReadOnlyListExperimentVariant);
 
-        var command = CreateCommand(_sql.RollbackExperimentCanary);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        Dialect.AddJsonb(command, "variants", variantsJson);
-        AddNullableText(command, "rollback_reason", reason);
-        Dialect.AddTimestamp(command, "now", now);
-
-        _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
+        _ = await _context.ExecuteStatementAsync(
+            _sql.RollbackExperimentCanary,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+                Dialect.AddJsonb(command, "variants", variantsJson);
+                AddNullableText(command, "rollback_reason", reason);
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"Experiment '{name}' is not running.");
 
         return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
@@ -305,8 +343,6 @@ internal sealed class SqlExperimentStore : IExperimentStore
             : new TraconException(
                 $"Experiment '{name}' is in status '{existing.Status}'; it can only be started from Draft status.");
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static Experiment ReadExperiment(DbDataReader reader)
         => new()

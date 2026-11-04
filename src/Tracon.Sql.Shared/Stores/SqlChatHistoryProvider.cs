@@ -80,12 +80,15 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
 
         var conversationId = GetConversationId(context.Session);
 
-        var command = CreateCommand(_sql.SelectConversationItems);
-        DbHelpers.Add(command, "conversation_id", conversationId);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-
-        var messages = await DbHelpers
-            .ReadListAsync(command, reader => ProtectedValue.Read(_context, reader.GetString(0))!, cancellationToken)
+        var messages = await _context.ExecuteStatementAsync(
+            _sql.SelectConversationItems,
+            command =>
+            {
+                DbHelpers.Add(command, "conversation_id", conversationId);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => ProtectedValue.Read(_context, reader.GetString(0))!, token),
+            cancellationToken)
             .ConfigureAwait(false);
 
         var history = new List<ChatMessage>(messages.Count);
@@ -174,8 +177,6 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
             },
             cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     /// <summary>
     /// Gets the session's conversation id, generating and writing it to the session if absent.

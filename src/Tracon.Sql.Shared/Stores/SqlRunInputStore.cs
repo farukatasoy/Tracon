@@ -48,30 +48,34 @@ internal sealed class SqlRunInputStore : IRunInputStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        var command = CreateCommand(_sql.InsertRunInput);
-        Dialect.AddUuid(command, "run_id", record.RunId);
-        DbHelpers.AddTenant(command, record.TenantId);
-        Dialect.AddJson(
-            command,
-            "messages",
-            ProtectedValue.Write(
-                _context,
-                ProtectedColumn.RunInput,
-                JsonSerializer.Serialize(record.Messages, TraconJsonContext.Default.IReadOnlyListChatMessage)));
-        Dialect.AddJson(
-            command,
-            "parameters",
-            record.Parameters is null
-                ? null
-                : ProtectedValue.Write(
-                    _context,
-                    ProtectedColumn.RunInputParameters,
-                    JsonSerializer.Serialize(
-                        new Dictionary<string, string>(record.Parameters, StringComparer.Ordinal),
-                        TraconJsonContext.Default.DictionaryStringString)));
-        Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.InsertRunInput,
+            command =>
+            {
+                Dialect.AddUuid(command, "run_id", record.RunId);
+                DbHelpers.AddTenant(command, record.TenantId);
+                Dialect.AddJson(
+                    command,
+                    "messages",
+                    ProtectedValue.Write(
+                        _context,
+                        ProtectedColumn.RunInput,
+                        JsonSerializer.Serialize(record.Messages, TraconJsonContext.Default.IReadOnlyListChatMessage)));
+                Dialect.AddJson(
+                    command,
+                    "parameters",
+                    record.Parameters is null
+                        ? null
+                        : ProtectedValue.Write(
+                            _context,
+                            ProtectedColumn.RunInputParameters,
+                            JsonSerializer.Serialize(
+                                new Dictionary<string, string>(record.Parameters, StringComparer.Ordinal),
+                                TraconJsonContext.Default.DictionaryStringString)));
+                Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -86,16 +90,17 @@ internal sealed class SqlRunInputStore : IRunInputStore
         // canonical form whichever spelling the caller asked with.
         tenantId = AmbientTenantScope.Normalize(tenantId);
 
-        var command = CreateCommand(_sql.SelectRunInput);
-        Dialect.AddUuid(command, "run_id", runId);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers
-            .ReadSingleAsync(command, reader => Read(reader, tenantId, runId), cancellationToken)
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRunInput,
+            command =>
+            {
+                Dialect.AddUuid(command, "run_id", runId);
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, reader => Read(reader, tenantId, runId), token),
+            cancellationToken)
             .ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private RunInputRecord Read(DbDataReader reader, string tenantId, Guid runId)
         => new()

@@ -188,8 +188,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
         // The owner of a session, the user of a run and the actor of an audit entry are identities an identity provider
         // hands out, and providers keep letter case. A column that folds it lists the sessions of "Bs7" for "bs7" and
         // counts two people as one. The pattern finds a column a later migration adds under one of these names, so the
-        // family cannot grow a member the check does not see. The owner of a singleton lease is the identity of a node,
-        // which the library writes itself, and is not a user.
+        // family cannot grow a member the check does not see.
         var columns = await ColumnsAsync(
             context,
             "c.name IN (N'owner_id', N'user_id', N'actor') AND t.name <> N'singleton_leases'");
@@ -200,6 +199,26 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
             .Select(static column => $"{column.Name} ({column.Collation})")
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty("one identity, one collation: every column that holds the identity of a user compares ordinally");
+    }
+
+    [Fact]
+    public async Task Every_column_that_carries_the_name_of_a_lease_owner_compares_ordinally()
+    {
+        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+
+        // The caller chooses the name of a worker (JobLeaseRequest.Owner) and of a node that holds a singleton lease, so
+        // "Worker-A" and "worker-a" are two owners. A column that folds the case lets the second renew, finish and release
+        // the lease of the first. The pattern finds a column a later migration adds under one of these names.
+        var columns = await ColumnsAsync(
+            context,
+            "(c.name = N'lease_owner' OR (c.name = N'owner_id' AND t.name = N'singleton_leases'))");
+
+        columns.Count.ShouldBe(2, "the query has to find the owner columns it guards: jobs.lease_owner and singleton_leases.owner_id");
+        columns
+            .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
+            .Select(static column => $"{column.Name} ({column.Collation})")
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty("one owner, one comparison: every column that holds the name of a lease owner compares ordinally");
     }
 
     [Fact]

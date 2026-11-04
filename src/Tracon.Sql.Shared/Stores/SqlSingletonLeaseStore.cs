@@ -80,12 +80,16 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
 
-        var command = CreateCommand(_sql.RenewSingletonLease);
-        DbHelpers.Add(command, "name", name);
-        DbHelpers.Add(command, "owner_id", ownerId);
-        Dialect.AddLeaseWindow(command, _timeProvider, duration);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.RenewSingletonLease,
+            command =>
+            {
+                DbHelpers.Add(command, "name", name);
+                DbHelpers.Add(command, "owner_id", ownerId);
+                Dialect.AddLeaseWindow(command, _timeProvider, duration);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -96,12 +100,15 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
 
-        var command = CreateCommand(_sql.ReleaseSingletonLease);
-        DbHelpers.Add(command, "name", name);
-        DbHelpers.Add(command, "owner_id", ownerId);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.ReleaseSingletonLease,
+            command =>
+            {
+                DbHelpers.Add(command, "name", name);
+                DbHelpers.Add(command, "owner_id", ownerId);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 }

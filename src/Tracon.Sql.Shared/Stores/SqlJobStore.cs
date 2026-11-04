@@ -148,18 +148,22 @@ internal sealed class SqlJobStore : IJobStore
 
         // Without a cap the statement is the one that has always run; the capped statement is a
         // separate text, so the common path pays nothing for the count.
-        var command = CreateCommand(cap is null ? _sql.LeaseJob : _sql.LeaseJobWithTenantCap);
-        DbHelpers.Add(command, "owner", owner);
-        Dialect.AddLeaseWindow(command, _timeProvider, request.LeaseDuration);
-        Dialect.AddTextArray(command, "lanes", request.Lanes is { Count: > 0 } ? request.Lanes : null);
 
-        if (cap is not null)
-        {
-            Dialect.AddTextArray(command, "cap_keys", cap.HandlerKeys);
-            DbHelpers.Add(command, "cap_max", cap.MaxLeasedPerTenant);
-        }
-
-        return await DbHelpers.ReadSingleAsync(command, ReadJob, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            cap is null ? _sql.LeaseJob : _sql.LeaseJobWithTenantCap,
+            command =>
+            {
+                DbHelpers.Add(command, "owner", owner);
+                Dialect.AddLeaseWindow(command, _timeProvider, request.LeaseDuration);
+                Dialect.AddTextArray(command, "lanes", request.Lanes is { Count: > 0 } ? request.Lanes : null);
+                if (cap is not null)
+                {
+                    Dialect.AddTextArray(command, "cap_keys", cap.HandlerKeys);
+                    DbHelpers.Add(command, "cap_max", cap.MaxLeasedPerTenant);
+                }
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadJob, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -172,11 +176,15 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(lease);
 
-        var command = CreateCommand(_sql.RenewJobLease);
-        AddLease(command, lease);
-        Dialect.AddLeaseWindow(command, _timeProvider, leaseDuration);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.RenewJobLease,
+            command =>
+            {
+                AddLease(command, lease);
+                Dialect.AddLeaseWindow(command, _timeProvider, leaseDuration);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -186,10 +194,14 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(lease);
 
-        var command = CreateCommand(_sql.MarkJobRunning);
-        AddLease(command, lease);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.MarkJobRunning,
+            command =>
+            {
+                AddLease(command, lease);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -200,13 +212,17 @@ internal sealed class SqlJobStore : IJobStore
         ArgumentNullException.ThrowIfNull(lease);
         ArgumentNullException.ThrowIfNull(completion);
 
-        var command = CreateCommand(_sql.CompleteJob);
-        AddLease(command, lease);
-        DbHelpers.Add(command, "status", (short)completion.Status);
-        Dialect.AddTimestamp(command, "completed_at", completion.CompletedAt);
-        AddNullableText(command, "error_message", completion.ErrorMessage);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.CompleteJob,
+            command =>
+            {
+                AddLease(command, lease);
+                DbHelpers.Add(command, "status", (short)completion.Status);
+                Dialect.AddTimestamp(command, "completed_at", completion.CompletedAt);
+                AddNullableText(command, "error_message", completion.ErrorMessage);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -220,20 +236,23 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(lease);
 
-        var command = CreateCommand(_sql.ReleaseJobForRetry);
-        AddLease(command, lease);
-        AddNullableText(command, "error_message", errorMessage);
-
-        // Backoff is set up via scheduled_for; LeaseJob already filters on it against the lease clock, and the delay
-        // is measured from that same clock, so the node that releases the job and the node that leases it again
-        // cannot disagree about when the delay is over. No delay leaves scheduled_for as it is.
-        Dialect.AddLeaseInstant(
-            command,
-            "retry_at",
-            _timeProvider,
-            retryAfter is { } delay && delay > TimeSpan.Zero ? delay : null);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.ReleaseJobForRetry,
+            command =>
+            {
+                AddLease(command, lease);
+                AddNullableText(command, "error_message", errorMessage);
+                // Backoff is set up via scheduled_for; LeaseJob already filters on it against the lease clock, and the delay
+                // is measured from that same clock, so the node that releases the job and the node that leases it again
+                // cannot disagree about when the delay is over. No delay leaves scheduled_for as it is.
+                Dialect.AddLeaseInstant(
+                    command,
+                    "retry_at",
+                    _timeProvider,
+                    retryAfter is { } delay && delay > TimeSpan.Zero ? delay : null);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     private static void AddLease(DbCommand command, JobLease lease)
@@ -248,12 +267,16 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.CancelJob);
-        DbHelpers.Add(command, "id", jobId);
-        DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddTimestamp(command, "completed_at", _timeProvider.GetUtcNow());
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.CancelJob,
+            command =>
+            {
+                DbHelpers.Add(command, "id", jobId);
+                DbHelpers.AddTenant(command, tenantId);
+                Dialect.AddTimestamp(command, "completed_at", _timeProvider.GetUtcNow());
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -264,11 +287,15 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectJob);
-        DbHelpers.Add(command, "id", jobId);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadJob, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectJob,
+            command =>
+            {
+                DbHelpers.Add(command, "id", jobId);
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadJob, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -278,16 +305,20 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = CreateCommand(_sql.SelectJobs);
-        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(query.TenantId));
-        AddNullableText(command, "handler_key", query.HandlerKey);
-        Dialect.AddInt16(command, "status", (short?)query.Status);
-        AddNullableUuid(command, "schedule_id", query.ScheduleId);
-        AddNullableText(command, "lane", query.Lane);
-        DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
-        DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
-
-        return await DbHelpers.ReadListAsync(command, ReadJob, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectJobs,
+            command =>
+            {
+                AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(query.TenantId));
+                AddNullableText(command, "handler_key", query.HandlerKey);
+                Dialect.AddInt16(command, "status", (short?)query.Status);
+                AddNullableUuid(command, "schedule_id", query.ScheduleId);
+                AddNullableText(command, "lane", query.Lane);
+                DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
+                DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadJob, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -297,10 +328,14 @@ internal sealed class SqlJobStore : IJobStore
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectJobItems);
-        DbHelpers.Add(command, "job_id", jobId);
-
-        return await DbHelpers.ReadListAsync(command, ReadJobItem, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectJobItems,
+            command =>
+            {
+                DbHelpers.Add(command, "job_id", jobId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadJobItem, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -310,14 +345,24 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        var command = CreateCommand(_sql.ReportJobItem);
-        DbHelpers.Add(command, "job_id", item.JobId);
-        DbHelpers.Add(command, "seq", item.Seq);
-        DbHelpers.Add(command, "status", (short)item.Status);
-        AddNullableUuid(command, "run_id", item.RunId);
-        AddNullableText(command, "error", item.Error);
+        // 🚨 The report is two statements on SQL Server and SQLite (no data-modifying CTE): the item row, then the
+        // counters of the job, which read how many rows the first one changed. In autocommit the first has committed
+        // when the second is the deadlock victim, and sending the whole text again would find the item already reported
+        // and count nothing. In a transaction a victim rolls both back, and the next attempt starts from the beginning.
+        await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
+            {
+                var command = _context.CreateCommand(_sql.ReportJobItem, connection, transaction);
+                DbHelpers.Add(command, "job_id", item.JobId);
+                DbHelpers.Add(command, "seq", item.Seq);
+                DbHelpers.Add(command, "status", (short)item.Status);
+                AddNullableUuid(command, "run_id", item.RunId);
+                AddNullableText(command, "error", item.Error);
 
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+                await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -325,12 +370,12 @@ internal sealed class SqlJobStore : IJobStore
         "Queue depth is an operator signal about the worker pool, which leases across EVERY tenant (LeaseAsync); there is no tenant boundary to apply and no tenant tag is published.")]
     public async ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectJobQueueDepth);
-
-        return await DbHelpers.ReadListAsync(command, ReadQueueDepth, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectJobQueueDepth,
+            static command => { },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadQueueDepth, token),
+            cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static JobQueueDepth ReadQueueDepth(DbDataReader reader)
         => new()

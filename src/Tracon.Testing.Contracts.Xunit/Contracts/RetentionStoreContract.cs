@@ -91,6 +91,23 @@ public abstract class RetentionStoreContract : StoreCancellationContract<IRetent
         (await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, tenantId: null, Cutoff)).ShouldBe(2);
     }
 
+    [Theory]
+    [InlineData("\uFF41cme")]
+    [InlineData("acm\u00E9")]
+    [InlineData("tenant a")]
+    public async Task A_sweep_that_names_a_tenant_outside_the_alphabet_is_refused_instead_of_reaching_other_tenants(string tenantId)
+    {
+        // A database that compares text with the rules of its collation can read a name that only looks like "acme" as
+        // "acme", and the sweep for one would reach the rows of the other. The interface does not let a caller name such a
+        // tenant: the sweep is refused before any row is looked at.
+        await SeedOldRowAsync(TenantA);
+
+        await Should.ThrowAsync<ArgumentException>(async () => await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, tenantId, Cutoff));
+        await Should.ThrowAsync<ArgumentException>(async () => await Store.DeleteBatchAsync(RetentionTargets.VoiceSessions, tenantId, Cutoff, batchSize: 100));
+
+        (await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, TenantA, Cutoff)).ShouldBe(1);
+    }
+
     [Fact]
     public async Task Delete_does_NOT_touch_the_others_data()
     {

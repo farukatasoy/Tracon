@@ -35,11 +35,15 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.SelectInboundTrigger);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadTrigger, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectInboundTrigger,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadTrigger, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -49,10 +53,14 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectInboundTriggers);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadTrigger, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectInboundTriggers,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadTrigger, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -97,14 +105,16 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.DeleteInboundTrigger);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteInboundTrigger,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static InboundTrigger ReadTrigger(DbDataReader reader)
         => new()

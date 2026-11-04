@@ -144,7 +144,7 @@ internal static class RetentionTargetRegistry
                 $"created_at < @cutoff AND NOT (type = {workflowRequest} AND EXISTS (SELECT 1 FROM {Table("runs")} rw "
                     + $"WHERE rw.id = {Table("run_events")}.run_id AND rw.status = {awaitingInput}))",
                 $"EXISTS (SELECT 1 FROM {Table("runs")} rt "
-                    + $"WHERE rt.id = {Table("run_events")}.run_id AND rt.tenant_id = @tenant_id)",
+                    + $"WHERE rt.id = {Table("run_events")}.run_id AND {dialect.TenantPredicate("rt.tenant_id")})",
                 "created_at",
                 "created_at",
                 RunEventKey),
@@ -153,7 +153,7 @@ internal static class RetentionTargetRegistry
                 Table("tool_invocations"),
                 "created_at < @cutoff",
                 $"EXISTS (SELECT 1 FROM {Table("runs")} rt "
-                    + $"WHERE rt.id = {Table("tool_invocations")}.run_id AND rt.tenant_id = @tenant_id)",
+                    + $"WHERE rt.id = {Table("tool_invocations")}.run_id AND {dialect.TenantPredicate("rt.tenant_id")})",
                 "created_at",
                 "created_at",
                 IdKey),
@@ -162,7 +162,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Traces => new RetentionTargetDefinition(
                 Table("traces"),
                 "started_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "started_at",
                 "started_at",
                 IdKey),
@@ -174,7 +174,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Jobs => new RetentionTargetDefinition(
                 Table("jobs"),
                 "status IN (3, 4, 5) AND completed_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "completed_at",
                 "completed_at",
                 IdKey),
@@ -183,7 +183,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.WebhookDeliveries => new RetentionTargetDefinition(
                 Table("webhook_deliveries"),
                 "status = 1 AND delivered_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "delivered_at",
                 "delivered_at",
                 IdKey),
@@ -209,7 +209,7 @@ internal static class RetentionTargetRegistry
                 $"EXISTS (SELECT 1 FROM {Table("eval_runs")} er " +
                 $"WHERE er.id = {Table("eval_case_results")}.eval_run_id AND er.completed_at < @cutoff)",
                 $"EXISTS (SELECT 1 FROM {Table("eval_runs")} ert " +
-                $"WHERE ert.id = {Table("eval_case_results")}.eval_run_id AND ert.tenant_id = @tenant_id)",
+                $"WHERE ert.id = {Table("eval_case_results")}.eval_run_id AND {dialect.TenantPredicate("ert.tenant_id")})",
                 "id",
                 $"(SELECT er.completed_at FROM {Table("eval_runs")} er WHERE er.id = {Table("eval_case_results")}.eval_run_id)",
                 IdKey),
@@ -229,7 +229,7 @@ internal static class RetentionTargetRegistry
                 $"EXISTS (SELECT 1 FROM {Table("runs")} r " +
                 $"WHERE r.id = {Table("workflow_checkpoints")}.run_id AND r.completed_at < @cutoff " +
                 $"AND r.status <> {awaitingInput})",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "created_at",
                 $"(SELECT r.completed_at FROM {Table("runs")} r WHERE r.id = {Table("workflow_checkpoints")}.run_id " +
                 $"AND r.status <> {awaitingInput})",
@@ -242,7 +242,7 @@ internal static class RetentionTargetRegistry
                 Table("skill_script_grants"),
                 "(expires_at IS NOT NULL AND expires_at < @cutoff) " +
                 "OR (revoked_at IS NOT NULL AND revoked_at < @cutoff)",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "granted_at",
                 "COALESCE(expires_at, revoked_at)",
                 IdKey),
@@ -269,7 +269,7 @@ internal static class RetentionTargetRegistry
                     + $"WHERE wr.tenant_id = {Table("attachments")}.tenant_id AND wr.session_id = {Table("attachments")}.session_id "
                     + $"AND wr.kind = {workflowKind} "
                     + $"AND (wr.status = {awaitingInput} OR wr.completed_at IS NULL OR wr.completed_at >= @cutoff))))",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "created_at",
                 "created_at",
                 IdKey),
@@ -278,7 +278,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Sessions => new RetentionTargetDefinition(
                 Table("sessions"),
                 "updated_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "updated_at",
                 "updated_at",
                 IdKey,
@@ -289,7 +289,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Conversations => new RetentionTargetDefinition(
                 Table("conversations"),
                 "updated_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "updated_at",
                 "updated_at",
                 IdKey),
@@ -302,7 +302,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.VoiceSessions => new RetentionTargetDefinition(
                 Table("voice_sessions"),
                 "ended_at IS NOT NULL AND ended_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "started_at",
                 "ended_at",
                 IdKey),
@@ -313,7 +313,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.RunScores => new RetentionTargetDefinition(
                 Table("run_scores"),
                 "created_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "created_at",
                 "created_at",
                 IdKey),
@@ -323,7 +323,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.IdempotencyKeys => new RetentionTargetDefinition(
                 Table("idempotency_keys"),
                 "created_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "created_at",
                 "created_at",
                 IdempotencyKey,
@@ -343,7 +343,7 @@ internal static class RetentionTargetRegistry
                 Table("run_inputs"),
                 $"created_at < @cutoff AND NOT EXISTS (SELECT 1 FROM {Table("runs")} ri "
                     + $"WHERE ri.id = {Table("run_inputs")}.run_id AND ri.status = {awaitingInput})",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "created_at",
                 $"CASE WHEN EXISTS (SELECT 1 FROM {Table("runs")} rr "
                     + $"WHERE rr.id = {Table("run_inputs")}.run_id AND rr.status = {awaitingInput}) "
@@ -357,7 +357,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.WorkflowRequests => new RetentionTargetDefinition(
                 Table("workflow_requests"),
                 $"status = {workflowRequestClosed} AND closed_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "closed_at",
                 $"CASE WHEN status = {workflowRequestClosed} THEN closed_at ELSE NULL END",
                 WorkflowRequestKey),
@@ -369,7 +369,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.DocumentEmbeddings => new RetentionTargetDefinition(
                 Table("document_embeddings"),
                 "created_at < @cutoff",
-                "tenant_id = @tenant_id",
+                dialect.TenantPredicate("tenant_id"),
                 "created_at",
                 "created_at",
                 IdKey),

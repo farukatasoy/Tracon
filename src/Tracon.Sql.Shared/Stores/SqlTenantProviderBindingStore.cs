@@ -35,11 +35,15 @@ internal sealed class SqlTenantProviderBindingStore : ITenantProviderBindingStor
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
 
-        var command = CreateCommand(_sql.SelectTenantProviderBinding);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(providerName));
-
-        return await DbHelpers.ReadSingleAsync(command, ReadRecord, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectTenantProviderBinding,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(providerName));
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadRecord, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -47,10 +51,14 @@ internal sealed class SqlTenantProviderBindingStore : ITenantProviderBindingStor
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectTenantProviderBindings);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadRecord, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectTenantProviderBindings,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadRecord, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -78,14 +86,16 @@ internal sealed class SqlTenantProviderBindingStore : ITenantProviderBindingStor
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
 
-        var command = CreateCommand(_sql.DeleteTenantProviderBinding);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(providerName));
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteTenantProviderBinding,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(providerName));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private TenantProviderBinding ReadRecord(DbDataReader reader)
         => new()

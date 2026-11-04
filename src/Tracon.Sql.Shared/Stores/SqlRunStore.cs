@@ -158,28 +158,31 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(runEvent);
 
-        var command = CreateCommand(_sql.InsertRunEvent);
-        DbHelpers.Add(command, "run_id", runEvent.RunId);
-        DbHelpers.Add(command, "seq", runEvent.Sequence);
-        DbHelpers.Add(command, "type", (short)runEvent.Type);
-        Dialect.AddText(command, "text", ProtectedValue.Write(_context, ProtectedColumn.RunEventText, runEvent.Text));
-        AddNullableText(command, "tool_name", runEvent.ToolName);
-        AddNullableText(command, "tool_call_id", runEvent.ToolCallId);
-        Dialect.AddText(command, "payload", ProtectedValue.Write(_context, ProtectedColumn.RunEventPayload, runEvent.Payload));
-        AddNullableText(command, "custom_type", runEvent.CustomType);
-        Dialect.AddTimestamp(command, "created_at", runEvent.Timestamp);
-
-        // 🚨 EXPECTED tenant, NOT the ambient tenant. RunStartInfo.TenantId can
-        // deliberately override the ambient tenant (this is how workflows and
-        // the job queue work), so filtering by the ambient tenant would drop
-        // legitimate writes. NULL means no check.
-        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(runEvent.TenantId));
-
         int affected;
 
         try
         {
-            affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            affected = await _context.ExecuteStatementAsync(
+            _sql.InsertRunEvent,
+            command =>
+            {
+                DbHelpers.Add(command, "run_id", runEvent.RunId);
+                DbHelpers.Add(command, "seq", runEvent.Sequence);
+                DbHelpers.Add(command, "type", (short)runEvent.Type);
+                Dialect.AddText(command, "text", ProtectedValue.Write(_context, ProtectedColumn.RunEventText, runEvent.Text));
+                AddNullableText(command, "tool_name", runEvent.ToolName);
+                AddNullableText(command, "tool_call_id", runEvent.ToolCallId);
+                Dialect.AddText(command, "payload", ProtectedValue.Write(_context, ProtectedColumn.RunEventPayload, runEvent.Payload));
+                AddNullableText(command, "custom_type", runEvent.CustomType);
+                Dialect.AddTimestamp(command, "created_at", runEvent.Timestamp);
+                // 🚨 EXPECTED tenant, NOT the ambient tenant. RunStartInfo.TenantId can
+                // deliberately override the ambient tenant (this is how workflows and
+                // the job queue work), so filtering by the ambient tenant would drop
+                // legitimate writes. NULL means no check.
+                AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(runEvent.TenantId));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
         }
         catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
         {
@@ -215,60 +218,60 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(completion);
 
-        var command = CreateCommand(_sql.UpdateRunCompletion);
-        DbHelpers.Add(command, "id", completion.RunId);
-        DbHelpers.Add(command, "status", (short)completion.Status);
-        Dialect.AddTimestamp(command, "completed_at", completion.CompletedAt);
-        DbHelpers.Add(command, "event_count", completion.EventCount);
-        AddNullableInt64(command, "input_tokens", completion.Usage?.InputTokens);
-        AddNullableInt64(command, "output_tokens", completion.Usage?.OutputTokens);
-        AddNullableInt64(command, "total_tokens", completion.Usage?.TotalTokens);
-
-        // 🚨 These are counted INSIDE the totals above (the
-        // Microsoft.Extensions.AI contract) and are written beside them, never
-        // added to them. A counter the provider did not report stays NULL:
-        // writing zero claims a measurement that was never made.
-        AddNullableInt64(command, "cached_input_tokens", completion.Usage?.CachedInputTokens);
-        AddNullableInt64(command, "reasoning_tokens", completion.Usage?.ReasoningTokens);
-        AddNullableInt64(command, "audio_input_tokens", completion.Usage?.AudioInputTokens);
-        AddNullableInt64(command, "audio_output_tokens", completion.Usage?.AudioOutputTokens);
-        AddNullableInt64(command, "cache_write_input_tokens", completion.Usage?.CacheWriteInputTokens);
-        AddNullableInt64(command, "cache_write_long_input_tokens", completion.Usage?.CacheWriteLongInputTokens);
-        AddNullableText(command, "error_type", completion.Error?.Type);
-        AddNullableText(command, "error_message", completion.Error?.Message);
-        Dialect.AddInt16(command, "error_class", completion.Error?.Class is { } errorClass ? (short)errorClass : null);
-        AddNullableText(command, "error_fingerprint", completion.Error?.Fingerprint);
-        AddNullableDecimal(command, "input_cost", completion.Cost?.InputCost);
-        AddNullableDecimal(command, "input_price_per_mtok", completion.Cost?.InputPricePerMillionTokens);
-        AddNullableDecimal(command, "output_cost", completion.Cost?.OutputCost);
-        AddNullableDecimal(command, "output_price_per_mtok", completion.Cost?.OutputPricePerMillionTokens);
-        AddNullableDecimal(command, "cached_input_cost", completion.Cost?.CachedInputCost);
-        AddNullableDecimal(command, "cached_input_price_per_mtok", completion.Cost?.CachedInputPricePerMillionTokens);
-        AddNullableDecimal(command, "cache_write_cost", completion.Cost?.CacheWriteCost);
-        AddNullableDecimal(command, "cache_write_price_per_mtok", completion.Cost?.CacheWritePricePerMillionTokens);
-        AddNullableDecimal(command, "cache_write_long_price_per_mtok", completion.Cost?.CacheWriteLongPricePerMillionTokens);
-        AddNullableText(command, "cost_currency", SqlText.Currency(completion.Cost?.Currency));
-        Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
-
-        // The run's reported non-token total, a snapshot like the cost above.
-        // `non_token_unsummed` is the PRESENCE marker: NULL means the run reported
-        // nothing, and every other column of the group is NULL with it. A run that
-        // reported items none of which carried an amount writes unsummed > 0 and a
-        // NULL amount -- unknown, not free.
-        AddNullableDecimal(command, "non_token_cost", completion.NonTokenCost?.Amount);
-        AddNullableText(command, "non_token_currency", SqlText.Currency(completion.NonTokenCost?.Currency));
-        Dialect.AddNullableBoolean(command, "non_token_estimated", completion.NonTokenCost?.IsEstimated);
-        Dialect.AddInt32(command, "non_token_unsummed", completion.NonTokenCost?.UnsummedItemCount);
-
-        // NULL leaves the column at the value StartRunAsync already wrote
-        // — the SQL text COALESCEs it, this is not a conditional here.
-        AddNullableText(command, "model_id", completion.ModelId);
-        AddNullableText(command, "model_provider", completion.ModelProvider);
-
-        // EXPECTED tenant. NULL means no check.
-        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(completion.TenantId));
-
-        var affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        var affected = await _context.ExecuteStatementAsync(
+            _sql.UpdateRunCompletion,
+            command =>
+            {
+                DbHelpers.Add(command, "id", completion.RunId);
+                DbHelpers.Add(command, "status", (short)completion.Status);
+                Dialect.AddTimestamp(command, "completed_at", completion.CompletedAt);
+                DbHelpers.Add(command, "event_count", completion.EventCount);
+                AddNullableInt64(command, "input_tokens", completion.Usage?.InputTokens);
+                AddNullableInt64(command, "output_tokens", completion.Usage?.OutputTokens);
+                AddNullableInt64(command, "total_tokens", completion.Usage?.TotalTokens);
+                // 🚨 These are counted INSIDE the totals above (the
+                // Microsoft.Extensions.AI contract) and are written beside them, never
+                // added to them. A counter the provider did not report stays NULL:
+                // writing zero claims a measurement that was never made.
+                AddNullableInt64(command, "cached_input_tokens", completion.Usage?.CachedInputTokens);
+                AddNullableInt64(command, "reasoning_tokens", completion.Usage?.ReasoningTokens);
+                AddNullableInt64(command, "audio_input_tokens", completion.Usage?.AudioInputTokens);
+                AddNullableInt64(command, "audio_output_tokens", completion.Usage?.AudioOutputTokens);
+                AddNullableInt64(command, "cache_write_input_tokens", completion.Usage?.CacheWriteInputTokens);
+                AddNullableInt64(command, "cache_write_long_input_tokens", completion.Usage?.CacheWriteLongInputTokens);
+                AddNullableText(command, "error_type", completion.Error?.Type);
+                AddNullableText(command, "error_message", completion.Error?.Message);
+                Dialect.AddInt16(command, "error_class", completion.Error?.Class is { } errorClass ? (short)errorClass : null);
+                AddNullableText(command, "error_fingerprint", completion.Error?.Fingerprint);
+                AddNullableDecimal(command, "input_cost", completion.Cost?.InputCost);
+                AddNullableDecimal(command, "input_price_per_mtok", completion.Cost?.InputPricePerMillionTokens);
+                AddNullableDecimal(command, "output_cost", completion.Cost?.OutputCost);
+                AddNullableDecimal(command, "output_price_per_mtok", completion.Cost?.OutputPricePerMillionTokens);
+                AddNullableDecimal(command, "cached_input_cost", completion.Cost?.CachedInputCost);
+                AddNullableDecimal(command, "cached_input_price_per_mtok", completion.Cost?.CachedInputPricePerMillionTokens);
+                AddNullableDecimal(command, "cache_write_cost", completion.Cost?.CacheWriteCost);
+                AddNullableDecimal(command, "cache_write_price_per_mtok", completion.Cost?.CacheWritePricePerMillionTokens);
+                AddNullableDecimal(command, "cache_write_long_price_per_mtok", completion.Cost?.CacheWriteLongPricePerMillionTokens);
+                AddNullableText(command, "cost_currency", SqlText.Currency(completion.Cost?.Currency));
+                Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
+                // The run's reported non-token total, a snapshot like the cost above.
+                // `non_token_unsummed` is the PRESENCE marker: NULL means the run reported
+                // nothing, and every other column of the group is NULL with it. A run that
+                // reported items none of which carried an amount writes unsummed > 0 and a
+                // NULL amount -- unknown, not free.
+                AddNullableDecimal(command, "non_token_cost", completion.NonTokenCost?.Amount);
+                AddNullableText(command, "non_token_currency", SqlText.Currency(completion.NonTokenCost?.Currency));
+                Dialect.AddNullableBoolean(command, "non_token_estimated", completion.NonTokenCost?.IsEstimated);
+                Dialect.AddInt32(command, "non_token_unsummed", completion.NonTokenCost?.UnsummedItemCount);
+                // NULL leaves the column at the value StartRunAsync already wrote
+                // — the SQL text COALESCEs it, this is not a conditional here.
+                AddNullableText(command, "model_id", completion.ModelId);
+                AddNullableText(command, "model_provider", completion.ModelProvider);
+                // EXPECTED tenant. NULL means no check.
+                AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(completion.TenantId));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
 
         if (affected == 0)
         {
@@ -287,27 +290,30 @@ internal sealed class SqlRunStore : IRunStore
         string? tenantId,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.UpdateRunCost);
-        DbHelpers.Add(command, "id", runId);
-        AddNullableDecimal(command, "input_cost", cost?.InputCost);
-        AddNullableDecimal(command, "input_price_per_mtok", cost?.InputPricePerMillionTokens);
-        AddNullableDecimal(command, "output_cost", cost?.OutputCost);
-        AddNullableDecimal(command, "output_price_per_mtok", cost?.OutputPricePerMillionTokens);
-        AddNullableDecimal(command, "cached_input_cost", cost?.CachedInputCost);
-        AddNullableDecimal(command, "cached_input_price_per_mtok", cost?.CachedInputPricePerMillionTokens);
-        AddNullableDecimal(command, "cache_write_cost", cost?.CacheWriteCost);
-        AddNullableDecimal(command, "cache_write_price_per_mtok", cost?.CacheWritePricePerMillionTokens);
-        AddNullableDecimal(command, "cache_write_long_price_per_mtok", cost?.CacheWriteLongPricePerMillionTokens);
-        AddNullableText(command, "cost_currency", SqlText.Currency(cost?.Currency));
-        Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
-
-        // EXPECTED tenant. The maintenance endpoint
-        // (POST /api/stats/recalculate-costs) gets ids from a query already
-        // FILTERED by tenant and carries the same tenant here too, so the
-        // two-phase path has no race.
-        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(tenantId));
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.UpdateRunCost,
+            command =>
+            {
+                DbHelpers.Add(command, "id", runId);
+                AddNullableDecimal(command, "input_cost", cost?.InputCost);
+                AddNullableDecimal(command, "input_price_per_mtok", cost?.InputPricePerMillionTokens);
+                AddNullableDecimal(command, "output_cost", cost?.OutputCost);
+                AddNullableDecimal(command, "output_price_per_mtok", cost?.OutputPricePerMillionTokens);
+                AddNullableDecimal(command, "cached_input_cost", cost?.CachedInputCost);
+                AddNullableDecimal(command, "cached_input_price_per_mtok", cost?.CachedInputPricePerMillionTokens);
+                AddNullableDecimal(command, "cache_write_cost", cost?.CacheWriteCost);
+                AddNullableDecimal(command, "cache_write_price_per_mtok", cost?.CacheWritePricePerMillionTokens);
+                AddNullableDecimal(command, "cache_write_long_price_per_mtok", cost?.CacheWriteLongPricePerMillionTokens);
+                AddNullableText(command, "cost_currency", SqlText.Currency(cost?.Currency));
+                Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
+                // EXPECTED tenant. The maintenance endpoint
+                // (POST /api/stats/recalculate-costs) gets ids from a query already
+                // FILTERED by tenant and carries the same tenant here too, so the
+                // two-phase path has no race.
+                AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(tenantId));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -338,17 +344,18 @@ internal sealed class SqlRunStore : IRunStore
 
         foreach (var runId in runIds)
         {
-            var command = CreateCommand(_sql.TouchRunHeartbeat);
-            DbHelpers.Add(command, "id", runId);
-            Dialect.AddLeaseNow(command, at);
-            DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
-            DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
-
-            var rows = await DbHelpers.ReadListAsync(
-                command,
-                static reader => (
+            var rows = await _context.ExecuteStatementAsync(
+                _sql.TouchRunHeartbeat,
+                command =>
+                {
+                    DbHelpers.Add(command, "id", runId);
+                    Dialect.AddLeaseNow(command, at);
+                    DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+                    DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
+                },
+                (command, token) => DbHelpers.ReadListAsync(command, static reader => (
                     TenantId: reader.GetString(0),
-                    RequestedAt: DbHelpers.GetNullableTimestamp(reader, 1)),
+                    RequestedAt: DbHelpers.GetNullableTimestamp(reader, 1)), token),
                 cancellationToken).ConfigureAwait(false);
 
             foreach (var (tenantId, requestedAt) in rows)
@@ -377,16 +384,19 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
-        var command = CreateCommand(_sql.RequestRunCancellation);
-        DbHelpers.Add(command, "id", runId);
-
-        // EXPECTED tenant: the WHERE clause finds no row of another tenant.
-        DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddTimestamp(command, "at", at);
-        DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
-        DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.RequestRunCancellation,
+            command =>
+            {
+                DbHelpers.Add(command, "id", runId);
+                // EXPECTED tenant: the WHERE clause finds no row of another tenant.
+                DbHelpers.AddTenant(command, tenantId);
+                Dialect.AddTimestamp(command, "at", at);
+                DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+                DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -400,20 +410,23 @@ internal sealed class SqlRunStore : IRunStore
     {
         var now = _clock.GetUtcNow();
 
-        var command = CreateCommand(_sql.ClaimOrphanedRuns);
-        DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
-        Dialect.AddTimestamp(command, "now", now);
-        DbHelpers.Add(command, "error_class", (short)RunErrorClass.Infrastructure);
-        DbHelpers.Add(command, "error_fingerprint", OrphanedFingerprint);
-        DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
-        DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
-
-        // The threshold is measured back from the lease clock: the database server's on PostgreSQL and SQL Server (the
-        // clock the heartbeat was stamped with), this store's clock on SQLite (the clock the heartbeat writer stamps with).
-        Dialect.AddLeaseInstant(command, "stale_before", _clock, -staleAfter);
-        DbHelpers.Add(command, "max", Math.Max(max, 0));
-
-        var claimed = await DbHelpers.ReadListAsync(command, ReadOrphanedRun, cancellationToken).ConfigureAwait(false);
+        var claimed = await _context.ExecuteStatementAsync(
+            _sql.ClaimOrphanedRuns,
+            command =>
+            {
+                DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
+                Dialect.AddTimestamp(command, "now", now);
+                DbHelpers.Add(command, "error_class", (short)RunErrorClass.Infrastructure);
+                DbHelpers.Add(command, "error_fingerprint", OrphanedFingerprint);
+                DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+                DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
+                // The threshold is measured back from the lease clock: the database server's on PostgreSQL and SQL Server (the
+                // clock the heartbeat was stamped with), this store's clock on SQLite (the clock the heartbeat writer stamps with).
+                Dialect.AddLeaseInstant(command, "stale_before", _clock, -staleAfter);
+                DbHelpers.Add(command, "max", Math.Max(max, 0));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadOrphanedRun, token),
+            cancellationToken).ConfigureAwait(false);
 
         // The RunEventWriter no longer exists in that process; we write the
         // event here. The next scan will NEVER see this run_id again (its
@@ -422,13 +435,17 @@ internal sealed class SqlRunStore : IRunStore
         // job bounded by MaxRunsPerScan that runs once a minute.
         foreach (var record in claimed)
         {
-            var eventCommand = CreateCommand(_sql.InsertOrphanRunEvent);
-            DbHelpers.Add(eventCommand, "run_id", record.Id);
-            DbHelpers.Add(eventCommand, "type", (short)RunEventType.RunFailed);
-            Dialect.AddText(eventCommand, "text", ProtectedValue.Write(_context, ProtectedColumn.RunEventText, record.Error?.Message));
-            Dialect.AddTimestamp(eventCommand, "created_at", now);
-
-            await DbHelpers.ExecuteAsync(eventCommand, cancellationToken).ConfigureAwait(false);
+            await _context.ExecuteStatementAsync(
+                _sql.InsertOrphanRunEvent,
+                eventCommand =>
+                {
+                    DbHelpers.Add(eventCommand, "run_id", record.Id);
+                    DbHelpers.Add(eventCommand, "type", (short)RunEventType.RunFailed);
+                    Dialect.AddText(eventCommand, "text", ProtectedValue.Write(_context, ProtectedColumn.RunEventText, record.Error?.Message));
+                    Dialect.AddTimestamp(eventCommand, "created_at", now);
+                },
+                DbHelpers.ExecuteAsync,
+                cancellationToken).ConfigureAwait(false);
         }
 
         return claimed;
@@ -445,11 +462,15 @@ internal sealed class SqlRunStore : IRunStore
     /// <inheritdoc />
     public async ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectRun);
-        DbHelpers.Add(command, "id", runId);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadRun, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRun,
+            command =>
+            {
+                DbHelpers.Add(command, "id", runId);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadRun, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -459,24 +480,28 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = CreateCommand(_sql.SelectRuns);
-        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
-        AddNullableText(command, "agent_name", query.AgentName);
-        Dialect.AddInt16(command, "status", (short?)query.Status);
-        Dialect.AddInt16(command, "kind", (short?)query.Kind);
-        AddNullableText(command, "session_id", query.SessionId);
-        AddNullableText(command, "error_type", query.ErrorType);
-        AddNullableText(command, "user_id", query.UserId);
-        AddLabelFilter(command, query.LabelKey, query.LabelValue);
-        Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
-        AddNullableUuid(command, "parent_run_id", query.ParentRunId);
-        AddNullableUuid(command, "root_run_id", query.RootRunId);
-        AddNullableUuid(command, "continued_from_run_id", query.ContinuedFromRunId);
-        DbHelpers.Add(command, "only_root_runs", query.OnlyRootRuns);
-        DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
-        DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
-
-        return await DbHelpers.ReadListAsync(command, ReadRun, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRuns,
+            command =>
+            {
+                DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
+                AddNullableText(command, "agent_name", query.AgentName);
+                Dialect.AddInt16(command, "status", (short?)query.Status);
+                Dialect.AddInt16(command, "kind", (short?)query.Kind);
+                AddNullableText(command, "session_id", query.SessionId);
+                AddNullableText(command, "error_type", query.ErrorType);
+                AddNullableText(command, "user_id", query.UserId);
+                AddLabelFilter(command, query.LabelKey, query.LabelValue);
+                Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
+                AddNullableUuid(command, "parent_run_id", query.ParentRunId);
+                AddNullableUuid(command, "root_run_id", query.RootRunId);
+                AddNullableUuid(command, "continued_from_run_id", query.ContinuedFromRunId);
+                DbHelpers.Add(command, "only_root_runs", query.OnlyRootRuns);
+                DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
+                DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadRun, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -486,248 +511,255 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = CreateCommand(_sql.SelectRunStatistics);
-        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
-        AddNullableText(command, "agent_name", query.AgentName);
-        AddNullableText(command, "user_id", query.UserId);
-        AddLabelFilter(command, query.LabelKey, query.LabelValue);
-        Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
-        DbHelpers.Add(command, "max_agents", Math.Max(query.MaxAgents, 0));
-        DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
-        DbHelpers.Add(command, "status_completed", (short)RunStatus.Completed);
-        DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
-        DbHelpers.Add(command, "status_canceled", (short)RunStatus.Canceled);
-        DbHelpers.Add(command, "status_awaiting", (short)RunStatus.AwaitingInput);
-        DbHelpers.Add(command, "kind_eval", (short)RunKind.Eval);
-        DbHelpers.Add(command, "pricing_source_unknown", (short)PricingSource.Unknown);
-        DbHelpers.Add(command, "kind_binary", (short)RunScoreKind.Binary);
-        DbHelpers.Add(command, "top_clusters", (long)TopErrorClusterCount);
-
-        await using (command.ConfigureAwait(false))
-        {
-            var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (reader.ConfigureAwait(false))
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRunStatistics,
+            command =>
             {
-                // First result set: the overall summary. The aggregation query
-                // always returns exactly one row.
-                if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
+                AddNullableText(command, "agent_name", query.AgentName);
+                AddNullableText(command, "user_id", query.UserId);
+                AddLabelFilter(command, query.LabelKey, query.LabelValue);
+                Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
+                DbHelpers.Add(command, "max_agents", Math.Max(query.MaxAgents, 0));
+                DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+                DbHelpers.Add(command, "status_completed", (short)RunStatus.Completed);
+                DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
+                DbHelpers.Add(command, "status_canceled", (short)RunStatus.Canceled);
+                DbHelpers.Add(command, "status_awaiting", (short)RunStatus.AwaitingInput);
+                DbHelpers.Add(command, "kind_eval", (short)RunKind.Eval);
+                DbHelpers.Add(command, "pricing_source_unknown", (short)PricingSource.Unknown);
+                DbHelpers.Add(command, "kind_binary", (short)RunScoreKind.Binary);
+                DbHelpers.Add(command, "top_clusters", (long)TopErrorClusterCount);
+            },
+            async (command, _) =>
+            {
+                await using (command.ConfigureAwait(false))
                 {
-                    return EmptyStatistics;
-                }
+                    var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-                var total = reader.GetInt64(0);
-                var completed = reader.GetInt64(1);
-                var failed = reader.GetInt64(2);
-                var canceled = reader.GetInt64(3);
-                var running = reader.GetInt64(4);
-                var awaitingInput = reader.GetInt64(5);
-                var inputTokens = reader.GetInt64(6);
-                var outputTokens = reader.GetInt64(7);
-                var totalTokens = reader.GetInt64(8);
-                var totalCost = DbHelpers.GetNullableDecimal(reader, 9);
-                var currency = DbHelpers.GetNullableString(reader, 10);
-                var runsWithUnknownPricing = reader.GetInt64(11);
-                var scoredRuns = reader.GetInt64(12);
-                var positiveRate = reader.IsDBNull(13) ? (double?)null : reader.GetDouble(13);
-
-                // 🚨 14-17: appended in so the fixed positions above do
-                // not move. Counted INSIDE inputTokens/outputTokens, reported
-                // beside them.
-                var cachedInputTokens = reader.GetInt64(14);
-                var reasoningTokens = reader.GetInt64(15);
-                var audioInputTokens = reader.GetInt64(16);
-                var audioOutputTokens = reader.GetInt64(17);
-
-                // 18: amounts in two currencies are never added, and a breakdown
-                // carries no currency of its own, so a mixed window leaves every cost out.
-                var currencies = ToCurrencyCount(reader, 18);
-                var mixed = CurrencyTotals.IsMixed(currencies);
-
-                // 19-20: the cache writes, counted INSIDE inputTokens like the cache reads.
-                var cacheWriteInputTokens = reader.GetInt64(19);
-                var cacheWriteLongInputTokens = reader.GetInt64(20);
-
-                // Second result set: the breakdown by agent.
-                var byAgent = new List<RunAgentStatistics>();
-
-                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    await using (reader.ConfigureAwait(false))
                     {
-                        byAgent.Add(new RunAgentStatistics
+                        // First result set: the overall summary. The aggregation query
+                        // always returns exactly one row.
+                        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                         {
-                            AgentName = reader.GetString(0),
-                            TotalRuns = reader.GetInt64(1),
-                            FailedRuns = reader.GetInt64(2),
-                            TotalTokens = reader.GetInt64(3),
-                        });
-                    }
-                }
-
-                // Third result set: the breakdown by model. Runs with a NULL
-                // model_id are excluded from the query but are still counted
-                // in the totals.
-                var byModel = new List<RunModelStatistics>();
-
-                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        byModel.Add(new RunModelStatistics
-                        {
-                            ModelId = reader.GetString(0),
-                            TotalRuns = reader.GetInt64(1),
-                            InputTokens = reader.GetInt64(2),
-                            OutputTokens = reader.GetInt64(3),
-                            TotalTokens = reader.GetInt64(4),
-                            TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 5),
-                        });
-                    }
-                }
-
-                // Fourth result set: the breakdown by version. Runs with a
-                // NULL agent_version are excluded from the query but are still
-                // counted in the totals.
-                var byVersion = new List<RunVersionStatistics>();
-
-                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        byVersion.Add(new RunVersionStatistics
-                        {
-                            AgentName = reader.GetString(0),
-                            Version = reader.GetInt32(1),
-                            TotalRuns = reader.GetInt64(2),
-                            FailedRuns = reader.GetInt64(3),
-                            TotalTokens = reader.GetInt64(4),
-                        });
-                    }
-                }
-
-                // Fifth result set: the breakdown by error class.
-                var errorTotals = new List<(RunErrorClass Class, long TotalRuns)>();
-
-                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        errorTotals.Add(((RunErrorClass)reader.GetInt16(0), reader.GetInt64(1)));
-                    }
-                }
-
-                // Sixth result set: the top three fingerprints per class,
-                // returned SORTED by class (the SQL text guarantees this).
-                var clustersByClass = new Dictionary<RunErrorClass, List<RunErrorCluster>>();
-
-                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        var errorClass = (RunErrorClass)reader.GetInt16(0);
-
-                        if (!clustersByClass.TryGetValue(errorClass, out var clusters))
-                        {
-                            clusters = [];
-                            clustersByClass[errorClass] = clusters;
+                            return EmptyStatistics;
                         }
 
-                        clusters.Add(new RunErrorCluster
+                        var total = reader.GetInt64(0);
+                        var completed = reader.GetInt64(1);
+                        var failed = reader.GetInt64(2);
+                        var canceled = reader.GetInt64(3);
+                        var running = reader.GetInt64(4);
+                        var awaitingInput = reader.GetInt64(5);
+                        var inputTokens = reader.GetInt64(6);
+                        var outputTokens = reader.GetInt64(7);
+                        var totalTokens = reader.GetInt64(8);
+                        var totalCost = DbHelpers.GetNullableDecimal(reader, 9);
+                        var currency = DbHelpers.GetNullableString(reader, 10);
+                        var runsWithUnknownPricing = reader.GetInt64(11);
+                        var scoredRuns = reader.GetInt64(12);
+                        var positiveRate = reader.IsDBNull(13) ? (double?)null : reader.GetDouble(13);
+
+                        // 🚨 14-17: appended in so the fixed positions above do
+                        // not move. Counted INSIDE inputTokens/outputTokens, reported
+                        // beside them.
+                        var cachedInputTokens = reader.GetInt64(14);
+                        var reasoningTokens = reader.GetInt64(15);
+                        var audioInputTokens = reader.GetInt64(16);
+                        var audioOutputTokens = reader.GetInt64(17);
+
+                        // 18: amounts in two currencies are never added, and a breakdown
+                        // carries no currency of its own, so a mixed window leaves every cost out.
+                        var currencies = ToCurrencyCount(reader, 18);
+                        var mixed = CurrencyTotals.IsMixed(currencies);
+
+                        // 19-20: the cache writes, counted INSIDE inputTokens like the cache reads.
+                        var cacheWriteInputTokens = reader.GetInt64(19);
+                        var cacheWriteLongInputTokens = reader.GetInt64(20);
+
+                        // Second result set: the breakdown by agent.
+                        var byAgent = new List<RunAgentStatistics>();
+
+                        if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
                         {
-                            Fingerprint = reader.GetString(1),
-                            Count = reader.GetInt64(2),
-                            SampleMessage = reader.GetString(3),
-                            SampleRunId = reader.GetGuid(4),
-                            LastSeenAt = DbHelpers.GetTimestamp(reader, 5),
-                        });
+                            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                            {
+                                byAgent.Add(new RunAgentStatistics
+                                {
+                                    AgentName = reader.GetString(0),
+                                    TotalRuns = reader.GetInt64(1),
+                                    FailedRuns = reader.GetInt64(2),
+                                    TotalTokens = reader.GetInt64(3),
+                                });
+                            }
+                        }
+
+                        // Third result set: the breakdown by model. Runs with a NULL
+                        // model_id are excluded from the query but are still counted
+                        // in the totals.
+                        var byModel = new List<RunModelStatistics>();
+
+                        if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                        {
+                            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                            {
+                                byModel.Add(new RunModelStatistics
+                                {
+                                    ModelId = reader.GetString(0),
+                                    TotalRuns = reader.GetInt64(1),
+                                    InputTokens = reader.GetInt64(2),
+                                    OutputTokens = reader.GetInt64(3),
+                                    TotalTokens = reader.GetInt64(4),
+                                    TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 5),
+                                });
+                            }
+                        }
+
+                        // Fourth result set: the breakdown by version. Runs with a
+                        // NULL agent_version are excluded from the query but are still
+                        // counted in the totals.
+                        var byVersion = new List<RunVersionStatistics>();
+
+                        if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                        {
+                            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                            {
+                                byVersion.Add(new RunVersionStatistics
+                                {
+                                    AgentName = reader.GetString(0),
+                                    Version = reader.GetInt32(1),
+                                    TotalRuns = reader.GetInt64(2),
+                                    FailedRuns = reader.GetInt64(3),
+                                    TotalTokens = reader.GetInt64(4),
+                                });
+                            }
+                        }
+
+                        // Fifth result set: the breakdown by error class.
+                        var errorTotals = new List<(RunErrorClass Class, long TotalRuns)>();
+
+                        if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                        {
+                            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                            {
+                                errorTotals.Add(((RunErrorClass)reader.GetInt16(0), reader.GetInt64(1)));
+                            }
+                        }
+
+                        // Sixth result set: the top three fingerprints per class,
+                        // returned SORTED by class (the SQL text guarantees this).
+                        var clustersByClass = new Dictionary<RunErrorClass, List<RunErrorCluster>>();
+
+                        if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                        {
+                            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                            {
+                                var errorClass = (RunErrorClass)reader.GetInt16(0);
+
+                                if (!clustersByClass.TryGetValue(errorClass, out var clusters))
+                                {
+                                    clusters = [];
+                                    clustersByClass[errorClass] = clusters;
+                                }
+
+                                clusters.Add(new RunErrorCluster
+                                {
+                                    Fingerprint = reader.GetString(1),
+                                    Count = reader.GetInt64(2),
+                                    SampleMessage = reader.GetString(3),
+                                    SampleRunId = reader.GetGuid(4),
+                                    LastSeenAt = DbHelpers.GetTimestamp(reader, 5),
+                                });
+                            }
+                        }
+
+                        // Seventh result set: the breakdown by user. Runs
+                        // that carry no user are excluded by the query but are still
+                        // counted in the totals.
+                        var byUser = new List<RunUserStatistics>();
+
+                        if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                        {
+                            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                            {
+                                byUser.Add(new RunUserStatistics
+                                {
+                                    UserId = reader.GetString(0),
+                                    TotalRuns = reader.GetInt64(1),
+                                    FailedRuns = reader.GetInt64(2),
+                                    TotalTokens = reader.GetInt64(3),
+                                    TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 4),
+                                });
+                            }
+                        }
+
+                        // Eighth result set: the breakdown by label. 🚨 One row per
+                        // distinct key/value pair, so these rows do NOT sum to
+                        // TotalRuns -- a run carrying three labels appears three times.
+                        var byLabel = new List<RunLabelStatistics>();
+
+                        if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                        {
+                            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                            {
+                                byLabel.Add(new RunLabelStatistics
+                                {
+                                    Key = reader.GetString(0),
+                                    Value = reader.GetString(1),
+                                    TotalRuns = reader.GetInt64(2),
+                                    FailedRuns = reader.GetInt64(3),
+                                    TotalTokens = reader.GetInt64(4),
+                                    TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 5),
+                                });
+                            }
+                        }
+
+                        var byErrorClass = errorTotals
+                            .Select(pair => new RunErrorStatistics
+                            {
+                                Class = pair.Class,
+                                TotalRuns = pair.TotalRuns,
+                                TopClusters = clustersByClass.TryGetValue(pair.Class, out var clusters)
+                                    ? clusters
+                                    : [],
+                            })
+                            .ToList();
+
+                        return new RunStatistics
+                        {
+                            TotalRuns = total,
+                            CompletedRuns = completed,
+                            FailedRuns = failed,
+                            CanceledRuns = canceled,
+                            RunningRuns = running,
+                            AwaitingInputRuns = awaitingInput,
+                            InputTokens = inputTokens,
+                            OutputTokens = outputTokens,
+                            TotalTokens = totalTokens,
+                            CachedInputTokens = cachedInputTokens,
+                            CacheWriteInputTokens = cacheWriteInputTokens,
+                            CacheWriteLongInputTokens = cacheWriteLongInputTokens,
+                            ReasoningTokens = reasoningTokens,
+                            AudioInputTokens = audioInputTokens,
+                            AudioOutputTokens = audioOutputTokens,
+                            TotalCost = mixed ? null : totalCost,
+                            Currency = mixed ? null : currency,
+                            CurrencyCount = currencies,
+                            RunsWithUnknownPricing = runsWithUnknownPricing,
+                            ScoredRuns = scoredRuns,
+                            PositiveRate = positiveRate,
+                            ByAgent = byAgent,
+                            ByModel = byModel,
+                            ByVersion = byVersion,
+                            ByUser = byUser,
+                            ByLabel = byLabel,
+                            ByErrorClass = byErrorClass,
+                        };
                     }
                 }
-
-                // Seventh result set: the breakdown by user. Runs
-                // that carry no user are excluded by the query but are still
-                // counted in the totals.
-                var byUser = new List<RunUserStatistics>();
-
-                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        byUser.Add(new RunUserStatistics
-                        {
-                            UserId = reader.GetString(0),
-                            TotalRuns = reader.GetInt64(1),
-                            FailedRuns = reader.GetInt64(2),
-                            TotalTokens = reader.GetInt64(3),
-                            TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 4),
-                        });
-                    }
-                }
-
-                // Eighth result set: the breakdown by label. 🚨 One row per
-                // distinct key/value pair, so these rows do NOT sum to
-                // TotalRuns -- a run carrying three labels appears three times.
-                var byLabel = new List<RunLabelStatistics>();
-
-                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        byLabel.Add(new RunLabelStatistics
-                        {
-                            Key = reader.GetString(0),
-                            Value = reader.GetString(1),
-                            TotalRuns = reader.GetInt64(2),
-                            FailedRuns = reader.GetInt64(3),
-                            TotalTokens = reader.GetInt64(4),
-                            TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 5),
-                        });
-                    }
-                }
-
-                var byErrorClass = errorTotals
-                    .Select(pair => new RunErrorStatistics
-                    {
-                        Class = pair.Class,
-                        TotalRuns = pair.TotalRuns,
-                        TopClusters = clustersByClass.TryGetValue(pair.Class, out var clusters)
-                            ? clusters
-                            : [],
-                    })
-                    .ToList();
-
-                return new RunStatistics
-                {
-                    TotalRuns = total,
-                    CompletedRuns = completed,
-                    FailedRuns = failed,
-                    CanceledRuns = canceled,
-                    RunningRuns = running,
-                    AwaitingInputRuns = awaitingInput,
-                    InputTokens = inputTokens,
-                    OutputTokens = outputTokens,
-                    TotalTokens = totalTokens,
-                    CachedInputTokens = cachedInputTokens,
-                    CacheWriteInputTokens = cacheWriteInputTokens,
-                    CacheWriteLongInputTokens = cacheWriteLongInputTokens,
-                    ReasoningTokens = reasoningTokens,
-                    AudioInputTokens = audioInputTokens,
-                    AudioOutputTokens = audioOutputTokens,
-                    TotalCost = mixed ? null : totalCost,
-                    Currency = mixed ? null : currency,
-                    CurrencyCount = currencies,
-                    RunsWithUnknownPricing = runsWithUnknownPricing,
-                    ScoredRuns = scoredRuns,
-                    PositiveRate = positiveRate,
-                    ByAgent = byAgent,
-                    ByModel = byModel,
-                    ByVersion = byVersion,
-                    ByUser = byUser,
-                    ByLabel = byLabel,
-                    ByErrorClass = byErrorClass,
-                };
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The upper limit applied when selecting the top cluster set for one error class.</summary>
@@ -742,18 +774,22 @@ internal sealed class SqlRunStore : IRunStore
 
         RunTimeSeriesBucketing.Validate(query.From, query.To, query.Bucket);
 
-        var command = CreateCommand(_sql.SelectRunTimeSeries);
-        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
-        Dialect.AddTimestamp(command, "from_ts", query.From);
-        Dialect.AddTimestamp(command, "to_ts", query.To);
-        DbHelpers.Add(command, "bucket_unit", query.Bucket == TimeSeriesBucket.Hour ? "hour" : "day");
-        Dialect.AddInterval(command, "bucket_step", RunTimeSeriesBucketing.StepFor(query.Bucket));
-        DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
-        AddNullableText(command, "agent_name", query.AgentName);
-        AddNullableText(command, "model_id", query.ModelId);
-        Dialect.AddInt16(command, "kind", (short?)query.Kind);
-
-        return await DbHelpers.ReadListAsync(command, ReadTimeSeriesPoint, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRunTimeSeries,
+            command =>
+            {
+                DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
+                Dialect.AddTimestamp(command, "from_ts", query.From);
+                Dialect.AddTimestamp(command, "to_ts", query.To);
+                DbHelpers.Add(command, "bucket_unit", query.Bucket == TimeSeriesBucket.Hour ? "hour" : "day");
+                Dialect.AddInterval(command, "bucket_step", RunTimeSeriesBucketing.StepFor(query.Bucket));
+                DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
+                AddNullableText(command, "agent_name", query.AgentName);
+                AddNullableText(command, "model_id", query.ModelId);
+                Dialect.AddInt16(command, "kind", (short?)query.Kind);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadTimeSeriesPoint, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -762,6 +798,7 @@ internal sealed class SqlRunStore : IRunStore
         long fromSequence = 0,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        // autocommit-exempt: the rows go to the caller one at a time, so sending the read again after a victim would hand over the rows it had already yielded a second time
         var command = CreateCommand(_sql.SelectRunEvents);
         DbHelpers.Add(command, "run_id", runId);
         DbHelpers.Add(command, "from_sequence", fromSequence);
@@ -792,10 +829,14 @@ internal sealed class SqlRunStore : IRunStore
         Guid runId,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectLastRunEventSequence);
-        DbHelpers.Add(command, "run_id", runId);
-
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _context.ExecuteStatementAsync(
+            _sql.SelectLastRunEventSequence,
+            command =>
+            {
+                DbHelpers.Add(command, "run_id", runId);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return result is null or DBNull ? null : Convert.ToInt64(result, CultureInfo.InvariantCulture);
     }
@@ -807,47 +848,48 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(invocation);
 
-        var command = CreateCommand(_sql.InsertToolInvocation);
-        DbHelpers.Add(command, "id", invocation.Id);
-        DbHelpers.Add(command, "run_id", invocation.RunId);
-        DbHelpers.Add(command, "tool_name", invocation.ToolName);
-        AddNullableText(command, "tool_call_id", invocation.ToolCallId);
-        AddNullableText(command, "source", invocation.Source);
-        Dialect.AddText(command, "arguments", ProtectedValue.Write(_context, ProtectedColumn.ToolArguments, invocation.Arguments));
-        Dialect.AddText(command, "result", ProtectedValue.Write(_context, ProtectedColumn.ToolResult, invocation.Result));
-        // Duration is stored in milliseconds in the `integer` column; a tool
-        // call longer than 24 days is unrealistic and does not overflow.
-        Dialect.AddInt32(command, "duration_ms", invocation.Duration is { } duration
-                ? (int)Math.Clamp(duration.TotalMilliseconds, 0, int.MaxValue)
-                : null);
-        AddNullableText(command, "error", invocation.Error);
-        Dialect.AddTimestamp(command, "created_at", invocation.CreatedAt);
-
-        // Non-token usage measurement. Most calls carry no
-        // measurement and all five columns stay NULL. If the price is
-        // undefined, `cost` is written as NULL, not ZERO.
-        AddNullableText(command, "usage_unit", invocation.Usage?.Unit);
-        Dialect.AddDecimal(command, "usage_quantity", invocation.Usage?.Quantity);
-        Dialect.AddNullableBoolean(command, "usage_estimated", invocation.Usage?.IsEstimated);
-        Dialect.AddDecimal(command, "cost", invocation.Usage?.Cost);
-        AddNullableText(command, "cost_currency", SqlText.Currency(invocation.Usage?.Currency));
-        AddNullableText(command, "usage_provider", invocation.Usage?.Provider);
-        AddNullableText(command, "usage_model", invocation.Usage?.Model);
-
-        // Authorization decision and timeout marker. Both NOT
-        // NULL: a call that is neither denied nor timed out writes false,
-        // not NULL — this is a settled fact about the call, not an unknown.
-        Dialect.AddBoolean(command, "authorization_denied", invocation.AuthorizationDenied);
-        Dialect.AddBoolean(command, "timed_out", invocation.TimedOut);
-
-        // EXPECTED tenant. NULL means no check.
-        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(invocation.TenantId));
-
         int affected;
 
         try
         {
-            affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            affected = await _context.ExecuteStatementAsync(
+            _sql.InsertToolInvocation,
+            command =>
+            {
+                DbHelpers.Add(command, "id", invocation.Id);
+                DbHelpers.Add(command, "run_id", invocation.RunId);
+                DbHelpers.Add(command, "tool_name", invocation.ToolName);
+                AddNullableText(command, "tool_call_id", invocation.ToolCallId);
+                AddNullableText(command, "source", invocation.Source);
+                Dialect.AddText(command, "arguments", ProtectedValue.Write(_context, ProtectedColumn.ToolArguments, invocation.Arguments));
+                Dialect.AddText(command, "result", ProtectedValue.Write(_context, ProtectedColumn.ToolResult, invocation.Result));
+                // Duration is stored in milliseconds in the `integer` column; a tool
+                // call longer than 24 days is unrealistic and does not overflow.
+                Dialect.AddInt32(command, "duration_ms", invocation.Duration is { } duration
+                        ? (int)Math.Clamp(duration.TotalMilliseconds, 0, int.MaxValue)
+                        : null);
+                AddNullableText(command, "error", invocation.Error);
+                Dialect.AddTimestamp(command, "created_at", invocation.CreatedAt);
+                // Non-token usage measurement. Most calls carry no
+                // measurement and all five columns stay NULL. If the price is
+                // undefined, `cost` is written as NULL, not ZERO.
+                AddNullableText(command, "usage_unit", invocation.Usage?.Unit);
+                Dialect.AddDecimal(command, "usage_quantity", invocation.Usage?.Quantity);
+                Dialect.AddNullableBoolean(command, "usage_estimated", invocation.Usage?.IsEstimated);
+                Dialect.AddDecimal(command, "cost", invocation.Usage?.Cost);
+                AddNullableText(command, "cost_currency", SqlText.Currency(invocation.Usage?.Currency));
+                AddNullableText(command, "usage_provider", invocation.Usage?.Provider);
+                AddNullableText(command, "usage_model", invocation.Usage?.Model);
+                // Authorization decision and timeout marker. Both NOT
+                // NULL: a call that is neither denied nor timed out writes false,
+                // not NULL — this is a settled fact about the call, not an unknown.
+                Dialect.AddBoolean(command, "authorization_denied", invocation.AuthorizationDenied);
+                Dialect.AddBoolean(command, "timed_out", invocation.TimedOut);
+                // EXPECTED tenant. NULL means no check.
+                AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(invocation.TenantId));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
         }
         catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
         {
@@ -872,32 +914,33 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(completion);
 
-        var command = CreateCommand(_sql.UpdateLateToolInvocation);
-        DbHelpers.Add(command, "run_id", completion.RunId);
-        AddNullableText(command, "tool_call_id", completion.ToolCallId);
-        Dialect.AddText(command, "result", ProtectedValue.Write(_context, ProtectedColumn.ToolResult, completion.Result));
-
-        // Same millisecond clamp as RecordToolInvocationAsync above.
-        Dialect.AddInt32(command, "duration_ms", completion.Duration is { } duration
-                ? (int)Math.Clamp(duration.TotalMilliseconds, 0, int.MaxValue)
-                : null);
-
-        AddNullableText(command, "usage_unit", completion.Usage?.Unit);
-        Dialect.AddDecimal(command, "usage_quantity", completion.Usage?.Quantity);
-        Dialect.AddNullableBoolean(command, "usage_estimated", completion.Usage?.IsEstimated);
-        Dialect.AddDecimal(command, "cost", completion.Usage?.Cost);
-        AddNullableText(command, "cost_currency", SqlText.Currency(completion.Usage?.Currency));
-        AddNullableText(command, "usage_provider", completion.Usage?.Provider);
-        AddNullableText(command, "usage_model", completion.Usage?.Model);
-        Dialect.AddTimestamp(command, "late_completed_at", completion.LateCompletedAt);
-
-        // EXPECTED tenant. NULL means no check.
-        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(completion.TenantId));
-
         // 🚨 No row is NOT an error here, unlike RecordToolInvocationAsync. The
         // call settles after its own run has been reported done, and retention
         // may legitimately have deleted the run in between. The caller logs it.
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.UpdateLateToolInvocation,
+            command =>
+            {
+                DbHelpers.Add(command, "run_id", completion.RunId);
+                AddNullableText(command, "tool_call_id", completion.ToolCallId);
+                Dialect.AddText(command, "result", ProtectedValue.Write(_context, ProtectedColumn.ToolResult, completion.Result));
+                // Same millisecond clamp as RecordToolInvocationAsync above.
+                Dialect.AddInt32(command, "duration_ms", completion.Duration is { } duration
+                        ? (int)Math.Clamp(duration.TotalMilliseconds, 0, int.MaxValue)
+                        : null);
+                AddNullableText(command, "usage_unit", completion.Usage?.Unit);
+                Dialect.AddDecimal(command, "usage_quantity", completion.Usage?.Quantity);
+                Dialect.AddNullableBoolean(command, "usage_estimated", completion.Usage?.IsEstimated);
+                Dialect.AddDecimal(command, "cost", completion.Usage?.Cost);
+                AddNullableText(command, "cost_currency", SqlText.Currency(completion.Usage?.Currency));
+                AddNullableText(command, "usage_provider", completion.Usage?.Provider);
+                AddNullableText(command, "usage_model", completion.Usage?.Model);
+                Dialect.AddTimestamp(command, "late_completed_at", completion.LateCompletedAt);
+                // EXPECTED tenant. NULL means no check.
+                AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(completion.TenantId));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -905,12 +948,15 @@ internal sealed class SqlRunStore : IRunStore
         Guid runId,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectToolInvocations);
-        DbHelpers.Add(command, "run_id", runId);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-
-        return await DbHelpers
-            .ReadListAsync(command, ReadToolInvocation, cancellationToken)
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectToolInvocations,
+            command =>
+            {
+                DbHelpers.Add(command, "run_id", runId);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadToolInvocation, token),
+            cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -921,27 +967,30 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        var command = CreateCommand(_sql.InsertNonTokenUsage);
-        DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.Add(command, "run_id", record.RunId);
-        AddNullableText(command, "node_name", record.NodeName);
-        DbHelpers.Add(command, "unit", record.Usage.Unit);
-        Dialect.AddDecimal(command, "quantity", record.Usage.Quantity);
-        Dialect.AddDecimal(command, "cost", record.Usage.Cost);
-        AddNullableText(command, "currency", SqlText.Currency(record.Usage.Currency));
-        Dialect.AddBoolean(command, "estimated", record.Usage.IsEstimated);
-        AddNullableText(command, "provider", record.Usage.Provider);
-        AddNullableText(command, "model", record.Usage.Model);
-        Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
-
-        // EXPECTED tenant. NULL means no check.
-        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(record.TenantId));
-
         int affected;
 
         try
         {
-            affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            affected = await _context.ExecuteStatementAsync(
+            _sql.InsertNonTokenUsage,
+            command =>
+            {
+                DbHelpers.Add(command, "id", record.Id);
+                DbHelpers.Add(command, "run_id", record.RunId);
+                AddNullableText(command, "node_name", record.NodeName);
+                DbHelpers.Add(command, "unit", record.Usage.Unit);
+                Dialect.AddDecimal(command, "quantity", record.Usage.Quantity);
+                Dialect.AddDecimal(command, "cost", record.Usage.Cost);
+                AddNullableText(command, "currency", SqlText.Currency(record.Usage.Currency));
+                Dialect.AddBoolean(command, "estimated", record.Usage.IsEstimated);
+                AddNullableText(command, "provider", record.Usage.Provider);
+                AddNullableText(command, "model", record.Usage.Model);
+                Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+                // EXPECTED tenant. NULL means no check.
+                AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(record.TenantId));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
         }
         catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
         {
@@ -964,12 +1013,15 @@ internal sealed class SqlRunStore : IRunStore
         Guid runId,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectNonTokenUsage);
-        DbHelpers.Add(command, "run_id", runId);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-
-        return await DbHelpers
-            .ReadListAsync(command, ReadNonTokenUsage, cancellationToken)
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectNonTokenUsage,
+            command =>
+            {
+                DbHelpers.Add(command, "run_id", runId);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadNonTokenUsage, token),
+            cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -980,13 +1032,16 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = CreateCommand(_sql.SelectToolUsage);
-        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
-        Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
-        DbHelpers.Add(command, "max_tools", Math.Max(query.MaxTools, 0));
-
-        return await DbHelpers
-            .ReadListAsync(command, ReadToolUsage, cancellationToken)
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectToolUsage,
+            command =>
+            {
+                DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
+                Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
+                DbHelpers.Add(command, "max_tools", Math.Max(query.MaxTools, 0));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadToolUsage, token),
+            cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -997,16 +1052,19 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = CreateCommand(_sql.SelectExperimentResults);
-        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
-        DbHelpers.Add(command, "experiment_id", query.ExperimentId);
-        DbHelpers.Add(command, "status_completed", (short)RunStatus.Completed);
-        DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
-        DbHelpers.Add(command, "status_canceled", (short)RunStatus.Canceled);
-        DbHelpers.Add(command, "score_kind_numeric", (short)RunScoreKind.Numeric);
-
-        return await DbHelpers
-            .ReadListAsync(command, ReadExperimentVariantResult, cancellationToken)
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectExperimentResults,
+            command =>
+            {
+                DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
+                DbHelpers.Add(command, "experiment_id", query.ExperimentId);
+                DbHelpers.Add(command, "status_completed", (short)RunStatus.Completed);
+                DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
+                DbHelpers.Add(command, "status_canceled", (short)RunStatus.Canceled);
+                DbHelpers.Add(command, "score_kind_numeric", (short)RunScoreKind.Numeric);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadExperimentVariantResult, token),
+            cancellationToken)
             .ConfigureAwait(false);
     }
 

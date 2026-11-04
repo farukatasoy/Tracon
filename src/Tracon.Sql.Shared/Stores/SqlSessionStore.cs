@@ -100,20 +100,24 @@ internal sealed class SqlSessionStore : ISessionStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        var command = CreateCommand(_sql.InsertSession);
-        DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
-        DbHelpers.Add(command, "agent_name", record.AgentName);
-        Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
-        DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
-        Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
-        Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
-        Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
-        Dialect.AddText(command, "owner_id", record.OwnerId);
-
         try
         {
-            await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            await _context.ExecuteStatementAsync(
+            _sql.InsertSession,
+            command =>
+            {
+                DbHelpers.Add(command, "id", record.Id);
+                DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
+                DbHelpers.Add(command, "agent_name", record.AgentName);
+                Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
+                DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
+                Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
+                Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+                Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
+                Dialect.AddText(command, "owner_id", record.OwnerId);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
             return true;
         }
         catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
@@ -137,18 +141,22 @@ internal sealed class SqlSessionStore : ISessionStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        var command = CreateCommand(_sql.UpdateSessionIfVersionMatches);
-        DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
-        DbHelpers.Add(command, "agent_name", record.AgentName);
-        Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
-        DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
-        Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
-        Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
-        Dialect.AddText(command, "owner_id", record.OwnerId);
-        DbHelpers.Add(command, "expected_version", expectedVersion);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.UpdateSessionIfVersionMatches,
+            command =>
+            {
+                DbHelpers.Add(command, "id", record.Id);
+                DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
+                DbHelpers.Add(command, "agent_name", record.AgentName);
+                Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
+                DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
+                Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
+                Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
+                Dialect.AddText(command, "owner_id", record.OwnerId);
+                DbHelpers.Add(command, "expected_version", expectedVersion);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -156,13 +164,14 @@ internal sealed class SqlSessionStore : ISessionStore
     {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        var command = CreateCommand(_sql.SelectSession);
-        DbHelpers.Add(command, "id", sessionId);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-
-        return await DbHelpers.ReadSingleAsync(
-            command,
-            reader => new SessionRecord
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectSession,
+            command =>
+            {
+                DbHelpers.Add(command, "id", sessionId);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, reader => new SessionRecord
             {
                 Id = sessionId,
                 AgentName = reader.GetString(0),
@@ -174,7 +183,7 @@ internal sealed class SqlSessionStore : ISessionStore
                 Version = reader.GetInt64(6),
                 StateMafVersion = DbHelpers.GetNullableString(reader, 7),
                 OwnerId = DbHelpers.GetNullableString(reader, 8),
-            },
+            }, token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -183,11 +192,15 @@ internal sealed class SqlSessionStore : ISessionStore
     {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        var command = CreateCommand(_sql.DeleteSession);
-        DbHelpers.Add(command, "id", sessionId);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteSession,
+            command =>
+            {
+                DbHelpers.Add(command, "id", sessionId);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -197,21 +210,21 @@ internal sealed class SqlSessionStore : ISessionStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = CreateCommand(_sql.SelectSessions);
-        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
-        Dialect.AddText(command, "agent_name", query.AgentName);
-
-        // 🚨 Typed explicitly like every other optional filter parameter: an
-        // untyped NULL is 42P08 on PostgreSQL and a silently wrong plan on SQL
-        // Server. The predicate itself lives in the WHERE clause of each
-        // dialect's SelectSessions, ahead of paging.
-        Dialect.AddText(command, "owner_id", query.OwnerId);
-        DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
-        DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
-
-        return await DbHelpers.ReadListAsync(
-            command,
-            reader =>
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectSessions,
+            command =>
+            {
+                DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
+                Dialect.AddText(command, "agent_name", query.AgentName);
+                // 🚨 Typed explicitly like every other optional filter parameter: an
+                // untyped NULL is 42P08 on PostgreSQL and a silently wrong plan on SQL
+                // Server. The predicate itself lives in the WHERE clause of each
+                // dialect's SelectSessions, ahead of paging.
+                Dialect.AddText(command, "owner_id", query.OwnerId);
+                DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
+                DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader =>
             {
                 var id = reader.GetString(0);
 
@@ -228,11 +241,9 @@ internal sealed class SqlSessionStore : ISessionStore
                     StateMafVersion = DbHelpers.GetNullableString(reader, 8),
                     OwnerId = DbHelpers.GetNullableString(reader, 9),
                 };
-            },
+            }, token),
             cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     /// <summary>
     /// Parses the stored state text. Validating <see cref="SessionRecord.StateSchemaVersion"/>

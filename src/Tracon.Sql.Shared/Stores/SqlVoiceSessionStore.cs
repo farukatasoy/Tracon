@@ -65,17 +65,20 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = _context.CreateCommand(_sql.SelectVoiceSessions);
-        DbHelpers.AddTenant(command, tenantId);
-
-        // 🚨 Optional filters are typed EXPLICITLY: when an untyped NULL is
-        // sent, PostgreSQL cannot infer the type and returns 42P08.
-        Dialect.AddText(command, "agent_name", query.AgentName);
-        Dialect.AddText(command, "session_id", query.SessionId);
-        DbHelpers.Add(command, "skip", Math.Max(0, query.Skip));
-        DbHelpers.Add(command, "take", Math.Clamp(query.Take, 1, 200));
-
-        return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectVoiceSessions,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                // 🚨 Optional filters are typed EXPLICITLY: when an untyped NULL is
+                // sent, PostgreSQL cannot infer the type and returns 42P08.
+                Dialect.AddText(command, "agent_name", query.AgentName);
+                Dialect.AddText(command, "session_id", query.SessionId);
+                DbHelpers.Add(command, "skip", Math.Max(0, query.Skip));
+                DbHelpers.Add(command, "take", Math.Clamp(query.Take, 1, 200));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Reads one record.</summary>

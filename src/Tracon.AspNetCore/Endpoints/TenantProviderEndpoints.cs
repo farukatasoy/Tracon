@@ -59,8 +59,9 @@ internal static class TenantProviderEndpoints
                 "allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; " +
                 "a flat name directly under the prefix belongs to the default tenant (400 " +
                 "otherwise). The provider must be allowed by the tenant's egress policy, if one " +
-                "is defined (400 otherwise). A tenant other than the caller's own requires " +
-                "platform authority (403 otherwise).");
+                "is defined (400 otherwise). The provider name holds only the ASCII letters, the " +
+                "digits, '_', '.' and '-' (400 otherwise). A tenant other than the caller's own " +
+                "requires platform authority (403 otherwise).");
 
         builder.MapDelete("/api/tenants/{tenantId}/providers/{provider}", DeleteBindingAsync)
             .RequireRole(roles.Admin)
@@ -71,6 +72,7 @@ internal static class TenantProviderEndpoints
             .WithSummary("Deletes a tenant's binding for a provider.")
             .WithDescription(
                 "After deletion, calls for that provider use the setup-time global credential again. " +
+                "A provider name outside the ASCII letters, the digits, '_', '.' and '-' returns 400. " +
                 "A tenant other than the caller's own requires platform authority (403 otherwise).");
 
         builder.MapGet("/api/tenants/{tenantId}/egress", GetEgressPolicyAsync)
@@ -153,6 +155,11 @@ internal static class TenantProviderEndpoints
         if (!HttpTenantContext.IsValidTenantId(tenantId))
         {
             return Invalid("Invalid tenant key.");
+        }
+
+        if (!TenantProviderBinding.TryNormalizeProviderName(provider, out _))
+        {
+            return Invalid(ProviderNameRule);
         }
 
         var (bound, bindError) = await RequestBodyBinding
@@ -249,6 +256,11 @@ internal static class TenantProviderEndpoints
         CancellationToken cancellationToken)
     {
         tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
+
+        if (!TenantProviderBinding.TryNormalizeProviderName(provider, out _))
+        {
+            return Invalid(ProviderNameRule);
+        }
 
         var deleted = await store.DeleteAsync(tenantId, provider, cancellationToken).ConfigureAwait(false);
 
@@ -420,6 +432,9 @@ internal static class TenantProviderEndpoints
             title: "Binding not found",
             detail: $"Tenant '{tenantId}' has no binding for provider '{provider}'.",
             statusCode: StatusCodes.Status404NotFound);
+
+    private const string ProviderNameRule =
+        "A provider name may hold only the ASCII letters, the digits, '_', '.' and '-'.";
 
     private static ProblemHttpResult Invalid(string detail)
         => TypedResults.Problem(

@@ -36,9 +36,14 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
-        var command = CreateCommand(_sql.SelectSkillScriptGrants);
-        DbHelpers.AddTenant(command, tenantId);
-        return await DbHelpers.ReadListAsync(command, ReadGrant, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectSkillScriptGrants,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadGrant, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -53,12 +58,17 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(skillName);
         ArgumentNullException.ThrowIfNull(scriptName);
 
-        var command = CreateCommand(_sql.SelectActiveSkillScriptGrant);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "skill_name", skillName);
-        Dialect.AddText(command, "script_name", scriptName);
-        Dialect.AddTimestamp(command, "instant", instant);
-        return await DbHelpers.ReadSingleAsync(command, ReadGrant, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectActiveSkillScriptGrant,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "skill_name", skillName);
+                Dialect.AddText(command, "script_name", scriptName);
+                Dialect.AddTimestamp(command, "instant", instant);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadGrant, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -101,12 +111,17 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(skillName);
 
-        var command = CreateCommand(_sql.RevokeSkillScriptGrant);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "skill_name", skillName);
-        Dialect.AddText(command, "script_name", scriptName);
-        Dialect.AddTimestamp(command, "revoked_at", DateTimeOffset.UtcNow);
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.RevokeSkillScriptGrant,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "skill_name", skillName);
+                Dialect.AddText(command, "script_name", scriptName);
+                Dialect.AddTimestamp(command, "revoked_at", DateTimeOffset.UtcNow);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     private static SkillScriptGrant ReadGrant(DbDataReader reader) => new()
@@ -122,5 +137,4 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         ContentHash = DbHelpers.GetNullableString(reader, 8),
     };
 
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 }

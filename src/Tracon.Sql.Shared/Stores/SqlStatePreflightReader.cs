@@ -50,17 +50,16 @@ internal sealed class SqlStatePreflightReader : IStatePreflightReader
         StatePreflightTarget target,
         CancellationToken cancellationToken = default)
     {
-        var command = _context.CreateCommand(target is StatePreflightTarget.Sessions
+        var tallies = await _context.ExecuteStatementAsync(
+            target is StatePreflightTarget.Sessions
             ? _sql.CountSessionStateGenerations
-            : _sql.CountCheckpointStateGenerations);
-
-        var tallies = await DbHelpers.ReadListAsync(
-            command,
-            static reader => new StateGenerationTally
+            : _sql.CountCheckpointStateGenerations,
+            static command => { },
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => new StateGenerationTally
             {
                 SchemaGeneration = DbHelpers.GetNullableInt32(reader, 0),
                 RecordCount = reader.GetInt64(1),
-            },
+            }, token),
             cancellationToken).ConfigureAwait(false);
 
         // Ordered here, not in SQL: the three providers disagree on where a
@@ -85,12 +84,14 @@ internal sealed class SqlStatePreflightReader : IStatePreflightReader
         }
 
         var isSessions = target is StatePreflightTarget.Sessions;
-        var command = _context.CreateCommand(isSessions ? _sql.SampleSessionStates : _sql.SampleCheckpointStates);
-        DbHelpers.Add(command, "per_generation", perGeneration);
 
-        return await DbHelpers.ReadListAsync(
-            command,
-            reader => new StateSample
+        return await _context.ExecuteStatementAsync(
+            isSessions ? _sql.SampleSessionStates : _sql.SampleCheckpointStates,
+            command =>
+            {
+                DbHelpers.Add(command, "per_generation", perGeneration);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => new StateSample
             {
                 // 🚨 NOT reader.GetString(0). `sessions.id` is text on all
                 // three providers, but `workflow_checkpoints.id` is `uuid` on
@@ -105,7 +106,7 @@ internal sealed class SqlStatePreflightReader : IStatePreflightReader
                 // Both `sessions.state` and,
                 // `workflow_checkpoints.state` go through the at-rest protector.
                 State = ParseState(Unprotect(reader.GetString(3))),
-            },
+            }, token),
             cancellationToken).ConfigureAwait(false);
     }
 

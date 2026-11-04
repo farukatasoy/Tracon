@@ -29,9 +29,14 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
-        var command = CreateCommand(_sql.SelectAgentSkills);
-        DbHelpers.AddTenant(command, tenantId);
-        var rows = await DbHelpers.ReadListAsync(command, ReadSkill, cancellationToken).ConfigureAwait(false);
+        var rows = await _context.ExecuteStatementAsync(
+            _sql.SelectAgentSkills,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadSkill, token),
+            cancellationToken).ConfigureAwait(false);
 
         for (var index = 0; index < rows.Count; index++)
         {
@@ -55,10 +60,15 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
 
-        var command = CreateCommand(_sql.SelectAgentSkill);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        var skill = await DbHelpers.ReadSingleAsync(command, ReadSkill, cancellationToken).ConfigureAwait(false);
+        var skill = await _context.ExecuteStatementAsync(
+            _sql.SelectAgentSkill,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadSkill, token),
+            cancellationToken).ConfigureAwait(false);
 
         if (skill is { })
         {
@@ -142,27 +152,34 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
 
-        var command = CreateCommand(_sql.DeleteAgentSkill);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteAgentSkill,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     private async ValueTask<IReadOnlyList<AgentSkillResourceDefinition>> ReadResourcesAsync(
         Guid skillId,
         CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.SelectAgentSkillResources);
-        DbHelpers.Add(command, "skill_id", skillId);
-        return await DbHelpers.ReadListAsync(
-            command,
-            static reader => new AgentSkillResourceDefinition
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentSkillResources,
+            command =>
+            {
+                DbHelpers.Add(command, "skill_id", skillId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => new AgentSkillResourceDefinition
             {
                 Name = reader.GetString(0),
                 Description = DbHelpers.GetNullableString(reader, 1),
                 MediaType = reader.GetString(2),
                 Content = reader.GetString(3),
-            },
+            }, token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -170,18 +187,20 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         Guid skillId,
         CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.SelectAgentSkillScripts);
-        DbHelpers.Add(command, "skill_id", skillId);
-        return await DbHelpers.ReadListAsync(
-            command,
-            static reader => new AgentSkillScriptDefinition
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentSkillScripts,
+            command =>
+            {
+                DbHelpers.Add(command, "skill_id", skillId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => new AgentSkillScriptDefinition
             {
                 Name = reader.GetString(0),
                 Description = DbHelpers.GetNullableString(reader, 1),
                 Extension = reader.GetString(2),
                 Content = reader.GetString(3),
                 ParametersSchema = DbHelpers.GetNullableString(reader, 4),
-            },
+            }, token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -226,5 +245,4 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         };
     }
 
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 }

@@ -409,7 +409,7 @@ export interface paths {
         };
         /**
          * Lists runs from newest to oldest.
-         * @description By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. 'continuedFromRunId' returns the runs that continue a given run after an interruption (each continuation names the run it continues in 'continuedFromRunId'); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
+         * @description By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. 'continuedFromRunId' returns the runs that continue a given run after an interruption (each continuation names the run it continues in 'continuedFromRunId'); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered. A 'sessionId' longer than 200 characters, or one that starts or ends with whitespace, returns 400.
          */
         get: operations["TraconListRuns"];
         put?: never;
@@ -1794,13 +1794,13 @@ export interface paths {
         get?: never;
         /**
          * Creates or replaces a tenant's binding for a provider.
-         * @description The body carries only the configuration key's NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). The provider must be allowed by the tenant's egress policy, if one is defined (400 otherwise). A tenant other than the caller's own requires platform authority (403 otherwise).
+         * @description The body carries only the configuration key's NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). The provider must be allowed by the tenant's egress policy, if one is defined (400 otherwise). The provider name holds only the ASCII letters, the digits, '_', '.' and '-' (400 otherwise). A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         put: operations["TraconSaveTenantProviderBinding"];
         post?: never;
         /**
          * Deletes a tenant's binding for a provider.
-         * @description After deletion, calls for that provider use the setup-time global credential again. A tenant other than the caller's own requires platform authority (403 otherwise).
+         * @description After deletion, calls for that provider use the setup-time global credential again. A provider name outside the ASCII letters, the digits, '_', '.' and '-' returns 400. A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         delete: operations["TraconDeleteTenantProviderBinding"];
         options?: never;
@@ -2253,7 +2253,7 @@ export interface paths {
         };
         /**
          * Lists the summary record of real-time speech connections.
-         * @description The record does NOT contain audio: it only carries duration, turn count, and metering. If the speech layer is not enabled, the list is empty.
+         * @description The record does NOT contain audio: it only carries duration, turn count, and metering. If the speech layer is not enabled, the list is empty. A 'sessionId' longer than 200 characters, or one that starts or ends with whitespace, returns 400.
          */
         get: operations["TraconVoiceSessions"];
         put?: never;
@@ -10592,6 +10592,15 @@ export interface operations {
                     "application/json": components["schemas"]["RunRecord"][];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Forbidden */
             403: {
                 headers: {
@@ -13769,6 +13778,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VoiceSessionRecord"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

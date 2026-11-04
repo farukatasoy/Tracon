@@ -39,10 +39,14 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectToolApprovalRules);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadRule, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectToolApprovalRules,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadRule, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -89,14 +93,16 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.DeleteToolApprovalRule);
-        DbHelpers.Add(command, "id", ruleId);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteToolApprovalRule,
+            command =>
+            {
+                DbHelpers.Add(command, "id", ruleId);
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     // 🚨 New columns are ALWAYS appended at the end:
     // argument_conditions reads by fixed ordinal 7, after the original seven columns,
@@ -159,10 +165,14 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectMcpServers);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadServer, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectMcpServers,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadServer, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -174,11 +184,15 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.SelectMcpServer);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadServer, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectMcpServer,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadServer, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -224,14 +238,16 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.DeleteMcpServer);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteMcpServer,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     // Headers are a flat string dictionary; written by hand with Utf8JsonWriter
     // (reflection-free, AOT-compatible). jsonb is safe here because the value
@@ -345,9 +361,11 @@ internal sealed class SqlTenantStore : ITenantStore
         "The tenant registry itself sits ABOVE tenants: listing returns every tenant in the installation and exists for the management surface (Admin policy). A tenant filter here reduces to 'list yourself' and is meaningless.")]
     public async ValueTask<IReadOnlyList<TenantDescriptor>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectTenants);
-
-        return await DbHelpers.ReadListAsync(command, ReadTenant, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectTenants,
+            static command => { },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadTenant, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -385,13 +403,15 @@ internal sealed class SqlTenantStore : ITenantStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 
-        var command = CreateCommand(_sql.DeleteTenant);
-        DbHelpers.Add(command, "slug", AmbientTenantScope.Normalize(slug));
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteTenant,
+            command =>
+            {
+                DbHelpers.Add(command, "slug", AmbientTenantScope.Normalize(slug));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static TenantDescriptor ReadTenant(DbDataReader reader)
         => new()

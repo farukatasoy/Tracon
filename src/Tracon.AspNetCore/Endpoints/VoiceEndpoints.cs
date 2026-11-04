@@ -101,7 +101,9 @@ internal static class VoiceEndpoints
             .WithSummary("Lists the summary record of real-time speech connections.")
             .WithDescription(
                 "The record does NOT contain audio: it only carries duration, turn count, and " +
-                "metering. If the speech layer is not enabled, the list is empty.");
+                "metering. If the speech layer is not enabled, the list is empty. A 'sessionId' longer " +
+                "than 200 characters, or one that starts or ends with whitespace, returns 400.")
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         builder.MapPost("/api/voice/speak", SpeakAsync)
             .RequireRole(roles.Operator)
@@ -327,7 +329,7 @@ internal static class VoiceEndpoints
     /// the list endpoint reports the absence of data, not the presence of a
     /// capability; the frontend panel renders without error.
     /// </remarks>
-    private static async Task<Ok<IReadOnlyList<VoiceSessionRecord>>> ListSessionsAsync(
+    private static async Task<Results<Ok<IReadOnlyList<VoiceSessionRecord>>, ProblemHttpResult>> ListSessionsAsync(
         [FromServices] IVoiceSessionStore? store,
         ITenantContext tenantContext,
         [FromQuery] string? agentName,
@@ -336,6 +338,12 @@ internal static class VoiceEndpoints
         [FromQuery] int? take,
         CancellationToken cancellationToken)
     {
+        // The filter is compared with the session ids of the store, so it follows the rules those ids follow.
+        if (SessionIdLimits.Check(sessionId, "sessionId") is { } sessionIdProblem)
+        {
+            return sessionIdProblem;
+        }
+
         if (store is null)
         {
             return TypedResults.Ok<IReadOnlyList<VoiceSessionRecord>>([]);

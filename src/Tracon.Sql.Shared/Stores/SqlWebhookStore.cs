@@ -36,10 +36,14 @@ internal sealed class SqlWebhookStore : IWebhookStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectWebhookSubscriptions);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWebhookSubscriptions,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadSubscription, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -51,11 +55,15 @@ internal sealed class SqlWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.SelectWebhookSubscription);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWebhookSubscription,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadSubscription, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -67,11 +75,15 @@ internal sealed class SqlWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
 
-        var command = CreateCommand(_sql.SelectWebhookSubscriptionsForEvent);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "event_type", eventType);
-
-        return await DbHelpers.ReadListAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWebhookSubscriptionsForEvent,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "event_type", eventType);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadSubscription, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -114,11 +126,16 @@ internal sealed class SqlWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         // The delivery history is deleted along with it via ON DELETE CASCADE (migration 0012).
-        var command = CreateCommand(_sql.DeleteWebhookSubscription);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
 
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteWebhookSubscription,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -131,13 +148,17 @@ internal sealed class SqlWebhookStore : IWebhookStore
         DateTimeOffset updatedAt,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.UpdateWebhookSubscriptionOutcome);
-        DbHelpers.Add(command, "id", subscriptionId);
-        DbHelpers.Add(command, "succeeded", succeeded);
-        DbHelpers.Add(command, "threshold", disableThreshold);
-        Dialect.AddTimestamp(command, "updated_at", updatedAt);
-
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _context.ExecuteStatementAsync(
+            _sql.UpdateWebhookSubscriptionOutcome,
+            command =>
+            {
+                DbHelpers.Add(command, "id", subscriptionId);
+                DbHelpers.Add(command, "succeeded", succeeded);
+                DbHelpers.Add(command, "threshold", disableThreshold);
+                Dialect.AddTimestamp(command, "updated_at", updatedAt);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return result is not null && DbHelpers.ToBoolean(result);
     }
@@ -153,20 +174,24 @@ internal sealed class SqlWebhookStore : IWebhookStore
         // form the row holds whichever spelling the caller wrote.
         var tenantId = AmbientTenantScope.Normalize(delivery.TenantId);
 
-        var command = CreateCommand(_sql.InsertWebhookDelivery);
-        DbHelpers.Add(command, "id", delivery.Id);
-        DbHelpers.Add(command, "subscription_id", delivery.SubscriptionId);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "event_type", delivery.EventType);
-        DbHelpers.Add(command, "payload", delivery.Payload);
-        DbHelpers.Add(command, "status", (short)delivery.Status);
-        DbHelpers.Add(command, "attempt", (short)delivery.Attempt);
-        Dialect.AddInt32(command, "response_code", delivery.ResponseCode);
-        Dialect.AddText(command, "error", delivery.Error);
-        Dialect.AddTimestamp(command, "created_at", delivery.CreatedAt);
-        Dialect.AddTimestamp(command, "delivered_at", delivery.DeliveredAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.InsertWebhookDelivery,
+            command =>
+            {
+                DbHelpers.Add(command, "id", delivery.Id);
+                DbHelpers.Add(command, "subscription_id", delivery.SubscriptionId);
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "event_type", delivery.EventType);
+                DbHelpers.Add(command, "payload", delivery.Payload);
+                DbHelpers.Add(command, "status", (short)delivery.Status);
+                DbHelpers.Add(command, "attempt", (short)delivery.Attempt);
+                Dialect.AddInt32(command, "response_code", delivery.ResponseCode);
+                Dialect.AddText(command, "error", delivery.Error);
+                Dialect.AddTimestamp(command, "created_at", delivery.CreatedAt);
+                Dialect.AddTimestamp(command, "delivered_at", delivery.DeliveredAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return delivery with { TenantId = tenantId };
     }
@@ -178,10 +203,14 @@ internal sealed class SqlWebhookStore : IWebhookStore
         Guid deliveryId,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectWebhookDelivery);
-        DbHelpers.Add(command, "id", deliveryId);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadDelivery, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWebhookDelivery,
+            command =>
+            {
+                DbHelpers.Add(command, "id", deliveryId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadDelivery, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -193,15 +222,19 @@ internal sealed class SqlWebhookStore : IWebhookStore
     {
         ArgumentNullException.ThrowIfNull(result);
 
-        var command = CreateCommand(_sql.UpdateWebhookDeliveryResult);
-        DbHelpers.Add(command, "id", result.DeliveryId);
-        DbHelpers.Add(command, "status", (short)result.Status);
-        DbHelpers.Add(command, "attempt", (short)result.Attempt);
-        Dialect.AddInt32(command, "response_code", result.ResponseCode);
-        Dialect.AddText(command, "error", result.Error);
-        Dialect.AddTimestamp(command, "recorded_at", result.RecordedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.UpdateWebhookDeliveryResult,
+            command =>
+            {
+                DbHelpers.Add(command, "id", result.DeliveryId);
+                DbHelpers.Add(command, "status", (short)result.Status);
+                DbHelpers.Add(command, "attempt", (short)result.Attempt);
+                Dialect.AddInt32(command, "response_code", result.ResponseCode);
+                Dialect.AddText(command, "error", result.Error);
+                Dialect.AddTimestamp(command, "recorded_at", result.RecordedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -211,21 +244,22 @@ internal sealed class SqlWebhookStore : IWebhookStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = CreateCommand(_sql.SelectWebhookDeliveries);
-        DbHelpers.AddTenant(command, query.TenantId);
-
-        // 🚨 In the `(@p IS NULL OR col = @p)` pattern, when the parameter is
-        // NULL the driver cannot infer its type (`42P08`). Optional filter
-        // parameters are therefore typed EXPLICITLY.
-        Dialect.AddUuid(command, "subscription_id", query.SubscriptionId);
-        Dialect.AddInt16(command, "status", query.Status is { } status ? (short?)status : null);
-        DbHelpers.Add(command, "skip", Math.Max(0, query.Skip));
-        DbHelpers.Add(command, "take", Math.Max(1, query.Take));
-
-        return await DbHelpers.ReadListAsync(command, ReadDelivery, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWebhookDeliveries,
+            command =>
+            {
+                DbHelpers.AddTenant(command, query.TenantId);
+                // 🚨 In the `(@p IS NULL OR col = @p)` pattern, when the parameter is
+                // NULL the driver cannot infer its type (`42P08`). Optional filter
+                // parameters are therefore typed EXPLICITLY.
+                Dialect.AddUuid(command, "subscription_id", query.SubscriptionId);
+                Dialect.AddInt16(command, "status", query.Status is { } status ? (short?)status : null);
+                DbHelpers.Add(command, "skip", Math.Max(0, query.Skip));
+                DbHelpers.Add(command, "take", Math.Max(1, query.Take));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadDelivery, token),
+            cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static string SerializeHeaders(IReadOnlyDictionary<string, string> headers)
     {

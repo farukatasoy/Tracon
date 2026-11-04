@@ -63,24 +63,28 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
             dbContent = content.Data.ToArray();
         }
 
-        var command = CreateCommand(_sql.InsertAttachment);
-        DbHelpers.Add(command, "id", id);
-        DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddText(command, "session_id", content.SessionId);
-        Dialect.AddUuid(command, "run_id", content.RunId);
-        DbHelpers.Add(command, "file_name", content.FileName);
-        DbHelpers.Add(command, "media_type", content.MediaType);
-        DbHelpers.Add(command, "byte_size", content.Data.Length);
-        DbHelpers.Add(command, "sha256", sha256);
-        // The hash above is computed on PLAINTEXT before this call, on
-        // purpose: it identifies the file's actual content and must not
-        // change depending on whether protection is on.
-        Dialect.AddBinary(command, "content", ProtectedValue.WriteBytes(_context, ProtectedColumn.AttachmentContent, dbContent));
-        Dialect.AddText(command, "external_uri", externalUri?.ToString());
-        Dialect.AddText(command, "created_by", content.CreatedBy);
-        Dialect.AddTimestamp(command, "created_at", now);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.InsertAttachment,
+            command =>
+            {
+                DbHelpers.Add(command, "id", id);
+                DbHelpers.AddTenant(command, tenantId);
+                Dialect.AddText(command, "session_id", content.SessionId);
+                Dialect.AddUuid(command, "run_id", content.RunId);
+                DbHelpers.Add(command, "file_name", content.FileName);
+                DbHelpers.Add(command, "media_type", content.MediaType);
+                DbHelpers.Add(command, "byte_size", content.Data.Length);
+                DbHelpers.Add(command, "sha256", sha256);
+                // The hash above is computed on PLAINTEXT before this call, on
+                // purpose: it identifies the file's actual content and must not
+                // change depending on whether protection is on.
+                Dialect.AddBinary(command, "content", ProtectedValue.WriteBytes(_context, ProtectedColumn.AttachmentContent, dbContent));
+                Dialect.AddText(command, "external_uri", externalUri?.ToString());
+                Dialect.AddText(command, "created_by", content.CreatedBy);
+                Dialect.AddTimestamp(command, "created_at", now);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return new AttachmentDescriptor
         {
@@ -105,11 +109,15 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
-        var command = CreateCommand(_sql.SelectAttachment);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "id", id);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadDescriptor, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAttachment,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "id", id);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadDescriptor, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -120,11 +128,15 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
-        var command = CreateCommand(_sql.SelectAttachmentContent);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "id", id);
-
-        var row = await DbHelpers.ReadSingleAsync(command, ReadContentRow, cancellationToken).ConfigureAwait(false);
+        var row = await _context.ExecuteStatementAsync(
+            _sql.SelectAttachmentContent,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "id", id);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadContentRow, token),
+            cancellationToken).ConfigureAwait(false);
 
         if (row is null)
         {
@@ -147,13 +159,17 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = CreateCommand(_sql.SelectAttachments);
-        DbHelpers.AddTenant(command, query.TenantId);
-        Dialect.AddText(command, "session_id", query.SessionId);
-        DbHelpers.Add(command, "skip", query.Skip);
-        DbHelpers.Add(command, "take", query.Take);
-
-        return await DbHelpers.ReadListAsync(command, ReadDescriptor, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAttachments,
+            command =>
+            {
+                DbHelpers.AddTenant(command, query.TenantId);
+                Dialect.AddText(command, "session_id", query.SessionId);
+                DbHelpers.Add(command, "skip", query.Skip);
+                DbHelpers.Add(command, "take", query.Take);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadDescriptor, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -168,13 +184,14 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
 
         if (_storage is not null)
         {
-            var select = CreateCommand(_sql.SelectAttachmentExternalUri);
-            DbHelpers.AddTenant(select, tenantId);
-            DbHelpers.Add(select, "id", id);
-
-            var found = await DbHelpers.ReadListAsync(
-                select,
-                static reader => DbHelpers.GetNullableString(reader, 0),
+            var found = await _context.ExecuteStatementAsync(
+                _sql.SelectAttachmentExternalUri,
+                select =>
+                {
+                    DbHelpers.AddTenant(select, tenantId);
+                    DbHelpers.Add(select, "id", id);
+                },
+                (select, token) => DbHelpers.ReadListAsync(select, static reader => DbHelpers.GetNullableString(reader, 0), token),
                 cancellationToken).ConfigureAwait(false);
 
             if (found.Count == 0)
@@ -206,13 +223,14 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
 
         if (_storage is not null)
         {
-            var select = CreateCommand(_sql.SelectAttachmentExternalUrisBySession);
-            DbHelpers.AddTenant(select, tenantId);
-            DbHelpers.Add(select, "session_id", sessionId);
-
-            var rows = await DbHelpers.ReadListAsync(
-                select,
-                static reader => (Id: reader.GetGuid(0), ExternalUri: DbHelpers.GetNullableString(reader, 1)),
+            var rows = await _context.ExecuteStatementAsync(
+                _sql.SelectAttachmentExternalUrisBySession,
+                select =>
+                {
+                    DbHelpers.AddTenant(select, tenantId);
+                    DbHelpers.Add(select, "session_id", sessionId);
+                },
+                (select, token) => DbHelpers.ReadListAsync(select, static reader => (Id: reader.GetGuid(0), ExternalUri: DbHelpers.GetNullableString(reader, 1)), token),
                 cancellationToken).ConfigureAwait(false);
 
             var count = 0;
@@ -229,13 +247,14 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
             return count;
         }
 
-        var command = CreateCommand(_sql.DeleteAttachmentsBySession);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "session_id", sessionId);
-
-        var deleted = await DbHelpers.ReadListAsync(
-            command,
-            static reader => DbHelpers.GetNullableString(reader, 0),
+        var deleted = await _context.ExecuteStatementAsync(
+            _sql.DeleteAttachmentsBySession,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "session_id", sessionId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => DbHelpers.GetNullableString(reader, 0), token),
             cancellationToken).ConfigureAwait(false);
 
         return deleted.Count;
@@ -271,13 +290,14 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     /// <returns><see langword="true"/> when a row was deleted.</returns>
     private async ValueTask<bool> DeleteRowAsync(string tenantId, Guid id, CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.DeleteAttachment);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "id", id);
-
-        var deleted = await DbHelpers.ReadListAsync(
-            command,
-            static reader => DbHelpers.GetNullableString(reader, 0),
+        var deleted = await _context.ExecuteStatementAsync(
+            _sql.DeleteAttachment,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "id", id);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => DbHelpers.GetNullableString(reader, 0), token),
             cancellationToken).ConfigureAwait(false);
 
         return deleted.Count > 0;
@@ -300,8 +320,6 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     private static ContentRow ReadContentRow(DbDataReader reader) => new(
         reader.IsDBNull(0) ? null : (byte[])reader.GetValue(0),
         DbHelpers.GetNullableString(reader, 1));
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private sealed record ContentRow(byte[]? Content, string? ExternalUri);
 }

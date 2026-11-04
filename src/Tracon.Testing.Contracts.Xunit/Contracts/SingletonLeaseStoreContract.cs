@@ -126,6 +126,27 @@ public abstract class SingletonLeaseStoreContract : StoreCancellationContract<IS
     }
 
     [Fact]
+    public async Task An_owner_whose_name_differs_only_in_letter_case_does_not_hold_the_lease()
+    {
+        // The caller picks the owner name, so "Node-A" and "node-a" are two owners. A store that compares the owner with
+        // the rules of a case-insensitive column lets the second one take over, renew and release the first one's lease.
+        var lease = Lease();
+        var owner = $"Node-{Guid.NewGuid():N}";
+        var lookalike = owner.ToLowerInvariant();
+
+        string.Equals(lookalike, owner, StringComparison.Ordinal).ShouldBeFalse();
+        (await Store.TryAcquireAsync(lease, owner, TimeSpan.FromMinutes(5))).ShouldBeTrue();
+
+        (await Store.TryAcquireAsync(lease, lookalike, TimeSpan.FromMinutes(5))).ShouldBeFalse();
+        (await Store.RenewAsync(lease, lookalike, TimeSpan.FromMinutes(5))).ShouldBeFalse();
+        await Store.ReleaseAsync(lease, lookalike);
+
+        // The lease is still the first owner's: it renews, and nobody else can take it.
+        (await Store.RenewAsync(lease, owner, TimeSpan.FromMinutes(5))).ShouldBeTrue();
+        (await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5))).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task Released_lease_can_be_reacquired_immediately_by_someone_else()
     {
         var lease = Lease();

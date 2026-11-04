@@ -50,19 +50,23 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        var command = CreateCommand(_sql.InsertWorkflowCheckpoint);
-        DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.AddTenant(command, record.TenantId);
-        DbHelpers.Add(command, "session_id", record.SessionId);
-        DbHelpers.Add(command, "checkpoint_id", record.CheckpointId);
-        Dialect.AddText(command, "parent_id", record.ParentCheckpointId);
-        Dialect.AddUuid(command, "run_id", record.RunId);
-        Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.WorkflowCheckpointState, record.State.GetRawText()));
-        Dialect.AddInt32(command, "state_schema_version", record.StateSchemaVersion);
-        Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
-        Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.InsertWorkflowCheckpoint,
+            command =>
+            {
+                DbHelpers.Add(command, "id", record.Id);
+                DbHelpers.AddTenant(command, record.TenantId);
+                DbHelpers.Add(command, "session_id", record.SessionId);
+                DbHelpers.Add(command, "checkpoint_id", record.CheckpointId);
+                Dialect.AddText(command, "parent_id", record.ParentCheckpointId);
+                Dialect.AddUuid(command, "run_id", record.RunId);
+                Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.WorkflowCheckpointState, record.State.GetRawText()));
+                Dialect.AddInt32(command, "state_schema_version", record.StateSchemaVersion);
+                Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
+                Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return record;
     }
@@ -78,15 +82,18 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
 
-        var command = CreateCommand(_sql.SelectWorkflowCheckpoint);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "session_id", sessionId);
-        DbHelpers.Add(command, "checkpoint_id", checkpointId);
-
         var raw = ProtectedValue.Read(
             _context,
-            await DbHelpers
-                .ReadSingleAsync(command, static reader => reader.GetString(0), cancellationToken)
+            await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowCheckpoint,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "session_id", sessionId);
+                DbHelpers.Add(command, "checkpoint_id", checkpointId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, static reader => reader.GetString(0), token),
+            cancellationToken)
                 .ConfigureAwait(false));
 
         // The document must not outlive the caller: when a JsonDocument is
@@ -111,11 +118,15 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        var command = CreateCommand(_sql.SelectWorkflowCheckpoints);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "session_id", sessionId);
-
-        return await DbHelpers.ReadListAsync(command, ReadMetadata, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowCheckpoints,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "session_id", sessionId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadMetadata, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -126,11 +137,15 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectWorkflowCheckpointsByRun);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "run_id", runId);
-
-        return await DbHelpers.ReadListAsync(command, ReadMetadata, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowCheckpointsByRun,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "run_id", runId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadMetadata, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -142,14 +157,16 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        var command = CreateCommand(_sql.DeleteWorkflowCheckpoints);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "session_id", sessionId);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteWorkflowCheckpoints,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "session_id", sessionId);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     /// <summary>
     /// Reads a metadata row. <see cref="WorkflowCheckpointRecord.State"/> is set

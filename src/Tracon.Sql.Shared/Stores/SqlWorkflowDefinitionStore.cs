@@ -58,18 +58,19 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.SelectWorkflow);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadSingleAsync(
-            command,
-            reader => ReadDefinition(
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflow,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, reader => ReadDefinition(
                 reader.GetString(0),
                 name,
                 reader.GetInt32(1),
                 tenantId,
-                DbHelpers.GetTimestamp(reader, 2)),
+                DbHelpers.GetTimestamp(reader, 2)), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -80,22 +81,23 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
     {
         tenantId = AmbientTenantScope.Normalize(tenantId);
 
-        var command = CreateCommand(_sql.SelectWorkflows);
-        DbHelpers.AddTenant(command, tenantId);
-
         // The name lives in the column, NOT in the `definition` payload; when
         // reading, it must come from the column, not the JSON. Since the
         // query does not select by name, it is the only field here not
         // embedded in the payload, and has been added to the SELECT list
         // instead of a separate query.
-        return await DbHelpers.ReadListAsync(
-            command,
-            reader => ReadDefinition(
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflows,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => ReadDefinition(
                 reader.GetString(0),
                 reader.GetString(3),
                 reader.GetInt32(1),
                 tenantId,
-                DbHelpers.GetTimestamp(reader, 2)),
+                DbHelpers.GetTimestamp(reader, 2)), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -124,11 +126,15 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.DeleteWorkflow);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteWorkflow,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -141,19 +147,20 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.SelectWorkflowVersion);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        DbHelpers.Add(command, "version", version);
-
-        return await DbHelpers.ReadSingleAsync(
-            command,
-            reader => ReadDefinition(
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowVersion,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+                DbHelpers.Add(command, "version", version);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, reader => ReadDefinition(
                 reader.GetString(0),
                 name,
                 version,
                 tenantId,
-                DbHelpers.GetTimestamp(reader, 1)),
+                DbHelpers.GetTimestamp(reader, 1)), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -166,18 +173,19 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.SelectWorkflowVersions);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadListAsync(
-            command,
-            reader => ReadDefinition(
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowVersions,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => ReadDefinition(
                 reader.GetString(0),
                 name,
                 reader.GetInt32(1),
                 tenantId,
-                DbHelpers.GetTimestamp(reader, 2)),
+                DbHelpers.GetTimestamp(reader, 2)), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -191,14 +199,15 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         tenantId = AmbientTenantScope.Normalize(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.SelectWorkflowVersion);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        DbHelpers.Add(command, "version", version);
-
-        var payload = await DbHelpers.ReadSingleAsync(
-            command,
-            static reader => reader.GetString(0),
+        var payload = await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowVersion,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+                DbHelpers.Add(command, "version", version);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, static reader => reader.GetString(0), token),
             cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"Version {version} of the '{name}' workflow definition was not found.");
 
@@ -257,8 +266,6 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
             },
             cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static WorkflowDefinition ReadDefinition(
         string payload,

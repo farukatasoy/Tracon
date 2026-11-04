@@ -1237,7 +1237,7 @@
           "Runs"
         ],
         "summary": "Lists runs from newest to oldest.",
-        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run. \u0027userId\u0027 narrows the list to one user\u0027s runs, and \u0027label\u0027 takes a \u0027key:value\u0027 pair (\u0027label=team:payments\u0027); a bare \u0027label=team\u0027 matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. \u0027continuedFromRunId\u0027 returns the runs that continue a given run after an interruption (each continuation names the run it continues in \u0027continuedFromRunId\u0027); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 \u2014 the list is REJECTED, never silently filtered.",
+        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run. \u0027userId\u0027 narrows the list to one user\u0027s runs, and \u0027label\u0027 takes a \u0027key:value\u0027 pair (\u0027label=team:payments\u0027); a bare \u0027label=team\u0027 matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. \u0027continuedFromRunId\u0027 returns the runs that continue a given run after an interruption (each continuation names the run it continues in \u0027continuedFromRunId\u0027); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 \u2014 the list is REJECTED, never silently filtered. A \u0027sessionId\u0027 longer than 200 characters, or one that starts or ends with whitespace, returns 400.",
         "operationId": "TraconListRuns",
         "parameters": [
           {
@@ -1363,6 +1363,16 @@
                   "items": {
                     "$ref": "#/components/schemas/RunRecord"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -4885,7 +4895,7 @@
           "TenantProviders"
         ],
         "summary": "Creates or replaces a tenant\u0027s binding for a provider.",
-        "description": "The body carries only the configuration key\u0027s NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). The provider must be allowed by the tenant\u0027s egress policy, if one is defined (400 otherwise). A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
+        "description": "The body carries only the configuration key\u0027s NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). The provider must be allowed by the tenant\u0027s egress policy, if one is defined (400 otherwise). The provider name holds only the ASCII letters, the digits, \u0027_\u0027, \u0027.\u0027 and \u0027-\u0027 (400 otherwise). A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconSaveTenantProviderBinding",
         "parameters": [
           {
@@ -4944,7 +4954,7 @@
           "TenantProviders"
         ],
         "summary": "Deletes a tenant\u0027s binding for a provider.",
-        "description": "After deletion, calls for that provider use the setup-time global credential again. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
+        "description": "After deletion, calls for that provider use the setup-time global credential again. A provider name outside the ASCII letters, the digits, \u0027_\u0027, \u0027.\u0027 and \u0027-\u0027 returns 400. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconDeleteTenantProviderBinding",
         "parameters": [
           {
@@ -6168,7 +6178,7 @@
           "Voice"
         ],
         "summary": "Lists the summary record of real-time speech connections.",
-        "description": "The record does NOT contain audio: it only carries duration, turn count, and metering. If the speech layer is not enabled, the list is empty.",
+        "description": "The record does NOT contain audio: it only carries duration, turn count, and metering. If the speech layer is not enabled, the list is empty. A \u0027sessionId\u0027 longer than 200 characters, or one that starts or ends with whitespace, returns 400.",
         "operationId": "TraconVoiceSessions",
         "parameters": [
           {
@@ -6220,6 +6230,16 @@
                   "items": {
                     "$ref": "#/components/schemas/VoiceSessionRecord"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }

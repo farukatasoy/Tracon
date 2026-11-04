@@ -88,11 +88,15 @@ internal sealed class SqlRetentionStore : IRetentionStore
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
         var sql = _dialect.BuildRetentionCountSql(definition.Table, Where(definition, tenantId));
 
-        var command = _context.CreateCommand(sql);
-        _dialect.AddTimestamp(command, "cutoff", cutoff);
-        AddTenant(command, tenantId);
-
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _context.ExecuteStatementAsync(
+            sql,
+            command =>
+            {
+                _dialect.AddTimestamp(command, "cutoff", cutoff);
+                AddTenant(command, tenantId);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return result switch
         {
@@ -117,16 +121,19 @@ internal sealed class SqlRetentionStore : IRetentionStore
             Where(definition, tenantId),
             definition.OrderColumn);
 
-        var command = _context.CreateCommand(sql);
-        _dialect.AddTimestamp(command, "cutoff", cutoff);
-        AddTenant(command, tenantId);
-        DbHelpers.Add(command, "batchSize", Math.Max(1, batchSize));
-
         // The sink is the consumer's code; a protected column reaches it as plaintext.
         var readValue = ProtectedValue.RowReader(_context, RetentionTargetRegistry.ProtectedArchiveColumns(target));
 
-        return await DbHelpers
-            .ReadListAsync(command, reader => new ArchiveRow { Json = SqlJsonRowWriter.RowToJson(reader, readValue) }, cancellationToken)
+        return await _context.ExecuteStatementAsync(
+            sql,
+            command =>
+            {
+                _dialect.AddTimestamp(command, "cutoff", cutoff);
+                AddTenant(command, tenantId);
+                DbHelpers.Add(command, "batchSize", Math.Max(1, batchSize));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => new ArchiveRow { Json = SqlJsonRowWriter.RowToJson(reader, readValue) }, token),
+            cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -153,12 +160,16 @@ internal sealed class SqlRetentionStore : IRetentionStore
 
         var sql = _dialect.BuildRetentionDeleteBatchSql(definition.Table, Where(definition, tenantId));
 
-        var command = _context.CreateCommand(sql);
-        _dialect.AddTimestamp(command, "cutoff", cutoff);
-        AddTenant(command, tenantId);
-        DbHelpers.Add(command, "batchSize", Math.Max(1, batchSize));
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            sql,
+            command =>
+            {
+                _dialect.AddTimestamp(command, "cutoff", cutoff);
+                AddTenant(command, tenantId);
+                DbHelpers.Add(command, "batchSize", Math.Max(1, batchSize));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -203,17 +214,16 @@ internal sealed class SqlRetentionStore : IRetentionStore
         // The sink is the consumer's code; a protected column reaches it as plaintext.
         var readValue = ProtectedValue.RowReader(_context, RetentionTargetRegistry.ProtectedArchiveColumns(target));
 
-        var select = _context.CreateCommand(
-            _dialect.BuildRetentionArchiveSelectSql(definition.Table, where, definition.OrderColumn));
-        _dialect.AddTimestamp(select, "cutoff", cutoff);
-        AddTenant(select, tenantId);
-        DbHelpers.Add(select, "batchSize", Math.Max(1, batchSize));
-
-        var batch = await DbHelpers
-            .ReadListAsync(
-                select,
-                reader => ReadArchivedRow(reader, definition.KeyColumns, attachments, byTenant, readValue),
-                cancellationToken)
+        var batch = await _context.ExecuteStatementAsync(
+            _dialect.BuildRetentionArchiveSelectSql(definition.Table, where, definition.OrderColumn),
+            select =>
+            {
+                _dialect.AddTimestamp(select, "cutoff", cutoff);
+                AddTenant(select, tenantId);
+                DbHelpers.Add(select, "batchSize", Math.Max(1, batchSize));
+            },
+            (select, token) => DbHelpers.ReadListAsync(select, reader => ReadArchivedRow(reader, definition.KeyColumns, attachments, byTenant, readValue), token),
+            cancellationToken)
             .ConfigureAwait(false);
 
         if (batch.Count == 0)
@@ -332,22 +342,25 @@ internal sealed class SqlRetentionStore : IRetentionStore
         for (var offset = 0; offset < keys.Count; offset += rowsPerCommand)
         {
             var rowCount = Math.Min(rowsPerCommand, keys.Count - offset);
-            var command = _context.CreateCommand(
-                _dialect.BuildRetentionDeleteKeysSql(definition.Table, where, keyColumns, rowCount));
-            _dialect.AddTimestamp(command, "cutoff", cutoff);
-            AddTenant(command, tenantId);
 
-            for (var row = 0; row < rowCount; row++)
-            {
-                var key = keys[offset + row];
-
-                for (var column = 0; column < key.Count; column++)
+            deleted += await _context.ExecuteStatementAsync(
+                _dialect.BuildRetentionDeleteKeysSql(definition.Table, where, keyColumns, rowCount),
+                command =>
                 {
-                    DbHelpers.Add(command, SqlDialect.RetentionKeyParameterName(row, column), key[column]);
-                }
-            }
+                    _dialect.AddTimestamp(command, "cutoff", cutoff);
+                    AddTenant(command, tenantId);
+                    for (var row = 0; row < rowCount; row++)
+                    {
+                        var key = keys[offset + row];
 
-            deleted += await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+                        for (var column = 0; column < key.Count; column++)
+                        {
+                            DbHelpers.Add(command, SqlDialect.RetentionKeyParameterName(row, column), key[column]);
+                        }
+                    }
+                },
+                DbHelpers.ExecuteAsync,
+                cancellationToken).ConfigureAwait(false);
         }
 
         return deleted;
@@ -378,13 +391,17 @@ internal sealed class SqlRetentionStore : IRetentionStore
         CancellationToken cancellationToken)
     {
         var where = Where(definition, tenantId);
-        var select = _context.CreateCommand(_dialect.BuildRetentionSelectBatchSql(definition.Table, "id, tenant_id", where));
-        _dialect.AddTimestamp(select, "cutoff", cutoff);
-        AddTenant(select, tenantId);
-        DbHelpers.Add(select, "batchSize", Math.Max(1, batchSize));
 
-        var rows = await DbHelpers
-            .ReadListAsync(select, static reader => (Id: reader.GetString(0), Tenant: ReadTenant(reader)), cancellationToken)
+        var rows = await _context.ExecuteStatementAsync(
+            _dialect.BuildRetentionSelectBatchSql(definition.Table, "id, tenant_id", where),
+            select =>
+            {
+                _dialect.AddTimestamp(select, "cutoff", cutoff);
+                AddTenant(select, tenantId);
+                DbHelpers.Add(select, "batchSize", Math.Max(1, batchSize));
+            },
+            (select, token) => DbHelpers.ReadListAsync(select, static reader => (Id: reader.GetString(0), Tenant: ReadTenant(reader)), token),
+            cancellationToken)
             .ConfigureAwait(false);
 
         return await EraseSessionContentThenDeleteAsync(definition, cutoff, rows, cancellationToken).ConfigureAwait(false);
@@ -459,17 +476,16 @@ internal sealed class SqlRetentionStore : IRetentionStore
         int batchSize,
         CancellationToken cancellationToken)
     {
-        var select = _context.CreateCommand(
-            _dialect.BuildRetentionSelectBatchSql(definition.Table, AttachmentKeyColumns, Where(definition, tenantId)));
-        _dialect.AddTimestamp(select, "cutoff", cutoff);
-        AddTenant(select, tenantId);
-        DbHelpers.Add(select, "batchSize", Math.Max(1, batchSize));
-
-        var rows = await DbHelpers
-            .ReadListAsync(
-                select,
-                static reader => new AttachmentKey(reader.GetGuid(0), reader.GetString(1), DbHelpers.GetNullableString(reader, 2)),
-                cancellationToken)
+        var rows = await _context.ExecuteStatementAsync(
+            _dialect.BuildRetentionSelectBatchSql(definition.Table, AttachmentKeyColumns, Where(definition, tenantId)),
+            select =>
+            {
+                _dialect.AddTimestamp(select, "cutoff", cutoff);
+                AddTenant(select, tenantId);
+                DbHelpers.Add(select, "batchSize", Math.Max(1, batchSize));
+            },
+            (select, token) => DbHelpers.ReadListAsync(select, static reader => new AttachmentKey(reader.GetGuid(0), reader.GetString(1), DbHelpers.GetNullableString(reader, 2)), token),
+            cancellationToken)
             .ConfigureAwait(false);
 
         return await DeleteAttachmentRowsAsync(storage, rows, cancellationToken).ConfigureAwait(false);
@@ -505,13 +521,15 @@ internal sealed class SqlRetentionStore : IRetentionStore
                 }
             }
 
-            var delete = _context.CreateCommand(_context.Sql.DeleteAttachment);
-            DbHelpers.AddTenant(delete, row.TenantId);
-            DbHelpers.Add(delete, "id", row.Id);
-
-            var removed = await DbHelpers
-                .ReadListAsync(delete, static reader => DbHelpers.GetNullableString(reader, 0), cancellationToken)
-                .ConfigureAwait(false);
+            var removed = await _context.ExecuteStatementAsync(
+                _context.Sql.DeleteAttachment,
+                delete =>
+                {
+                    DbHelpers.AddTenant(delete, row.TenantId);
+                    DbHelpers.Add(delete, "id", row.Id);
+                },
+                (delete, token) => DbHelpers.ReadListAsync(delete, static reader => DbHelpers.GetNullableString(reader, 0), token),
+                cancellationToken).ConfigureAwait(false);
 
             deleted += removed.Count;
         }
@@ -552,12 +570,15 @@ internal sealed class SqlRetentionStore : IRetentionStore
             definition.RowLimitOrderExpression,
             tenantId is null ? null : definition.TenantPredicate);
 
-        var command = _context.CreateCommand(sql);
-        _dialect.AddInt64(command, "n", maxRows);
-        AddTenant(command, tenantId);
-
-        var rows = await DbHelpers
-            .ReadListAsync(command, static reader => DbHelpers.GetNullableTimestamp(reader, 0), cancellationToken)
+        var rows = await _context.ExecuteStatementAsync(
+            sql,
+            command =>
+            {
+                _dialect.AddInt64(command, "n", maxRows);
+                AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => DbHelpers.GetNullableTimestamp(reader, 0), token),
+            cancellationToken)
             .ConfigureAwait(false);
 
         return rows.Count > 0 ? rows[0] : null;

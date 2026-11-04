@@ -100,6 +100,36 @@ public abstract class TenantProviderBindingStoreContract : TenantIsolationContra
         (await Store.DeleteAsync(requestedAs, "openai")).ShouldBeTrue();
     }
 
+    [Theory]
+    [InlineData("\uFF4Fpenai")]
+    [InlineData("\u00C9cole")]
+    [InlineData("\u0130yi")]
+    [InlineData("open ai")]
+    [InlineData("open/ai")]
+    public async Task A_provider_name_outside_the_alphabet_is_refused_by_every_operation(string name)
+    {
+        // The alphabet is the ASCII letters, the digits, '_', '.' and '-'. Outside it the engines disagree on what one
+        // name is: SQL Server's default collation reads a full-width letter as the plain one, so two providers would share
+        // one binding there and stay two on the other engines. A store that accepts the name on one engine only is the
+        // defect, so every store refuses it, on write, on read and on delete.
+        await Should.ThrowAsync<ArgumentException>(async () => await Store.UpsertAsync(Binding(Tenant, name)));
+        await Should.ThrowAsync<ArgumentException>(async () => await Store.GetAsync(Tenant, name));
+        await Should.ThrowAsync<ArgumentException>(async () => await Store.DeleteAsync(Tenant, name));
+    }
+
+    [Theory]
+    [InlineData("azure-openai")]
+    [InlineData("my_provider.v2")]
+    [InlineData("Provider-9")]
+    public async Task A_provider_name_inside_the_alphabet_is_kept_and_found_in_its_lower_case_form(string name)
+    {
+        await Store.UpsertAsync(Binding(Tenant, name));
+
+        var binding = (await Store.GetAsync(Tenant, name)).ShouldNotBeNull();
+
+        binding.ProviderName.ShouldBe(name.ToLowerInvariant());
+    }
+
     [Fact]
     public async Task A_binding_saved_under_a_different_case_replaces_the_existing_one()
     {

@@ -58,18 +58,19 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
 
         var tenantId = CanonicalTenant();
 
-        var command = CreateCommand(_sql.SelectAgentDefinition);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadSingleAsync(
-            command,
-            reader => ReadDefinition(
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentDefinition,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, reader => ReadDefinition(
                 reader.GetString(0),
                 name,
                 reader.GetInt32(1),
                 tenantId,
-                DbHelpers.GetTimestamp(reader, 2)),
+                DbHelpers.GetTimestamp(reader, 2)), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -80,19 +81,20 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
 
         var tenantId = CanonicalTenant();
 
-        var command = CreateCommand(_sql.SelectAgentDefinitionVersion);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-        DbHelpers.Add(command, "version", version);
-
-        return await DbHelpers.ReadSingleAsync(
-            command,
-            reader => ReadDefinition(
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentDefinitionVersion,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+                DbHelpers.Add(command, "version", version);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, reader => ReadDefinition(
                 reader.GetString(0),
                 name,
                 version,
                 tenantId,
-                DbHelpers.GetTimestamp(reader, 1)),
+                DbHelpers.GetTimestamp(reader, 1)), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -101,17 +103,18 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     {
         var tenantId = CanonicalTenant();
 
-        var command = CreateCommand(_sql.SelectAgentDefinitions);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(
-            command,
-            reader => ReadDefinition(
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentDefinitions,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => ReadDefinition(
                 reader.GetString(1),
                 reader.GetString(0),
                 reader.GetInt32(2),
                 tenantId,
-                DbHelpers.GetTimestamp(reader, 3)),
+                DbHelpers.GetTimestamp(reader, 3)), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -134,11 +137,15 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        var command = CreateCommand(_sql.DeleteAgentDefinition);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteAgentDefinition,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -150,18 +157,19 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
 
         var tenantId = CanonicalTenant();
 
-        var command = CreateCommand(_sql.SelectAgentDefinitionVersions);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadListAsync(
-            command,
-            reader => ReadDefinition(
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentDefinitionVersions,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => ReadDefinition(
                 reader.GetString(0),
                 name,
                 reader.GetInt32(1),
                 tenantId,
-                DbHelpers.GetTimestamp(reader, 2)),
+                DbHelpers.GetTimestamp(reader, 2)), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -173,12 +181,16 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        var command = CreateCommand(_sql.SelectAgentDefinitionVersion);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "name", name);
-        DbHelpers.Add(command, "version", version);
-
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _context.ExecuteStatementAsync(
+            _sql.SelectAgentDefinitionVersion,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "name", name);
+                DbHelpers.Add(command, "version", version);
+            },
+            DbHelpers.ExecuteScalarAsync,
+            cancellationToken).ConfigureAwait(false);
 
         if (result is not string payload)
         {
@@ -257,8 +269,6 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
             ? new TraconException($"No agent definition named '{name}' was found.")
             : new TraconException($"Version {version} of the '{name}' agent was not found.");
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     // The record a call returns is built from this value (the tenant is not a column the queries read back), so it is
     // folded here and not only where the command binds it: a tenant context may return the spelling it was given.

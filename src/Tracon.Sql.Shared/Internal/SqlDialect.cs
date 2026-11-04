@@ -255,6 +255,45 @@ internal abstract class SqlDialect
     public virtual bool UpsertRequiresTransaction => false;
 
     /// <summary>
+    /// Gets a value indicating whether a store call that is one autocommit statement is sent again, whole, when the server
+    /// picks it as a deadlock victim.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A victim's statement was rolled back whole, so sending it again is the same safe boundary as running a
+    /// transaction again (<see cref="SqlStoreContext.ExecuteInTransactionAsync{T}"/>). It holds only where the statement
+    /// is one unit: a batch whose earlier statements already committed is not repeated by this boundary (see
+    /// <see cref="SqlStoreContext.ExecuteStatementAsync{T}"/>).
+    /// </para>
+    /// <para>
+    /// <see langword="true"/> for SQL Server, where an event append, a read and a delete have met a deadlock victim's
+    /// error with a transaction of another call (measured). PostgreSQL did not produce one in the same race, and SQLite
+    /// reports a busy database after its own wait, which a repeat would multiply.
+    /// </para>
+    /// </remarks>
+    public virtual bool RetriesStatementDeadlocks => false;
+
+    /// <summary>
+    /// Gets the predicate that keeps the rows of one tenant, for a retention sweep that names a tenant.
+    /// </summary>
+    /// <param name="column">The tenant column, with its table alias when the predicate runs in a subquery.</param>
+    /// <returns>A condition on <c>@tenant_id</c>.</returns>
+    /// <remarks>
+    /// <para>
+    /// Where the column is compared with the rules of the database, two tenant names can be equal that differ in case or
+    /// width, and a sweep for one would reach the rows of the other. The stores never write a name outside the tenant
+    /// alphabet, but a row from an earlier release or from a script can hold one. SQL Server's default collation does
+    /// that; the other providers compare the characters.
+    /// </para>
+    /// </remarks>
+    public virtual string TenantPredicate(string column)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(column);
+
+        return $"{column} = @tenant_id";
+    }
+
+    /// <summary>
     /// Gets a value indicating whether the database lets only one connection write at a time.
     /// </summary>
     /// <remarks>

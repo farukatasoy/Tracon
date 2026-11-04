@@ -36,11 +36,15 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.SelectJobSchedule);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadSchedule, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectJobSchedule,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadSchedule, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -50,10 +54,14 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectJobSchedules);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadSchedule, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectJobSchedules,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadSchedule, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -113,11 +121,15 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var command = CreateCommand(_sql.DeleteJobSchedule);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", name);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteJobSchedule,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", name);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -127,10 +139,14 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         DateTimeOffset asOfUtc,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectDueJobSchedules);
-        Dialect.AddTimestamp(command, "as_of", asOfUtc);
-
-        return await DbHelpers.ReadListAsync(command, ReadSchedule, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectDueJobSchedules,
+            command =>
+            {
+                Dialect.AddTimestamp(command, "as_of", asOfUtc);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadSchedule, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -143,16 +159,18 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         DateTimeOffset ranAt,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.TryClaimJobScheduleNextRun);
-        DbHelpers.Add(command, "id", scheduleId);
-        Dialect.AddTimestamp(command, "expected_next_run_at", expectedNextRunAt);
-        Dialect.AddTimestamp(command, "new_next_run_at", newNextRunAt);
-        Dialect.AddTimestamp(command, "ran_at", ranAt);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.TryClaimJobScheduleNextRun,
+            command =>
+            {
+                DbHelpers.Add(command, "id", scheduleId);
+                Dialect.AddTimestamp(command, "expected_next_run_at", expectedNextRunAt);
+                Dialect.AddTimestamp(command, "new_next_run_at", newNextRunAt);
+                Dialect.AddTimestamp(command, "ran_at", ranAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static JobSchedule ReadSchedule(DbDataReader reader)
         => new()

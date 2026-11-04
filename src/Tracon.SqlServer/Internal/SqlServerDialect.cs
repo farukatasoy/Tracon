@@ -242,6 +242,21 @@ internal sealed class SqlServerDialect : SqlDialect
     public override bool UpsertRequiresTransaction => true;
 
     /// <inheritdoc />
+    public override bool RetriesStatementDeadlocks => true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The first condition is the one an index can serve; the second keeps a row whose name only looks the same to the
+    /// database's collation (case, width). A binary comparison alone could not use the index on the column.
+    /// </remarks>
+    public override string TenantPredicate(string column)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(column);
+
+        return $"{column} = @tenant_id AND {column} COLLATE Latin1_General_BIN2 = @tenant_id COLLATE Latin1_General_BIN2";
+    }
+
+    /// <inheritdoc />
     /// <remarks>SQL Server never sends a regular expression to the server; this path is never hit.</remarks>
     public override bool IsInvalidRegexError(Exception exception) => false;
 

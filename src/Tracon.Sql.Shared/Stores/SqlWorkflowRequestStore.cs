@@ -58,12 +58,17 @@ internal sealed class SqlWorkflowRequestStore : IWorkflowRequestStore
 
         foreach (var record in records)
         {
-            var command = _context.CreateCommand(_sql.InsertWorkflowRequest);
-            Bind(command, record);
 
             try
             {
-                await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+                await _context.ExecuteStatementAsync(
+                _sql.InsertWorkflowRequest,
+                command =>
+                {
+                    Bind(command, record);
+                },
+                DbHelpers.ExecuteAsync,
+                cancellationToken).ConfigureAwait(false);
             }
             catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
             {
@@ -79,15 +84,19 @@ internal sealed class SqlWorkflowRequestStore : IWorkflowRequestStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var command = _context.CreateCommand(_sql.SelectWorkflowRequests);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
-        Dialect.AddText(command, "workflow_name", query.WorkflowName);
-        DbHelpers.Add(command, "state", (short)query.State);
-        DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
-        DbHelpers.Add(command, "take", Math.Clamp(query.Take, 1, WorkflowRequestQuery.MaxTake));
-
-        return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowRequests,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
+                Dialect.AddText(command, "workflow_name", query.WorkflowName);
+                DbHelpers.Add(command, "state", (short)query.State);
+                DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
+                DbHelpers.Add(command, "take", Math.Clamp(query.Take, 1, WorkflowRequestQuery.MaxTake));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -95,11 +104,15 @@ internal sealed class SqlWorkflowRequestStore : IWorkflowRequestStore
         Guid runId,
         CancellationToken cancellationToken = default)
     {
-        var command = _context.CreateCommand(_sql.SelectWorkflowRequestsByRun);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "run_id", runId);
-
-        return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowRequestsByRun,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "run_id", runId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -113,15 +126,19 @@ internal sealed class SqlWorkflowRequestStore : IWorkflowRequestStore
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
 
-        var command = _context.CreateCommand(_sql.MarkWorkflowRequestsAnswered);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "session_id", sessionId);
-        DbHelpers.Add(command, "request_id", requestId);
-        Dialect.AddTimestamp(command, "answered_at", answeredAt);
-        Dialect.AddUuid(command, "last_response_run_id", responseRunId);
-        DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.MarkWorkflowRequestsAnswered,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "session_id", sessionId);
+                DbHelpers.Add(command, "request_id", requestId);
+                Dialect.AddTimestamp(command, "answered_at", answeredAt);
+                Dialect.AddUuid(command, "last_response_run_id", responseRunId);
+                DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -132,13 +149,17 @@ internal sealed class SqlWorkflowRequestStore : IWorkflowRequestStore
         int max,
         CancellationToken cancellationToken = default)
     {
-        var command = _context.CreateCommand(_sql.ExpireWorkflowRequests);
-        DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
-        DbHelpers.Add(command, "status_closed", (short)WorkflowRequestStatus.Closed);
-        Dialect.AddTimestamp(command, "now", now);
-        DbHelpers.Add(command, "max", Math.Max(max, 0));
-
-        return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.ExpireWorkflowRequests,
+            command =>
+            {
+                DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
+                DbHelpers.Add(command, "status_closed", (short)WorkflowRequestStatus.Closed);
+                Dialect.AddTimestamp(command, "now", now);
+                DbHelpers.Add(command, "max", Math.Max(max, 0));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -148,13 +169,17 @@ internal sealed class SqlWorkflowRequestStore : IWorkflowRequestStore
         int max,
         CancellationToken cancellationToken = default)
     {
-        var command = _context.CreateCommand(_sql.SelectStrandedWorkflowRequests);
-        DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
-        DbHelpers.Add(command, "status_closed", (short)WorkflowRequestStatus.Closed);
-        DbHelpers.Add(command, "status_awaiting", (short)RunStatus.AwaitingInput);
-        DbHelpers.Add(command, "max", Math.Max(max, 0));
-
-        return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectStrandedWorkflowRequests,
+            command =>
+            {
+                DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
+                DbHelpers.Add(command, "status_closed", (short)WorkflowRequestStatus.Closed);
+                DbHelpers.Add(command, "status_awaiting", (short)RunStatus.AwaitingInput);
+                DbHelpers.Add(command, "max", Math.Max(max, 0));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private void Bind(DbCommand command, WorkflowRequestRecord record)

@@ -2761,7 +2761,7 @@ namespace Tracon.Client.Generated
         /// Lists runs from newest to oldest.
         /// </summary>
         /// <remarks>
-        /// By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. 'continuedFromRunId' returns the runs that continue a given run after an interruption (each continuation names the run it continues in 'continuedFromRunId'); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
+        /// By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. 'continuedFromRunId' returns the runs that continue a given run after an interruption (each continuation names the run it continues in 'continuedFromRunId'); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered. A 'sessionId' longer than 200 characters, or one that starts or ends with whitespace, returns 400.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -2870,6 +2870,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 403)
@@ -10755,7 +10765,7 @@ namespace Tracon.Client.Generated
         /// Creates or replaces a tenant's binding for a provider.
         /// </summary>
         /// <remarks>
-        /// The body carries only the configuration key's NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). The provider must be allowed by the tenant's egress policy, if one is defined (400 otherwise). A tenant other than the caller's own requires platform authority (403 otherwise).
+        /// The body carries only the configuration key's NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). The provider must be allowed by the tenant's egress policy, if one is defined (400 otherwise). The provider name holds only the ASCII letters, the digits, '_', '.' and '-' (400 otherwise). A tenant other than the caller's own requires platform authority (403 otherwise).
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -10858,7 +10868,7 @@ namespace Tracon.Client.Generated
         /// Deletes a tenant's binding for a provider.
         /// </summary>
         /// <remarks>
-        /// After deletion, calls for that provider use the setup-time global credential again. A tenant other than the caller's own requires platform authority (403 otherwise).
+        /// After deletion, calls for that provider use the setup-time global credential again. A provider name outside the ASCII letters, the digits, '_', '.' and '-' returns 400. A tenant other than the caller's own requires platform authority (403 otherwise).
         /// </remarks>
         /// <returns>No Content</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -13526,7 +13536,7 @@ namespace Tracon.Client.Generated
         /// Lists the summary record of real-time speech connections.
         /// </summary>
         /// <remarks>
-        /// The record does NOT contain audio: it only carries duration, turn count, and metering. If the speech layer is not enabled, the list is empty.
+        /// The record does NOT contain audio: it only carries duration, turn count, and metering. If the speech layer is not enabled, the list is empty. A 'sessionId' longer than 200 characters, or one that starts or ends with whitespace, returns 400.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -13595,6 +13605,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {

@@ -55,12 +55,17 @@ internal sealed class SqlWorkflowResponseStore : IWorkflowResponseStore
 
         for (var attempt = 1; ; attempt++)
         {
-            var command = _context.CreateCommand(_sql.InsertWorkflowResponse);
-            Bind(command, record);
 
             try
             {
-                await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+                await _context.ExecuteStatementAsync(
+                _sql.InsertWorkflowResponse,
+                command =>
+                {
+                    Bind(command, record);
+                },
+                DbHelpers.ExecuteAsync,
+                cancellationToken).ConfigureAwait(false);
 
                 return new WorkflowResponseClaim { Claimed = true, Existing = null };
             }
@@ -136,13 +141,17 @@ internal sealed class SqlWorkflowResponseStore : IWorkflowResponseStore
     /// <inheritdoc />
     public async ValueTask MarkDeliveredAsync(Guid responseRunId, CancellationToken cancellationToken = default)
     {
-        var command = _context.CreateCommand(_sql.MarkWorkflowResponseDelivered);
-        DbHelpers.Add(command, "response_run_id", responseRunId);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "status_delivered", (short)WorkflowResponseStatus.Delivered);
-        DbHelpers.Add(command, "status_accepted", (short)WorkflowResponseStatus.Accepted);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.MarkWorkflowResponseDelivered,
+            command =>
+            {
+                DbHelpers.Add(command, "response_run_id", responseRunId);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "status_delivered", (short)WorkflowResponseStatus.Delivered);
+                DbHelpers.Add(command, "status_accepted", (short)WorkflowResponseStatus.Accepted);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -150,21 +159,29 @@ internal sealed class SqlWorkflowResponseStore : IWorkflowResponseStore
         Guid sourceRunId,
         CancellationToken cancellationToken = default)
     {
-        var command = _context.CreateCommand(_sql.SelectWorkflowResponsesBySource);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "source_run_id", sourceRunId);
-
-        return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowResponsesBySource,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "source_run_id", sourceRunId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async ValueTask<WorkflowResponseRecord?> GetAsync(Guid responseRunId, CancellationToken cancellationToken = default)
     {
-        var command = _context.CreateCommand(_sql.SelectWorkflowResponse);
-        DbHelpers.Add(command, "response_run_id", responseRunId);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-
-        return await DbHelpers.ReadSingleAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowResponse,
+            command =>
+            {
+                DbHelpers.Add(command, "response_run_id", responseRunId);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask<WorkflowResponseRecord?> FindClaimAsync(
@@ -173,13 +190,17 @@ internal sealed class SqlWorkflowResponseStore : IWorkflowResponseStore
         string requestId,
         CancellationToken cancellationToken)
     {
-        var command = _context.CreateCommand(_sql.SelectWorkflowResponseClaim);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "claim_scope", claimScope);
-        DbHelpers.Add(command, "request_id", requestId);
-        DbHelpers.Add(command, "status_abandoned", (short)WorkflowResponseStatus.Abandoned);
-
-        return await DbHelpers.ReadSingleAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectWorkflowResponseClaim,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "claim_scope", claimScope);
+                DbHelpers.Add(command, "request_id", requestId);
+                DbHelpers.Add(command, "status_abandoned", (short)WorkflowResponseStatus.Abandoned);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private void Bind(DbCommand command, WorkflowResponseRecord record)

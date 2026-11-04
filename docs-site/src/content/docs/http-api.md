@@ -231,8 +231,9 @@ answer. The reply is `application/problem+json` with `400` and one of two titles
 The `detail` is fixed text. It names no field, column, table or value: the provider's
 own message carries the value that was cut, and that can be a secret pasted into the
 wrong field. Only your server's log records that the store refused something, and not
-what. A connection that cannot be opened, a schema that is not current, a deadlock and
-a timeout stay `503`.
+what. A connection that cannot be opened, a schema that is not current, a deadlock that is
+still there after the store has sent the statement or the transaction again (SQL Server sends
+a single statement as well as a transaction, five attempts in all) and a timeout stay `503`.
 
 The stores do not agree on the longest text. SQL Server counts UTF-16 code units, so
 100 emoji fit in 200 and 101 do not; PostgreSQL and SQLite keep text of any length and

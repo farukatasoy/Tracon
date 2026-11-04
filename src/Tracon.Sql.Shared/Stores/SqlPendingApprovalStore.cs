@@ -38,47 +38,59 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
     {
         ArgumentNullException.ThrowIfNull(approval);
 
-        var command = CreateCommand(_sql.InsertPendingApproval);
-        DbHelpers.Add(command, "id", approval.Id);
-        DbHelpers.AddTenant(command, approval.TenantId);
-        DbHelpers.Add(command, "run_id", approval.RunId);
-        DbHelpers.Add(command, "session_id", approval.SessionId);
-        DbHelpers.Add(command, "request_id", approval.RequestId);
-        DbHelpers.Add(command, "tool_name", approval.ToolName);
-        Dialect.AddText(command, "arguments", approval.Arguments);
-        DbHelpers.Add(command, "status", (short)approval.Status);
-        Dialect.AddText(command, "decided_by", approval.DecidedBy);
-        Dialect.AddTimestamp(command, "decided_at", approval.DecidedAt);
-        Dialect.AddTimestamp(command, "expires_at", approval.ExpiresAt);
-        Dialect.AddTimestamp(command, "created_at", approval.CreatedAt);
-        Dialect.AddJsonb(
-            command,
-            "presentation",
-            approval.Presentation is null
-                ? null
-                : JsonSerializer.Serialize(approval.Presentation, TraconJsonContext.Default.ToolApprovalPresentation));
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.InsertPendingApproval,
+            command =>
+            {
+                DbHelpers.Add(command, "id", approval.Id);
+                DbHelpers.AddTenant(command, approval.TenantId);
+                DbHelpers.Add(command, "run_id", approval.RunId);
+                DbHelpers.Add(command, "session_id", approval.SessionId);
+                DbHelpers.Add(command, "request_id", approval.RequestId);
+                DbHelpers.Add(command, "tool_name", approval.ToolName);
+                Dialect.AddText(command, "arguments", approval.Arguments);
+                DbHelpers.Add(command, "status", (short)approval.Status);
+                Dialect.AddText(command, "decided_by", approval.DecidedBy);
+                Dialect.AddTimestamp(command, "decided_at", approval.DecidedAt);
+                Dialect.AddTimestamp(command, "expires_at", approval.ExpiresAt);
+                Dialect.AddTimestamp(command, "created_at", approval.CreatedAt);
+                Dialect.AddJsonb(
+                    command,
+                    "presentation",
+                    approval.Presentation is null
+                        ? null
+                        : JsonSerializer.Serialize(approval.Presentation, TraconJsonContext.Default.ToolApprovalPresentation));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<PendingApproval>> ListPendingAsync(CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectPendingApprovals);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "status", (short)ApprovalStatus.Pending);
-
-        return await DbHelpers.ReadListAsync(command, ReadApproval, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectPendingApprovals,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "status", (short)ApprovalStatus.Pending);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadApproval, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async ValueTask<PendingApproval?> GetAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectPendingApproval);
-        DbHelpers.Add(command, "id", id);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadApproval, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectPendingApproval,
+            command =>
+            {
+                DbHelpers.Add(command, "id", id);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadApproval, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -91,18 +103,22 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(decidedBy);
 
-        var command = CreateCommand(_sql.DecidePendingApproval);
-        DbHelpers.Add(command, "id", id);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(
-            command,
-            "status",
-            (short)(approved ? ApprovalStatus.Approved : ApprovalStatus.Rejected));
-        DbHelpers.Add(command, "status_pending", (short)ApprovalStatus.Pending);
-        DbHelpers.Add(command, "decided_by", decidedBy);
-        Dialect.AddTimestamp(command, "decided_at", decidedAt);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DecidePendingApproval,
+            command =>
+            {
+                DbHelpers.Add(command, "id", id);
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(
+                    command,
+                    "status",
+                    (short)(approved ? ApprovalStatus.Approved : ApprovalStatus.Rejected));
+                DbHelpers.Add(command, "status_pending", (short)ApprovalStatus.Pending);
+                DbHelpers.Add(command, "decided_by", decidedBy);
+                Dialect.AddTimestamp(command, "decided_at", decidedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -113,16 +129,18 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
         int max,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.ExpirePendingApprovals);
-        DbHelpers.Add(command, "status_expired", (short)ApprovalStatus.Expired);
-        DbHelpers.Add(command, "status_pending", (short)ApprovalStatus.Pending);
-        Dialect.AddTimestamp(command, "older_than", olderThan);
-        DbHelpers.Add(command, "max", Math.Max(max, 0));
-
-        return await DbHelpers.ReadListAsync(command, ReadApproval, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.ExpirePendingApprovals,
+            command =>
+            {
+                DbHelpers.Add(command, "status_expired", (short)ApprovalStatus.Expired);
+                DbHelpers.Add(command, "status_pending", (short)ApprovalStatus.Pending);
+                Dialect.AddTimestamp(command, "older_than", olderThan);
+                DbHelpers.Add(command, "max", Math.Max(max, 0));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadApproval, token),
+            cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     // 🚨 New columns are ALWAYS appended at the end:
     // presentation reads by fixed ordinal 12, after the original twelve columns.

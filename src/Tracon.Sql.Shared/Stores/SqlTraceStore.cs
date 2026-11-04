@@ -75,23 +75,31 @@ internal sealed class SqlTraceStore : ITraceStore
         Guid runId,
         CancellationToken cancellationToken = default)
     {
-        var header = CreateCommand(_sql.SelectTraceByRun);
-        DbHelpers.Add(header, "run_id", runId);
-        DbHelpers.AddTenant(header, _tenantContext.TenantId);
-
-        var trace = await DbHelpers.ReadSingleAsync(header, ReadTrace, cancellationToken).ConfigureAwait(false);
+        var trace = await _context.ExecuteStatementAsync(
+            _sql.SelectTraceByRun,
+            header =>
+            {
+                DbHelpers.Add(header, "run_id", runId);
+                DbHelpers.AddTenant(header, _tenantContext.TenantId);
+            },
+            (header, token) => DbHelpers.ReadSingleAsync(header, ReadTrace, token),
+            cancellationToken).ConfigureAwait(false);
 
         if (trace is null)
         {
             return null;
         }
 
-        var spans = CreateCommand(_sql.SelectSpans);
-        DbHelpers.Add(spans, "trace_id", trace.Id);
-
         return trace with
         {
-            Spans = await DbHelpers.ReadListAsync(spans, ReadSpan, cancellationToken).ConfigureAwait(false),
+            Spans = await _context.ExecuteStatementAsync(
+            _sql.SelectSpans,
+            spans =>
+            {
+                DbHelpers.Add(spans, "trace_id", trace.Id);
+            },
+            (spans, token) => DbHelpers.ReadListAsync(spans, ReadSpan, token),
+            cancellationToken).ConfigureAwait(false),
         };
     }
 
@@ -195,8 +203,6 @@ internal sealed class SqlTraceStore : ITraceStore
 
         return attributes;
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static RunTrace ReadTrace(DbDataReader reader)
         => new()

@@ -87,6 +87,48 @@ public sealed class TenantProviderEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    [Theory]
+    [InlineData("%EF%BD%8Fpenai")]
+    [InlineData("%C3%89cole")]
+    [InlineData("open%20ai")]
+    [InlineData("open%C4%B1")]
+    public async Task A_provider_name_outside_the_alphabet_is_a_400_on_save_and_on_delete(string provider)
+    {
+        // The alphabet is the ASCII letters, the digits, '_', '.' and '-': outside it the engines disagree on what one
+        // name is, so the door answers instead of a store throwing.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var save = await host.Client.PutAsJsonAsync(
+            $"/tracon/api/tenants/acme/providers/{provider}",
+            new { apiKeyConfigurationName = "Tracon:ProviderKeys:Acme:OpenAI" });
+
+        save.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await TraconTestHost.ReadJsonAsync(save)).GetProperty("detail").GetString()!.ShouldContain("ASCII", Case.Sensitive);
+
+        using var delete = await host.Client.DeleteAsync(new Uri($"/tracon/api/tenants/acme/providers/{provider}", UriKind.Relative));
+
+        delete.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Theory]
+    [InlineData("azure-openai")]
+    [InlineData("my_provider.v2")]
+    [InlineData("OpenAI")]
+    public async Task A_provider_name_inside_the_alphabet_is_saved_in_its_lower_case_form(string provider)
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(
+            $"/tracon/api/tenants/acme/providers/{provider}",
+            new { apiKeyConfigurationName = "Tracon:ProviderKeys:Acme:OpenAI" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var listed = await host.Client.GetFromJsonAsync<TenantProviderBindingResponse[]>("/tracon/api/tenants/acme/providers");
+
+        listed.ShouldNotBeNull().ShouldHaveSingleItem().ProviderName.ShouldBe(provider.ToLowerInvariant());
+    }
+
     [Fact]
     public async Task Empty_name_is_rejected()
     {

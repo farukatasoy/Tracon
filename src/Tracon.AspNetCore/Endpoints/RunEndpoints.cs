@@ -86,6 +86,12 @@ internal static class RunEndpoints
                     return authorizationProblem;
                 }
 
+                // The filter is compared with the session ids of the store, so it follows the rules those ids follow.
+                if (SessionIdLimits.Check(sessionId, "sessionId") is { } sessionIdProblem)
+                {
+                    return sessionIdProblem;
+                }
+
                 var (labelKey, labelValue) = RunAttributionGate.ParseLabelFilter(label);
 
                 var records = await runs.QueryRunsAsync(
@@ -130,7 +136,9 @@ internal static class RunEndpoints
                 "run it continues in 'continuedFromRunId'); ask again with the newest one to walk the " +
                 "chain forward. If a registered " +
                 "IRunAuthorizationHandler denies the caller, the response is 403 — the list is " +
-                "REJECTED, never silently filtered.")
+                "REJECTED, never silently filtered. A 'sessionId' longer than 200 characters, or one " +
+                "that starts or ends with whitespace, returns 400.")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         builder.MapGet("/api/runs/{runId:guid}/tree", async Task<Results<Ok<IReadOnlyList<RunRecord>>, ProblemHttpResult>> (

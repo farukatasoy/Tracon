@@ -33,10 +33,14 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectRetentionPolicies);
-        DbHelpers.AddPolicyTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadPolicy, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRetentionPolicies,
+            command =>
+            {
+                DbHelpers.AddPolicyTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadPolicy, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -48,11 +52,15 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
 
-        var command = CreateCommand(_sql.SelectRetentionPolicy);
-        DbHelpers.AddPolicyTenant(command, tenantId);
-        DbHelpers.Add(command, "target", target);
-
-        var found = await DbHelpers.ReadSingleAsync(command, ReadPolicy, cancellationToken).ConfigureAwait(false);
+        var found = await _context.ExecuteStatementAsync(
+            _sql.SelectRetentionPolicy,
+            command =>
+            {
+                DbHelpers.AddPolicyTenant(command, tenantId);
+                DbHelpers.Add(command, "target", target);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadPolicy, token),
+            cancellationToken).ConfigureAwait(false);
 
         if (found is not null || string.Equals(tenantId, RetentionPolicyTenant.AllTenants, StringComparison.Ordinal))
         {
@@ -60,11 +68,16 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         }
 
         // Falls back to the "*" global default when there is no tenant-specific record.
-        var fallback = CreateCommand(_sql.SelectRetentionPolicy);
-        DbHelpers.AddPolicyTenant(fallback, RetentionPolicyTenant.AllTenants);
-        DbHelpers.Add(fallback, "target", target);
 
-        return await DbHelpers.ReadSingleAsync(fallback, ReadPolicy, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRetentionPolicy,
+            fallback =>
+            {
+                DbHelpers.AddPolicyTenant(fallback, RetentionPolicyTenant.AllTenants);
+                DbHelpers.Add(fallback, "target", target);
+            },
+            (fallback, token) => DbHelpers.ReadSingleAsync(fallback, ReadPolicy, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -103,11 +116,15 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
 
-        var command = CreateCommand(_sql.DeleteRetentionPolicy);
-        DbHelpers.AddPolicyTenant(command, tenantId);
-        DbHelpers.Add(command, "target", target);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteRetentionPolicy,
+            command =>
+            {
+                DbHelpers.AddPolicyTenant(command, tenantId);
+                DbHelpers.Add(command, "target", target);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -115,13 +132,17 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
     {
         ArgumentNullException.ThrowIfNull(run);
 
-        var command = CreateCommand(_sql.InsertRetentionRun);
-        DbHelpers.Add(command, "id", run.Id);
-        DbHelpers.AddTenant(command, run.TenantId);
-        DbHelpers.Add(command, "target", run.Target);
-        Dialect.AddTimestamp(command, "started_at", run.StartedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.InsertRetentionRun,
+            command =>
+            {
+                DbHelpers.Add(command, "id", run.Id);
+                DbHelpers.AddTenant(command, run.TenantId);
+                DbHelpers.Add(command, "target", run.Target);
+                Dialect.AddTimestamp(command, "started_at", run.StartedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
 
         return run;
     }
@@ -135,12 +156,16 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         long archivedDelta,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.UpdateRetentionRunProgress);
-        DbHelpers.Add(command, "id", runId);
-        DbHelpers.Add(command, "deleted_delta", deletedDelta);
-        DbHelpers.Add(command, "archived_delta", archivedDelta);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.UpdateRetentionRunProgress,
+            command =>
+            {
+                DbHelpers.Add(command, "id", runId);
+                DbHelpers.Add(command, "deleted_delta", deletedDelta);
+                DbHelpers.Add(command, "archived_delta", archivedDelta);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -152,12 +177,16 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         string? errorMessage,
         CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.CompleteRetentionRun);
-        DbHelpers.Add(command, "id", runId);
-        Dialect.AddTimestamp(command, "completed_at", completedAt);
-        Dialect.AddText(command, "error", errorMessage);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.CompleteRetentionRun,
+            command =>
+            {
+                DbHelpers.Add(command, "id", runId);
+                Dialect.AddTimestamp(command, "completed_at", completedAt);
+                Dialect.AddText(command, "error", errorMessage);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -170,16 +199,18 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectRetentionRuns);
-        DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddText(command, "target", target);
-        DbHelpers.Add(command, "skip", Math.Max(0, skip));
-        DbHelpers.Add(command, "take", Math.Max(1, take));
-
-        return await DbHelpers.ReadListAsync(command, ReadRun, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRetentionRuns,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                Dialect.AddText(command, "target", target);
+                DbHelpers.Add(command, "skip", Math.Max(0, skip));
+                DbHelpers.Add(command, "take", Math.Max(1, take));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadRun, token),
+            cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static RetentionPolicy ReadPolicy(DbDataReader reader)
         => new()

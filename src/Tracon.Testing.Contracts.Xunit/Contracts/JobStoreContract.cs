@@ -534,6 +534,33 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
+    public async Task A_worker_whose_name_differs_only_in_letter_case_does_not_hold_the_lease()
+    {
+        // The caller picks the worker name (JobLeaseRequest.Owner), so "Worker-A" and "worker-a" are two workers. A store
+        // that compares the owner with the rules of a case-insensitive column lets the second one renew, start, complete
+        // and release the first one's lease.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync($"Worker-{Guid.NewGuid():N}", TimeSpan.FromMinutes(5));
+        var lookalike = lease with { Owner = lease.Owner.ToLowerInvariant() };
+
+        string.Equals(lookalike.Owner, lease.Owner, StringComparison.Ordinal).ShouldBeFalse();
+        (await Store.RenewLeaseAsync(lookalike, TimeSpan.FromMinutes(5))).ShouldBeFalse();
+        (await Store.MarkRunningAsync(lookalike)).ShouldBeFalse();
+        (await Store.CompleteAsync(lookalike, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeFalse();
+        (await Store.ReleaseForRetryAsync(lookalike, "not mine")).ShouldBeFalse();
+
+        var current = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        current.Status.ShouldBe(JobStatus.Leased);
+        current.LeaseOwner.ShouldBe(lease.Owner);
+        current.ErrorMessage.ShouldBeNull();
+
+        // The worker that holds the lease is not locked out by the refused writes.
+        (await Store.MarkRunningAsync(lease)).ShouldBeTrue();
+        (await Store.CompleteAsync(lease, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Only_one_of_two_concurrent_completions_of_the_same_lease_is_applied()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);

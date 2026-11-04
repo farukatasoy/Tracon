@@ -56,13 +56,16 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
     /// <inheritdoc />
     public override async Task<string?> ReadAsync(string path, CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectAgentFile);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "agent_name", RequireAgentName());
-        DbHelpers.Add(command, "path", NormalizePath(path));
-
-        return await DbHelpers
-            .ReadSingleAsync(command, reader => ProtectedValue.Read(_context, reader.GetString(0))!, cancellationToken)
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentFile,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "agent_name", RequireAgentName());
+                DbHelpers.Add(command, "path", NormalizePath(path));
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, reader => ProtectedValue.Read(_context, reader.GetString(0))!, token),
+            cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -91,24 +94,31 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
     /// <inheritdoc />
     public override async Task<bool> DeleteAsync(string path, CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.DeleteAgentFile);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "agent_name", RequireAgentName());
-        DbHelpers.Add(command, "path", NormalizePath(path));
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteAgentFile,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "agent_name", RequireAgentName());
+                DbHelpers.Add(command, "path", NormalizePath(path));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
     public override async Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default)
     {
-        var command = CreateCommand(_sql.SelectAgentFile);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "agent_name", RequireAgentName());
-        DbHelpers.Add(command, "path", NormalizePath(path));
-
-        return await DbHelpers
-            .ReadSingleAsync(command, static reader => reader.GetString(0), cancellationToken)
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentFile,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "agent_name", RequireAgentName());
+                DbHelpers.Add(command, "path", NormalizePath(path));
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, static reader => reader.GetString(0), token),
+            cancellationToken)
             .ConfigureAwait(false) is not null;
     }
 
@@ -237,16 +247,18 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
     /// <inheritdoc />
     public async ValueTask<AgentFileTreeUsage> MeasureAsync(string tenantId, string directory, CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.SelectAgentFileTreeUsage);
-        DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
 
         // An aggregate query returns exactly one row.
-        var rows = await DbHelpers.ReadListAsync(
-            command,
-            static reader => new AgentFileTreeUsage(
+        var rows = await _context.ExecuteStatementAsync(
+            _sql.SelectAgentFileTreeUsage,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => new AgentFileTreeUsage(
                 Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
-                Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture)),
+                Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture)), token),
             cancellationToken).ConfigureAwait(false);
 
         return rows.Count == 0 ? default : rows[0];
@@ -256,24 +268,30 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
     public async ValueTask<IReadOnlyList<AgentFileTreeEntry>> ReadAsync(string tenantId, string directory, CancellationToken cancellationToken)
     {
         var prefix = NormalizeDirectory(directory);
-        var command = CreateCommand(_sql.SelectAgentFileTree);
-        DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
 
-        return await DbHelpers.ReadListAsync(
-            command,
-            reader => new AgentFileTreeEntry(reader.GetString(0)[prefix.Length..], ProtectedValue.Read(_context, reader.GetString(1))!),
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentFileTree,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => new AgentFileTreeEntry(reader.GetString(0)[prefix.Length..], ProtectedValue.Read(_context, reader.GetString(1))!), token),
             cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async ValueTask<int> DeleteAsync(string tenantId, string directory, CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.DeleteAgentFileTree);
-        DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteAgentFileTree,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -317,17 +335,18 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
         string? regexPattern,
         CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.SelectAgentFilesFiltered);
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "agent_name", RequireAgentName());
-        Dialect.AddText(command, "prefix_like", EscapeLikeLiteral(prefix) + "%");
-        Dialect.AddText(command, "prefix_deep_like", deepLike);
-        Dialect.AddText(command, "name_like", nameLike);
-        Dialect.AddText(command, "regex_pattern", regexPattern);
-
-        return await DbHelpers.ReadListAsync(
-            command,
-            reader => (reader.GetString(0), ProtectedValue.Read(_context, reader.GetString(1))!),
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectAgentFilesFiltered,
+            command =>
+            {
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "agent_name", RequireAgentName());
+                Dialect.AddText(command, "prefix_like", EscapeLikeLiteral(prefix) + "%");
+                Dialect.AddText(command, "prefix_deep_like", deepLike);
+                Dialect.AddText(command, "name_like", nameLike);
+                Dialect.AddText(command, "regex_pattern", regexPattern);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, reader => (reader.GetString(0), ProtectedValue.Read(_context, reader.GetString(1))!), token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -408,6 +427,5 @@ internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
         return normalized.EndsWith('/') ? normalized : normalized + "/";
     }
 
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 }
 #pragma warning restore MAAI001

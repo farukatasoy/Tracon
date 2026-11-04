@@ -29,10 +29,14 @@ internal sealed class SqlTenantToolPolicyStore : ITenantToolPolicyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectTenantToolPolicy);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadRecord, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectTenantToolPolicy,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadRecord, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -74,13 +78,15 @@ internal sealed class SqlTenantToolPolicyStore : ITenantToolPolicyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.DeleteTenantToolPolicy);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteTenantToolPolicy,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private TenantToolPolicy ReadRecord(DbDataReader reader)
         => new()

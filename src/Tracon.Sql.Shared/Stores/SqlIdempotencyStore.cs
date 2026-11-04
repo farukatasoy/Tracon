@@ -66,15 +66,20 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         IdempotencyRequest request,
         CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.InsertIdempotencyKey);
-        DbHelpers.AddTenant(command, request.TenantId);
-        DbHelpers.Add(command, "key", request.Key);
-        Dialect.AddText(command, "fingerprint", request.Fingerprint);
-        Dialect.AddTimestamp(command, "created_at", request.CreatedAt);
 
         try
         {
-            await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            await _context.ExecuteStatementAsync(
+            _sql.InsertIdempotencyKey,
+            command =>
+            {
+                DbHelpers.AddTenant(command, request.TenantId);
+                DbHelpers.Add(command, "key", request.Key);
+                Dialect.AddText(command, "fingerprint", request.Fingerprint);
+                Dialect.AddTimestamp(command, "created_at", request.CreatedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
 
             return new IdempotencyReservation { State = IdempotencyState.Reserved };
         }
@@ -121,18 +126,22 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(response);
 
-        var command = CreateCommand(_sql.CompleteIdempotencyKey);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "key", key);
-        Dialect.AddInt32(command, "status_code", response.StatusCode);
-        Dialect.AddText(command, "content_type", response.ContentType);
-        Dialect.AddText(command, "body", response.Body);
-        Dialect.AddUuid(command, "run_id", response.RunId);
-        Dialect.AddJsonb(command, "headers", SerializeHeaders(response.Headers));
-        Dialect.AddTimestamp(command, "completed_at", DateTimeOffset.UtcNow);
-        Dialect.AddTimestamp(command, "reserved_at", reservedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.CompleteIdempotencyKey,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "key", key);
+                Dialect.AddInt32(command, "status_code", response.StatusCode);
+                Dialect.AddText(command, "content_type", response.ContentType);
+                Dialect.AddText(command, "body", response.Body);
+                Dialect.AddUuid(command, "run_id", response.RunId);
+                Dialect.AddJsonb(command, "headers", SerializeHeaders(response.Headers));
+                Dialect.AddTimestamp(command, "completed_at", DateTimeOffset.UtcNow);
+                Dialect.AddTimestamp(command, "reserved_at", reservedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -145,12 +154,16 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        var command = CreateCommand(_sql.DeleteIdempotencyKey);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "key", key);
-        Dialect.AddTimestamp(command, "reserved_at", reservedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteStatementAsync(
+            _sql.DeleteIdempotencyKey,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "key", key);
+                Dialect.AddTimestamp(command, "reserved_at", reservedAt);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -174,26 +187,32 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
 
     private async ValueTask<bool> TakeOverAsync(IdempotencyRequest request, DateTimeOffset cutoff, CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.TakeOverIdempotencyKey);
-        DbHelpers.AddTenant(command, request.TenantId);
-        DbHelpers.Add(command, "key", request.Key);
-        Dialect.AddText(command, "fingerprint", request.Fingerprint);
-        Dialect.AddTimestamp(command, "created_at", request.CreatedAt);
-        Dialect.AddTimestamp(command, "cutoff", cutoff);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) == 1;
+        return await _context.ExecuteStatementAsync(
+            _sql.TakeOverIdempotencyKey,
+            command =>
+            {
+                DbHelpers.AddTenant(command, request.TenantId);
+                DbHelpers.Add(command, "key", request.Key);
+                Dialect.AddText(command, "fingerprint", request.Fingerprint);
+                Dialect.AddTimestamp(command, "created_at", request.CreatedAt);
+                Dialect.AddTimestamp(command, "cutoff", cutoff);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) == 1;
     }
 
     private async ValueTask<StoredEntry?> ReadAsync(string tenantId, string key, CancellationToken cancellationToken)
     {
-        var command = CreateCommand(_sql.SelectIdempotencyKey);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "key", key);
-
-        return await DbHelpers.ReadSingleAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectIdempotencyKey,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "key", key);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static StoredEntry Read(DbDataReader reader)
     {

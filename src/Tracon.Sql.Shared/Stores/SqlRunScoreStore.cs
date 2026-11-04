@@ -80,11 +80,15 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = _context.CreateCommand(_sql.SelectRunScores);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "run_id", runId);
-
-        return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectRunScores,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "run_id", runId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -95,11 +99,15 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = _context.CreateCommand(_sql.DeleteRunScore);
-        DbHelpers.Add(command, "id", scoreId);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteRunScore,
+            command =>
+            {
+                DbHelpers.Add(command, "id", scoreId);
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <summary>Reads one row, addressing the columns of <c>RunScoreColumns</c> by ordinal.</summary>
@@ -134,65 +142,72 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
         var maxRows = Math.Max(query.MaxRows, 0);
 
-        List<RunScoreAggregate> byName;
-        var categoriesByName = new Dictionary<string, List<(string Category, long Count)>>(StringComparer.Ordinal);
-        List<RunScoreAggregate> byAuthor;
-        List<RunScoreAggregate> bySource;
-        List<RunScoreAggregate> byAgent;
-
-        var summaryCommand = _context.CreateCommand(_sql.SelectRunScoreSummary);
-        AddFilterParameters(summaryCommand, query);
-        DbHelpers.Add(summaryCommand, "max_rows", maxRows);
-        DbHelpers.Add(summaryCommand, "kind_categorical", (short)RunScoreKind.Categorical);
-
-        await using (summaryCommand.ConfigureAwait(false))
-        {
-            var reader = await summaryCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (reader.ConfigureAwait(false))
+        // Every attempt builds its own lists: a read that fell half way is sent again whole, and the rows it had
+        // read never reach the result.
+        var (byName, byAuthor, bySource, byAgent) = await _context.ExecuteStatementAsync(
+            _sql.SelectRunScoreSummary,
+            summaryCommand =>
             {
-                // First result set: the by-name breakdown.
-                byName = await ReadAggregatesAsync(reader, cancellationToken).ConfigureAwait(false);
+                AddFilterParameters(summaryCommand, query);
+                DbHelpers.Add(summaryCommand, "max_rows", maxRows);
+                DbHelpers.Add(summaryCommand, "kind_categorical", (short)RunScoreKind.Categorical);
+            },
+            async (summaryCommand, token) =>
+            {
+                var categoriesByName = new Dictionary<string, List<(string Category, long Count)>>(StringComparer.Ordinal);
 
-                // Second result set: category counts for Categorical names,
-                // unbounded -- capped per name below, since the cap is PER
-                // GROUP, not over the whole result set.
-                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                await using (summaryCommand.ConfigureAwait(false))
                 {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        var name = reader.GetString(0);
-                        var category = reader.GetString(1);
-                        var count = reader.GetInt64(2);
+                    var reader = await summaryCommand.ExecuteReaderAsync(token).ConfigureAwait(false);
 
-                        if (!categoriesByName.TryGetValue(name, out var list))
+                    await using (reader.ConfigureAwait(false))
+                    {
+                        // First result set: the by-name breakdown.
+                        var byName = await ReadAggregatesAsync(reader, token).ConfigureAwait(false);
+
+                        // Second result set: category counts for Categorical names,
+                        // unbounded -- capped per name below, since the cap is PER
+                        // GROUP, not over the whole result set.
+                        if (await reader.NextResultAsync(token).ConfigureAwait(false))
                         {
-                            list = [];
-                            categoriesByName[name] = list;
+                            while (await reader.ReadAsync(token).ConfigureAwait(false))
+                            {
+                                var name = reader.GetString(0);
+                                var category = reader.GetString(1);
+                                var count = reader.GetInt64(2);
+
+                                if (!categoriesByName.TryGetValue(name, out var list))
+                                {
+                                    list = [];
+                                    categoriesByName[name] = list;
+                                }
+
+                                list.Add((category, count));
+                            }
                         }
 
-                        list.Add((category, count));
+                        byName = [.. byName.Select(aggregate => ApplyCategories(aggregate, categoriesByName, maxRows))];
+
+                        // Third result set: breakdown by author.
+                        var byAuthor = await reader.NextResultAsync(token).ConfigureAwait(false)
+                            ? await ReadAggregatesAsync(reader, token).ConfigureAwait(false)
+                            : [];
+
+                        // Fourth result set: breakdown by source.
+                        var bySource = await reader.NextResultAsync(token).ConfigureAwait(false)
+                            ? await ReadAggregatesAsync(reader, token).ConfigureAwait(false)
+                            : [];
+
+                        // Fifth result set: breakdown by agent.
+                        var byAgent = await reader.NextResultAsync(token).ConfigureAwait(false)
+                            ? await ReadAggregatesAsync(reader, token).ConfigureAwait(false)
+                            : [];
+
+                        return (byName, byAuthor, bySource, byAgent);
                     }
                 }
-
-                byName = [.. byName.Select(aggregate => ApplyCategories(aggregate, categoriesByName, maxRows))];
-
-                // Third result set: breakdown by author.
-                byAuthor = await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)
-                    ? await ReadAggregatesAsync(reader, cancellationToken).ConfigureAwait(false)
-                    : [];
-
-                // Fourth result set: breakdown by source.
-                bySource = await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)
-                    ? await ReadAggregatesAsync(reader, cancellationToken).ConfigureAwait(false)
-                    : [];
-
-                // Fifth result set: breakdown by agent.
-                byAgent = await reader.NextResultAsync(cancellationToken).ConfigureAwait(false)
-                    ? await ReadAggregatesAsync(reader, cancellationToken).ConfigureAwait(false)
-                    : [];
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
 
         IReadOnlyList<RunScoreBucketAggregate> series = [];
 
@@ -200,32 +215,41 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
         // the series command is never even created.
         if (query.Bucket is { } bucket)
         {
-            var seriesCommand = _context.CreateCommand(_sql.SelectRunScoreSeries);
-            AddFilterParameters(seriesCommand, query);
-            DbHelpers.Add(seriesCommand, "bucket_unit", BucketUnit(bucket));
-
-            var byBucket = new List<(DateTimeOffset BucketStart, List<RunScoreAggregate> Groups)>();
-
-            await using (seriesCommand.ConfigureAwait(false))
-            {
-                var reader = await seriesCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-                await using (reader.ConfigureAwait(false))
+            var byBucket = await _context.ExecuteStatementAsync(
+                _sql.SelectRunScoreSeries,
+                seriesCommand =>
                 {
-                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    AddFilterParameters(seriesCommand, query);
+                    DbHelpers.Add(seriesCommand, "bucket_unit", BucketUnit(bucket));
+                },
+                async (seriesCommand, token) =>
+                {
+                    var buckets = new List<(DateTimeOffset BucketStart, List<RunScoreAggregate> Groups)>();
+
+                    await using (seriesCommand.ConfigureAwait(false))
                     {
-                        var bucketStart = DbHelpers.GetTimestamp(reader, 0);
-                        var aggregate = ReadAggregate(reader, keyOrdinal: 1, kindOrdinal: 2, countOrdinal: 3);
+                        var reader = await seriesCommand.ExecuteReaderAsync(token).ConfigureAwait(false);
 
-                        if (byBucket.Count == 0 || byBucket[^1].BucketStart != bucketStart)
+                        await using (reader.ConfigureAwait(false))
                         {
-                            byBucket.Add((bucketStart, []));
-                        }
+                            while (await reader.ReadAsync(token).ConfigureAwait(false))
+                            {
+                                var bucketStart = DbHelpers.GetTimestamp(reader, 0);
+                                var aggregate = ReadAggregate(reader, keyOrdinal: 1, kindOrdinal: 2, countOrdinal: 3);
 
-                        byBucket[^1].Groups.Add(aggregate);
+                                if (buckets.Count == 0 || buckets[^1].BucketStart != bucketStart)
+                                {
+                                    buckets.Add((bucketStart, []));
+                                }
+
+                                buckets[^1].Groups.Add(aggregate);
+                            }
+                        }
                     }
-                }
-            }
+
+                    return buckets;
+                },
+                cancellationToken).ConfigureAwait(false);
 
             // Each bucket's own groups are already ordered by count DESC (the
             // SQL ORDER BY), so a per-bucket Take is enough -- the same

@@ -41,10 +41,14 @@ internal sealed class SqlQuotaStore : IQuotaStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectQuotas);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadListAsync(command, ReadQuota, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectQuotas,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadQuota, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -55,11 +59,15 @@ internal sealed class SqlQuotaStore : IQuotaStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.SelectQuota);
-        DbHelpers.Add(command, "id", id);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ReadSingleAsync(command, ReadQuota, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectQuota,
+            command =>
+            {
+                DbHelpers.Add(command, "id", id);
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadQuota, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -98,11 +106,15 @@ internal sealed class SqlQuotaStore : IQuotaStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var command = CreateCommand(_sql.DeleteQuota);
-        DbHelpers.Add(command, "id", id);
-        DbHelpers.AddTenant(command, tenantId);
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.DeleteQuota,
+            command =>
+            {
+                DbHelpers.Add(command, "id", id);
+                DbHelpers.AddTenant(command, tenantId);
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <inheritdoc />
@@ -117,17 +129,20 @@ internal sealed class SqlQuotaStore : IQuotaStore
             return await GetUsageForPeriodsAsync(query, periodStarts, cancellationToken).ConfigureAwait(false);
         }
 
-        var command = CreateCommand(_sql.SelectQuotaUsage);
-        DbHelpers.AddTenant(command, query.TenantId);
-
-        // 🚨 In the `(@p IS NULL OR col = @p)` pattern, when the parameter is
-        // NULL the driver cannot infer its type and PostgreSQL returns
-        // `42P08: could not determine data type`. Every optional filter
-        // parameter must be typed EXPLICITLY.
-        Dialect.AddText(command, "agent_name", query.AgentName);
-        Dialect.AddInt16(command, "period", query.Period is { } period ? (short?)period : null);
-
-        return await DbHelpers.ReadListAsync(command, ReadUsage, cancellationToken).ConfigureAwait(false);
+        return await _context.ExecuteStatementAsync(
+            _sql.SelectQuotaUsage,
+            command =>
+            {
+                DbHelpers.AddTenant(command, query.TenantId);
+                // 🚨 In the `(@p IS NULL OR col = @p)` pattern, when the parameter is
+                // NULL the driver cannot infer its type and PostgreSQL returns
+                // `42P08: could not determine data type`. Every optional filter
+                // parameter must be typed EXPLICITLY.
+                Dialect.AddText(command, "agent_name", query.AgentName);
+                Dialect.AddInt16(command, "period", query.Period is { } period ? (short?)period : null);
+            },
+            (command, token) => DbHelpers.ReadListAsync(command, ReadUsage, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -161,15 +176,19 @@ internal sealed class SqlQuotaStore : IQuotaStore
             var first = pairs[index];
             var second = index + 1 < pairs.Count ? pairs[index + 1] : first;
 
-            var command = CreateCommand(_sql.SelectQuotaUsageForPeriods);
-            DbHelpers.AddTenant(command, query.TenantId);
-            Dialect.AddText(command, "agent_name", query.AgentName);
-            DbHelpers.Add(command, "first_period", (short)first.Key);
-            DbHelpers.Add(command, "first_start", first.Value);
-            DbHelpers.Add(command, "second_period", (short)second.Key);
-            DbHelpers.Add(command, "second_start", second.Value);
-
-            result.AddRange(await DbHelpers.ReadListAsync(command, ReadUsage, cancellationToken).ConfigureAwait(false));
+            result.AddRange(await _context.ExecuteStatementAsync(
+                _sql.SelectQuotaUsageForPeriods,
+                command =>
+                {
+                    DbHelpers.AddTenant(command, query.TenantId);
+                    Dialect.AddText(command, "agent_name", query.AgentName);
+                    DbHelpers.Add(command, "first_period", (short)first.Key);
+                    DbHelpers.Add(command, "first_start", first.Value);
+                    DbHelpers.Add(command, "second_period", (short)second.Key);
+                    DbHelpers.Add(command, "second_start", second.Value);
+                },
+                (command, token) => DbHelpers.ReadListAsync(command, ReadUsage, token),
+                cancellationToken).ConfigureAwait(false));
         }
 
         return result;
@@ -251,15 +270,18 @@ internal sealed class SqlQuotaStore : IQuotaStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(agentName);
 
-        var command = CreateCommand(_sql.TryClaimQuotaThresholdNotification);
-
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "agent_name", agentName);
-        DbHelpers.Add(command, "period", (short)period);
-        DbHelpers.Add(command, "period_start", periodStart);
-        DbHelpers.Add(command, "key", ThresholdKeyText(metric, thresholdPercent));
-
-        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+        return await _context.ExecuteStatementAsync(
+            _sql.TryClaimQuotaThresholdNotification,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "agent_name", agentName);
+                DbHelpers.Add(command, "period", (short)period);
+                DbHelpers.Add(command, "period_start", periodStart);
+                DbHelpers.Add(command, "key", ThresholdKeyText(metric, thresholdPercent));
+            },
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false) > 0;
     }
 
     /// <summary>
@@ -272,8 +294,6 @@ internal sealed class SqlQuotaStore : IQuotaStore
     /// </summary>
     private static string ThresholdKeyText(QuotaMetric metric, int thresholdPercent)
         => string.Create(CultureInfo.InvariantCulture, $"{(int)metric}:{thresholdPercent}");
-
-    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     private static QuotaDefinition ReadQuota(DbDataReader reader)
         => new()

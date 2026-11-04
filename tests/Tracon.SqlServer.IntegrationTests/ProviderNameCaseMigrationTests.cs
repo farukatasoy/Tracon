@@ -61,6 +61,73 @@ public sealed class ProviderNameCaseMigrationTests(SqlServerFixture fixture)
             .ShouldBe(0, "no name may contain the dotless i a Turkish LOWER() writes");
     }
 
+    /// <summary>
+    /// In a case-sensitive database two spellings of one provider can both be stored, and the migration keeps the row of one of
+    /// them: the same one PostgreSQL keeps.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// The two rows are saved at one instant, so the tie is broken by the name. PostgreSQL breaks it with <c>COLLATE "C"</c>, the
+    /// code points, which puts <c>openai</c> after <c>OpenAI</c> and keeps the lower-case row. A case-sensitive SQL Server
+    /// collation orders a lower-case letter before its capital, so a tie-break left to the collation keeps the other row, with
+    /// the other credential. The database has a collation of its own in the same server.
+    /// </remarks>
+    [Fact]
+    public async Task Two_spellings_of_one_provider_keep_the_row_PostgreSQL_keeps_in_a_case_sensitive_database()
+    {
+        var database = "cs_" + Guid.NewGuid().ToString("N")[..12];
+
+        await using (var admin = new Microsoft.Data.SqlClient.SqlConnection(fixture.ConnectionString))
+        {
+            await admin.OpenAsync(TestContext.Current.CancellationToken);
+
+            await using var create = admin.CreateCommand();
+            create.CommandText = $"CREATE DATABASE [{database}] COLLATE SQL_Latin1_General_CP1_CS_AS;";
+            await create.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        var connectionString = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.ConnectionString) { InitialCatalog = database, Pooling = false }.ConnectionString;
+
+        try
+        {
+            var schemaName = SqlServerTestContext.NewSchemaName();
+            await using var context = SqlServerTestContext.Create(connectionString, schemaName);
+            var prefix = $"{schemaName}.";
+
+            (await context.ScalarAsync<int>("SELECT CASE WHEN N'a' = N'A' THEN 1 ELSE 0 END;")).ShouldBe(0, "the database is not case-sensitive");
+
+            await context.ExecuteAsync($"IF SCHEMA_ID(N'{schemaName}') IS NULL EXEC(N'CREATE SCHEMA {schemaName}');");
+
+            await ApplyThroughAsync(context, prefix, MigrationId - 1);
+
+            foreach (var (provider, key) in new[] { ("OpenAI", "key-upper"), ("openai", "key-lower") })
+            {
+                await context.ExecuteRetryingDeadlockAsync(
+                    $"INSERT INTO {prefix}tenant_provider_bindings (tenant_id, provider_name, api_key_configuration_name, updated_at) " +
+                    $"VALUES (N'default', N'{provider}', N'{key}', '2026-11-04T09:00:00+00:00');");
+            }
+
+            (await CountAsync(context, prefix, "tenant_id = N'default'")).ShouldBe(2, "both spellings are stored before the migration");
+
+            (await context.Migrations.ApplyAsync()).ShouldBeGreaterThan(0);
+
+            (await CountAsync(context, prefix, "tenant_id = N'default'")).ShouldBe(1);
+            (await CountAsync(context, prefix, "provider_name COLLATE Latin1_General_BIN2 = N'openai' AND api_key_configuration_name = N'key-lower'"))
+                .ShouldBe(1, "the row that PostgreSQL keeps (the one whose name sorts last by its code points) survives");
+        }
+        finally
+        {
+            Microsoft.Data.SqlClient.SqlConnection.ClearAllPools();
+
+            await using var admin = new Microsoft.Data.SqlClient.SqlConnection(fixture.ConnectionString);
+            await admin.OpenAsync(CancellationToken.None);
+
+            await using var drop = admin.CreateCommand();
+            drop.CommandText = $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}];";
+            await drop.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+    }
+
     private static async Task<int> CountAsync(SqlServerTestContext context, string prefix, string predicate)
         => await context.ScalarAsync<int>($"SELECT COUNT(*) FROM {prefix}tenant_provider_bindings WHERE {predicate};");
 

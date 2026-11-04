@@ -1079,8 +1079,8 @@
   {
    "provider": "sqlserver",
    "name": "0025_provider_name_case",
-   "statements": "897487c7ba260173e5c207fa2b65e4c8c31b19379f17bed561800b4e82506fb8",
-   "reason": "lower() followed the locale of the database; the call names the ordinal collation now, so a Turkish database folds OpenAI to openai"
+   "statements": "49a9129a2083a5471dd8e805287bf4ce2ae7325c83facd6eeb312a1b03a096fd",
+   "reason": "lower() followed the locale of the database; the call names the ordinal collation now, so a Turkish database folds OpenAI to openai. The tie-break between two spellings saved at one instant names it too, so a case-sensitive database keeps the row PostgreSQL keeps"
   },
   {
    "provider": "sqlserver",

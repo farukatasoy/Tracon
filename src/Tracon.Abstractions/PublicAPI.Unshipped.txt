@@ -5525,6 +5525,7 @@ static Tracon.TenantEgressPolicy.operator ==(Tracon.TenantEgressPolicy? left, Tr
 static Tracon.TenantToolPolicy.operator !=(Tracon.TenantToolPolicy? left, Tracon.TenantToolPolicy? right) -> bool
 static Tracon.TenantToolPolicy.operator ==(Tracon.TenantToolPolicy? left, Tracon.TenantToolPolicy? right) -> bool
 static Tracon.TenantProviderBinding.NormalizeProviderName(string! providerName) -> string!
+static Tracon.TenantProviderBinding.TryNormalizeProviderName(string? providerName, out string? canonical) -> bool
 static Tracon.TenantProviderBinding.operator !=(Tracon.TenantProviderBinding? left, Tracon.TenantProviderBinding? right) -> bool
 static Tracon.TenantProviderBinding.operator ==(Tracon.TenantProviderBinding? left, Tracon.TenantProviderBinding? right) -> bool
 static Tracon.TimeSeriesPoint.operator !=(Tracon.TimeSeriesPoint? left, Tracon.TimeSeriesPoint? right) -> bool
