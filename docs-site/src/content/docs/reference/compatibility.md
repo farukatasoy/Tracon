@@ -140,6 +140,89 @@ PostgreSQL knowledge search also needs an
 the PostgreSQL column type. Changing the embedding dimension is a schema migration,
 not a live configuration change.
 
+## Verified platforms
+
+This section lists what was run, not what is expected to work. A cell is **verified** when the test project named in its
+row ran to the end on it with no test failing; **not verified** means no run exists, however likely it is to work. A version
+below the lowest verified one has no run behind it, and a cell with an exception says what the exception is.
+
+Every row names the test project that proves it and the job of the CI workflow that runs it. The jobs `postgres-matrix`,
+`sqlserver-matrix`, `sqlite-floor` and `culture-matrix` were written after the runs below and have **not run on GitHub
+yet**; until they do, each row rests on one run of the same command on a development machine (Apple silicon, 10 cores, the
+database servers as Linux containers), dated in the row. The test counts are those of the commit the page describes.
+
+### PostgreSQL
+
+`Tracon.PostgreSql.IntegrationTests` applies every migration and runs every store contract, 1 594 tests, one of which is
+skipped by design. The test image is `pgvector/pgvector`; the knowledge store needs the `vector` extension and every run
+turns it on.
+
+| Server | Result | Run |
+|---|---|---|
+| 12.19, pgvector 0.7.4 | Verified: 1 593 passed, 1 skipped | 2026-11-04 · job `postgres-matrix`, cell `12` |
+| 13.23 | Verified: 1 593 passed, 1 skipped | 2026-11-04 · cell `13` |
+| 14.24 | Verified: 1 593 passed, 1 skipped | 2026-11-04 · cell `14` |
+| 15.19 | Verified: 1 593 passed, 1 skipped | 2026-11-04 · cell `15` |
+| 16.15 | Verified: 1 593 passed, 1 skipped | 2026-11-04 · cell `16` |
+| 17.11 | Verified: 1 593 passed, 1 skipped | 2026-11-04 · cell `17` |
+| 18.4, locale of the image | Verified: the default image of every run of the project | job `build` (Linux) runs it by default; the previous full-solution run on a development machine was 2026-11-03 |
+| 18.4, ICU locale `tr-TR` | Verified: 1 593 passed, 1 skipped | 2026-11-04 · cell `18, ICU tr-TR` |
+| 11 and older | Not verified: no `pgvector` image exists for these majors, so the test project cannot start | none |
+
+pgvector 0.8 and later need PostgreSQL 13 or newer; on 12 the vector extension is the 0.7 series, the last that supports it.
+Every migration and every query the store contracts reach ran on 12.
+
+### SQL Server
+
+`Tracon.SqlServer.IntegrationTests`, 1 557 tests. The servers run in an emulated amd64 container on this machine, which is
+slower than a native one and changes no result.
+
+| Server | Collation | Result | Run |
+|---|---|---|---|
+| 2017 | server default | **Partly verified.** Every migration applies and 1 555 of 1 557 tests pass. The two that fail pin the error number 2628, which the engine reports from 2019 on for a text longer than its column; 2017 reports 8152 instead. Tracon treats both numbers as a text-too-long fault, but no test proves it on 2017 | 2026-11-04, local only · no CI cell |
+| 2019 | server default | Verified: 1 557 of 1 557. One case timed out in the first full run (a migration took longer than its 30-second command timeout on the emulated server under load) and passed when run alone | 2026-11-04 · cell `2019` |
+| 2022 | server default | Verified: the default image of every run of the project | job `build` (Linux) runs it by default; the previous full-solution run on a development machine was 2026-11-03 |
+| 2022 | `Turkish_CI_AS`, language 1055 | **Partly verified.** The classes that exercise the collation (the tenant alphabet and the provider-name migration, with the check that the server reports `Turkish_CI_AS`) pass, 4 of 4, on 2026-11-04. The whole project was last run green on this cell on 2026-11-01 (1 190 of 1 190, before the project had its present size); the run on 2026-11-04 failed in 1 518 of 1 557 cases until the test fixture waited for the server to finish applying the collation, and its repeat with the wait was not finished when this page was written | cell `2022, Turkish_CI_AS` |
+| Azure SQL Database | not verified: it cannot be started as a container | none |
+
+The two settings of the Turkish cell are given together: a server started with only the collation keeps English as its language, and a pooled connection fails when it is reset. The image also applies the collation after the server first accepts connections, by rebuilding the system databases and dropping every connection; a run waits until the server reports the collation before it starts.
+`TenantAlphabetCollationTests` also asks each server which of the tenant identifiers over the allowed alphabet it
+considers equal (none), on 2019, on 2022 and on 2022 with `Turkish_CI_AS`. Key columns that hold a name or an identifier
+you choose are `Latin1_General_BIN2` on every server, so a server collation never decides which of two such values is the
+same one; the [storage table](#storage-engines) says which columns.
+
+### SQLite
+
+`Tracon.Sqlite.IntegrationTests`, 1 639 tests (one skips unless a run names the engine version it expects). SQLite is a library, so its version is the version of the native file the
+process loads. `Microsoft.Data.Sqlite` 10.0.14 brings 3.53.3. The rows below replace that file with the one a package of the
+same family carried, and the project asks the engine for its version to be sure the replacement is the file that ran.
+
+| SQLite | Result | Run |
+|---|---|---|
+| 3.53.3, the bundled library | Verified: 1 639 of 1 639 | 2026-11-04 · job `build` runs it by default |
+| 3.44.0 | Verified: 1 639 of 1 639 | 2026-11-04 · job `sqlite-floor` |
+| 3.41.2 | **Fails.** The case `A_revoked_key_stays_revoked_while_its_last_use_is_being_recorded` (a key revoked while its last use is written, 200 rounds) ends with `database is locked` after six minutes; 3.44.0 finishes it in 20 seconds. Only this case and the `1e300` case of the next row were run on this version | local only · no CI cell |
+| 3.38.3 | **Fails.** The same case had not finished after eight minutes and was stopped; the `1e300` case of the next row fails | local only · no CI cell |
+| 3.35.5 | **Partly verified.** Every migration applies and 1 636 of the 1 638 tests the project had then pass. The case above fails (`database is locked`), and a case that stores the text `1e300` and reads it back as a number fails: the engine returns 1.0000000000000005E+300, one unit in the last place off | local only · no CI cell |
+| 3.33.0 and older | **Fails.** Migration `0030_job_handler_key` stops with `near "DROP": syntax error`: `ALTER TABLE … DROP COLUMN` needs 3.35 | local only (Linux arm64 container) · no CI cell |
+
+No packaged build exists between 3.41.2 and 3.44.0, so the version at which the case above starts to pass is somewhere in
+that range and 3.44.0 is the lowest verified one. The same table applies to a SQLite library your application loads itself (a system library, or
+`SQLitePCLRaw.bundle_sqlite3`): what counts is its version.
+
+### Operating system and culture
+
+| Cell | Result | Run |
+|---|---|---|
+| Linux x64 | Not verified on a CI run: job `build` runs the whole solution on `ubuntu-latest` and has not run on GitHub. The database servers above are Linux containers, and the SQLite project ran in a Linux arm64 container (3.53.3 and 3.33.0) | job `build` |
+| macOS (Darwin 27), Apple silicon | Verified: the whole solution runs on the development machine for every change | none (no CI leg) |
+| Windows x64 | **Not verified.** Job `build` has a `windows-latest` leg that runs every project that does not need Docker; it has not run on GitHub | job `build`, Windows leg |
+| Process culture `tr-TR`, time zone `America/New_York` | Verified: the whole solution, 16 275 tests, 2026-11-01; run again on 2026-11-04 for the core unit tests (6 543 of 6 543) and the SQLite project (1 638 passed, 1 skipped) | job `culture-matrix` (the projects that need no Docker) |
+| Process culture `de-DE`, time zone `Australia/Lord_Howe` | Verified: the whole solution, 16 275 tests, 2026-11-01; run again on 2026-11-04 for the core unit tests (6 543 of 6 543 on the second run; the first run failed one lease case that passed in 3 runs alone and in 12 parallel runs) and the SQLite project (1 638 passed, 1 skipped) | job `culture-matrix` |
+
+The culture rows set `LC_ALL` and `TZ` for the test process; .NET reads both on every operating system. The collation and
+locale of the databases themselves are the PostgreSQL and SQL Server rows with `tr-TR` and `Turkish_CI_AS`.
+
 ## Agent Framework dependency versions
 
 Seven packages depend on Microsoft Agent Framework or `Microsoft.Extensions.AI`.
