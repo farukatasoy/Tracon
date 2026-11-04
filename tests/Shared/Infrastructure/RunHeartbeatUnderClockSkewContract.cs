@@ -126,6 +126,31 @@ public abstract class RunHeartbeatUnderClockSkewContract
         (await runs.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
     }
 
+    /// <summary>
+    /// A threshold of zero or less is not rejected by the store: zero counts a mark older than the database server's clock
+    /// at the call, a negative value counts every mark, so a run that was marked a moment ago is closed.
+    /// </summary>
+    /// <param name="staleAfterSeconds">The threshold, in seconds.</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-60)]
+    public async Task A_threshold_of_zero_or_less_closes_a_run_that_was_marked_a_moment_ago(int staleAfterSeconds)
+    {
+        var (runs, _, _) = await OpenAsync();
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
+        await runs.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+
+        // The mark is older than the database server's clock from the next statement on; the wait only covers a clock tick.
+        var claimed = await WaitUntil.ValueAsync(
+            async () => await runs.ClaimOrphanedRunsAsync(TimeSpan.FromSeconds(staleAfterSeconds), 10),
+            closed => closed.Count > 0,
+            "the run marked a moment ago to be counted as orphaned");
+
+        claimed.ShouldHaveSingleItem().Id.ShouldBe(runId);
+    }
+
     private async Task<RunStatus> RunBothNodesAsync(
         IRunStore runs,
         ISingletonLeaseStore leases,

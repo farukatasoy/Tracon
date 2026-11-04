@@ -64,6 +64,26 @@ public sealed class RunStoreClockRegistrationTests(SqliteSchemaFixture schema) :
             .ShouldHaveSingleItem().Id.ShouldBe(runId);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-60)]
+    public async Task A_threshold_of_zero_or_less_counts_a_run_that_was_marked_a_moment_ago(int staleAfterSeconds)
+    {
+        await schema.ResetAsync();
+        var clock = new ManualClock();
+        await using var provider = Build(clock);
+        var runs = provider.GetRequiredService<IRunStore>();
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(Start(runId, clock), TestContext.Current.CancellationToken);
+        await runs.TouchHeartbeatAsync([runId], clock.GetUtcNow(), TestContext.Current.CancellationToken);
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+
+        (await runs.ClaimOrphanedRunsAsync(TimeSpan.FromSeconds(staleAfterSeconds), 10, TestContext.Current.CancellationToken))
+            .ShouldHaveSingleItem().Id.ShouldBe(runId);
+    }
+
     private static RunStartInfo Start(Guid runId, TimeProvider clock)
         => new() { RunId = runId, AgentName = "clock-agent", StartedAt = clock.GetUtcNow() };
 

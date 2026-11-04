@@ -475,7 +475,10 @@ public interface IRunStore
     /// mark and the age are both read from the application's <see cref="TimeProvider"/>
     /// (the one the heartbeat writer marks with), so a host that registers its own
     /// clock ages a run on it. A <c>Running</c> row that never sent a heartbeat is judged
-    /// by the time it started, which its own node wrote.
+    /// by the time it started, which its own node wrote. A value of zero or less is not
+    /// rejected here (<see cref="RunReconciliationOptions.OrphanThreshold"/> is, at startup): zero
+    /// counts every row whose last mark is older than the store's clock at the call, and a
+    /// negative value counts every row, so either closes runs that are beating.
     /// </param>
     /// <param name="max">The maximum number of rows to close in this round.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
