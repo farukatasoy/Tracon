@@ -55,6 +55,11 @@ dotnet add package Tracon.Voice --prerelease
 dotnet user-secrets set "Tracon:Voice:ApiKey" "..."
 ```
 
+Tracon removes white space at both ends of the key before it sends it, so a key read from a
+file with a trailing newline works; a key that still holds a control character, or another
+character an HTTP header cannot carry, stops the host at start with a message that names
+the option and never repeats the key.
+
 ```csharp
 var tracon = builder.AddTracon()
     .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName));
