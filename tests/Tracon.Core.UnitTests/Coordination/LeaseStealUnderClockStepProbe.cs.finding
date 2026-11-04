@@ -4,9 +4,11 @@ namespace Tracon.Core.UnitTests.Coordination;
 
 /// <summary>
 /// PROBE, not a gate: measures what two single-executor guards believe when the clock the lease STORE reads is stepped
-/// forward past the lease while the owner's own monotonic clock did not move. The SQL stores stamp a lease with the
-/// writing node's wall clock and compare it with the reading node's wall clock, so a node whose clock runs ahead (skew
-/// or a step) sees a live lease as expired and takes it.
+/// forward past the lease while the owner's own monotonic clock did not move. A store that reads the application's clock
+/// (the in-memory store, and SQLite whose file is used by one process) sees a live lease as expired once that clock steps
+/// ahead, and the other guard takes it. The PostgreSQL and SQL Server stores read the database server's clock inside the
+/// lease statements, so a step of a node's wall clock no longer reaches their leases (the clock-skew contract has those
+/// scenarios); this probe stays for the stores that still read the application's clock.
 /// </summary>
 public sealed class LeaseStealUnderClockStepProbe
 {

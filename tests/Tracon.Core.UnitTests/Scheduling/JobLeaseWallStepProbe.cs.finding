@@ -6,16 +6,25 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// <summary>
 /// PROBE, not a gate: measures what a job store does with a running job's lease when the wall clock the store reads is
 /// stepped forward past the lease while the worker that holds it renews on its own monotonic clock. A lease is stamped
-/// with the writing node's wall clock and compared with the reading node's, so a node whose clock is ahead (a step, or
-/// skew) sees a live lease as expired. The worker is not at fault: its renewals go on and are confirmed.
+/// with the clock of the node that calls the store, so a node whose clock steps ahead sees a live lease as expired. The
+/// worker is not at fault: its renewals go on and are confirmed.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Measured (2026-11-04, in-memory store, a fake clock stepped two hours, a 900 ms lease and two slots): the second slot leased
 /// the running job at its first poll after the step, before the first renewal after the step had been answered:
 /// <c>handlerCalls=2 attempt=2 renewals=1</c>. The in-memory store is the reference the SQL stores follow, so this is the same
 /// finding the SQL measurement of the two providers recorded; it is kept as a probe here because the worker-side tests of
 /// <c>JobLeaseClockStepTests</c> hold ONE slot and cannot see it. Fixing it is a decision about the lease's time source,
 /// not a change of the worker.
+/// </para>
+/// <para>
+/// <strong>Still open for the stores that read the application's clock</strong> (the in-memory store and SQLite, whose file
+/// is used by one process). The PostgreSQL and SQL Server stores read the database server's clock inside the lease
+/// statements, so a step of a node's wall clock no longer reaches their leases; their scenarios are in the clock-skew
+/// contract. What remains here is a step of the one clock a single-process store reads, and closing it means deciding a
+/// lease's end on a monotonic reading in those stores.
+/// </para>
 /// </remarks>
 public sealed class JobLeaseWallStepProbe
 {
