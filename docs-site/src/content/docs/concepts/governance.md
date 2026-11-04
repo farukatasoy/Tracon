@@ -175,6 +175,13 @@ administrator writes one, and a binding whose configuration key carries no value
 not fall back to the shared key silently — the run fails with a clear error, so a
 misconfigured tenant is never billed against the wrong account.
 
+A provider name holds only the ASCII letters, the digits, `_`, `.` and `-`, and is kept in lower case
+(`OpenAI` and `openai` are one binding). Any other character is refused: `PUT` and `DELETE
+/api/tenants/{tenantId}/providers/{provider}` answer `400`, and a store throws `ArgumentException`
+(`TenantProviderBinding.TryNormalizeProviderName` decides without throwing, for text that came from a
+client). Outside that alphabet the databases disagree on what one name is: SQL Server's default collation reads a
+full-width `ｏ` as `o`, and PostgreSQL and SQLite do not.
+
 An egress policy narrows which providers a tenant's agents may call at all. By default a tenant
 with no saved policy is unrestricted; saving one is an additive restriction. A
 multi-tenant deployment can close that gap with `Tracon:TenantProviders:RequireEgressPolicy`

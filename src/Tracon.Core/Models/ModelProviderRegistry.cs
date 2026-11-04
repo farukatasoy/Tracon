@@ -306,14 +306,17 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 
         var tenantId = _tenantContext.TenantId;
 
-        if (await _tenantProviderBindings.GetAsync(tenantId, binding.Provider, cancellationToken).ConfigureAwait(false) is not null)
+        // A name outside the provider alphabet cannot have been bound, and the store refuses to look it up.
+        if (TenantProviderBinding.TryNormalizeProviderName(binding.Provider, out _)
+            && await _tenantProviderBindings.GetAsync(tenantId, binding.Provider, cancellationToken).ConfigureAwait(false) is not null)
         {
             return true;
         }
 
         foreach (var fallback in binding.Fallbacks)
         {
-            if (await _tenantProviderBindings.GetAsync(tenantId, fallback.Provider, cancellationToken).ConfigureAwait(false) is not null)
+            if (TenantProviderBinding.TryNormalizeProviderName(fallback.Provider, out _)
+                && await _tenantProviderBindings.GetAsync(tenantId, fallback.Provider, cancellationToken).ConfigureAwait(false) is not null)
             {
                 return true;
             }

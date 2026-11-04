@@ -11,6 +11,13 @@ namespace Tracon;
 public sealed record JobLeaseRequest
 {
     /// <summary>Gets the leasing worker's identifier.</summary>
+    /// <remarks>
+    /// The caller chooses the name. Two names are two workers when they differ in any character, letter case included
+    /// (<c>Worker-A</c> and <c>worker-a</c>): a write that needs the lease changes the job only for the exact name the
+    /// lease was given to, on every store. A SQL Server database ignores trailing blanks in any comparison, so
+    /// <c>worker</c> and <c>worker </c> are one worker there and two elsewhere; give each worker a name that neither starts
+    /// nor ends with a blank.
+    /// </remarks>
     public required string Owner { get; init; }
 
     /// <summary>Gets the lease's validity duration.</summary>

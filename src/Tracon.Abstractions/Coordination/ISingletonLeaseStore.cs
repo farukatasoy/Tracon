@@ -58,7 +58,7 @@ public interface ISingletonLeaseStore
     /// holds the lease and it has not expired.
     /// </summary>
     /// <param name="name">The name of the lease (the id of the protected job).</param>
-    /// <param name="ownerId">The id of this instance.</param>
+    /// <param name="ownerId">The id of this instance. It is compared by its characters, letter case included; SQL Server still ignores trailing blanks.</param>
     /// <param name="duration">How long the lease stays valid.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> when the lease was taken.</returns>
@@ -73,7 +73,7 @@ public interface ISingletonLeaseStore
     /// has moved to someone else — the caller MUST then drop the job.
     /// </summary>
     /// <param name="name">The name of the lease.</param>
-    /// <param name="ownerId">The id of the instance that claims to hold the lease.</param>
+    /// <param name="ownerId">The id of the instance that claims to hold the lease, compared by its characters, letter case included.</param>
     /// <param name="duration">The new lease duration.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> when the renewal succeeded.</returns>
@@ -85,7 +85,7 @@ public interface ISingletonLeaseStore
 
     /// <summary>Releases the lease. It does nothing when the caller is not the owner.</summary>
     /// <param name="name">The name of the lease.</param>
-    /// <param name="ownerId">The id of the instance that claims to hold the lease.</param>
+    /// <param name="ownerId">The id of the instance that claims to hold the lease, compared by its characters, letter case included.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes when the work is done.</returns>
     ValueTask ReleaseAsync(

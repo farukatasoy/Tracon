@@ -234,6 +234,21 @@ million runs with two million events. The default `CommandTimeoutSeconds` of 30 
 it for the run that applies the migration if your storage is slower
 ([Compatibility](/reference/compatibility/)).
 
+The `ordinal_lease_owner` migration (`0062`, SQL Server only) keeps every value and changes how SQL Server
+compares the name of a lease owner: `jobs.lease_owner` and `singleton_leases.owner_id` take
+`Latin1_General_BIN2`, so a worker named `worker-a` no longer renews, starts, completes or releases the
+lease of a worker named `Worker-A` (you choose the name, in `JobLeaseRequest.Owner` and in the owner you pass
+to `ISingletonLeaseStore.TryAcquireAsync`). No row is merged, removed or rewritten, and a lease that is running
+keeps its owner. Measured in an emulated container on Apple Silicon: 4 to 8 ms over 100 000 jobs and 9 to 30 ms
+over a million, because the statement changes the comparison and not the stored text. It takes a schema lock on
+the two tables, so apply it before you start the new nodes: a worker that leases a job waits for it. SQL Server
+still ignores trailing blanks in an owner name (`w` and `w ` are one owner).
+
+On SQL Server a store call that is one statement (an event append, a read, a delete) that the server picks as a
+deadlock victim is sent again, up to five attempts in all, as a transaction has been; an error that is not a
+deadlock reaches your code unchanged. Before this the call threw `SqlException` 1205, and a run lost the events
+that followed the failed append.
+
 The `decimal_columns_as_text` migration (`0058`, SQLite only) rewrites `runs`. Seven columns were
 declared `NUMERIC` (`cached_input_cost`, `non_token_cost` and the five unit prices), and SQLite turned
 the text of a cost into a double and kept 15 digits of it: `999999999.999999` read back as

@@ -37,6 +37,22 @@ public sealed class RetentionLookAlikeTenantTests(SqlServerFixture fixture)
     }
 
     [Fact]
+    public async Task A_row_an_earlier_release_stored_in_capitals_is_still_swept_for_its_tenant()
+    {
+        // A tenant is the same tenant in any letter case. The check that keeps a look-alike out must not also keep out the
+        // row of the tenant itself that was written before the identifier was folded to lower case.
+        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var old = DateTimeOffset.UtcNow.AddDays(-60);
+        var capitals = await SeedFinishedJobAsync(context, "ACME", old);
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-1);
+
+        (await context.RetentionData.CountOlderThanAsync(RetentionTargets.Jobs, "acme", cutoff)).ShouldBe(1);
+        (await context.RetentionData.DeleteBatchAsync(RetentionTargets.Jobs, "acme", cutoff, batchSize: 100)).ShouldBe(1);
+
+        (await JobExistsAsync(context, capitals)).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task A_delete_of_sessions_for_one_tenant_leaves_the_rows_of_a_look_alike_tenant()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);

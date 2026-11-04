@@ -317,6 +317,22 @@ public sealed class ModelProviderRegistryTenantCredentialTests
     }
 
     [Fact]
+    public async Task A_provider_name_outside_the_alphabet_has_no_tenant_override_and_does_not_throw()
+    {
+        // A host may register a provider under any name, and an agent definition names one freely. The store refuses to look
+        // such a name up (it cannot have been bound), so the registry answers "no binding" instead of letting the
+        // ArgumentException out as a failure of the run.
+        var provider = new FakeModelProvider(name: "open ai");
+        var registry = CreateRegistry(provider, new FixedTenantContext(Tenant), new InMemoryTenantProviderBindingStore());
+
+        (await registry.HasTenantProviderOverrideAsync(TestData.Binding(provider: "open ai"))).ShouldBeFalse();
+
+        registry.CreateChatClient(TestData.Binding(provider: "open ai"));
+
+        provider.LastCredential.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task HasTenantProviderOverride_is_true_when_the_primary_provider_has_a_binding()
     {
         var bindings = new InMemoryTenantProviderBindingStore();

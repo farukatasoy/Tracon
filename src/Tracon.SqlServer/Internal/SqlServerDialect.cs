@@ -247,13 +247,15 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <inheritdoc />
     /// <remarks>
     /// The first condition is the one an index can serve; the second keeps a row whose name only looks the same to the
-    /// database's collation (case, width). A binary comparison alone could not use the index on the column.
+    /// database's collation (a full-width letter, a composed accent). A tenant is the same tenant in any letter case, and
+    /// an earlier release may have stored one in capitals, so the stored name is folded to lower case before the binary
+    /// comparison with the canonical parameter. A binary comparison alone could not use the index on the column.
     /// </remarks>
     public override string TenantPredicate(string column)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(column);
 
-        return $"{column} = @tenant_id AND {column} COLLATE Latin1_General_BIN2 = @tenant_id COLLATE Latin1_General_BIN2";
+        return $"{column} = @tenant_id AND LOWER({column} COLLATE Latin1_General_BIN2) = @tenant_id COLLATE Latin1_General_BIN2";
     }
 
     /// <inheritdoc />

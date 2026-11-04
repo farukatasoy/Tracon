@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace Tracon.SqlProviders.Tests;
@@ -66,6 +67,72 @@ public sealed partial class SqlStatementSiteTests
 
             AutocommitCommandSites(lines).ShouldNotBeEmpty(relative);
         }
+    }
+
+    [Fact]
+    public void A_text_that_writes_in_more_than_one_statement_does_not_go_through_the_statement_boundary()
+    {
+        // Sending a victim's statement again is safe because the server rolled it back whole. A text of several statements
+        // that write is not one unit in autocommit: the earlier ones are committed when a later one is the victim, and
+        // running the text again repeats what is done (the report of a job item counted nothing the second time). Such a
+        // text belongs in ExecuteInTransactionAsync. A write to a table variable lasts as long as the batch and does not count.
+        var queries = new SqlServerQueries("tracon");
+        var texts = queries.GetType()
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(static property => property.PropertyType == typeof(string) && property.GetIndexParameters().Length == 0)
+            .ToDictionary(property => property.Name, property => (string?)property.GetValue(queries) ?? string.Empty, StringComparer.Ordinal);
+        var offenders = new List<string>();
+        var seen = 0;
+
+        foreach (var (relative, lines) in StoreFiles())
+        {
+            var source = string.Join('\n', lines);
+
+            for (var at = source.IndexOf("ExecuteStatementAsync(", StringComparison.Ordinal);
+                at >= 0;
+                at = source.IndexOf("ExecuteStatementAsync(", at + 1, StringComparison.Ordinal))
+            {
+                var window = source.Substring(at, Math.Min(400, source.Length - at));
+
+                foreach (Match name in QueryNameInCall().Matches(window))
+                {
+                    if (!texts.TryGetValue(name.Groups["name"].Value, out var text))
+                    {
+                        continue;
+                    }
+
+                    seen++;
+
+                    if (PersistentWrites(text) > 1)
+                    {
+                        offenders.Add($"{relative}: {name.Groups["name"].Value}");
+                    }
+                }
+            }
+        }
+
+        seen.ShouldBeGreaterThan(150, "the scan has to find the statement sites it guards");
+        offenders.Distinct(StringComparer.Ordinal).ShouldBeEmpty(
+            "a text that writes in more than one statement is sent through ExecuteInTransactionAsync, not ExecuteStatementAsync");
+    }
+
+    [Fact]
+    public void The_write_count_sees_the_text_of_a_job_item_report_and_not_a_table_variable()
+    {
+        var queries = new SqlServerQueries("tracon");
+
+        PersistentWrites(queries.ReportJobItem).ShouldBe(2, "the report writes the item row and the counters of the job");
+        PersistentWrites(queries.LeaseJobWithTenantCap).ShouldBe(1, "only the final UPDATE is durable; the INSERT goes into a table variable");
+        PersistentWrites(queries.SelectRunStatistics).ShouldBe(0);
+    }
+
+    private static int PersistentWrites(string text)
+    {
+        var withoutComments = LineComment().Replace(text, string.Empty);
+
+        return withoutComments
+            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Count(static statement => DurableWrite().IsMatch(statement));
     }
 
     [Fact]
@@ -205,6 +272,17 @@ public sealed partial class SqlStatementSiteTests
 
     [GeneratedRegex(@"\bDbCommand\s+CreateCommand\(", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex DefinitionOfCreateCommand();
+
+    // The name of a query in the first arguments of a call: _sql.SelectRun, _context.Sql.DeleteAttachment.
+    [GeneratedRegex(@"(?:_sql|\.Sql)\.(?<name>[A-Za-z]+)\b", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex QueryNameInCall();
+
+    [GeneratedRegex(@"--[^\r\n]*", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex LineComment();
+
+    // A statement that changes a table that outlives the batch: INSERT INTO, UPDATE or DELETE whose target is not a variable.
+    [GeneratedRegex(@"\b(?:INSERT\s+INTO\s+[^@\s]|UPDATE\s+[^@\s(]|DELETE\s+(?:FROM\s+)?[^@\s])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex DurableWrite();
 
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 

@@ -175,6 +175,14 @@ internal static class TenantProviderAccess
             return null;
         }
 
+        // A name outside the provider alphabet cannot have been bound (a store refuses to write it), so there is nothing
+        // to look up. Asking the store would throw, and the caller would see an ArgumentException where it used to see
+        // the answer for an unknown provider.
+        if (!TenantProviderBinding.TryNormalizeProviderName(provider, out _))
+        {
+            return null;
+        }
+
         var binding = await bindings.GetAsync(tenantId, provider, cancellationToken).ConfigureAwait(false);
 
         if (binding is null)
