@@ -573,6 +573,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`RunScoreKind` starts at `1`); every list that held it then wrote `"kind": 0` where the document says one of four names. It answers `400` now, with the message that lists the members, like an
   unknown name. A number that is a member (`"kind": 1`) is accepted as before, a nullable enum (`sourceKind` of the eval-case promotion body) is refused the same way and still takes `null`, and a `[Flags]` enum still takes a combination. What to do: nothing, unless a client sends numbers; send the name.
 
+- **Behavioural breaking change: the default `Idempotency-Key` limit is 200 characters, not 255.** `Tracon:Idempotency:MaxKeyLength` defaulted to 255, and SQL Server keeps the key in an
+  `nvarchar(200)` column, so a key of 201 to 255 characters passed the check and was refused by the store. That refusal is a `400` (the SQL data-fault mapping), but the filter said
+  "at most 255" and the other stores took the key, so the same request answered `200` on PostgreSQL, SQLite and the in-memory store and `400` on SQL Server. The default is the width of the
+  narrowest column now, and the answer is the same on every store: `400` with "The key may be at most 200 characters". A client that sends keys of 201 to 255 characters (rare: a UUID is 36)
+  shortens them, or the host sets `Tracon:Idempotency:MaxKeyLength` back; above 200 SQL Server still refuses the key.
+
+- **A number that names no member of an enum query parameter is refused with `400` on every endpoint.** The binder reads an enum parameter with `Enum.TryParse`, which takes any integer, so `GET /api/runs?status=99`
+  answered `200` with an empty page (text that names no member was already `400`). Seven parameters did: `status` and `kind` of `GET /api/runs`, `status` of `GET /api/jobs` and of
+  `GET /api/webhooks/{name}/deliveries`, `target` of `GET /api/evaluation/scores/summary`, `kind` of `GET /api/stats/timeseries` and `period` of `GET /api/quotas/usage`; `bucket` of `GET /api/evaluation/scores/summary` and of `GET /api/stats/timeseries` answered `400` since the
+  previous release. They answer `400` now, with the message that lists the members, like a name that is not one. One endpoint filter on the endpoint group does it, reading each handler's signature when the endpoint is
+  built, so a parameter added later is covered without anyone remembering to ask (and a `[Flags]` enum takes any combination of its members). A number that is a member (`?status=2`) is accepted as before.
+
+- **Behavioural breaking change: a text option made only of white space stops the host at start.** A number, flag or duration key that held only white space was "not given" and kept its default, but a text
+  option kept the blanks as its value: `Tracon:Audit:ChainKeyId` of `"   "` named a key called blanks (and stopped the host later, through the hosted start check, with a message about a missing key),
+  `Tracon:ContentGuard:Pattern:MaskReplacement` of blanks masked a match with spaces, `Tracon:Pricing:Currency` reported cost in a currency called blanks, and `Tracon:SingletonExecution:OwnerId`
+  named an instance with blanks. Seventeen options are refused now, each by the validator of its options type, from configuration or from code, and the message names the member and says to write a value or
+  remove the key: `Audit:ActorClaimType`, `Audit:ChainKeyId`, `ContentGuard:Pattern:MaskReplacement`, `ContentProtection:ActiveKeyId`, `Images:Provider`, `Images:Model`, `Knowledge:EmbeddingProvider`,
+  `Pricing:Currency`, `SessionOwnership:ManagementPolicy`, `SingletonExecution:OwnerId`, `Voice:Conversation:VoiceId`, `Voice:Conversation:OutputMediaType`, `Voice:Live:Instructions`,
+  `Webhooks:AllowedConfigurationPrefix`, `Mcp:AllowedConfigurationPrefix`, and the two prefixes `TenantProviders:AllowedConfigurationPrefix` and `InboundTriggers:AllowedConfigurationPrefix`
+  (which the permutation test cannot find by reflection and which have their own test). An empty text is still "not given", and the empty string stays the documented way to say that no policy manages another
+  user's sessions. What to do: a host whose configuration holds such a value (a template that left `"   "` where a value belongs) removes the key or writes the value. `ConfigurationPermutationTests`
+  no longer keeps a list of text options that accept blanks: a new text option that does is a failure.
+
+- **Behavioural breaking change: four MCP limits of zero or less stop the host at start.** `Tracon:Mcp:MaxToolsPerServer`, `MaxResourceBytesPerResource` and `MaxResourceBytesTotal` of zero or less must now be at least 1, and
+  `OAuthTokenSlidingLifetime` must be greater than zero (its documentation already said so and nothing checked it). A tool limit of zero kept no tool (the first tool of a server tripped it, with a warning that quoted the limit),
+  a byte limit of zero trimmed every resource to an empty text, and nothing checked the sliding lifetime; nothing said so when
+  the host started, and the setting looked applied. `MaxResourcesPerServer` and `MaxPromptsPerServer` keep their documented meaning of zero (keep none).
+
+- **Behavioural breaking change: `RequireProductionProfile()` asks one more decision, `OrphanedRunsAfterRestart`.** A deploy stops the host, and a run in flight gets the cancellation: a model that honours it
+  ends the run as canceled, and one that does not leaves the process to end first (the host waits its shutdown timeout, then exits). A crash or a kill does the same. With the state in PostgreSQL, SQL Server or a
+  SQLite file, that row is still there when the next process starts, and only run reconciliation closes it; with `Tracon:RunReconciliation:Enabled` at its default of `false` it stays `Running` for ever, counted as
+  running and diluting the error rate. The decision list had a row for this only when more than one instance is declared (`UnreconciledRuns`). A host that calls `RequireProductionProfile()`, keeps its state where it
+  survives a restart and has reconciliation off stops at start until it sets `Tracon:RunReconciliation:Enabled` to `true` or accepts the risk by name with
+  `profile.Accept(TraconProductionRisk.OrphanedRunsAfterRestart)`. It is not asked on the in-memory stores (a restart takes every row with it), and not when `Tracon:Deployment:Instances` is above `1`: `UnreconciledRuns` asks the
+  same setting there, so a host that already answered or accepted it is not stopped again. The default does not change (reconciliation writes a heartbeat for every running run, which a development host does not want),
+  and a host that does not call `RequireProductionProfile()` changes nothing.
+
 ### Added
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
@@ -917,6 +954,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `tracon.judge.score` instruments say the reason in a clause instead. The codes, severities and metric names are unchanged;
   a test or an alert that matches the old message text needs the new text.
 
+- **Documented: a change to the configuration needs a restart.** Tracon binds its options when the host starts and registers no `IOptionsChangeTokenSource`, so a configuration provider that reloads (a file with `reloadOnChange`,
+  a vault) changes `IConfiguration` and not the options Tracon reads. Several readers look an option up on every call, which looked like live reconfiguration; it never was. The configuration reference says so now, and so does the
+  XML documentation of `TraconOptions`, `TraconModelConcurrencyOptions` and the options that claimed a reload reached them (`TraconWorkflowOptions`' recovery settings, the workflow run timeout ceiling, the circuit breaker's
+  `Enabled`). A host that registers its own change token source for a Tracon options type gets an unsupported half of it: the monitor sees the new value, the model concurrency limit keeps the semaphore of its first call, and
+  a new value that fails validation makes every later read of that options type throw (every model call, for `Tracon:ModelConcurrency`). `ConfigurationReloadTests` pins all of it, so a release that supports reload has to
+  decide each reader and change the documentation.
+
 ### Removed
 
 - `Tracon.Abstractions`, `Tracon.AGUI`, `Tracon.Anthropic`, `Tracon.AspNetCore`, `Tracon.Azure`, `Tracon.Client`,
@@ -1200,6 +1244,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checked the agent's own tools, skill tools, `search_knowledge` and the session workspace, but not the tools a harness agent
   has by default (`todos_*`, `mode_get`, `mode_set`) or file memory adds (`file_memory_*`). An agent named `todos-add` made two
   tools of one name and the model provider refused the request with `400`. Validation and the compiler now report it.
+
+- **The A2A agent card gives its interface address as an absolute URL.** `supportedInterfaces[].url` was the path (`/tracon/a2a/support`), built once when the endpoint was mapped. A client that resolves it against the card's own URL
+  worked; the official A2A JavaScript SDK (`@a2a-js/sdk` 1.3.0) builds its transport from the value as written and failed on its first call with `Invalid URL`. The card is built per request now: the scheme, host and
+  path base the request arrived on (`Request.Scheme`, `Request.Host`, `Request.PathBase`), so a host behind a reverse proxy that runs `UseForwardedHeaders` (`XForwardedHost`, `XForwardedProto`) and `UsePathBase`
+  gets the public address, and a host that does not gets the address of the connection. Tracon reads no forwarding header itself: a header the host does not honour changes nothing. A request with no `Host` header gets the
+  path as before. The response carries `Vary` on `Host`, `X-Forwarded-Host` and `X-Forwarded-Proto` so a cache that keys on the URL does not serve one caller's address to another. The card is answered by Tracon and no longer by the
+  SDK's `MapWellKnownAgentCard`; its name, route and cache headers are unchanged. An application that is reachable under any host name sets `AllowedHosts`, as it does for any absolute address it builds. A card with a fixed
+  public address independent of the request (a `PublicBaseUrl` option) was not added: nothing in the options surface asked for it, and it can be added later without breaking anything.
 
 ## [1.0.0-preview.6] - 2026-10-27
 

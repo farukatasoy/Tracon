@@ -34,7 +34,7 @@ public sealed class TraconIdempotencyOptionsBindingTests
         var options = SectionBinding.Bind<TraconIdempotencyOptions>(SectionBinding.NoKeys);
 
         options.Enabled.ShouldBeTrue();
-        options.MaxKeyLength.ShouldBe(255);
+        options.MaxKeyLength.ShouldBe(200);
         options.ReservationTimeout.ShouldBe(TimeSpan.FromHours(1));
     }
 }

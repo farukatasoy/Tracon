@@ -78,14 +78,18 @@ internal sealed class TraconImageOptionsValidator : Microsoft.Extensions.Options
                 options.Timeout));
         }
 
-        if (options.Enabled && string.IsNullOrWhiteSpace(options.Model))
+        // Refused while image generation is off as well: a name of blanks is not "not set".
+        OptionText.AddWhenOnlyWhiteSpace(options.Provider, nameof(TraconImageOptions), nameof(TraconImageOptions.Provider), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.Model, nameof(TraconImageOptions), nameof(TraconImageOptions.Model), ref failures);
+
+        if (options.Enabled && string.IsNullOrEmpty(options.Model))
         {
             (failures ??= []).Add(
                 $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Model)} is required when " +
                 $"{nameof(TraconImageOptions.Enabled)} is true.");
         }
 
-        if (options.Enabled && string.IsNullOrWhiteSpace(options.Provider))
+        if (options.Enabled && string.IsNullOrEmpty(options.Provider))
         {
             (failures ??= []).Add(
                 $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Provider)} is required when " +

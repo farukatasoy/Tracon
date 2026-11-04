@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Every package that owns a configuration section of its own: the model providers, MCP, voice, workflows and the three
+    SQL stores. The probe that feeds each scalar of a section the text an operator mistypes lives in Tracon.Core.UnitTests,
+    which sees only the core sections; its sources are linked here, and this project says which sections it walks.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Anthropic/Tracon.Anthropic.csproj" />
+    <ProjectReference Include="../../src/Tracon.Azure/Tracon.Azure.csproj" />
+    <ProjectReference Include="../../src/Tracon.Google/Tracon.Google.csproj" />
+    <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
+    <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
+    <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
+    <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
+    <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
+    <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- In-memory configuration provider: the probe writes the configuration it feeds the container. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The probe and what it needs, linked from the core test project: one engine, two scopes. -->
+    <Compile Include="../Tracon.Core.UnitTests/Configuration/ConfigurationPermutationTests.cs" Link="Linked/ConfigurationPermutationTests.cs" />
+    <Compile Include="../Tracon.Core.UnitTests/Configuration/OptionScalarCatalog.cs" Link="Linked/OptionScalarCatalog.cs" />
+    <Compile Include="../Tracon.Core.UnitTests/Configuration/SectionBinding.cs" Link="Linked/SectionBinding.cs" />
+  </ItemGroup>
+
+</Project>

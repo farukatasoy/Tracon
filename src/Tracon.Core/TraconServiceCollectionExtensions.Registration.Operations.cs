@@ -118,11 +118,15 @@ public static partial class TraconServiceCollectionExtensions
         // switch, so a value the binder cannot read stops the host instead of
         // leaving the switch off.
         UnreadableConfigurationValidator.Add<TraconTenantProviderOptions>(services);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconTenantProviderOptions>, TraconTenantProviderOptionsValidator>());
 
         // Inbound triggers. Same rationale as tenant providers:
         // carries its own section, requires no separate Use...() call. The
         // default prefix is restrictive on its own.
         UnreadableConfigurationValidator.Add<TraconInboundTriggerOptions>(services);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconInboundTriggerOptions>, TraconInboundTriggerOptionsValidator>());
 
         // Outbound network guard. Governs all three outbound
         // surfaces: webhook delivery, MCP connections and model provider
@@ -135,6 +139,8 @@ public static partial class TraconServiceCollectionExtensions
         // because the saving endpoint and the connecting transport are in two
         // packages that do not see each other.
         services.AddOptions<TraconMcpSecurityOptions>().ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconMcpSecurityOptions>, TraconMcpSecurityOptionsValidator>());
 
         // At-rest content protection. Same rationale: carries its
         // own section, requires no separate Use...() call. Enabled defaults
@@ -166,6 +172,8 @@ public static partial class TraconServiceCollectionExtensions
         // sessions.owner_id stays NULL, so a setup that configures nothing
         // keeps today's behaviour exactly.
         UnreadableConfigurationValidator.Add<TraconSessionOwnershipOptions>(services);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconSessionOwnershipOptions>, TraconSessionOwnershipOptionsValidator>());
 
         // Session workspace limits. Same rationale: carries its own SectionName, requires no
         // separate Use...() call. The workspace itself is off until a definition turns it on; the

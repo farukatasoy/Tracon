@@ -51,6 +51,22 @@ internal sealed class TraconMcpOptionsValidator : IValidateOptions<TraconMcpOpti
                 $"Actual value: {options.MaxResponseBytes}.");
         }
 
+        // Zero or less kept no tool (the loop stopped at the first one, with a warning that quoted the limit) and trimmed
+        // every resource to nothing, with no word at start. The two limits that count resources and prompts document that
+        // a value below one keeps none, so a host can say "no resources" with them; these three have no such meaning.
+        AddWhenBelowOne(options.MaxToolsPerServer, nameof(TraconMcpOptions.MaxToolsPerServer), ref failures);
+        AddWhenBelowOne(options.MaxResourceBytesPerResource, nameof(TraconMcpOptions.MaxResourceBytesPerResource), ref failures);
+        AddWhenBelowOne(options.MaxResourceBytesTotal, nameof(TraconMcpOptions.MaxResourceBytesTotal), ref failures);
+
+        // The documentation says "must be greater than zero" and nothing checked it: the cache refused the entry or kept it
+        // for no time, and the server asked for authorization again at every refresh, with no word of the setting.
+        if (options.OAuthTokenSlidingLifetime <= TimeSpan.Zero)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconMcpOptions)}.{nameof(TraconMcpOptions.OAuthTokenSlidingLifetime)} must be greater than zero. " +
+                $"Actual value: {options.OAuthTokenSlidingLifetime}.");
+        }
+
         // Compared with the age of the last good listing; it arms no timer.
         if (options.StaleToolRetention < TimeSpan.Zero)
         {
@@ -60,5 +76,13 @@ internal sealed class TraconMcpOptionsValidator : IValidateOptions<TraconMcpOpti
         }
 
         return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    private static void AddWhenBelowOne(int value, string memberName, ref List<string>? failures)
+    {
+        if (value < 1)
+        {
+            (failures ??= []).Add($"{nameof(TraconMcpOptions)}.{memberName} must be at least 1. Actual value: {value}.");
+        }
     }
 }

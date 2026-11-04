@@ -35,20 +35,23 @@ internal sealed class PatternContentGuardOptionsValidator : IValidateOptions<Pat
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var undefined = UndefinedBits(options.MaskedPii);
+        List<string>? failures = null;
 
-        if (undefined == PiiPatterns.None)
+        if (UndefinedBits(options.MaskedPii) != PiiPatterns.None)
         {
-            return ValidateOptionsResult.Success;
+            var knownNames = string.Join(", ", Enum.GetNames<PiiPatterns>());
+
+            (failures ??= []).Add(
+                $"{nameof(PatternContentGuardOptions)}.{nameof(PatternContentGuardOptions.MaskedPii)} is " +
+                $"{((int)options.MaskedPii).ToString(CultureInfo.InvariantCulture)}, which carries a bit no " +
+                $"{nameof(PiiPatterns)} member defines. Known names: {knownNames}.");
         }
 
-        var knownNames = string.Join(", ", Enum.GetNames<PiiPatterns>());
+        // A mask of blanks hides a match behind spaces: the content is masked and the reader sees nothing was.
+        OptionText.AddWhenOnlyWhiteSpace(
+            options.MaskReplacement, nameof(PatternContentGuardOptions), nameof(PatternContentGuardOptions.MaskReplacement), ref failures);
 
-        var message = $"{nameof(PatternContentGuardOptions)}.{nameof(PatternContentGuardOptions.MaskedPii)} is " +
-                      $"{((int)options.MaskedPii).ToString(CultureInfo.InvariantCulture)}, which carries a bit no " +
-                      $"{nameof(PiiPatterns)} member defines. Known names: {knownNames}.";
-
-        return ValidateOptionsResult.Fail(message);
+        return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 
     /// <summary>Returns the bits of <paramref name="value"/> that no <see cref="PiiPatterns"/> member defines.</summary>

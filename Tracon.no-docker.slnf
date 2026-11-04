@@ -38,6 +38,7 @@
       "tests/Tracon.Voice.UnitTests/Tracon.Voice.UnitTests.csproj",
       "tests/Tracon.AGUI.FunctionalTests/Tracon.AGUI.FunctionalTests.csproj",
       "tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj",
+      "tests/Tracon.PackageOptions.UnitTests/Tracon.PackageOptions.UnitTests.csproj",
       "tests/Tracon.Sql.Shared.UnitTests/Tracon.Sql.Shared.UnitTests.csproj",
       "tests/Tracon.Workflows.UnitTests/Tracon.Workflows.UnitTests.csproj",
       "tests/Tracon.Ui.E2ETests/Tracon.Ui.E2ETests.csproj",

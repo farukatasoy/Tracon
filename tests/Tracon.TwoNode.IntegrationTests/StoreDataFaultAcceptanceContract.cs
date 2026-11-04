@@ -129,25 +129,17 @@ public abstract class StoreDataFaultAcceptanceContract
     }
 
     /// <summary>
-    /// The default length of an idempotency key is longer than the column that stores it, so a key between the two passed
-    /// the filter and broke the store.
+    /// A host that raises the key limit above the column that stores it must still answer a key between the two with a
+    /// 400 and not an outage: the filter lets the key through, and the store is where it is refused.
     /// </summary>
     [Fact]
     public async Task An_idempotency_key_longer_than_its_column_is_a_400_and_not_an_outage()
     {
-        await using var host = await StartAsync(NewDatabase());
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: NewDatabase().Use,
+            configureServices: static services => services.PostConfigure<TraconIdempotencyOptions>(static options => options.MaxKeyLength = 255));
 
-        using (var created = await host.Client.PostAsJsonAsync(
-                   Api("agents"),
-                   new AgentDefinitionRequest
-                   {
-                       Name = "idem",
-                       Instructions = "Answer.",
-                       Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
-                   }))
-        {
-            created.EnsureSuccessStatusCode();
-        }
+        await CreateIdempotentAgentAsync(host);
 
         using (var tooLong = await RunAsync(host, new string('k', 250)))
         {
@@ -160,6 +152,27 @@ public abstract class StoreDataFaultAcceptanceContract
         using var fits = await RunAsync(host, new string('k', 200));
 
         fits.StatusCode.ShouldBe(HttpStatusCode.OK, await fits.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>
+    /// The default limit is the width of the narrowest column, so a key over it is refused for what it is on every
+    /// server, and one exactly at it is stored on every server.
+    /// </summary>
+    [Fact]
+    public async Task The_default_key_limit_is_the_same_on_every_server()
+    {
+        await using var host = await StartAsync(NewDatabase());
+
+        await CreateIdempotentAgentAsync(host);
+
+        using (var over = await RunAsync(host, new string('k', 201)))
+        {
+            over.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await over.Content.ReadAsStringAsync());
+        }
+
+        using var atLimit = await RunAsync(host, new string('k', 200));
+
+        atLimit.StatusCode.ShouldBe(HttpStatusCode.OK, await atLimit.Content.ReadAsStringAsync());
     }
 
     /// <summary>The same limit, counted the way the server counts it: UTF-16 code units on SQL Server.</summary>
@@ -226,6 +239,20 @@ public abstract class StoreDataFaultAcceptanceContract
             .Where(tenant => string.Equals(tenant.GetProperty("slug").GetString(), slug, StringComparison.Ordinal))
             .Select(tenant => tenant.GetProperty("displayName").GetString())
             .SingleOrDefault();
+    }
+
+    private static async Task CreateIdempotentAgentAsync(TraconTestHost host)
+    {
+        using var created = await host.Client.PostAsJsonAsync(
+            Api("agents"),
+            new AgentDefinitionRequest
+            {
+                Name = "idem",
+                Instructions = "Answer.",
+                Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
+            });
+
+        created.EnsureSuccessStatusCode();
     }
 
     private static Task<HttpResponseMessage> RunAsync(TraconTestHost host, string key)

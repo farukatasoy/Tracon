@@ -16,6 +16,16 @@ internal sealed class SingletonExecutionOptionsValidator : IValidateOptions<Sing
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        // The owner names the instance in the lease store; two instances that write blanks are one owner.
+        List<string>? ownerFailures = null;
+        OptionText.AddWhenOnlyWhiteSpace(
+            options.OwnerId, nameof(SingletonExecutionOptions), nameof(SingletonExecutionOptions.OwnerId), ref ownerFailures);
+
+        if (ownerFailures is not null)
+        {
+            return ValidateOptionsResult.Fail(ownerFailures);
+        }
+
         if (options.LeaseDuration <= TimeSpan.Zero)
         {
             return ValidateOptionsResult.Fail(

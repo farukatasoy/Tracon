@@ -3842,6 +3842,7 @@ Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.InstanceLocalMcpTokens = 16 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.InstanceLocalRateLimit = 15 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.InstanceLocalState = 12 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.OrphanedRunsAfterRestart = 19 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.SingleTenant = 0 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnauthenticatedLocalOperator = 17 -> Tracon.TraconProductionRisk
 Tracon.TraconProductionRisk.UnenforcedQuotaOnStoreFailure = 18 -> Tracon.TraconProductionRisk

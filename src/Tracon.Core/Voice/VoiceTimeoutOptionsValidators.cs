@@ -38,6 +38,9 @@ internal sealed class VoiceLiveOptionsValidator : IValidateOptions<VoiceLiveOpti
                 $"{nameof(VoiceLiveOptions)}.{nameof(VoiceLiveOptions.DelegationMode)} is {(int)options.DelegationMode}, which is not a delegation mode. The only mode is '{nameof(LiveVoiceDelegationMode.Client)}'.");
         }
 
+        // The instructions go to the provider as they are written; blanks are an instruction that says nothing.
+        OptionText.AddWhenOnlyWhiteSpace(options.Instructions, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.Instructions), ref failures);
+
         // Both are compared with the age of a session, so a value of zero or less ends every session at its first check.
         AddWhenNotPositive(options.MaxSessionDuration, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.MaxSessionDuration), ref failures);
         AddWhenNotPositive(options.PendingSessionTimeout, nameof(VoiceLiveOptions), nameof(VoiceLiveOptions.PendingSessionTimeout), ref failures);
@@ -99,6 +102,10 @@ internal sealed class VoiceConversationOptionsValidator : IValidateOptions<Voice
                 $"{nameof(VoiceConversationOptions)}.{nameof(VoiceConversationOptions.MaxConnectionDuration)}",
                 options.MaxConnectionDuration));
         }
+
+        // Sent to the speech provider as written: a voice called blanks, a media type called blanks.
+        OptionText.AddWhenOnlyWhiteSpace(options.VoiceId, nameof(VoiceConversationOptions), nameof(VoiceConversationOptions.VoiceId), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.OutputMediaType, nameof(VoiceConversationOptions), nameof(VoiceConversationOptions.OutputMediaType), ref failures);
 
         // The sample rate goes into the header of the audio the transcription provider receives.
         if (options.InputSampleRate < 1)

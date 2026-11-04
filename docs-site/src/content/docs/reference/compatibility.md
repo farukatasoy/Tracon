@@ -371,7 +371,7 @@ The set has grown since the first release that carried it, and each growth was a
 this way. The decisions added after the first six (tenant separation, session ownership,
 at-rest content protection, content inspection, request rate limiting and retention) are
 `UnregisteredRolePolicies`, `UncheckedToolCalls`, `UnrestrictedTenantEgress`,
-`UnverifiedTenantHeader`, `UnlimitedTenantWorkflows`, `UnkeyedAuditChain`, `UnauthenticatedLocalOperator` and `UnenforcedQuotaOnStoreFailure`; `CHANGELOG.md` gives the reason for
+`UnverifiedTenantHeader`, `UnlimitedTenantWorkflows`, `UnkeyedAuditChain`, `UnauthenticatedLocalOperator`, `UnenforcedQuotaOnStoreFailure` and `OrphanedRunsAfterRestart`; `CHANGELOG.md` gives the reason for
 each.
 
 Five more exist only for a deployment that declares more than one instance with `Tracon:Deployment:Instances`:

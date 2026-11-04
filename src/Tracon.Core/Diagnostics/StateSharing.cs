@@ -19,13 +19,17 @@ namespace Tracon;
 /// <see langword="true"/> when two processes that use the same connection string read and write the same state.
 /// </param>
 /// <param name="Description">What the state lives in, as a short phrase for a message.</param>
-internal sealed record StateSharing(bool AcrossProcesses, string Description)
+/// <param name="OutlivesProcess">
+/// <see langword="true"/> when the state is still there after the process ends and a new one starts: a row written by a
+/// run that a restart cut off is read by the next process. The in-memory stores lose it with the process.
+/// </param>
+internal sealed record StateSharing(bool AcrossProcesses, string Description, bool OutlivesProcess)
 {
     /// <summary>Gets the default: the in-memory stores, one per process.</summary>
-    public static StateSharing InProcessMemory { get; } = new(false, "in the memory of one process");
+    public static StateSharing InProcessMemory { get; } = new(false, "in the memory of one process", OutlivesProcess: false);
 
     /// <summary>Gets the value a SQLite provider registers: a file that one process opens.</summary>
-    public static StateSharing SqliteFile { get; } = new(false, "in a SQLite file that serves one process");
+    public static StateSharing SqliteFile { get; } = new(false, "in a SQLite file that serves one process", OutlivesProcess: true);
 
     /// <summary>Gets the value a database-server provider registers.</summary>
     /// <param name="database">The database product's name.</param>
@@ -34,6 +38,6 @@ internal sealed record StateSharing(bool AcrossProcesses, string Description)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(database);
 
-        return new(true, $"in {database}, which every instance reaches");
+        return new(true, $"in {database}, which every instance reaches", OutlivesProcess: true);
     }
 }

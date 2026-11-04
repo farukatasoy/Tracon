@@ -201,6 +201,12 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
 
         ValidatePricing(options.Pricing, ref failures);
 
+        if (options.Audit is { } audit)
+        {
+            OptionText.AddWhenOnlyWhiteSpace(audit.ActorClaimType, $"{nameof(TraconOptions)}.{nameof(TraconOptions.Audit)}", nameof(TraconAuditOptions.ActorClaimType), ref failures);
+            OptionText.AddWhenOnlyWhiteSpace(audit.ChainKeyId, $"{nameof(TraconOptions)}.{nameof(TraconOptions.Audit)}", nameof(TraconAuditOptions.ChainKeyId), ref failures);
+        }
+
         var tools = options.Tools;
 
         if (tools is null)
@@ -446,6 +452,8 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         {
             return;
         }
+
+        OptionText.AddWhenOnlyWhiteSpace(pricing.Currency, $"{nameof(TraconOptions)}.{nameof(TraconOptions.Pricing)}", nameof(TraconPricingOptions.Currency), ref failures);
 
         foreach (var (providerName, models) in pricing.Providers)
         {

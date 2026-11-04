@@ -25,8 +25,17 @@ public sealed class TraconIdempotencyOptions
     /// </summary>
     public bool Enabled { get; set; } = true;
 
-    /// <summary>The maximum key length. The endpoint returns <c>400</c> when it is exceeded.</summary>
-    public int MaxKeyLength { get; set; } = 255;
+    /// <summary>
+    /// The maximum key length, in characters (UTF-16 code units). The endpoint returns <c>400</c> when it is exceeded.
+    /// Default: 200.
+    /// </summary>
+    /// <remarks>
+    /// The default is the width of the narrowest column that stores a key (SQL Server keeps it in an
+    /// <c>nvarchar(200)</c>), so a key over the limit is refused for what it is, with the same answer on every store. A
+    /// value above 200 is accepted by the stores that keep text of any length; on SQL Server a key between 200 and the
+    /// value passes this check and the store refuses it with <c>400</c> as well.
+    /// </remarks>
+    public int MaxKeyLength { get; set; } = 200;
 
     /// <summary>
     /// Gets or sets how old a reserved key that was never completed has to be before the next request with the same key

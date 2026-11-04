@@ -49,7 +49,11 @@ absolute address such as `https://gateway.example.com/v1/`; `gateway.example.com
 refused. The `Endpoint` keys of the model providers are checked by the provider's own
 validator, which refuses a relative address.
 
-- **Empty means not given.** A key with no text, or only white space, keeps the default.
+- **Empty means not given.** A key with no text keeps the default, and so does a number, flag, duration or
+  address key that holds only white space.
+- **A text option made only of white space stops the host.** `Audit:ChainKeyId` set to `"   "`, a `Provider` or a
+  `Model` of spaces, a mask of blanks: the value would look applied and name nothing, so the message names the member and
+  asks you to write a value or remove the key. This holds for a value assigned in code as well.
 - **A list is written as one entry per key.** `EnvironmentAllowList:0=PATH` is a list of
   one; `EnvironmentAllowList=PATH` is refused, and the message shows the `:0` form. A list
   that is present replaces the default. A JSON `[]` and a key with no text are "not
@@ -63,6 +67,21 @@ validator, which refuses a relative address.
   callback replaces the one from configuration, and a typo in the file that you have
   overridden in code does not stop the host. Writing the value the option already has is
   not told apart from leaving it.
+
+### A change to the configuration needs a restart
+
+Tracon binds its options when the host starts and does not follow a reload. A configuration
+provider that reloads (a file added with `reloadOnChange`, a vault, a configuration server)
+changes `IConfiguration`; it does not change the options Tracon reads, and no option of
+Tracon is meant to change while the host runs. Restart the host to apply a change.
+
+Many readers look an option up on every call, which can look like live reconfiguration. It is
+not supported. A host that registers its own `IOptionsChangeTokenSource<T>` for a Tracon options
+type gets an unsupported half of it: a monitor sees the new value, but a reader that built
+something from the old one keeps it (the model concurrency limit holds a semaphore of the size
+of its first call), and a new value that fails validation makes every later read of that options
+type throw, which for `Tracon:ModelConcurrency` is every model call. Tracon's own tests pin this
+behaviour, so a release that supports reload will say so here.
 
 :::danger[Secrets do not belong in a settings file]
 Provider keys, connection strings, bearer tokens, webhook secrets, and MCP
@@ -528,7 +547,7 @@ not enable sampling.
 | `RateLimit:Partition` | `Tenant` |
 | `RateLimit:Scope` | `Instance`. `Deployment` counts both rate limiters in the database; it needs `QueueLimit` of `0`, which is checked at startup |
 | `Idempotency:Enabled` | `true` |
-| `Idempotency:MaxKeyLength` | `255` |
+| `Idempotency:MaxKeyLength` | `200`, the width of the narrowest column that stores a key (SQL Server `nvarchar(200)`), so a longer key is a `400` on every store. A higher value is accepted by PostgreSQL and SQLite; SQL Server still refuses a key past 200 |
 | `Idempotency:ReservationTimeout` | 1 hour. A reserved key that no response completed (the process died) is taken over by the next request once it is this old; `00:00:00` never takes one over. Keep it longer than your longest request that carries an `Idempotency-Key` |
 | `ContentGuard:InspectInput` | `true` |
 | `ContentGuard:InspectOutput` | `true` |

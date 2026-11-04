@@ -98,6 +98,7 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, RateLimitProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, RetentionProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, QuotaProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, RestartReconciliationProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, ToolAuthorizationProfileCheck>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, TenantEgressProfileCheck>());
 

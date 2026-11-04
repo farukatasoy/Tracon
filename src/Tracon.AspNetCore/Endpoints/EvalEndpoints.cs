@@ -813,11 +813,6 @@ internal static class EvalEndpoints
         int? maxRows,
         CancellationToken cancellationToken)
     {
-        if (EnumQueryParameter.Refuse(nameof(bucket), bucket) is { } undefinedBucket)
-        {
-            return undefinedBucket;
-        }
-
         if (from is { } lowerBound && to is { } upperBound && lowerBound >= upperBound)
         {
             return TypedResults.Problem(

@@ -12,14 +12,8 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// The binders are written by hand, so the list of keys cannot be read from them. Reading it from the
 /// options types is what lets a probe cover a scalar added tomorrow without anyone editing the probe.
 /// </remarks>
-internal static class OptionScalarCatalog
+internal static partial class OptionScalarCatalog
 {
-    private static readonly Action<ITraconBuilder, IConfigurationSection> ComposeLiveVoice =
-        static (builder, section) => builder.UseLiveVoice(section.GetSection("Voice:Live"));
-
-    private static readonly Action<ITraconBuilder, IConfigurationSection> ComposeVoiceConversation =
-        static (builder, section) => builder.UseVoiceConversation(section.GetSection("Voice:Conversation"));
-
     /// <summary>Lists the scalars of every section type.</summary>
     /// <returns>The scalars, a number-like or text one each.</returns>
     public static IReadOnlyList<OptionScalar> All()
@@ -30,7 +24,7 @@ internal static class OptionScalarCatalog
         {
             var sectionName = (string)type.GetField("SectionName", BindingFlags.Public | BindingFlags.Static)!.GetRawConstantValue()!;
 
-            Collect(type, Activator.CreateInstance(type)!, sectionName, type.Name, [], ComposeFor(type), scalars);
+            Collect(type, Activator.CreateInstance(type)!, sectionName, type.Name, [], ComposeFor(type), BaseKeysFor(type), scalars);
         }
 
         return scalars;
@@ -55,21 +49,19 @@ internal static class OptionScalarCatalog
             || underlying.IsEnum;
     }
 
-    private static Action<ITraconBuilder, IConfigurationSection>? ComposeFor(Type type)
-        => type == typeof(VoiceLiveOptions)
-            ? ComposeLiveVoice
-            : type == typeof(VoiceConversationOptions) ? ComposeVoiceConversation : null;
+    /// <summary>The section types this project walks: the scope of the project says which assemblies they live in.</summary>
+    /// <returns>The public options classes that carry a <c>SectionName</c> constant.</returns>
+    private static partial IEnumerable<Type> SectionTypes();
 
-    private static IEnumerable<Type> SectionTypes()
-        => new[] { typeof(TraconOptions).Assembly, typeof(TraconSchedulingOptions).Assembly }
-            .SelectMany(static assembly => assembly.GetTypes())
-            .Where(static type => type is { IsClass: true, IsPublic: true, IsAbstract: false })
-            .Where(static type => type.GetField("SectionName", BindingFlags.Public | BindingFlags.Static)
-                is { IsLiteral: true } field
-                && field.GetRawConstantValue() is string name
-                && name.StartsWith("Tracon", StringComparison.Ordinal))
-            .Where(static type => type.GetConstructor(Type.EmptyTypes) is not null)
-            .Distinct();
+    /// <summary>The rest of the Tracon chain a section needs, for a section another call binds (voice, a provider, a store).</summary>
+    /// <param name="type">The section type.</param>
+    /// <returns>The call that binds the section, or <see langword="null"/> when <c>AddTracon</c> binds it.</returns>
+    private static partial Action<ITraconBuilder, IConfigurationSection>? ComposeFor(Type type);
+
+    /// <summary>The keys a section needs in order to start at all (a connection string, an API key), written whatever the probe does.</summary>
+    /// <param name="type">The section type.</param>
+    /// <returns>The keys written in full, with their values.</returns>
+    private static partial IReadOnlyDictionary<string, string?> BaseKeysFor(Type type);
 
     private static void Collect(
         Type rootType,
@@ -78,6 +70,7 @@ internal static class OptionScalarCatalog
         string display,
         PropertyInfo[] chain,
         Action<ITraconBuilder, IConfigurationSection>? compose,
+        IReadOnlyDictionary<string, string?> baseKeys,
         List<OptionScalar> scalars)
     {
         foreach (var property in instance.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
@@ -95,7 +88,7 @@ internal static class OptionScalarCatalog
             {
                 if (property.SetMethod is { IsPublic: true })
                 {
-                    scalars.Add(new OptionScalar(rootType, key, member, property.PropertyType, propertyChain, property.GetValue(instance), compose));
+                    scalars.Add(new OptionScalar(rootType, key, member, property.PropertyType, propertyChain, property.GetValue(instance), compose, baseKeys));
                 }
 
                 continue;
@@ -108,7 +101,7 @@ internal static class OptionScalarCatalog
 
             if (property.GetValue(instance) is { } nested)
             {
-                Collect(rootType, nested, key, member, propertyChain, compose, scalars);
+                Collect(rootType, nested, key, member, propertyChain, compose, baseKeys, scalars);
             }
         }
     }
@@ -127,27 +120,22 @@ internal static class OptionScalarCatalog
 /// <param name="Chain">The members from the root options object down to the scalar.</param>
 /// <param name="Default">The value a new instance holds.</param>
 /// <param name="Compose">The rest of the Tracon chain, for a section another call binds.</param>
-internal sealed record OptionScalar(
+/// <param name="BaseKeys">The keys the section needs in order to start at all, written with every probe.</param>
+internal sealed partial record OptionScalar(
     Type RootType,
     string Key,
     string Display,
     Type PropertyType,
     PropertyInfo[] Chain,
     object? Default,
-    Action<ITraconBuilder, IConfigurationSection>? Compose)
+    Action<ITraconBuilder, IConfigurationSection>? Compose,
+    IReadOnlyDictionary<string, string?> BaseKeys)
 {
-    private static readonly Dictionary<string, string> FeatureCompanions = new(StringComparer.Ordinal)
-    {
-        // Script execution refuses to start without this acknowledgement.
-        ["Tracon:Skills:Scripts:PlatformIsolationAcknowledged"] = "true",
-
-        // Image generation refuses to start without a provider and a model.
-        ["Tracon:Images:Provider"] = "probe-provider",
-        ["Tracon:Images:Model"] = "probe-model",
-
-        // Content protection refuses to start without an active key.
-        ["Tracon:ContentProtection:ActiveKeyId"] = "probe-key",
-    };
+    /// <summary>
+    /// The keys a feature needs before it starts, written when the probe switches the feature on. The scope of the
+    /// project lists them.
+    /// </summary>
+    private static partial IReadOnlyDictionary<string, string> Companions();
 
     /// <summary>Gets the type the binder reads: the declared type without <see cref="Nullable{T}"/>.</summary>
     public Type ScalarType => Nullable.GetUnderlyingType(PropertyType) ?? PropertyType;
@@ -183,7 +171,7 @@ internal sealed record OptionScalar(
             return result;
         }
 
-        foreach (var (key, value) in FeatureCompanions)
+        foreach (var (key, value) in Companions())
         {
             if (key.StartsWith(parent + ":", StringComparison.Ordinal)
                 && !string.Equals(key, Key, StringComparison.Ordinal)

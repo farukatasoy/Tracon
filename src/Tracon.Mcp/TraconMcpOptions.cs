@@ -52,7 +52,7 @@ public sealed class TraconMcpOptions
     /// <remarks>
     /// The remote server is treated as untrusted. An unbounded tool list
     /// would produce uncontrolled growth both in the model context and in
-    /// the UI.
+    /// the UI. Must be at least 1; any other value fails at startup.
     /// </remarks>
     public int MaxToolsPerServer { get; set; } = 100;
 
@@ -101,14 +101,14 @@ public sealed class TraconMcpOptions
     /// <summary>
     /// In Mode A (<see cref="AgentDefinition.McpResourceUris"/>), the maximum
     /// number of bytes added to the context from a single resource. Content
-    /// beyond this limit is trimmed.
+    /// beyond this limit is trimmed. Must be at least 1; any other value fails at startup.
     /// </summary>
     public int MaxResourceBytesPerResource { get; set; } = 64 * 1024;
 
     /// <summary>
     /// In Mode A, the total byte limit across all resources of an agent
     /// definition. Resources beyond this limit are trimmed; resources beyond
-    /// the total limit are skipped entirely.
+    /// the total limit are skipped entirely. Must be at least 1; any other value fails at startup.
     /// </summary>
     public int MaxResourceBytesTotal { get; set; } = 256 * 1024;
 

@@ -150,4 +150,13 @@ public enum TraconProductionRisk
     /// runs whose quota cannot be read, or accept it when an outage must not stop the service.
     /// </summary>
     UnenforcedQuotaOnStoreFailure,
+
+    /// <summary>
+    /// The state is kept where it survives a restart (a database, or a SQLite file) and run reconciliation is off
+    /// (<c>Tracon:RunReconciliation:Enabled</c> is <see langword="false"/>, the default), so a run that a restart, a deploy or
+    /// a crash cuts off keeps the status <c>Running</c> for ever: the model ignored the cancellation and the process ended
+    /// first, or the process was killed. It stays in every count of running runs and dilutes the error rate. Not asked
+    /// when more than one instance is declared, because <see cref="UnreconciledRuns"/> asks the same setting and says the same.
+    /// </summary>
+    OrphanedRunsAfterRestart,
 }

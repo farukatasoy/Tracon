@@ -46,6 +46,7 @@ public sealed class ProductionProfileStartupTests
     [InlineData(TraconProductionRisk.UnkeyedAuditChain)]
     [InlineData(TraconProductionRisk.UnauthenticatedLocalOperator)]
     [InlineData(TraconProductionRisk.UnenforcedQuotaOnStoreFailure)]
+    [InlineData(TraconProductionRisk.OrphanedRunsAfterRestart)]
     public async Task One_permissive_decision_stops_the_host_and_is_named(TraconProductionRisk left)
     {
         // Every decision but one is answered, so the failure can only be about
@@ -525,6 +526,7 @@ public sealed class ProductionProfileStartupTests
                     });
                     builder.UseWorkflows();
                     Open(builder, TraconProductionRisk.UnkeyedAuditChain);
+                    Open(builder, TraconProductionRisk.OrphanedRunsAfterRestart);
                     builder.RequireProductionProfile();
                 }));
 
@@ -907,6 +909,88 @@ public sealed class ProductionProfileStartupTests
             entry => entry.Contains($"{nameof(TraconProductionRisk.UnkeyedAuditChain)} is satisfied", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task The_restart_decision_is_asked_with_its_setting_and_what_the_state_lives_in()
+    {
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, TraconProductionRisk.OrphanedRunsAfterRestart);
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain(nameof(TraconProductionRisk.OrphanedRunsAfterRestart));
+        exception.Message.ShouldContain("Tracon:RunReconciliation:Enabled");
+        exception.Message.ShouldContain("SQLite file");
+        exception.Message.ShouldContain("Running");
+    }
+
+    [Fact]
+    public async Task Turning_reconciliation_on_answers_the_restart_decision()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, null);
+                Open(builder, TraconProductionRisk.OrphanedRunsAfterRestart);
+                AnswerRestartReconciliation(builder);
+                builder.RequireProductionProfile();
+            });
+
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.OrphanedRunsAfterRestart)} is satisfied", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task The_restart_decision_can_be_accepted_by_name()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, TraconProductionRisk.OrphanedRunsAfterRestart);
+                builder.RequireProductionProfile(static profile => profile.Accept(TraconProductionRisk.OrphanedRunsAfterRestart));
+            });
+
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.OrphanedRunsAfterRestart)} is accepted", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_host_on_the_in_memory_stores_is_not_asked_the_restart_decision()
+    {
+        // A restart takes every row with it, so no row is left Running and there is nothing to decide.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, null);
+                builder.RequireProductionProfile();
+            });
+
+        host.Logs.Entries.ShouldContain(
+            entry => entry.Contains($"{nameof(TraconProductionRisk.OrphanedRunsAfterRestart)} is not applicable", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_host_that_declares_two_instances_is_asked_the_instance_decision_and_not_the_restart_one()
+    {
+        // UnreconciledRuns asks the same setting for this case and says the same of a run whose instance died: asking
+        // both would need two Accept lines for one setting, and stop a host that already answered the first.
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, null);
+                    builder.UseMcp();
+                    DeclareInstances(builder, 2);
+                    AnswerInstanceShape(builder, except: TraconProductionRisk.UnreconciledRuns);
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain($"  {nameof(TraconProductionRisk.UnreconciledRuns)}");
+        exception.Message.ShouldNotContain($"  {nameof(TraconProductionRisk.OrphanedRunsAfterRestart)}");
+    }
+
     /// <summary>
     /// The decisions that exist only for a deployment that declared more than one instance.
     /// </summary>
@@ -1177,6 +1261,11 @@ public sealed class ProductionProfileStartupTests
                 builder.Services.Configure<TraconQuotaOptions>(static options => options.AllowOnStoreFailure = false);
                 break;
 
+            case TraconProductionRisk.OrphanedRunsAfterRestart:
+                // Asked only of a host whose state outlives the process, and this host keeps it in memory:
+                // nothing to answer. The tests that open it answer it through AnswerRestartReconciliation.
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(nameof(risk), risk, "Unknown production risk.");
         }
@@ -1205,8 +1294,16 @@ public sealed class ProductionProfileStartupTests
             case TraconProductionRisk.UnkeyedAuditChain:
                 builder.Services.AddSingleton<IAuditLog, DatabaseLikeAuditLog>();
                 break;
+
+            case TraconProductionRisk.OrphanedRunsAfterRestart:
+                // What the SQLite provider registers: state that is still there when the next process starts.
+                builder.Services.Replace(ServiceDescriptor.Singleton(StateSharing.SqliteFile));
+                break;
         }
     }
+
+    private static void AnswerRestartReconciliation(ITraconBuilder builder)
+        => builder.Services.Configure<RunReconciliationOptions>(static options => options.Enabled = true);
 
     /// <summary>Puts one decision back on its permissive default.</summary>
     private static void Leave(ITraconBuilder builder, TraconProductionRisk risk)

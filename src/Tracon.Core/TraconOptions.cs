@@ -3,7 +3,19 @@ using Microsoft.Extensions.AI;
 namespace Tracon;
 
 /// <summary>Defines Tracon run-time options.</summary>
-/// <remarks><see cref="TraconOptionsValidator"/> performs validation manually.</remarks>
+/// <remarks>
+/// <para>
+/// <see cref="TraconOptionsValidator"/> performs validation manually.
+/// </para>
+/// <para>
+/// Every Tracon options type is read when the host starts. Tracon registers no <c>IOptionsChangeTokenSource&lt;T&gt;</c>, so a
+/// configuration provider that reloads (a file with <c>reloadOnChange</c>, a vault, a configuration server) changes
+/// <c>IConfiguration</c> and not the options: a change needs a restart. Many readers look a value up on every call, which can
+/// look like live reconfiguration, and it is not supported. A host that adds a change token source of its own gets a
+/// part of it (a reader that built something from the old value keeps it) and a new value that fails validation makes
+/// every later read of that options type throw.
+/// </para>
+/// </remarks>
 public sealed class TraconOptions
 {
     /// <summary>Gets the default configuration section name.</summary>

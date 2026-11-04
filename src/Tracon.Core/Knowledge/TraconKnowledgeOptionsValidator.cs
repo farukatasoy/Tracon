@@ -22,6 +22,10 @@ internal sealed class TraconKnowledgeOptionsValidator : IValidateOptions<TraconK
         AddWhenBelowOne(options.ChunkSize, nameof(TraconKnowledgeOptions.ChunkSize), ref failures);
         AddWhenBelowOne(options.MaxResults, nameof(TraconKnowledgeOptions.MaxResults), ref failures);
 
+        // The name is looked up at the first embedding call, long after start; a name of blanks finds no provider.
+        OptionText.AddWhenOnlyWhiteSpace(
+            options.EmbeddingProvider, nameof(TraconKnowledgeOptions), nameof(TraconKnowledgeOptions.EmbeddingProvider), ref failures);
+
         if (options.ChunkOverlap < 0 || options.ChunkOverlap >= Math.Max(1, options.ChunkSize))
         {
             // With an overlap of the chunk size or more the splitter cannot move forward.
