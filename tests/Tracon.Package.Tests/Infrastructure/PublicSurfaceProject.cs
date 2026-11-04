@@ -171,6 +171,10 @@ internal static class PublicSurfaceProject
             properties.AppendLine("    <EnableAotAnalyzer>true</EnableAotAnalyzer>");
             properties.AppendLine("    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>");
             properties.AppendLine("    <IsTrimmable>true</IsTrimmable>");
+
+            // The publish restores the runtime's own ILCompiler package, whose security advisories change from day to day
+            // and are not the packages' to fix: with the audit on, a new advisory fails a test that is about the surface.
+            properties.AppendLine("    <NuGetAudit>false</NuGetAudit>");
         }
 
         if (langVersion is not null)

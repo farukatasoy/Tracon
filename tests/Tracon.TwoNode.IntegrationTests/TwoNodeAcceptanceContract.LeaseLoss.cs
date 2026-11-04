@@ -111,7 +111,9 @@ public abstract partial class TwoNodeAcceptanceContract
         finished.Attempt.ShouldBe(2);
         finished.ErrorMessage.ShouldBeNull();
 
-        // Closed once, by the node that held the lease; the stalled node's attempt applied nothing.
+        // Closed once, by the node that held the lease; the stalled node's attempt applied nothing. The job reads as closed
+        // the moment the store has written it, a little before the worker has noted the answer: wait for the note.
+        await probe.WaitForAsync(holder, "complete", applied: true);
         probe.Applied().ShouldBe([$"{holder}:2:complete"]);
 
         // In the first order the stalled node stopped before it wrote; in the second, its write reached the store
