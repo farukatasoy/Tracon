@@ -126,18 +126,17 @@ public abstract class RunHeartbeatUnderClockSkewContract
 
         try
         {
-            // The status is read as soon as the run is closed, or when the window is over.
-            var deadline = DateTimeOffset.UtcNow + Window;
-
-            while (DateTimeOffset.UtcNow < deadline)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(100));
-
-                if ((await runs.GetRunAsync(runId))?.Status != RunStatus.Running)
-                {
-                    break;
-                }
-            }
+            // The status is read as soon as the run leaves Running, or when the window is over. A run that is still
+            // Running at the end of the window is the answer of the scenarios that expect it to stay, not a failure.
+            await WaitUntil.ValueAsync(
+                async () => (await runs.GetRunAsync(runId))?.Status,
+                status => status != RunStatus.Running,
+                "the run to leave Running",
+                Window);
+        }
+        catch (TimeoutException)
+        {
+            // The window is over and the run is still Running; the status is read below.
         }
         finally
         {
