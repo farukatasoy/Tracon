@@ -181,7 +181,7 @@ public sealed class MetaEndpointTests
             => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-            DateTimeOffset staleBefore,
+            TimeSpan staleAfter,
             int max,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

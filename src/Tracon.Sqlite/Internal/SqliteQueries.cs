@@ -109,6 +109,18 @@ internal sealed class SqliteQueries : SqlQueriesBase
     /// <returns>The aggregate call.</returns>
     private static string ExactSum(string column) => $"{SqliteDecimalFunctions.SumName}({column})";
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// The parameter the store binds from the application clock. A SQLite file is used by one process
+    /// (<c>StateSharing.AcrossProcesses</c> is false), so the lease statements have no second node to disagree with
+    /// and keep the clock the store was given.
+    /// </remarks>
+    protected override string LeaseNow => "@now";
+
+    /// <inheritdoc />
+    /// <remarks>The instant itself, bound by <c>SqliteDialect.AddLeaseInstant</c> under the name asked for.</remarks>
+    protected override string LeaseInstant(string name) => $"@{name}";
+
     /// <summary>Creates a new query set.</summary>
     /// <param name="tablePrefix">The table prefix to validate.</param>
     /// <exception cref="TraconException">The prefix is not a valid identifier.</exception>
@@ -407,7 +419,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // so the owner finds a cancel in the same round trip that writes its heartbeat.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}runs
-            SET heartbeat_at = @at
+            SET heartbeat_at = {LeaseNow}
             WHERE id = @id AND status IN (@status_running, @status_queued)
             RETURNING tenant_id, cancel_requested_at;
             """;
@@ -1732,7 +1744,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // Upsert is identical to PostgreSQL.
         AcquireSingletonLease = $"""
             INSERT INTO {Schema}singleton_leases (name, owner_id, expires_at, updated_at)
-            VALUES (@name, @owner_id, @expires_at, @now)
+            VALUES (@name, @owner_id, {LeaseInstant("lease_until")}, {LeaseNow})
             ON CONFLICT (name) DO UPDATE SET
                 owner_id   = excluded.owner_id,
                 expires_at = excluded.expires_at,

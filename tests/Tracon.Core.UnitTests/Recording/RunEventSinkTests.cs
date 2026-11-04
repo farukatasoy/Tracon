@@ -428,7 +428,7 @@ public sealed class RunEventSinkTests
             => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-            DateTimeOffset staleBefore,
+            TimeSpan staleAfter,
             int max,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
@@ -547,7 +547,7 @@ public sealed class RunEventSinkTests
             => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-            DateTimeOffset staleBefore,
+            TimeSpan staleAfter,
             int max,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

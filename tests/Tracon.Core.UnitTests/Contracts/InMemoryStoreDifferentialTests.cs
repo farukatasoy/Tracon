@@ -31,7 +31,7 @@ public sealed class InMemoryStoreDifferentialTests : StoreDifferentialSuite
             FlowRuns = new InMemoryRunStore(tenantContext: flow),
             Idempotency = new InMemoryIdempotencyStore(),
             ApiKeys = new InMemoryApiKeyStore(),
-            Clock = clock,
+            Clock = DifferentialClock.Of(clock),
             Jobs = new InMemoryJobStore(clock),
             Quotas = new InMemoryQuotaStore(),
             Webhooks = new InMemoryWebhookStore(),

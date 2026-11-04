@@ -258,7 +258,7 @@ public sealed class TenantWorkflowConcurrencyTests
         (await StatusAsync(host, "tenant-a", waitingId)).ShouldBe(RunStatus.Queued);
 
         // Everything that ever signaled looks stale from an hour ahead.
-        var claimed = await host.RunStore.ClaimOrphanedRunsAsync(DateTimeOffset.UtcNow.AddHours(1), 10, TestContext.Current.CancellationToken);
+        var claimed = await host.RunStore.ClaimOrphanedRunsAsync(TimeSpan.FromHours(-1), 10, TestContext.Current.CancellationToken);
 
         claimed.Any(run => run.Id == waitingId).ShouldBe(closable);
 
@@ -594,7 +594,7 @@ public sealed class TenantWorkflowConcurrencyTests
             CancellationToken cancellationToken = default)
             => inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
-        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
-            => inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken);
+        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken cancellationToken = default)
+            => inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken);
     }
 }

@@ -16,7 +16,11 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
     {
         await schema.ResetAsync();
 
-        var clock = new ManualClock();
+        // The lease statements read the database server's clock, so the sequence moves a stand-in for it; the node's own
+        // clock is set three days away to show that the store never looks at it.
+        var clock = await PostgresDifferentialClock.CreateAsync(schema.Context);
+        var nodeClock = new ManualClock();
+        nodeClock.Advance(TimeSpan.FromDays(3));
         var flow = new FlowTenantContext();
 
         return new DifferentialStores
@@ -43,7 +47,7 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
             Idempotency = schema.Context.IdempotencyKeys,
             ApiKeys = schema.Context.ApiKeys,
             Clock = clock,
-            Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
+            Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: nodeClock),
             Quotas = schema.Context.Quotas,
             Webhooks = schema.Context.Webhooks,
         };

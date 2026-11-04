@@ -34,6 +34,12 @@
     <Compile Include="../Shared/Infrastructure/TwoProcessLeaseTakeoverContract.cs" Link="Infrastructure/Shared/TwoProcessLeaseTakeoverContract.cs" />
     <!-- The clock-skew measurement of the lease stores, written once for both SQL providers; it moves a clock by hand. -->
     <Compile Include="../Shared/Infrastructure/SqlLeaseUnderClockSkewContract.cs" Link="Infrastructure/Shared/SqlLeaseUnderClockSkewContract.cs" />
+    <!-- Points the lease statements at a clock the differential job sequences can move. -->
+    <Compile Include="../Shared/Infrastructure/SqlLeaseClockStandIn.cs" Link="Infrastructure/Shared/SqlLeaseClockStandIn.cs" />
+    <!-- How the lease stores write a lease's end on the server's clock, and read what an older version wrote. -->
+    <Compile Include="../Shared/Infrastructure/SqlLeaseTimeContract.cs" Link="Infrastructure/Shared/SqlLeaseTimeContract.cs" />
+    <!-- A run that keeps its heartbeat is not closed as orphaned by a node whose clock runs ahead. -->
+    <Compile Include="../Shared/Infrastructure/RunHeartbeatUnderClockSkewContract.cs" Link="Infrastructure/Shared/RunHeartbeatUnderClockSkewContract.cs" />
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Infrastructure/Shared/ManualClock.cs" />
   </ItemGroup>
 

@@ -53,6 +53,28 @@ internal abstract class SqlQueriesBase
     /// </remarks>
     protected virtual string Table(string name) => $"{Schema}.{name}";
 
+    /// <summary>
+    /// The SQL expression a lease statement reads as the current time: the instant a lease is compared with and
+    /// the instant its bookkeeping columns are stamped with.
+    /// </summary>
+    /// <remarks>
+    /// PostgreSQL and SQL Server answer with the database server's clock, so that every node that shares the
+    /// database decides on the same time and the clock of the application node never enters a lease decision.
+    /// SQLite answers with the <c>@now</c> parameter the store binds: its file is used by one process, so there is
+    /// no second node to disagree with. <see cref="SqlDialect.AddLeaseWindow"/> binds what this text expects, and
+    /// the two are changed together.
+    /// </remarks>
+    protected abstract string LeaseNow { get; }
+
+    /// <summary>
+    /// The SQL expression for the instant a duration after <see cref="LeaseNow"/>, for a duration bound by
+    /// <see cref="SqlDialect.AddLeaseInstant"/> under <paramref name="name"/>; a <see langword="null"/> duration
+    /// gives <c>NULL</c>.
+    /// </summary>
+    /// <param name="name">The parameter name without the <c>@</c>.</param>
+    /// <returns>The expression, ready to embed into runnable SQL.</returns>
+    protected abstract string LeaseInstant(string name);
+
     /// <summary>Qualifies a bare table name for this provider.</summary>
     /// <param name="tableName">The table name without schema or prefix (for example <c>"sessions"</c>).</param>
     /// <returns>The qualified name, ready to embed into runnable SQL.</returns>
@@ -1997,7 +2019,7 @@ internal abstract class SqlQueriesBase
         // again keeps its owner, and its earlier attempt must not touch the new one.
         // Zero rows updated means the lease is not this caller's any more.
         RenewJobLease = $"""
-            UPDATE {Table("jobs")} SET lease_until = @lease_until
+            UPDATE {Table("jobs")} SET lease_until = {LeaseInstant("lease_until")}
              WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status IN (1, 2);
             """;
 
@@ -2018,14 +2040,14 @@ internal abstract class SqlQueriesBase
              WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status IN (1, 2);
             """;
 
-        // If @retry_at is NULL, scheduled_for is left untouched (the old
+        // If the delay is NULL, scheduled_for is left untouched (the old
         // behavior: the job can be re-leased immediately). If it is given,
-        // backoff is applied; this makes writing a second queue for webhook
-        // delivery unnecessary.
+        // backoff is applied, measured from the lease clock; this makes
+        // writing a second queue for webhook delivery unnecessary.
         ReleaseJobForRetry = $"""
             UPDATE {Table("jobs")}
                SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
-                   scheduled_for = COALESCE(@retry_at, scheduled_for)
+                   scheduled_for = COALESCE({LeaseInstant("retry_at")}, scheduled_for)
              WHERE id = @id AND lease_owner = @owner AND attempt = @attempt AND status IN (1, 2);
             """;
 
@@ -2296,7 +2318,7 @@ internal abstract class SqlQueriesBase
 
         RenewSingletonLease = $"""
             UPDATE {Table("singleton_leases")}
-               SET expires_at = @expires_at, updated_at = @now
+               SET expires_at = {LeaseInstant("lease_until")}, updated_at = {LeaseNow}
              WHERE name = @name AND owner_id = @owner_id;
             """;
 

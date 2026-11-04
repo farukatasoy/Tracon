@@ -11,6 +11,20 @@ namespace Tracon;
 /// </remarks>
 internal sealed class PostgresQueries : SqlQueriesBase
 {
+    /// <inheritdoc />
+    /// <remarks>
+    /// <c>statement_timestamp()</c>, the start of the statement the client sent: the same instant everywhere in one
+    /// statement, and STABLE, so the planner can use it as an index scan key (<c>clock_timestamp()</c> is volatile and
+    /// cannot be one). <c>now()</c> is not used: it is the start of the TRANSACTION, which a statement run inside a longer
+    /// one would read as earlier than it is.
+    /// </remarks>
+    protected override string LeaseNow => "statement_timestamp()";
+
+    /// <inheritdoc />
+    /// <remarks>A <see langword="null"/> millisecond count gives <c>NULL</c>: <c>make_interval</c> is strict.</remarks>
+    protected override string LeaseInstant(string name)
+        => $"(statement_timestamp() + make_interval(secs => @{name}_ms / 1000.0))";
+
     /// <summary>Creates a new query set.</summary>
     /// <param name="schemaName">The schema name to validate.</param>
     /// <exception cref="TraconException">The schema name is not a valid identifier.</exception>
@@ -344,7 +358,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // so the owner finds a cancel in the same round trip that writes its heartbeat.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
-            SET heartbeat_at = @at
+            SET heartbeat_at = {LeaseNow}
             WHERE id = @id AND status IN (@status_running, @status_queued)
             RETURNING tenant_id, cancel_requested_at;
             """;
@@ -372,8 +386,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 event_count       = event_count + 1
             WHERE id IN (
                 SELECT id FROM {Schema}.runs
-                WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < @stale_before)
-                    OR (status = @status_queued AND heartbeat_at < @stale_before))
+                WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < {LeaseInstant("stale_before")})
+                    OR (status = @status_queued AND heartbeat_at < {LeaseInstant("stale_before")}))
                 ORDER BY COALESCE(heartbeat_at, started_at) ASC
                 LIMIT @max
             )
@@ -1265,16 +1279,17 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // FOR UPDATE SKIP LOCKED: even if multiple workers connect to the
         // same database, a job is claimed by only one worker. An expired
-        // lease (status IN (1, 2) AND lease_until < @now) can also be
-        // reclaimed.
+        // lease (status IN (1, 2) AND lease_until < the lease clock) can also be
+        // reclaimed. The lease clock is the database server's: a node's own
+        // clock never decides whether a lease is over.
         LeaseJob = $"""
             UPDATE {Schema}.jobs
-               SET status = 1, lease_owner = @owner, lease_until = @lease_until, attempt = attempt + 1,
-                   started_at = COALESCE(started_at, @now)
+               SET status = 1, lease_owner = @owner, lease_until = {LeaseInstant("lease_until")}, attempt = attempt + 1,
+                   started_at = COALESCE(started_at, {LeaseNow})
              WHERE id = (
                    SELECT id FROM {Schema}.jobs
-                    WHERE ((status = 0 AND scheduled_for <= @now)
-                       OR (status IN (1, 2) AND lease_until < @now))
+                    WHERE ((status = 0 AND scheduled_for <= {LeaseNow})
+                       OR (status IN (1, 2) AND lease_until < {LeaseNow}))
                       AND (@lanes IS NULL OR lane = ANY(@lanes))
                     ORDER BY scheduled_for
                     FOR UPDATE SKIP LOCKED
@@ -1284,7 +1299,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // The same statement with a per-tenant ceiling. A job whose handler key is one of
         // @cap_keys is skipped while its tenant holds @cap_max or more LIVE leases on those keys
-        // (status IN (1, 2) AND lease_until >= @now); an expired lease does not count. The tenants at the
+        // (status IN (1, 2) AND lease_until >= the lease clock); an expired lease does not count. The tenants at the
         // ceiling come from ONE uncorrelated subquery, which the planner hashes and evaluates once per
         // call; a per-row correlated count was measured at 70x the cost with 3,000 ready jobs (37.8 ms
         // against 0.54 ms) and the single subquery at 0.57 ms, on the existing jobs_claim_idx. The count
@@ -1293,18 +1308,18 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // number.
         LeaseJobWithTenantCap = $"""
             UPDATE {Schema}.jobs
-               SET status = 1, lease_owner = @owner, lease_until = @lease_until, attempt = attempt + 1,
-                   started_at = COALESCE(started_at, @now)
+               SET status = 1, lease_owner = @owner, lease_until = {LeaseInstant("lease_until")}, attempt = attempt + 1,
+                   started_at = COALESCE(started_at, {LeaseNow})
              WHERE id = (
                    SELECT j.id FROM {Schema}.jobs AS j
-                    WHERE ((j.status = 0 AND j.scheduled_for <= @now)
-                       OR (j.status IN (1, 2) AND j.lease_until < @now))
+                    WHERE ((j.status = 0 AND j.scheduled_for <= {LeaseNow})
+                       OR (j.status IN (1, 2) AND j.lease_until < {LeaseNow}))
                       AND (@lanes IS NULL OR j.lane = ANY(@lanes))
                       AND NOT (j.handler_key = ANY(@cap_keys) AND j.tenant_id IN (
                             SELECT held.tenant_id FROM {Schema}.jobs AS held
                              WHERE held.handler_key = ANY(@cap_keys)
                                AND held.status IN (1, 2)
-                               AND held.lease_until >= @now
+                               AND held.lease_until >= {LeaseNow}
                              GROUP BY held.tenant_id
                             HAVING COUNT(*) >= @cap_max))
                     ORDER BY j.scheduled_for
@@ -1758,13 +1773,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // upsert, no second result set).
         AcquireSingletonLease = $"""
             INSERT INTO {Schema}.singleton_leases (name, owner_id, expires_at, updated_at)
-            VALUES (@name, @owner_id, @expires_at, @now)
+            VALUES (@name, @owner_id, {LeaseInstant("lease_until")}, {LeaseNow})
             ON CONFLICT (name) DO UPDATE SET
                 owner_id   = EXCLUDED.owner_id,
                 expires_at = EXCLUDED.expires_at,
                 updated_at = EXCLUDED.updated_at
             WHERE {Schema}.singleton_leases.owner_id = EXCLUDED.owner_id
-               OR {Schema}.singleton_leases.expires_at < @now
+               OR {Schema}.singleton_leases.expires_at < {LeaseNow}
             RETURNING name;
             """;
 

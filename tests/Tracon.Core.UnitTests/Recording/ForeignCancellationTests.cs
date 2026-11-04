@@ -275,11 +275,11 @@ public sealed class ForeignCancellationTests
             => inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
         public async ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-            DateTimeOffset staleBefore,
+            TimeSpan staleAfter,
             int max,
             CancellationToken cancellationToken = default)
         {
-            var claimed = await inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken).ConfigureAwait(false);
+            var claimed = await inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken).ConfigureAwait(false);
             Interlocked.Increment(ref _claimCalls);
             return claimed;
         }

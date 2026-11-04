@@ -64,6 +64,23 @@ namespace Tracon;
 internal sealed class SqlServerQueries : SqlQueriesBase
 {
     /// <inheritdoc />
+    /// <remarks>
+    /// The server's UTC clock at offset zero, so the stored value has the same offset the application writes.
+    /// <c>SYSDATETIMEOFFSET()</c> would carry the offset of the server's time zone. Like every function of this family it
+    /// is read once per statement, and the column it is compared with is <c>datetimeoffset(7)</c>, so the 100-ns
+    /// precision is kept.
+    /// </remarks>
+    protected override string LeaseNow => "TODATETIMEOFFSET(SYSUTCDATETIME(), 0)";
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <c>DATEADD</c> takes an <c>int</c>, so a count of milliseconds that may be past 24 days is added as whole seconds
+    /// and a remainder. A <see langword="null"/> count gives <c>NULL</c>.
+    /// </remarks>
+    protected override string LeaseInstant(string name)
+        => $"DATEADD(MILLISECOND, @{name}_ms % 1000, DATEADD(SECOND, @{name}_ms / 1000, {LeaseNow}))";
+
+    /// <inheritdoc />
     /// <remarks>SQL Server has no <c>FILTER</c> clause; <c>COUNT</c> is emulated with a conditional <c>SUM</c>.</remarks>
     protected override string CountWhereAnyNotNull(IReadOnlyList<string> columns, string? alias)
     {
@@ -467,7 +484,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // upsert, so the two-branch OUTPUT trap does not apply.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
-               SET heartbeat_at = @at
+               SET heartbeat_at = {LeaseNow}
             OUTPUT inserted.tenant_id, inserted.cancel_requested_at
              WHERE id = @id AND status IN (@status_running, @status_queued);
             """;
@@ -497,8 +514,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               FROM {Schema}.runs AS r
              WHERE r.id IN (
                        SELECT TOP (@max) id FROM {Schema}.runs
-                        WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < @stale_before)
-                            OR (status = @status_queued AND heartbeat_at < @stale_before))
+                        WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < {LeaseInstant("stale_before")})
+                            OR (status = @status_queued AND heartbeat_at < {LeaseInstant("stale_before")}))
                      ORDER BY COALESCE(heartbeat_at, started_at) ASC
                    );
             """;
@@ -1454,17 +1471,17 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WITH next_job AS (
                 SELECT TOP (1) *
                 FROM {Schema}.jobs WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE ((status = 0 AND scheduled_for <= @now)
-                   OR (status IN (1, 2) AND lease_until < @now))
+                WHERE ((status = 0 AND scheduled_for <= {LeaseNow})
+                   OR (status IN (1, 2) AND lease_until < {LeaseNow}))
                   AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM OPENJSON(@lanes) WHERE value = lane))
                 ORDER BY scheduled_for
             )
             UPDATE next_job
                SET status      = 1,
                    lease_owner = @owner,
-                   lease_until = @lease_until,
+                   lease_until = {LeaseInstant("lease_until")},
                    attempt     = attempt + 1,
-                   started_at  = COALESCE(started_at, @now)
+                   started_at  = COALESCE(started_at, {LeaseNow})
              OUTPUT {InsertedJobColumns};
             """;
 
@@ -1487,7 +1504,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             SELECT held.tenant_id
               FROM {Schema}.jobs AS held
              WHERE held.status IN (1, 2)
-               AND held.lease_until >= @now
+               AND held.lease_until >= {LeaseNow}
                AND EXISTS (SELECT 1 FROM OPENJSON(@cap_keys) WHERE value = held.handler_key)
              GROUP BY held.tenant_id
             HAVING COUNT(*) >= @cap_max;
@@ -1495,8 +1512,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WITH next_job AS (
                 SELECT TOP (1) j.*
                 FROM {Schema}.jobs AS j WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE ((j.status = 0 AND j.scheduled_for <= @now)
-                   OR (j.status IN (1, 2) AND j.lease_until < @now))
+                WHERE ((j.status = 0 AND j.scheduled_for <= {LeaseNow})
+                   OR (j.status IN (1, 2) AND j.lease_until < {LeaseNow}))
                   AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM OPENJSON(@lanes) WHERE value = j.lane))
                   AND NOT (EXISTS (SELECT 1 FROM OPENJSON(@cap_keys) WHERE value = j.handler_key)
                        AND j.tenant_id IN (SELECT tenant_id FROM @at_cap))
@@ -1505,9 +1522,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             UPDATE next_job
                SET status      = 1,
                    lease_owner = @owner,
-                   lease_until = @lease_until,
+                   lease_until = {LeaseInstant("lease_until")},
                    attempt     = attempt + 1,
-                   started_at  = COALESCE(started_at, @now)
+                   started_at  = COALESCE(started_at, {LeaseNow})
              OUTPUT {InsertedJobColumns};
             """;
 
@@ -2035,9 +2052,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             DECLARE @updated int;
 
             UPDATE {Schema}.singleton_leases WITH (UPDLOCK, SERIALIZABLE)
-               SET owner_id = @owner_id, expires_at = @expires_at, updated_at = @now
+               SET owner_id = @owner_id, expires_at = {LeaseInstant("lease_until")}, updated_at = {LeaseNow}
              OUTPUT inserted.name
-             WHERE name = @name AND (owner_id = @owner_id OR expires_at < @now);
+             WHERE name = @name AND (owner_id = @owner_id OR expires_at < {LeaseNow});
 
             SET @updated = @@ROWCOUNT;
 
@@ -2046,7 +2063,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                  WHERE name = @name)
             INSERT INTO {Schema}.singleton_leases (name, owner_id, expires_at, updated_at)
             OUTPUT inserted.name
-            VALUES (@name, @owner_id, @expires_at, @now);
+            VALUES (@name, @owner_id, {LeaseInstant("lease_until")}, {LeaseNow});
             """;
 
         // Rate-limit window counter. MERGE is not used: the two-branch

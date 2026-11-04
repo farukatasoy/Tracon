@@ -121,11 +121,14 @@ internal sealed record AdvanceClockStep(int Seconds) : JobStep;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Time.</strong> The model pins today's lease behaviour: a lease is stamped and compared with the clock of the
-/// node that calls the store (the store is built with a <see cref="TimeProvider"/>, and the SQL stores pass its reading
-/// as a parameter; the database's own clock is never read). The sequence moves one manual clock that the store under test
-/// and the model share in meaning, so an expired lease is something a step does, not something a test waits for. If a
-/// store ever takes lease time from the database, this model is where the old behaviour is written down.
+/// <strong>Time.</strong> A lease is stamped and compared with ONE clock, and the sequence moves that clock, so an expired
+/// lease is something a step does, not something a test waits for. Which clock it is depends on the store: the in-memory
+/// store and SQLite read the clock of the node that calls them (they are built with a <see cref="TimeProvider"/>), while
+/// the PostgreSQL and SQL Server stores read the database server's clock inside the statement and never the caller's. A
+/// test cannot move a server's clock, so the provider's test project stands a one-row clock in the schema in its place
+/// (<see cref="DifferentialClock"/>); the model does not know the difference, which is the point: the same sequence must
+/// give the same answers whichever clock decides. The server's own function is covered where real time is the clock (the
+/// store contracts and the clock-skew contract).
 /// </para>
 /// <para>
 /// <strong>Order.</strong> The oldest ready job is the one with the earliest due time. The generator gives every job a
@@ -381,11 +384,11 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
     /// <returns>The offset.</returns>
     internal static TimeSpan OffsetFor(int slotOrSeconds) => Offsets[Math.Abs(slotOrSeconds) % Offsets.Length];
 
-    /// <summary>Gets the delay of a retry, in ticks: whole seconds plus a fraction unique to the slot.</summary>
+    /// <summary>Gets the delay of a retry, in ticks: whole seconds plus a whole number of milliseconds unique to the slot.</summary>
     /// <param name="seconds">Whole seconds.</param>
     /// <param name="slot">The slot.</param>
     /// <returns>The ticks.</returns>
-    internal static long RetryDelayTicks(int seconds, int slot) => (seconds * TimeSpan.TicksPerSecond) + (slot * 770L);
+    internal static long RetryDelayTicks(int seconds, int slot) => (seconds * TimeSpan.TicksPerSecond) + (slot * TimeSpan.TicksPerMillisecond);
 
     /// <summary>Renders a job record in the one form both sides use.</summary>
     /// <returns>The text.</returns>
@@ -853,7 +856,7 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
 internal sealed class JobDriver : IStepDriver<JobStep>, IAsyncDisposable
 {
     private readonly IJobStore _store;
-    private readonly ManualClock _clock;
+    private readonly DifferentialClock _clock;
     private readonly DifferentialScope _scope;
     private readonly JobUniverse _universe;
     private readonly Guid[] _ids = [.. Enumerable.Range(0, JobStateMachine.SlotCount).Select(static _ => Guid.NewGuid())];
@@ -863,16 +866,16 @@ internal sealed class JobDriver : IStepDriver<JobStep>, IAsyncDisposable
 
     /// <summary>Creates the driver of one sequence.</summary>
     /// <param name="store">The store under test.</param>
-    /// <param name="clock">The clock the store was built with.</param>
+    /// <param name="clock">The clock that decides the store's leases.</param>
     /// <param name="scope">The tenant namespace of the sequence.</param>
     /// <param name="universe">The values the steps draw from.</param>
-    public JobDriver(IJobStore store, ManualClock clock, DifferentialScope scope, JobUniverse universe)
+    public JobDriver(IJobStore store, DifferentialClock clock, DifferentialScope scope, JobUniverse universe)
     {
         _store = store;
         _clock = clock;
         _scope = scope;
         _universe = universe;
-        _start = clock.GetUtcNow();
+        _start = clock.Now;
     }
 
     /// <inheritdoc />
@@ -954,7 +957,7 @@ internal sealed class JobDriver : IStepDriver<JobStep>, IAsyncDisposable
                     "depth",
                     [.. depth.Select(row => $"lane={BoundaryValues.Show(row.Lane)} status={row.Status} count={row.Count}").Order(StringComparer.Ordinal)]);
             case AdvanceClockStep s:
-                _clock.Advance(TimeSpan.FromSeconds(s.Seconds));
+                await _clock.AdvanceAsync(TimeSpan.FromSeconds(s.Seconds));
 
                 return Observation.Of("ok");
             default:

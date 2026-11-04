@@ -234,13 +234,14 @@ internal sealed partial class InMemoryRunStore
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-        DateTimeOffset staleBefore,
+        TimeSpan staleAfter,
         int max,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var now = DateTimeOffset.UtcNow;
+        var staleBefore = now - staleAfter;
 
         // A Running row that never sent a heartbeat falls back to its start time. A Queued row is the
         // job queue's unless it sent one: then it is a run waiting in a process for a workflow slot

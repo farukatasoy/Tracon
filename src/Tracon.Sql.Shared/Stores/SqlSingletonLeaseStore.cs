@@ -11,6 +11,11 @@ namespace Tracon;
 /// pooling.
 /// </para>
 /// <para>There is no tenant column: single-executor election is a deployment-wide concept.</para>
+/// <para>
+/// On PostgreSQL and SQL Server the time a lease is stamped and compared with is the database server's, read inside
+/// the statement: every node that shares the database decides from one clock, so a node whose own clock is wrong cannot
+/// take a lease that is live or keep one that is over. SQLite is used by one process and keeps the application clock.
+/// </para>
 /// </remarks>
 internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
 {
@@ -20,7 +25,11 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
 
     /// <summary>Creates a new SQL single-executor lease store.</summary>
     /// <param name="context">The store context.</param>
-    /// <param name="timeProvider">The clock a lease is stamped and compared with. Defaults to <see cref="TimeProvider.System"/> when not given.</param>
+    /// <param name="timeProvider">
+    /// The clock a lease is stamped and compared with on a provider whose statements take the time as a parameter
+    /// (SQLite); PostgreSQL and SQL Server read the database server's clock and ignore it. Defaults to
+    /// <see cref="TimeProvider.System"/> when not given.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlSingletonLeaseStore(SqlStoreContext context, TimeProvider? timeProvider = null)
     {
@@ -45,16 +54,13 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
 
-        var now = _timeProvider.GetUtcNow();
-
         var result = await _context.ExecuteUpsertAsync(
             _sql.AcquireSingletonLease,
             command =>
             {
                 DbHelpers.Add(command, "name", name);
                 DbHelpers.Add(command, "owner_id", ownerId);
-                Dialect.AddTimestamp(command, "expires_at", now + duration);
-                Dialect.AddTimestamp(command, "now", now);
+                Dialect.AddLeaseWindow(command, _timeProvider, duration);
             },
             (command, token) => DbHelpers.ExecuteScalarAsync(command, token),
             cancellationToken).ConfigureAwait(false);
@@ -74,13 +80,10 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
 
-        var now = _timeProvider.GetUtcNow();
-
         var command = CreateCommand(_sql.RenewSingletonLease);
         DbHelpers.Add(command, "name", name);
         DbHelpers.Add(command, "owner_id", ownerId);
-        Dialect.AddTimestamp(command, "expires_at", now + duration);
-        Dialect.AddTimestamp(command, "now", now);
+        Dialect.AddLeaseWindow(command, _timeProvider, duration);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }

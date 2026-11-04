@@ -94,20 +94,19 @@ internal sealed class RunReconciliationService(
     private async Task TickAsync(CancellationToken stoppingToken)
     {
         var options = optionsMonitor.CurrentValue;
-        var staleBefore = _clock.GetUtcNow() - options.OrphanThreshold;
 
         try
         {
             var claimed = await runStore
-                .ClaimOrphanedRunsAsync(staleBefore, options.MaxRunsPerScan, stoppingToken)
+                .ClaimOrphanedRunsAsync(options.OrphanThreshold, options.MaxRunsPerScan, stoppingToken)
                 .ConfigureAwait(false);
 
             if (claimed.Count > 0 && logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning(
-                    "{Count} orphaned run(s) closed (threshold: {StaleBefore:O}).",
+                    "{Count} orphaned run(s) closed (threshold: {Threshold}).",
                     claimed.Count,
-                    staleBefore);
+                    options.OrphanThreshold);
             }
 
             // 🚨 One run at a time, each in its own try. The claim above already closed every one of these rows,

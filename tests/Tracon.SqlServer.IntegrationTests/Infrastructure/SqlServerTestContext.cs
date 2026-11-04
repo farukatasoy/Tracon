@@ -630,6 +630,17 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
                 EXEC sp_executesql @sql;
                 SET @sql = N'';
 
+                -- differential_now (the clock stand-in of the differential
+                -- job sequences). A function is dropped before the schema for
+                -- the same reason a view is.
+                SELECT @sql += N'DROP FUNCTION {SchemaName}.' + QUOTENAME(o.name) + N';'
+                FROM sys.objects AS o
+                JOIN sys.schemas AS s ON o.schema_id = s.schema_id
+                WHERE s.name = N'{SchemaName}' AND o.type IN (N'FN', N'IF', N'TF');
+
+                EXEC sp_executesql @sql;
+                SET @sql = N'';
+
                 SELECT @sql += N'ALTER TABLE {SchemaName}.' + QUOTENAME(t.name)
                     + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';'
                 FROM sys.foreign_keys AS fk

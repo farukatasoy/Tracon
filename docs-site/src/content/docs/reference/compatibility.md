@@ -115,6 +115,7 @@ tests. The registration and provider-specific configuration still change.
 | Conversation branching | No | Yes | Yes | Yes |
 | Vector knowledge search | No | Yes, with pgvector | No; knowledge answers `501` | No; knowledge answers `501` |
 | Object isolation | Process | Schema, default `tracon` | Schema, default `tracon` | Table prefix, default `tracon_` |
+| Clock that decides a lease, a retry delay and whether a job is due | The process's clock | The database server's clock (`statement_timestamp()`) | The database server's UTC clock | The process's clock |
 | Migration lock | None | PostgreSQL advisory lock | `sp_getapplock` | Sidecar file lock scoped to the database file and table prefix |
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |

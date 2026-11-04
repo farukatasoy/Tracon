@@ -12,6 +12,11 @@ namespace Tracon;
 /// one worker. The behavior contract is identical to <c>InMemoryJobStore</c>
 /// and is protected by shared contract tests (including concurrency).
 /// </para>
+/// <para>
+/// On PostgreSQL and SQL Server a lease, a retry delay and the "is this job due" test all read the database server's
+/// clock inside the statement, so every node that shares the database decides from one clock and a node whose own clock
+/// is wrong cannot take a job another node is running. SQLite is used by one process and keeps the application clock.
+/// </para>
 /// </remarks>
 internal sealed class SqlJobStore : IJobStore
 {
@@ -25,7 +30,11 @@ internal sealed class SqlJobStore : IJobStore
     /// <param name="schedulingOptions">
     /// The source for <c>LaneByHandlerKey</c>. <see langword="null"/> disables lane-by-key resolution.
     /// </param>
-    /// <param name="timeProvider">The clock a lease is stamped and compared with. Defaults to <see cref="TimeProvider.System"/> when not given.</param>
+    /// <param name="timeProvider">
+    /// The application clock. Lease times and retry delays use it on a provider whose statements take the time as a
+    /// parameter (SQLite) and ignore it on PostgreSQL and SQL Server, which read the database server's clock; the
+    /// cancellation time is always stamped with it. Defaults to <see cref="TimeProvider.System"/> when not given.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlJobStore(
         SqlStoreContext context,
@@ -137,14 +146,11 @@ internal sealed class SqlJobStore : IJobStore
                 nameof(request));
         }
 
-        var now = _timeProvider.GetUtcNow();
-
         // Without a cap the statement is the one that has always run; the capped statement is a
         // separate text, so the common path pays nothing for the count.
         var command = CreateCommand(cap is null ? _sql.LeaseJob : _sql.LeaseJobWithTenantCap);
         DbHelpers.Add(command, "owner", owner);
-        Dialect.AddTimestamp(command, "lease_until", (now + request.LeaseDuration));
-        Dialect.AddTimestamp(command, "now", now);
+        Dialect.AddLeaseWindow(command, _timeProvider, request.LeaseDuration);
         Dialect.AddTextArray(command, "lanes", request.Lanes is { Count: > 0 } ? request.Lanes : null);
 
         if (cap is not null)
@@ -168,7 +174,7 @@ internal sealed class SqlJobStore : IJobStore
 
         var command = CreateCommand(_sql.RenewJobLease);
         AddLease(command, lease);
-        Dialect.AddTimestamp(command, "lease_until", (_timeProvider.GetUtcNow() + leaseDuration));
+        Dialect.AddLeaseWindow(command, _timeProvider, leaseDuration);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
@@ -218,14 +224,14 @@ internal sealed class SqlJobStore : IJobStore
         AddLease(command, lease);
         AddNullableText(command, "error_message", errorMessage);
 
-        // Backoff is set up via scheduled_for; LeaseJob already filters
-        // `scheduled_for <= @now`. GREATEST(...) never brings the wait time
-        // forward: an early-running round cannot pull the job back.
-        var retryAt = retryAfter is { } delay && delay > TimeSpan.Zero
-            ? _timeProvider.GetUtcNow() + delay
-            : (DateTimeOffset?)null;
-
-        Dialect.AddTimestamp(command, "retry_at", retryAt);
+        // Backoff is set up via scheduled_for; LeaseJob already filters on it against the lease clock, and the delay
+        // is measured from that same clock, so the node that releases the job and the node that leases it again
+        // cannot disagree about when the delay is over. No delay leaves scheduled_for as it is.
+        Dialect.AddLeaseInstant(
+            command,
+            "retry_at",
+            _timeProvider,
+            retryAfter is { } delay && delay > TimeSpan.Zero ? delay : null);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }

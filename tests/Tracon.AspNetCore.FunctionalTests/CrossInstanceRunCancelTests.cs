@@ -180,7 +180,7 @@ public sealed class CrossInstanceRunCancelTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
 
-        var claimed = await runs.ClaimOrphanedRunsAsync(DateTimeOffset.UtcNow.AddMinutes(-5), max: 10);
+        var claimed = await runs.ClaimOrphanedRunsAsync(TimeSpan.FromMinutes(5), max: 10);
 
         var record = claimed.ShouldHaveSingleItem();
         record.Id.ShouldBe(runId);

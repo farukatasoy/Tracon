@@ -332,7 +332,7 @@ internal sealed class SqlRunStore : IRunStore
         {
             var command = CreateCommand(_sql.TouchRunHeartbeat);
             DbHelpers.Add(command, "id", runId);
-            Dialect.AddTimestamp(command, "at", at);
+            Dialect.AddLeaseNow(command, at);
             DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
             DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
 
@@ -386,7 +386,7 @@ internal sealed class SqlRunStore : IRunStore
         "This is a maintenance job and scans orphaned rows across ALL tenants; filtering by the " +
         "ambient tenant would leave other tenants' rows stuck in Running forever.")]
     public async ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-        DateTimeOffset staleBefore,
+        TimeSpan staleAfter,
         int max,
         CancellationToken cancellationToken = default)
     {
@@ -399,7 +399,10 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "error_fingerprint", OrphanedFingerprint);
         DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
         DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
-        Dialect.AddTimestamp(command, "stale_before", staleBefore);
+
+        // The threshold is measured back from the lease clock: the database server's on PostgreSQL and SQL Server (the
+        // clock the heartbeat was stamped with), this process's on SQLite.
+        Dialect.AddLeaseInstant(command, "stale_before", TimeProvider.System, -staleAfter);
         DbHelpers.Add(command, "max", Math.Max(max, 0));
 
         var claimed = await DbHelpers.ReadListAsync(command, ReadOrphanedRun, cancellationToken).ConfigureAwait(false);

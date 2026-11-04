@@ -333,7 +333,7 @@ public sealed class RunReconciliationTests
         // registry, reconciliation must not treat the run as orphaned -- the
         // heartbeat was written recently.
         var claimed = await store.ClaimOrphanedRunsAsync(
-            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
 
         claimed.ShouldBeEmpty();
@@ -700,11 +700,11 @@ public sealed class RunReconciliationTests
             => inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
         public async ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
-            DateTimeOffset staleBefore,
+            TimeSpan staleAfter,
             int max,
             CancellationToken cancellationToken = default)
         {
-            var claimed = await inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken).ConfigureAwait(false);
+            var claimed = await inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken).ConfigureAwait(false);
             Interlocked.Increment(ref _claimCalls);
             return claimed;
         }

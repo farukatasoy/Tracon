@@ -99,6 +99,6 @@ internal sealed class FlakyCompletionRunStore(IRunStore inner, int failures) : I
         => inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default)
-        => inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken);
+    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken cancellationToken = default)
+        => inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken);
 }

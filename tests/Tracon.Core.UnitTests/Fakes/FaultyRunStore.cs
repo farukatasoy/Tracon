@@ -120,5 +120,5 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
         CancellationToken cancellationToken = default)
         => inner.RequestCancellationAsync(runId, tenantId, at, cancellationToken);
 
-    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default) => inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken);
+    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken cancellationToken = default) => inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken);
 }
