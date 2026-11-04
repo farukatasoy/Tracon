@@ -332,7 +332,8 @@ warning that names the header, never its value.
 `AddContentProtection(...)` encrypts the twelve columns above with AES-256-GCM before
 they reach the database, and decrypts them transparently on read — the rest of
 Tracon, and your own code, never sees ciphertext. It is off by default (no
-surprises); turning it on is a deliberate, explicit call.
+surprises); turning it on is a deliberate, explicit call: the call below sets `Enabled`
+to `true` before your delegate runs, so naming the keys is enough.
 
 ```csharp
 builder.AddTracon()
@@ -343,6 +344,10 @@ builder.AddTracon()
        })
        .UsePostgreSql(connectionString);
 ```
+
+To keep the keys and switch protection off, write `options.Enabled = false` in the
+delegate. A call with no delegate, as in `AddContentProtection()`, only registers the
+protector and leaves `Tracon:ContentProtection:Enabled` to configuration.
 
 `UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
 

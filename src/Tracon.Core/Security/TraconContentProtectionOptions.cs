@@ -6,6 +6,8 @@ namespace Tracon;
 /// Always registered, but <see cref="Enabled"/> defaults to
 /// <see langword="false"/>: without <c>AddContentProtection(...)</c>,
 /// nothing is encrypted and every store behaves exactly as it does today.
+/// <c>AddContentProtection(options =&gt; ...)</c> sets it to <see langword="true"/>
+/// before its delegate runs; a call with no delegate leaves it to this section.
 /// </para>
 /// <para>
 /// <see cref="Keys"/> never carries a key's raw material — it maps a key id
@@ -33,6 +35,11 @@ public sealed class TraconContentProtectionOptions
     public const string SectionName = "Tracon:ContentProtection";
 
     /// <summary>Gets or sets a value indicating whether the content protection ring is added to the pipeline.</summary>
+    /// <remarks>
+    /// <see langword="false"/> unless the <c>Tracon:ContentProtection</c> section or
+    /// <c>AddContentProtection(options =&gt; ...)</c> turns it on; the delegate of that call can set it back
+    /// to <see langword="false"/>.
+    /// </remarks>
     public bool Enabled { get; set; }
 
     /// <summary>Gets or sets the key id new writes are protected with.</summary>

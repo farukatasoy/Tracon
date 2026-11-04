@@ -14,7 +14,11 @@ public static class TraconContentProtectionExtensions
 {
     /// <summary>Registers Tracon's built-in AES-256-GCM content protector.</summary>
     /// <param name="builder">The configuration chain.</param>
-    /// <param name="configure">Key and column settings.</param>
+    /// <param name="configure">
+    /// Key and column settings. <see cref="TraconContentProtectionOptions.Enabled"/> is <see langword="true"/> when
+    /// this delegate runs, so a delegate that only names the keys turns protection on; it can write
+    /// <see langword="false"/> to turn it off again.
+    /// </param>
     /// <returns>The chain, for further configuration.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -23,6 +27,14 @@ public static class TraconContentProtectionExtensions
     /// alone registers a no-op protector that writes plaintext unchanged; without
     /// this call (or a matching <c>Tracon:ContentProtection:Enabled</c>
     /// configuration section), nothing is encrypted.
+    /// </para>
+    /// <para>
+    /// With a <paramref name="configure"/> delegate the call also turns protection on:
+    /// <see cref="TraconContentProtectionOptions.Enabled"/> is set to <see langword="true"/>
+    /// before the delegate runs, after configuration binding, so the example below encrypts
+    /// and a delegate that writes <c>options.Enabled = false</c> keeps the keys and switches
+    /// protection off. Without a delegate the call only registers the protector and
+    /// <c>Tracon:ContentProtection:Enabled</c> decides.
     /// </para>
     /// <para>
     /// Replaces the default registration rather than adding to it — a
@@ -53,7 +65,14 @@ public static class TraconContentProtectionExtensions
             // Runs AFTER configuration binding: the value written in code
             // overrides the Tracon:ContentProtection section. Same order
             // as other settings (the caller's registration wins).
-            builder.Services.Configure(configure);
+            // A delegate that hands over the keys is a request for protection:
+            // the documented example names a key id and a key name and nothing
+            // else, and it used to register the protector and encrypt nothing.
+            builder.Services.Configure<TraconContentProtectionOptions>(options =>
+            {
+                options.Enabled = true;
+                configure(options);
+            });
         }
 
         return builder;

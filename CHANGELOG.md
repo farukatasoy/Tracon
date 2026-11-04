@@ -226,6 +226,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     removes nothing until it is switched on, and `GET /api/retention/preview` shows `enabled: false` for it.
   - **Nothing already saved changes.** A stored policy keeps its `enabled` value, and a body that names `enabled` is read as before. Preview a target before you switch its policy on.
 
+- **Behavioural breaking change: `AddContentProtection(options => …)` turns content protection on.** The call registered the protector and left `Tracon:ContentProtection:Enabled` at `false`, so the example in the
+  documentation (a key id and a key name, nothing else) stored user messages, run inputs and session state as plain text, and `RequireProductionProfile()` told the host to call `AddContentProtection(...)` while it
+  already had. `Enabled` is now `true` when your delegate runs, after configuration is bound, and the delegate can still write `options.Enabled = false`. A call with no delegate, `AddContentProtection()`, still only
+  registers the protector and `Tracon:ContentProtection:Enabled` decides, as in the samples that keep the keys in configuration.
+  What to do:
+  - **A host that calls `AddContentProtection(options => …)` and left `Enabled` out now encrypts, and starts only with a usable key.** `ActiveKeyId` must name an entry of `Keys` (the application does not start otherwise), and
+    the key it names must be 32 bytes of Base64 where the host reads it. Set the key before you upgrade. Only new writes are protected: rows already stored as plain text stay readable and are not rewritten.
+  - **A host that keeps the keys in code and switches protection off with `Tracon:ContentProtection:Enabled=false` writes `options.Enabled = false` in the delegate.** The delegate runs after configuration, so the
+    configuration value no longer wins over the call.
+  - **The `UnencryptedContentAtRest` answer now reads `call AddContentProtection(options => ...) with an active key id, or set Tracon:ContentProtection:Enabled to true together with an active key id`.**
+
 - **Four migrations changed in place, and a database that applied one of them before must be recreated.** `lower()` follows the locale
   of the database, and in a Turkish one `lower('OpenAI')` ends in a dotless i (U+0131) instead of the i of `openai`. PostgreSQL `0038` and `0062` and SQL Server `0025`
   and `0050` folded names with it: on such a database `0038` and `0025` rewrote a tenant's provider binding to a name no agent

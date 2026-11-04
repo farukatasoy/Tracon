@@ -28,6 +28,6 @@ internal sealed class ContentProtectionProfileCheck : IProductionProfileCheck
             : ProductionProfileResult.Permissive(
                 setting,
                 "off, so prompts, responses and tool arguments are stored as clear text",
-                $"call AddContentProtection(...) or set {setting} to true together with an active key id");
+                $"call AddContentProtection(options => ...) with an active key id, or set {setting} to true together with an active key id");
     }
 }
