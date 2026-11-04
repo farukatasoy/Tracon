@@ -251,10 +251,12 @@ run events. SQLite does not cut a statement short at `CommandTimeoutSeconds`, bu
 that waits for the write lock does give up at it, so apply the migration in your own deployment step
 (`AutoApplyMigrations = false`) before you start the new instances. Two things stop it. A view or
 trigger of your own that names one of the seven columns makes SQLite refuse to drop the column
-(`error in view … after drop column`) and nothing is changed: drop yours first and create it
-again afterwards. The `runs_v1` view is dropped and, when `EnableReadViews` is on, built again in
-the same run; a database that had it enabled and later switched it off loses the view that was left
-behind ([Read contract views](/reference/read-views/)).
+(`error in view … after drop column`), and so does a view of your own built on `runs_v1`, because
+the migration drops that view first (`error in view <yours>: no such table: main.<prefix>runs_v1`).
+Nothing is changed in either case: drop yours first and create it again afterwards. The `runs_v1`
+view is dropped and, when `EnableReadViews` is on, built again in the same run; a database that had
+it enabled and later switched it off loses the view that was left behind
+([Read contract views](/reference/read-views/)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
