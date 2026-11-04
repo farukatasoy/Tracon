@@ -579,6 +579,10 @@ flowchart LR
 Every name must resolve. An unknown tool, skill, extension, provider, or callable agent is a
 compilation error, not a run-time surprise.
 
+A provider name holds only the ASCII letters, the digits, `_`, `.` and `-`, and is kept in lower case: a
+tenant's own provider key is bound by that name, and a name outside the alphabet cannot be bound (the
+binding routes answer `400`; [why](/reference/compatibility/#storage-engines)).
+
 A request field of the model binding passes the same check. The provider's API surface must send it,
 the model catalog must not say the model rejects it, and its value must lie in the range the provider
 accepts; the primary model and every fallback link are checked. The error names the field and the
@@ -6882,6 +6886,21 @@ commits. Measured in an emulated container on Apple Silicon: 1.3 s over 100 000 
 million runs with two million events. The default `CommandTimeoutSeconds` of 30 covers that; raise
 it for the run that applies the migration if your storage is slower
 ([Compatibility](/reference/compatibility/)).
+
+The `ordinal_lease_owner` migration (`0062`, SQL Server only) keeps every value and changes how SQL Server
+compares the name of a lease owner: `jobs.lease_owner` and `singleton_leases.owner_id` take
+`Latin1_General_BIN2`, so a worker named `worker-a` no longer renews, starts, completes or releases the
+lease of a worker named `Worker-A` (you choose the name, in `JobLeaseRequest.Owner` and in the owner you pass
+to `ISingletonLeaseStore.TryAcquireAsync`). No row is merged, removed or rewritten, and a lease that is running
+keeps its owner. Measured in an emulated container on Apple Silicon: 4 to 8 ms over 100 000 jobs and 9 to 30 ms
+over a million, because the statement changes the comparison and not the stored text. It takes a schema lock on
+the two tables, so apply it before you start the new nodes: a worker that leases a job waits for it. SQL Server
+still ignores trailing blanks in an owner name (`w` and `w ` are one owner).
+
+On SQL Server a store call that is one statement (an event append, a read, a delete) that the server picks as a
+deadlock victim is sent again, up to five attempts in all, as a transaction has been; an error that is not a
+deadlock reaches your code unchanged. Before this the call threw `SqlException` 1205, and a run lost the events
+that followed the failed append.
 
 The `decimal_columns_as_text` migration (`0058`, SQLite only) rewrites `runs`. Seven columns were
 declared `NUMERIC` (`cached_input_cost`, `non_token_cost` and the five unit prices), and SQLite turned
@@ -22422,8 +22441,9 @@ answer. The reply is `application/problem+json` with `400` and one of two titles
 The `detail` is fixed text. It names no field, column, table or value: the provider's
 own message carries the value that was cut, and that can be a secret pasted into the
 wrong field. Only your server's log records that the store refused something, and not
-what. A connection that cannot be opened, a schema that is not current, a deadlock and
-a timeout stay `503`.
+what. A connection that cannot be opened, a schema that is not current, a deadlock that is
+still there after the store has sent the statement or the transaction again (SQL Server sends
+a single statement as well as a transaction, five attempts in all) and a timeout stay `503`.
 
 The stores do not agree on the longest text. SQL Server counts UTF-16 code units, so
 100 emoji fit in 200 and 101 do not; PostgreSQL and SQLite keep text of any length and
@@ -23020,8 +23040,9 @@ tests. The registration and provider-specific configuration still change.
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
 | Cost amounts, unit prices and the quota counter | The whole `decimal` | `numeric(20,10)`: rounded to 10 decimals, summed exactly by the database | `decimal(20,10)`: rounded to 10 decimals, summed exactly by the database | Text of the whole `decimal`, never rounded; summed exactly by two functions (`tracon_decimal_sum`, `tracon_decimal_add`) that Tracon registers on every connection it opens |
-| Identifiers and names a client chooses (session id, idempotency key, file path, checkpoint id, score author, the name of an agent, workflow, skill or other definition, the name of an experiment variant, and the identity of a user: a session owner, a run user, an audit actor) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. SQL Server ignores trailing spaces in any collation, so `abc` and `abc ` are one key there; the run, `/v1/responses`, AG-UI and session-branch endpoints refuse a session id that starts or ends with whitespace (`400`) so the stores agree on the ids that open a session | Exact |
+| Identifiers and names a client chooses (session id, idempotency key, file path, checkpoint id, score author, the name of an agent, workflow, skill or other definition, the name of an experiment variant, the identity of a user: a session owner, a run user, an audit actor, and the name of a worker or node that holds a lease: a job lease owner, a singleton lease owner) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. SQL Server ignores trailing spaces in any collation, so `abc` and `abc ` are one key there; the run, `/v1/responses`, AG-UI and session-branch endpoints refuse a session id that starts or ends with whitespace (`400`) so the stores agree on the ids that open a session, and so do the `sessionId` filters of `GET /api/runs` and `GET /api/voice/sessions` (a filter of more than 200 characters is refused too). Trailing blanks of a lease owner still do not count on SQL Server: `w` and `w ` are one owner there | Exact |
 | Tenant identifier | ASCII letters, digits, `_`, `.` and `-` only, folded to lower case; every store refuses any other character with an `ArgumentException` | Same rule | Same rule. The tenant columns keep the collation of the database, which ignores accents and width: no two different identifiers over that alphabet compare equal there, and that is why the alphabet is closed | Same rule |
+| Provider name of a tenant binding | ASCII letters, digits, `_`, `.` and `-` only, folded to lower case; every store refuses any other character with an `ArgumentException`, and the two provider routes answer `400` | Same rule | Same rule. The column keeps the collation of the database, which reads a full-width letter as the plain one: the alphabet is closed so that no two names the stores keep apart are one name there | Same rule |
 | ORM | None | None | None | None |
 | AOT promise | Yes through Core | Yes | No promise | No |
 

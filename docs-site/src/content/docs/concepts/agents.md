@@ -219,6 +219,10 @@ flowchart LR
 Every name must resolve. An unknown tool, skill, extension, provider, or callable agent is a
 compilation error, not a run-time surprise.
 
+A provider name holds only the ASCII letters, the digits, `_`, `.` and `-`, and is kept in lower case: a
+tenant's own provider key is bound by that name, and a name outside the alphabet cannot be bound (the
+binding routes answer `400`; [why](/reference/compatibility/#storage-engines)).
+
 A request field of the model binding passes the same check. The provider's API surface must send it,
 the model catalog must not say the model rejects it, and its value must lie in the range the provider
 accepts; the primary model and every fallback link are checked. The error names the field and the
