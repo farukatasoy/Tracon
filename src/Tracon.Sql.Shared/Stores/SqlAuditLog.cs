@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -59,9 +58,12 @@ internal sealed class SqlAuditLog : IAuditLog
     private readonly AuditChainKeyRing _keys;
     private readonly ILogger _logger;
 
-    // One entry per tenant that has already been warned about, for the life of the process. The set is as
-    // large as the number of tenants that write while the key is off, which is the number of tenants.
-    private readonly ConcurrentDictionary<string, byte> _warnedTenants = new(StringComparer.Ordinal);
+    // The tenants that have already been warned about, for the life of the process. A tenant is added only when
+    // it writes while the key is off after a signed entry, and the tenant comes from a request: the set takes
+    // WarnedTenantLimit tenants and then says once that more were left out.
+    private const int WarnedTenantLimit = 1024;
+
+    private readonly WarnedKeySet _warnedTenants = new(WarnedTenantLimit);
 
     /// <summary>Creates a new audit trail ledger.</summary>
     /// <param name="context">The store context.</param>
@@ -249,7 +251,9 @@ internal sealed class SqlAuditLog : IAuditLog
             return;
         }
 
-        if (_warnedTenants.TryAdd(tenantId, 0) && _logger.IsEnabled(LogLevel.Warning))
+        var admission = _warnedTenants.Admit(tenantId);
+
+        if (admission == WarnedKeyAdmission.New && _logger.IsEnabled(LogLevel.Warning))
         {
             _logger.LogWarning(
                 "The audit chain of tenant {TenantId} was signed with key {KeyId}, but {Setting} is not set. " +
@@ -257,6 +261,16 @@ internal sealed class SqlAuditLog : IAuditLog
                 tenantId,
                 signedWith,
                 AuditChainKeyRing.ChainKeyIdSetting);
+        }
+        else if (admission == WarnedKeyAdmission.FullFirstTime && _logger.IsEnabled(LogLevel.Warning))
+        {
+            _logger.LogWarning(
+                "More than {Limit} tenants write audit entries without a signature while {Setting} is not set; " +
+                "the tenants after the first {Limit} are not named. Every chain that a key signed will verify as " +
+                "Broken from its first unsigned entry on.",
+                WarnedTenantLimit,
+                AuditChainKeyRing.ChainKeyIdSetting,
+                WarnedTenantLimit);
         }
     }
 

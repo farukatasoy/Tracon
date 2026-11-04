@@ -75,6 +75,19 @@ public sealed class VoiceConnectionLimiterTests
     }
 
     [Fact]
+    public void A_tenant_that_closed_its_last_connection_is_not_kept()
+    {
+        var limiter = new VoiceConnectionLimiter(2);
+
+        for (var tenant = 0; tenant < 5_000; tenant++)
+        {
+            limiter.TryAcquire($"tenant-{tenant}").ShouldNotBeNull().Dispose();
+        }
+
+        limiter.TrackedTenants.ShouldBe(0);
+    }
+
+    [Fact]
     public void Zero_or_negative_limit_is_raised_to_at_least_one()
     {
         // A zero limit would silently disable the capability; misconfiguration
