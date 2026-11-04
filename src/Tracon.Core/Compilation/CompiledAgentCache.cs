@@ -61,11 +61,17 @@ namespace Tracon;
 /// <strong>Leaving the cache is only unlinking.</strong> A dropped agent is never disposed: a
 /// run may still hold it, and the cache cannot know. The run keeps its reference, the
 /// garbage collector takes the agent when the last run lets go, and the next resolve
-/// compiles the agent again. Nothing a compiled agent owns needs an explicit
-/// dispose, and the model client it reaches is shared with every other compile of the
-/// same provider. A hit takes no lock and allocates nothing; only a store, which has
-/// just paid for a compile, takes the lock, and the idle check runs while the cache is
-/// in use (no timer).
+/// compiles the agent again. What a compiled agent owns is released by the garbage
+/// collector: the few disposable parts it holds (a semaphore, a vector collection) have
+/// no finalizer and no operating-system handle, and the model client it reaches is
+/// shared with every other compile of the same provider. The one part that the
+/// collector never takes is a telemetry meter or activity source (the runtime keeps
+/// both in process-wide lists until they are disposed), so an agent does not own one:
+/// the spans and the metrics of its model calls go through a telemetry client that the
+/// host shares between all agents of a provider and endpoint. Compiling an agent
+/// registers nothing process-wide, and dropping one leaves nothing behind. A hit takes
+/// no lock and allocates nothing; only a store, which has just paid for a compile,
+/// takes the lock, and the idle check runs while the cache is in use (no timer).
 /// </para>
 /// <para>
 /// The <c>tenant</c> component of the key is REQUIRED. Agent names are unique
@@ -229,8 +235,10 @@ public sealed class CompiledAgentCache
         }
 
         // The factory can run more than once for the same key when two callers
-        // miss together. Agent production is side-effect free, so this is not a
-        // problem; Store hands both callers the instance that won.
+        // miss together. Producing an agent registers nothing process-wide (its model-call
+        // telemetry is borrowed from a client the host shares, not built for the agent),
+        // so the instance that loses leaves nothing behind and this is not a problem;
+        // Store hands both callers the instance that won.
         return Store(key, dependencyFingerprint, factory());
     }
 
@@ -252,8 +260,8 @@ public sealed class CompiledAgentCache
     /// Compiling now needs an async credential lookup on a
     /// cache miss. <see cref="ConcurrentDictionary{TKey,TValue}"/> has no
     /// native async <c>GetOrAdd</c>; the same "the factory may run more than
-    /// once, production is side-effect free, an extra instance is discarded"
-    /// guarantee as the sync overload applies here too.
+    /// once, an extra instance is discarded and leaves nothing behind" guarantee
+    /// as the sync overload applies here too.
     /// </remarks>
     public ValueTask<AIAgent> GetOrAddAsync(
         string tenantId,

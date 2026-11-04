@@ -121,4 +121,9 @@
     <Compile Include="../Shared/DateInputs/*.cs" LinkBase="Shared/DateInputs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Counts the telemetry instruments a test makes and how many are still alive. -->
+    <Compile Include="../Shared/Telemetry/*.cs" LinkBase="Shared/Telemetry" />
+  </ItemGroup>
+
 </Project>

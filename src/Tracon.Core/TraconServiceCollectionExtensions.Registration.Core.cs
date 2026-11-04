@@ -208,6 +208,14 @@ public static partial class TraconServiceCollectionExtensions
         // retry decisions stay bit-for-bit identical to before the seam existed.
         services.TryAddSingleton<IProviderRetryClassifier, DefaultProviderRetryClassifier>();
 
+        // The telemetry clients every model-call pipeline shares, one for each provider and endpoint. A pipeline is
+        // built for every compile and nothing disposes it, so its telemetry client cannot belong to it: the
+        // framework's client makes a meter and an activity source that stay in process-wide lists until the client
+        // is disposed. The container disposes this singleton when the host stops.
+        services.TryAddSingleton(static provider => new ChatTelemetryLanes(
+            TraconDiagnostics.ActivitySourceName,
+            provider.GetService<ILoggerFactory>()));
+
         // Sets up the WHOLE registry pipeline (moved out of the provider
         // packages). An explicit factory is required: the built-in
         // DI container does not fill in constructor parameters that carry a
@@ -237,7 +245,8 @@ public static partial class TraconServiceCollectionExtensions
             // lazily at pipeline-build time instead - see ModelProviderRegistry's own
             // constructor remarks.
             provider,
-            provider.GetService<IOptions<TraconTenantProviderOptions>>()));
+            provider.GetService<IOptions<TraconTenantProviderOptions>>(),
+            provider.GetService<ChatTelemetryLanes>()));
 
         // Pre-flight context-window estimator. Registered
         // unconditionally: POST /api/agents/{name}/estimate works regardless

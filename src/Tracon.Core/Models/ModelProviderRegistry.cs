@@ -48,6 +48,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     private readonly IProviderRetryClassifier? _retryClassifier;
     private readonly IServiceProvider? _services;
     private readonly IOptions<TraconTenantProviderOptions>? _tenantProviderOptions;
+    private readonly ChatTelemetryLanes _telemetryLanes;
 
     /// <summary>Creates a new registry from the registered providers.</summary>
     /// <param name="providers">The model providers.</param>
@@ -111,6 +112,10 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// decides whether a tenant with no egress policy may call a provider. If <see langword="null"/>,
     /// no policy is required.
     /// </param>
+    /// <param name="telemetryLanes">
+    /// The telemetry clients the pipelines share, one for each provider and endpoint. The host disposes it when it stops.
+    /// If <see langword="null"/>, the registry makes one of its own and never disposes it.
+    /// </param>
     /// <remarks>
     /// <para>
     /// <paramref name="services"/> is deliberately not a direct
@@ -140,7 +145,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         TraconMetrics? metrics = null,
         IProviderRetryClassifier? retryClassifier = null,
         IServiceProvider? services = null,
-        IOptions<TraconTenantProviderOptions>? tenantProviderOptions = null)
+        IOptions<TraconTenantProviderOptions>? tenantProviderOptions = null,
+        ChatTelemetryLanes? telemetryLanes = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
@@ -159,6 +165,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         _retryClassifier = retryClassifier;
         _services = services;
         _tenantProviderOptions = tenantProviderOptions;
+        _telemetryLanes = telemetryLanes ?? new ChatTelemetryLanes(TraconDiagnostics.ActivitySourceName, loggerFactory);
 
         foreach (var provider in providers)
         {
@@ -557,9 +564,12 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             _services?.GetService<IOptionsMonitor<TraconOptions>>(),
             _loggerFactory?.CreateLogger<HostedToolUsageChatClient>()));
 
-        chatClient = pipelineBuilder
-            .UseOpenTelemetry(_loggerFactory, TraconDiagnostics.ActivitySourceName)
-            .Build();
+        // 🚨 The telemetry ring is NOT built here. The framework's telemetry client makes a Meter and an ActivitySource
+        // when it is constructed and frees them only when it is disposed; this pipeline is built for every compile, every
+        // validation and every judge client and nothing disposes it, so a client of its own is a leak that no bound on
+        // the compiled-agent cache closes. The ring is one client for each provider and endpoint, and the part of the
+        // pipeline built so far travels with each call (see ChatTelemetryLanes).
+        chatClient = _telemetryLanes.Wrap(pipelineBuilder.Build());
 
         // 🚨 An extension's ModelCall ring sits right under the loop and
         // ABOVE the budget, the cache and telemetry: it sees every model call, the

@@ -202,6 +202,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.TenantProviderCredentialResolver | Singleton | Factory",
         "Tracon.ISpeechProviderResolver | Singleton | Factory",
         "Tracon.IProviderRetryClassifier | Singleton | Tracon.DefaultProviderRetryClassifier",
+        "Tracon.ChatTelemetryLanes | Singleton | Factory",
         "Tracon.IModelProviderRegistry | Singleton | Factory",
         "Tracon.ContextWindowEstimator | Singleton | Tracon.ContextWindowEstimator",
         "Tracon.IRunPricingResolver | Singleton | Tracon.RunPricingResolver",

@@ -90,7 +90,11 @@ public sealed class ModelProviderRegistryTests
             .CreateChatClient(TestData.Binding());
 
         chatClient.GetService(typeof(FunctionInvokingChatClient)).ShouldNotBeNull();
-        chatClient.GetService(typeof(OpenTelemetryChatClient)).ShouldNotBeNull();
+
+        // The telemetry client is shared by every pipeline of the host, so the pipeline does not hand it out (a flag
+        // set on it would reach the pipelines of other tenants). It answers for the source its spans go to.
+        chatClient.GetService(typeof(System.Diagnostics.ActivitySource)).ShouldNotBeNull();
+        chatClient.GetService(typeof(OpenTelemetryChatClient)).ShouldBeNull();
     }
 
     [Fact]

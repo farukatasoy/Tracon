@@ -55,6 +55,8 @@
     <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
     <!-- The differential suite: the same generated sequences and model run in every store test project. -->
     <Compile Include="../Shared/Differential/*.cs" LinkBase="Shared/Differential" />
+    <!-- Counts the telemetry instruments a test makes and how many are still alive. -->
+    <Compile Include="../Shared/Telemetry/*.cs" LinkBase="Shared/Telemetry" />
   </ItemGroup>
 
   <ItemGroup>
