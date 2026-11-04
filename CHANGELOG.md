@@ -1006,11 +1006,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `tracon.judge.score` instruments say the reason in a clause instead. The codes, severities and metric names are unchanged;
   a test or an alert that matches the old message text needs the new text.
 
-- **Documented: a change to the configuration needs a restart.** Tracon binds its options when the host starts and registers no `IOptionsChangeTokenSource`, so a configuration provider that reloads (a file with `reloadOnChange`,
-  a vault) changes `IConfiguration` and not the options Tracon reads. Several readers look an option up on every call, which looked like live reconfiguration; it never was. The configuration reference says so now, and so does the
-  XML documentation of `TraconOptions`, `TraconModelConcurrencyOptions` and the options that claimed a reload reached them (`TraconWorkflowOptions`' recovery settings, the workflow run timeout ceiling, the circuit breaker's
-  `Enabled`). A host that registers its own change token source for a Tracon options type gets an unsupported half of it: the monitor sees the new value, the model concurrency limit keeps the semaphore of its first call, and
-  a new value that fails validation makes every later read of that options type throw (every model call, for `Tracon:ModelConcurrency`). `ConfigurationReloadTests` pins all of it, so a release that supports reload has to
+- **Documented: a change to the configuration needs a restart, except that the `Tracon:Workflows` options follow a reload in part.** Tracon binds its options by hand when the host starts and registers no `IOptionsChangeTokenSource`, so a configuration provider that reloads (a file with `reloadOnChange`,
+  a vault) changes `IConfiguration` and not the options Tracon reads. Several readers look an option up on every call, which looked like live reconfiguration; for every options type but one it never was. The configuration reference says so now, and so does the
+  XML documentation of `TraconOptions`, `TraconModelConcurrencyOptions` and the circuit breaker's `Enabled`. The exception is `UseWorkflows()`: it binds `Tracon:Workflows` through the framework's configuration binder, which registers a change token source of its own, so the readers that use
+  `IOptionsMonitor` (the run limits a save checks, the resume settings the job handlers read, the request-expiration sweep's cap) see a reload, while the runner, which reads `IOptions`, keeps the value it started with. A reload therefore splits those settings between readers: restart to apply a change.
+  A host that registers its own change token source for any other Tracon options type gets an unsupported half of it: the monitor sees the new value, the model concurrency limit keeps the semaphore of its first call, and
+  a new value that fails validation makes every later read of that options type throw (every model call, for `Tracon:ModelConcurrency`; every run-limit check, for `Tracon:Workflows`). `ConfigurationReloadTests`, `PackageConfigurationReloadTests` and `WorkflowOptionsReloadTests` pin all of it, so a release that supports reload has to
   decide each reader and change the documentation.
 
 ### Removed

@@ -6,10 +6,15 @@ using Microsoft.Extensions.Primitives;
 namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
-/// Pins what a configuration reload does to Tracon's options: nothing. The options are read when the host starts, and a
-/// change made while it runs needs a restart.
+/// Pins what a configuration reload does to the options of Tracon.Core: nothing. The options are read when the host
+/// starts, and a change made while it runs needs a restart.
 /// </summary>
 /// <remarks>
+/// <para>
+/// The workflows package is the one exception, because it binds its section through the framework's configuration binder.
+/// This project does not reference it; <c>PackageConfigurationReloadTests</c> lists every options type with a change token
+/// source across the packages, and <c>WorkflowOptionsReloadTests</c> pins what a reload does to the workflow readers.
+/// </para>
 /// <para>
 /// Tracon binds its sections by hand and registers no <see cref="IOptionsChangeTokenSource{TOptions}"/>, so a
 /// configuration provider that reloads (a file with <c>reloadOnChange</c>, a vault, a configuration server) never reaches

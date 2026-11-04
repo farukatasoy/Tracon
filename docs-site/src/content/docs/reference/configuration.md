@@ -70,10 +70,19 @@ validator, which refuses a relative address.
 
 ### A change to the configuration needs a restart
 
-Tracon binds its options when the host starts and does not follow a reload. A configuration
-provider that reloads (a file added with `reloadOnChange`, a vault, a configuration server)
-changes `IConfiguration`; it does not change the options Tracon reads, and no option of
-Tracon is meant to change while the host runs. Restart the host to apply a change.
+Tracon reads its options once, when the host starts. A configuration provider that reloads
+(a file added with `reloadOnChange`, a vault, a configuration server) changes `IConfiguration`;
+it does not change the options Tracon reads, and no option of Tracon is meant to change while
+the host runs. Restart the host to apply a change.
+
+One part follows a reload anyway: the `Tracon:Workflows` options. `UseWorkflows()` binds the
+section through the .NET configuration binder, which registers a change token source on its own.
+The readers that look these options up through `IOptionsMonitor` see the new value: the run
+limits a save checks (`RunTimeout`, `MaxRunTimeout`, `MaxSuperSteps`), the resume settings the
+job handlers read (`ResumeInterruptedRuns`, `MaxResumeAttempts`), and the cap of the
+request-expiration sweep. The workflow runner does not: it keeps the values it read at start. A
+reload therefore splits the settings, so a save can check a new limit while the runner applies
+the old one. Treat it as unsupported and restart.
 
 Many readers look an option up on every call, which can look like live reconfiguration. It is
 not supported. A host that registers its own `IOptionsChangeTokenSource<T>` for a Tracon options

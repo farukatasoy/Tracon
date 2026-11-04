@@ -8,8 +8,10 @@ namespace Tracon;
 /// <see cref="TraconWorkflowOptions"/>.
 /// </summary>
 /// <remarks>
-/// Read through <see cref="IOptionsMonitor{TOptions}"/> on every access, so the save
-/// checks the same values the runner applies.
+/// Read through <see cref="IOptionsMonitor{TOptions}"/> on every access. <c>UseWorkflows</c> binds the options through
+/// the framework's configuration binder, which registers a change token source, so a configuration reload reaches the
+/// check of a save at once. The runner reads <see cref="IOptions{TOptions}"/> and keeps the value it built at start, so
+/// after a reload the save checks the new limits while the runner applies the old ones until the host restarts.
 /// </remarks>
 internal sealed class TraconWorkflowRunLimits(IOptionsMonitor<TraconWorkflowOptions> options) : IWorkflowRunLimits
 {
