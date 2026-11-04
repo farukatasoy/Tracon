@@ -252,6 +252,67 @@ public abstract class SqlLeaseUnderClockSkewContract
     }
 
     /// <summary>
+    /// A job's renewal is measured on the database server's clock, whatever the clock of the node that renews says: a lease
+    /// renewed to five minutes outlives the end it had, and a lease renewed to a second and a half ends in about that time,
+    /// not an hour away and not at once.
+    /// </summary>
+    /// <param name="ownerOffsetSeconds">How far the owner's clock is ahead of the other node's (negative: behind).</param>
+    [Theory]
+    [InlineData(3600)]
+    [InlineData(-3600)]
+    public async Task A_job_renewal_by_a_node_whose_clock_differs_is_measured_on_the_database_clock(int ownerOffsetSeconds)
+    {
+        var owner = new ShiftedClock(ownerOffsetSeconds);
+
+        var stores = await OpenAsync(owner, new ShiftedClock(0));
+
+        await stores.FirstJobs.EnqueueAsync(Due(), ["a"], TestContext.Current.CancellationToken);
+
+        var leased = (await stores.FirstJobs.LeaseAsync(Request("first", ShortLease), TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var lease = JobLease.Of(leased);
+
+        (await stores.FirstJobs.MarkRunningAsync(lease, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        (await stores.FirstJobs.RenewLeaseAsync(lease, JobLeaseDuration, TestContext.Current.CancellationToken)).ShouldBeTrue();
+
+        // The end the lease had would be behind us by now; the renewal moved it five minutes out.
+        await Task.Delay(ShortLease + TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken); // delay: product
+
+        var tookLongRenewed = await stores.SecondJobs.LeaseAsync(Request("second", ShortLease), TestContext.Current.CancellationToken);
+
+        // A renewal can shorten a lease as well: from here the end is a second and a half away.
+        var clock = Stopwatch.StartNew();
+
+        (await stores.FirstJobs.RenewLeaseAsync(lease, ShortLease, TestContext.Current.CancellationToken)).ShouldBeTrue();
+
+        var tookJustRenewed = await stores.SecondJobs.LeaseAsync(Request("second", ShortLease), TestContext.Current.CancellationToken);
+
+        JobRecord? taken = null;
+
+        var tookAfter = await PollUntilAsync(
+            async () =>
+            {
+                taken = await stores.SecondJobs.LeaseAsync(Request("second", ShortLease), TestContext.Current.CancellationToken);
+
+                return taken is not null;
+            },
+            clock);
+
+        Report(
+            "job lease renewal",
+            $"owner's clock off by {ownerOffsetSeconds}s, renewed to {JobLeaseDuration.TotalMinutes} min and then to {ShortLease.TotalMilliseconds} ms",
+            $"the other node {(tookLongRenewed is null ? "did not take" : "took")} the long renewal; after the short one it took the job {Describe(tookAfter)} later");
+
+        tookLongRenewed.ShouldBeNull("the renewal moved the end to five minutes from the database server's now");
+        tookJustRenewed.ShouldBeNull("the short renewal has just been written and is live");
+        tookAfter.ShouldNotBeNull("the renewed end is on the database server's clock, not an hour away");
+        tookAfter.Value.ShouldBeGreaterThanOrEqualTo(EarliestEnd, "the lease must not end before the renewed duration has passed");
+        taken.ShouldNotBeNull().Attempt.ShouldBe(2, "the take-over counts as another attempt");
+
+        (await stores.FirstJobs.CompleteAsync(lease, Completion(owner), TestContext.Current.CancellationToken))
+            .ShouldBeFalse("the owner's result is refused: the take-over fences it out");
+    }
+
+    /// <summary>
     /// A retry delay is measured on the database server's clock: the job is not due before the delay has passed and is due
     /// after it, whatever the clock of the node that released it says.
     /// </summary>
