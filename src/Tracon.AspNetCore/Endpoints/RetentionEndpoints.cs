@@ -96,8 +96,10 @@ internal static class RetentionEndpoints
                 "'maxAgeDays' and 'maxRows' are independent limits and both may be set; each " +
                 "must be at least 1 when given, and leaving both unset means the policy removes " +
                 "nothing. Saving does not delete anything by itself — the cleanup runs from the " +
-                "queue, so preview first. Every save is written to the audit trail with the " +
-                "previous and the new values. An unrecognized target returns 400.")
+                "queue, so preview first. A policy is saved paused unless the body says " +
+                "'enabled: true', because an enabled policy with a limit deletes rows for good. " +
+                "Every save is written to the audit trail with the previous and the new " +
+                "values. An unrecognized target returns 400.")
             .Accepts<RetentionPolicySaveRequest>("application/json");
 
         builder.MapDelete("/api/retention/{target}", DeleteAsync)
@@ -398,9 +400,9 @@ internal sealed record RetentionPolicySaveRequest
     [Description("Whether to archive rows before deleting them.")]
     public bool Archive { get; init; }
 
-    [Description("Whether the policy is enabled.")]
-    [DefaultValue(true)]
-    public bool Enabled { get; init; } = true;
+    [Description("Whether the policy is enabled. Left out, the policy is saved paused: set `true` to start deleting.")]
+    [DefaultValue(false)]
+    public bool Enabled { get; init; }
 }
 
 [Description("Response to a \"run now\" request.")]

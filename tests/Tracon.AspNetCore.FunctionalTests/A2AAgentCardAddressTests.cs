@@ -185,16 +185,21 @@ public sealed class A2AAgentCardAddressTests
     }
 
     [Fact]
-    public async Task The_card_is_cacheable_for_an_hour_and_carries_a_validator()
+    public async Task The_card_is_cacheable_by_the_caller_for_five_minutes_and_carries_a_validator()
     {
         await using var host = await StartAsync();
 
         using var response = await SendCardAsync(host.Client, CardUri);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Headers.CacheControl.ShouldNotBeNull().ToString().ShouldBe(
-            "public, max-age=3600",
-            "the value is a product decision; change it together with this assertion");
+
+        // The body depends on the request's host, so a cache shared between callers must not keep it: `private`.
+        // The value is a product decision; change it together with these assertions.
+        var cacheControl = response.Headers.CacheControl.ShouldNotBeNull();
+
+        cacheControl.Private.ShouldBeTrue();
+        cacheControl.Public.ShouldBeFalse();
+        cacheControl.MaxAge.ShouldBe(TimeSpan.FromMinutes(5));
 
         var etag = response.Headers.ETag.ShouldNotBeNull();
 

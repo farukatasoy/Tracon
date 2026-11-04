@@ -637,8 +637,10 @@ enough.
 | `Keys` | Empty. An entry with an empty name fails at startup |
 | `Columns` | All twelve protected columns. A name that is not a protected column fails at startup |
 
-Encryption is off until both `AddContentProtection(...)` is called and `Enabled` is
-`true`. `Keys` maps a key id to the **name** of another configuration key — never to
+Encryption is off until `AddContentProtection(...)` is called and `Enabled` is `true`.
+A call with a delegate, `AddContentProtection(options => …)`, sets `Enabled` to `true`
+before the delegate runs (the delegate can write `false`); a call with no delegate
+leaves `Enabled` to this section. `Keys` maps a key id to the **name** of another configuration key — never to
 the key's raw value — the same indirection
 [other configuration keys](/getting-started/security/#configuration-keys-are-fenced-too)
 use elsewhere. See

@@ -477,7 +477,7 @@ repeat it:
 |---|---|---|
 | `SingleTenant` | Every call resolves to the same default tenant | Bind your own `ITenantContext`, or `UseTenancy(options => options.Enabled = true)` |
 | `UnownedSessions` | No session records the user it belongs to | `Tracon:SessionOwnership:Enabled` |
-| `UnencryptedContentAtRest` | Prompts, responses and tool arguments are stored as clear text | `AddContentProtection(...)` |
+| `UnencryptedContentAtRest` | Prompts, responses and tool arguments are stored as clear text | `AddContentProtection(options => …)` with an active key, or `Tracon:ContentProtection:Enabled` |
 | `UninspectedContent` | No prompt or response is inspected | `AddPatternContentGuard(...)` or `AddContentGuard<TGuard>()` |
 | `UnlimitedRequestRate` | One caller can take the whole model budget | `Tracon:RateLimit:Enabled` |
 | `UnboundedRetention` | Nothing is ever deleted | `Tracon:Retention:Enabled`, or a policy per target |

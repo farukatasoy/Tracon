@@ -27,12 +27,14 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// The card differs by request now, so it is built per request, and the response names the request headers the address
-/// depends on (<c>Vary</c>): a cache that keys on the URL alone must not serve one caller's address to another.
+/// depends on (<c>Vary</c>): a cache that keys on the URL alone must not serve one caller's address to another. The
+/// response is also <c>private</c> and short-lived: a proxy that passes a forwarded header through unchecked, in front of
+/// a shared cache that ignores <c>Vary</c>, would otherwise keep one caller's address for every caller for an hour.
 /// </para>
 /// </remarks>
 internal static class A2AAgentCardResponse
 {
-    private const string CacheControl = "public, max-age=3600";
+    private const string CacheControl = "private, max-age=300";
 
     private static readonly string[] AddressHeaders = ["Host", "X-Forwarded-Host", "X-Forwarded-Proto"];
 

@@ -7024,7 +7024,8 @@ defaults, such as 30 days for run events and 14 days for spans. With retention
 disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
 `IArchiveSink` is registered; data loss is the failure mode the worker avoids. With a
 sink, each batch deletes only the rows the sink received — see
-[Retention](/concepts/governance/#retention).
+[Retention](/concepts/governance/#retention). A database policy saved without `enabled`
+is paused: send `"enabled": true` to start deleting.
 
 Cleanup runs through the job queue. Preview a policy before you execute it:
 
@@ -7399,7 +7400,8 @@ warning that names the header, never its value.
 `AddContentProtection(...)` encrypts the twelve columns above with AES-256-GCM before
 they reach the database, and decrypts them transparently on read — the rest of
 Tracon, and your own code, never sees ciphertext. It is off by default (no
-surprises); turning it on is a deliberate, explicit call.
+surprises); turning it on is a deliberate, explicit call: the call below sets `Enabled`
+to `true` before your delegate runs, so naming the keys is enough.
 
 ```csharp
 builder.AddTracon()
@@ -7410,6 +7412,10 @@ builder.AddTracon()
        })
        .UsePostgreSql(connectionString);
 ```
+
+To keep the keys and switch protection off, write `options.Enabled = false` in the
+delegate. A call with no delegate, as in `AddContentProtection()`, only registers the
+protector and leaves `Tracon:ContentProtection:Enabled` to configuration.
 
 `UsePostgreSql` comes from the `Tracon.PostgreSql` package, which the `Tracon` meta package does not include: `dotnet add package Tracon.PostgreSql --prerelease`.
 
@@ -12058,7 +12064,7 @@ repeat it:
 |---|---|---|
 | `SingleTenant` | Every call resolves to the same default tenant | Bind your own `ITenantContext`, or `UseTenancy(options => options.Enabled = true)` |
 | `UnownedSessions` | No session records the user it belongs to | `Tracon:SessionOwnership:Enabled` |
-| `UnencryptedContentAtRest` | Prompts, responses and tool arguments are stored as clear text | `AddContentProtection(...)` |
+| `UnencryptedContentAtRest` | Prompts, responses and tool arguments are stored as clear text | `AddContentProtection(options => …)` with an active key, or `Tracon:ContentProtection:Enabled` |
 | `UninspectedContent` | No prompt or response is inspected | `AddPatternContentGuard(...)` or `AddContentGuard<TGuard>()` |
 | `UnlimitedRequestRate` | One caller can take the whole model budget | `Tracon:RateLimit:Enabled` |
 | `UnboundedRetention` | Nothing is ever deleted | `Tracon:Retention:Enabled`, or a policy per target |
@@ -12436,7 +12442,8 @@ tell ASP.NET Core about it: run `UseForwardedHeaders` with `XForwardedHost` and 
 (from the proxies you trust) and `UsePathBase` for a prefix the proxy removes, and set
 `AllowedHosts` so the card cannot name a host you do not serve. Tracon reads no forwarding header
 itself: a header the host does not honour changes nothing. The response is marked `Vary` on the
-headers the address depends on.
+headers the address depends on, and `Cache-Control: private, max-age=300` keeps a cache shared between
+callers from holding one caller's address.
 
 A2A names are frozen during service registration because the underlying hosting API
 registers one server per name. The agent implementation is still resolved from the
@@ -17469,6 +17476,15 @@ an older version wrote with its own machine's clock. While both run, a lease wri
 an older node whose clock is an hour ahead stays live for that hour on the newer
 nodes, and one written by a node an hour behind reads as over at once. Check the clocks
 of your nodes (NTP) before you start rolling, then roll.
+
+### A node's clock is ahead of the database's
+
+A job is stamped with the time of the node that queues it, and the lease statement
+compares that time with the database server's clock. A node whose clock runs ahead
+therefore delays every run and webhook it queues by that much, even when it is the only
+node: a job stamped 90 seconds ahead stayed unleased in the PostgreSQL 18 and SQL Server
+2022 tests. Keep your application clocks within the lease duration of the database's
+(NTP). Stamping the time on the database's clock is not done yet.
 
 ## What one environment measured
 
@@ -24218,8 +24234,10 @@ enough.
 | `Keys` | Empty. An entry with an empty name fails at startup |
 | `Columns` | All twelve protected columns. A name that is not a protected column fails at startup |
 
-Encryption is off until both `AddContentProtection(...)` is called and `Enabled` is
-`true`. `Keys` maps a key id to the **name** of another configuration key — never to
+Encryption is off until `AddContentProtection(...)` is called and `Enabled` is `true`.
+A call with a delegate, `AddContentProtection(options => …)`, sets `Enabled` to `true`
+before the delegate runs (the delegate can write `false`); a call with no delegate
+leaves `Enabled` to this section. `Keys` maps a key id to the **name** of another configuration key — never to
 the key's raw value — the same indirection
 [other configuration keys](/getting-started/security/#configuration-keys-are-fenced-too)
 use elsewhere. See
