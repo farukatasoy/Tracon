@@ -73,6 +73,61 @@ public sealed class ChatTelemetryLifetimeTests
     }
 
     [Fact]
+    public async Task Requests_that_all_miss_a_cache_far_smaller_than_the_set_of_tenants_leave_no_telemetry_instrument_behind()
+    {
+        // The shape of a soak with more active (tenant, agent) pairs than the cache holds: the pairs come round in turn,
+        // so the entry a request needs has left the cache by the time it asks, and every request compiles its agent.
+        const int Pairs = Limit * 5;
+
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
+        var cache = new CompiledAgentCache(new TraconAgentCacheOptions { MaxEntries = Limit }, TimeProvider.System);
+        var definition = TestData.Definition();
+        var compiled = 0;
+
+        async ValueTask CompileAsync(int pair)
+        {
+            _ = await cache.GetOrAddAsync(
+                $"tenant-{pair:D4}",
+                definition.Name,
+                "fingerprint",
+                string.Empty,
+                string.Empty,
+                async () =>
+                {
+                    compiled++;
+
+                    return await compiler.CompileAsync(definition, TestContext.Current.CancellationToken);
+                });
+        }
+
+        // The first compile may make what the later ones share.
+        await CompileAsync(0);
+
+        using var census = InstrumentCensus.Open(TraconDiagnostics.ActivitySourceName);
+        var requests = 0;
+
+        for (var round = 0; round < Compiles / Pairs; round++)
+        {
+            for (var pair = 0; pair < Pairs; pair++)
+            {
+                await CompileAsync(pair);
+                requests++;
+            }
+        }
+
+        requests.ShouldBe(Compiles);
+        cache.Count.ShouldBeLessThanOrEqualTo(Limit);
+        compiled.ShouldBeGreaterThan(requests * 9 / 10, "the pairs outnumber the cache, so almost every request has to compile again");
+
+        census.LiveInstruments.ShouldBeLessThan(
+            Room,
+            $"{requests} requests that each compiled again left {census.LiveInstruments} live telemetry instruments");
+        census.CreatedSources.ShouldBeLessThan(
+            Room,
+            $"{requests} requests that each compiled again made {census.CreatedSources} activity sources");
+    }
+
+    [Fact]
     public async Task Every_way_the_registry_builds_a_client_shares_the_telemetry_of_the_ones_before()
     {
         var registry = TestData.Providers(new FakeModelProvider());

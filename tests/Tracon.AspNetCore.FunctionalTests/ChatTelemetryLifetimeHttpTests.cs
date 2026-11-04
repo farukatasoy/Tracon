@@ -73,6 +73,47 @@ public sealed class ChatTelemetryLifetimeHttpTests
     }
 
     [Fact]
+    public async Task Requests_that_all_miss_a_cache_far_smaller_than_the_set_of_tenants_leave_no_telemetry_instrument_behind()
+    {
+        // The shape of the soak that found the leak: more active (tenant, agent) pairs than the cache holds, so the pairs
+        // come round in turn, the entry a request needs has left the cache by then, and every request compiles again.
+        const int Pairs = Limit * 5;
+        const int Rounds = 15;
+
+        var provider = new SharedIdentityProvider();
+        await using var host = await StartAsync(provider);
+        var cache = host.Services.GetRequiredService<CompiledAgentCache>();
+        var lanes = host.Services.GetRequiredService<ChatTelemetryLanes>();
+
+        // The first runs may make what the later ones share.
+        await RunAsync(host, "tenant-0000", "hello");
+
+        var compiledBefore = provider.Created;
+        using var census = InstrumentCensus.Open(TraconDiagnostics.ActivitySourceName);
+
+        for (var round = 0; round < Rounds; round++)
+        {
+            for (var pair = 0; pair < Pairs; pair++)
+            {
+                await RunAsync(host, $"tenant-{pair:D4}", "hello");
+            }
+        }
+
+        var requests = Pairs * Rounds;
+
+        cache.Count.ShouldBeLessThanOrEqualTo(Limit);
+        (provider.Created - compiledBefore).ShouldBeGreaterThan(requests * 9 / 10, "the pairs outnumber the cache, so almost every request compiled its agent again");
+
+        census.LiveInstruments.ShouldBeLessThan(
+            requests / 3,
+            $"{requests} requests that each compiled again left {census.LiveInstruments} live telemetry instruments behind");
+        census.CreatedSources.ShouldBeLessThan(
+            requests / 3,
+            $"{requests} requests that each compiled again made {census.CreatedSources} activity sources");
+        lanes.LaneCount.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Validating_a_definition_three_hundred_times_leaves_no_telemetry_instrument_behind()
     {
         await using var host = await TraconTestHost.StartAsync();
@@ -263,6 +304,8 @@ public sealed class ChatTelemetryLifetimeHttpTests
     {
         public const string SetupKey = "setup-key";
 
+        private int _created;
+
         public string Name => ProviderName;
 
         public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = ModelName }];
@@ -276,11 +319,20 @@ public sealed class ChatTelemetryLifetimeHttpTests
         /// <summary>Gets the signal that lets a held stream go on.</summary>
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public IChatClient CreateChatClient(ModelBinding binding) => new KeyedClient(this, SetupKey);
+        /// <summary>Gets the number of clients built so far: one for each compile of an agent.</summary>
+        public int Created => Volatile.Read(ref _created);
+
+        public IChatClient CreateChatClient(ModelBinding binding)
+        {
+            Interlocked.Increment(ref _created);
+
+            return new KeyedClient(this, SetupKey);
+        }
 
         public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
         {
             ArgumentNullException.ThrowIfNull(credential);
+            Interlocked.Increment(ref _created);
 
             return new KeyedClient(this, credential.ApiKey);
         }

@@ -69,6 +69,7 @@ public sealed class CompiledAgentCacheKeyCoverageTests
         [typeof(IEnumerable<IModelProvider>)] = "process: providers registered at startup",
         [typeof(ILoggerFactory)] = "process",
         [typeof(TraconMetrics)] = "process",
+        [typeof(ChatTelemetryLanes)] = "process: the shared telemetry client of each provider and endpoint holds no tenant or agent state, and a call carries its own target (ChatTelemetryLanesTests, ChatTelemetryLifetimeHttpTests)",
         [typeof(ModelBinding)] = "process: utility model from IOptions<TraconOptions>",
         [typeof(int)] = "process: knowledge result limit from IOptions",
         [typeof(TraconAgentGraphOptions)] = "process: from IOptions<TraconOptions>",
