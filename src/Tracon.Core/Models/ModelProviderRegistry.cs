@@ -568,8 +568,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // when it is constructed and frees them only when it is disposed; this pipeline is built for every compile, every
         // validation and every judge client and nothing disposes it, so a client of its own is a leak that no bound on
         // the compiled-agent cache closes. The ring is one client for each provider and endpoint, and the part of the
-        // pipeline built so far travels with each call (see ChatTelemetryLanes).
-        chatClient = _telemetryLanes.Wrap(pipelineBuilder.Build());
+        // pipeline below it travels with each call (see ChatTelemetryLanes).
+        //
+        // 🚨 It is the LAST ring added to the builder, and the builder puts the last one innermost: budget, cache and hosted
+        // tool ring above it, the content guard below it. A call the budget refuses or the cache answers never reaches
+        // it, so it opens no 'chat' span. Wrapping the finished builder instead would put the ring above all three, and
+        // a cache hit would open a span and a refused turn would write an error span.
+        chatClient = pipelineBuilder
+            .Use(telemetryInner => _telemetryLanes.Wrap(telemetryInner))
+            .Build();
 
         // 🚨 An extension's ModelCall ring sits right under the loop and
         // ABOVE the budget, the cache and telemetry: it sees every model call, the

@@ -392,6 +392,61 @@ public sealed class ChatTelemetryLanesTests
         lanes.LaneCount.ShouldBe(1);
     }
 
+    [Fact]
+    public void A_clone_of_the_options_that_carry_a_call_keeps_the_target_and_the_callers_options()
+    {
+        var target = new ScriptedPipeline("a");
+        var original = new ChatOptions { Temperature = 0.3f, ModelId = "named-model" };
+        var routed = new RoutedChatOptions(target, original, "default-model");
+
+        // A layer between the ring and the lane that clones the options must not turn them into plain ones: the lane
+        // would refuse the call, and a clone that lost the caller's options would hand the pipeline different ones.
+        var clone = routed.Clone().ShouldBeOfType<RoutedChatOptions>();
+
+        clone.ShouldNotBeSameAs(routed);
+        clone.Target.ShouldBeSameAs(target);
+        clone.Original.ShouldBeSameAs(original);
+        clone.Temperature.ShouldBe(0.3f);
+        clone.ModelId.ShouldBe("named-model");
+
+        // The default model fills a call that names none, and never replaces one that does.
+        new RoutedChatOptions(target, null, "default-model").ModelId.ShouldBe("default-model");
+        new RoutedChatOptions(target, new ChatOptions(), "default-model").ModelId.ShouldBe("default-model");
+        new RoutedChatOptions(target, null, defaultModelId: null).ModelId.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task The_carrier_writes_no_span_tag_even_when_the_lane_records_the_options_of_a_call()
+    {
+        // With content recording on, the framework's client writes every additional property of the options as a tag. A
+        // carrier kept there would write the target on the span; the carrier is a type of its own, so the tags are the
+        // ones a client that never saw a carrier writes for the same options.
+        using var directProbe = new ChatSpanProbe();
+        using var sharedProbe = new ChatSpanProbe();
+        var metadata = Metadata("provider", "https://api.example.test/v1/", "default-model");
+        var pipeline = new ScriptedPipeline("answer", metadata);
+        var options = new ChatOptions
+        {
+            Temperature = 0.2f,
+            AdditionalProperties = new AdditionalPropertiesDictionary { ["caller.key"] = "caller value" },
+        };
+
+        using var direct = new OpenTelemetryChatClient(pipeline, logger: null, directProbe.Source) { EnableSensitiveData = true };
+        await direct.GetResponseAsync(Messages, options, TestContext.Current.CancellationToken);
+
+        using var lane = new ChatTelemetryLane(ChatTelemetryKey.Of(metadata), metadata, sharedProbe.Source, logger: null);
+        lane.Client.EnableSensitiveData = true;
+        var shared = new SharedTelemetryChatClient(pipeline, lane.Client, metadata.DefaultModelId);
+        await shared.GetResponseAsync(Messages, options, TestContext.Current.CancellationToken);
+
+        var directTags = directProbe.Spans().ShouldHaveSingleItem().TagObjects.ToDictionary(static tag => tag.Key, static tag => tag.Value?.ToString(), StringComparer.Ordinal);
+        var sharedTags = sharedProbe.Spans().ShouldHaveSingleItem().TagObjects.ToDictionary(static tag => tag.Key, static tag => tag.Value?.ToString(), StringComparer.Ordinal);
+
+        sharedTags.ShouldContainKeyAndValue("caller.key", "caller value");
+        sharedTags.Keys.Order(StringComparer.Ordinal).ShouldBe(directTags.Keys.Order(StringComparer.Ordinal));
+        sharedTags.Values.ShouldNotContain(static value => value != null && value.Contains(nameof(ScriptedPipeline), StringComparison.Ordinal));
+    }
+
     private static ChatClientMetadata Metadata(string? provider, string? uri, string model)
         => new(provider, uri is null ? null : new Uri(uri), model);
 }
