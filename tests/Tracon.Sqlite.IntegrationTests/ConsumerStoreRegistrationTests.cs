@@ -53,22 +53,28 @@ public sealed class ConsumerStoreRegistrationTests
     }
 
     [Fact]
-    public void UseSqlite_says_its_state_stays_in_one_process()
+    public void UseSqlite_says_its_state_stays_in_one_process_and_that_a_file_outlives_it()
     {
         // The production profile reads this to refuse a declared multi-instance host whose store serves one
-        // process. A SQLite file is exactly that.
-        using var provider = Build(static _ => { });
+        // process (a SQLite file is exactly that), and to ask whether a run that a restart cut off is still there to
+        // find (in a file it is). Nothing opens the file: no store is resolved.
+        using var provider = Build(static _ => { }, "Data Source=consumer-store-registration.db");
 
-        provider.GetRequiredService<StateSharing>().AcrossProcesses.ShouldBeFalse();
+        var sharing = provider.GetRequiredService<StateSharing>();
+
+        sharing.AcrossProcesses.ShouldBeFalse();
+        sharing.OutlivesProcess.ShouldBeTrue();
     }
 
-    private static ServiceProvider Build(Action<IServiceCollection> registerConsumerStores)
+    private static ServiceProvider Build(
+        Action<IServiceCollection> registerConsumerStores,
+        string connectionString = "Data Source=file:consumer-store-registration?mode=memory&cache=shared")
     {
         var services = new ServiceCollection();
         registerConsumerStores(services);
-        services.AddTracon().UseSqlite(static options =>
+        services.AddTracon().UseSqlite(options =>
         {
-            options.ConnectionString = "Data Source=file:consumer-store-registration?mode=memory&cache=shared";
+            options.ConnectionString = connectionString;
             options.AutoApplyMigrations = false;
         });
 
