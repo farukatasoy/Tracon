@@ -330,6 +330,297 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
+  # Platform matrisi (2026-11-04) -- BU ISLER GITHUB'DA HENUZ KOSULMADI
+  #
+  # Sitedeki `reference/compatibility.md` platform tablosunun her satiri bir
+  # bacakla kanitlanir. Bu bolumdeki bacaklarin KOMUTLARI yerelde kosuldu
+  # (ayni ortam degiskenleri, ayni test projesi); isin kendisi -- YAML, runner,
+  # sure siniri -- bir kez bile calismadi: gelistirme deposunda CI `skipped`
+  # kalir ve kanonik depo okunamiyor. Ilk kosumdan sonra sure siniri olculenle
+  # guncellenir ve bu uyari silinir.
+  #
+  # Kosul `build` ile ayni: yalniz kanonik repo. `needs: build` YOK, cunku bir
+  # veritabani bacagi `build`'in 40 dakikasini beklememeli; PR'de kosmaz (her PR
+  # on bacak yakmasin), `main`, etiket ve elle tetiklemede kosar.
+  #
+  # Bacak = bir ortam degiskeni seti. Test sinifi degismez: `SqlServerFixture` ve
+  # `PostgresFixture` degiskenleri okur; bos deger varsayilani korur.
+  # ---------------------------------------------------------------------------
+  postgres-matrix:
+    name: PostgreSQL (${{ matrix.name }})
+    if: github.repository == 'farukatasoy/Tracon' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Yerelde olculen en uzun kosum 7 dk (yuklu makine, 1594 test, imaj hazir);
+    # derleme ve imaj indirme eklenir. Runner olcumu yok: ilk kosumdan sonra
+    # guncelle.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: '12'
+            image: pgvector/pgvector:pg12
+            icu: ''
+          - name: '13'
+            image: pgvector/pgvector:pg13
+            icu: ''
+          - name: '14'
+            image: pgvector/pgvector:pg14
+            icu: ''
+          - name: '15'
+            image: pgvector/pgvector:pg15
+            icu: ''
+          - name: '16'
+            image: pgvector/pgvector:pg16
+            icu: ''
+          - name: '17'
+            image: pgvector/pgvector:pg17
+            icu: ''
+          # Varsayilan imaj (18) Turkce ICU yerel ayariyla: `lower()` ve karsilastirma
+          # davranisi bu bacakta degisir.
+          - name: '18, ICU tr-TR'
+            image: ''
+            icu: tr-TR
+    env:
+      TRACON_TEST_POSTGRES_IMAGE: ${{ matrix.image }}
+      TRACON_TEST_POSTGRES_ICU_LOCALE: ${{ matrix.icu }}
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      # Arayuz derlemesi bu test projesinin yolunda degil.
+      - name: Derle
+        run: dotnet build tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj -c Release -p:TraconFrontendEnabled=false
+
+      - name: Test et
+        run: dotnet test --project tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-postgres-${{ strategy.job-index }}
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+
+  sqlserver-matrix:
+    name: SQL Server (${{ matrix.name }})
+    if: github.repository == 'farukatasoy/Tracon' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Yerelde olculen en uzun kosum 14 dk (amd64 emulasyonunda, Apple Silicon);
+    # runner yerel amd64'tur. Runner olcumu yok.
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # En dusuk sunucu surumu: `src/Tracon.SqlServer/README.md` 2019+ der.
+          - name: '2019'
+            image: mcr.microsoft.com/mssql/server:2019-latest
+            collation: ''
+            lcid: ''
+          # Turkce collation: `Turkish_CI_AS` ve `MSSQL_LCID=1055` BIRLIKTE verilir;
+          # yalniz collation verilirse sunucu dili Ingilizce kalir ve havuzdan donen
+          # baglanti sifirlanirken duser.
+          - name: '2022, Turkish_CI_AS'
+            image: mcr.microsoft.com/mssql/server:2022-latest
+            collation: Turkish_CI_AS
+            lcid: '1055'
+    env:
+      TRACON_TEST_SQLSERVER_IMAGE: ${{ matrix.image }}
+      TRACON_TEST_SQLSERVER_COLLATION: ${{ matrix.collation }}
+      TRACON_TEST_SQLSERVER_LCID: ${{ matrix.lcid }}
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derle
+        run: dotnet build tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj -c Release -p:TraconFrontendEnabled=false
+
+      - name: Test et
+        run: dotnet test --project tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-sqlserver-${{ strategy.job-index }}
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+
+  # SQLite surucusu yerel bir kutuphane tasir; surum o kutuphanenin surumudur.
+  # Bacak, `Microsoft.Data.Sqlite`'in paketledigi kutuphanenin yerine ayni
+  # ailenin (`SQLitePCLRaw.lib.e_sqlite3`) eski bir surumunu koyar ve ayni test
+  # projesini kosar. `SqliteEngineVersionTests` motorun gercekten istenen surum
+  # oldugunu dogrular: degistirme sessizce basarisiz olursa bacak kirmizidir.
+  sqlite-floor:
+    name: SQLite ${{ matrix.sqlite }}
+    if: github.repository == 'farukatasoy/Tracon' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Yerelde 1,5 dk (macOS, sicak onbellek); derleme ve geri yukleme eklenir.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - native: '2.1.7'
+            sqlite: '3.44.0'
+    env:
+      TRACON_TEST_SQLITE_VERSION: ${{ matrix.sqlite }}
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derle
+        run: dotnet build tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj -c Release -p:TraconFrontendEnabled=false
+
+      - name: Yerel kutuphaneyi eski surumle degistir
+        env:
+          NATIVE_VERSION: ${{ matrix.native }}
+        run: |
+          # Repo'nun disinda: Directory.Packages.props (merkezi surum yonetimi) bu projeyi de bagliyor olurdu.
+          mkdir -p "${RUNNER_TEMP}/sqlite-native"
+          cat > "${RUNNER_TEMP}/sqlite-native/Fetch.csproj" <<EOF
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+            <ItemGroup><PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="${NATIVE_VERSION}" /></ItemGroup>
+          </Project>
+          EOF
+          dotnet restore "${RUNNER_TEMP}/sqlite-native/Fetch.csproj" --packages "${RUNNER_TEMP}/sqlite-native/packages"
+          cp "${RUNNER_TEMP}/sqlite-native/packages/sqlitepclraw.lib.e_sqlite3/${NATIVE_VERSION}/runtimes/linux-x64/native/libe_sqlite3.so" \
+            artifacts/bin/Tracon.Sqlite.IntegrationTests/release_net10.0/runtimes/linux-x64/native/libe_sqlite3.so
+
+      - name: Test et
+        run: dotnet test --project tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-sqlite-floor
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+
+  # Kultur ve saat dilimi: .NET `LC_ALL` ve `TZ`'yi Linux'ta okur, yerel ayarin
+  # kurulu olmasini istemez. Yerelde olculen komut aynidir: tam cozumde iki bacak
+  # 16 275 testle yesildi. Burada
+  # Docker istemeyen projeler kosar (Windows bacagiyla ayni solution filter);
+  # veritabani bacaklarinin kendi yerel ayari yukaridaki islerdir.
+  culture-matrix:
+    name: Kultur (${{ matrix.name }})
+    if: github.repository == 'farukatasoy/Tracon' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # `build` isinin Windows bacagiyla ayni test kumesi (olculen en uzun 30,9 dk).
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: tr-TR, America/New_York
+            lc_all: tr_TR.UTF-8
+            tz: America/New_York
+          - name: de-DE, Australia/Lord_Howe
+            lc_all: de_DE.UTF-8
+            tz: Australia/Lord_Howe
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: Node.js kur
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derle
+        run: dotnet build Tracon.no-docker.slnf -c Release
+
+      - name: Playwright tarayicisini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.63.0
+
+      - name: Playwright sistem bagimliliklari
+        run: |
+          pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
+
+      # Degiskenler yalniz test surecine verilir: derleme, npm ve apt kurulu olmayan
+      # bir yerel ayar icin uyari basmasin.
+      - name: Test et (Docker gerektirmeyenler)
+        env:
+          LC_ALL: ${{ matrix.lc_all }}
+          TZ: ${{ matrix.tz }}
+        run: dotnet test --solution Tracon.no-docker.slnf -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-culture-${{ strategy.job-index }}
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
   # Yayın provası
   #
   # Kendi `dotnet pack`'ini KOSMAZ. `build` isinin ubuntu bacaginin
