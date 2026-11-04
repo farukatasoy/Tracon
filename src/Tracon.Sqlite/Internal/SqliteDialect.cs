@@ -416,6 +416,29 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             value?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ", CultureInfo.InvariantCulture));
 
     /// <inheritdoc />
+    /// <remarks>
+    /// SQLite keeps the application clock: one process uses the file, so no second node can disagree about the time.
+    /// The current time is read once and both <c>now</c> and <c>lease_until</c> come from it.
+    /// </remarks>
+    public override void AddLeaseWindow(DbCommand command, TimeProvider clock, TimeSpan duration)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
+
+        var now = clock.GetUtcNow();
+
+        AddTimestamp(command, "now", now);
+        AddTimestamp(command, "lease_until", now + duration);
+    }
+
+    /// <inheritdoc />
+    public override void AddLeaseInstant(DbCommand command, string name, TimeProvider clock, TimeSpan? after)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
+
+        AddTimestamp(command, name, after is { } distance ? clock.GetUtcNow() + distance : null);
+    }
+
+    /// <inheritdoc />
     public override string BuildRetentionCountSql(string table, string wherePredicate)
         => $"SELECT COUNT(*) FROM {table} WHERE {wherePredicate};";
 

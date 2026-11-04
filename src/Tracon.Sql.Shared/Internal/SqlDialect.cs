@@ -665,6 +665,46 @@ internal abstract class SqlDialect
     /// </remarks>
     public abstract void AddTimestamp(DbCommand command, string name, DateTimeOffset? value);
 
+    /// <summary>
+    /// The longest duration a lease statement is handed, in milliseconds: a little over 68 years, which is as far as
+    /// SQL Server's <c>DATEADD</c> reaches in whole seconds. A longer duration is cut to it, so a lease that is meant to
+    /// last "forever" does not fail in the database with an arithmetic overflow.
+    /// </summary>
+    protected const long MaxLeaseMilliseconds = int.MaxValue * 1000L;
+
+    /// <summary>
+    /// Binds what a lease statement needs to know about time to take a lease of <paramref name="duration"/> from now:
+    /// the instant it ends (<c>lease_until</c>) and, where the statement stamps it, the current time.
+    /// </summary>
+    /// <param name="command">The command.</param>
+    /// <param name="clock">The application clock; a provider that reads the database server's clock does not use it.</param>
+    /// <param name="duration">How long the lease lasts.</param>
+    /// <remarks>
+    /// <para>
+    /// The default binds the duration in whole milliseconds as <c>lease_until_ms</c> and nothing else: the statement
+    /// reads the database server's clock itself (<see cref="SqlQueriesBase"/> says how), so every node that shares the
+    /// database decides on the same time. A provider whose statements take the instants as parameters (SQLite)
+    /// overrides this together with the query texts.
+    /// </para>
+    /// </remarks>
+    public virtual void AddLeaseWindow(DbCommand command, TimeProvider clock, TimeSpan duration)
+        => AddLeaseInstant(command, "lease_until", clock, duration);
+
+    /// <summary>
+    /// Binds the instant that lies <paramref name="after"/> from now on the lease clock, for a statement that writes it
+    /// (a lease renewal, the end of a retry delay).
+    /// </summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The name the statement refers to the instant by, without the <c>@</c>.</param>
+    /// <param name="clock">The application clock; a provider that reads the database server's clock does not use it.</param>
+    /// <param name="after">The distance from now; <see langword="null"/> binds <c>NULL</c> (no instant).</param>
+    /// <remarks>See <see cref="AddLeaseWindow"/>; this one binds <c>&lt;name&gt;_ms</c>.</remarks>
+    public virtual void AddLeaseInstant(DbCommand command, string name, TimeProvider clock, TimeSpan? after)
+        => AddInt64(
+            command,
+            $"{name}_ms",
+            after is { } distance ? (long)Math.Clamp(distance.TotalMilliseconds, -MaxLeaseMilliseconds, MaxLeaseMilliseconds) : null);
+
     /// <summary>Binds a nullable text to a parameter.</summary>
     /// <param name="command">The command.</param>
     /// <param name="name">The parameter name.</param>
