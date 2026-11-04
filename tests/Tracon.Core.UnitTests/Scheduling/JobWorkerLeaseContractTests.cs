@@ -347,7 +347,9 @@ public sealed class JobWorkerLeaseContractTests
 
         var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
 
-        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(300), metrics: metrics, publisher: publisher, logger: logger);
+        // The store answers "refused" to the renewal but still shows the attempt as running, and it hands a running job whose lease
+        // has run out to the next poll: the test has to end before that, so the lease is long against a loaded machine.
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromSeconds(3), metrics: metrics, publisher: publisher, logger: logger);
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
         await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
