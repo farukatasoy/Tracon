@@ -242,12 +242,12 @@ public sealed class DecimalColumnsMigrationTests(SqliteFixture fixture)
         await ApplyThroughAsync(context, prefix, MigrationId - 1);
         await context.ExecuteAsync(
             $"INSERT INTO {prefix}quota_usage (tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at) " +
-            $"VALUES ('{Tenant}', 'a', 1, '2026-11-04', 1, 1, '0.30000000000000004', '{Seeded}');");
+            $"VALUES ('{Tenant}', 'a', 1, '2026-11-04', 1, 1, '0.69999999999999996', '{Seeded}');");
 
         (await context.Migrations.ApplyAsync()).ShouldBeGreaterThan(0);
 
         await context.Quotas.AddUsageAsync(
-            new QuotaConsumption { TenantId = Tenant, AgentName = "a", Runs = 1, Tokens = 1, Cost = 0.5m, OccurredAt = DateTimeOffset.UtcNow },
+            new QuotaConsumption { TenantId = Tenant, AgentName = "a", Runs = 1, Tokens = 1, Cost = 0.1m, OccurredAt = DateTimeOffset.UtcNow },
             new Dictionary<QuotaPeriod, DateOnly> { [QuotaPeriod.Monthly] = new DateOnly(2026, 11, 4) });
 
         var usage = await context.Quotas.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant, AgentName = "a" });
