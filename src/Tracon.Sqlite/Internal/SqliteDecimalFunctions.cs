@@ -28,7 +28,7 @@ namespace Tracon;
 /// </item>
 /// </list>
 /// <para>
-/// 🚨 A value that is not a number is an error, never a zero: the built-in <c>SUM</c> reads <c>'abc'</c> as <c>0</c> and goes on,
+/// A value that is not a number is an error, never a zero: the built-in <c>SUM</c> reads <c>'abc'</c> as <c>0</c> and goes on,
 /// and a cost total that did the same would under-report without a sign. An integer or a real is accepted (a real as the
 /// 15 digits <see cref="decimal"/> keeps of a double), because an expression such as <c>COALESCE(x, 0)</c> hands one over.
 /// </para>

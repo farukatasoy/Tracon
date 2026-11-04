@@ -92,7 +92,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 One call over every addend, not <c>COALESCE(SUM(a), 0) + COALESCE(SUM(b), 0)</c>: SQLite adds a TEXT decimal as a
+    /// One call over every addend, not <c>COALESCE(SUM(a), 0) + COALESCE(SUM(b), 0)</c>: SQLite adds a TEXT decimal as a
     /// binary double, in <c>SUM</c> and in <c>+</c> alike, so the sum of three exact amounts came back as
     /// <c>6865.1708977361004</c>. The connection's <c>tracon_decimal_sum</c> adds them as <see cref="decimal"/>. An empty set
     /// is <c>'0'</c>, as <c>COALESCE(SUM(...), 0)</c> was; the <c>CASE</c> around the call keeps "nothing priced" as NULL.
