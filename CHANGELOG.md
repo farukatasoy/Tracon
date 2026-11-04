@@ -1060,6 +1060,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The in-memory audit log no longer reports a gap in an intact chain when two entries carry the same instant.** `VerifyChainAsync` ordered the entries by `CreatedAt` and broke a tie by identifier, but the chain is in the order the entries were written; whenever the
+  second entry's identifier sorted lower it was checked first and the verification answered `Gap` (about one run in five of the contract case with two long labels). A tie now keeps the order of the chain.
 - **On SQL Server, a store call that is one statement is sent again when the server picks it as a deadlock victim; it used to throw `SqlException` 1205 at its caller.** A transaction was sent again for a long time (an upsert, a
   multi-statement write), but an event append, a read and a delete were not. The second start of a queued run writes the time the run started, which moves the row in the clustered index of `runs` and so rewrites the
   entry of `runs_pk`; an event append (its foreign key check) and a read of the run take the shared lock on `runs_pk` first and the clustered row second, and the two orders cross. Measured with the `system_health`

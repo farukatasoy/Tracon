@@ -91,9 +91,12 @@ internal sealed class InMemoryAuditLog : IAuditLog
             matches = matches.Where(entry => entry.CreatedAt <= before);
         }
 
+        // The chain is in the order the entries were written, and each link names the one written before it. Two entries
+        // can carry the same instant (the caller sets it, and two writes can read the same tick), and ordering their tie
+        // by identifier would put the second one first about one run in five. OrderBy is stable: a tie keeps the order
+        // of the chain.
         var ordered = matches
             .OrderBy(static entry => entry.CreatedAt)
-            .ThenBy(static entry => entry.Id)
             .ToList();
 
         return new ValueTask<AuditChainVerification>(AuditChainWalker.Verify(ordered, hasLowerBound: query.After is not null, keys: _keys));
