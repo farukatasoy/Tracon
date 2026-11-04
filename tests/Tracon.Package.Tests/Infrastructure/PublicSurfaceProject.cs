@@ -26,13 +26,14 @@ internal sealed record GeneratedSurface(string Source, string Report)
 {
     /// <summary>The counts the generator printed, by name.</summary>
     public IReadOnlyDictionary<string, int> Counts { get; } = Report
+        .ReplaceLineEndings("\n")
         .Split('\n')[0]
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Select(static pair => pair.Split('='))
         .ToDictionary(static pair => pair[0], static pair => int.Parse(pair[1], System.Globalization.CultureInfo.InvariantCulture), StringComparer.Ordinal);
 
     /// <summary>The lines of the report after the counts.</summary>
-    public IReadOnlyList<string> Lines => [.. Report.Split('\n').Skip(1).Where(static line => line.Length != 0)];
+    public IReadOnlyList<string> Lines => [.. Report.ReplaceLineEndings("\n").Split('\n').Skip(1).Where(static line => line.Length != 0)];
 }
 
 /// <summary>
