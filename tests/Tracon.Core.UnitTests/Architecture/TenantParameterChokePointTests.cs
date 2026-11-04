@@ -78,6 +78,10 @@ public sealed class TenantParameterChokePointTests
     private static readonly string[] NotParameterBindings =
     [
         "RunColumnSource.",
+
+        // The retention registry asks the dialect for the text of the tenant condition and names the column it applies to;
+        // the value is bound by the retention store through AddTenant.
+        "TenantPredicate(",
     ];
 
     [Fact]
