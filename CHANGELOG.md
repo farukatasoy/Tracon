@@ -653,7 +653,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   SQLite file, that row is still there when the next process starts, and only run reconciliation closes it; with `Tracon:RunReconciliation:Enabled` at its default of `false` it stays `Running` for ever, counted as
   running and diluting the error rate. The decision list had a row for this only when more than one instance is declared (`UnreconciledRuns`). A host that calls `RequireProductionProfile()`, keeps its state where it
   survives a restart and has reconciliation off stops at start until it sets `Tracon:RunReconciliation:Enabled` to `true` or accepts the risk by name with
-  `profile.Accept(TraconProductionRisk.OrphanedRunsAfterRestart)`. It is not asked on the in-memory stores (a restart takes every row with it), and not when `Tracon:Deployment:Instances` is above `1`: `UnreconciledRuns` asks the
+  `profile.Accept(TraconProductionRisk.OrphanedRunsAfterRestart)`. It is not asked on the in-memory stores or on a shared in-memory SQLite database (`Data Source=file:<name>?mode=memory&cache=shared`): a restart takes every row with them. It is not asked when `Tracon:Deployment:Instances` is above `1`: `UnreconciledRuns` asks the
   same setting there, so a host that already answered or accepted it is not stopped again. The default does not change (reconciliation writes a heartbeat for every running run, which a development host does not want),
   and a host that does not call `RequireProductionProfile()` changes nothing.
 

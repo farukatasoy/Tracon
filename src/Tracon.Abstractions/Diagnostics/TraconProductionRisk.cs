@@ -152,7 +152,8 @@ public enum TraconProductionRisk
     UnenforcedQuotaOnStoreFailure,
 
     /// <summary>
-    /// The state is kept where it survives a restart (a database, or a SQLite file) and run reconciliation is off
+    /// The state is kept where it survives a restart (a database, or a SQLite file; a shared in-memory SQLite database does
+    /// not, and is not asked) and run reconciliation is off
     /// (<c>Tracon:RunReconciliation:Enabled</c> is <see langword="false"/>, the default), so a run that a restart, a deploy or
     /// a crash cuts off keeps the status <c>Running</c> for ever: the model ignored the cancellation and the process ended
     /// first, or the process was killed. It stays in every count of running runs and dilutes the error rate. Not asked

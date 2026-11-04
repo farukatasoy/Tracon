@@ -28,8 +28,14 @@ internal sealed record StateSharing(bool AcrossProcesses, string Description, bo
     /// <summary>Gets the default: the in-memory stores, one per process.</summary>
     public static StateSharing InProcessMemory { get; } = new(false, "in the memory of one process", OutlivesProcess: false);
 
-    /// <summary>Gets the value a SQLite provider registers: a file that one process opens.</summary>
+    /// <summary>Gets the value a SQLite provider registers for a file: one process opens it, and a restart finds it again.</summary>
     public static StateSharing SqliteFile { get; } = new(false, "in a SQLite file that serves one process", OutlivesProcess: true);
+
+    /// <summary>
+    /// Gets the value a SQLite provider registers for a database that lives in memory (a shared in-memory
+    /// database): the state is lost with the process, as with the in-memory stores.
+    /// </summary>
+    public static StateSharing SqliteMemory { get; } = new(false, "in a SQLite in-memory database that one process holds", OutlivesProcess: false);
 
     /// <summary>Gets the value a database-server provider registers.</summary>
     /// <param name="database">The database product's name.</param>
