@@ -115,7 +115,14 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
             context,
             "(c.name = N'session_id' OR (t.name = N'sessions' AND c.name = N'id')) AND c.collation_name IS NOT NULL");
 
-        columns.Count.ShouldBeGreaterThan(5, "the query has to find the session id columns it guards");
+        // The columns are named, not counted: a count passes when a rename makes the query find other columns, and says nothing
+        // when a migration adds a column (the next one is a decision made here, in the open).
+        columns.Select(static column => column.Name).Order(StringComparer.Ordinal).ShouldBe(
+            [
+                "attachments.session_id", "pending_approvals.session_id", "responses.session_id", "runs.session_id", "sessions.id",
+                "voice_sessions.session_id", "workflow_checkpoints.session_id", "workflow_requests.session_id", "workflow_responses.session_id",
+            ],
+            "the query has to find exactly the session id columns it guards; a column a migration adds or renames is listed here");
         columns
             .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
             .Select(static column => $"{column.Name} ({column.Collation})")
@@ -135,7 +142,12 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
             context,
             "c.name IN (N'request_id', N'parent_id', N'checkpoint_id') AND c.collation_name IS NOT NULL");
 
-        columns.Count.ShouldBeGreaterThan(2, "the query has to find the columns it guards");
+        columns.Select(static column => column.Name).Order(StringComparer.Ordinal).ShouldBe(
+            [
+                "pending_approvals.request_id", "workflow_checkpoints.checkpoint_id", "workflow_checkpoints.parent_id",
+                "workflow_requests.request_id", "workflow_responses.request_id",
+            ],
+            "the query has to find exactly the request, parent and checkpoint id columns it guards; a column a migration adds or renames is listed here");
         columns
             .Where(static column => !string.Equals(column.Collation, Ordinal, StringComparison.Ordinal))
             .Select(static column => $"{column.Name} ({column.Collation})")
