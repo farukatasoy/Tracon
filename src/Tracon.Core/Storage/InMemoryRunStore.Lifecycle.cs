@@ -240,7 +240,9 @@ internal sealed partial class InMemoryRunStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var now = DateTimeOffset.UtcNow;
+        // The heartbeat is marked with the clock the writer was given (TouchHeartbeatAsync's `at`), which is the
+        // registered one, so the age is read from the same clock.
+        var now = _clock.GetUtcNow();
         var staleBefore = now - staleAfter;
 
         // A Running row that never sent a heartbeat falls back to its start time. A Queued row is the

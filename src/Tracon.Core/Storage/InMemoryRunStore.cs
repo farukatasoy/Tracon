@@ -26,6 +26,7 @@ internal sealed partial class InMemoryRunStore : IRunStore
     private readonly ConcurrentQueue<Guid> _insertionOrder = new();
     private readonly IRunScoreStore _scores;
     private readonly ITenantContext _tenantContext;
+    private readonly TimeProvider _clock;
 
     /// <summary>Creates a new in-memory run store.</summary>
     /// <param name="scores">
@@ -40,10 +41,15 @@ internal sealed partial class InMemoryRunStore : IRunStore
     /// The current tenant's context. If not given, the store behaves as
     /// single-tenant.
     /// </param>
-    public InMemoryRunStore(IRunScoreStore? scores = null, ITenantContext? tenantContext = null)
+    /// <param name="timeProvider">
+    /// The clock a heartbeat is aged with. It is the clock the heartbeat writer marks the run with, so a host that registers
+    /// its own <see cref="TimeProvider"/> ages a run on the clock that marked it. The system clock when not given.
+    /// </param>
+    public InMemoryRunStore(IRunScoreStore? scores = null, ITenantContext? tenantContext = null, TimeProvider? timeProvider = null)
     {
         _scores = scores ?? new InMemoryRunScoreStore();
         _tenantContext = CanonicalTenantContext.Wrap(tenantContext ?? FixedTenantContext.Default);
+        _clock = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>

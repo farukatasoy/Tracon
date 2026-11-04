@@ -471,8 +471,11 @@ public interface IRunStore
     /// is older than this. The age is measured on the store's clock: the database
     /// server's on PostgreSQL and SQL Server, the same clock the heartbeat was
     /// marked with, so a node whose own clock is ahead cannot close a run that is
-    /// beating. A <c>Running</c> row that never sent a heartbeat is judged by the time
-    /// it started, which its own node wrote.
+    /// beating. In memory and on SQLite there is no clock shared between nodes: the
+    /// mark and the age are both read from the application's <see cref="TimeProvider"/>
+    /// (the one the heartbeat writer marks with), so a host that registers its own
+    /// clock ages a run on it. A <c>Running</c> row that never sent a heartbeat is judged
+    /// by the time it started, which its own node wrote.
     /// </param>
     /// <param name="max">The maximum number of rows to close in this round.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
