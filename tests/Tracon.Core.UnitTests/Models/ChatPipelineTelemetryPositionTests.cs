@@ -65,8 +65,8 @@ public sealed class ChatPipelineTelemetryPositionTests
         });
 
         provider.Calls.ShouldBe(0, "the blocked turn never reaches the provider");
-        ChatSpans(probe).ShouldBeEmpty("the budget throws before the telemetry ring: no span, no error type, no run-trace row");
         warnings.Entries.ShouldBeEmpty("the ring never saw the turn, so it logs no operation error");
+        ChatSpans(probe).ShouldBeEmpty("the budget throws before the telemetry ring: no span, no error type, no run-trace row");
     }
 
     [Fact]
