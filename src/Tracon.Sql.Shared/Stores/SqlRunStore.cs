@@ -25,14 +25,21 @@ internal sealed class SqlRunStore : IRunStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
+    private readonly TimeProvider _clock;
 
     /// <summary>Creates a new run store.</summary>
     /// <param name="context">The store context.</param>
     /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="timeProvider">
+    /// The application clock: the time a closed run is stamped with, and, where the database has no clock of its own
+    /// (SQLite), the clock a heartbeat is aged with. It is the clock the heartbeat writer marks a run with. PostgreSQL and
+    /// SQL Server age a heartbeat on the database server's clock and do not use it for that. The system clock when not given.
+    /// </param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public SqlRunStore(
         SqlStoreContext context,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -40,6 +47,7 @@ internal sealed class SqlRunStore : IRunStore
         _context = context;
         _sql = context.Sql;
         _tenantContext = tenantContext;
+        _clock = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>The gateway to provider-specific behavior.</summary>
@@ -390,7 +398,7 @@ internal sealed class SqlRunStore : IRunStore
         int max,
         CancellationToken cancellationToken = default)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = _clock.GetUtcNow();
 
         var command = CreateCommand(_sql.ClaimOrphanedRuns);
         DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
@@ -401,8 +409,8 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
 
         // The threshold is measured back from the lease clock: the database server's on PostgreSQL and SQL Server (the
-        // clock the heartbeat was stamped with), this process's on SQLite.
-        Dialect.AddLeaseInstant(command, "stale_before", TimeProvider.System, -staleAfter);
+        // clock the heartbeat was stamped with), this store's clock on SQLite (the clock the heartbeat writer stamps with).
+        Dialect.AddLeaseInstant(command, "stale_before", _clock, -staleAfter);
         DbHelpers.Add(command, "max", Math.Max(max, 0));
 
         var claimed = await DbHelpers.ReadListAsync(command, ReadOrphanedRun, cancellationToken).ConfigureAwait(false);

@@ -7,9 +7,10 @@ namespace Tracon.Testing.Contracts.Storage;
 /// <para>
 /// The in-memory store and the three SQL providers must pass the same
 /// scenarios. The lease-expiry test runs against real time (a short lease
-/// plus a short wait): the SQL implementations do not take their clock from
-/// an injectable <see cref="TimeProvider"/> -- the same rationale as
-/// <c>JobStoreContract</c>.
+/// plus a short wait): the contract gets its store from <c>CreateStoreAsync</c>
+/// and has no way to hand it a <see cref="TimeProvider"/> -- the same rationale as
+/// <c>JobStoreContract</c>. PostgreSQL and SQL Server read the database server's
+/// own clock inside the statements and ignore one.
 /// </para>
 /// <para>
 /// There is no tenant concept here: single-executor election is a

@@ -25,6 +25,12 @@ namespace Tracon.Tests.Common;
 /// </remarks>
 public abstract class SqlLeaseTimeContract
 {
+    /// <summary>
+    /// The longest span a lease statement is handed, in milliseconds: what <c>DATEADD</c> reaches in whole seconds on SQL
+    /// Server, a little over 68 years. A longer duration is cut to it.
+    /// </summary>
+    private const long LongestSpanMilliseconds = int.MaxValue * 1000L;
+
     private static readonly TimeSpan SingletonLease = TimeSpan.FromSeconds(30);
 
     /// <summary>Opens the stores over one migrated, empty schema.</summary>
@@ -110,6 +116,76 @@ public abstract class SqlLeaseTimeContract
             .ShouldBeTrue();
 
         (await SingletonLeaseSpanMicrosecondsAsync(name)).ShouldBeInRange((milliseconds * 1000) - 1000, (milliseconds * 1000) + 1000);
+    }
+
+    /// <summary>The durations at the edge of what a lease statement adds, and whether the lease is still held a moment after.</summary>
+    public static TheoryData<TimeSpan, bool> EdgeDurations => new()
+    {
+        { TimeSpan.Zero, false },
+        { TimeSpan.FromMilliseconds(-1), false },
+        { Timeout.InfiniteTimeSpan, false },
+        { TimeSpan.MaxValue, true },
+    };
+
+    /// <summary>
+    /// A single-executor lease is not given a duration it cannot add. A duration of zero or less is written and the lease is
+    /// over at once, which includes <see cref="Timeout.InfiniteTimeSpan"/> (it is minus one millisecond, not "never"); a
+    /// duration past what the database adds is cut to a little over 68 years and the lease stays held, instead of the
+    /// statement failing with an arithmetic overflow.
+    /// </summary>
+    /// <param name="duration">The duration.</param>
+    /// <param name="heldAfterwards">Whether another owner is refused a moment after the lease is written.</param>
+    [Theory]
+    [MemberData(nameof(EdgeDurations))]
+    public async Task A_single_executor_lease_of_an_edge_duration_is_written_and_cut_to_what_the_database_adds(TimeSpan duration, bool heldAfterwards)
+    {
+        var (leases, _) = await OpenAsync();
+        var name = $"edge-{Guid.NewGuid():N}";
+
+        (await leases.TryAcquireAsync(name, "a", duration, TestContext.Current.CancellationToken))
+            .ShouldBeTrue("the duration is not validated: the lease is written");
+
+        (await leases.TryAcquireAsync(name, "b", SingletonLease, TestContext.Current.CancellationToken))
+            .ShouldBe(!heldAfterwards);
+
+        if (heldAfterwards)
+        {
+            (await SingletonLeaseSpanMicrosecondsAsync(name))
+                .ShouldBeInRange((LongestSpanMilliseconds * 1000) - 1000, (LongestSpanMilliseconds * 1000) + 1000);
+        }
+    }
+
+    /// <summary>
+    /// A job lease is given the same edge durations the same way: zero or less is leased and over at once, so the next
+    /// worker takes the job as another attempt; a duration past what the database adds is cut to a little over 68 years
+    /// and the job is not taken again.
+    /// </summary>
+    /// <param name="duration">The duration.</param>
+    /// <param name="heldAfterwards">Whether another worker is refused a moment after the lease is written.</param>
+    [Theory]
+    [MemberData(nameof(EdgeDurations))]
+    public async Task A_job_lease_of_an_edge_duration_is_written_and_cut_to_what_the_database_adds(TimeSpan duration, bool heldAfterwards)
+    {
+        var (_, jobs) = await OpenAsync();
+        var job = TestData.Job();
+
+        await jobs.EnqueueAsync(job, ["a"], TestContext.Current.CancellationToken);
+
+        (await jobs.LeaseAsync(new JobLeaseRequest { Owner = "a", LeaseDuration = duration }, TestContext.Current.CancellationToken))
+            .ShouldNotBeNull("the duration is not validated: the lease is written");
+
+        var second = await jobs.LeaseAsync(
+            new JobLeaseRequest { Owner = "b", LeaseDuration = TimeSpan.FromMinutes(5) },
+            TestContext.Current.CancellationToken);
+
+        (second is null).ShouldBe(heldAfterwards);
+        second?.Attempt.ShouldBe(2, "the take-over counts as another attempt");
+
+        if (heldAfterwards)
+        {
+            (await JobLeaseSpanMicrosecondsAsync(job.Id))
+                .ShouldBeInRange((LongestSpanMilliseconds * 1000) - 1000, (LongestSpanMilliseconds * 1000) + 1000);
+        }
     }
 
     /// <summary>

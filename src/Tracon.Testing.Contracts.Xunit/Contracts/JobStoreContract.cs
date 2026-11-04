@@ -8,9 +8,11 @@ namespace Tracon.Testing.Contracts.Storage;
 /// The in-memory store and the SQL stores must pass the same
 /// scenarios. The lease-expiry test runs against real time (a short lease +
 /// a short wait): the contract gets its store from <c>CreateStoreAsync</c> and
-/// has no way to hand it a clock, so fake time is not used here. The SQL
-/// stores do take their clock through a <see cref="TimeProvider"/>; a test
-/// that needs two nodes with two clocks builds the stores itself.
+/// has no way to hand it a clock, so fake time is not used here. Only the
+/// in-memory and SQLite stores take their clock through a <see cref="TimeProvider"/>;
+/// PostgreSQL and SQL Server read the database server's own clock inside the lease
+/// statements and ignore one. A test that needs two nodes with two clocks builds the
+/// stores itself.
 /// </remarks>
 public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 {

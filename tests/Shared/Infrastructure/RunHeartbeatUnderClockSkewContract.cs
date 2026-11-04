@@ -19,8 +19,11 @@ namespace Tracon.Tests.Common;
 /// Both now read the database server's clock, whoever scans.
 /// </para>
 /// <para>
-/// The two services run for real, on the real SQL store, each with its own <see cref="TimeProvider"/>: the second one's wall clock
-/// is shifted by the skew, its timers are the system's. The intervals are shortened so that a case ends in about a second; what is
+/// The two services run for real, on the real SQL store, each with its own <see cref="TimeProvider"/>: the scanning node's wall
+/// clock is shifted ahead (its service and its run store read the same shifted clock) and the run's node's clock behind, their
+/// timers are the system's. The run's node passes its own reading of the time to <see cref="IRunStore.TouchHeartbeatAsync"/>
+/// and the statements ignore it, so a node whose clock is behind by more than the threshold still keeps its run alive; the
+/// scanning node's store cuts the threshold from the database server's clock, not from its own. The intervals are shortened so that a case ends in about a second; what is
 /// measured is the shape (the threshold minus the age of the last beat), not the defaults.
 /// </para>
 /// <para>
@@ -45,16 +48,27 @@ public abstract class RunHeartbeatUnderClockSkewContract
     protected abstract ValueTask<(IRunStore Runs, ISingletonLeaseStore Leases, IJobStore Jobs)> OpenAsync();
 
     /// <summary>
-    /// A run that is beating is not closed by a node whose clock runs ahead.
+    /// Opens another run store over the schema <see cref="OpenAsync"/> opened: the store of the node that scans, whose
+    /// application clock is <paramref name="clock"/>.
     /// </summary>
-    /// <param name="aheadSeconds">How far the scanning node's clock is ahead of the node that runs the run.</param>
+    /// <param name="clock">The application clock of the node that scans.</param>
+    /// <returns>The run store.</returns>
+    protected abstract IRunStore OpenRunStore(TimeProvider clock);
+
+    /// <summary>
+    /// A run that is beating is not closed, whatever the clocks of the node that runs it and of the node that scans read.
+    /// </summary>
+    /// <param name="aheadSeconds">How far the scanning node's clock is ahead of the database server's.</param>
+    /// <param name="behindSeconds">How far the clock of the node that runs the run is behind the database server's.</param>
     [Theory]
-    [InlineData(0)]
-    [InlineData(240)]
-    [InlineData(299)]
-    [InlineData(301)]
-    [InlineData(900)]
-    public async Task A_run_that_keeps_its_heartbeat_is_not_closed_by_a_node_whose_clock_runs_ahead(int aheadSeconds)
+    [InlineData(0, 0)]
+    [InlineData(240, 0)]
+    [InlineData(299, 0)]
+    [InlineData(301, 0)]
+    [InlineData(900, 0)]
+    [InlineData(0, 600)]
+    [InlineData(301, 600)]
+    public async Task A_run_that_keeps_its_heartbeat_is_not_closed_whatever_the_clocks_of_the_two_nodes_read(int aheadSeconds, int behindSeconds)
     {
         var (runs, leases, jobs) = await OpenAsync();
         var runId = TraconId.NewId();
@@ -65,9 +79,9 @@ public abstract class RunHeartbeatUnderClockSkewContract
         using var cancellation = new CancellationTokenSource();
         using var registration = registry.Register(runId, runId, tenantId: null, cancellation);
 
-        var status = await RunBothNodesAsync(runs, leases, jobs, registry, TimeSpan.FromSeconds(aheadSeconds), runId);
+        var status = await RunBothNodesAsync(runs, leases, jobs, registry, TimeSpan.FromSeconds(aheadSeconds), TimeSpan.FromSeconds(-behindSeconds), runId);
 
-        Describe($"the run's node beats every {HeartbeatEvery.TotalMilliseconds} ms; the scanning node is ahead by {aheadSeconds}s and scans every {ScanEvery.TotalMilliseconds} ms for {Window.TotalSeconds}s", $"the run is {status}");
+        Describe($"the run's node, {behindSeconds}s behind, beats every {HeartbeatEvery.TotalMilliseconds} ms; the scanning node is ahead by {aheadSeconds}s and scans every {ScanEvery.TotalMilliseconds} ms for {Window.TotalSeconds}s", $"the run is {status}");
 
         status.ShouldBe(RunStatus.Running, "a run that is beating is alive on every clock");
     }
@@ -84,19 +98,66 @@ public abstract class RunHeartbeatUnderClockSkewContract
 
         await runs.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow - Threshold - TimeSpan.FromMinutes(1) });
 
-        var status = await RunBothNodesAsync(runs, leases, jobs, new RunCancellationRegistry(), TimeSpan.Zero, runId);
+        var status = await RunBothNodesAsync(runs, leases, jobs, new RunCancellationRegistry(), TimeSpan.Zero, TimeSpan.Zero, runId);
 
         Describe("no beat at all, started 6 minutes ago, scanning node on time", $"the run is {status}");
 
         status.ShouldBe(RunStatus.Failed);
     }
 
-    private static async Task<RunStatus> RunBothNodesAsync(
+    /// <summary>
+    /// The mark is the database server's clock, not the time the caller passes: a heartbeat handed a time an hour in the
+    /// past leaves the run alive. This is the store on its own, with no node between the caller and the statement.
+    /// </summary>
+    [Fact]
+    public async Task A_heartbeat_handed_a_time_an_hour_behind_leaves_the_run_alive()
+    {
+        var (runs, _, _) = await OpenAsync();
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
+        await runs.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow - TimeSpan.FromHours(1));
+
+        var claimed = await runs.ClaimOrphanedRunsAsync(Threshold, 10);
+
+        Describe("one beat handed a time an hour behind, then a scan with a threshold of 5 minutes", $"{claimed.Count} run(s) closed");
+
+        claimed.ShouldBeEmpty("the mark is the database server's clock, so the time the caller passes cannot age the run");
+        (await runs.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    /// <summary>
+    /// A threshold of zero or less is not rejected by the store: zero counts a mark older than the database server's clock
+    /// at the call, a negative value counts every mark, so a run that was marked a moment ago is closed.
+    /// </summary>
+    /// <param name="staleAfterSeconds">The threshold, in seconds.</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-60)]
+    public async Task A_threshold_of_zero_or_less_closes_a_run_that_was_marked_a_moment_ago(int staleAfterSeconds)
+    {
+        var (runs, _, _) = await OpenAsync();
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
+        await runs.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+
+        // The mark is older than the database server's clock from the next statement on; the wait only covers a clock tick.
+        var claimed = await WaitUntil.ValueAsync(
+            async () => await runs.ClaimOrphanedRunsAsync(TimeSpan.FromSeconds(staleAfterSeconds), 10),
+            closed => closed.Count > 0,
+            "the run marked a moment ago to be counted as orphaned");
+
+        claimed.ShouldHaveSingleItem().Id.ShouldBe(runId);
+    }
+
+    private async Task<RunStatus> RunBothNodesAsync(
         IRunStore runs,
         ISingletonLeaseStore leases,
         IJobStore jobs,
         RunCancellationRegistry registry,
         TimeSpan ahead,
+        TimeSpan writerOffset,
         Guid runId)
     {
         var options = new StaticOptionsMonitor<RunReconciliationOptions>(new RunReconciliationOptions
@@ -108,9 +169,12 @@ public abstract class RunHeartbeatUnderClockSkewContract
         });
         var gate = new SchemaReadyGate([]);
 
-        var writer = new RunHeartbeatWriter(runs, registry, options, gate, new SkewedTimeProvider(TimeSpan.Zero), NullLogger<RunHeartbeatWriter>.Instance);
+        // The node that scans reads its clock ahead in its store too: the store decides what is old.
+        var scanClock = new SkewedTimeProvider(ahead);
+
+        var writer = new RunHeartbeatWriter(runs, registry, options, gate, new SkewedTimeProvider(writerOffset), NullLogger<RunHeartbeatWriter>.Instance);
         var sweeper = new RunReconciliationService(
-            runs,
+            OpenRunStore(scanClock),
             leases,
             jobs,
             new EmptyToolRegistry(),
@@ -118,7 +182,7 @@ public abstract class RunHeartbeatUnderClockSkewContract
             new StaticOptionsMonitor<SingletonExecutionOptions>(new SingletonExecutionOptions()),
             new StaticOptionsMonitor<TraconRunContinuationOptions>(new TraconRunContinuationOptions()),
             gate,
-            new SkewedTimeProvider(ahead),
+            scanClock,
             NullLogger<RunReconciliationService>.Instance);
 
         await writer.StartAsync(CancellationToken.None);
@@ -126,18 +190,17 @@ public abstract class RunHeartbeatUnderClockSkewContract
 
         try
         {
-            // The status is read as soon as the run is closed, or when the window is over.
-            var deadline = DateTimeOffset.UtcNow + Window;
-
-            while (DateTimeOffset.UtcNow < deadline)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(100));
-
-                if ((await runs.GetRunAsync(runId))?.Status != RunStatus.Running)
-                {
-                    break;
-                }
-            }
+            // The status is read as soon as the run leaves Running, or when the window is over. A run that is still
+            // Running at the end of the window is the answer of the scenarios that expect it to stay, not a failure.
+            await WaitUntil.ValueAsync(
+                async () => (await runs.GetRunAsync(runId))?.Status,
+                status => status != RunStatus.Running,
+                "the run to leave Running",
+                Window);
+        }
+        catch (TimeoutException)
+        {
+            // The window is over and the run is still Running; the status is read below.
         }
         finally
         {

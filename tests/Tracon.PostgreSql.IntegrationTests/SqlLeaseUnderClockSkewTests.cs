@@ -6,8 +6,9 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// What the PostgreSQL lease stores do when the two nodes that share a database disagree about the time.
 /// </summary>
 /// <remarks>
-/// The scenarios live in <see cref="SqlLeaseUnderClockSkewContract"/>, which the SQL Server project runs too. Both
-/// nodes here read a manual clock and the database server's own clock is never consulted.
+/// The scenarios live in <see cref="SqlLeaseUnderClockSkewContract"/>, which the SQL Server project runs too. Each
+/// node here is handed a clock of its own, shifted from the other's, and the lease statements ignore it: they read the
+/// database server's clock, the same for both nodes.
 /// </remarks>
 /// <param name="schema">The schema shared by the tests of this class.</param>
 public sealed class SqlLeaseUnderClockSkewTests(PostgresSchemaFixture schema)

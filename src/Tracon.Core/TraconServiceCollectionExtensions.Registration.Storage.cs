@@ -54,9 +54,12 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddTraconDefault<IRunScoreStore>(provider => new InMemoryRunScoreStore(
             provider.GetRequiredService<ITenantContext>(),
             (runId, cancellationToken) => ResolveScoredRunAgentNameAsync(provider, runId, cancellationToken)));
+        // TimeProvider may not be registered, so it is read with GetService (the same clock the heartbeat
+        // writer marks a run with, which is what the store ages it by).
         services.TryAddTraconDefault<IRunStore>(static provider => new InMemoryRunStore(
             provider.GetRequiredService<IRunScoreStore>(),
-            provider.GetRequiredService<ITenantContext>()));
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetService<TimeProvider>()));
 
         // Run inputs. The store is always registered (stores are
         // first-class) - replay works even without a SQL provider. Persistent
