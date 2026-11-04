@@ -40,6 +40,8 @@
     <Compile Include="../Shared/Infrastructure/TwoProcessLeaseTakeoverContract.cs" Link="Infrastructure/Shared/TwoProcessLeaseTakeoverContract.cs" />
     <!-- The clock-skew measurement of the lease stores, written once for both SQL providers; it moves a clock by hand. -->
     <Compile Include="../Shared/Infrastructure/SqlLeaseUnderClockSkewContract.cs" Link="Infrastructure/Shared/SqlLeaseUnderClockSkewContract.cs" />
+    <!-- Points the lease statements at a clock the differential job sequences can move. -->
+    <Compile Include="../Shared/Infrastructure/SqlLeaseClockStandIn.cs" Link="Infrastructure/Shared/SqlLeaseClockStandIn.cs" />
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Infrastructure/Shared/ManualClock.cs" />
   </ItemGroup>
 

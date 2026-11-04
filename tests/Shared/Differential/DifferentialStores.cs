@@ -18,10 +18,11 @@ internal sealed class DifferentialStores
     public required MutableTenantContext Tenant { get; init; }
 
     /// <summary>
-    /// Gets the clock the job store was built with, or <see langword="null"/> when the provider has none: the job
-    /// state machine moves it instead of waiting, so a lease expires when a step says so.
+    /// Gets the clock that decides the job store's leases, or <see langword="null"/> when the provider has none: the job
+    /// state machine moves it instead of waiting, so a lease expires when a step says so. It is the manual clock the store
+    /// was built with, or, for a store that reads the database server's clock, a stand-in the schema holds.
     /// </summary>
-    public ManualClock? Clock { get; init; }
+    public DifferentialClock? Clock { get; init; }
 
     /// <summary>
     /// Gets the tenant context <see cref="FlowRuns"/> was built with: each asynchronous flow sets its own tenant, so

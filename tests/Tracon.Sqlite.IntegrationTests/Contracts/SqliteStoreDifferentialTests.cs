@@ -26,7 +26,7 @@ public sealed class SqliteStoreDifferentialTests(SqliteSchemaFixture schema)
             FlowRuns = new SqlRunStore(schema.Context.StoreContext, flow),
             Idempotency = schema.Context.IdempotencyKeys,
             ApiKeys = schema.Context.ApiKeys,
-            Clock = clock,
+            Clock = DifferentialClock.Of(clock),
             Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
             Quotas = schema.Context.Quotas,
             Webhooks = schema.Context.Webhooks,
