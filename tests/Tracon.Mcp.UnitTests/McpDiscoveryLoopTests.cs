@@ -11,31 +11,41 @@ namespace Tracon.Mcp.UnitTests;
 /// bounded time when the host stops.
 /// </summary>
 /// <remarks>
-/// The loop waits with <c>Task.Delay</c> on the system clock, so the wait is real: the interval is short and the
-/// attempts are counted against it. A spinning loop makes thousands of attempts in the window; the bound below
-/// is several times what an honest loop makes, so a slow machine cannot trip it.
+/// The loop waits on a manual clock, as the core package's loops do (<c>HostedTickLoopTests</c>): a pass happens at
+/// start and again each time the test advances the clock by the interval, so the number of calls the store sees is
+/// exactly the number of passes the test gave, and a loop that retried on its own would show as more calls than
+/// passes. No count depends on how fast the machine is. The interval is read after every pass.
 /// </remarks>
 public sealed class McpDiscoveryLoopTests
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(30);
 
     [Fact]
-    public async Task A_failing_server_list_does_not_end_the_loop_and_is_not_read_in_a_tight_loop()
+    public async Task A_failing_server_list_does_not_end_the_loop_and_is_read_again_only_on_the_next_pass()
     {
         var plan = new FaultPlan { Fail = static _ => new IOException("the server list is unreachable") };
-        var service = Build(plan);
+        var clock = new ManualClock();
+        var service = Build(plan, clock, new TraconMcpOptions { RefreshInterval = Interval });
 
         await service.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(Interval), "the loop to fail its first pass and wait out the interval");
 
-        // The loop survives: it keeps trying after the first failures.
-        await WaitUntil.TrueAsync(() => plan.Total >= 3, "the loop to try again after failing");
+        var perPass = plan.Total;
 
-        // 1 second at a 100 ms interval is about 10 attempts; a tight loop makes thousands.
-        var before = plan.Total;
-        await Task.Delay(1000, TestContext.Current.CancellationToken); // delay: negative
-        (plan.Total - before).ShouldBeLessThan(
-            40,
-            "the loop read the server list far more often than its interval allows: "
+        perPass.ShouldBeGreaterThan(0);
+
+        for (var pass = 2; pass <= 4; pass++)
+        {
+            clock.Advance(Interval);
+            await WaitUntil.TrueAsync(() => plan.Total >= perPass * pass, $"the loop to try again on pass {pass}");
+            await WaitUntil.TrueAsync(() => clock.Pending.Contains(Interval), "the loop to wait out the interval again");
+        }
+
+        // A tight loop shows here: nothing advanced the clock, so no read may follow the fourth pass.
+        await Task.Delay(150, TestContext.Current.CancellationToken); // delay: negative
+        plan.Total.ShouldBe(
+            perPass * 4,
+            "the loop read the server list without a pass: "
             + string.Join(", ", plan.Calls.GroupBy(static name => name, StringComparer.Ordinal).Select(static group => $"{group.Key} x{group.Count()}")));
 
         await service.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
@@ -45,7 +55,7 @@ public sealed class McpDiscoveryLoopTests
     public async Task A_server_list_that_never_answers_does_not_keep_the_host_from_stopping()
     {
         var plan = new FaultPlan { Hang = static _ => true };
-        var service = Build(plan);
+        var service = Build(plan, new ManualClock(), new TraconMcpOptions { RefreshInterval = Interval });
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await WaitUntil.TrueAsync(() => plan.Total >= 1, "the loop to reach the call that hangs");
@@ -53,9 +63,42 @@ public sealed class McpDiscoveryLoopTests
         await service.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
     }
 
-    private static McpDiscoveryService Build(FaultPlan plan)
+    [Fact]
+    public async Task A_change_of_the_refresh_interval_applies_to_the_wait_after_the_next_pass()
     {
-        var mcpOptions = new StaticOptions<TraconMcpOptions>(new TraconMcpOptions { RefreshInterval = Interval });
+        var shorter = TimeSpan.FromSeconds(10);
+        var plan = new FaultPlan();
+        var clock = new ManualClock();
+        var options = new TraconMcpOptions { RefreshInterval = Interval };
+        var service = Build(plan, clock, options);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(Interval), "the loop to finish its first pass and wait out the interval");
+
+        var perPass = plan.Total;
+
+        // A value a timer cannot take is not applied: the loop keeps the interval it has.
+        options.RefreshInterval = TimeSpan.FromTicks(1);
+        clock.Advance(Interval);
+        await WaitUntil.TrueAsync(() => plan.Total >= perPass * 2, "the second pass");
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(Interval), "the loop to wait out the interval it had");
+
+        options.RefreshInterval = shorter;
+        clock.Advance(Interval);
+        await WaitUntil.TrueAsync(() => plan.Total >= perPass * 3, "the third pass");
+
+        // The third pass found the new interval, so the fourth comes after it and not after the old one.
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(shorter), "the loop to follow the new interval");
+
+        clock.Advance(shorter);
+        await WaitUntil.TrueAsync(() => plan.Total >= perPass * 4, "the fourth pass, one new interval after the third");
+
+        await service.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+    }
+
+    private static McpDiscoveryService Build(FaultPlan plan, TimeProvider clock, TraconMcpOptions options)
+    {
+        var mcpOptions = new StaticOptions<TraconMcpOptions>(options);
 
         var catalog = new McpToolCatalog(
             FaultProxy<IMcpServerStore>.Create(new InMemoryMcpServerStore(), plan),
@@ -70,7 +113,7 @@ public sealed class McpDiscoveryLoopTests
             NoOpToolArgumentsValidator.Instance,
             attribution: null);
 
-        return new McpDiscoveryService(catalog, mcpOptions, new SchemaReadyGate([]), NullLogger<McpDiscoveryService>.Instance);
+        return new McpDiscoveryService(catalog, mcpOptions, new SchemaReadyGate([]), NullLogger<McpDiscoveryService>.Instance, clock);
     }
 
     private sealed class StaticOptions<T>(T value) : IOptionsMonitor<T>, IOptions<T>

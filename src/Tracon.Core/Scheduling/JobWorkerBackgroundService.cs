@@ -77,14 +77,15 @@ internal sealed class JobWorkerBackgroundService(
             return;
         }
 
-        using var timer = new PeriodicTimer(options.PollInterval);
-        using var slots = new WorkerSlots(options.MaxConcurrentJobs);
+        using var timer = new PeriodicTimer(options.PollInterval, _clock);
+        var slots = new JobWorkerSlots(options.MaxConcurrentJobs);
 
         try
         {
             while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
             {
                 await TickAsync(slots, stoppingToken).ConfigureAwait(false);
+                FollowPollInterval(timer);
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -93,14 +94,44 @@ internal sealed class JobWorkerBackgroundService(
         }
         finally
         {
-            // TickAsync leases jobs as concurrent work. The semaphore must stay
-            // alive until every leased job has released its slot, including when
-            // the host stops before the work itself has observed cancellation.
+            // TickAsync leases jobs as concurrent work, and every leased job holds a slot from
+            // the moment it is leased: one that waits for its previous attempt to finish is not
+            // in _runningJobs yet. The pools therefore say when the work is over, and each one
+            // disposes its semaphore with its last returned slot, not before.
+            slots.Close();
+            await slots.WaitForDrainedAsync().ConfigureAwait(false);
             await WaitForRunningJobsAsync().ConfigureAwait(false);
         }
     }
 
-    private async Task TickAsync(WorkerSlots slots, CancellationToken stoppingToken)
+    /// <summary>
+    /// Gives the poll timer the interval the options hold now, so a change of <c>PollInterval</c> applies from the
+    /// next tick and not from the next start. A value a timer cannot take, or options that cannot be read (a reload
+    /// that failed validation), leave the period the timer already has.
+    /// </summary>
+    /// <param name="timer">The poll timer.</param>
+    private void FollowPollInterval(PeriodicTimer timer)
+    {
+        TimeSpan configured;
+
+        try
+        {
+            configured = optionsMonitor.CurrentValue.PollInterval;
+        }
+        catch (OptionsValidationException)
+        {
+            return;
+        }
+
+        // Only a change is written: setting the period restarts the wait, and a restart on every tick would
+        // push the next tick out by the time the tick itself took.
+        if (configured != timer.Period && TimerPeriod.IsValid(configured))
+        {
+            timer.Period = configured;
+        }
+    }
+
+    private async Task TickAsync(JobWorkerSlots slots, CancellationToken stoppingToken)
     {
         // While the process is draining, no NEW work starts --
         // neither a schedule-dispatched job nor a leased one. Jobs already
@@ -137,8 +168,8 @@ internal sealed class JobWorkerBackgroundService(
                 continue;
             }
 
-            var semaphore = slots.ForLane(lane, max);
-            await LeaseLoopAsync(semaphore, [lane], options.LeaseDuration, stoppingToken).ConfigureAwait(false);
+            var slotPool = slots.ForLane(lane, max);
+            await LeaseLoopAsync(slotPool, [lane], options.LeaseDuration, stoppingToken).ConfigureAwait(false);
         }
 
         var sharedLanes = ComputeSharedLanes(options);
@@ -180,14 +211,14 @@ internal sealed class JobWorkerBackgroundService(
     }
 
     private async Task LeaseLoopAsync(
-        SemaphoreSlim semaphore,
+        SlotPool slotPool,
         IReadOnlyList<string>? lanes,
         TimeSpan leaseDuration,
         CancellationToken stoppingToken)
     {
-        while (await semaphore.WaitAsync(0, stoppingToken).ConfigureAwait(false))
+        while (await slotPool.TryAcquireAsync(stoppingToken).ConfigureAwait(false))
         {
-            JobRecord? job;
+            JobRecord? job = null;
 
             // Taken BEFORE the call: the store starts the lease at or after
             // this moment, so the lease this worker counts on never outlasts
@@ -208,19 +239,23 @@ internal sealed class JobWorkerBackgroundService(
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {
-                semaphore.Release();
-
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
                     logger.LogWarning(exception, "Job leasing failed.");
                 }
-
-                break;
+            }
+            finally
+            {
+                // The slot goes back on every way out of the lease that did not produce a job: the
+                // queue is empty, the store failed, or a stop cancelled the call.
+                if (job is null)
+                {
+                    slotPool.Release();
+                }
             }
 
             if (job is null)
             {
-                semaphore.Release();
                 break;
             }
 
@@ -235,19 +270,19 @@ internal sealed class JobWorkerBackgroundService(
                 // ran out, and then failed it as out of attempts without running the
                 // attempt. The new lease waits for the previous attempt instead, and
                 // MarkRunningAsync still refuses it if that attempt finished the job.
-                _ = RunAfterPreviousAttemptAsync(job, leaseRequestedAt, semaphore, completion, stoppingToken);
+                _ = RunAfterPreviousAttemptAsync(job, leaseRequestedAt, slotPool, completion, stoppingToken);
 
                 continue;
             }
 
-            _ = RunJobAsync(job, leaseRequestedAt, semaphore, completion, stoppingToken);
+            _ = RunJobAsync(job, leaseRequestedAt, slotPool, completion, stoppingToken);
         }
     }
 
     private async Task RunAfterPreviousAttemptAsync(
         JobRecord job,
         long leaseRequestedAt,
-        SemaphoreSlim semaphore,
+        SlotPool slotPool,
         TaskCompletionSource completion,
         CancellationToken stoppingToken)
     {
@@ -268,13 +303,13 @@ internal sealed class JobWorkerBackgroundService(
             }
         }
 
-        await RunJobAsync(job, leaseRequestedAt, semaphore, completion, stoppingToken).ConfigureAwait(false);
+        await RunJobAsync(job, leaseRequestedAt, slotPool, completion, stoppingToken).ConfigureAwait(false);
     }
 
     private async Task RunJobAsync(
         JobRecord job,
         long leaseRequestedAt,
-        SemaphoreSlim semaphore,
+        SlotPool slotPool,
         TaskCompletionSource completion,
         CancellationToken stoppingToken)
     {
@@ -291,7 +326,7 @@ internal sealed class JobWorkerBackgroundService(
         }
         finally
         {
-            semaphore.Release();
+            slotPool.Release();
 
             // Removes this attempt's own entry only: a lease that waited for it adds the next one.
             _runningJobs.TryRemove(KeyValuePair.Create(job.Id, completion.Task));
@@ -1680,34 +1715,5 @@ internal sealed class JobWorkerBackgroundService(
 
         /// <summary>Store errors used up the window.</summary>
         GaveUp,
-    }
-
-    /// <summary>
-    /// Holds the shared concurrency semaphore plus one dedicated semaphore per
-    /// lane listed in <see cref="TraconSchedulingOptions.MaxConcurrentJobsPerLane"/>.
-    /// </summary>
-    /// <remarks>
-    /// A dedicated semaphore's size is fixed at the value seen the first time
-    /// its lane is requested — the same "fixed for this ExecuteAsync run"
-    /// characteristic <see cref="Shared"/> already had before lanes existed.
-    /// </remarks>
-    private sealed class WorkerSlots(int maxConcurrentJobs) : IDisposable
-    {
-        private readonly ConcurrentDictionary<string, SemaphoreSlim> _perLane = new(StringComparer.Ordinal);
-
-        public SemaphoreSlim Shared { get; } = new(Math.Max(1, maxConcurrentJobs));
-
-        public SemaphoreSlim ForLane(string lane, int max)
-            => _perLane.GetOrAdd(lane, static (_, m) => new SemaphoreSlim(Math.Max(1, m)), max);
-
-        public void Dispose()
-        {
-            Shared.Dispose();
-
-            foreach (var semaphore in _perLane.Values)
-            {
-                semaphore.Dispose();
-            }
-        }
     }
 }

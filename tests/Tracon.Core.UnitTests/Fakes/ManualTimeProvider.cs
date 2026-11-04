@@ -33,6 +33,19 @@ internal sealed class ManualTimeProvider : TimeProvider
     /// <param name="amount">How far to step the wall clock.</param>
     public void StepWallClock(TimeSpan amount) => _now += amount;
 
+    /// <summary>
+    /// Steps only the monotonic clock forward, the wall clock staying where it is: a process that was suspended for the
+    /// span and resumed on a platform whose monotonic counter counts the suspension (the wall clock is then set back
+    /// by the time service, or was never stepped).
+    /// </summary>
+    /// <param name="amount">How far to move; not negative.</param>
+    public void StepMonotonic(TimeSpan amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(amount, TimeSpan.Zero);
+
+        _timestamp += amount.Ticks;
+    }
+
     /// <summary>Moves both clocks forward. A negative amount moves only the wall clock.</summary>
     /// <param name="amount">How far to move.</param>
     public void Advance(TimeSpan amount)

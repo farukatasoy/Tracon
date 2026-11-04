@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -38,6 +39,8 @@ internal sealed class TelemetryLanePool : IDisposable
 {
     private readonly string _sourceName;
     private readonly bool _enableSensitiveData;
+    private readonly ILogger? _logger;
+    private readonly Func<TelemetryIdentity, string, bool, TelemetryLane> _createLane;
     private readonly ConcurrentDictionary<TelemetryKey, ConcurrentStack<TelemetryLane>> _idle = [];
     private int _lanes;
     private int _disposed;
@@ -45,13 +48,24 @@ internal sealed class TelemetryLanePool : IDisposable
     /// <summary>Initializes a pool of lanes that write to one telemetry source.</summary>
     /// <param name="sourceName">The activity source and meter name of every lane.</param>
     /// <param name="enableSensitiveData">Whether the lanes record message content.</param>
+    /// <param name="logger">Where a lane that could not be built is reported, or <see langword="null"/> to report nowhere.</param>
+    /// <param name="createLane">Builds a lane; the framework's telemetry agent when omitted. A seam for tests only.</param>
     /// <exception cref="ArgumentException"><paramref name="sourceName"/> is <see langword="null"/> or white space.</exception>
-    internal TelemetryLanePool(string sourceName, bool enableSensitiveData)
+    internal TelemetryLanePool(
+        string sourceName,
+        bool enableSensitiveData,
+        ILogger? logger = null,
+        Func<TelemetryIdentity, string, bool, TelemetryLane>? createLane = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
         _sourceName = sourceName;
         _enableSensitiveData = enableSensitiveData;
+        _logger = logger;
+        _createLane = createLane ?? NewLane;
     }
+
+    private static TelemetryLane NewLane(TelemetryIdentity identity, string sourceName, bool enableSensitiveData)
+        => new(identity, sourceName, enableSensitiveData);
 
     /// <summary>Gets the number of lanes made and not yet disposed.</summary>
     internal int LaneCount => Volatile.Read(ref _lanes);
@@ -65,7 +79,10 @@ internal sealed class TelemetryLanePool : IDisposable
     /// <summary>Lends a lane aimed at <paramref name="target"/>.</summary>
     /// <param name="identity">What the chat client of the target says about itself.</param>
     /// <param name="target">The agent the run calls.</param>
-    /// <returns>A lane that belongs to the caller until <see cref="Return"/>, or <see langword="null"/> when the pool is disposed.</returns>
+    /// <returns>
+    /// A lane that belongs to the caller until <see cref="Return"/>, or <see langword="null"/> when the pool is disposed or a
+    /// lane could not be built; the caller then runs the agent without telemetry.
+    /// </returns>
     internal TelemetryLane? TryRent(TelemetryIdentity identity, AIAgent target)
     {
         if (Volatile.Read(ref _disposed) != 0)
@@ -77,7 +94,23 @@ internal sealed class TelemetryLanePool : IDisposable
 
         if (!stack.TryPop(out var lane))
         {
-            lane = new TelemetryLane(identity, _sourceName, _enableSensitiveData);
+            // 🚨 Telemetry is observability, and observability never breaks the run. The caller runs the agent
+            // without a lane when this returns null, so a lane that cannot be built costs the run its spans and
+            // nothing else; the next run tries again, because nothing about the failure is remembered.
+            try
+            {
+                lane = _createLane(identity, _sourceName, _enableSensitiveData);
+            }
+            catch (Exception exception)
+            {
+                if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
+                {
+                    _logger.LogWarning(exception, "A telemetry lane could not be built; the run goes on without telemetry.");
+                }
+
+                return null;
+            }
+
             Interlocked.Increment(ref _lanes);
         }
 

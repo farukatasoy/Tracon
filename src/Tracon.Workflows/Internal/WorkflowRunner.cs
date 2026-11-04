@@ -51,7 +51,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly TraconMetrics? _metrics;
     private readonly RunTraceCollector? _traceCollector;
     private readonly TimeProvider _timeProvider;
-    private readonly SemaphoreSlim _concurrency;
+    private readonly SlotPool _concurrency;
     private readonly TenantSlotLimiter? _tenantSlots;
     private readonly IOptions<RunReconciliationOptions>? _reconciliation;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
@@ -175,7 +175,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _metrics = metrics;
         _traceCollector = traceCollector;
         _timeProvider = timeProvider ?? TimeProvider.System;
-        _concurrency = new SemaphoreSlim(Math.Max(options.Value.MaxConcurrentRuns, 1));
+        _concurrency = new SlotPool(Math.Max(options.Value.MaxConcurrentRuns, 1));
         _tenantSlots = options.Value.MaxConcurrentRunsPerTenant is { } perTenant ? new TenantSlotLimiter(perTenant) : null;
         _cancellationRegistry = cancellationRegistry;
         _quotaEnforcer = quotaEnforcer;
@@ -499,6 +499,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// A run still in flight keeps its slot and gives it back when it ends: the pool disposes its semaphore with the
+    /// last slot. A semaphore disposed here made that give-back throw from the <c>finally</c> that also closes the
+    /// run, and the run was left at <c>Running</c>.
+    /// </remarks>
     public void Dispose() => _concurrency.Dispose();
 
     /// <summary>
@@ -961,7 +966,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // The tenant is read ONCE, here: the ambient tenant is an AsyncLocal, and this iterator resumes on
         // whatever flow its consumer moves it with, so a later read could name another tenant's slot.
         var tenantId = _tenantContext.TenantId;
-        var opensQueued = _concurrency.CurrentCount == 0 || _tenantSlots?.IsFull(tenantId) == true;
+        var opensQueued = _concurrency.IsFull || _tenantSlots?.IsFull(tenantId) == true;
 
         var startInfo = new RunStartInfo
         {
@@ -1001,34 +1006,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Status = opensQueued ? RunStatus.Queued : RunStatus.Running,
         };
 
-        await writer.StartAsync(
-            startInfo,
-
-            // Workflow runs start with a structured input, not a single user
-            // message; the eval case promotion covers only agent
-            // runs.
-            query: null,
-            linked.Token).ConfigureAwait(false);
-
-        // 🚨 A Queued row is closed by reconciliation only when it has a heartbeat (IRunStore
-        // .ClaimOrphanedRunsAsync): the job queue owns every other Queued row. This one is owned by this
-        // process, so it says so now and does not wait for the first heartbeat cycle; a process that stopped
-        // in between would leave the row Queued for good.
-        //
-        // Only while run reconciliation is on: with it off nothing writes a heartbeat and nothing reads one, and a
-        // host that turned it off does not get a write it never asked for. A runner built with no options (by hand)
-        // writes it.
-        if (opensQueued && (_reconciliation?.Value.Enabled ?? true))
-        {
-            await writer.TouchHeartbeatAsync(_timeProvider.GetUtcNow(), CancellationToken.None).ConfigureAwait(false);
-        }
-
         var startedAt = _timeProvider.GetTimestamp();
         var status = RunStatus.Completed;
         RunError? error = null;
 
-        // 🚨 The run row is OPEN from writer.StartAsync above until
-        // CompleteAsync below, and this method is an async iterator: every
+        // 🚨 The run row is OPEN from writer.StartAsync below until
+        // CompleteAsync, and this method is an async iterator: every
         // line between those two only runs WHILE SOMEBODY IS STILL
         // ENUMERATING. A consumer that breaks out of `await foreach`, or an
         // exception unwinding through a `yield return`, disposes the
@@ -1047,6 +1030,32 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         try
         {
+            // The row opens INSIDE the try. A stop that arrives while the row is being opened (the caller leaves,
+            // an operator cancels, the deadline passes) ends the write with a cancellation after the store took
+            // the row and before the first event; outside the try that left a row at Running and a span open
+            // with nothing to close them, and the closing write below only ran for a run that got further.
+            await writer.StartAsync(
+                startInfo,
+
+                // Workflow runs start with a structured input, not a single user
+                // message; the eval case promotion covers only agent
+                // runs.
+                query: null,
+                linked.Token).ConfigureAwait(false);
+
+            // 🚨 A Queued row is closed by reconciliation only when it has a heartbeat (IRunStore
+            // .ClaimOrphanedRunsAsync): the job queue owns every other Queued row. This one is owned by this
+            // process, so it says so now and does not wait for the first heartbeat cycle; a process that stopped
+            // in between would leave the row Queued for good.
+            //
+            // Only while run reconciliation is on: with it off nothing writes a heartbeat and nothing reads one, and a
+            // host that turned it off does not get a write it never asked for. A runner built with no options (by hand)
+            // writes it.
+            if (opensQueued && (_reconciliation?.Value.Enabled ?? true))
+            {
+                await writer.TouchHeartbeatAsync(_timeProvider.GetUtcNow(), CancellationToken.None).ConfigureAwait(false);
+            }
+
             yield return FirstEvent(execution);
 
             // A run that answers a request names, in its own history, the run and
@@ -1126,7 +1135,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         tenantSlot = await _tenantSlots.AcquireAsync(tenantId, linked.Token).ConfigureAwait(false);
                     }
 
-                    await _concurrency.WaitAsync(linked.Token).ConfigureAwait(false);
+                    await _concurrency.AcquireAsync(linked.Token).ConfigureAwait(false);
                     holdsSlot = true;
                 }
                 catch (OperationCanceledException) when (linked.IsCancellationRequested)

@@ -19,7 +19,7 @@ namespace Tracon;
 /// detail carries no secret or address.
 /// </para>
 /// <para>
-/// Concurrency is bounded with a <see cref="SemaphoreSlim"/>: voice requests
+/// Concurrency is bounded with a slot pool (<c>SlotPool</c>): voice requests
 /// are expensive, and a single misconfigured agent definition can fire dozens
 /// of requests at once. Synthesis, dialogue and transcription share the one
 /// counter.
@@ -55,7 +55,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
     private readonly HttpClient _http;
     private readonly bool _ownsHttpClient;
     private readonly VoiceOptions _options;
-    private readonly SemaphoreSlim _concurrency;
+    private readonly SlotPool _concurrency;
 
     /// <summary>Builds a new client.</summary>
     /// <param name="options">The settings.</param>
@@ -76,7 +76,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) },
             disposeHandler: true);
         _http.Timeout = options.Timeout ?? DefaultTimeout;
-        _concurrency = new SemaphoreSlim(options.MaxConcurrentRequests, options.MaxConcurrentRequests);
+        _concurrency = new SlotPool(options.MaxConcurrentRequests);
     }
 
     /// <inheritdoc />
@@ -108,7 +108,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         var format = request.OutputFormat ?? _options.OutputFormat;
         var settings = ElevenLabsRequestSettings.ReadSpeech(request.ProviderSettings);
 
-        await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _concurrency.AcquireAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -211,7 +211,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         var format = request.OutputFormat ?? _options.OutputFormat;
         var settings = ElevenLabsRequestSettings.ReadSpeech(request.ProviderSettings);
 
-        await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _concurrency.AcquireAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -277,7 +277,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         // provider's default applies and the result names no model.
         var model = request.ModelId ?? _options.DialogueModelId;
 
-        await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _concurrency.AcquireAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -382,7 +382,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
 
         RefuseTenantCredential(options?.Credential);
 
-        await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await _concurrency.AcquireAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {

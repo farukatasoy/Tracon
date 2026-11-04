@@ -18,8 +18,9 @@ internal static class JobAttemptProbes
 
     /// <summary>Builds a worker over <paramref name="store"/> running <paramref name="handler"/> for <see cref="JobHandlerKeys.AgentBatch"/>.</summary>
     /// <remarks>
-    /// <paramref name="clock"/> drives the attempt's own timers (the cancel watch, the
-    /// deadline, the lease renewal); the worker's poll for new work keeps the real clock.
+    /// <paramref name="clock"/> drives the worker's poll for new work as well as the attempt's own timers (the
+    /// cancel watch, the deadline, the lease renewal). A manual clock polls only when it is advanced: start such a
+    /// worker with <see cref="StartOnClockAsync"/>.
     /// </remarks>
     public static (JobWorkerBackgroundService Worker, TestJobHandlerHost Host) Worker(
         IJobStore store,
@@ -49,6 +50,18 @@ internal static class JobAttemptProbes
             logger: logger ?? NullLogger<JobWorkerBackgroundService>.Instance);
 
         return (worker, host);
+    }
+
+    /// <summary>Starts a worker that polls on <paramref name="clock"/> and gives it its first tick, which leases what is queued.</summary>
+    /// <param name="worker">A worker built over <paramref name="clock"/>.</param>
+    /// <param name="clock">The worker's clock.</param>
+    /// <returns>The completion task.</returns>
+    public static async Task StartOnClockAsync(JobWorkerBackgroundService worker, ManualClock clock)
+    {
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the worker to arm its poll timer");
+
+        clock.Advance(Poll);
     }
 
     /// <summary>Queues one job for <see cref="JobHandlerKeys.AgentBatch"/>.</summary>
@@ -180,6 +193,7 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
 {
     private int _failures;
     private int _reads;
+    private int _renewals;
 
     /// <summary>Gets how many times <see cref="GetAsync"/> was called.</summary>
     public int Reads => Volatile.Read(ref _reads);
@@ -199,6 +213,9 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
 
     /// <summary>Gets or sets a step that sees every job the store leases.</summary>
     public Action<JobRecord>? Leased { get; set; }
+
+    /// <summary>Gets or sets a step that runs before every lease call and sees the call's token.</summary>
+    public Func<CancellationToken, Task>? BeforeLease { get; set; }
 
     /// <inheritdoc />
     public ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
@@ -220,6 +237,11 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
     /// <inheritdoc />
     public async ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
     {
+        if (BeforeLease is { } before)
+        {
+            await before(cancellationToken).ConfigureAwait(false);
+        }
+
         var job = await inner.LeaseAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (job is not null)
@@ -230,9 +252,24 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
         return job;
     }
 
+    /// <summary>Gets how many times the store was asked to renew a lease.</summary>
+    public int Renewals => Volatile.Read(ref _renewals);
+
+    /// <summary>Gets or sets an exception every lease renewal throws, as a store that cannot be reached does.</summary>
+    public Exception? RenewalFailure { get; set; }
+
     /// <inheritdoc />
     public ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
-        => inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
+    {
+        Interlocked.Increment(ref _renewals);
+
+        if (RenewalFailure is { } failure)
+        {
+            throw failure;
+        }
+
+        return inner.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
+    }
 
     /// <inheritdoc />
     public ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)

@@ -15,12 +15,12 @@ internal sealed class SkillScriptConcurrencyLimiter : IDisposable
     // identifier ever seen grows with the number of identifiers: a caller's tenancy settings decide what an
     // identifier may be, and with header resolution on and no allow list that is any well-formed string.
     private readonly Dictionary<string, TenantSlot> _perTenant = new(StringComparer.Ordinal);
-    private readonly SemaphoreSlim _total;
+    private readonly SlotPool _total;
     private readonly int _perTenantLimit;
 
     public SkillScriptConcurrencyLimiter(TraconSkillScriptOptions options)
     {
-        _total = new SemaphoreSlim(options.MaxConcurrentTotal, options.MaxConcurrentTotal);
+        _total = new SlotPool(options.MaxConcurrentTotal);
         _perTenantLimit = options.MaxConcurrentPerTenant;
     }
 
@@ -58,7 +58,7 @@ internal sealed class SkillScriptConcurrencyLimiter : IDisposable
 
             try
             {
-                await _total.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await _total.AcquireAsync(cancellationToken).ConfigureAwait(false);
             }
             catch
             {
@@ -75,20 +75,12 @@ internal sealed class SkillScriptConcurrencyLimiter : IDisposable
         return new Lease(this, tenantId, tenant);
     }
 
-    public void Dispose()
-    {
-        _total.Dispose();
-
-        lock (_perTenant)
-        {
-            foreach (var slot in _perTenant.Values)
-            {
-                slot.Semaphore.Dispose();
-            }
-
-            _perTenant.Clear();
-        }
-    }
+    /// <summary>
+    /// Stops the limiter from granting new slots. A script that holds a slot keeps it: the installation's pool and
+    /// each tenant's semaphore are disposed with the last slot returned, so the give-back at the end of a script that
+    /// outlives the limiter does not throw out of the <c>using</c> that holds the script's result.
+    /// </summary>
+    public void Dispose() => _total.Dispose();
 
     /// <summary>Drops one user of the tenant's slot, and the slot itself when nobody holds or waits for it.</summary>
     private void Forget(string tenantId, TenantSlot slot)

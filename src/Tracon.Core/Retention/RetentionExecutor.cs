@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -68,6 +69,18 @@ internal sealed class RetentionExecutor(
     /// <param name="target">The sole target, or <see langword="null"/> for every known target.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completed, or no-op, run records.</returns>
+    /// <remarks>
+    /// <para>
+    /// Every target gets its turn: a target that fails (a store that refuses its table, a policy that cannot be
+    /// read) does not stop the targets after it. The failures are raised once the last target is done: the failure
+    /// itself when one target failed, an <see cref="AggregateException"/> naming the targets when several did.
+    /// The job that calls this fails and is retried either way, and a retry sweeps every target again, which costs
+    /// the targets that already succeeded nothing: they find no rows past their cutoff.
+    /// </para>
+    /// <para>
+    /// A stop is not a failure of a target: it ends the sweep at once.
+    /// </para>
+    /// </remarks>
     public async ValueTask<IReadOnlyList<RetentionRun>> RunAsync(
         string tenantId,
         string? target,
@@ -78,21 +91,47 @@ internal sealed class RetentionExecutor(
         var options = optionsMonitor.CurrentValue;
         var targets = ResolveTargetList(target);
         var completed = new List<RetentionRun>(targets.Count);
+        List<(string Target, Exception Failure)>? failed = null;
 
         foreach (var candidate in targets)
         {
-            var resolved = await resolver.ResolveAsync(tenantId, candidate, cancellationToken).ConfigureAwait(false);
-
-            if (resolved is null)
+            try
             {
-                continue;
-            }
+                var resolved = await resolver.ResolveAsync(tenantId, candidate, cancellationToken).ConfigureAwait(false);
 
-            var run = await RunTargetAsync(tenantId, resolved, options, cancellationToken).ConfigureAwait(false);
-            completed.Add(run);
+                if (resolved is null)
+                {
+                    continue;
+                }
+
+                var run = await RunTargetAsync(tenantId, resolved, options, cancellationToken).ConfigureAwait(false);
+                completed.Add(run);
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+            {
+                if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                {
+                    logger.LogWarning(exception, "Retention of target '{Target}' failed; the other targets are still swept.", candidate);
+                }
+
+                (failed ??= []).Add((candidate, exception));
+            }
         }
 
-        return completed;
+        if (failed is null)
+        {
+            return completed;
+        }
+
+        if (failed.Count == 1)
+        {
+            // The failure as it was: its type and its message are what the job records.
+            ExceptionDispatchInfo.Capture(failed[0].Failure).Throw();
+        }
+
+        throw new AggregateException(
+            $"Retention failed for {failed.Count} targets: {string.Join(", ", failed.Select(static entry => entry.Target))}.",
+            failed.Select(static entry => entry.Failure));
     }
 
     private async ValueTask<RetentionRun> RunTargetAsync(

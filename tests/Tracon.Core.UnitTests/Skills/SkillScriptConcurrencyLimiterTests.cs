@@ -94,4 +94,34 @@ public sealed class SkillScriptConcurrencyLimiterTests
         first.Dispose();
         using var granted = await second.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
     }
+
+    /// <summary>
+    /// The runner disposes the limiter when the host stops; a script still running holds a slot and gives it back when
+    /// it ends, inside the <c>using</c> that also holds the script's result.
+    /// </summary>
+    [Fact]
+    public async Task A_slot_given_back_after_the_limiter_was_disposed_does_not_throw_and_leaves_no_tenant_tracked()
+    {
+        var limiter = Limiter(perTenant: 2, total: 2);
+        var lease = await limiter.AcquireAsync("tenant-a", TestContext.Current.CancellationToken);
+
+        limiter.Dispose();
+
+        Should.NotThrow(lease.Dispose);
+
+        limiter.TrackedTenantCount.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_disposed_limiter_grants_no_new_slot_and_keeps_no_tenant_for_the_refusal()
+    {
+        var limiter = Limiter(perTenant: 2, total: 2);
+
+        limiter.Dispose();
+
+        await Should.ThrowAsync<ObjectDisposedException>(
+            async () => await limiter.AcquireAsync("tenant-a", TestContext.Current.CancellationToken));
+
+        limiter.TrackedTenantCount.ShouldBe(0, "the refused wait left nothing behind");
+    }
 }

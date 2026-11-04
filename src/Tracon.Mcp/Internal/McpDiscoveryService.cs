@@ -17,7 +17,9 @@ namespace Tracon;
 /// <para>
 /// The refresh interval is set by <see cref="TraconMcpOptions.RefreshInterval"/>.
 /// A remote server may change its tool definitions; the cache is realigned
-/// with reality at this interval.
+/// with reality at this interval. The interval is read before every pass, so a
+/// change of the configuration takes effect on the next one, and the wait runs on
+/// the injected <see cref="TimeProvider"/>.
 /// </para>
 /// <para>
 /// <strong>Every instance discovers, also while single-executor selection is on.</strong>
@@ -31,15 +33,17 @@ namespace Tracon;
 internal sealed class McpDiscoveryService : BackgroundService
 {
     private readonly McpToolCatalog _catalog;
-    private readonly IOptions<TraconMcpOptions> _options;
+    private readonly IOptionsMonitor<TraconMcpOptions> _options;
     private readonly SchemaReadyGate _schemaReadyGate;
     private readonly ILogger<McpDiscoveryService> _logger;
+    private readonly TimeProvider _clock;
 
     public McpDiscoveryService(
         McpToolCatalog catalog,
-        IOptions<TraconMcpOptions> options,
+        IOptionsMonitor<TraconMcpOptions> options,
         SchemaReadyGate schemaReadyGate,
-        ILogger<McpDiscoveryService> logger)
+        ILogger<McpDiscoveryService> logger,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(options);
@@ -50,18 +54,21 @@ internal sealed class McpDiscoveryService : BackgroundService
         _options = options;
         _schemaReadyGate = schemaReadyGate;
         _logger = logger;
+        _clock = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!_options.Value.Enabled)
+        var current = _options.CurrentValue;
+
+        if (!current.Enabled)
         {
             _logger.LogInformation("MCP tool discovery is disabled (Tracon:Mcp:Enabled = false).");
             return;
         }
 
-        var interval = _options.Value.RefreshInterval;
+        var interval = current.RefreshInterval;
 
         // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt. If
         // registration order puts `.UseMcp()` before `.UseSqlite()`, the
@@ -98,17 +105,42 @@ internal sealed class McpDiscoveryService : BackgroundService
                 // The refresh loop must never die: on error, the next
                 // pass retries and the last good list in the cache
                 // keeps being used.
+                interval = ReadInterval(interval);
                 _logger.LogError(ex, "MCP discovery failed; retrying in {Interval}.", interval);
             }
 
+            // Read after the pass, not before it: a pass against an unreachable server can take as long as
+            // the connection timeout, and a change made meanwhile applies to the wait that follows.
+            interval = ReadInterval(interval);
+
             try
             {
-                await Task.Delay(interval, stoppingToken).ConfigureAwait(false);
+                await Task.Delay(interval, _clock, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
                 break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Reads the refresh interval for the next pass. A value a timer cannot take, or options that cannot be
+    /// read (a reload that failed validation), leave the interval the loop already runs on.
+    /// </summary>
+    /// <param name="current">The interval of the pass before.</param>
+    /// <returns>The interval to wait after the next pass.</returns>
+    private TimeSpan ReadInterval(TimeSpan current)
+    {
+        try
+        {
+            var configured = _options.CurrentValue.RefreshInterval;
+
+            return TimerPeriod.IsValid(configured) ? configured : current;
+        }
+        catch (OptionsValidationException)
+        {
+            return current;
         }
     }
 }
