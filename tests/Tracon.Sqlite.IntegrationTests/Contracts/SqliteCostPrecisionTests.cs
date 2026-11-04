@@ -3,9 +3,7 @@ using Tracon.Testing.Contracts.Storage;
 
 namespace Tracon.Sqlite.IntegrationTests.Contracts;
 
-// FAILING PROBE, NOT COMMITTED. Rename to .cs to run it; it is red on SQLite today.
-// cached_input_cost and non_token_cost were declared NUMERIC, so SQLite turns the text the driver writes into a double.
-public sealed class SqliteCostPrecisionFindingTests(SqliteSchemaFixture schema) : IClassFixture<SqliteSchemaFixture>
+public sealed class SqliteCostPrecisionTests(SqliteSchemaFixture schema) : IClassFixture<SqliteSchemaFixture>
 {
     [Fact]
     public async Task A_cached_input_cost_reads_back_as_it_was_written()

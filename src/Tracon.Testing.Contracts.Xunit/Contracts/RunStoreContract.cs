@@ -1117,6 +1117,130 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Every_decimal_a_run_holds_reads_back_digit_for_digit()
+    {
+        // Amounts at the edge of numeric(20,10) and amounts a binary double cannot hold:
+        // a column that passed through a double on the way in or out changes the last
+        // digits (999999999.999999 read back as 999999999.99999905). Every one of the
+        // nine cost and price columns and the non-token amount is checked on its own, with
+        // a value no other field shares, so a field read from its neighbour's column fails.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "m" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 1, OutputTokens = 1, TotalTokens = 2 },
+            Cost = new RunCost
+            {
+                InputCost = 1234567890.1234567891m,
+                InputPricePerMillionTokens = 0.0000000001m,
+                OutputCost = 0.0008977361m,
+                OutputPricePerMillionTokens = 3.3333333333m,
+                CachedInputCost = 999999999.999999m,
+                CachedInputPricePerMillionTokens = 0.1000000001m,
+                CacheWriteCost = 0.1234567892m,
+                CacheWritePricePerMillionTokens = 1234567.1234567893m,
+                CacheWriteLongPricePerMillionTokens = 2.0000000004m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+            NonTokenCost = new RunNonTokenCost { Amount = 0.0000123457m, Currency = "USD", UnsummedItemCount = 0 },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+
+        var cost = record.Cost.ShouldNotBeNull();
+        cost.InputCost.ShouldBe(1234567890.1234567891m);
+        cost.InputPricePerMillionTokens.ShouldBe(0.0000000001m);
+        cost.OutputCost.ShouldBe(0.0008977361m);
+        cost.OutputPricePerMillionTokens.ShouldBe(3.3333333333m);
+        cost.CachedInputCost.ShouldBe(999999999.999999m);
+        cost.CachedInputPricePerMillionTokens.ShouldBe(0.1000000001m);
+        cost.CacheWriteCost.ShouldBe(0.1234567892m);
+        cost.CacheWritePricePerMillionTokens.ShouldBe(1234567.1234567893m);
+        cost.CacheWriteLongPricePerMillionTokens.ShouldBe(2.0000000004m);
+        record.NonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.0000123457m);
+    }
+
+    [Fact]
+    public async Task Every_cost_total_is_the_exact_sum_of_its_terms()
+    {
+        // Four terms on three runs, chosen so that adding them as binary doubles is wrong in
+        // the last digits (0.1 + 0.2, 6765.18 + 99.99 + 0.0008977361). The expected sum is
+        // written out term by term here and is the oracle; RunCost.Total() is not used for it.
+        // One test, every total, all four stores: the summary, the breakdown by model, user
+        // and label, the time series, the experiment arm and the tree.
+        var experimentId = TraconId.NewId();
+        var rootId = TraconId.NewId();
+        var firstChildId = TraconId.NewId();
+        var secondChildId = TraconId.NewId();
+        var startedAt = DateTimeOffset.UtcNow;
+        var labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" };
+
+        foreach (var (runId, parentId) in new (Guid, Guid?)[] { (rootId, null), (firstChildId, rootId), (secondChildId, rootId) })
+        {
+            await Store.StartRunAsync(TestData.Run(runId) with
+            {
+                ModelId = "m",
+                StartedAt = startedAt,
+                ExperimentId = experimentId,
+                Variant = "a",
+                UserId = "user-1",
+                Labels = labels,
+                ParentRunId = parentId,
+                RootRunId = parentId is null ? null : rootId,
+                Depth = parentId is null ? 0 : 1,
+            });
+        }
+
+        await CompleteWithCostAsync(rootId, input: 0.1m, output: 0.2m, cached: 0.0008977361m, cacheWrite: 6765.18m);
+        await CompleteWithCostAsync(firstChildId, input: 99.99m, output: 0.7m, cached: 0.1m, cacheWrite: 0.0000000001m);
+        await CompleteWithCostAsync(secondChildId, input: 0.3333333333m, output: 0.6666666667m, cached: 999999999.999999m, cacheWrite: 0.5m);
+
+        var input = 0.1m + 99.99m + 0.3333333333m;
+        var output = 0.2m + 0.7m + 0.6666666667m;
+        var cached = 0.0008977361m + 0.1m + 999999999.999999m;
+        var cacheWrite = 6765.18m + 0.0000000001m + 0.5m;
+        var expected = input + output + cached + cacheWrite;
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        statistics.TotalCost.ShouldBe(expected);
+        statistics.ByModel.ShouldHaveSingleItem().TotalCost.ShouldBe(expected);
+        statistics.ByUser.ShouldHaveSingleItem().TotalCost.ShouldBe(expected);
+        statistics.ByLabel.ShouldHaveSingleItem().TotalCost.ShouldBe(expected);
+
+        var points = await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery
+        {
+            From = startedAt.AddHours(-1),
+            To = startedAt.AddHours(1),
+            Bucket = TimeSeriesBucket.Hour,
+        });
+
+        points.Sum(static point => point.Cost ?? 0m).ShouldBe(expected);
+
+        var results = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experimentId });
+
+        results.ShouldHaveSingleItem().TotalCost.ShouldBe(expected);
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+
+        var tree = root.TreeCost.ShouldNotBeNull();
+        tree.InputCost.ShouldBe(input);
+        tree.OutputCost.ShouldBe(output);
+        tree.CachedInputCost.ShouldBe(cached);
+        tree.CacheWriteCost.ShouldBe(cacheWrite);
+        tree.Total().ShouldBe(expected);
+    }
+
+    [Fact]
     public async Task Applied_unit_prices_round_trip_and_do_not_enter_the_total()
     {
         // The price snapshot carries the RATE that produced

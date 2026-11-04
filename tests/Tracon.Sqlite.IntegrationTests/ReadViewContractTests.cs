@@ -62,8 +62,7 @@ public sealed class ReadViewContractTests(SqliteFixture fixture) : IAsyncLifetim
             TenantId = tenant,
         });
 
-        // 🚨 input_cost/output_cost are TEXT affinity, cached_input_cost is
-        // NUMERIC; the view CASTs each to
+        // 🚨 input_cost, output_cost and cached_input_cost are TEXT; the view CASTs each to
         // REAL, so the value round-trips through double -- test amounts are
         // chosen to be exactly representable in binary floating point.
         var viewTotalCost = await _context.ScalarAsync<double?>(

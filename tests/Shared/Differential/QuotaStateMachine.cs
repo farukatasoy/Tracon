@@ -92,12 +92,6 @@ internal sealed class QuotaStateMachine : StateMachine<QuotaPlan, QuotaStep>
         (5, Gen.Int[1, 10_000_000].Select(static cents => (decimal?)(cents / 100m))),
         (1, Gen.OneOf(0.0000000001m, 0.00000000005m, 123456.1234567891m).Select(static value => (decimal?)value)));
 
-    // Amounts a store that keeps the counter in binary floating point (SQLite today) sums exactly: whole multiples of 1/1024.
-    private static readonly Gen<decimal?> ConsumedExactInBinary = Gen.Frequency(
-        (2, Gen.Const((decimal?)null)),
-        (1, Gen.Const((decimal?)0m)),
-        (7, Gen.Int[1, 4_000_000].Select(static units => (decimal?)(units / 1024m))));
-
     private static readonly Gen<decimal?> Consumed = Gen.Frequency(
         (2, Gen.Const((decimal?)null)),
         (1, Gen.Const((decimal?)0m)),
@@ -119,7 +113,7 @@ internal sealed class QuotaStateMachine : StateMachine<QuotaPlan, QuotaStep>
             select new QuotaUniverse(tenants, agents, instants, !traits.MultiRowReadIsNotASnapshot);
 
         return universe.SelectMany(
-            u => Step(u, traits.CostRelativeTolerance > 0).List[1, maxSteps],
+            u => Step(u).List[1, maxSteps],
             static (u, steps) => new QuotaPlan(u, steps));
     }
 
@@ -193,9 +187,7 @@ internal sealed class QuotaStateMachine : StateMachine<QuotaPlan, QuotaStep>
         return builder.ToString();
     }
 
-    // A store that sums the counter as a binary float (the open finding behind the cost tolerance of the provider traits)
-    // is given amounts a binary float holds exactly, as the contract tests do: what it does to the others is that finding.
-    private static Gen<QuotaStep> Step(QuotaUniverse u, bool binaryCounters)
+    private static Gen<QuotaStep> Step(QuotaUniverse u)
     {
         var tenant = Gen.Int[0, u.Tenants.Length - 1];
         var agent = Gen.Int[0, u.Agents.Length - 1];
@@ -225,7 +217,7 @@ internal sealed class QuotaStateMachine : StateMachine<QuotaPlan, QuotaStep>
             from a in anyAgent
             from runs in Gen.Frequency((6, Gen.Int[0, 3]), (1, Gen.Const(0)))
             from tokens in Gen.Int[0, 1000]
-            from cost in binaryCounters ? ConsumedExactInBinary : Consumed
+            from cost in Consumed
             from s in starts
             select (QuotaStep)new AddUsageStep(t, a, runs, tokens, cost, s);
         var usage =

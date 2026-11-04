@@ -85,9 +85,16 @@ through the HTTP API and `IRunStore`.
   `input_cost`: the charge for cached and for written tokens is taken out of the input
   charge and billed there. Add all four, never only the first two.
 
-This is the exact value `IRunStore.GetStatisticsAsync` reports for the same run —
+This is the value `IRunStore.GetStatisticsAsync` reports for the same run —
 querying the view and reading the API give you the same number, because both read
 the same underlying columns with the same null-preserving rule.
+
+On SQLite the view is a convenience for a query tool, not the exact amount. The
+cost and price columns of `runs` are text there, and the view casts `cached_input_cost`
+and the five unit prices to `REAL` so that they stay numbers, as they were when the view
+was first published. Its `total_cost` is a `REAL` sum of the four terms, and a sum of
+`REAL` values can differ from the API's in the last digits. Read the exact amount from
+`IRunStore` or from the table's own columns.
 
 `total_cost` is the **token** cost. What a run reported beyond tokens (a workflow function
 node's or a tool's speech characters, render seconds) is a separate total, `nonTokenCost` on

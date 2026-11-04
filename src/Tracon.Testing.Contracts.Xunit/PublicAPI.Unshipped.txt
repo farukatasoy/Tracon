@@ -379,6 +379,7 @@ Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.PendingApprovalSto
 Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Presentation_round_trips_through_create_and_get() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.Second_decision_is_rejected() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_counter_that_reaches_its_cost_cap_reads_as_the_cap() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_different_metric_is_a_separate_claim() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_different_tenants_identically_shaped_claim_is_independent() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_different_threshold_percent_is_a_separate_claim() -> System.Threading.Tasks.Task!
@@ -1232,6 +1233,8 @@ Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failure_counter_counts_eve
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Concurrent_progress_appends_all_count() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_completed_run_stays_completed_while_its_cost_is_being_updated() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.An_event_whose_text_holds_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Every_cost_total_is_the_exact_sum_of_its_terms() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Every_decimal_a_run_holds_reads_back_digit_for_digit() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_job_whose_payload_and_input_hold_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.A_schedule_whose_payload_holds_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first() -> System.Threading.Tasks.Task!
@@ -1252,6 +1255,9 @@ Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Names_that_differ_only_
 Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Names_that_differ_only_in_case_are_two_triggers() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.Names_that_differ_only_in_case_are_two_schedules() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Agent_names_that_differ_only_in_case_are_two_quotas() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Cost_added_in_small_steps_is_the_exact_sum() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Cost_with_ten_decimals_is_added_without_losing_a_digit() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Ten_steps_of_a_tenth_add_up_to_one() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Runs_of_agent_names_that_differ_only_in_case_are_listed_and_counted_apart() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Sessions_of_agent_names_that_differ_only_in_case_are_listed_apart() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Skill_names_that_differ_only_in_case_are_two_grants() -> System.Threading.Tasks.Task!

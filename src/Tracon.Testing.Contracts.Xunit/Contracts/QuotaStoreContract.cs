@@ -310,8 +310,6 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     [Fact]
     public async Task Usage_that_adds_no_run_leaves_the_run_count_where_the_root_put_it()
     {
-        // Amounts a binary float holds exactly: a store that keeps the counter as a float
-        // (SQLite) must not fail the sum on the representation of 0.1 + 0.2.
         await Store.AddUsageAsync(Consumption(runs: 1, tokens: 10, cost: 0.125m), Periods);
         await Store.AddUsageAsync(Consumption(runs: 0, tokens: 30, cost: 0.25m), Periods);
         await Store.AddUsageAsync(Consumption(runs: 0, tokens: 5, cost: null), Periods);
@@ -322,6 +320,65 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
         daily.Runs.ShouldBe(1);
         daily.Tokens.ShouldBe(45);
         daily.Cost.ShouldBe(0.375m);
+    }
+
+    [Fact]
+    public async Task Cost_added_in_small_steps_is_the_exact_sum()
+    {
+        // As binary doubles 0.1 + 0.2 is 0.30000000000000004 and ten times 0.1 is 0.9999999999999999.
+        // A counter that adds them that way keeps the tail in its stored value for the rest of the period.
+        await Store.AddUsageAsync(Consumption(runs: 1, cost: 0.1m), Periods);
+        await Store.AddUsageAsync(Consumption(runs: 1, cost: 0.2m), Periods);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
+
+        Find(usage, "support", QuotaPeriod.Daily).Cost.ShouldBe(0.3m);
+        Find(usage, string.Empty, QuotaPeriod.Daily).Cost.ShouldBe(0.3m);
+    }
+
+    [Fact]
+    public async Task Ten_steps_of_a_tenth_add_up_to_one()
+    {
+        for (var step = 0; step < 10; step++)
+        {
+            await Store.AddUsageAsync(Consumption(runs: 1, cost: 0.1m), Periods);
+        }
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
+
+        Find(usage, "support", QuotaPeriod.Daily).Cost.ShouldBe(1m);
+    }
+
+    [Fact]
+    public async Task A_counter_that_reaches_its_cost_cap_reads_as_the_cap()
+    {
+        // The enforcer stops a run when `usage.Cost >= MaxCost`. 0.7 + 0.1 is 0.7999999999999999 as a
+        // double, which is below a cap of 0.8: the run that spends the last tenth was let through.
+        var cap = (await Store.SaveAsync(Quota(maxCost: 0.8m))).MaxCost.ShouldNotBeNull();
+
+        await Store.AddUsageAsync(Consumption(runs: 1, cost: 0.7m), Periods);
+        await Store.AddUsageAsync(Consumption(runs: 1, cost: 0.1m), Periods);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
+        var counted = Find(usage, "support", QuotaPeriod.Daily).Cost;
+
+        counted.ShouldBe(0.8m);
+        (counted >= cap).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Cost_with_ten_decimals_is_added_without_losing_a_digit()
+    {
+        for (var step = 0; step < 3; step++)
+        {
+            await Store.AddUsageAsync(Consumption(runs: 1, cost: 0.0000000001m), Periods);
+        }
+
+        await Store.AddUsageAsync(Consumption(runs: 1, cost: 123456789.1234567891m), Periods);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
+
+        Find(usage, "support", QuotaPeriod.Daily).Cost.ShouldBe(123456789.1234567894m);
     }
 
     [Fact]
