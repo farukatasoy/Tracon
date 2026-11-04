@@ -1365,7 +1365,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   path base the request arrived on (`Request.Scheme`, `Request.Host`, `Request.PathBase`), so a host behind a reverse proxy that runs `UseForwardedHeaders` (`XForwardedHost`, `XForwardedProto`) and `UsePathBase`
   gets the public address, and a host that does not gets the address of the connection. Tracon reads no forwarding header itself: a header the host does not honour changes nothing. A request with no `Host` header gets the
   path as before. The response carries `Vary` on `Host`, `X-Forwarded-Host` and `X-Forwarded-Proto` so a cache that keys on the URL does not serve one caller's address to another. The card is answered by Tracon and no longer by the
-  SDK's `MapWellKnownAgentCard`; its name, route and cache headers are unchanged. An application that is reachable under any host name sets `AllowedHosts`, as it does for any absolute address it builds. A card with a fixed
+  SDK's `MapWellKnownAgentCard`; its name, route, `ETag` and `Last-Modified` are unchanged. Its `Cache-Control` is `private, max-age=300` (it was `public, max-age=3600`): the body depends on the request's host now, and a shared cache
+  that ignores `Vary`, behind a proxy that passes a forwarded header through unchecked, would have kept one caller's address for every caller for an hour. A client or a gateway that cached the card for an hour caches it for five minutes, and only for the one caller. An application that is reachable under any host name sets `AllowedHosts`, as it does for any absolute address it builds. A card with a fixed
   public address independent of the request (a `PublicBaseUrl` option) was not added: nothing in the options surface asked for it, and it can be added later without breaking anything.
 
 ## [1.0.0-preview.6] - 2026-10-27
