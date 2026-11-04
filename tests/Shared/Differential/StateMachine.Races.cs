@@ -118,6 +118,17 @@ internal abstract partial class StateMachine<TPlan, TStep>
         return Walk(0);
     }
 
+    /// <summary>
+    /// Creates the driver the concurrent check uses: the one the sequential check uses unless a machine needs a store
+    /// that tolerates calls under different ambient tenants at the same time.
+    /// </summary>
+    /// <param name="plan">The plan.</param>
+    /// <param name="stores">The stores under test.</param>
+    /// <param name="scope">The tenant namespace of the race.</param>
+    /// <returns>A driver.</returns>
+    public virtual IStepDriver<TStep> NewRaceDriver(TPlan plan, DifferentialStores stores, DifferentialScope scope)
+        => NewDriver(plan, stores, scope);
+
     private async Task RaceOnceAsync(TPlan plan, int setupCount, int taskCount, DifferentialStores stores)
     {
         var all = RaceSteps(plan);
@@ -131,7 +142,24 @@ internal abstract partial class StateMachine<TPlan, TStep>
         }
 
         var scope = DifferentialScope.Next();
-        var driver = NewDriver(plan, stores, scope);
+        var driver = new DeadlockRerunDriver<TStep>(NewRaceDriver(plan, stores, scope));
+
+        try
+        {
+            await RaceWithDriverAsync(plan, setup, racing, taskCount, stores, driver);
+        }
+        finally
+        {
+            // A driver that leaves rows other sequences could reach (a job another sequence could lease) cleans up.
+            if (driver is IAsyncDisposable disposable)
+            {
+                await disposable.DisposeAsync();
+            }
+        }
+    }
+
+    private async Task RaceWithDriverAsync(TPlan plan, List<TStep> setup, List<TStep> racing, int taskCount, DifferentialStores stores, IStepDriver<TStep> driver)
+    {
         var model = NewModel(plan, stores.Traits);
         var concreteSetup = new List<TStep>();
 

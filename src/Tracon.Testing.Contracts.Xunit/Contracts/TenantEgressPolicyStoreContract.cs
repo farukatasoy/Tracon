@@ -56,6 +56,22 @@ public abstract class TenantEgressPolicyStoreContract : TenantIsolationContract<
         policy.TenantId.ShouldBe("acme");
     }
 
+    /// <summary>
+    /// The policy an upsert returns carries the canonical tenant, as the record a later read returns does.
+    /// </summary>
+    /// <remarks>
+    /// The caller compares the returned tenant with its own as ordinal text; a store that hands back the spelling
+    /// it was given makes the answer of the write differ from the answer of the next read.
+    /// </remarks>
+    [Fact]
+    public async Task A_policy_saved_under_another_spelling_is_returned_and_read_under_the_canonical_tenant()
+    {
+        var saved = await Store.UpsertAsync("ACME", ["openai"]);
+
+        saved.TenantId.ShouldBe("acme");
+        (await Store.GetAsync("Acme")).ShouldNotBeNull().TenantId.ShouldBe("acme");
+    }
+
     [Fact]
     public async Task A_policy_saved_under_a_different_case_replaces_the_existing_one()
     {

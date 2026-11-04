@@ -1675,12 +1675,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // `@event_type = ANY(events)` is an EXACT match over OPENJSON. A
         // LIKE-based search would wrongly match a 'run.completed.v2'
         // subscription while searching for 'run.completed'.
+        // An event name is matched by its characters: the collation of the database folds letter case, and an event name
+        // is a fixed identifier, so the comparison names a binary collation (explicit, so it wins over the column's).
         SelectWebhookSubscriptionsForEvent = $"""
             SELECT {WebhookSubscriptionColumns}
             FROM {Schema}.webhook_subscriptions
             WHERE tenant_id = @tenant_id
               AND enabled = 1
-              AND EXISTS (SELECT 1 FROM OPENJSON(events) WHERE value = @event_type)
+              AND EXISTS (SELECT 1 FROM OPENJSON(events) WHERE value = @event_type COLLATE Latin1_General_BIN2)
             ORDER BY name;
             """;
 

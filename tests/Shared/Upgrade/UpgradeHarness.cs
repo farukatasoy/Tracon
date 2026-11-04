@@ -55,6 +55,17 @@ internal static class UpgradeHarness
         return MigrationDescriptor.Discover(dialect.GetType().Assembly, dialect.MigrationResourcePrefix);
     }
 
+    /// <summary>Reads the migrations the tree holds for one optional set of the provider, in order.</summary>
+    /// <param name="database">The database.</param>
+    /// <param name="setName">The set (<c>views</c>, <c>knowledge</c>).</param>
+    /// <returns>The migrations.</returns>
+    public static IReadOnlyList<MigrationDescriptor> OptionalMigrations(IUpgradeDatabase database, string setName)
+    {
+        var dialect = database.StoreContext.Dialect;
+
+        return MigrationDescriptor.Discover(dialect.GetType().Assembly, dialect.OptionalMigrationResourcePrefixes[setName]);
+    }
+
     /// <summary>
     /// Brings a database to the state a host that applied exactly these migrations leaves: the schema, and a ledger line
     /// per migration that carries the checksum the caller names.
@@ -62,11 +73,13 @@ internal static class UpgradeHarness
     /// <param name="database">The database.</param>
     /// <param name="migrations">The migrations to apply, in order.</param>
     /// <param name="ledgerChecksum">The checksum to write into the ledger for a migration.</param>
+    /// <param name="setName">The migration set the files belong to (<c>core</c>, or an optional set such as <c>views</c>).</param>
     /// <returns>The completion task.</returns>
     public static async ValueTask ApplyAsync(
         IUpgradeDatabase database,
         IEnumerable<MigrationDescriptor> migrations,
-        Func<MigrationDescriptor, string> ledgerChecksum)
+        Func<MigrationDescriptor, string> ledgerChecksum,
+        string setName = "core")
     {
         var context = database.StoreContext;
         var sql = context.Sql;
@@ -78,14 +91,22 @@ internal static class UpgradeHarness
 
         foreach (var migration in migrations)
         {
-            await ExecuteAsync(database, sql.ApplySchema(migration.Sql)).ConfigureAwait(false);
+            // The template values a set asks for (the vector dimension of the knowledge set) are what the runner substitutes.
+            var text = sql.ApplySchema(migration.Sql);
+
+            foreach (var (key, value) in context.MigrationTemplateValues)
+            {
+                text = text.Replace("{" + key + "}", value, StringComparison.Ordinal);
+            }
+
+            await ExecuteAsync(database, text).ConfigureAwait(false);
 
             var appliedAt = UpgradeSeed.Render(database.Provider, new SeedValue(SeedKind.Timestamp, "2026-03-01T09:00:00Z"));
 
             await ExecuteAsync(
                 database,
                 $"INSERT INTO {database.Qualify("__migrations")} (set_name, id, name, checksum, applied_at) " +
-                $"VALUES ({unicode}'core', {migration.Id.ToString(CultureInfo.InvariantCulture)}, {unicode}'{migration.Name}', " +
+                $"VALUES ({unicode}'{setName}', {migration.Id.ToString(CultureInfo.InvariantCulture)}, {unicode}'{migration.Name}', " +
                 $"{unicode}'{ledgerChecksum(migration)}', {appliedAt});").ConfigureAwait(false);
         }
     }
@@ -258,6 +279,58 @@ internal static class UpgradeHarness
         }
 
         return new SeedOutcome(written, seededColumns, ordinalKeys);
+    }
+
+    /// <summary>
+    /// Writes the one row the optional sets add to the seed: a vector the knowledge set (PostgreSQL only) keeps. The read views
+    /// hold no row of their own: they read the runs of the core seed.
+    /// </summary>
+    /// <param name="database">The database.</param>
+    /// <returns>The completion task.</returns>
+    public static async ValueTask SeedOptionalAsync(IUpgradeDatabase database)
+    {
+        if (database.Provider != SeedProvider.PostgreSql)
+        {
+            return;
+        }
+
+        await ExecuteAsync(
+            database,
+            $"INSERT INTO {database.Qualify("document_embeddings")} " +
+            "(id, tenant_id, collection, source_id, chunk_index, content, metadata, embedding, created_at) " +
+            $"VALUES ('{Guid.NewGuid():D}', 'tenant-a', 'docs', 'source-1', 0, 'what the release wrote', '{{}}'::jsonb, '{VectorLiteral(database)}', now());").ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads what the optional sets hold after the upgrade: the read view lists every run the core tables hold, and the
+    /// vector the release wrote is still there, as it was.
+    /// </summary>
+    /// <param name="database">The database.</param>
+    /// <param name="before">The row counts before the upgrade.</param>
+    /// <returns>The completion task.</returns>
+    public static async ValueTask AssertOptionalSetsReadAsync(IUpgradeDatabase database, IReadOnlyDictionary<string, long> before)
+    {
+        // Every column of the view is evaluated by the server whether the client reads it or not; an upgrade that left the view over
+        // a column it no longer has fails here, not in the operator's dashboard.
+        var viewRows = await QueryColumnAsync(database, $"SELECT * FROM {database.Qualify("runs_v1")};").ConfigureAwait(false);
+
+        viewRows.Count.ShouldBe((int)before["runs"], "the runs_v1 view lists every run the runs table holds");
+
+        if (database.Provider != SeedProvider.PostgreSql)
+        {
+            return;
+        }
+
+        var kept = await QueryColumnAsync(database, $"SELECT content || '|' || embedding::text FROM {database.Qualify("document_embeddings")};").ConfigureAwait(false);
+
+        kept.ShouldBe([$"what the release wrote|{VectorLiteral(database)}"], "the vector the release wrote reads back as it was");
+    }
+
+    private static string VectorLiteral(IUpgradeDatabase database)
+    {
+        var dimension = int.Parse(database.StoreContext.MigrationTemplateValues.GetValueOrDefault("dimension", "3"), CultureInfo.InvariantCulture);
+
+        return "[" + string.Join(",", Enumerable.Range(1, dimension).Select(static index => (index / 10.0).ToString("0.0", CultureInfo.InvariantCulture))) + "]";
     }
 
     /// <summary>

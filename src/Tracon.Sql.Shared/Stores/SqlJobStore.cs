@@ -54,12 +54,16 @@ internal sealed class SqlJobStore : IJobStore
 
         var lane = JobLanes.Resolve(job.Lane, job.HandlerKey, _schedulingOptions?.CurrentValue.LaneByHandlerKey);
 
+        // Folded here, not only inside AddTenant: the record returned below is built from this value, and it must carry
+        // the form the row holds whichever spelling the caller wrote.
+        var tenantId = AmbientTenantScope.Normalize(job.TenantId);
+
         await _context.ExecuteInTransactionAsync(
             async (connection, transaction) =>
             {
                 var insertJob = _context.CreateCommand(_sql.InsertJob, connection, transaction);
                 DbHelpers.Add(insertJob, "id", job.Id);
-                DbHelpers.AddTenant(insertJob, job.TenantId);
+                DbHelpers.AddTenant(insertJob, tenantId);
                 AddNullableUuid(insertJob, "schedule_id", job.ScheduleId);
                 DbHelpers.Add(insertJob, "handler_key", job.HandlerKey);
                 DbHelpers.Add(insertJob, "target_name", job.TargetName);
@@ -97,6 +101,7 @@ internal sealed class SqlJobStore : IJobStore
 
         return job with
         {
+            TenantId = tenantId,
             Lane = lane,
             Status = JobStatus.Pending,
             TotalItems = items.Count,

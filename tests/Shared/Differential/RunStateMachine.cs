@@ -110,6 +110,8 @@ internal sealed class RunStateMachine : StateMachine<RunPlan, RunStep>
 
     private static readonly DateTimeOffset Origin = new(2026, 11, 2, 9, 0, 0, TimeSpan.Zero);
 
+    private const int RaceRunCount = 3;
+
     /// <inheritdoc />
     public override string Name => "IRunStore";
 
@@ -155,7 +157,53 @@ internal sealed class RunStateMachine : StateMachine<RunPlan, RunStep>
 
     /// <inheritdoc />
     public override IStepDriver<RunStep> NewDriver(RunPlan plan, DifferentialStores stores, DifferentialScope scope)
-        => new RunDriver(DifferentialStores.Require(stores.Runs), stores.Tenant, scope, plan.Universe);
+        => new RunDriver(DifferentialStores.Require(stores.Runs), tenant => stores.Tenant.TenantId = tenant, scope, plan.Universe);
+
+    /// <inheritdoc />
+    public override IStepDriver<RunStep> NewRaceDriver(RunPlan plan, DifferentialStores stores, DifferentialScope scope)
+    {
+        // The calls of a race run in several tasks and name different ambient tenants: the store of a race reads the tenant
+        // its own flow set, not one value every task shares.
+        var flow = stores.FlowTenant ?? throw new InvalidOperationException("The provider did not supply a flow tenant context.");
+
+        return new RunDriver(DifferentialStores.Require(stores.FlowRuns), flow.Set, scope, plan.Universe);
+    }
+
+    /// <inheritdoc />
+    public override IReadOnlyList<RunStep> RaceSteps(RunPlan plan)
+    {
+        // Three runs are started, one after the other, before the tasks start. The tasks then start them again, append
+        // events, complete, read and list, each under an ambient tenant of its own. A start that races a completion of the
+        // same run is left out: what a start does to a finished run is open, and the order of the two is what a race decides.
+        var racing = plan.Steps
+            .Where(static step => step is not (NoopStep or QueryRunsStep))
+            .Take(6)
+            .Select(static step => step switch
+            {
+                StartRunStep s => s with { Run = s.Run % RaceRunCount },
+                AppendEventStep s => s with { Run = s.Run % RaceRunCount },
+                LastSequenceStep s => s with { Run = s.Run % RaceRunCount },
+                ReadEventsStep s => s with { Run = s.Run % RaceRunCount },
+                CompleteRunStep s => s with { Run = s.Run % RaceRunCount },
+                GetRunStep s => s with { Run = s.Run % RaceRunCount },
+                _ => step,
+            })
+            .ToList();
+        var completed = racing.OfType<CompleteRunStep>().Select(static step => step.Run).ToHashSet();
+
+        return
+        [
+            .. Enumerable.Range(0, RaceRunCount).Select(run => (RunStep)new StartRunStep(plan.Universe.HomeTenants[run], run, new RunStartSpec(0, RunStatus.Running, Origin, false, null, null, null, null, false))),
+            .. racing.Where(step => step is not StartRunStep start || !completed.Contains(start.Run)),
+        ];
+    }
+
+    /// <inheritdoc />
+    public override int? RaceSetupLength(RunPlan plan) => RaceRunCount;
+
+    /// <inheritdoc />
+    public override IReadOnlyList<RunStep> Snapshot(RunPlan plan)
+        => [.. Enumerable.Range(0, RaceRunCount).SelectMany(run => new RunStep[] { new GetRunStep(plan.Universe.HomeTenants[run], run), new ReadEventsStep(plan.Universe.HomeTenants[run], run, 0), new LastSequenceStep(plan.Universe.HomeTenants[run], run) })];
 
     /// <inheritdoc />
     public override string Describe(RunStep step) => step switch
@@ -609,12 +657,16 @@ internal sealed class RunModel(RunUniverse universe, ProviderTraits traits) : IS
 }
 
 /// <summary>Applies run steps to a store.</summary>
-internal sealed class RunDriver(IRunStore store, MutableTenantContext ambient, DifferentialScope scope, RunUniverse universe) : IStepDriver<RunStep>
+internal sealed class RunDriver(IRunStore store, Action<string> setAmbientTenant, DifferentialScope scope, RunUniverse universe) : IStepDriver<RunStep>
 {
+    // A run identifier belongs to the run of one sequence in one tenant namespace: the same plan replays (while a failure
+    // shrinks, and once per repeat of a race) must not meet the runs an earlier replay left under another tenant.
+    private readonly Guid[] _runIds = [.. universe.RunIds.Select(static _ => Guid.NewGuid())];
+
     /// <inheritdoc />
     public async ValueTask<Observation> ApplyAsync(RunStep step)
     {
-        ambient.TenantId = scope.Wrap(universe.Tenants[step.Ambient]);
+        setAmbientTenant(scope.Wrap(universe.Tenants[step.Ambient]));
 
         switch (step)
         {
@@ -624,7 +676,7 @@ internal sealed class RunDriver(IRunStore store, MutableTenantContext ambient, D
                 var spec = s.Spec;
                 var record = await store.StartRunAsync(new RunStartInfo
                 {
-                    RunId = universe.RunIds[s.Run],
+                    RunId = _runIds[s.Run],
                     AgentName = universe.Agents[spec.Agent],
                     StartedAt = spec.StartedAt,
                     Status = spec.Status,
@@ -640,7 +692,7 @@ internal sealed class RunDriver(IRunStore store, MutableTenantContext ambient, D
             case AppendEventStep s:
                 await store.AppendEventAsync(new RunEvent
                 {
-                    RunId = universe.RunIds[s.Run],
+                    RunId = _runIds[s.Run],
                     Sequence = s.Sequence,
                     Type = s.Type,
                     Timestamp = new DateTimeOffset(2026, 11, 2, 9, 0, 0, TimeSpan.Zero),
@@ -651,11 +703,11 @@ internal sealed class RunDriver(IRunStore store, MutableTenantContext ambient, D
 
                 return Observation.Of("ok");
             case LastSequenceStep s:
-                return Observation.Of((await store.GetLastEventSequenceAsync(universe.RunIds[s.Run]))?.ToString(CultureInfo.InvariantCulture) ?? "null");
+                return Observation.Of((await store.GetLastEventSequenceAsync(_runIds[s.Run]))?.ToString(CultureInfo.InvariantCulture) ?? "null");
             case ReadEventsStep s:
                 var events = new List<string>();
 
-                await foreach (var runEvent in store.ReadEventsAsync(universe.RunIds[s.Run], s.From))
+                await foreach (var runEvent in store.ReadEventsAsync(_runIds[s.Run], s.From))
                 {
                     events.Add($"{runEvent.Sequence} {runEvent.Type}:{BoundaryValues.Show(runEvent.Text)}");
                 }
@@ -664,7 +716,7 @@ internal sealed class RunDriver(IRunStore store, MutableTenantContext ambient, D
             case CompleteRunStep s:
                 await store.CompleteRunAsync(new RunCompletion
                 {
-                    RunId = universe.RunIds[s.Run],
+                    RunId = _runIds[s.Run],
                     Status = s.Spec.Status,
                     CompletedAt = s.Spec.CompletedAt,
                     EventCount = s.Spec.EventCount,
@@ -676,7 +728,7 @@ internal sealed class RunDriver(IRunStore store, MutableTenantContext ambient, D
 
                 return Observation.Of("ok");
             case GetRunStep s:
-                return Observation.Of(await store.GetRunAsync(universe.RunIds[s.Run]) is { } found ? Render(found) : "null");
+                return Observation.Of(await store.GetRunAsync(_runIds[s.Run]) is { } found ? Render(found) : "null");
             case QueryRunsStep s:
                 var wanted = s.LabelSet is { } set && universe.LabelSets[set].Length > 0 ? universe.LabelSets[set][0] : (KeyValuePair<string, string>?)null;
                 var list = await store.QueryRunsAsync(new RunQuery
@@ -708,7 +760,7 @@ internal sealed class RunDriver(IRunStore store, MutableTenantContext ambient, D
 
     private string Render(RunRecord record)
     {
-        var slot = Array.IndexOf(universe.RunIds, record.Id);
+        var slot = Array.IndexOf(_runIds, record.Id);
 
         return RunModel.RenderOf(
             slot.ToString(CultureInfo.InvariantCulture),

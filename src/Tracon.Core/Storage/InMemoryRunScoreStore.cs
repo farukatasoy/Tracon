@@ -35,6 +35,7 @@ internal sealed class InMemoryRunScoreStore(
     Func<Guid, CancellationToken, ValueTask<string?>>? agentNameResolver = null) : IRunScoreStore
 {
     private readonly ConcurrentDictionary<Guid, RunScore> _scores = new();
+    private readonly Lock _upsertGate = new();
     private readonly ITenantContext? _tenantContext = tenantContext is null ? null : CanonicalTenantContext.Wrap(tenantContext);
 
     /// <inheritdoc />
@@ -54,14 +55,24 @@ internal sealed class InMemoryRunScoreStore(
         // matches the unique index in SQL providers. See the run_scores migration.
         if (score.Author is { Length: > 0 })
         {
-            var existing = _scores.Values.FirstOrDefault(candidate => IsSameTarget(candidate, score));
-
-            if (existing is not null)
+            // The look-up and the write are one step: writers that score one target at the same time must not each find
+            // none and each add a row.
+            lock (_upsertGate)
             {
-                var updated = score with { Id = existing.Id };
-                _scores[existing.Id] = updated;
+                var existing = _scores.Values.FirstOrDefault(candidate => IsSameTarget(candidate, score));
 
-                return new ValueTask<RunScore>(updated);
+                if (existing is not null)
+                {
+                    var updated = score with { Id = existing.Id };
+                    _scores[existing.Id] = updated;
+
+                    return new ValueTask<RunScore>(updated);
+                }
+
+                var added = score with { Id = score.Id == Guid.Empty ? TraconId.NewId() : score.Id };
+                _scores[added.Id] = added;
+
+                return new ValueTask<RunScore>(added);
             }
         }
 

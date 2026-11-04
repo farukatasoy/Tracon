@@ -56,7 +56,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        var tenantId = _tenantContext.TenantId;
+        var tenantId = CanonicalTenant();
 
         var command = CreateCommand(_sql.SelectAgentDefinition);
         DbHelpers.AddTenant(command, tenantId);
@@ -78,7 +78,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        var tenantId = _tenantContext.TenantId;
+        var tenantId = CanonicalTenant();
 
         var command = CreateCommand(_sql.SelectAgentDefinitionVersion);
         DbHelpers.AddTenant(command, tenantId);
@@ -99,7 +99,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantContext.TenantId;
+        var tenantId = CanonicalTenant();
 
         var command = CreateCommand(_sql.SelectAgentDefinitions);
         DbHelpers.AddTenant(command, tenantId);
@@ -148,7 +148,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        var tenantId = _tenantContext.TenantId;
+        var tenantId = CanonicalTenant();
 
         var command = CreateCommand(_sql.SelectAgentDefinitionVersions);
         DbHelpers.AddTenant(command, tenantId);
@@ -197,7 +197,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         string payload,
         CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId;
+        var tenantId = CanonicalTenant();
         var now = DateTimeOffset.UtcNow;
 
         return await _context.ExecuteInTransactionAsync(
@@ -259,6 +259,10 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     }
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
+
+    // The record a call returns is built from this value (the tenant is not a column the queries read back), so it is
+    // folded here and not only where the command binds it: a tenant context may return the spelling it was given.
+    private string CanonicalTenant() => AmbientTenantScope.Normalize(_tenantContext.TenantId);
 
     private static AgentDefinition ReadDefinition(
         string payload,

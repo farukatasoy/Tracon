@@ -105,6 +105,67 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
         all[0].MaxRuns.ShouldBe(20);
     }
 
+    /// <summary>
+    /// A rule saved over the one that holds its scope keeps the identifier and the creation time of the rule it
+    /// replaces; the limits, the switch and the update time are the new ones.
+    /// </summary>
+    /// <remarks>
+    /// The creation time says when the scope first got a rule. A store that takes the new rule's creation time moves it
+    /// forward every time an administrator edits the rule, and two stores disagree about it.
+    /// </remarks>
+    [Fact]
+    public async Task Saving_over_a_rule_keeps_its_identifier_and_its_creation_time()
+    {
+        var first = await Store.SaveAsync(Quota(agentName: "support", maxRuns: 10));
+        var later = new DateTimeOffset(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
+
+        var second = await Store.SaveAsync(Quota(agentName: "support", maxRuns: 20) with { CreatedAt = later, UpdatedAt = later });
+
+        second.Id.ShouldBe(first.Id);
+        second.CreatedAt.ShouldBe(first.CreatedAt);
+        second.UpdatedAt.ShouldBe(later);
+        second.MaxRuns.ShouldBe(20);
+
+        var read = (await Store.GetAsync(Tenant, first.Id)).ShouldNotBeNull();
+
+        read.CreatedAt.ShouldBe(first.CreatedAt);
+        read.UpdatedAt.ShouldBe(later);
+    }
+
+    /// <summary>
+    /// Writers that save the same scope at the same time leave one rule: the scope is unique whoever wins.
+    /// </summary>
+    /// <remarks>
+    /// An administrator console that saves twice, or two nodes that apply one configuration, race on one scope. A
+    /// store that looks for the rule and then adds one lets both writers add, and the tenant has two rules for one scope.
+    /// </remarks>
+    [Fact]
+    public async Task Writers_that_save_one_scope_at_the_same_time_leave_one_rule()
+    {
+        const int Writers = 16;
+
+        for (var round = 0; round < 8; round++)
+        {
+            var agent = "racing-" + round;
+            var gate = new TaskCompletionSource();
+            var writers = Enumerable.Range(0, Writers)
+                .Select(index => Task.Run(async () =>
+                {
+                    await gate.Task;
+
+                    return await Store.SaveAsync(Quota(agentName: agent, maxRuns: index));
+                }))
+                .ToList();
+
+            gate.SetResult();
+
+            var saved = await Task.WhenAll(writers);
+
+            (await Store.ListAsync(Tenant)).Count(rule => string.Equals(rule.AgentName, agent, StringComparison.Ordinal)).ShouldBe(1, $"round {round}: two rules hold one scope");
+            saved.Select(static rule => rule.Id).Distinct().Count().ShouldBe(1, $"round {round}: the writers were handed different rules");
+        }
+    }
+
     [Fact]
     public async Task Different_agent_becomes_a_separate_rule()
     {
@@ -164,6 +225,32 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
         var tenantDaily = Find(usage, string.Empty, QuotaPeriod.Daily);
         tenantDaily.Runs.ShouldBe(1);
         tenantDaily.Tokens.ShouldBe(100);
+    }
+
+    /// <summary>
+    /// A consumption whose agent name is empty has one counter, the one that covers every agent, and is added to it once.
+    /// </summary>
+    /// <remarks>
+    /// The empty name is how a counter says "every agent". A store that adds the consumption to the agent's counter and
+    /// to the tenant-wide counter, and does not notice that they are the same row, counts every run twice and the
+    /// tenant reaches its limit at half of it.
+    /// </remarks>
+    [Fact]
+    public async Task A_consumption_that_names_no_agent_is_added_to_the_tenant_wide_counter_once()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 1, tokens: 100, cost: 0.5m, agentName: string.Empty), Periods);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
+
+        // Two periods and one scope each.
+        usage.Count.ShouldBe(2);
+        usage.ShouldAllBe(static record => record.AgentName.Length == 0);
+
+        var daily = Find(usage, string.Empty, QuotaPeriod.Daily);
+
+        daily.Runs.ShouldBe(1);
+        daily.Tokens.ShouldBe(100);
+        daily.Cost.ShouldBe(0.5m);
     }
 
     [Fact]

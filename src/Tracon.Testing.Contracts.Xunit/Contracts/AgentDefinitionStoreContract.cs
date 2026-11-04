@@ -217,6 +217,26 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         (await Store.SaveAsync(TestData.Definition("a"))).Version.ShouldBe(3);
     }
 
+    /// <summary>
+    /// A definition saved while the ambient tenant is spelled in another letter case is returned, read, listed and
+    /// versioned under the canonical tenant.
+    /// </summary>
+    /// <remarks>
+    /// A custom tenant context may return the spelling it was given. The store folds it for the row and has to build
+    /// the record it returns from the same form, or a save answers with one tenant and the next read with another.
+    /// </remarks>
+    [Fact]
+    public async Task A_definition_saved_under_another_spelling_is_read_under_the_canonical_tenant()
+    {
+        AmbientTenant.TenantId = "TENANT-A";
+
+        (await Store.SaveAsync(TestData.Definition("support"))).TenantId.ShouldBe("tenant-a");
+        (await Store.GetAsync("support")).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.ListAsync()).ShouldHaveSingleItem().TenantId.ShouldBe("tenant-a");
+        (await Store.GetVersionAsync("support", 1)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.ListVersionsAsync("support")).ShouldHaveSingleItem().TenantId.ShouldBe("tenant-a");
+    }
+
     [Fact]
     public async Task One_tenants_delete_does_not_move_another_tenants_numbering()
     {

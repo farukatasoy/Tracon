@@ -105,6 +105,44 @@ internal sealed record ProviderTraits
     /// </remarks>
     public decimal CostRelativeTolerance { get; init; }
 
+    /// <summary>
+    /// Gets a value indicating whether a failed outcome recorded on a subscription that is already off answers
+    /// <see langword="true"/>, as if that call had switched it off.
+    /// </summary>
+    /// <remarks>
+    /// OPEN FINDING, kept visible here until it is fixed: the interface says the call answers "true if the subscription was
+    /// disabled during this call", and the in-memory store does exactly that. The three SQL statements answer
+    /// <c>(NOT enabled) AND failed</c> read after the update, so a failure of a subscription that an administrator
+    /// switched off, or that an earlier failure switched off, answers <see langword="true"/> again and the delivery job
+    /// logs "was disabled" every time.
+    /// </remarks>
+    public bool OutcomeAnswersForASubscriptionThatIsOff { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the lease owner of a job is compared by the collation of its column, so two worker names
+    /// that differ only in letter case are one worker.
+    /// </summary>
+    /// <remarks>
+    /// OPEN FINDING, kept visible here until it is fixed: the interface says a write that needs the lease changes the job only
+    /// while the lease is exactly the one the worker was given, the same owner included. On SQL Server <c>lease_owner</c> has
+    /// the collation of the database (case-insensitive by default), so a worker named <c>x3M</c> can renew, complete or release
+    /// the lease of a worker named <c>X3m</c>. The job model draws worker names without such twins on a provider that has this
+    /// trait.
+    /// </remarks>
+    public bool LeaseOwnerComparesByCollation { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether one call that reads several rows can see some of them before another writer's
+    /// transaction and the rest after it.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server reads at READ COMMITTED with locks, not with row versions: a read of two counters that one transaction updates can
+    /// return the first counter as it was and the second as the transaction left it. PostgreSQL gives a statement one snapshot, and
+    /// SQLite serializes. The race of the quota model leaves the counter read out of its concurrent steps on a provider that has
+    /// this trait; the read-back after the tasks end is exact either way.
+    /// </remarks>
+    public bool MultiRowReadIsNotASnapshot { get; init; }
+
     /// <summary>Applies the store's text rule to a value.</summary>
     /// <param name="value">The text as the caller wrote it.</param>
     /// <returns>The text as the store holds it.</returns>

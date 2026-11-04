@@ -1,4 +1,5 @@
 using Tracon.Testing.Contracts.Storage;
+using Tracon.Tests.Common;
 
 namespace Tracon.Tests.Differential;
 
@@ -15,6 +16,24 @@ internal sealed class DifferentialStores
 
     /// <summary>Gets the mutable tenant context every ambient-tenant store was built with.</summary>
     public required MutableTenantContext Tenant { get; init; }
+
+    /// <summary>
+    /// Gets the clock the job store was built with, or <see langword="null"/> when the provider has none: the job
+    /// state machine moves it instead of waiting, so a lease expires when a step says so.
+    /// </summary>
+    public ManualClock? Clock { get; init; }
+
+    /// <summary>
+    /// Gets the tenant context <see cref="FlowRuns"/> was built with: each asynchronous flow sets its own tenant, so
+    /// tasks that run at the same time call the store under different ambient tenants.
+    /// </summary>
+    internal FlowTenantContext? FlowTenant { get; init; }
+
+    /// <summary>
+    /// Gets a run store built with <see cref="FlowTenant"/>, for the checks that run several calls at once under
+    /// different ambient tenants; <see langword="null"/> when the provider has none.
+    /// </summary>
+    public IRunStore? FlowRuns { get; init; }
 
     /// <summary>Gets the session store.</summary>
     public ISessionStore? Sessions { get; init; }

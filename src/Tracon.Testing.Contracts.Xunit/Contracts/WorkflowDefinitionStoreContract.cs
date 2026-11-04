@@ -474,6 +474,27 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
         saved.Version.ShouldBe(1);
     }
 
+    /// <summary>
+    /// A definition written under one spelling of a tenant is returned, read, listed and versioned under the
+    /// canonical tenant.
+    /// </summary>
+    /// <remarks>
+    /// The caller compares a definition's tenant with its own as ordinal text. A store that returns the spelling
+    /// the caller asked with makes every answer depend on who asked.
+    /// </remarks>
+    [Fact]
+    public async Task A_definition_written_under_another_spelling_is_read_under_the_canonical_tenant()
+    {
+        var saved = await Store.SaveAsync("TENANT-A", Definition());
+        saved.TenantId.ShouldBe("tenant-a");
+
+        (await Store.GetAsync("Tenant-A", "review")).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.ListAsync("tenant-A")).ShouldHaveSingleItem().TenantId.ShouldBe("tenant-a");
+        (await Store.GetVersionAsync("TENANT-a", "review", 1)).ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
+        (await Store.ListVersionsAsync("Tenant-A", "review")).ShouldHaveSingleItem().TenantId.ShouldBe("tenant-a");
+        (await Store.RollbackAsync("TENANT-A", "review", 1)).TenantId.ShouldBe("tenant-a");
+    }
+
     [Fact]
     public async Task Another_tenants_definition_is_not_visible()
     {

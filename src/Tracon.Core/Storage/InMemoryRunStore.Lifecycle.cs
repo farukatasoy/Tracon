@@ -46,27 +46,39 @@ internal sealed partial class InMemoryRunStore
         // Running). This is an UPSERT: if the row already exists, do NOT
         // RESET the event/tool-invocation logs (even if no event has been
         // written yet), and do not enqueue it a SECOND time.
-        var isNew = !_runs.TryGetValue(record.Id, out var previous);
+        // One step: the merge reads the record that is there and the write replaces exactly that record. Two writers
+        // that read the same record and each wrote back a copy missing what the other knew lost the attribution of one of
+        // them (and a completion that landed in between).
+        var isNew = false;
+        var requested = record;
 
-        if (!isNew)
-        {
-            record = record with
+        record = _runs.AddOrUpdate(
+            requested.Id,
+            _ =>
             {
-                UserId = record.UserId ?? previous!.UserId,
-                Labels = record.Labels ?? previous!.Labels,
+                isNew = true;
 
-                // The party that opens a continuation writes the row
-                // first, with the link; the engine that runs it writes it again
-                // without one. The SQL providers COALESCE for the same reason.
-                ContinuedFromRunId = record.ContinuedFromRunId ?? previous!.ContinuedFromRunId,
+                return requested;
+            },
+            (_, previous) =>
+            {
+                isNew = false;
 
-                // A cancellation request written while the run was Queued survives the
-                // worker's second write. The SQL providers never touch the column on conflict.
-                CancelRequestedAt = previous!.CancelRequestedAt,
-            };
-        }
+                return requested with
+                {
+                    UserId = requested.UserId ?? previous.UserId,
+                    Labels = requested.Labels ?? previous.Labels,
 
-        _runs[record.Id] = record;
+                    // The party that opens a continuation writes the row
+                    // first, with the link; the engine that runs it writes it again
+                    // without one. The SQL providers COALESCE for the same reason.
+                    ContinuedFromRunId = requested.ContinuedFromRunId ?? previous.ContinuedFromRunId,
+
+                    // A cancellation request written while the run was Queued survives the
+                    // worker's second write. The SQL providers never touch the column on conflict.
+                    CancelRequestedAt = previous.CancelRequestedAt,
+                };
+            });
 
         if (isNew)
         {

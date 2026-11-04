@@ -13,6 +13,7 @@ namespace Tracon;
 internal sealed class InMemoryWebhookStore : IWebhookStore
 {
     private readonly ConcurrentDictionary<Guid, WebhookSubscription> _subscriptions = new();
+    private readonly Lock _saveGate = new();
     private readonly ConcurrentDictionary<Guid, WebhookDelivery> _deliveries = new();
 
     /// <inheritdoc />
@@ -85,17 +86,24 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
 
         subscription = subscription with { TenantId = AmbientTenantScope.Normalize(subscription.TenantId) };
 
-        var existing = _subscriptions.Values.FirstOrDefault(candidate =>
-            string.Equals(candidate.TenantId, subscription.TenantId, StringComparison.Ordinal)
-            && string.Equals(candidate.Name, subscription.Name, StringComparison.Ordinal));
+        // The look-up and the write are one step: writers that save one name at the same time must not each find none and
+        // each add a subscription.
+        WebhookSubscription saved;
 
-        if (existing is not null && existing.Id != subscription.Id)
+        lock (_saveGate)
         {
-            _subscriptions.TryRemove(existing.Id, out _);
-        }
+            var existing = _subscriptions.Values.FirstOrDefault(candidate =>
+                string.Equals(candidate.TenantId, subscription.TenantId, StringComparison.Ordinal)
+                && string.Equals(candidate.Name, subscription.Name, StringComparison.Ordinal));
 
-        var saved = subscription with { Id = existing?.Id ?? subscription.Id };
-        _subscriptions[saved.Id] = saved;
+            // The subscription keeps the identifier and the creation time of the one it replaces, as the SQL upserts do (they
+            // leave created_at out of the update): the identifier is what its deliveries name, and the creation time says
+            // when the name first got a subscription.
+            saved = existing is null
+                ? subscription
+                : subscription with { Id = existing.Id, CreatedAt = existing.CreatedAt };
+            _subscriptions[saved.Id] = saved;
+        }
 
         return new ValueTask<WebhookSubscription>(saved);
     }
@@ -112,22 +120,25 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
 
         tenantId = AmbientTenantScope.Normalize(tenantId);
 
-        var existing = _subscriptions.Values.FirstOrDefault(candidate =>
-            string.Equals(candidate.TenantId, tenantId, StringComparison.Ordinal)
-            && string.Equals(candidate.Name, name, StringComparison.Ordinal));
-
-        if (existing is null || !_subscriptions.TryRemove(existing.Id, out _))
+        lock (_saveGate)
         {
-            return new ValueTask<bool>(false);
-        }
+            var existing = _subscriptions.Values.FirstOrDefault(candidate =>
+                string.Equals(candidate.TenantId, tenantId, StringComparison.Ordinal)
+                && string.Equals(candidate.Name, name, StringComparison.Ordinal));
 
-        // Persistence uses ON DELETE CASCADE. The in-memory store does this manually.
-        foreach (var delivery in _deliveries.Values.Where(item => item.SubscriptionId == existing.Id))
-        {
-            _deliveries.TryRemove(delivery.Id, out _);
-        }
+            if (existing is null || !_subscriptions.TryRemove(existing.Id, out _))
+            {
+                return new ValueTask<bool>(false);
+            }
 
-        return new ValueTask<bool>(true);
+            // Persistence uses ON DELETE CASCADE. The in-memory store does this manually.
+            foreach (var delivery in _deliveries.Values.Where(item => item.SubscriptionId == existing.Id))
+            {
+                _deliveries.TryRemove(delivery.Id, out _);
+            }
+
+            return new ValueTask<bool>(true);
+        }
     }
 
     /// <inheritdoc />

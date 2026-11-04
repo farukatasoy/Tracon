@@ -13,6 +13,7 @@ namespace Tracon;
 internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
 {
     private readonly ConcurrentDictionary<Guid, RetentionPolicy> _policies = new();
+    private readonly Lock _saveGate = new();
     private readonly ConcurrentDictionary<Guid, RetentionRun> _runs = new();
 
     /// <inheritdoc />
@@ -60,15 +61,17 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
 
         policy = policy with { TenantId = RetentionPolicyTenant.Normalize(policy.TenantId) };
 
-        var existing = Find(policy.TenantId, policy.Target);
+        // The look-up and the write are one step: writers that save one target at the same time must not each find none
+        // and each add a policy.
+        RetentionPolicy saved;
 
-        if (existing is not null && existing.Id != policy.Id)
+        lock (_saveGate)
         {
-            _policies.TryRemove(existing.Id, out _);
-        }
+            var existing = Find(policy.TenantId, policy.Target);
 
-        var saved = policy with { Id = existing?.Id ?? policy.Id };
-        _policies[saved.Id] = saved;
+            saved = policy with { Id = existing?.Id ?? policy.Id };
+            _policies[saved.Id] = saved;
+        }
 
         return new ValueTask<RetentionPolicy>(saved);
     }
@@ -85,9 +88,12 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
 
         tenantId = RetentionPolicyTenant.Normalize(tenantId);
 
-        var existing = Find(tenantId, target);
+        lock (_saveGate)
+        {
+            var existing = Find(tenantId, target);
 
-        return new ValueTask<bool>(existing is not null && _policies.TryRemove(existing.Id, out _));
+            return new ValueTask<bool>(existing is not null && _policies.TryRemove(existing.Id, out _));
+        }
     }
 
     /// <inheritdoc />

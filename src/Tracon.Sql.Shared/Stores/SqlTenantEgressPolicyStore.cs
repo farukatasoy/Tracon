@@ -38,8 +38,11 @@ internal sealed class SqlTenantEgressPolicyStore : ITenantEgressPolicyStore
     /// <inheritdoc />
     public async ValueTask<TenantEgressPolicy> UpsertAsync(string tenantId, IReadOnlyList<string> allowedProviders, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(allowedProviders);
+
+        // Folded here, not only inside AddTenant: the record is built from this value, and it must carry the
+        // canonical form whichever spelling the caller wrote (a later read answers with the row's tenant).
+        tenantId = AmbientTenantScope.Normalize(tenantId);
 
         var updatedAt = _timeProvider.GetUtcNow();
 

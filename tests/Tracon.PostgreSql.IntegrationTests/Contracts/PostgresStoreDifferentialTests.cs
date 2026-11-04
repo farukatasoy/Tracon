@@ -1,4 +1,5 @@
 using Tracon.PostgreSql.IntegrationTests.Infrastructure;
+using Tracon.Tests.Common;
 using Tracon.Tests.Differential;
 
 namespace Tracon.PostgreSql.IntegrationTests.Contracts;
@@ -15,6 +16,9 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
     {
         await schema.ResetAsync();
 
+        var clock = new ManualClock();
+        var flow = new FlowTenantContext();
+
         return new DifferentialStores
         {
             Traits = new ProviderTraits
@@ -28,13 +32,20 @@ public sealed class PostgresStoreDifferentialTests(PostgresSchemaFixture schema)
                 MaxInstantIsExact = true,
                 ReadEchoesRequestedKey = true,
                 CreateEchoesInputText = true,
+                OutcomeAnswersForASubscriptionThatIsOff = true,
                 CostDecimals = 10,
             },
             Tenant = schema.Tenant,
             Sessions = schema.Context.Sessions,
             Runs = schema.Context.Runs,
+            FlowTenant = flow,
+            FlowRuns = new SqlRunStore(schema.Context.StoreContext, flow),
             Idempotency = schema.Context.IdempotencyKeys,
             ApiKeys = schema.Context.ApiKeys,
+            Clock = clock,
+            Jobs = new SqlJobStore(schema.Context.StoreContext, timeProvider: clock),
+            Quotas = schema.Context.Quotas,
+            Webhooks = schema.Context.Webhooks,
         };
     }
 }
