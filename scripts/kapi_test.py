@@ -718,10 +718,13 @@ class KapiTestleri(unittest.TestCase):
             if line.strip().startswith("run: dotnet test ") and "Tracon" in line
         ]
 
-        self.assertEqual(len(test_lines), 2, test_lines)
+        # Iki cozum komutu (build isi) ve tek projeli veritabani/kultur isleri; hepsi ayni TRX bayraklarini tasir.
+        self.assertGreaterEqual(len([line for line in test_lines if "--solution" in line]), 2, test_lines)
         for line in test_lines:
             self.assertNotIn("-maxcpucount", line)
-            self.assertIn("--max-parallel-test-modules 1", line)
+            if "--solution" in line:
+                # Cozum komutu modulleri tek tek kosar; tek projeli komutun paralel modulu yoktur.
+                self.assertIn("--max-parallel-test-modules 1", line)
             self.assertIn("--report-trx", line)
             self.assertIn(f"--results-directory {kapi.TEST_RESULTS_DIRECTORY}", line)
             self.assertIn("--results-directory-layout per-module", line)

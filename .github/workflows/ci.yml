@@ -348,7 +348,8 @@ jobs:
   # ---------------------------------------------------------------------------
   postgres-matrix:
     name: PostgreSQL (${{ matrix.name }})
-    if: github.repository == 'farukatasoy/Tracon' && github.event_name != 'pull_request'
+    needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # Yerelde olculen en uzun kosum 7 dk (yuklu makine, 1594 test, imaj hazir);
     # derleme ve imaj indirme eklenir. Runner olcumu yok: ilk kosumdan sonra
@@ -419,7 +420,8 @@ jobs:
 
   sqlserver-matrix:
     name: SQL Server (${{ matrix.name }})
-    if: github.repository == 'farukatasoy/Tracon' && github.event_name != 'pull_request'
+    needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # Yerelde olculen en uzun kosum 14 dk (amd64 emulasyonunda, Apple Silicon);
     # runner yerel amd64'tur. Runner olcumu yok.
@@ -483,7 +485,8 @@ jobs:
   # oldugunu dogrular: degistirme sessizce basarisiz olursa bacak kirmizidir.
   sqlite-floor:
     name: SQLite ${{ matrix.sqlite }}
-    if: github.repository == 'farukatasoy/Tracon' && github.event_name != 'pull_request'
+    needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # Yerelde 1,5 dk (macOS, sicak onbellek); derleme ve geri yukleme eklenir.
     timeout-minutes: 20
@@ -550,7 +553,8 @@ jobs:
   # veritabani bacaklarinin kendi yerel ayari yukaridaki islerdir.
   culture-matrix:
     name: Kultur (${{ matrix.name }})
-    if: github.repository == 'farukatasoy/Tracon' && github.event_name != 'pull_request'
+    needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # `build` isinin Windows bacagiyla ayni test kumesi (olculen en uzun 30,9 dk).
     timeout-minutes: 65
