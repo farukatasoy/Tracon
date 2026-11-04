@@ -73,7 +73,7 @@ public sealed class ChatPipelineTelemetryPositionTests
     public async Task The_hosted_tool_ring_reads_the_response_the_provider_really_answered_and_a_replay_is_not_billed_again()
     {
         using var probe = new ChatSpanProbe();
-        var provider = new CountingClient(new WebSearchToolCallContent("ws_1"));
+        var provider = new CountingClient(extra: new WebSearchToolCallContent("ws_1"));
         var client = Registry(probe, provider, new WarningLogFactory()).CreateChatClient(Binding());
         var first = Scope();
         var second = Scope();
@@ -110,6 +110,24 @@ public sealed class ChatPipelineTelemetryPositionTests
     /// </summary>
     private static List<System.Diagnostics.Activity> ChatSpans(ChatSpanProbe probe)
         => [.. probe.Spans().Where(static span => string.Equals(span.GetTagItem("gen_ai.operation.name")?.ToString(), "chat", StringComparison.Ordinal))];
+
+    [Fact]
+    public async Task A_provider_that_names_itself_has_its_provider_endpoint_and_model_on_the_span_through_every_ring()
+    {
+        // The ring reads what the client under it says about itself when the pipeline is built; every ring above the
+        // provider's client must pass that question down.
+        using var probe = new ChatSpanProbe();
+        var metadata = new ChatClientMetadata("named-provider", new Uri("https://api.example.test:8443/v1/"), Model);
+        var client = Registry(probe, new CountingClient(metadata: metadata), new WarningLogFactory()).CreateChatClient(Binding());
+
+        await CallAsync(client, streaming: false);
+
+        var span = ChatSpans(probe).ShouldHaveSingleItem();
+        span.GetTagItem("gen_ai.provider.name").ShouldBe("named-provider");
+        span.GetTagItem("server.address").ShouldBe("api.example.test");
+        span.GetTagItem("server.port").ShouldBe(8443);
+        span.GetTagItem("gen_ai.request.model").ShouldBe(Model);
+    }
 
     private static ModelProviderRegistry Registry(ChatSpanProbe probe, CountingClient provider, WarningLogFactory warnings)
     {
@@ -188,9 +206,14 @@ public sealed class ChatPipelineTelemetryPositionTests
     private sealed class CountingClient : IChatClient
     {
         private readonly AIContent[] _extra;
+        private readonly ChatClientMetadata? _metadata;
         private int _calls;
 
-        public CountingClient(params AIContent[] extra) => _extra = extra;
+        public CountingClient(ChatClientMetadata? metadata = null, params AIContent[] extra)
+        {
+            _metadata = metadata;
+            _extra = extra;
+        }
 
         public int Calls => Volatile.Read(ref _calls);
 
@@ -222,7 +245,19 @@ public sealed class ChatPipelineTelemetryPositionTests
         }
 
         public object? GetService(Type serviceType, object? serviceKey = null)
-            => serviceKey is null && serviceType.IsInstanceOfType(this) ? this : null;
+        {
+            if (serviceKey is not null)
+            {
+                return null;
+            }
+
+            if (_metadata is not null && serviceType.IsInstanceOfType(_metadata))
+            {
+                return _metadata;
+            }
+
+            return serviceType.IsInstanceOfType(this) ? this : null;
+        }
 
         public void Dispose()
         {
