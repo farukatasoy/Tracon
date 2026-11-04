@@ -992,6 +992,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A provider key that ends in a line break works, and one that holds a character an HTTP header cannot carry stops the host at start.** A key read from a file or a mounted secret usually ends in a
+  newline. The Anthropic client refused its own `Authorization` header for such a key with a sentence that quoted the whole key, and a key set up at start has no per-call credential to mask in that text,
+  so the key reached the error text of the run, the run record, the logs and the status of the chat span, and the database when trace content is recorded; the OpenAI, Azure OpenAI and Google clients wrote
+  the line break to the wire as it was. Tracon now removes white space at both ends of the key set up at start (`UseOpenAI`, `UseAnthropic`, `UseGoogle`, `UseAzureOpenAI`, the OpenAI live voice provider that
+  reuses the OpenAI key, and `Tracon:Voice:ApiKey`) before it builds a header from it, in the chat clients and in the health checks. A key that still holds a control character, a character outside printable
+  ASCII, or a quote or comma that the `Authorization` header syntax refuses fails at start with a message that names the option and never repeats the key. The key of a tenant's own provider binding is
+  not changed: it is masked where the text of its failure is shown.
+
 - **In-memory state that is kept per tenant is removed when its window is over, so it no longer grows with the number of tenants a caller makes up.** The tenant identifier comes from a request, and
   six maps kept one entry for every identifier they ever saw: the hourly sampling budget and the score window of online evaluation (an entry whose hour is over, or that holds no score, counts for
   nothing), the in-memory counter behind `RateLimitScope.Deployment` (an entry whose window has ended restarts at one anyway), the slot counts of the live voice sessions and of the voice connection

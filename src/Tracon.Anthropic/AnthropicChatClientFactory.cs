@@ -30,6 +30,9 @@ namespace Tracon;
 /// </remarks>
 internal sealed class AnthropicChatClientFactory
 {
+    /// <summary>The option the setup-time key is read from, as it is written in a failure.</summary>
+    internal const string ApiKeyOptionName = nameof(AnthropicProviderOptions) + "." + nameof(AnthropicProviderOptions.ApiKey);
+
     private readonly IAnthropicClient _client;
     private readonly string? _defaultModel;
     private readonly int _defaultMaxOutputTokens;
@@ -39,9 +42,15 @@ internal sealed class AnthropicChatClientFactory
     /// <param name="options">Provider settings.</param>
     /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    /// <exception cref="TraconException"><see cref="AnthropicProviderOptions.ApiKey"/> is empty.</exception>
+    /// <exception cref="TraconException">
+    /// <see cref="AnthropicProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
+    /// </exception>
+    /// <remarks>
+    /// This is the setup-time key, so it is trimmed and checked before a header is built from it
+    /// (<c>OutboundApiKey</c>).
+    /// </remarks>
     public AnthropicChatClientFactory(AnthropicProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateClient(options), options.DefaultModel, options.DefaultMaxOutputTokens, loggerFactory)
+        : this(CreateSetupClient(options), options.DefaultModel, options.DefaultMaxOutputTokens, loggerFactory)
     {
     }
 
@@ -143,7 +152,27 @@ internal sealed class AnthropicChatClientFactory
             settings);
     }
 
-    /// <summary>Builds an Anthropic client from settings.</summary>
+    /// <summary>Builds the client for the key set up at start.</summary>
+    /// <param name="options">Provider settings.</param>
+    /// <returns>The constructed client.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="TraconException">
+    /// <see cref="AnthropicProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
+    /// </exception>
+    /// <remarks>
+    /// The key is trimmed and checked first. The client validates the header it builds and quotes the whole
+    /// value when it refuses it, so a key that ends in a line break must never reach it as it is.
+    /// </remarks>
+    private static AnthropicClient CreateSetupClient(AnthropicProviderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var apiKey = OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey) ?? throw EmptyKey();
+
+        return Build(options, apiKey, egressGuard: null);
+    }
+
+    /// <summary>Builds an Anthropic client from the key of a tenant's own credential.</summary>
     /// <param name="options">Provider settings.</param>
     /// <param name="egressGuard">
     /// When given, every connection this client opens passes through the
@@ -154,21 +183,33 @@ internal sealed class AnthropicChatClientFactory
     /// <returns>The constructed client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException"><see cref="AnthropicProviderOptions.ApiKey"/> is empty.</exception>
+    /// <remarks>
+    /// The key is used as it was stored: a tenant's key is masked wherever the text of its failure is shown,
+    /// and the setup-time key goes through the constructor instead.
+    /// </remarks>
     public static AnthropicClient CreateClient(AnthropicProviderOptions options, EgressSocketGuard? egressGuard = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {
-            throw new TraconException(
-                $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.ApiKey)} is empty. " +
-                "Provide the key through the `UseAnthropic(apiKey)` call, or set " +
-                $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.ApiKey)}'.");
+            throw EmptyKey();
         }
 
+        return Build(options, options.ApiKey, egressGuard);
+    }
+
+    private static TraconException EmptyKey()
+        => new(
+            $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.ApiKey)} is empty. " +
+            "Provide the key through the `UseAnthropic(apiKey)` call, or set " +
+            $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.ApiKey)}'.");
+
+    private static AnthropicClient Build(AnthropicProviderOptions options, string apiKey, EgressSocketGuard? egressGuard)
+    {
         var clientOptions = new Anthropic.Core.ClientOptions
         {
-            ApiKey = options.ApiKey,
+            ApiKey = apiKey,
             Timeout = options.Timeout,
             MaxRetries = options.MaxRetries,
 

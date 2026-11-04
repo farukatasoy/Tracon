@@ -44,6 +44,11 @@ internal sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIPr
                 $"'{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.ApiKey)}' " +
                 "in `dotnet user-secrets`.");
         }
+        else if (OutboundApiKey.Refusal(OpenAIChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } refusal)
+        {
+            // A compatible provider's key is optional, but a key that is given is sent like any other.
+            (failures ??= []).Add(refusal);
+        }
 
         if (!isDefaultInstance && options.Endpoint is null)
         {

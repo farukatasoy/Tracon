@@ -169,7 +169,7 @@ public sealed class StartupProviderKeyCanaryTests
         return new Evidence(outputs, wire.Requests, wire.Credentials, answered);
     }
 
-    private static void Register(ITraconBuilder builder, string provider, string key, bool fromConfiguration, Uri endpoint)
+    internal static void Register(ITraconBuilder builder, string provider, string key, bool fromConfiguration, Uri endpoint)
     {
         if (fromConfiguration)
         {

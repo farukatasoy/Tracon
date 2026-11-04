@@ -27,6 +27,9 @@ namespace Tracon;
 /// </remarks>
 internal sealed class OpenAIChatClientFactory
 {
+    /// <summary>The option the setup-time key is read from, as it is written in a failure.</summary>
+    internal const string ApiKeyOptionName = nameof(OpenAIProviderOptions) + "." + nameof(OpenAIProviderOptions.ApiKey);
+
     /// <summary>The API base the official client uses when no endpoint is set.</summary>
     private static readonly Uri DefaultEndpoint = new("https://api.openai.com/v1/");
 
@@ -39,9 +42,15 @@ internal sealed class OpenAIChatClientFactory
     /// <param name="options">Provider options.</param>
     /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    /// <exception cref="TraconException"><see cref="OpenAIProviderOptions.ApiKey"/> is empty.</exception>
+    /// <exception cref="TraconException">
+    /// <see cref="OpenAIProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
+    /// </exception>
+    /// <remarks>
+    /// This is the setup-time key, so it is trimmed and checked before a header is built from it
+    /// (<c>OutboundApiKey</c>).
+    /// </remarks>
     public OpenAIChatClientFactory(OpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateClient(options), options.Endpoint ?? DefaultEndpoint, options.DefaultModel, loggerFactory)
+        : this(CreateSetupClient(options), options.Endpoint ?? DefaultEndpoint, options.DefaultModel, loggerFactory)
     {
     }
 
@@ -178,7 +187,21 @@ internal sealed class OpenAIChatClientFactory
                 "OpenAI speech needs the setup-time OpenAI client, whose address is known. " +
                 "A client built from a tenant's own credential carries no speech registration."));
 
-    /// <summary>Builds an OpenAI client from options.</summary>
+    /// <summary>Builds the client for the key set up at start.</summary>
+    /// <param name="options">Provider options.</param>
+    /// <returns>The client that was built.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="TraconException">
+    /// <see cref="OpenAIProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
+    /// </exception>
+    private static OpenAIClient CreateSetupClient(OpenAIProviderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return Build(options, OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey), egressGuard: null);
+    }
+
+    /// <summary>Builds an OpenAI client from the key of a tenant's own credential.</summary>
     /// <param name="options">Provider options.</param>
     /// <param name="egressGuard">
     /// When given, every connection this client opens passes through the
@@ -189,11 +212,20 @@ internal sealed class OpenAIChatClientFactory
     /// <returns>The client that was built.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException"><see cref="OpenAIProviderOptions.ApiKey"/> is empty.</exception>
+    /// <remarks>
+    /// The key is used as it was stored: a tenant's key is masked wherever the text of its failure is shown,
+    /// and the setup-time key goes through the constructor instead.
+    /// </remarks>
     public static OpenAIClient CreateClient(OpenAIProviderOptions options, EgressSocketGuard? egressGuard = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        return Build(options, options.ApiKey, egressGuard);
+    }
+
+    private static OpenAIClient Build(OpenAIProviderOptions options, string? apiKey, EgressSocketGuard? egressGuard)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new TraconException(
                 $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.ApiKey)} is empty. " +
@@ -232,7 +264,7 @@ internal sealed class OpenAIChatClientFactory
             clientOptions.Transport = new HttpClientPipelineTransport(egressGuard.CreateHttpClient(Timeout.InfiniteTimeSpan));
         }
 
-        return new OpenAIClient(new ApiKeyCredential(options.ApiKey), clientOptions);
+        return new OpenAIClient(new ApiKeyCredential(apiKey), clientOptions);
     }
 
     private IChatClient CreateInnerChatClient(string model, OpenAIApiSurface apiSurface)

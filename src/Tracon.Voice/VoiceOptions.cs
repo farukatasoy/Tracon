@@ -45,6 +45,8 @@ public sealed class VoiceOptions
     /// The key's <em>value</em> is held here, not its <em>name</em>. The rule forbids
     /// writing secrets to the DATABASE; voice configuration never reaches the
     /// database, and the other four provider packages also carry a plain <c>ApiKey</c>.
+    /// White space at both ends is removed before the key is sent. A key that still holds a
+    /// control character, or another character an HTTP header cannot carry, stops the host at start.
     /// </remarks>
     public string? ApiKey { get; set; }
 

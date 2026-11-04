@@ -34,6 +34,10 @@ internal sealed class AnthropicProviderOptionsValidator : IValidateOptions<Anthr
                 $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.ApiKey)}' " +
                 "inside `dotnet user-secrets`.");
         }
+        else if (OutboundApiKey.Refusal(AnthropicChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } refusal)
+        {
+            (failures ??= []).Add(refusal);
+        }
 
         if (options.Endpoint is { IsAbsoluteUri: false })
         {

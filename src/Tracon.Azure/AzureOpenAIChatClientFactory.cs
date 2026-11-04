@@ -44,6 +44,9 @@ namespace Tracon;
 /// </remarks>
 internal sealed class AzureOpenAIChatClientFactory
 {
+    /// <summary>The option the setup-time key is read from, as it is written in a failure.</summary>
+    internal const string ApiKeyOptionName = nameof(AzureOpenAIProviderOptions) + "." + nameof(AzureOpenAIProviderOptions.ApiKey);
+
     private readonly OpenAIClient _client;
     private readonly Uri? _endpoint;
     private readonly string? _defaultDeployment;
@@ -55,10 +58,14 @@ internal sealed class AzureOpenAIChatClientFactory
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// <see cref="AzureOpenAIProviderOptions.Endpoint"/> is empty, or neither an API key
-    /// nor a credential factory is given.
+    /// nor a credential factory is given, or the API key contains a character an HTTP header cannot carry.
     /// </exception>
+    /// <remarks>
+    /// This is the setup-time key, so it is trimmed and checked before a header is built from it
+    /// (<c>OutboundApiKey</c>). A credential factory wins over the key, and then the key is not read.
+    /// </remarks>
     public AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateClient(options), options.DefaultDeployment, loggerFactory)
+        : this(CreateSetupClient(options), options.DefaultDeployment, loggerFactory)
     {
         // CreateClient has already refused an empty endpoint.
         _endpoint = V1Endpoint(options.Endpoint!);
@@ -137,6 +144,26 @@ internal sealed class AzureOpenAIChatClientFactory
             : client;
     }
 
+    /// <summary>Builds the client for the key (or credential) set up at start.</summary>
+    /// <param name="options">The provider options.</param>
+    /// <returns>The built client.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="TraconException">
+    /// <see cref="AzureOpenAIProviderOptions.Endpoint"/> is empty, neither an API key nor a credential factory
+    /// is given, or the API key contains a character an HTTP header cannot carry.
+    /// </exception>
+    private static OpenAIClient CreateSetupClient(AzureOpenAIProviderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        // A credential factory wins over the key, so a key that is never sent is not judged.
+        var apiKey = options.CredentialFactory is null
+            ? OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey)
+            : options.ApiKey;
+
+        return Build(options, apiKey, egressGuard: null, transport: null);
+    }
+
     /// <summary>Builds a client for an Azure OpenAI resource's v1 endpoint from options.</summary>
     /// <param name="options">The provider options.</param>
     /// <param name="egressGuard">
@@ -163,6 +190,8 @@ internal sealed class AzureOpenAIChatClientFactory
     /// the request's <c>model</c> field. An API key travels as
     /// <c>Authorization: Bearer</c>; an Entra credential is wrapped in a
     /// <see cref="BearerTokenPolicy"/> for the <see cref="AzureOpenAIProviderOptions.Audience"/> scope.
+    /// The key is used as it was stored: a tenant's key is masked wherever the text of its failure is shown,
+    /// and the setup-time key goes through the constructor instead.
     /// </remarks>
     public static OpenAIClient CreateClient(
         AzureOpenAIProviderOptions options,
@@ -171,6 +200,15 @@ internal sealed class AzureOpenAIChatClientFactory
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        return Build(options, options.ApiKey, egressGuard, transport);
+    }
+
+    private static OpenAIClient Build(
+        AzureOpenAIProviderOptions options,
+        string? apiKey,
+        EgressSocketGuard? egressGuard,
+        PipelineTransport? transport)
+    {
         if (options.Endpoint is null)
         {
             throw new TraconException(
@@ -234,7 +272,7 @@ internal sealed class AzureOpenAIChatClientFactory
 #pragma warning restore OPENAI001
         }
 
-        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new TraconException(
                 $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.ApiKey)} is empty and " +
@@ -245,7 +283,7 @@ internal sealed class AzureOpenAIChatClientFactory
                 $"{nameof(AzureOpenAIProviderOptions.CredentialFactory)} for a managed credential.");
         }
 
-        return new OpenAIClient(new ApiKeyCredential(options.ApiKey), clientOptions);
+        return new OpenAIClient(new ApiKeyCredential(apiKey), clientOptions);
     }
 
     /// <summary>Points a resource address at its v1 data-plane endpoint.</summary>

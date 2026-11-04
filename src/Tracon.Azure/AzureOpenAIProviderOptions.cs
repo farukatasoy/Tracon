@@ -40,6 +40,10 @@ public sealed class AzureOpenAIProviderOptions
     /// When <see cref="CredentialFactory"/> is given, this field is
     /// <strong>not used</strong>. At least one of the two must be filled in.
     /// </para>
+    /// <para>
+    /// White space at both ends is removed before the key is sent. A key that still holds a
+    /// control character, or another character an HTTP header cannot carry, stops the host at start.
+    /// </para>
     /// </remarks>
     public string? ApiKey { get; set; }
 

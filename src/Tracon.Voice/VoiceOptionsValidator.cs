@@ -113,6 +113,10 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
                 "The key is a secret: `dotnet user-secrets set \"Tracon:Voice:ApiKey\" \"...\"`. " +
                 RegisterFirst);
         }
+        else if (OutboundApiKey.Refusal(ElevenLabsSpeechClient.ApiKeyOptionName, options.ApiKey) is { } refusal)
+        {
+            (failures ??= []).Add(refusal);
+        }
 
         if (options.Endpoint is { IsAbsoluteUri: false })
         {
