@@ -87,23 +87,10 @@ internal sealed record ProviderTraits
     /// given.
     /// </summary>
     /// <remarks>
-    /// The SQL cost columns are <c>numeric(20,10)</c> and round half away from zero; the in-memory store keeps the
+    /// The PostgreSQL and SQL Server cost columns are <c>numeric(20,10)</c> and round half away from zero; the in-memory store and SQLite (a TEXT column) keep the
     /// whole <see cref="decimal"/>.
     /// </remarks>
     public int? CostDecimals { get; init; }
-
-    /// <summary>
-    /// Gets how far a cost read back may be from the exact sum, relative to the sum (and at least one unit), or zero when
-    /// it must be exact.
-    /// </summary>
-    /// <remarks>
-    /// OPEN FINDING, kept visible here until it is fixed: two SQLite cost columns (<c>cached_input_cost</c> and
-    /// <c>non_token_cost</c>) were declared <c>NUMERIC</c>, so SQLite turns the text the driver writes into a double and
-    /// back (0.0009909446 reads back as 0.0009909446000000001), and the aggregate adds the columns as doubles (a total of
-    /// 6865.1708977361 reads 6865.1708977361004). The cost written to the other columns and the PostgreSQL and SQL Server
-    /// totals are exact.
-    /// </remarks>
-    public decimal CostRelativeTolerance { get; init; }
 
     /// <summary>Applies the store's text rule to a value.</summary>
     /// <param name="value">The text as the caller wrote it.</param>

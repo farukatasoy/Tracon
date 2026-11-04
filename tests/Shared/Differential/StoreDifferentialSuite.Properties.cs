@@ -180,7 +180,7 @@ public abstract partial class StoreDifferentialSuite
 
                     var read = (await store.GetRunAsync(id))!.Cost;
                     read.ShouldNotBeNull();
-                    (read.Total() ?? 0m).ShouldBe(sum, stores.Traits.CostRelativeTolerance * Math.Max(1m, Math.Abs(sum)), $"the run's own cost total, parts {input}/{output}/{cached}/{write}");
+                    (read.Total() ?? 0m).ShouldBe(sum, $"the run's own cost total, parts {input}/{output}/{cached}/{write}");
                 }
 
                 var statistics = await store.GetStatisticsAsync(new RunStatisticsQuery());
@@ -191,7 +191,7 @@ public abstract partial class StoreDifferentialSuite
                 if (anyTotal)
                 {
                     statistics.TotalCost.ShouldNotBeNull();
-                    statistics.TotalCost.Value.ShouldBe(expected, stores.Traits.CostRelativeTolerance * Math.Max(1m, Math.Abs(expected)), "the total cost of all runs");
+                    statistics.TotalCost.Value.ShouldBe(expected, "the total cost of all runs");
                 }
             },
             seed: DifferentialSettings.Seed,

@@ -90,6 +90,25 @@ internal sealed class SqliteQueries : SqlQueriesBase
     /// <remarks>SQLite has no schema; the prefix is concatenated directly, with no dot.</remarks>
     protected override string Table(string name) => $"{Schema}{name}";
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// 🚨 One call over every addend, not <c>COALESCE(SUM(a), 0) + COALESCE(SUM(b), 0)</c>: SQLite adds a TEXT decimal as a
+    /// binary double, in <c>SUM</c> and in <c>+</c> alike, so the sum of three exact amounts came back as
+    /// <c>6865.1708977361004</c>. The connection's <c>tracon_decimal_sum</c> adds them as <see cref="decimal"/>. An empty set
+    /// is <c>'0'</c>, as <c>COALESCE(SUM(...), 0)</c> was; the <c>CASE</c> around the call keeps "nothing priced" as NULL.
+    /// </remarks>
+    protected override string CostTotal(string? alias = null)
+    {
+        var prefix = alias is null ? string.Empty : $"{alias}.";
+
+        return $"COALESCE({SqliteDecimalFunctions.SumName}({string.Join(", ", CostAddends.Select(addend => prefix + addend))}), '0')";
+    }
+
+    /// <summary>The exact sum of one money column over the current aggregate; NULL when there is nothing to add, as <c>SUM</c> is.</summary>
+    /// <param name="column">The column, alias included.</param>
+    /// <returns>The aggregate call.</returns>
+    private static string ExactSum(string column) => $"{SqliteDecimalFunctions.SumName}({column})";
+
     /// <summary>Creates a new query set.</summary>
     /// <param name="tablePrefix">The table prefix to validate.</param>
     /// <exception cref="TraconException">The prefix is not a valid identifier.</exception>
@@ -459,8 +478,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             (SELECT COUNT(sub.total_tokens)              FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.kind, r.workflow_name, r.agent_version, r.experiment_id, r.variant,
             r.input_cost, r.output_cost, r.cost_currency, r.pricing_source,
-            (SELECT SUM(sub.input_cost)  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT SUM(sub.output_cost) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {ExactSum("sub.input_cost")}  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {ExactSum("sub.output_cost")} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT {CostCurrencyLabel("sub")} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(*) FILTER (WHERE sub.pricing_source = 2) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(sub.pricing_source) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
@@ -476,14 +495,14 @@ internal sealed class SqliteQueries : SqlQueriesBase
             (SELECT {TreeSum("reasoning_tokens", "sub", false)}    FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT {TreeSum("audio_input_tokens", "sub", false)}  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT {TreeSum("audio_output_tokens", "sub", false)} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT SUM(sub.cached_input_cost)   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {ExactSum("sub.cached_input_cost")}   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.continued_from_run_id,
             r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok,
             -- What the run reported beyond tokens, then what its descendants did.
             -- Their own totals, NOT terms of the token cost, and NOT coalesced:
             -- non_token_unsummed is NULL when nobody reported anything.
             r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
-            (SELECT SUM(sub.non_token_cost)     FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {ExactSum("sub.non_token_cost")}     FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT {ReportedCurrencyLabel("sub")} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(*) FILTER (WHERE sub.non_token_estimated = 1) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT SUM(sub.non_token_unsummed) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
@@ -498,7 +517,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             r.cache_write_price_per_mtok, r.cache_write_long_price_per_mtok,
             (SELECT {TreeSum("cache_write_input_tokens", "sub", false)}      FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT {TreeSum("cache_write_long_input_tokens", "sub", false)} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT SUM(sub.cache_write_cost) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {ExactSum("sub.cache_write_cost")} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.cancel_requested_at
             """;
 
@@ -1387,7 +1406,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY COALESCE(agent_name, ''), period;
             """;
 
-        // Consumption is incremented ATOMICALLY.
+        // Consumption is incremented ATOMICALLY. The cost is added with the connection's decimal function: `cost + excluded.cost`
+        // makes SQLite read both TEXT amounts as doubles, and `0.1 + 0.2` stayed in the column as 0.30000000000000004.
         AddQuotaUsage = $"""
             INSERT INTO {Schema}quota_usage
                 (tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at)
@@ -1396,7 +1416,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ON CONFLICT (tenant_id, agent_name, period, period_start) DO UPDATE
                SET runs       = {Schema}quota_usage.runs   + excluded.runs,
                    tokens     = {Schema}quota_usage.tokens + excluded.tokens,
-                   cost       = {Schema}quota_usage.cost   + excluded.cost,
+                   cost       = {SqliteDecimalFunctions.AddName}({Schema}quota_usage.cost, excluded.cost),
                    updated_at = excluded.updated_at;
             """;
 

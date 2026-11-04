@@ -74,7 +74,12 @@ internal abstract class SqlQueriesBase
     /// <summary>Builds the null-preserving sum of <see cref="CostAddends"/> over the current aggregate.</summary>
     /// <param name="alias">The table alias to qualify each addend with, or <see langword="null"/> for none.</param>
     /// <returns>The sum expression, without the surrounding <c>CASE WHEN ... END</c> null guard.</returns>
-    protected static string CostTotal(string? alias = null)
+    /// <remarks>
+    /// Virtual because a dialect whose own <c>SUM</c> and <c>+</c> are not exact on the column type has to say the sum in
+    /// its own words: SQLite adds a TEXT decimal as a binary double, and its override calls the connection's exact
+    /// decimal function. It still builds the expression from <see cref="CostAddends"/>, the one list a new term is added to.
+    /// </remarks>
+    protected virtual string CostTotal(string? alias = null)
     {
         var prefix = alias is null ? string.Empty : $"{alias}.";
 

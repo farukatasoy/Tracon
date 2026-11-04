@@ -20,6 +20,10 @@ namespace Tracon;
 /// explicit <c>PRAGMA</c> commands, not connection-string keywords (no such keyword exists for
 /// WAL or <c>busy_timeout</c>); they do not depend on the consumer's connection string.
 /// </para>
+/// <para>
+/// The same event registers the two decimal functions (<see cref="SqliteDecimalFunctions"/>) that
+/// the cost totals and the quota counter use in place of SQLite's float <c>SUM</c> and <c>+</c>.
+/// </para>
 /// </remarks>
 internal sealed class SqliteDataSource : DbDataSource
 {
@@ -97,5 +101,9 @@ internal sealed class SqliteDataSource : DbDataSource
             "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; " +
             "PRAGMA case_sensitive_like = ON;";
         command.ExecuteNonQuery();
+
+        // The exact decimal sum and addition the cost totals and the quota counter are written with. They belong to the
+        // connection, so every connection this source opens carries them, including one taken back from the pool.
+        SqliteDecimalFunctions.Register(connection);
     }
 }
