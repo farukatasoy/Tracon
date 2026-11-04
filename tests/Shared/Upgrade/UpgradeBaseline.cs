@@ -42,11 +42,13 @@ internal sealed class UpgradeBaseline
         string version,
         string tag,
         IReadOnlyDictionary<string, IReadOnlyList<BaselineMigration>> providers,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<BaselineMigration>>> optionalSets,
         IReadOnlyList<BaselineExemption> exemptions)
     {
         Version = version;
         Tag = tag;
         Providers = providers;
+        OptionalSets = optionalSets;
         Exemptions = exemptions;
     }
 
@@ -58,6 +60,12 @@ internal sealed class UpgradeBaseline
 
     /// <summary>Gets the migration files of the release by provider directory name (<c>sqlite</c>, <c>postgresql</c>, <c>sqlserver</c>).</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<BaselineMigration>> Providers { get; }
+
+    /// <summary>
+    /// Gets the migration files of the release's optional sets (<c>views</c>, <c>knowledge</c>) by provider directory name
+    /// and set name; a set the release did not offer is absent.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<BaselineMigration>>> OptionalSets { get; }
 
     /// <summary>Gets the files edited on purpose since the release.</summary>
     public IReadOnlyList<BaselineExemption> Exemptions { get; }
@@ -89,13 +97,25 @@ internal sealed class UpgradeBaseline
                 entry["statements"]!.GetValue<string>()))],
             StringComparer.Ordinal);
 
+        var optionalSets = root["optionalSets"]!.AsObject().ToDictionary(
+            static provider => provider.Key,
+            static provider => (IReadOnlyDictionary<string, IReadOnlyList<BaselineMigration>>)provider.Value!.AsObject().ToDictionary(
+                static set => set.Key,
+                static set => (IReadOnlyList<BaselineMigration>)[.. set.Value!.AsArray().Select(static entry => new BaselineMigration(
+                    entry!["id"]!.GetValue<int>(),
+                    entry["name"]!.GetValue<string>(),
+                    entry["checksum"]!.GetValue<string>(),
+                    entry["statements"]!.GetValue<string>()))],
+                StringComparer.Ordinal),
+            StringComparer.Ordinal);
+
         var exemptions = root["exemptions"]!.AsArray().Select(static entry => new BaselineExemption(
             entry!["provider"]!.GetValue<string>(),
             entry["name"]!.GetValue<string>(),
             entry["statements"]!.GetValue<string>(),
             entry["reason"]!.GetValue<string>())).ToList();
 
-        return new UpgradeBaseline(root["version"]!.GetValue<string>(), root["tag"]!.GetValue<string>(), providers, exemptions);
+        return new UpgradeBaseline(root["version"]!.GetValue<string>(), root["tag"]!.GetValue<string>(), providers, optionalSets, exemptions);
     }
 
     /// <summary>

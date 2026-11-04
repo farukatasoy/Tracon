@@ -1023,6 +1023,46 @@
    }
   ]
  },
+ "optionalSets": {
+  "sqlite": {
+   "views": [
+    {
+     "id": 1,
+     "name": "0001_read_views",
+     "checksum": "B08D64C1348C0E87A76D7385751B2AC8160D0CB2FA8E892C74B2DA2CC3ACF567",
+     "statements": "fc97696856b07be9dfe14063c276d6db269dd0d50760f339d62469f6d362399f"
+    }
+   ]
+  },
+  "postgresql": {
+   "views": [
+    {
+     "id": 1,
+     "name": "0001_read_views",
+     "checksum": "004CBD328277458BB16C12A0DE504537866AE06F9D2E41F2C28AACFD243BEB29",
+     "statements": "156f7c392ae0539967dbbafee706a22f73a318acfa55be49496ce521056356d2"
+    }
+   ],
+   "knowledge": [
+    {
+     "id": 1,
+     "name": "0001_vector",
+     "checksum": "B6DF5559FCAEFEDD8EFF1FC7BEAB5A2428349B371665A5594F843DB294DAEC94",
+     "statements": "cc36d17a802d04a6f2dd350a20deb3ae33b692cae55a7e74c252b2daea843799"
+    }
+   ]
+  },
+  "sqlserver": {
+   "views": [
+    {
+     "id": 1,
+     "name": "0001_read_views",
+     "checksum": "7EB9A7C47046B54892AD5EC4EB9AED91013D9370996ED0CD79965D77F1AC44FC",
+     "statements": "e20cc851a97959ecb25c92faa5c7e570caaf91efd67f20385a1851e8ebceb4fb"
+    }
+   ]
+  }
+ },
  "exemptions": [
   {
    "provider": "postgresql",

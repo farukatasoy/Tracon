@@ -41,6 +41,17 @@ PROVIDER_DIRECTORIES = {
     "sqlserver": "src/Tracon.SqlServer/Migrations",
 }
 
+# Opsiyonel migration kümeleri (`views`, `knowledge`): çekirdek kümeden ayrı dizinlerde yaşar, ledger'da kendi
+# `set_name`'iyle yazılır. Kapı, yayının opsiyonel kümeleri açık veritabanını da yükseltir.
+OPTIONAL_DIRECTORIES = {
+    "sqlite": {"views": "src/Tracon.Sqlite/MigrationsViews"},
+    "postgresql": {
+        "views": "src/Tracon.PostgreSql/MigrationsViews",
+        "knowledge": "src/Tracon.PostgreSql/MigrationsKnowledge",
+    },
+    "sqlserver": {"views": "src/Tracon.SqlServer/MigrationsViews"},
+}
+
 _BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 _LINE_COMMENT = re.compile(r"--[^\n]*")
 _WHITESPACE = re.compile(r"[ \t\r\n\f\v]+")
@@ -103,6 +114,24 @@ def read_tag(root: pathlib.Path, tag: str) -> dict[str, list[dict[str, object]]]
     return providers
 
 
+def read_optional_tag(root: pathlib.Path, tag: str) -> dict[str, dict[str, list[dict[str, object]]]]:
+    """Etiketteki her sağlayıcının opsiyonel kümelerinin migration dosyaları. Yayında olmayan küme yazılmaz."""
+    providers: dict[str, dict[str, list[dict[str, object]]]] = {}
+    for provider, sets in OPTIONAL_DIRECTORIES.items():
+        found: dict[str, list[dict[str, object]]] = {}
+        for set_name, directory in sets.items():
+            names = sorted(
+                line.rsplit("/", 1)[-1]
+                for line in str(_git(root, "ls-tree", "--name-only", tag, directory + "/")).splitlines()
+                if line.endswith(".sql"))
+            if names:
+                found[set_name] = [
+                    describe(name, bytes(_git(root, "show", f"{tag}:{directory}/{name}", binary=True))) for name in names
+                ]
+        providers[provider] = found
+    return providers
+
+
 def build_manifest(
         root: pathlib.Path, version: str, source: str | None, previous: dict[str, object] | None) -> dict[str, object]:
     """Yeni manifest. Aynı sürümün muafiyet listesi korunur; sürüm değişince boşalır.
@@ -115,6 +144,7 @@ def build_manifest(
         "version": version,
         "tag": tag,
         "providers": read_tag(root, source or tag),
+        "optionalSets": read_optional_tag(root, source or tag),
         "exemptions": kept,
     }
 
@@ -132,6 +162,17 @@ def differing_from_head(root: pathlib.Path, manifest: dict[str, object]) -> list
                 changed.append(f"{provider}/{entry['name']} (silinmiş)")
             elif statement_digest(read_text(path.read_bytes())) != entry["statements"]:
                 changed.append(f"{provider}/{entry['name']}")
+    optional = manifest.get("optionalSets", {})
+    assert isinstance(optional, dict)
+    for provider, sets in optional.items():
+        for set_name, entries in sets.items():
+            directory = root / OPTIONAL_DIRECTORIES[provider][set_name]
+            for entry in entries:
+                path = directory / f"{entry['name']}.sql"
+                if not path.is_file():
+                    changed.append(f"{provider}/{set_name}/{entry['name']} (silinmiş)")
+                elif statement_digest(read_text(path.read_bytes())) != entry["statements"]:
+                    changed.append(f"{provider}/{set_name}/{entry['name']}")
     return changed
 
 
@@ -158,7 +199,13 @@ def main(argv: list[str] | None = None) -> int:
     path.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
     counts = ", ".join(f"{provider} {len(entries)}" for provider, entries in manifest["providers"].items())
-    print(f"Taban: {manifest['tag']} ({counts} migration, kaynak {args.kaynak or manifest['tag']}) -> {MANIFEST}")
+    optional = ", ".join(
+        f"{provider}/{set_name} {len(entries)}"
+        for provider, sets in manifest["optionalSets"].items()
+        for set_name, entries in sets.items())
+    print(
+        f"Taban: {manifest['tag']} ({counts} migration; opsiyonel küme: {optional or 'yok'}, "
+        f"kaynak {args.kaynak or manifest['tag']}) -> {MANIFEST}")
 
     changed = differing_from_head(ROOT, manifest)
     if changed:

@@ -34,6 +34,14 @@ public sealed class UpgradeFromReleaseTests(SqliteFixture fixture) : UpgradeGate
 
         return new SqliteUpgradeDatabase(context);
     }
+
+    /// <inheritdoc />
+    internal override async ValueTask<IUpgradeDatabase> CreateDatabaseWithOptionalSetsAsync()
+    {
+        var context = await SqliteTestContext.CreateAsync(fixture, applyMigrations: false, enableReadViews: true);
+
+        return new SqliteUpgradeDatabase(context);
+    }
 }
 
 /// <summary>A SQLite file the gate builds, fills and upgrades.</summary>

@@ -323,6 +323,25 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         return new SqlServerTestContext(dataSource, options, tenantContext);
     }
 
+    /// <summary>Setup against a database of the shared server that has a collation of its own.</summary>
+    /// <param name="connectionString">The connection string, naming the database.</param>
+    /// <param name="schemaName">The schema name to use.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies.</param>
+    /// <returns>A new context pointing at that database.</returns>
+    public static SqlServerTestContext Create(string connectionString, string schemaName, bool enableReadViews = false)
+    {
+        var options = new TraconSqlServerOptions
+        {
+            ConnectionString = connectionString,
+            SchemaName = schemaName,
+            AutoApplyMigrations = false,
+            CommandTimeoutSeconds = 30,
+            EnableReadViews = enableReadViews,
+        };
+
+        return new SqlServerTestContext(new SqlServerDataSource(options.ConnectionString!), options, new FixedTenantContext("default"));
+    }
+
     /// <summary>Generates a new, unique test schema name.</summary>
     /// <returns>A valid identifier made of lowercase letters.</returns>
     public static string NewSchemaName()

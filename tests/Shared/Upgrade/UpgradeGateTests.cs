@@ -62,10 +62,44 @@ public abstract class UpgradeGateTests
     [Fact]
     public async Task The_database_of_the_last_release_is_upgraded_and_every_store_reads_its_rows()
     {
+        await using var database = await CreateDatabaseAsync();
+
+        await UpgradeTheReleaseAsync(database, optionalSets: false);
+    }
+
+    /// <summary>Opens a database with nothing in it whose migration runner has the optional sets (<c>views</c>, and <c>knowledge</c> where the provider has it) on.</summary>
+    /// <returns>The database.</returns>
+    internal abstract ValueTask<IUpgradeDatabase> CreateDatabaseWithOptionalSetsAsync();
+
+    /// <summary>
+    /// The database of the last release with the optional sets on is upgraded: the read view still reads the runs it held,
+    /// and the vector table keeps its row.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// A host that turned the read views on has a view over a table that later migrations rebuild. The core half of the gate
+    /// never creates the view, so an upgrade that leaves it unreadable (a rebuilt column, a dropped one) passes there and
+    /// fails for the operator who enabled it.
+    /// </remarks>
+    [Fact]
+    public async Task The_database_of_the_last_release_with_the_optional_sets_is_upgraded_and_they_are_read()
+    {
+        await using var database = await CreateDatabaseWithOptionalSetsAsync();
+
+        await UpgradeTheReleaseAsync(database, optionalSets: true);
+    }
+
+    /// <summary>
+    /// Builds the database of the last release (the core migrations and, when asked, the optional sets the release offered),
+    /// fills it with the seed, upgrades it and has every store read what the release wrote.
+    /// </summary>
+    /// <param name="database">An empty database whose runner has the optional sets on when <paramref name="optionalSets"/> is set.</param>
+    /// <param name="optionalSets">Whether the optional sets are built and read too.</param>
+    /// <returns>The completion task.</returns>
+    internal static async Task UpgradeTheReleaseAsync(IUpgradeDatabase database, bool optionalSets)
+    {
         var baseline = UpgradeBaseline.Load();
         var seed = UpgradeSeed.Load();
-
-        await using var database = await CreateDatabaseAsync();
 
         var head = UpgradeHarness.HeadMigrations(database);
         var released = baseline.Providers[database.ProviderDirectory];
@@ -82,7 +116,36 @@ public abstract class UpgradeGateTests
             prefix,
             migration => baseline.ChecksumsMayDrift ? migration.Checksum : released.Single(file => file.Id == migration.Id).Checksum);
 
+        var pending = head.Count - prefix.Count;
+
+        if (optionalSets)
+        {
+            foreach (var (set, files) in baseline.OptionalSets[database.ProviderDirectory])
+            {
+                var setHead = UpgradeHarness.OptionalMigrations(database, set);
+                var setPrefix = setHead.Where(migration => files.Any(file => file.Id == migration.Id)).ToList();
+
+                setPrefix.Select(static migration => migration.Name).ShouldBe(
+                    files.Select(static file => file.Name),
+                    $"the {set} migrations of the tree start with every file the release held, in the same order");
+
+                await UpgradeHarness.ApplyAsync(
+                    database,
+                    setPrefix,
+                    migration => baseline.ChecksumsMayDrift ? migration.Checksum : files.Single(file => file.Id == migration.Id).Checksum,
+                    set);
+
+                pending += setHead.Count - setPrefix.Count;
+            }
+        }
+
         var seeded = await UpgradeHarness.SeedAsync(database, seed);
+
+        if (optionalSets)
+        {
+            await UpgradeHarness.SeedOptionalAsync(database);
+        }
+
         var before = await UpgradeHarness.CountsAsync(database);
 
         foreach (var (table, count) in seeded.Rows)
@@ -90,9 +153,14 @@ public abstract class UpgradeGateTests
             before[table].ShouldBe(count, $"{table} holds exactly the rows of the seed before the upgrade");
         }
 
-        (await database.Migrations.ApplyAsync()).ShouldBe(head.Count - prefix.Count, "every migration since the release is applied");
+        (await database.Migrations.ApplyAsync()).ShouldBe(pending, "every migration since the release is applied");
 
         await AssertUpgradedAsync(database, seed, seeded, before, strict: true);
+
+        if (optionalSets)
+        {
+            await UpgradeHarness.AssertOptionalSetsReadAsync(database, before);
+        }
     }
 
     /// <summary>The ledger of a release database is compared with the files of the tree, and a drift is refused or accepted as the line allows.</summary>

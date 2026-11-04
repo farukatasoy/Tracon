@@ -64,7 +64,7 @@ class ManifestTestleri(unittest.TestCase):
     def test_ayni_surumde_muafiyetler_korunur(self):
         previous = self._manifest("1.0.0-preview.6", [{"provider": "sqlite", "name": "0001_initial"}])
 
-        with mock.patch.object(ub, "read_tag", return_value={}):
+        with mock.patch.object(ub, "read_tag", return_value={}), mock.patch.object(ub, "read_optional_tag", return_value={}):
             manifest = ub.build_manifest(ROOT, "1.0.0-preview.6", None, previous)
 
         self.assertEqual(manifest["exemptions"], previous["exemptions"])
@@ -72,14 +72,14 @@ class ManifestTestleri(unittest.TestCase):
     def test_yeni_surumde_muafiyetler_bosalir(self):
         previous = self._manifest("1.0.0-preview.6", [{"provider": "sqlite", "name": "0001_initial"}])
 
-        with mock.patch.object(ub, "read_tag", return_value={}):
+        with mock.patch.object(ub, "read_tag", return_value={}), mock.patch.object(ub, "read_optional_tag", return_value={}):
             manifest = ub.build_manifest(ROOT, "1.0.0-rc.1", None, previous)
 
         self.assertEqual(manifest["version"], "1.0.0-rc.1")
         self.assertEqual(manifest["exemptions"], [])
 
     def test_kaynak_verilmezse_surumun_etiketi_okunur_verilirse_o_baslangic(self):
-        with mock.patch.object(ub, "read_tag", return_value={}) as read:
+        with mock.patch.object(ub, "read_tag", return_value={}) as read, mock.patch.object(ub, "read_optional_tag", return_value={}):
             ub.build_manifest(ROOT, "1.0.0-rc.1", None, None)
             ub.build_manifest(ROOT, "1.0.0-rc.1", "HEAD", None)
 
@@ -90,6 +90,30 @@ class ManifestTestleri(unittest.TestCase):
 
         self.assertEqual(sorted(manifest["providers"]), ["postgresql", "sqlite", "sqlserver"])
         self.assertEqual(manifest["tag"], "v" + manifest["version"])
+
+    def test_opsiyonel_kumeler_yalniz_yayinda_olan_dosyalari_tasir(self):
+        manifest = json.loads((ROOT / ub.MANIFEST).read_text(encoding="utf-8"))
+        optional = manifest["optionalSets"]
+
+        self.assertEqual(sorted(optional), ["postgresql", "sqlite", "sqlserver"])
+        # `views` üç sağlayıcıda, `knowledge` yalnız PostgreSQL'de vardır; her kümenin dosyaları sıralı ve benzersizdir.
+        self.assertEqual(sorted(optional["postgresql"]), ["knowledge", "views"])
+        self.assertEqual(sorted(optional["sqlite"]), ["views"])
+        self.assertEqual(sorted(optional["sqlserver"]), ["views"])
+        for sets in optional.values():
+            for entries in sets.values():
+                ids = [entry["id"] for entry in entries]
+                self.assertEqual(ids, sorted(set(ids)))
+
+    def test_opsiyonel_kume_dosyasi_etiketten_bugune_degisince_bildirilir(self):
+        manifest = {
+            "providers": {},
+            "optionalSets": {"sqlite": {"views": [{"name": "0001_read_views", "statements": "0" * 64}]}},
+        }
+
+        changed = ub.differing_from_head(ROOT, manifest)
+
+        self.assertEqual(changed, ["sqlite/views/0001_read_views"])
 
 
 if __name__ == "__main__":

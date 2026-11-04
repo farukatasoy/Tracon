@@ -92,6 +92,39 @@ public sealed class UpgradeBaselinePinTests
             "A new change to the schema is a new migration");
     }
 
+    [Theory]
+    [InlineData("sqlite", "Sqlite")]
+    [InlineData("postgresql", "PostgreSql")]
+    [InlineData("sqlserver", "SqlServer")]
+    public void Every_optional_migration_the_last_release_held_is_in_the_tree_with_the_same_statements(string directory, string provider)
+    {
+        var baseline = UpgradeBaseline.Load();
+        var problems = new List<string>();
+
+        baseline.OptionalSets[directory].ShouldNotBeEmpty($"{directory}: the release offered at least the views set");
+
+        foreach (var (set, released) in baseline.OptionalSets[directory])
+        {
+            var files = TreeOptionalMigrations(ProviderAssembly(provider), provider, set);
+
+            foreach (var file in released)
+            {
+                if (!files.TryGetValue(file.Name, out var sql))
+                {
+                    problems.Add($"{set}/{file.Name}: the release held it and the tree does not");
+                }
+                else if (!string.Equals(UpgradeBaseline.StatementDigest(sql), file.Statements, StringComparison.Ordinal))
+                {
+                    // An optional set has no exemption list: its files are never edited, a change is a new file.
+                    problems.Add($"{set}/{file.Name}: the statements differ from the release; an applied migration is never edited, add a new one");
+                }
+            }
+        }
+
+        problems.ShouldBeEmpty(
+            $"{baseline.Tag} is the last release; the files its optional sets held are the schema the upgrade gate starts from");
+    }
+
     [Fact]
     public void A_release_candidate_or_later_baseline_allows_no_exemption()
     {
@@ -129,6 +162,25 @@ public sealed class UpgradeBaselinePinTests
         "PostgreSql" => typeof(PostgresQueries).Assembly,
         _ => typeof(SqlServerQueries).Assembly,
     };
+
+    /// <summary>The migrations of one optional set (<c>views</c>, <c>knowledge</c>) a provider embeds, by name.</summary>
+    private static Dictionary<string, string> TreeOptionalMigrations(Assembly assembly, string provider, string set)
+    {
+        var prefix = $"Tracon.{provider}.Migrations{char.ToUpperInvariant(set[0])}{set[1..]}.";
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var resource in assembly.GetManifestResourceNames().Where(name => name.StartsWith(prefix, StringComparison.Ordinal) && name.EndsWith(".sql", StringComparison.Ordinal)))
+        {
+            using var stream = assembly.GetManifestResourceStream(resource)!;
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+
+            files[resource[prefix.Length..^".sql".Length]] = reader.ReadToEnd();
+        }
+
+        files.ShouldNotBeEmpty($"{provider} embeds no migration of the {set} set");
+
+        return files;
+    }
 
     /// <summary>The core migrations a provider embeds, by name.</summary>
     private static Dictionary<string, string> TreeMigrations(Assembly assembly, string provider)
