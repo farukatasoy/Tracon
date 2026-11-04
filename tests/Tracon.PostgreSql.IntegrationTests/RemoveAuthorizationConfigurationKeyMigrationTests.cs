@@ -96,7 +96,7 @@ public sealed class RemoveAuthorizationConfigurationKeyMigrationTests(PostgresFi
 
         await context.ExecuteAsync(
             $"INSERT INTO {schemaName}.mcp_servers (id, tenant_id, name, endpoint, authorization_configuration_key, header_configuration_keys, oauth_enabled, created_at, updated_at) " +
-            $"VALUES (gen_random_uuid(), '{tenant}', '{name}', 'https://mcp.example.com/mcp', {keyLiteral}, '{map}'::jsonb, {oauthLiteral}, now(), now());");
+            $"VALUES (md5(random()::text || clock_timestamp()::text)::uuid, '{tenant}', '{name}', 'https://mcp.example.com/mcp', {keyLiteral}, '{map}'::jsonb, {oauthLiteral}, now(), now());");
     }
 
     private static async Task ApplyThroughAsync(PostgresTestContext context, string schemaName, int lastId)

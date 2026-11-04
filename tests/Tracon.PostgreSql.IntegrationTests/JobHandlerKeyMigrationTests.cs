@@ -133,7 +133,7 @@ public sealed class JobHandlerKeyMigrationTests(PostgresFixture fixture)
         return context.ExecuteAsync(
             $"INSERT INTO {schemaName}.job_schedules " +
             "(id, tenant_id, name, kind, target_name, payload, created_at, updated_at) " +
-            $"VALUES (gen_random_uuid(), 'test', 'schedule-{value}', {value}, 'target', " +
+            $"VALUES (md5(random()::text || clock_timestamp()::text)::uuid, 'test', 'schedule-{value}', {value}, 'target', " +
             "'{}'::jsonb, now(), now());");
     }
 
@@ -144,7 +144,7 @@ public sealed class JobHandlerKeyMigrationTests(PostgresFixture fixture)
         return context.ExecuteAsync(
             $"INSERT INTO {schemaName}.jobs " +
             "(id, tenant_id, kind, target_name, status, payload, scheduled_for, created_at) " +
-            $"VALUES (gen_random_uuid(), 'test', {value}, 'target-{value}', 3, " +
+            $"VALUES (md5(random()::text || clock_timestamp()::text)::uuid, 'test', {value}, 'target-{value}', 3, " +
             "'{}'::jsonb, now(), now());");
     }
 

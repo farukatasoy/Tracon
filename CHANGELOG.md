@@ -847,6 +847,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - **The job worker's poll and MCP tool discovery wait on the registered `TimeProvider`, and read their interval again on every tick.** Both waited on the system clock whatever `TimeProvider` the host registered, so a test host that registered a fake clock could drive the worker's other timers (a job's time limit, its lease renewal, its cancel watch) but not the poll that leases the job, nor the refresh that lists the MCP tools. A host whose registered provider has manual timers (`FakeTimeProvider`) now advances them by `PollInterval` and `Tracon:Mcp:RefreshInterval`; a host on the system clock sees no difference. The interval is read from the options on every tick and pass, so an options monitor that changes `PollInterval` or `RefreshInterval` applies it to the next wait (a value a timer cannot take is ignored, and the loop keeps the interval it has). Nothing in Tracon reloads these options from configuration on its own.
+- **The compatibility page now lists which platforms were run, and which were not.** *Verified platforms* gives, for PostgreSQL 12 to 18 (and 18 with the `tr-TR` ICU locale),
+  SQL Server 2017, 2019 and 2022 (and 2022 with `Turkish_CI_AS`), SQLite 3.33 to 3.53 and the process cultures `tr-TR` and `de-DE`, the test project that proves the row, the result
+  and the date; Windows, a Linux run on GitHub, PostgreSQL 11 and Azure SQL are listed as not verified. Two exceptions are written out: SQL Server 2017 applies every migration and passes
+  all but two tests, which pin an error number that is 2019 and later; SQLite 3.35 applies every migration but fails two tests (a key revoked while its last use is written ends with
+  `database is locked`; a stored `1e300` reads back one unit in the last place off) and 3.44 passes all of them; below 3.35 the migrations stop at `0030_job_handler_key`, which needs
+  `ALTER TABLE … DROP COLUMN`. Nothing in the packages changed.
 - **The run event stream tells a client that reconnects on its own how long to wait.** `GET /api/runs/{runId}/events` opens with a `retry: 3000` block, with or without
   `Last-Event-ID`, so every client of an instance that restarted waits the same, known time instead of the default of its own browser. The block carries no data and dispatches no
   event: `readSse`, the `Tracon.Client` stream readers and every reader that follows the SSE rules drop it. Before this release the `Tracon.Client` raw-frame reader

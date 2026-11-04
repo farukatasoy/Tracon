@@ -64,7 +64,7 @@ public sealed class TenantIdCaseGuardTests(PostgresFixture fixture)
 
         await context.ExecuteAsync($"""
             INSERT INTO {context.SchemaName}.audit_log (id, tenant_id, actor, action, entity, created_at)
-            VALUES (gen_random_uuid(), '{tenant}', 'admin', 'agent.create', 'agent:demo', now());
+            VALUES (md5(random()::text || clock_timestamp()::text)::uuid, '{tenant}', 'admin', 'agent.create', 'agent:demo', now());
             """);
 
         var failure = await Should.ThrowAsync<TraconException>(

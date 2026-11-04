@@ -28,10 +28,10 @@ public sealed class HeaderConfigurationKeysMigrationTests(PostgresFixture fixtur
 
         await context.ExecuteAsync(
             $"INSERT INTO {schemaName}.mcp_servers (id, tenant_id, name, endpoint, headers, created_at, updated_at) " +
-            $"VALUES (gen_random_uuid(), '{Tenant}', 'm1', 'https://mcp.example.com/mcp', '{{\"X-Team\":\"t1\"}}', now(), now());");
+            $"VALUES (md5(random()::text || clock_timestamp()::text)::uuid, '{Tenant}', 'm1', 'https://mcp.example.com/mcp', '{{\"X-Team\":\"t1\"}}', now(), now());");
         await context.ExecuteAsync(
             $"INSERT INTO {schemaName}.webhook_subscriptions (id, tenant_id, name, url, events, headers, created_at, updated_at) " +
-            $"VALUES (gen_random_uuid(), '{Tenant}', 'w1', 'https://example.com/hook', ARRAY['run.completed'], '{{\"X-Team\":\"t1\"}}', now(), now());");
+            $"VALUES (md5(random()::text || clock_timestamp()::text)::uuid, '{Tenant}', 'w1', 'https://example.com/hook', ARRAY['run.completed'], '{{\"X-Team\":\"t1\"}}', now(), now());");
 
         (await context.Migrations.ApplyAsync()).ShouldBeGreaterThan(0);
 

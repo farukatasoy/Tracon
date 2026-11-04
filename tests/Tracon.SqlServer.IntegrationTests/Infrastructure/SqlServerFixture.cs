@@ -1,3 +1,5 @@
+using System.Globalization;
+using Microsoft.Data.SqlClient;
 using Testcontainers.MsSql;
 
 namespace Tracon.SqlServer.IntegrationTests.Infrastructure;
@@ -35,13 +37,81 @@ public sealed class SqlServerFixture : IAsyncLifetime
     /// <summary>The environment variable that sets the server language (<c>MSSQL_LCID</c>), for example 1055 for Turkish.</summary>
     public const string LcidVariable = "TRACON_TEST_SQLSERVER_LCID";
 
+    private static readonly TimeSpan CollationChangeBudget = TimeSpan.FromMinutes(6);
+
+    private static readonly TimeSpan CollationProbeInterval = TimeSpan.FromSeconds(5);
+
     private readonly MsSqlContainer _container = CreateContainer();
 
     /// <summary>Gets the connection string of the running container.</summary>
     public string ConnectionString => _container.GetConnectionString();
 
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => await _container.StartAsync();
+    public async ValueTask InitializeAsync()
+    {
+        await _container.StartAsync();
+
+        var collation = Environment.GetEnvironmentVariable(CollationVariable);
+
+        if (!string.IsNullOrWhiteSpace(collation))
+        {
+            await WaitForCollationAsync(collation);
+        }
+    }
+
+    /// <summary>
+    /// The image applies <c>MSSQL_COLLATION</c> after the server first accepts connections: it starts with its default
+    /// collation, passes the readiness probe, then rebuilds the system databases for the collation asked for and drops every
+    /// connection while it does. Returning at the probe raced that rebuild (see <c>ServerCollationTests</c>). The wait ends
+    /// when two probes, a few seconds apart, find the collation asked for on the same server process.
+    /// </summary>
+    private async Task WaitForCollationAsync(string expected)
+    {
+        var builder = new SqlConnectionStringBuilder(ConnectionString) { Pooling = false };
+        var deadline = DateTime.UtcNow + CollationChangeBudget;
+        string? previousStart = null;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                await using var connection = new SqlConnection(builder.ConnectionString);
+                await connection.OpenAsync();
+
+                await using var command = connection.CreateCommand();
+                command.CommandText = "SELECT CONVERT(nvarchar(128), SERVERPROPERTY('Collation')), CONVERT(nvarchar(64), sqlserver_start_time, 126) FROM sys.dm_os_sys_info;";
+
+                await using var reader = await command.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync()
+                    && string.Equals(reader.GetString(0), expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    var start = reader.GetString(1);
+
+                    if (string.Equals(start, previousStart, StringComparison.Ordinal))
+                    {
+                        SqlConnection.ClearAllPools();
+                        return;
+                    }
+
+                    previousStart = start;
+                }
+                else
+                {
+                    previousStart = null;
+                }
+            }
+            catch (SqlException)
+            {
+                // The server drops connections while it rebuilds; the next probe finds out whether it is done.
+                previousStart = null;
+            }
+
+            await Task.Delay(CollationProbeInterval);
+        }
+
+        throw new TimeoutException(string.Create(CultureInfo.InvariantCulture, $"The server did not report the collation '{expected}' within {CollationChangeBudget}."));
+    }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await _container.DisposeAsync();

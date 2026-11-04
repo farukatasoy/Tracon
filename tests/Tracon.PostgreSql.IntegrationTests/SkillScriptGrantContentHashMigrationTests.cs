@@ -106,7 +106,7 @@ public sealed class SkillScriptGrantContentHashMigrationTests(PostgresFixture fi
         => context.ExecuteAsync(
             $"INSERT INTO {schemaName}.skill_script_grants " +
             "(id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at) " +
-            $"VALUES (gen_random_uuid(), '{Tenant}', '{skillName}', " +
+            $"VALUES (md5(random()::text || clock_timestamp()::text)::uuid, '{Tenant}', '{skillName}', " +
             (scriptName is null ? "NULL" : $"'{scriptName}'") +
             ", 'seed', now(), NULL, " + (revoked ? "now()" : "NULL") + ");");
 

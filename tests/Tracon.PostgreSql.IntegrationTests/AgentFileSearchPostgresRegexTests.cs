@@ -74,7 +74,7 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
 
         await _context.ExecuteAsync($"""
             INSERT INTO {schema}.agent_files (id, tenant_id, agent_name, path, content, created_at, updated_at)
-            SELECT gen_random_uuid(), 'default', 'agent-a',
+            SELECT md5(random()::text || clock_timestamp()::text)::uuid, 'default', 'agent-a',
                    '/archive/file-' || i || '.md', 'unrelated content', now(), now()
             FROM generate_series(1, {UnrelatedFileCount}) AS i;
             """);

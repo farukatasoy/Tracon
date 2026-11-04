@@ -14,6 +14,15 @@
   </ItemGroup>
 
   <!--
+    The surface generator is the source of a console program that the tests build and run in a temp directory, against
+    the packed packages: it is read from here, not compiled into this assembly.
+  -->
+  <ItemGroup>
+    <Compile Remove="SurfaceGenerator/**" />
+    <None Include="SurfaceGenerator/**" />
+  </ItemGroup>
+
+  <!--
     moved ProcessRunner out of this project and into
     tests/Shared/Infrastructure, where the two-process failure proof can use it
     too. It is LINKED, not copied: one source file, compiled into both

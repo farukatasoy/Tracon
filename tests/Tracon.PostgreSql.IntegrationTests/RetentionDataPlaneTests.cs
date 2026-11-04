@@ -83,7 +83,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
 
         await _context.ExecuteAsync($"""
             INSERT INTO {_context.SchemaName}.audit_log (id, tenant_id, actor, action, entity, created_at)
-            VALUES (gen_random_uuid(), 'test', 'test-actor', 'agent.create', 'agent:demo', now() - interval '400 days');
+            VALUES (md5(random()::text || clock_timestamp()::text)::uuid, 'test', 'test-actor', 'agent.create', 'agent:demo', now() - interval '400 days');
             """);
 
         // 'audit_log' is NOT in the RetentionTargets whitelist; IRetentionStore
@@ -311,7 +311,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
             INSERT INTO {_context.SchemaName}.workflow_checkpoints
                 (id, tenant_id, session_id, checkpoint_id, run_id, state, created_at)
             VALUES
-                (gen_random_uuid(), 'test', '{Guid.NewGuid()}', '{Guid.NewGuid()}', '{runId}', {emptyJsonState}, now());
+                (md5(random()::text || clock_timestamp()::text)::uuid, 'test', '{Guid.NewGuid()}', '{Guid.NewGuid()}', '{runId}', {emptyJsonState}, now());
             """);
     }
 

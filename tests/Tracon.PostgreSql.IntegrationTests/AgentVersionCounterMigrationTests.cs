@@ -192,7 +192,7 @@ public sealed class AgentVersionCounterMigrationTests(PostgresFixture fixture)
     {
         await context.ExecuteAsync(
             $"INSERT INTO {context.SchemaName}.agent_definitions (id, tenant_id, name, version, definition, created_at, updated_at) " +
-            $"VALUES (gen_random_uuid(), '{tenant}', '{name}', {version}, '{Payload}'::jsonb, '2026-01-01T00:00:00Z', '{updatedAt}');");
+            $"VALUES (md5(random()::text || clock_timestamp()::text)::uuid, '{tenant}', '{name}', {version}, '{Payload}'::jsonb, '2026-01-01T00:00:00Z', '{updatedAt}');");
         await InsertHistoryAsync(context, tenant, name, version);
     }
 
@@ -207,6 +207,6 @@ public sealed class AgentVersionCounterMigrationTests(PostgresFixture fixture)
     private static ValueTask<int> InsertHistoryAsync(PostgresTestContext context, string tenant, string name, int version)
         => context.ExecuteAsync(
             $"INSERT INTO {context.SchemaName}.agent_definition_versions (id, agent_id, version, definition, created_by, created_at) " +
-            $"SELECT gen_random_uuid(), id, {version}, definition, NULL, now() " +
+            $"SELECT md5(random()::text || clock_timestamp()::text)::uuid, id, {version}, definition, NULL, now() " +
             $"FROM {context.SchemaName}.agent_definitions WHERE tenant_id = '{tenant}' AND name = '{name}';");
 }

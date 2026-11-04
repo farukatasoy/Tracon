@@ -138,5 +138,5 @@ public sealed class WorkflowVersionHistoryMigrationTests(PostgresFixture fixture
     private static ValueTask<int> SeedWorkflowAsync(PostgresTestContext context, string tenant, string name, int version, string updatedAt)
         => context.ExecuteAsync(
             $"INSERT INTO {context.SchemaName}.workflows (id, tenant_id, name, version, definition, created_at, updated_at) " +
-            $"VALUES (gen_random_uuid(), '{tenant}', '{name}', {version}, '{Payload}'::jsonb, '2026-01-01T00:00:00Z', '{updatedAt}');");
+            $"VALUES (md5(random()::text || clock_timestamp()::text)::uuid, '{tenant}', '{name}', {version}, '{Payload}'::jsonb, '2026-01-01T00:00:00Z', '{updatedAt}');");
 }

@@ -60,7 +60,7 @@ public sealed class KnowledgeRetentionTests(PostgresFixture fixture) : IAsyncLif
             INSERT INTO {schema}.document_embeddings
                 (id, tenant_id, collection, source_id, chunk_index, content, embedding, created_at)
             VALUES
-                (gen_random_uuid(), '{tenantId}', 'kb', '{sourceId}', 0, 'content',
+                (md5(random()::text || clock_timestamp()::text)::uuid, '{tenantId}', 'kb', '{sourceId}', 0, 'content',
                  '[1,0,0]'::vector, '{createdAt:O}');
             """);
     }
