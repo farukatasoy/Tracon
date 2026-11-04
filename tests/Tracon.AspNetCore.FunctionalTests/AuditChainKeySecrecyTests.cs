@@ -117,11 +117,23 @@ public sealed class AuditChainKeySecrecyTests
     // sharing read and write access is what lets the scan see the bytes while the connection lives.
     private static byte[] ReadShared(string file)
     {
-        using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var copy = new MemoryStream();
+        // A busy host sometimes holds the file or its journal in a way even a sharing read cannot join for a moment
+        // ("being used by another process" in a full parallel run): the scan asks again instead of failing for it.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var copy = new MemoryStream();
 
-        stream.CopyTo(copy);
-        return copy.ToArray();
+                stream.CopyTo(copy);
+                return copy.ToArray();
+            }
+            catch (IOException) when (attempt < 20)
+            {
+                Thread.Sleep(50); // delay: retry
+            }
+        }
     }
 
     private static string SqliteBytes(string path) => Encoding.Latin1.GetString(AllFileBytes(path));
