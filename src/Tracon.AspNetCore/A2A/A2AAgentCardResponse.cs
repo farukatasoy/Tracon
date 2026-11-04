@@ -19,7 +19,7 @@ namespace Tracon;
 /// it arrived: <c>Request.Scheme</c>, <c>Request.Host</c> and <c>Request.PathBase</c>.
 /// </para>
 /// <para>
-/// 🚨 Nothing here reads <c>X-Forwarded-Host</c> or <c>X-Forwarded-Proto</c>. A host that runs the forwarded headers
+/// Nothing here reads <c>X-Forwarded-Host</c> or <c>X-Forwarded-Proto</c>. A host that runs the forwarded headers
 /// middleware has the framework rewrite those three values before the endpoint sees them, from the proxies it trusts; a
 /// host that does not gets the address of the connection, and a header a client wrote changes nothing. The host name is
 /// still what the caller put in the <c>Host</c> header, so an application that is reachable under any name restricts the
