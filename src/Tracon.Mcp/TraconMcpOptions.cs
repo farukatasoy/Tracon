@@ -154,7 +154,8 @@ public sealed class TraconMcpOptions
 
     /// <summary>
     /// How long a token stays in the distributed cache without being read or written. The default is
-    /// 30 days. It applies only to <see cref="McpOAuthTokenStore.DistributedCache"/>.
+    /// 30 days. It is used only by <see cref="McpOAuthTokenStore.DistributedCache"/>, but the value must be greater than
+    /// zero in either mode.
     /// </summary>
     /// <remarks>
     /// <para>
