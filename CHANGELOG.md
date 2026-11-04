@@ -1034,12 +1034,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   pairs than the cache holds compiled again on every request and left a set on every request (a 10 000-tenant soak measured 2.2 instrument announcements and 2.6 KiB of live heap per request). Measured: 1 000 compiles through a cache
   limited to 8 entries left 1 000 live instruments and 1 000 activity sources; 300 tenants through the HTTP stack left 300; 300 calls of `POST /agents/validate` left 900 (three clients each); about 3 000 bytes per client
   was held at least, and about 7 KiB with the OpenTelemetry SDK listening. The client is now shared, one for each provider and endpoint (`gen_ai.provider.name`, `server.address`, `server.port`), and each call carries the
-  target pipeline it belongs to, so a call of one tenant never reaches the pipeline of another. Span names, kinds, parents, attributes, events, the metric instruments and their tags are the ones a client built for the
-  pipeline alone wrote (compared for a response, a stream and a failure, with and without a default model, a model named by the call, an endpoint and a port). The client is never disposed while the host runs: with the
+  target pipeline it belongs to, so a call of one tenant never reaches the pipeline of another. The client sits where the pipeline's own client sat, below the run budget, the response cache and the hosted tool ring and above the content guard, so a response cache hit and a turn the budget
+  refuses still open no `chat` span, record no duration and log no operation error. Span names, kinds, parents, attributes, events, the metric instruments and their tags are the ones a client built for the
+  pipeline alone wrote (compared for a response, a stream and a failure, with and without a default model, a model named by the call, an endpoint and a port), and the pipeline the registry builds is tested with the
+  budget, the cache and the hosted tool ring turned on. The client is never disposed while the host runs: with the
   OpenTelemetry SDK 1.20.1 a meter disposed after its work retires its series, so every call would have become a series of its own.
   - **`GetService<OpenTelemetryChatClient>()` on a client the registry built returns `null`.** The client is shared by every pipeline of the host, and a flag set on it would reach the pipelines of every tenant. `GetService<ActivitySource>()`
     still answers with the source the spans go to.
-  - **The instruments now grow with the providers and endpoints in use, not with the compiles.** A tenant that brings its own endpoint through a provider binding still gets one set for each distinct host and port.
+  - **The instruments now grow with the provider endpoints the host talks to, not with the compiles.** There is one set for each provider and each distinct host and port. A tenant administrator who writes its own
+    endpoint into a provider binding chooses how many: every new host name or port opens a set that stays until the process ends (about 3 KB, about 7 KiB while an OpenTelemetry SDK listens). The endpoint check requires an
+    absolute address and refuses a literal address the egress policy forbids; it does not limit the number of endpoints, and there is no ceiling yet.
 - **A provider key that ends in a line break works, and one that holds a character an HTTP header cannot carry stops the host at start.** A key read from a file or a mounted secret usually ends in a
   newline. The Anthropic client refused its own `Authorization` header for such a key with a sentence that quoted the whole key, and a key set up at start has no per-call credential to mask in that text,
   so the key reached the error text of the run, the run record, the logs and the status of the chat span, and the database when trace content is recorded; the OpenAI, Azure OpenAI and Google clients wrote
