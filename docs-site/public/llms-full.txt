@@ -2358,7 +2358,7 @@ attachments, sessions, and more.
 A database policy takes precedence. When none exists and retention is enabled in
 configuration, Tracon falls back to its target defaults, including 30 days for
 run events and 14 days for spans. With retention disabled, nothing is removed. A
-policy with `enabled: false` is configured but paused, and so is one saved without `enabled`.
+policy with `enabled: false` is configured but paused.
 
 When a policy has `archive: true`, cleanup first sends its batch to the registered
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
@@ -7024,7 +7024,8 @@ defaults, such as 30 days for run events and 14 days for spans. With retention
 disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
 `IArchiveSink` is registered; data loss is the failure mode the worker avoids. With a
 sink, each batch deletes only the rows the sink received — see
-[Retention](/concepts/governance/#retention).
+[Retention](/concepts/governance/#retention). A database policy saved without `enabled`
+is paused: send `"enabled": true` to start deleting.
 
 Cleanup runs through the job queue. Preview a policy before you execute it:
 

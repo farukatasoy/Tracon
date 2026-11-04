@@ -375,7 +375,8 @@ defaults, such as 30 days for run events and 14 days for spans. With retention
 disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
 `IArchiveSink` is registered; data loss is the failure mode the worker avoids. With a
 sink, each batch deletes only the rows the sink received — see
-[Retention](/concepts/governance/#retention).
+[Retention](/concepts/governance/#retention). A database policy saved without `enabled`
+is paused: send `"enabled": true` to start deleting.
 
 Cleanup runs through the job queue. Preview a policy before you execute it:
 
