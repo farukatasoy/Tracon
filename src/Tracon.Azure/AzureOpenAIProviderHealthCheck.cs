@@ -95,12 +95,13 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
 
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token.Token);
         }
-        else if (!string.IsNullOrWhiteSpace(_options.ApiKey))
+        else if (OutboundApiKey.Normalize(AzureOpenAIChatClientFactory.ApiKeyOptionName, _options.ApiKey) is { } apiKey)
         {
             // The same header form the chat call sends for a key: the v1 API takes
             // `Authorization: Bearer <key>`, so one resource or gateway answers
-            // both calls alike.
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.ApiKey);
+            // both calls alike. The key is trimmed and checked like the client's: a key the header
+            // cannot carry is a credential failure of this check, reported without the key.
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
         }
     }
 

@@ -54,6 +54,12 @@ internal sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azu
                 "option inside `dotnet user-secrets`, or give a " +
                 $"{nameof(AzureOpenAIProviderOptions.CredentialFactory)} for a managed credential.");
         }
+        else if (options.CredentialFactory is null
+            && OutboundApiKey.Refusal(AzureOpenAIChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } refusal)
+        {
+            // A credential factory wins over the key, so a key that is never sent is not judged.
+            (failures ??= []).Add(refusal);
+        }
 
         // The request timeout reaches the SDK's HTTP stack and the health
         // check's CancellationTokenSource; past int.MaxValue ms one refuses it at the

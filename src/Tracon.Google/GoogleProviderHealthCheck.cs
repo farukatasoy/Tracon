@@ -48,9 +48,11 @@ internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProvi
 
     private ValueTask Authorize(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(options.ApiKey))
+        // The same trim and check the client gets: a key the header cannot carry is a credential failure of
+        // this check, reported without the key, not an exception that quotes it.
+        if (OutboundApiKey.Normalize(GoogleChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } apiKey)
         {
-            request.Headers.Add("x-goog-api-key", options.ApiKey);
+            request.Headers.Add("x-goog-api-key", apiKey);
         }
 
         return ValueTask.CompletedTask;

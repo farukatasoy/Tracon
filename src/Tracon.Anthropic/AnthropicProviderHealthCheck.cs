@@ -54,9 +54,11 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
     {
         request.Headers.Add("anthropic-version", AnthropicVersion);
 
-        if (!string.IsNullOrWhiteSpace(options.ApiKey))
+        // The same trim and check the client gets: a key the header cannot carry is a credential failure of
+        // this check, reported without the key, not an exception that quotes it.
+        if (OutboundApiKey.Normalize(AnthropicChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } apiKey)
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         }
 
         return ValueTask.CompletedTask;

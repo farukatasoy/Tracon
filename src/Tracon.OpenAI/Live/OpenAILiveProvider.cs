@@ -234,7 +234,8 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
                 : credential.ApiKey;
         }
 
-        return _providerOptions.CurrentValue.ApiKey is { Length: > 0 } key
+        // The configured key is trimmed and checked like the one the chat client is built with.
+        return OutboundApiKey.Normalize(OpenAIChatClientFactory.ApiKeyOptionName, _providerOptions.CurrentValue.ApiKey) is { } key
             ? key
             : throw new TraconException(
                 "The OpenAI live voice provider needs an API key. Call UseOpenAI(...) before UseOpenAILive(...).");

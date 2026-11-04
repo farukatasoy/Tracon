@@ -26,6 +26,9 @@ namespace Tracon;
 /// </remarks>
 internal sealed class GoogleChatClientFactory : IDisposable
 {
+    /// <summary>The option the setup-time key is read from, as it is written in a failure.</summary>
+    internal const string ApiKeyOptionName = nameof(GoogleProviderOptions) + "." + nameof(GoogleProviderOptions.ApiKey);
+
     private readonly bool _ownsClient;
     private readonly string? _defaultModel;
     private readonly ILoggerFactory? _loggerFactory;
@@ -34,9 +37,15 @@ internal sealed class GoogleChatClientFactory : IDisposable
     /// <param name="options">Provider settings.</param>
     /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    /// <exception cref="TraconException"><see cref="GoogleProviderOptions.ApiKey"/> is empty.</exception>
+    /// <exception cref="TraconException">
+    /// <see cref="GoogleProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
+    /// </exception>
+    /// <remarks>
+    /// This is the setup-time key, so it is trimmed and checked before a header is built from it
+    /// (<c>OutboundApiKey</c>).
+    /// </remarks>
     public GoogleChatClientFactory(GoogleProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateClient(options), options.DefaultModel, loggerFactory, ownsClient: true)
+        : this(CreateSetupClient(options), options.DefaultModel, loggerFactory, ownsClient: true)
     {
     }
 
@@ -136,7 +145,21 @@ internal sealed class GoogleChatClientFactory : IDisposable
     internal IImageGenerator CreateImageGenerator() => new GoogleImageGenerator(Client);
 #pragma warning restore MEAI001
 
-    /// <summary>Builds a Google GenAI client from settings.</summary>
+    /// <summary>Builds the client for the key set up at start.</summary>
+    /// <param name="options">Provider settings.</param>
+    /// <returns>The built client.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="TraconException">
+    /// <see cref="GoogleProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
+    /// </exception>
+    private static Client CreateSetupClient(GoogleProviderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return Build(options, OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey), egressGuard: null);
+    }
+
+    /// <summary>Builds a Google GenAI client from the key of a tenant's own credential.</summary>
     /// <param name="options">Provider settings.</param>
     /// <param name="egressGuard">
     /// When given, every connection this client opens passes through the
@@ -151,13 +174,19 @@ internal sealed class GoogleChatClientFactory : IDisposable
     /// The base address is passed via <see cref="HttpOptions"/>. The SDK's static
     /// <c>Client.setDefaultBaseUrl</c> method is deliberately not used: it mutates
     /// process-wide state, which would make it impossible to use two different
-    /// Gemini endpoints in the same application.
+    /// Gemini endpoints in the same application. The key is used as it was stored: a tenant's key is masked
+    /// wherever the text of its failure is shown, and the setup-time key goes through the constructor instead.
     /// </remarks>
     public static Client CreateClient(GoogleProviderOptions options, EgressSocketGuard? egressGuard = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        return Build(options, options.ApiKey, egressGuard);
+    }
+
+    private static Client Build(GoogleProviderOptions options, string? apiKey, EgressSocketGuard? egressGuard)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new TraconException(
                 $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.ApiKey)} is empty. " +
@@ -188,7 +217,7 @@ internal sealed class GoogleChatClientFactory : IDisposable
                 HttpClientFactory = () => egressGuard.CreateHttpClient(Timeout.InfiniteTimeSpan),
             };
 
-        return new Client(apiKey: options.ApiKey, httpOptions: httpOptions, clientOptions: clientOptions);
+        return new Client(apiKey: apiKey, httpOptions: httpOptions, clientOptions: clientOptions);
     }
 
     /// <inheritdoc />

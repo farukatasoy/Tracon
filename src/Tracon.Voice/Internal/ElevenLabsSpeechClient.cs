@@ -37,6 +37,9 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
     /// <summary>Authentication header. It is NOT <c>Authorization: Bearer</c>.</summary>
     internal const string ApiKeyHeader = "xi-api-key";
 
+    /// <summary>The option the key is read from, as it is written in a failure.</summary>
+    internal const string ApiKeyOptionName = nameof(VoiceOptions) + "." + nameof(VoiceOptions.ApiKey);
+
     /// <summary>The provider's default synthesis model.</summary>
     internal const string DefaultSynthesisModel = "eleven_multilingual_v2";
 
@@ -616,9 +619,11 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
 
     private void AddApiKey(HttpRequestMessage message)
     {
-        if (!string.IsNullOrWhiteSpace(_options.ApiKey))
+        // The header is added without validation, so a line break in the key would reach the wire as it is. The key is
+        // trimmed here, and one that still holds a character a header cannot carry stops the call, without the key.
+        if (OutboundApiKey.Normalize(ElevenLabsSpeechClient.ApiKeyOptionName, _options.ApiKey) is { } apiKey)
         {
-            message.Headers.TryAddWithoutValidation(ApiKeyHeader, _options.ApiKey);
+            message.Headers.TryAddWithoutValidation(ApiKeyHeader, apiKey);
         }
     }
 

@@ -32,6 +32,10 @@ internal sealed class GoogleProviderOptionsValidator : IValidateOptions<GooglePr
                 $"set '{GoogleProviderOptions.SectionName}:{nameof(GoogleProviderOptions.ApiKey)}' " +
                 "inside `dotnet user-secrets`.");
         }
+        else if (OutboundApiKey.Refusal(GoogleChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } refusal)
+        {
+            (failures ??= []).Add(refusal);
+        }
 
         if (options.Endpoint is { IsAbsoluteUri: false })
         {
