@@ -1561,11 +1561,13 @@ internal abstract class SqlQueriesBase
             VALUES (@id, @tenant_id, @agent_name, @state, @state_schema_version, @created_at, @updated_at, 1, @state_maf_version, @owner_id);
             """;
 
-        // `version`, `state_maf_version` and `owner_id` are appended LAST so
+        // `version`, `state_maf_version`, `owner_id` and `id` are appended LAST so
         // every existing ordinal keeps its index (same rule as the `version`
-        // column itself).
+        // column itself). `id` is selected although the caller passed it: the
+        // record carries the key as the row holds it (U+0000 is stored as U+FFFD,
+        // and SQL Server matches 'a' and 'a ' as one key), like the list query.
         SelectSession = $"""
-            SELECT agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version, owner_id
+            SELECT agent_name, state, state_schema_version, created_at, updated_at, tenant_id, version, state_maf_version, owner_id, id
             FROM {Table("sessions")}
             WHERE id = @id AND tenant_id = @tenant_id;
             """;

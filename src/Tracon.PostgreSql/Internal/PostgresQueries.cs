@@ -287,7 +287,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 -- unset for the same run, so preserving is always correct.
                 user_id       = COALESCE(EXCLUDED.user_id, {Schema}.runs.user_id),
                 labels        = COALESCE(EXCLUDED.labels, {Schema}.runs.labels)
-            RETURNING user_id, labels;
+            RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
             """;
 
         UpdateRunCompletion = $"""
@@ -1506,18 +1506,30 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // The consecutive-failure counter and auto-disable are done in a
         // SINGLE statement; a read-modify-write sequence would race with
         // concurrent deliveries. The returned row answers the question "did
-        // this call disable the subscription".
+        // this call switch the subscription off".
+        // RETURNING sees only the row AFTER the update, so the state before it
+        // comes from a locked read in the same statement. 🚨 FOR UPDATE is
+        // what makes the answer exact: without it two concurrent failures at
+        // the threshold both read the old enabled = true under READ
+        // COMMITTED and both answer true. With it the second one waits for the
+        // first, reads the row the first one left (off) and answers false.
         UpdateWebhookSubscriptionOutcome = $"""
-            UPDATE {Schema}.webhook_subscriptions
-               SET consecutive_failures = CASE WHEN @succeeded THEN 0 ELSE consecutive_failures + 1 END,
+            WITH previous AS MATERIALIZED (
+                SELECT id, enabled
+                  FROM {Schema}.webhook_subscriptions
+                 WHERE id = @id
+                   FOR UPDATE)
+            UPDATE {Schema}.webhook_subscriptions AS s
+               SET consecutive_failures = CASE WHEN @succeeded THEN 0 ELSE s.consecutive_failures + 1 END,
                    enabled = CASE
-                       WHEN @succeeded THEN enabled
-                       WHEN @threshold > 0 AND consecutive_failures + 1 >= @threshold THEN false
-                       ELSE enabled
+                       WHEN @succeeded THEN s.enabled
+                       WHEN @threshold > 0 AND s.consecutive_failures + 1 >= @threshold THEN false
+                       ELSE s.enabled
                    END,
                    updated_at = @updated_at
-             WHERE id = @id
-            RETURNING (NOT enabled) AND @succeeded = false;
+              FROM previous AS p
+             WHERE s.id = p.id
+            RETURNING p.enabled AND NOT s.enabled;
             """;
 
         SelectWebhookDeliveries = $"""

@@ -405,14 +405,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    -- unset for the same run, so preserving is always correct.
                    user_id       = COALESCE(@user_id, user_id),
                    labels        = COALESCE(@labels, labels)
-            OUTPUT inserted.user_id, inserted.labels
+            OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
              WHERE id = @id;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
                                        replay_of_run_id, user_id, labels, continued_from_run_id)
-            OUTPUT inserted.user_id, inserted.labels
+            OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
                     @replay_of_run_id, @user_id, @labels, @continued_from_run_id);
@@ -1725,8 +1725,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // The consecutive-failure counter and the auto-disable happen in a
-        // SINGLE statement. The returned row answers "did this call disable
-        // the subscription".
+        // SINGLE statement. The returned row answers "did this call switch the
+        // subscription off": OUTPUT sees the row before (deleted) and after
+        // (inserted) the update under the row lock the update holds, so a
+        // failure of a subscription that was already off answers false and, of
+        // several concurrent failures at the threshold, exactly one answers true.
         UpdateWebhookSubscriptionOutcome = $"""
             UPDATE {Schema}.webhook_subscriptions
                SET consecutive_failures = CASE WHEN @succeeded = 1 THEN 0 ELSE consecutive_failures + 1 END,
@@ -1736,7 +1739,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                        ELSE enabled
                    END,
                    updated_at = @updated_at
-             OUTPUT CASE WHEN inserted.enabled = 0 AND @succeeded = 0
+             OUTPUT CASE WHEN deleted.enabled = 1 AND inserted.enabled = 0
                          THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END
              WHERE id = @id;
             """;

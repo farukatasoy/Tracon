@@ -132,7 +132,8 @@ public interface ISessionStore
     /// <param name="sessionId">The session identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// The session in the ambient tenant; <see langword="null"/> if that tenant has none.
+    /// The session in the ambient tenant, as the store holds it (its identifier included: the same record
+    /// <see cref="QueryAsync"/> reports); <see langword="null"/> if that tenant has none.
     /// </returns>
     ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default);
 

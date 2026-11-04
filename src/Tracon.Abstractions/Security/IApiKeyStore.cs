@@ -12,8 +12,8 @@ public interface IApiKeyStore
     /// <param name="draft">The key's draft.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// The saved record and the raw key value. The raw value cannot be
-    /// produced again after this call.
+    /// The saved record, as the store holds it (the same record <see cref="ListAsync"/> reports), and the raw key value.
+    /// The raw value cannot be produced again after this call.
     /// </returns>
     /// <remarks>
     /// Produce the raw value, its digest, and its display prefix with

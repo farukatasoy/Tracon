@@ -471,28 +471,8 @@ internal sealed class RunModel(RunUniverse universe, ProviderTraits traits) : IS
             _runs[s.Run] = run;
         }
 
-        if (!traits.CreateEchoesInputText)
-        {
-            return Observation.Of(Render(s.Run, run));
-        }
-
-        // The returned record is built from the call: its own text and time, with the attribution the row kept.
-        return Observation.Of(RenderStatic(
-            s.Run.ToString(CultureInfo.InvariantCulture),
-            Fold(universe.Tenants[universe.HomeTenants[s.Run]]),
-            universe.Agents[spec.Agent],
-            spec.Status,
-            spec.StartedAt.UtcTicks,
-            run.User,
-            RenderLabels(run.Labels),
-            spec.Session is { } sx ? universe.Sessions[sx] : null,
-            spec.Model is { } mx ? universe.Models[mx] : null,
-            spec.Streaming,
-            run));
+        return Observation.Of(Render(s.Run, run));
     }
-
-    private static string RenderStatic(string slot, string tenant, string agent, RunStatus status, long started, string? user, string labels, string? session, string? model, bool streaming, Run run)
-        => RenderOf(slot, tenant, agent, status, started, run.Completed, user, labels, session, model, streaming, run.EventCount, run.Usage, run.Error);
 
     private Observation Append(AppendEventStep s)
     {

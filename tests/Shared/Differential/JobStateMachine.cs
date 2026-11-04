@@ -539,31 +539,7 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
         job.Items.AddRange(s.Inputs.Select(index => new Item(traits.Text(universe.Inputs[index]))));
         _jobs[s.Slot] = job;
 
-        // A SQL store builds the record it returns from the call and writes the row separately, so the text and the times
-        // of the returned record are the caller's own (the tenant is not: it is returned in the form the row holds).
-        return Observation.Of("enqueued " + (traits.CreateEchoesInputText
-            ? JobModel.Render(
-                s.Slot,
-                tenant,
-                Handler(s.Handler),
-                s.Lane,
-                universe.Targets[s.Slot % universe.Targets.Length],
-                JobStatus.Pending,
-                CanonicalJson.Of(universe.Payloads[s.Payload]),
-                s.Inputs.Length,
-                0,
-                0,
-                0,
-                s.MaxAttempts,
-                s.MaxDurationMs,
-                null,
-                null,
-                JobModel.DueTicks(s.ScheduledSeconds, s.Slot, s.ScheduledFlavor),
-                null,
-                null,
-                null,
-                JobModel.CreatedTicks(s.CreatedSeconds, s.CreatedFlavor))
-            : Render(job)));
+        return Observation.Of("enqueued " + Render(job));
     }
 
     private string Handler(int handler) => JobStateMachine.Handlers[handler];

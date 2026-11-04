@@ -55,6 +55,26 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
+    public async Task The_created_record_is_the_record_a_read_reports()
+    {
+        // The name and the times the row holds, not those of the call: a SQL store writes U+0000 as U+FFFD and
+        // PostgreSQL keeps microseconds. The raw key is returned once, beside the record, and is not part of it.
+        var expiry = new DateTimeOffset(2030, 1, 2, 3, 4, 5, TimeSpan.Zero).AddTicks(7);
+
+        var created = await Store.CreateAsync(Draft(Tenant, "ci\0key", [ApiKeyScope.RunsRead]) with { ExpiresAt = expiry });
+        var read = (await Store.ListAsync(Tenant)).ShouldHaveSingleItem();
+
+        created.Record.Id.ShouldBe(read.Id);
+        created.Record.TenantId.ShouldBe(read.TenantId);
+        created.Record.Name.ShouldBe(read.Name);
+        created.Record.KeyPrefix.ShouldBe(read.KeyPrefix);
+        created.Record.Scopes.ShouldBe(read.Scopes);
+        created.Record.ExpiresAt.ShouldBe(read.ExpiresAt);
+        created.Record.CreatedAt.ShouldBe(read.CreatedAt);
+        created.PlaintextKey.ShouldNotBeNullOrEmpty();
+    }
+
+    [Fact]
     public async Task Found_by_hash_of_the_raw_value()
     {
         var created = await Store.CreateAsync(Draft(Tenant, "ci"));

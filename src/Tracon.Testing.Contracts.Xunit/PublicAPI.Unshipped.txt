@@ -811,6 +811,10 @@ Tracon.Testing.Contracts.Storage.WebhookStoreContract.Subscribers_for_an_event_a
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_resets_the_counter() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.A_record_written_under_another_spelling_is_returned_and_read_under_the_canonical_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_result_is_recorded() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.A_failure_recorded_on_a_subscription_that_is_already_off_does_not_report_a_disable() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Exactly_one_of_several_concurrent_failures_at_the_threshold_reports_the_disable() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.A_success_on_an_off_subscription_resets_the_counter_and_reports_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.An_unknown_subscription_reports_nothing() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.WebhookStoreContract() -> void
 Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract
 Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.A_checkpoint_written_without_version_stamps_lists_back_null() -> System.Threading.Tasks.Task!
@@ -1234,6 +1238,7 @@ Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Stranded_runs_are_
 virtual Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.SetRunStatusAsync(System.Guid runId, string! tenantId, Tracon.RunStatus status) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.The_request_timeout_survives_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.A_revoked_key_stays_revoked_while_its_last_use_is_being_recorded() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ApiKeyStoreContract.The_created_record_is_the_record_a_read_reports() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failure_counter_counts_every_concurrent_failure() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Concurrent_progress_appends_all_count() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_completed_run_stays_completed_while_its_cost_is_being_updated() -> System.Threading.Tasks.Task!
@@ -1242,6 +1247,7 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Every_cost_total_is_the_exact_
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_non_token_cost_of_a_tree_is_the_exact_sum_of_its_amounts() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Every_decimal_a_run_holds_reads_back_digit_for_digit() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_job_whose_payload_and_input_hold_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.The_enqueued_job_is_the_job_a_read_reports() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.A_schedule_whose_payload_holds_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Paging_through_sessions_with_the_same_update_time_returns_each_one_once() -> System.Threading.Tasks.Task!
@@ -1271,9 +1277,15 @@ Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.AssertNamesThat
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Tool_names_that_differ_only_in_case_are_two_rules() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Tool_names_that_differ_only_in_case_are_two_tools_in_the_usage() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Names_that_differ_only_in_case_are_two_subscriptions() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.The_created_delivery_is_the_delivery_a_read_reports() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.A_canceled_token_stops_a_delivery_write_and_leaves_no_delivery() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.A_canceled_token_stops_an_outcome_write_and_leaves_the_counter() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Names_that_differ_only_in_case_are_two_definitions() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Names_that_differ_only_in_case_are_two_servers() -> System.Threading.Tasks.Task!
 
 Tracon.Testing.Contracts.Storage.RunStoreContract.Users_that_differ_only_in_letter_case_are_two_users() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_of_variants_that_differ_only_in_case_are_listed_apart() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_return_value_is_the_run_a_read_reports() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_return_value_carries_the_continuation_link_the_row_kept() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Owners_that_differ_only_in_letter_case_are_two_owners() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SessionStoreContract.A_read_by_identifier_answers_with_the_identifier_the_store_holds() -> System.Threading.Tasks.Task!

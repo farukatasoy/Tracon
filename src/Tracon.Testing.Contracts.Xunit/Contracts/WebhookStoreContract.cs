@@ -504,6 +504,137 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
         (await Store.GetSubscriptionAsync(Tenant, "orders"))!.Enabled.ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task The_created_delivery_is_the_delivery_a_read_reports()
+    {
+        // The text and the time the row holds, not those of the call: a SQL store writes U+0000 as U+FFFD and
+        // PostgreSQL keeps microseconds.
+        var subscription = await Store.SaveSubscriptionAsync(Subscription());
+
+        var created = await Store.CreateDeliveryAsync(Delivery(subscription.Id) with
+        {
+            EventType = "run\0completed",
+            Payload = "{\"text\":\"a\\u0000b\"}\0",
+            CreatedAt = new DateTimeOffset(2026, 11, 4, 9, 30, 15, TimeSpan.Zero).AddTicks(7),
+        });
+        var read = (await Store.GetDeliveryAsync(created.Id)).ShouldNotBeNull();
+
+        created.EventType.ShouldBe(read.EventType);
+        created.Payload.ShouldBe(read.Payload);
+        created.CreatedAt.ShouldBe(read.CreatedAt);
+        created.TenantId.ShouldBe(read.TenantId);
+        created.Status.ShouldBe(read.Status);
+    }
+
+    [Fact]
+    public async Task A_failure_recorded_on_a_subscription_that_is_already_off_does_not_report_a_disable()
+    {
+        // The answer is "did THIS call switch the subscription off". The delivery job logs a warning on true, so a
+        // store that answers true for every failure of a subscription that is off logs "was disabled" again and
+        // again for a subscription that stopped long ago.
+        var subscription = await Store.SaveSubscriptionAsync(Subscription());
+        var now = DateTimeOffset.UtcNow;
+
+        (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 2, now)).ShouldBeFalse();
+        (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 2, now)).ShouldBeTrue();
+
+        // Off now: a further failure counts, and reports nothing.
+        (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 2, now)).ShouldBeFalse();
+        (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 2, now)).ShouldBeFalse();
+
+        var loaded = await Store.GetSubscriptionAsync(Tenant, "orders");
+        loaded.ShouldNotBeNull();
+        loaded.Enabled.ShouldBeFalse();
+        loaded.ConsecutiveFailures.ShouldBe(4);
+
+        // A subscription an administrator switched off is the same case.
+        var switchedOff = await Store.SaveSubscriptionAsync(Subscription("paused", enabled: false));
+
+        (await Store.RecordSubscriptionOutcomeAsync(switchedOff.Id, false, 1, now)).ShouldBeFalse();
+        (await Store.RecordSubscriptionOutcomeAsync(switchedOff.Id, false, 100, now)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Exactly_one_of_several_concurrent_failures_at_the_threshold_reports_the_disable()
+    {
+        // Deliveries of one subscription fail on several job slots at once. The call that crosses the threshold
+        // answers true; a store that reads "off" after its own update, or reads the old state without a lock, lets
+        // two of them (or none) answer true.
+        const int Writers = 16;
+        const int Threshold = 5;
+
+        var subscription = await Store.SaveSubscriptionAsync(Subscription());
+        var now = DateTimeOffset.UtcNow;
+
+        var answers = await Task.WhenAll(Enumerable.Range(0, Writers).Select(_ => Task.Run(
+            async () => await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, Threshold, now))));
+
+        answers.Count(answer => answer).ShouldBe(1);
+
+        var loaded = await Store.GetSubscriptionAsync(Tenant, "orders");
+        loaded.ShouldNotBeNull();
+        loaded.Enabled.ShouldBeFalse();
+        loaded.ConsecutiveFailures.ShouldBe(Writers);
+    }
+
+    [Fact]
+    public async Task A_success_on_an_off_subscription_resets_the_counter_and_reports_nothing()
+    {
+        // A success clears the counter whatever the state; it does not switch the subscription back on (only the
+        // management API does that).
+        var subscription = await Store.SaveSubscriptionAsync(Subscription());
+        var now = DateTimeOffset.UtcNow;
+
+        await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 1, now);
+
+        (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, true, 1, now)).ShouldBeFalse();
+
+        var loaded = await Store.GetSubscriptionAsync(Tenant, "orders");
+        loaded.ShouldNotBeNull();
+        loaded.Enabled.ShouldBeFalse();
+        loaded.ConsecutiveFailures.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_canceled_token_stops_a_delivery_write_and_leaves_no_delivery()
+    {
+        // The subscription is saved first with a live token, so the canceled call is the delivery write itself and not
+        // the seed of the contract.
+        var subscription = await Store.SaveSubscriptionAsync(Subscription());
+        using var source = new CancellationTokenSource();
+        await source.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await Store.CreateDeliveryAsync(Delivery(subscription.Id), source.Token));
+
+        (await Store.QueryDeliveriesAsync(new WebhookDeliveryQuery { TenantId = Tenant })).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_canceled_token_stops_an_outcome_write_and_leaves_the_counter()
+    {
+        var subscription = await Store.SaveSubscriptionAsync(Subscription());
+        using var source = new CancellationTokenSource();
+        await source.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 1, DateTimeOffset.UtcNow, source.Token));
+
+        var loaded = await Store.GetSubscriptionAsync(Tenant, "orders");
+        loaded.ShouldNotBeNull();
+        loaded.Enabled.ShouldBeTrue();
+        loaded.ConsecutiveFailures.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task An_unknown_subscription_reports_nothing()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        (await Store.RecordSubscriptionOutcomeAsync(Guid.NewGuid(), false, 1, now)).ShouldBeFalse();
+        (await Store.RecordSubscriptionOutcomeAsync(Guid.NewGuid(), true, 1, now)).ShouldBeFalse();
+    }
+
     private static WebhookSubscription Subscription(
         string name = "orders",
         string url = "https://example.com/hook",

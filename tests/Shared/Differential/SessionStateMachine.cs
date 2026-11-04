@@ -396,7 +396,7 @@ internal sealed class SessionModel(SessionUniverse universe, ProviderTraits trai
 
         return Observation.Of(
             _rows.TryGetValue((tenant, KeyOf(universe.Ids[step.Id])), out var row)
-                ? Render(traits.ReadEchoesRequestedKey ? row with { Id = universe.Ids[step.Id] } : row)
+                ? Render(row)
                 : "null");
     }
 

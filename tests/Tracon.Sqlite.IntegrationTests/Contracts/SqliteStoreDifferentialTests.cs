@@ -18,7 +18,7 @@ public sealed class SqliteStoreDifferentialTests(SqliteSchemaFixture schema)
 
         return new DifferentialStores
         {
-            Traits = new ProviderTraits { Name = "SQLite", NulBecomesReplacementCharacter = true, ReadEchoesRequestedKey = true, CreateEchoesInputText = true, OutcomeAnswersForASubscriptionThatIsOff = true },
+            Traits = new ProviderTraits { Name = "SQLite", NulBecomesReplacementCharacter = true },
             Tenant = schema.Tenant,
             Sessions = schema.Context.Sessions,
             Runs = schema.Context.Runs,

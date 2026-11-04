@@ -164,7 +164,7 @@ internal sealed class ApiKeyModel(ApiKeyUniverse universe, ProviderTraits traits
                     var key = new Key(_keys.Count, tenant, traits.Text(universe.Names[s.Name]), s.Scopes, s.ExpiresAt is { } at ? traits.Ticks(at) : null);
                     _keys.Add(key);
 
-                    return Observation.Of("created " + (traits.CreateEchoesInputText ? RenderCreated(Fold(universe.Tenants[s.Tenant]), universe.Names[s.Name], key.Scopes) : RenderCreated(key)));
+                    return Observation.Of("created " + RenderCreated(key));
                 case ListKeysStep s:
                     var listed = traits.Text(Fold(universe.Tenants[s.Tenant]));
 

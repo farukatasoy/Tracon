@@ -40,7 +40,9 @@ public interface IJobStore
     /// </param>
     /// <param name="items">The job's input list. Sequence numbers are assigned by list order.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The created job record.</returns>
+    /// <returns>
+    /// The created job record, as the store holds it: the same record a <see cref="GetAsync"/> call reports an instant later.
+    /// </returns>
     /// <remarks>
     /// <para>
     /// Resolve the stored lane with <see cref="JobLanes.Resolve"/>, passing the

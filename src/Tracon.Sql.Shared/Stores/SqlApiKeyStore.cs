@@ -49,25 +49,38 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
             CreatedAt = _timeProvider.GetUtcNow(),
         };
 
-        await _context.ExecuteStatementAsync(
-            _sql.InsertApiKey,
-            command =>
+        // The record that goes back to the caller is the row, read in the transaction that wrote it: the name and the
+        // times as the store holds them (U+0000 is stored as U+FFFD, PostgreSQL keeps microseconds), the same record
+        // ListAsync reports an instant later. The digest is read as a parameter and never enters the record.
+        var stored = await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
-                DbHelpers.Add(command, "id", record.Id);
-                DbHelpers.AddTenant(command, record.TenantId);
-                DbHelpers.Add(command, "name", record.Name);
-                Dialect.AddBinary(command, "key_hash", generated.KeyHash);
-                DbHelpers.Add(command, "key_prefix", record.KeyPrefix);
-                Dialect.AddTextArray(command, "scopes", ScopeNames(record.Scopes));
-                Dialect.AddTimestamp(command, "expires_at", record.ExpiresAt);
-                Dialect.AddTimestamp(command, "revoked_at", record.RevokedAt);
-                Dialect.AddTimestamp(command, "last_used_at", record.LastUsedAt);
-                Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+                var insert = _context.CreateCommand(_sql.InsertApiKey, connection, transaction);
+                DbHelpers.Add(insert, "id", record.Id);
+                DbHelpers.AddTenant(insert, record.TenantId);
+                DbHelpers.Add(insert, "name", record.Name);
+                Dialect.AddBinary(insert, "key_hash", generated.KeyHash);
+                DbHelpers.Add(insert, "key_prefix", record.KeyPrefix);
+                Dialect.AddTextArray(insert, "scopes", ScopeNames(record.Scopes));
+                Dialect.AddTimestamp(insert, "expires_at", record.ExpiresAt);
+                Dialect.AddTimestamp(insert, "revoked_at", record.RevokedAt);
+                Dialect.AddTimestamp(insert, "last_used_at", record.LastUsedAt);
+                Dialect.AddTimestamp(insert, "created_at", record.CreatedAt);
+                await DbHelpers.ExecuteAsync(insert, cancellationToken).ConfigureAwait(false);
+
+                var select = _context.CreateCommand(_sql.SelectApiKeyByHash, connection, transaction);
+                Dialect.AddBinary(select, "key_hash", generated.KeyHash);
+
+                var row = await DbHelpers.ReadSingleAsync(select, ReadRecord, cancellationToken).ConfigureAwait(false)
+                    ?? throw new TraconException($"The API key {record.Id} could not be read back after it was written.");
+
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                return row;
             },
-            DbHelpers.ExecuteAsync,
             cancellationToken).ConfigureAwait(false);
 
-        return new ApiKeyCreationResult { Record = record, PlaintextKey = generated.PlaintextKey };
+        return new ApiKeyCreationResult { Record = stored, PlaintextKey = generated.PlaintextKey };
     }
 
     /// <inheritdoc />

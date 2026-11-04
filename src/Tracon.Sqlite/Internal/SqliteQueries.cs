@@ -351,7 +351,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 -- unset for the same run, so preserving is always correct.
                 user_id       = COALESCE(excluded.user_id, user_id),
                 labels        = COALESCE(excluded.labels, labels)
-            RETURNING user_id, labels;
+            RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
             """;
 
         UpdateRunCompletion = $"""
@@ -1472,9 +1472,21 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // The consecutive-failure counter and auto-disable are done in a
-        // SINGLE statement.
+        // The consecutive-failure counter and auto-disable, and the answer to "did this call switch the
+        // subscription off". RETURNING sees only the row AFTER an update and cannot read another table
+        // (measured: UPDATE ... FROM ... RETURNING p.x is "no such column", and a CTE or sub-select in
+        // RETURNING reads the new row), so the state before the update is told by WHICH statement finds the
+        // row: the first one takes a row that is already off (it can never answer true), the second one takes a
+        // row that is on and answers whether its own update switched it off. The order matters: the second
+        // statement may switch the row off, and the first must not count that row again. The text is two
+        // statements, so it runs in one transaction (SqlWebhookStore); both are writes, so the first takes
+        // the write lock and no reader is upgraded into SQLITE_BUSY.
         UpdateWebhookSubscriptionOutcome = $"""
+            UPDATE {Schema}webhook_subscriptions
+               SET consecutive_failures = CASE WHEN @succeeded = 1 THEN 0 ELSE consecutive_failures + 1 END,
+                   updated_at = @updated_at
+             WHERE id = @id AND enabled = 0;
+
             UPDATE {Schema}webhook_subscriptions
                SET consecutive_failures = CASE WHEN @succeeded = 1 THEN 0 ELSE consecutive_failures + 1 END,
                    enabled = CASE
@@ -1483,7 +1495,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                        ELSE enabled
                    END,
                    updated_at = @updated_at
-             WHERE id = @id
+             WHERE id = @id AND enabled = 1
             RETURNING (NOT enabled) AND (@succeeded = 0);
             """;
 

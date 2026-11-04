@@ -93,14 +93,15 @@ internal sealed class SqlRunStore : IRunStore
             ContinuedFromRunId = info.ContinuedFromRunId,
         };
 
-        // The UPSERT's OUTPUT/RETURNING clause reports the COALESCED user_id
-        // and labels actually persisted, not the raw values `record` was
-        // built from -- on a second StartRunAsync of a queued run, `record`
-        // carries whatever this call's own info gave it (often null
-        // attribution), while the row itself preserved the FIRST call's
-        // attribution. The return value must match what GetRunAsync would
-        // report immediately after.
-        var coalesced = await _context.ExecuteUpsertAsync(
+        // The UPSERT's OUTPUT/RETURNING clause reports what the row holds after the
+        // write, not the values `record` was built from. Two things make them
+        // differ. The COALESCEd columns (user_id, labels, continued_from_run_id):
+        // on a second StartRunAsync of a queued run, `record` carries whatever this
+        // call's own info gave it (often null), while the row itself preserved the
+        // FIRST call's values. And the text and the time columns: the store writes
+        // U+0000 as U+FFFD, and PostgreSQL keeps microseconds. The return value
+        // must match what GetRunAsync would report immediately after.
+        var stored = await _context.ExecuteUpsertAsync(
             _sql.InsertRun,
             command =>
             {
@@ -129,29 +130,58 @@ internal sealed class SqlRunStore : IRunStore
                 // value and never comes close to the short limit in any deployment.
                 DbHelpers.Add(command, "depth", (short)Math.Clamp(record.Depth, 0, short.MaxValue));
             },
-            (command, token) => DbHelpers.ReadSingleAsync(command, ReadCoalescedAttribution, token),
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadStoredStart, token),
             cancellationToken).ConfigureAwait(false);
 
-        if (coalesced is not null)
+        if (stored is not null)
         {
             record = record with
             {
-                UserId = coalesced.UserId,
-                Labels = coalesced.Labels,
+                UserId = stored.UserId,
+                Labels = stored.Labels,
+                AgentName = stored.AgentName,
+                SessionId = stored.SessionId,
+                ModelId = stored.ModelId,
+                ModelProvider = stored.ModelProvider,
+                WorkflowName = stored.WorkflowName,
+                Variant = stored.Variant,
+                StartedAt = stored.StartedAt,
+                ContinuedFromRunId = stored.ContinuedFromRunId,
             };
         }
 
         return record;
     }
 
-    /// <summary>Maps the <c>user_id</c>/<c>labels</c> row returned by the <c>StartRunAsync</c> UPSERT.</summary>
-    private static CoalescedAttribution ReadCoalescedAttribution(DbDataReader reader)
+    /// <summary>
+    /// Maps the row the <c>StartRunAsync</c> UPSERT returns. The two attribution columns come first and the rest are
+    /// appended after them, in the order the statements list them.
+    /// </summary>
+    private static StoredRunStart ReadStoredStart(DbDataReader reader)
         => new(
             DbHelpers.GetNullableString(reader, 0),
-            JsonStringMapCodec.Deserialize(DbHelpers.GetNullableString(reader, 1)));
+            JsonStringMapCodec.Deserialize(DbHelpers.GetNullableString(reader, 1)),
+            reader.GetString(2),
+            DbHelpers.GetNullableString(reader, 3),
+            DbHelpers.GetNullableString(reader, 4),
+            DbHelpers.GetNullableString(reader, 5),
+            DbHelpers.GetNullableString(reader, 6),
+            DbHelpers.GetNullableString(reader, 7),
+            DbHelpers.GetTimestamp(reader, 8),
+            reader.IsDBNull(9) ? null : reader.GetGuid(9));
 
-    /// <summary>The attribution fields the <c>StartRunAsync</c> UPSERT reports back after its own COALESCE.</summary>
-    private sealed record CoalescedAttribution(string? UserId, IReadOnlyDictionary<string, string>? Labels);
+    /// <summary>The columns of a started run that the <c>StartRunAsync</c> UPSERT reports back as the row holds them.</summary>
+    private sealed record StoredRunStart(
+        string? UserId,
+        IReadOnlyDictionary<string, string>? Labels,
+        string AgentName,
+        string? SessionId,
+        string? ModelId,
+        string? ModelProvider,
+        string? WorkflowName,
+        string? Variant,
+        DateTimeOffset StartedAt,
+        Guid? ContinuedFromRunId);
 
     /// <inheritdoc />
     public async ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)

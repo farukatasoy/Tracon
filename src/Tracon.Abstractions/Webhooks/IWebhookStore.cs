@@ -81,7 +81,12 @@ public interface IWebhookStore
     /// </param>
     /// <param name="updatedAt">The update time (UTC).</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns><see langword="true"/> if the subscription was disabled during this call.</returns>
+    /// <returns>
+    /// <see langword="true"/> if this call switched the subscription from enabled to disabled. A failure recorded on a
+    /// subscription that was already disabled (by an earlier failure or by an administrator) is counted and answers
+    /// <see langword="false"/>, as does an outcome for a subscription that does not exist. Of several concurrent
+    /// failures that cross the threshold, exactly one answers <see langword="true"/>.
+    /// </returns>
     ValueTask<bool> RecordSubscriptionOutcomeAsync(
         Guid subscriptionId,
         bool succeeded,
@@ -92,7 +97,9 @@ public interface IWebhookStore
     /// <summary>Creates a delivery record.</summary>
     /// <param name="delivery">The delivery.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The created record.</returns>
+    /// <returns>
+    /// The created record, as the store holds it: the same record <see cref="GetDeliveryAsync"/> reports an instant later.
+    /// </returns>
     ValueTask<WebhookDelivery> CreateDeliveryAsync(
         WebhookDelivery delivery,
         CancellationToken cancellationToken = default);

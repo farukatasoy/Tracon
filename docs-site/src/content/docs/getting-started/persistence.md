@@ -134,6 +134,13 @@ once:
   applied, startup **fails loudly** rather than running against a schema that is not
   what the code expects.
 
+When an existing database is upgraded, the runner writes two `Information` lines for
+every pending migration: `Applying migration …` before it runs and
+`Applied migration … in … ms` after it. A migration that rewrites a large table runs as
+one statement and can take a long time, and the first line is what tells a slow upgrade
+from a hang. A migration that fails has its first line and no second. A new database
+logs only the closing summary, `Tracon applied N migration(s)`.
+
 :::caution[Migrations refuse a non-canonical tenant id]
 The tenant identifier is stored in its canonical form — lower-case ASCII letters,
 digits, `_`, `.` and `-` — see

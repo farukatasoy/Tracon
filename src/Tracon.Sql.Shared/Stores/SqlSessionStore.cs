@@ -173,7 +173,7 @@ internal sealed class SqlSessionStore : ISessionStore
             },
             (command, token) => DbHelpers.ReadSingleAsync(command, reader => new SessionRecord
             {
-                Id = sessionId,
+                Id = reader.GetString(9),
                 AgentName = reader.GetString(0),
                 State = ParseState(ProtectedValue.Read(_context, reader.GetString(1))!),
                 StateSchemaVersion = reader.GetInt32(2),

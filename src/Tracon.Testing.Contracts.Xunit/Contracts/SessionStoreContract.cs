@@ -63,6 +63,22 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
+    public async Task A_read_by_identifier_answers_with_the_identifier_the_store_holds()
+    {
+        // The contract of a read is "the record as it is stored". A store that builds the record from the identifier in
+        // the call answers with the caller's spelling, and the list query (which reads it from the row) with the stored
+        // one. U+0000 is written as U+FFFD by the SQL stores, so the two spellings differ there.
+        const string Requested = "turn\0one";
+
+        await Store.SaveAsync(TestData.Session(Requested));
+
+        var read = (await Store.GetAsync(Requested)).ShouldNotBeNull();
+        var listed = (await Store.QueryAsync(new SessionQuery())).ShouldHaveSingleItem();
+
+        read.Id.ShouldBe(listed.Id);
+    }
+
+    [Fact]
     public async Task StateSchemaVersion_and_StateMafVersion_round_trip()
     {
         // The store carries these two fields through verbatim; it

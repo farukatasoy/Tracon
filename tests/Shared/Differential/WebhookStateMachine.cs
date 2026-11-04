@@ -409,7 +409,7 @@ internal sealed class WebhookModel(WebhookUniverse universe, ProviderTraits trai
             sub.Enabled = false;
         }
 
-        return Observation.Of((traits.OutcomeAnswersForASubscriptionThatIsOff ? !sub.Enabled : switchedOff) ? "true" : "false");
+        return Observation.Of(switchedOff ? "true" : "false");
     }
 
     private Observation Create(CreateDeliveryStep s)
@@ -427,11 +427,7 @@ internal sealed class WebhookModel(WebhookUniverse universe, ProviderTraits trai
 
         _deliveries.Add(delivery);
 
-        // A SQL store builds the record it returns from the call and writes the row separately, so the text and the time
-        // of the returned record are the caller's own (the tenant is not: it is returned in the form the row holds).
-        return Observation.Of("created " + (traits.CreateEchoesInputText
-            ? RenderDelivery(delivery.Slot, delivery.SubSlot, delivery.Tenant, WebhookStateMachine.EventNames[s.Event], universe.Texts[s.Payload], WebhookDeliveryStatus.Pending, 0, null, null, universe.Instants[s.Created].UtcTicks, null)
-            : Render(delivery)));
+        return Observation.Of("created " + Render(delivery));
     }
 
     private Observation GetDelivery(GetDeliveryStep s)

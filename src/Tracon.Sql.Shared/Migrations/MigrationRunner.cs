@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Tracon;
@@ -265,6 +266,12 @@ internal sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAp
 
         var count = 0;
 
+        // An upgrade is a database that already holds a migration. Each pending migration of an upgrade is announced
+        // before it runs and timed after: one that rewrites a large table takes minutes, and a log that is silent for
+        // that long looks like a hang. A new database applies every migration there is, and two lines for each of
+        // them would bury the one summary line below, so it logs nothing per migration.
+        var isUpgrade = applied.Count > 0;
+
         foreach (var set in sets)
         {
             foreach (var migration in set.Migrations)
@@ -277,8 +284,29 @@ internal sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAp
                     continue;
                 }
 
+                var started = Stopwatch.GetTimestamp();
+
+                if (isUpgrade && _logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation(
+                        "Applying migration {Id} {Name} (set {Set}). A migration that rewrites a large table can take a while.",
+                        migration.Id,
+                        migration.Name,
+                        set.Name);
+                }
+
                 await ApplyOneAsync(connection, set.Name, migration, cancellationToken).ConfigureAwait(false);
                 count++;
+
+                if (isUpgrade && _logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation(
+                        "Applied migration {Id} {Name} (set {Set}) in {ElapsedMilliseconds} ms.",
+                        migration.Id,
+                        migration.Name,
+                        set.Name,
+                        (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+                }
             }
         }
 

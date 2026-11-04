@@ -148,19 +148,26 @@ internal sealed class SqlWebhookStore : IWebhookStore
         DateTimeOffset updatedAt,
         CancellationToken cancellationToken = default)
     {
-        var result = await _context.ExecuteStatementAsync(
-            _sql.UpdateWebhookSubscriptionOutcome,
-            command =>
+        // One call shape for every provider: the SQLite text is two statements that must not be interleaved with
+        // another writer's, so the call runs in a transaction. On PostgreSQL and SQL Server the text is one
+        // statement and the transaction costs two round trips on a path that runs once per delivery that ran out
+        // of attempts.
+        return await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
+                var command = _context.CreateCommand(_sql.UpdateWebhookSubscriptionOutcome, connection, transaction);
                 DbHelpers.Add(command, "id", subscriptionId);
                 DbHelpers.Add(command, "succeeded", succeeded);
                 DbHelpers.Add(command, "threshold", disableThreshold);
                 Dialect.AddTimestamp(command, "updated_at", updatedAt);
-            },
-            DbHelpers.ExecuteScalarAsync,
-            cancellationToken).ConfigureAwait(false);
 
-        return result is not null && DbHelpers.ToBoolean(result);
+                var answer = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                return answer is not null && DbHelpers.ToBoolean(answer);
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -170,30 +177,40 @@ internal sealed class SqlWebhookStore : IWebhookStore
     {
         ArgumentNullException.ThrowIfNull(delivery);
 
-        // Folded here, not only inside AddTenant: the record returned below is built from this value, and it must carry the
-        // form the row holds whichever spelling the caller wrote.
+        // Folded here, not only inside AddTenant: it is the form the row holds whichever spelling the caller wrote.
         var tenantId = AmbientTenantScope.Normalize(delivery.TenantId);
 
-        await _context.ExecuteStatementAsync(
-            _sql.InsertWebhookDelivery,
-            command =>
+        // The record that goes back to the caller is the row, read in the transaction that wrote it: the text and the
+        // times as the store holds them (U+0000 is stored as U+FFFD, PostgreSQL keeps microseconds), the same record
+        // GetDeliveryAsync reports an instant later.
+        return await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
-                DbHelpers.Add(command, "id", delivery.Id);
-                DbHelpers.Add(command, "subscription_id", delivery.SubscriptionId);
-                DbHelpers.AddTenant(command, tenantId);
-                DbHelpers.Add(command, "event_type", delivery.EventType);
-                DbHelpers.Add(command, "payload", delivery.Payload);
-                DbHelpers.Add(command, "status", (short)delivery.Status);
-                DbHelpers.Add(command, "attempt", (short)delivery.Attempt);
-                Dialect.AddInt32(command, "response_code", delivery.ResponseCode);
-                Dialect.AddText(command, "error", delivery.Error);
-                Dialect.AddTimestamp(command, "created_at", delivery.CreatedAt);
-                Dialect.AddTimestamp(command, "delivered_at", delivery.DeliveredAt);
-            },
-            DbHelpers.ExecuteAsync,
-            cancellationToken).ConfigureAwait(false);
+                var insert = _context.CreateCommand(_sql.InsertWebhookDelivery, connection, transaction);
+                DbHelpers.Add(insert, "id", delivery.Id);
+                DbHelpers.Add(insert, "subscription_id", delivery.SubscriptionId);
+                DbHelpers.AddTenant(insert, tenantId);
+                DbHelpers.Add(insert, "event_type", delivery.EventType);
+                DbHelpers.Add(insert, "payload", delivery.Payload);
+                DbHelpers.Add(insert, "status", (short)delivery.Status);
+                DbHelpers.Add(insert, "attempt", (short)delivery.Attempt);
+                Dialect.AddInt32(insert, "response_code", delivery.ResponseCode);
+                Dialect.AddText(insert, "error", delivery.Error);
+                Dialect.AddTimestamp(insert, "created_at", delivery.CreatedAt);
+                Dialect.AddTimestamp(insert, "delivered_at", delivery.DeliveredAt);
+                await DbHelpers.ExecuteAsync(insert, cancellationToken).ConfigureAwait(false);
 
-        return delivery with { TenantId = tenantId };
+                var select = _context.CreateCommand(_sql.SelectWebhookDelivery, connection, transaction);
+                DbHelpers.Add(select, "id", delivery.Id);
+
+                var stored = await DbHelpers.ReadSingleAsync(select, ReadDelivery, cancellationToken).ConfigureAwait(false)
+                    ?? throw new TraconException($"The webhook delivery {delivery.Id} could not be read back after it was written.");
+
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                return stored;
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

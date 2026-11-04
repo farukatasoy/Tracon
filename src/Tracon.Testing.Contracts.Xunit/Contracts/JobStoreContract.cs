@@ -53,6 +53,37 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
+    public async Task The_enqueued_job_is_the_job_a_read_reports()
+    {
+        // The text, the time and the payload the row holds, not those of the call: a SQL store writes U+0000 as
+        // U+FFFD, PostgreSQL keeps microseconds and a JSON column does not keep the caller's spacing.
+        var queued = TestData.Job() with
+        {
+            TargetName = "agent\0name",
+            Payload = TestData.State("""{ "input" : [ "a", "b" ] }"""),
+            ScheduledFor = new DateTimeOffset(2026, 11, 4, 9, 30, 15, TimeSpan.Zero).AddTicks(7),
+            CreatedAt = new DateTimeOffset(2026, 11, 4, 9, 30, 14, TimeSpan.Zero).AddTicks(3),
+            MaxAttempts = 3,
+
+            // The column keeps whole milliseconds, so the sub-millisecond part is what the call and the row disagree on.
+            MaxDuration = TimeSpan.FromTicks(15_000_007),
+        };
+
+        var job = await Store.EnqueueAsync(queued, ["a"]);
+        var read = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        job.TargetName.ShouldBe(read.TargetName);
+        job.ScheduledFor.ShouldBe(read.ScheduledFor);
+        job.CreatedAt.ShouldBe(read.CreatedAt);
+        job.Payload.GetRawText().ShouldBe(read.Payload.GetRawText());
+        job.Lane.ShouldBe(read.Lane);
+        job.Status.ShouldBe(read.Status);
+        job.TotalItems.ShouldBe(read.TotalItems);
+        job.MaxAttempts.ShouldBe(read.MaxAttempts);
+        job.MaxDuration.ShouldBe(read.MaxDuration);
+    }
+
+    [Fact]
     public async Task An_id_that_is_already_queued_is_refused_and_the_queued_job_is_kept()
     {
         // A caller that writes a job a crash left missing can race another caller writing the

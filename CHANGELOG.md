@@ -691,8 +691,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   same setting there, so a host that already answered or accepted it is not stopped again. The default does not change (reconciliation writes a heartbeat for every running run, which a development host does not want),
   and a host that does not call `RequireProductionProfile()` changes nothing.
 
+- **A webhook subscription that is already disabled no longer logs "was disabled" for each delivery that fails after it.** `IWebhookStore.RecordSubscriptionOutcomeAsync` answers "this call switched the subscription off", and the
+  delivery job writes the warning `Webhook subscription '…' was disabled after N consecutive failed deliveries` when it answers `true`. The PostgreSQL, SQL Server and SQLite statements answered `true` for **every** failed
+  outcome of a subscription that was off (an administrator had switched it off, or an earlier failure had), so a delivery that was in flight when the subscription stopped wrote the warning again, with a threshold it had not
+  reached. They now answer `true` for the one call that changed `enabled` from `1` to `0`: of 16 concurrent failures at the threshold exactly one answers `true` on every store, and a failure of a subscription that is off is
+  counted and answers `false`. The call runs in a transaction on every provider (two more round trips on PostgreSQL and SQL Server, once for a delivery that has run out of attempts).
+  What to do: a host that alerts on this warning sees it once per disable instead of once per late failure; nothing to change. A custom `IWebhookStore` that answers `true` for a subscription that was already off fails the four new
+  cases of `WebhookStoreContract`.
+
+- **The record a SQL store returns from a write is the row it stored.** `StartRunAsync`, `EnqueueAsync`, `CreateDeliveryAsync` and `IApiKeyStore.CreateAsync` returned the record they had built from the call, and
+  `ISessionStore.GetAsync` returned the session with the identifier the caller passed. A SQL store writes a `U+0000` as `U+FFFD`, PostgreSQL keeps microseconds, a JSON column does not keep the caller's spacing, SQL Server reads
+  `abc ` as `abc`, and a second `StartRunAsync` of a queued run keeps the first call's `ContinuedFromRunId`; none of that showed in what the call returned, and every later read said otherwise. Each now returns what a read
+  an instant later reports (the run's text, start time and continuation link come from the statement's `OUTPUT`/`RETURNING` and the session's identifier from its `SELECT`; the job, the delivery and the API key are read back in the transaction
+  that wrote them: the job write, which already ran in a transaction, takes one more statement; the delivery and the API key, which were one statement each, now take a transaction (`BEGIN`, the insert, the read, `COMMIT`).
+  What to do: a host that compared the returned record with its input (a `U+0000` in a name, a timestamp with more than six decimals on PostgreSQL) now gets the stored form. The in-memory stores keep the value as given and return it.
+  A custom store of any of these five interfaces that returns its input fails the new "returned record equals the record a read reports" cases of the matching contract in `Tracon.Testing.Contracts.Xunit`.
+
 ### Added
 
+- **An upgrade logs each pending migration before it runs and after it ends.** On a database that already holds a migration, the runner writes `Applying migration {Id} {Name} (set {Set})` at `Information` before each pending migration and
+  `Applied migration {Id} {Name} (set {Set}) in {ElapsedMilliseconds} ms` after it. A migration that rewrites a large table (a column type change on `runs`) runs for a long time in one statement, and the log used to say nothing between the start of
+  the host and the one line `Tracon applied N migration(s)` at the end. A migration that fails has its first line and no second. A new database logs only the closing line, as before.
 - **`Tracon:AgentCache:MaxEntries` (4096) and `Tracon:AgentCache:IdleLifetime` (one hour) bound the compiled agent cache.** When a new entry would pass the limit the entries used least
   recently are dropped, down to a tenth below it, and an entry that was not used for the lifetime is dropped by a check that runs while the cache is in use. A hit takes no lock and allocates nothing.
   Both values are checked when the host starts: zero, a negative value, more than 1,000,000 entries or more than 30 days is refused. New public type `TraconAgentCacheOptions` and property

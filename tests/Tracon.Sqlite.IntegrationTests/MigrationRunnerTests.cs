@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.Sqlite.IntegrationTests.Infrastructure;
 
@@ -388,6 +389,146 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         exception.Message.ShouldContain("migration ledger");
         exception.Message.ShouldContain("database is locked");
         exception.InnerException.ShouldBeOfType<SqliteException>();
+    }
+
+    /// <summary>
+    /// A migration that rewrites a large table takes minutes, and a log that says nothing for that long looks like a hang.
+    /// An upgrade announces each pending migration before it runs and says how long it took after.
+    /// </summary>
+    [Fact]
+    public async Task An_upgrade_announces_and_times_every_pending_migration()
+    {
+        const int AlreadyApplied = 3;
+
+        var prefix = SqliteTestContext.NewTablePrefix();
+        await using var context = SqliteTestContext.Create(fixture, prefix);
+        await ApplyThroughAsync(context, prefix, AlreadyApplied);
+
+        var logger = new ListLogger();
+        var pending = EmbeddedMigrationCount - AlreadyApplied;
+
+        (await NewRunner(context, logger).ApplyAsync(TestContext.Current.CancellationToken)).ShouldBe(pending);
+
+        // Each migration is announced, then reported with its time, before the next one starts.
+        var lines = logger.Messages.ToList();
+
+        lines.Count.ShouldBe((2 * pending) + 1);
+
+        for (var index = 0; index < pending; index++)
+        {
+            var id = AlreadyApplied + index + 1;
+
+            lines[2 * index].ShouldStartWith($"Applying migration {id} ");
+            lines[(2 * index) + 1].ShouldStartWith($"Applied migration {id} ");
+            lines[(2 * index) + 1].ShouldMatch(@" in \d+ ms\.$");
+        }
+
+        lines[^1].ShouldStartWith($"Tracon applied {pending} migration(s).");
+    }
+
+    /// <summary>
+    /// A new database applies every migration there is. Two lines for each of them bury the one summary line a first start has
+    /// always had, so a new database logs the summary and nothing per migration.
+    /// </summary>
+    [Fact]
+    public async Task A_new_database_logs_only_the_summary()
+    {
+        await using var context = await SqliteTestContext.CreateAsync(fixture, applyMigrations: false);
+
+        var logger = new ListLogger();
+
+        (await NewRunner(context, logger).ApplyAsync(TestContext.Current.CancellationToken)).ShouldBe(EmbeddedMigrationCount);
+
+        logger.Messages.ShouldHaveSingleItem().ShouldStartWith($"Tracon applied {EmbeddedMigrationCount} migration(s).");
+    }
+
+    /// <summary>
+    /// The line before a migration is the one that names it when it never comes back: a migration that fails has a start line
+    /// and no end line, and the error is the one it has always been.
+    /// </summary>
+    [Fact]
+    public async Task A_migration_that_fails_has_a_start_line_and_no_end_line()
+    {
+        const int AlreadyApplied = 3;
+
+        var prefix = SqliteTestContext.NewTablePrefix();
+        await using var owner = SqliteTestContext.Create(fixture, prefix);
+        await ApplyThroughAsync(owner, prefix, AlreadyApplied);
+
+        // A text only a migration's own batch carries (the ledger insert that ends it); the fault never clears.
+        await using var faults = NewFaultDataSource(prefix, $"INSERT INTO {prefix}__migrations (set_name", failures: 1000);
+        var logger = new ListLogger();
+        var runner = new MigrationRunner(
+            new SqlStoreContext
+            {
+                DataSource = faults,
+                Dialect = new SqliteDialect(prefix),
+                CommandTimeoutSeconds = 30,
+                ProviderName = "SQLite",
+            },
+            logger);
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await runner.ApplyAsync(TestContext.Current.CancellationToken));
+
+        exception.Message.ShouldContain("could not be applied");
+
+        var lines = logger.Messages.ToList();
+
+        lines.ShouldHaveSingleItem().ShouldStartWith($"Applying migration {AlreadyApplied + 1} ");
+    }
+
+    private static async Task ApplyThroughAsync(SqliteTestContext context, string prefix, int lastId)
+    {
+        var migrations = MigrationDescriptor
+            .Discover(typeof(MigrationRunner).Assembly, "Tracon.Sqlite.Migrations.")
+            .Where(migration => migration.Id <= lastId)
+            .OrderBy(migration => migration.Id)
+            .ToArray();
+
+        migrations.Length.ShouldBe(lastId, "the pre-upgrade migration set has to exist");
+
+        await context.ExecuteAsync(context.StoreContext.Sql.CreateMigrationsTable);
+
+        foreach (var migration in migrations)
+        {
+            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteAsync(
+                $"INSERT INTO {prefix}__migrations (set_name, id, name, checksum, applied_at) " +
+                $"VALUES ('core', {migration.Id}, '{migration.Name}', '{migration.Checksum}', '2026-01-01T00:00:00.0000000Z');");
+        }
+    }
+
+    private static MigrationRunner NewRunner(SqliteTestContext context, ILogger<MigrationRunner> logger)
+        => new(context.StoreContext, logger);
+
+    /// <summary>Keeps the formatted text of every information message.</summary>
+    private sealed class ListLogger : ILogger<MigrationRunner>
+    {
+        private readonly List<string> _messages = [];
+
+        public IReadOnlyList<string> Messages => _messages;
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+            => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Information;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            ArgumentNullException.ThrowIfNull(formatter);
+
+            if (logLevel == LogLevel.Information)
+            {
+                _messages.Add(formatter(state, exception));
+            }
+        }
     }
 
     private TransientFaultDataSource NewFaultDataSource(string tablePrefix, string target, int failures)

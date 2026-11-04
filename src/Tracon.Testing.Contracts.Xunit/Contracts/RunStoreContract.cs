@@ -173,6 +173,51 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         second.Labels["team"].ShouldBe("payments");
     }
 
+    [Fact]
+    public async Task StartRunAsync_return_value_is_the_run_a_read_reports()
+    {
+        // The text and the time the row holds, not the text and the time of the call: a SQL store writes U+0000 as
+        // U+FFFD and PostgreSQL keeps microseconds, so a record built from the call differs from the next read.
+        var runId = TraconId.NewId();
+
+        var started = await Store.StartRunAsync(TestData.Run(runId, "agent\0name") with
+        {
+            SessionId = "session\0one",
+            ModelId = "model\0one",
+            ModelProvider = "provider\0one",
+            Variant = "variant\0one",
+            WorkflowName = "workflow\0one",
+            StartedAt = new DateTimeOffset(2026, 11, 4, 9, 30, 15, TimeSpan.Zero).AddTicks(7),
+        });
+
+        var read = (await Store.GetRunAsync(runId)).ShouldNotBeNull();
+
+        started.AgentName.ShouldBe(read.AgentName);
+        started.SessionId.ShouldBe(read.SessionId);
+        started.ModelId.ShouldBe(read.ModelId);
+        started.ModelProvider.ShouldBe(read.ModelProvider);
+        started.Variant.ShouldBe(read.Variant);
+        started.WorkflowName.ShouldBe(read.WorkflowName);
+        started.StartedAt.ShouldBe(read.StartedAt);
+    }
+
+    [Fact]
+    public async Task StartRunAsync_return_value_carries_the_continuation_link_the_row_kept()
+    {
+        // The link is written once by the party that opens the continuation; the engine that runs it writes the row
+        // again without knowing the link, and the row keeps it. What the second call hands back must say so.
+        var parentId = TraconId.NewId();
+        var runId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(parentId));
+        await Store.StartRunAsync(TestData.Run(runId) with { Status = RunStatus.Queued, ContinuedFromRunId = parentId });
+
+        var second = await Store.StartRunAsync(TestData.Run(runId));
+
+        second.ContinuedFromRunId.ShouldBe(parentId);
+        (await Store.GetRunAsync(runId))!.ContinuedFromRunId.ShouldBe(parentId);
+    }
+
     /// <summary>
     /// A run that is retried keeps its identity, so the second attempt must
     /// continue the event stream instead of restarting it.

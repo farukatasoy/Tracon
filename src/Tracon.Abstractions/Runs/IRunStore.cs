@@ -99,20 +99,24 @@ public interface IRunStore
     /// </para>
     /// <para>
     /// Every field is overwritten by the second call <strong>except</strong>
-    /// <see cref="RunStartInfo.UserId"/> and <see cref="RunStartInfo.Labels"/>,
+    /// <see cref="RunStartInfo.UserId"/>, <see cref="RunStartInfo.Labels"/> and
+    /// <see cref="RunStartInfo.ContinuedFromRunId"/>,
     /// which are COALESCED: a <see langword="null"/> value on the second call
     /// leaves the previous value in place, a non-null value replaces it. The
     /// reason is attribution: the first write (typically inside the HTTP
     /// request, where the caller's identity is known) may know the user; the
     /// second write (typically a background worker, which has no request to
     /// read identity from) usually does not, and must not erase what the
-    /// first write recorded.
+    /// first write recorded. The link of a continuation follows the same rule:
+    /// the party that opens the continuation writes it, and the engine that
+    /// runs it does not know it.
     /// </para>
     /// <para>
-    /// A conforming implementation must apply this same COALESCE rule to the
-    /// value it returns — a caller that reads the return value instead of
-    /// re-querying the record must see the same attribution a
-    /// <see cref="GetRunAsync"/> call would.
+    /// A conforming implementation returns the run as it holds it after the
+    /// write: the COALESCE rule applied, and the text and the times as the
+    /// store keeps them. A caller that reads the return value instead of
+    /// re-querying the record must see what a <see cref="GetRunAsync"/> call
+    /// would report.
     /// </para>
     /// </remarks>
     ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default);

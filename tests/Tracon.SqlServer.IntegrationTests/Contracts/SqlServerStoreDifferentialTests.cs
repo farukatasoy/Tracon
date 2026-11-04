@@ -39,9 +39,6 @@ public sealed class SqlServerStoreDifferentialTests(SqlServerSchemaFixture schem
             {
                 Name = "SQL Server",
                 NulBecomesReplacementCharacter = true,
-                ReadEchoesRequestedKey = true,
-                CreateEchoesInputText = true,
-                OutcomeAnswersForASubscriptionThatIsOff = true,
                 MultiRowReadIsNotASnapshot = true,
                 CostDecimals = 10,
             },

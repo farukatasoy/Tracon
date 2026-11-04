@@ -131,6 +131,11 @@ public sealed record RunRecord
     /// Gets the run's own cost. <see langword="null"/> when the model is unknown;
     /// when the model is known the value is populated even if the price is not.
     /// </summary>
+    /// <remarks>
+    /// A stored run is priced when it carries a pricing source. Tracon writes the amounts and the source in one
+    /// statement, so a row has both or neither; a row that holds amounts but no source (written by something
+    /// other than Tracon) reads as <see langword="null"/> here.
+    /// </remarks>
     public RunCost? Cost { get; init; }
 
     /// <summary>

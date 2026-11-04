@@ -62,27 +62,6 @@ internal sealed record ProviderTraits
     public bool TrailingSpaceInsensitiveKeys { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether a read by key answers with the key the caller passed rather than the key the row holds.
-    /// </summary>
-    /// <remarks>
-    /// The SQL session store builds the result of a read from the identifier in the call, so a row stored under a
-    /// replaced U+0000 reads back with the caller's spelling; the list query answers with the stored one. Open
-    /// finding, kept visible here until the read takes the identifier from the row.
-    /// </remarks>
-    public bool ReadEchoesRequestedKey { get; init; }
-
-    /// <summary>
-    /// Gets a value indicating whether the record a create call returns carries the caller's text, not the text the row
-    /// now holds.
-    /// </summary>
-    /// <remarks>
-    /// A SQL store builds the returned record from its input and writes the row separately, so a U+0000 the store
-    /// replaced still shows in the returned record and not in any later read. The tenant is not part of this: it is
-    /// always returned in the form the row holds.
-    /// </remarks>
-    public bool CreateEchoesInputText { get; init; }
-
-    /// <summary>
     /// Gets how many decimal places a cost column keeps, or <see langword="null"/> when the store keeps the amount as
     /// given.
     /// </summary>
@@ -91,19 +70,6 @@ internal sealed record ProviderTraits
     /// whole <see cref="decimal"/>.
     /// </remarks>
     public int? CostDecimals { get; init; }
-
-    /// <summary>
-    /// Gets a value indicating whether a failed outcome recorded on a subscription that is already off answers
-    /// <see langword="true"/>, as if that call had switched it off.
-    /// </summary>
-    /// <remarks>
-    /// OPEN FINDING, kept visible here until it is fixed: the interface says the call answers "true if the subscription was
-    /// disabled during this call", and the in-memory store does exactly that. The three SQL statements answer
-    /// <c>(NOT enabled) AND failed</c> read after the update, so a failure of a subscription that an administrator
-    /// switched off, or that an earlier failure switched off, answers <see langword="true"/> again and the delivery job
-    /// logs "was disabled" every time.
-    /// </remarks>
-    public bool OutcomeAnswersForASubscriptionThatIsOff { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether one call that reads several rows can see some of them before another writer's

@@ -63,11 +63,13 @@ internal sealed class SqlJobStore : IJobStore
 
         var lane = JobLanes.Resolve(job.Lane, job.HandlerKey, _schedulingOptions?.CurrentValue.LaneByHandlerKey);
 
-        // Folded here, not only inside AddTenant: the record returned below is built from this value, and it must carry
-        // the form the row holds whichever spelling the caller wrote.
+        // Folded here, not only inside AddTenant: the read-back below looks the row up by it.
         var tenantId = AmbientTenantScope.Normalize(job.TenantId);
 
-        await _context.ExecuteInTransactionAsync(
+        // The record that goes back to the caller is the row, read in the transaction that wrote it: the text, the times
+        // and the payload as the store holds them (U+0000 is stored as U+FFFD, PostgreSQL keeps microseconds, a JSON
+        // column does not keep the caller's spacing), the same record a GetAsync an instant later reports.
+        return await _context.ExecuteInTransactionAsync(
             async (connection, transaction) =>
             {
                 var insertJob = _context.CreateCommand(_sql.InsertJob, connection, transaction);
@@ -104,25 +106,18 @@ internal sealed class SqlJobStore : IJobStore
                     await DbHelpers.ExecuteAsync(insertItems, cancellationToken).ConfigureAwait(false);
                 }
 
+                var select = _context.CreateCommand(_sql.SelectJob, connection, transaction);
+                DbHelpers.Add(select, "id", job.Id);
+                DbHelpers.AddTenant(select, tenantId);
+
+                var stored = await DbHelpers.ReadSingleAsync(select, ReadJob, cancellationToken).ConfigureAwait(false)
+                    ?? throw new TraconException($"The job {job.Id} could not be read back after it was queued.");
+
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                return stored;
             },
             cancellationToken).ConfigureAwait(false);
-
-        return job with
-        {
-            TenantId = tenantId,
-            Lane = lane,
-            Status = JobStatus.Pending,
-            TotalItems = items.Count,
-            DoneItems = 0,
-            FailedItems = 0,
-            Attempt = 0,
-            LeaseOwner = null,
-            LeaseUntil = null,
-            StartedAt = null,
-            CompletedAt = null,
-            ErrorMessage = null,
-        };
     }
 
     /// <inheritdoc />
