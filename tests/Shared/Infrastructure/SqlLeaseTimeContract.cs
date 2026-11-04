@@ -145,6 +145,8 @@ public abstract class SqlLeaseTimeContract
         (await leases.TryAcquireAsync(name, "a", duration, TestContext.Current.CancellationToken))
             .ShouldBeTrue("the duration is not validated: the lease is written");
 
+        await LetTheDatabaseClockPassTheLeaseAsync(duration);
+
         (await leases.TryAcquireAsync(name, "b", SingletonLease, TestContext.Current.CancellationToken))
             .ShouldBe(!heldAfterwards);
 
@@ -152,6 +154,22 @@ public abstract class SqlLeaseTimeContract
         {
             (await SingletonLeaseSpanMicrosecondsAsync(name))
                 .ShouldBeInRange((LongestSpanMilliseconds * 1000) - 1000, (LongestSpanMilliseconds * 1000) + 1000);
+        }
+    }
+
+    /// <summary>
+    /// A lease of zero length ends at the very instant the database wrote it, and the statement that follows asks whether it
+    /// ended before <em>now</em>. On a fast machine the two statements can read the same tick of the database clock, and the
+    /// answer is "not yet" (measured: about half of the runs, on the commit before this change too). A short wait lets the
+    /// clock move; the other edge durations do not need it, as they ended before they were written.
+    /// </summary>
+    /// <param name="duration">The duration the lease was written with.</param>
+    /// <returns>The completion task.</returns>
+    private static async Task LetTheDatabaseClockPassTheLeaseAsync(TimeSpan duration)
+    {
+        if (duration == TimeSpan.Zero)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken); // delay: product
         }
     }
 
@@ -173,6 +191,8 @@ public abstract class SqlLeaseTimeContract
 
         (await jobs.LeaseAsync(new JobLeaseRequest { Owner = "a", LeaseDuration = duration }, TestContext.Current.CancellationToken))
             .ShouldNotBeNull("the duration is not validated: the lease is written");
+
+        await LetTheDatabaseClockPassTheLeaseAsync(duration);
 
         var second = await jobs.LeaseAsync(
             new JobLeaseRequest { Owner = "b", LeaseDuration = TimeSpan.FromMinutes(5) },
