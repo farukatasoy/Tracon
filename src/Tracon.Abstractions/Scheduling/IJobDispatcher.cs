@@ -141,5 +141,10 @@ public sealed record JobRequest
     /// The earliest time the job may run (UTC). <see langword="null"/> means
     /// as soon as a worker leases it.
     /// </summary>
+    /// <remarks>
+    /// A time given here is on the caller's clock, and so is the time a <see langword="null"/> stands for (the node's
+    /// own reading when it queues the job). PostgreSQL and SQL Server decide whether the job is ready by the database
+    /// server's clock, so a job queued by a node whose clock is ahead of the database's becomes ready that much later.
+    /// </remarks>
     public DateTimeOffset? ScheduledFor { get; init; }
 }

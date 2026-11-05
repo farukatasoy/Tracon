@@ -106,9 +106,21 @@ public sealed record JobRecord
     public string? LeaseOwner { get; init; }
 
     /// <summary>The time the current lease expires (UTC). The job may be re-leased once it expires.</summary>
+    /// <remarks>
+    /// A lease is a span of time. PostgreSQL and SQL Server write the end from the database server's clock; the in-memory
+    /// store and SQLite write it from a reading of the application's clock that a step of the wall clock does not move, so
+    /// the value is the wall clock's reading when the store was first used plus the time that has passed since, which can
+    /// differ from the wall clock after the wall clock has been stepped.
+    /// </remarks>
     public DateTimeOffset? LeaseUntil { get; init; }
 
     /// <summary>The earliest time the job is eligible to run (UTC).</summary>
+    /// <remarks>
+    /// The time is written with the clock of the node that queues the job, and is not rewritten. PostgreSQL and SQL Server
+    /// decide whether the job is ready by the database server's clock, so a job queued by a node whose clock is ahead of
+    /// the database's becomes ready that much later, and one queued by a node whose clock is behind becomes ready at once.
+    /// The in-memory store and SQLite decide with the clock they were given.
+    /// </remarks>
     public required DateTimeOffset ScheduledFor { get; init; }
 
     /// <summary>The time the first lease happened (UTC).</summary>

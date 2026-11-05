@@ -58,6 +58,12 @@ public interface IJobStore
     /// work from running twice. A store that replaced the job would reset a leased
     /// job to <see cref="JobStatus.Pending"/>.
     /// </para>
+    /// <para>
+    /// <strong>The time is the caller's.</strong> <see cref="JobRecord.ScheduledFor"/> is stored as the caller wrote it,
+    /// on the clock of the node that queues the job. PostgreSQL and SQL Server decide whether a job is ready by the
+    /// database server's clock when a worker leases it, so a job queued by a node whose clock is ahead of the database's
+    /// is ready that much later, and one queued by a node whose clock is behind is ready at once.
+    /// </para>
     /// </remarks>
     ValueTask<JobRecord> EnqueueAsync(
         JobRecord job,
