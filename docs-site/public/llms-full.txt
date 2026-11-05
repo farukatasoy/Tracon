@@ -15720,7 +15720,11 @@ latency and more than two hosts were not measured.
 
 - **Clocks.** On PostgreSQL and SQL Server the database server's clock decides every lease, every retry delay and
   whether a queued job is due, and it ages the heartbeat of a run: an instance whose own clock is wrong cannot take a
-  single-executor lease or a running job that another instance holds, and cannot close a run that is beating as orphaned. The one thing that still reads each instance's own clock is the deployment
+  single-executor lease or a running job that another instance holds, and cannot close a run that is beating as orphaned.
+  A run is marked as alive by the same clock the moment it starts running, so an instance whose clock is behind does not
+  have its new run closed by the first scan before its first heartbeat. In memory and on SQLite, which run in one process,
+  a lease ends on elapsed time, not on the calendar: a wall clock that a time service steps does not end a lease its owner
+  still holds. The one thing that still reads each instance's own clock is the deployment
   rate-limit window, which is cut from the Unix epoch. Keep the clocks of your instances synchronised with NTP for that
   window. The stored window never moves back, so an instance whose clock jumps ahead holds a partition closed for as
   long as the jump lasts. A job is due when the database server's clock passes the time it was queued for, and an
@@ -21605,7 +21609,7 @@ public sealed class MyRunStore : IRunStore
     public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken ct = default) { /* ... */ }
-    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, CancellationToken ct = default) { /* ... */ }
     public ValueTask<bool> RequestCancellationAsync(Guid runId, string tenantId, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken ct = default) { /* ... */ }
 }
@@ -21820,10 +21824,14 @@ Two more rules carry the
   `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`
   row that never sent a heartbeat belongs to the job queue and is never closed by it.
-  A second `StartRunAsync` leaves the heartbeat as it was. `ClaimOrphanedRunsAsync` takes an age
+  A second `StartRunAsync` leaves the heartbeat as it was. `TouchHeartbeatAsync` takes no time:
+  the store marks the row with its own clock. `ClaimOrphanedRunsAsync` takes an age
   (`staleAfter`), not an instant: a store whose database is shared between nodes stamps the heartbeat
   and measures that age with one clock, the database server's, so a node whose own clock is ahead
-  cannot close a run that is beating. `RunStoreContract` lets a short age pass in real time, because
+  cannot close a run that is beating. Such a store also marks a run as alive when it starts running
+  (`StartRunAsync` with `RunStatus.Running`), with the same clock, so a run is never aged by the
+  `StartedAt` of a node whose clock is behind before its first beat; a `Queued` run is marked
+  when it starts running. `RunStoreContract` lets a short age pass in real time, because
   such a store cannot backdate a heartbeat.
 - **`IRunStore` carries cancellation requests across instances.**
   `RequestCancellationAsync` records a request on the row and `TouchHeartbeatAsync` hands it
