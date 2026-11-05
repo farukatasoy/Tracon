@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -273,17 +275,31 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     {
         // 🚨 ON CONFLICT DO UPDATE is atomic. If this were a read-modify-write
         // sequence, some of the runs finishing at the same time would be
-        // silently swallowed.
-        const int Concurrency = 20;
+        // silently swallowed. The window of a read-modify-write is a few
+        // instructions wide in a store that keeps its counters in memory, so
+        // the callers start on threads of their own, released together, and
+        // the group is released many times against the same counter: a store
+        // that loses an increment loses one in some round, not once in a while.
+        const int Concurrency = 8;
+        const int Rounds = 25;
 
-        await Task.WhenAll(Enumerable.Range(0, Concurrency).Select(_ =>
-            Store.AddUsageAsync(Consumption(runs: 1, tokens: 10), Periods).AsTask()));
+        for (var round = 0; round < Rounds; round++)
+        {
+            SimultaneousCalls.Run(
+                Concurrency,
+                _ =>
+                {
+                    Store.AddUsageAsync(Consumption(runs: 1, tokens: 10), Periods).AsTask().GetAwaiter().GetResult();
+
+                    return 0;
+                });
+        }
 
         var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
         var daily = Find(usage, "support", QuotaPeriod.Daily);
 
-        daily.Runs.ShouldBe(Concurrency);
-        daily.Tokens.ShouldBe(Concurrency * 10);
+        daily.Runs.ShouldBe(Concurrency * Rounds, "an increment was lost");
+        daily.Tokens.ShouldBe(Concurrency * Rounds * 10);
     }
 
     [Fact]

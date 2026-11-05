@@ -1,3 +1,4 @@
+using Tracon.Testing.Contracts.Internal;
 
 namespace Tracon.Testing.Contracts.Storage;
 
@@ -16,6 +17,9 @@ namespace Tracon.Testing.Contracts.Storage;
 /// </remarks>
 public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 {
+    /// <summary>How many times a pair of writers is released at one job: one race is a chance, forty are a measurement.</summary>
+    private const int ConcurrentRounds = 150;
+
     /// <inheritdoc />
     protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
         => (await Store.EnqueueAsync(TestData.Job(tenantId), [name], cancellationToken)).Id;
@@ -376,6 +380,36 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_cancelled_job_shows_no_lease_owner_or_end(bool running)
+    {
+        // Cancelling gives the lease up: a record that kept the worker and the end of the lease would show a job that is
+        // closed as one that somebody still holds, and the tenant cap and the queue views read those columns.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var owner = Owner();
+        var lease = await LeaseOfAsync(owner, TimeSpan.FromMinutes(5));
+
+        if (running)
+        {
+            (await Store.MarkRunningAsync(lease)).ShouldBeTrue();
+        }
+
+        var held = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        held.LeaseOwner.ShouldBe(owner, "the lease must be visible before the cancel, or the test proves nothing");
+        held.LeaseUntil.ShouldNotBeNull();
+
+        (await Store.CancelAsync(job.TenantId, job.Id)).ShouldBeTrue();
+
+        var cancelled = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        cancelled.Status.ShouldBe(JobStatus.Cancelled);
+        cancelled.LeaseOwner.ShouldBeNull();
+        cancelled.LeaseUntil.ShouldBeNull();
+    }
+
     [Fact]
     public async Task A_finished_job_is_not_finalized_a_second_time()
     {
@@ -594,30 +628,36 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [Fact]
     public async Task Only_one_of_two_concurrent_completions_of_the_same_lease_is_applied()
     {
-        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
-        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
-        (await Store.MarkRunningAsync(lease)).ShouldBeTrue();
-
-        var completed = new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow };
-        var failed = new JobCompletion { Status = JobStatus.Failed, CompletedAt = DateTimeOffset.UtcNow, ErrorMessage = "second writer" };
-
-        var results = await Task.WhenAll(
-            Task.Run(async () => await Store.CompleteAsync(lease, completed)),
-            Task.Run(async () => await Store.CompleteAsync(lease, failed)));
-
-        results.Count(static applied => applied).ShouldBe(1);
-
-        var current = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
-
-        // The record is the winner's, whole: not one writer's status with the other's message.
-        if (current.Status == JobStatus.Completed)
+        // The window two overlapping completions need is a few instructions wide in a store that checks the lease and
+        // then writes: the two callers start on threads of their own, released together, and the pair runs against a
+        // fresh job many times, so a store that is not atomic loses a round and not only once in a while.
+        for (var round = 0; round < ConcurrentRounds; round++)
         {
-            current.ErrorMessage.ShouldBeNull();
-        }
-        else
-        {
-            current.Status.ShouldBe(JobStatus.Failed);
-            current.ErrorMessage.ShouldBe("second writer");
+            var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+            var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+            (await Store.MarkRunningAsync(lease)).ShouldBeTrue();
+
+            var completed = new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow };
+            var failed = new JobCompletion { Status = JobStatus.Failed, CompletedAt = DateTimeOffset.UtcNow, ErrorMessage = "second writer" };
+
+            var results = SimultaneousCalls.Run(
+                2,
+                index => Store.CompleteAsync(lease, index == 0 ? completed : failed).AsTask().GetAwaiter().GetResult());
+
+            results.Count(static applied => applied).ShouldBe(1, $"round {round}: both completions were applied, or neither");
+
+            var current = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+            // The record is the winner's, whole: not one writer's status with the other's message.
+            if (current.Status == JobStatus.Completed)
+            {
+                current.ErrorMessage.ShouldBeNull($"round {round}");
+            }
+            else
+            {
+                current.Status.ShouldBe(JobStatus.Failed, $"round {round}");
+                current.ErrorMessage.ShouldBe("second writer", $"round {round}");
+            }
         }
     }
 

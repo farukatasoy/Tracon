@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -444,15 +446,26 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
     }
 
     [Fact]
-    public async Task Concurrent_reservation_of_the_same_key_only_one_gets_Reserved()
+    public Task Concurrent_reservation_of_the_same_key_only_one_gets_Reserved()
     {
-        var key = Key();
+        // The callers start on threads of their own, released together, and the group is released at a fresh key many
+        // times: a store that looks and then writes lets two callers through in some round, not once in a while.
+        const int Callers = 8;
+        const int Rounds = 40;
 
-        var results = await Task.WhenAll(
-            Enumerable.Range(0, 8).Select(_ => Store.ReserveAsync(Request(Tenant, key)).AsTask()));
+        for (var round = 0; round < Rounds; round++)
+        {
+            var key = Key();
 
-        results.Count(r => r.State == IdempotencyState.Reserved).ShouldBe(1);
-        results.Count(r => r.State == IdempotencyState.InProgress).ShouldBe(7);
+            var results = SimultaneousCalls.Run(
+                Callers,
+                _ => Store.ReserveAsync(Request(Tenant, key)).AsTask().GetAwaiter().GetResult());
+
+            results.Count(r => r.State == IdempotencyState.Reserved).ShouldBe(1, $"round {round}: two requests reserved the same key");
+            results.Count(r => r.State == IdempotencyState.InProgress).ShouldBe(Callers - 1, $"round {round}");
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>

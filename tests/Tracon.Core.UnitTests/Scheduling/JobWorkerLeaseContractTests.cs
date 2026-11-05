@@ -336,7 +336,12 @@ public sealed class JobWorkerLeaseContractTests
     [InlineData(true)]
     public async Task Handler_is_cancelled_when_a_renewal_is_refused(bool handlerReturnsNormally)
     {
-        var jobs = new LeaseLossJobStore { Renewal = RenewalAnswer.Refuse };
+        // 🚨 The store's clock is frozen. The store answers "refused" to the renewal but still shows the attempt as running,
+        // and it hands a running job whose lease has run out to the next poll. On the real clock that made the assertion
+        // below a race between the worker letting go and the lease running out, and a loaded machine lost it; a lease that
+        // cannot run out leaves the worker as the only thing that decides whether the job is run again.
+        var clock = new ManualTimeProvider();
+        var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.Refuse };
         var handler = new StopsWhenCancelledHandler(handlerReturnsNormally);
         var publisher = new RecordingPublisher();
         var logger = new CollectingLogger();
@@ -345,11 +350,9 @@ public sealed class JobWorkerLeaseContractTests
         using var collector = new MetricCollector(meters.Meter);
         using var metrics = new TraconMetrics(meters, TenantTaggedMetricsOptions.Create());
 
-        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
 
-        // The store answers "refused" to the renewal but still shows the attempt as running, and it hands a running job whose lease
-        // has run out to the next poll: the test has to end before that, so the lease is long against a loaded machine.
-        using var worker = CreateWorker(jobs, host, TimeSpan.FromSeconds(3), metrics: metrics, publisher: publisher, logger: logger);
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(300), clock, metrics: metrics, publisher: publisher, logger: logger);
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
         await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
@@ -372,6 +375,48 @@ public sealed class JobWorkerLeaseContractTests
 
         record.Status.ShouldBe(JobStatus.Running);
         record.Attempt.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// The other half of the rule above: a worker that gave a lease up does not run the job again, and the store does hand
+    /// the job out again once the lease runs out on the store's own clock, as a new attempt.
+    /// </summary>
+    [Fact]
+    public async Task A_lost_lease_is_handed_out_again_once_it_lapses_on_the_stores_clock()
+    {
+        var lease = TimeSpan.FromMilliseconds(300);
+        var clock = new ManualTimeProvider();
+        var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.Refuse };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, lease, clock);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await AttemptEndedAsync(jobs);
+
+        // The lease is whole on the store's clock, so the lost attempt is still the job's.
+        handler.Calls.ShouldBe(1);
+
+        clock.Advance(lease + TimeSpan.FromMilliseconds(1));
+
+        await WaitUntil.TrueAsync(() => handler.Calls == 2, "the job whose lease ran out to be handed out again");
+        await AttemptEndedAsync(jobs);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        // The second attempt lost its lease the same way (the store refused its renewal too), on a clock that has not moved
+        // since: nothing handed it out a third time.
+        handler.Calls.ShouldBe(2);
+        jobs.RefusedRenewals.ShouldBe(2);
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+
+        var record = (await jobs.PeekAsync(jobId)).ShouldNotBeNull();
+
+        record.Status.ShouldBe(JobStatus.Running);
+        record.Attempt.ShouldBe(2);
     }
 
     /// <summary>

@@ -139,6 +139,7 @@ public abstract partial class TwoNodeAcceptanceContract
         private readonly TaskCompletionSource _firstAttemptCancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _firstAttemptReturned = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly ConcurrentQueue<(string Owner, int Attempt, string Call, bool Applied)> _calls = new();
+        private readonly ConcurrentQueue<string> _polls = new();
         private string? _stalledOwner;
 
         public Task<string> FirstAttemptRunning => _firstAttemptRunning.Task;
@@ -155,18 +156,26 @@ public abstract partial class TwoNodeAcceptanceContract
 
         public TaskCompletionSource FinishSecondAttempt { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        /// <summary>Gets the gate a handler that has no scenario of its own waits on until the test lets it finish.</summary>
+        public TaskCompletionSource ReleaseHandler { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public ConcurrentQueue<(string Owner, int Attempt)> Executions { get; } = new();
 
         /// <summary>Wraps the job store the host already registered; call it after the database is chosen.</summary>
         /// <param name="services">The host's services.</param>
-        public void Install(IServiceCollection services)
+        /// <param name="leaseGate">
+        /// A task this host's worker waits for before its first ask for a job, or <see langword="null"/> to ask at once. A
+        /// scenario that needs another node to take the job first holds this one back with it.
+        /// </param>
+        public void Install(IServiceCollection services, Task? leaseGate = null)
         {
             var registered = services.Last(static descriptor => descriptor.ServiceType == typeof(IJobStore));
 
             services.Remove(registered);
             services.AddSingleton<IJobStore>(provider => new StallableJobStore(
                 (IJobStore)ActivatorUtilities.CreateInstance(provider, registered.ImplementationType!),
-                this));
+                this,
+                leaseGate));
         }
 
         /// <summary>Freezes the node: its worker's calls wait until they are thawed.</summary>
@@ -200,6 +209,21 @@ public abstract partial class TwoNodeAcceptanceContract
 
         public void Record(JobLease lease, string call, bool applied)
             => _calls.Enqueue((lease.Owner, lease.Attempt, call, applied));
+
+        /// <summary>Records that a node's worker asked the store for a job.</summary>
+        /// <param name="owner">The node's lease owner.</param>
+        public void RecordPoll(string owner) => _polls.Enqueue(owner);
+
+        /// <summary>Counts the times the workers of the nodes other than one asked the store for a job.</summary>
+        /// <param name="owner">The lease owner of the node that is left out.</param>
+        /// <returns>The count.</returns>
+        public int PollsOtherThan(string owner) => _polls.Count(poll => !string.Equals(poll, owner, StringComparison.Ordinal));
+
+        /// <summary>Counts the renewals the store extended for a node.</summary>
+        /// <param name="owner">The node's lease owner.</param>
+        /// <returns>The count.</returns>
+        public int RenewalsBy(string owner)
+            => _calls.Count(entry => string.Equals(entry.Owner, owner, StringComparison.Ordinal) && string.Equals(entry.Call, "renew", StringComparison.Ordinal) && entry.Applied);
 
         /// <summary>Tells the first attempt's handler token was cancelled.</summary>
         public void TokenCancelled() => _firstAttemptCancelled.TrySetResult();
@@ -262,16 +286,25 @@ public abstract partial class TwoNodeAcceptanceContract
     }
 
     /// <summary>Delegates to the real store; the calls of a frozen node wait first, and the lease-bound ones are recorded.</summary>
-    private sealed class StallableJobStore(IJobStore inner, LeaseLossProbe probe) : IJobStore
+    private sealed class StallableJobStore(IJobStore inner, LeaseLossProbe probe, Task? leaseGate = null) : IJobStore
     {
         public ValueTask<JobRecord> EnqueueAsync(JobRecord job, IReadOnlyList<string> items, CancellationToken cancellationToken = default)
             => inner.EnqueueAsync(job, items, cancellationToken);
 
         public async ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
         {
+            if (leaseGate is not null)
+            {
+                await leaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             await probe.WritesGateAsync(request.Owner, cancellationToken).ConfigureAwait(false);
 
-            return await inner.LeaseAsync(request, cancellationToken).ConfigureAwait(false);
+            var leased = await inner.LeaseAsync(request, cancellationToken).ConfigureAwait(false);
+
+            probe.RecordPoll(request.Owner);
+
+            return leased;
         }
 
         public async ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)

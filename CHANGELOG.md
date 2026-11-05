@@ -30,6 +30,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     past the end of its lease while another worker took the job. The worker now waits for each renewal no longer than the time left on the lease it can prove (half a renewal interval at the least, for a renewal that follows a missed one), cancels the call, and tells the handler the lease is lost, as it does when
     renewals fail. Nothing is written for that attempt.
 
+- **A store that leaves a lease on a cancelled job now fails the contract, and the concurrent-writer cases of the shipped contracts hold a store to more races.** `IJobStore.CancelAsync` already
+  cleared `LeaseOwner` and `LeaseUntil` on the four built-in stores; a custom store that kept them showed a closed job as one somebody still holds. `JobStoreContract.A_cancelled_job_shows_no_lease_owner_or_end`
+  fails such a store (for a leased job and for a running one). The three concurrent-writer cases, `JobStoreContract.Only_one_of_two_concurrent_completions_of_the_same_lease_is_applied`,
+  `QuotaStoreContract.Concurrent_increments_lose_no_increment` and `IdempotencyStoreContract.Concurrent_reservation_of_the_same_key_only_one_gets_Reserved`, now release their callers from threads of their own, together,
+  and repeat the race many times. Measured on an in-memory store made non-atomic on purpose: the earlier cases failed it in 19 of 20 runs for the completion and in none of 20 for the counter and the key; these fail it in 20 of 20.
+  A store that is atomic passes both versions.
+  What to do: a custom `IJobStore` clears `LeaseOwner` and `LeaseUntil` in `CancelAsync`, as the built-in stores do; a custom `IQuotaStore` and `IIdempotencyStore` need no change if their writes are atomic.
+
 - **`TraconApiClient.TraconMcpOAuthCallbackAsync` returns `Task<string>` instead of `Task`, and `@tracon/client` types the callback's `200` as `text/html`.** The published document said the OAuth callback answers "200, no content", and a client generated from it returned nothing for an HTML page. The document now lists `text/html`, so the .NET method returns the page as text and the TypeScript operation has `content: { "text/html": string }`. Nothing but the OAuth redirect from the provider calls this operation, so most code is unaffected. What to do: a call that awaited the old `Task` still compiles; read the result only if you want the page.
 
 - **On PostgreSQL and SQL Server a lease ends on the database server's clock, not on the clock of the machine that wrote it.** Every lease row used to carry the instant the writing node computed from its own clock,

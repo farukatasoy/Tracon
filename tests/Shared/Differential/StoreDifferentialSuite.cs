@@ -89,6 +89,30 @@ public abstract partial class StoreDifferentialSuite
         => await new JobStateMachine().CheckAsync(await CreateStoresAsync(), Iterations);
 
     /// <summary>
+    /// Replays a lease asked about at the very instant it ends, which a generated sequence draws rarely: the job is still
+    /// the first worker's, and it is free one second after.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Job_store_holds_a_lease_until_the_instant_it_ends()
+        => await new JobStateMachine().ReplayAsync(JobDirectedPlans.LeaseHeldUntilItEnds, await CreateStoresAsync());
+
+    /// <summary>
+    /// Replays a tenant ceiling counted at the instant a lease ends: the lease still counts at that instant, and it does
+    /// not one second after.
+    /// </summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Job_store_counts_a_live_lease_against_a_tenant_ceiling_until_the_instant_it_ends()
+        => await new JobStateMachine().ReplayAsync(JobDirectedPlans.LiveLeaseCountsUntilItEnds, await CreateStoresAsync());
+
+    /// <summary>Replays the cancel of a leased job and of a running one and reads each back: no worker, no end of a lease.</summary>
+    /// <returns>The completion task.</returns>
+    [Fact]
+    public async Task Job_store_shows_a_cancelled_job_without_a_lease()
+        => await new JobStateMachine().ReplayAsync(JobDirectedPlans.CancelledJobHoldsNoLease, await CreateStoresAsync());
+
+    /// <summary>
     /// Runs leases, fenced writes, cancellations and item reports at the same time and checks that some serial order of
     /// the model explains every result: one worker wins a job, a write with a lease that was replaced loses.
     /// </summary>
