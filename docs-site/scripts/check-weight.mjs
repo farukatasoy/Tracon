@@ -116,9 +116,18 @@ const PAGE_CEILINGS_RELEASE = [['reference/releases/1.0.0-preview.4/index.html',
 // members add is the contract a consumer reads, not repeated prose. A static class cannot be split across
 // pages. Ceiling 64 000 B, about 4.7% headroom, which also covers the roughly 60 B by which a CI build
 // differs from a local one.
+//
+// The generated API page of RunStoreContract is the third: every scenario a store must pass is a public method of this
+// one abstract class (the test runner finds it by inheritance), and DocFX writes one page per type. Measured
+// 2026-11-06: 59 569 B gzip, 69 B over CEILING, after the contract took two scenarios (a queued run that has just started
+// running is not closed; a second start leaves the heartbeat the run has), each a name and a one-line summary. The
+// page cannot be split: a store inherits one class. Ceiling 62 500 B, about 4.9% headroom, which also covers the roughly
+// 60 B by which a CI build differs from a local one. The page that grows with every new rule of the run store is a
+// reason to read the contract's source, not the page; the next raise should say so in the page's own summary.
 const PAGE_CEILINGS = new Map([
   ...PAGE_CEILINGS_RELEASE,
   ['api/tracon.traconbuilderextensions/index.html', 64_000],
+  ['api/tracon.testing.contracts.storage.runstorecontract/index.html', 62_500],
 ]);
 
 if (!existsSync(dist)) {
