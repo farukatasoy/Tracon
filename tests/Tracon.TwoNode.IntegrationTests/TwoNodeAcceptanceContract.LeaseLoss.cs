@@ -14,20 +14,22 @@ public abstract partial class TwoNodeAcceptanceContract
     private const string LeaseLossHandlerKey = "test.lease-loss";
 
     /// <summary>
-    /// Node Z leases the job and stalls (a long pause, a network cut): none of its calls to the database get through.
-    /// Its lease runs out, node N leases the job and is still working when Z wakes up. Z must write nothing. Before the
-    /// lease was fenced, Z's late completion closed the job while N was still running it.
+    /// Node Z leases the job and stalls (a long pause, a network cut): none of its calls to the database get through, its
+    /// renewals included. Z cannot prove its lease any more and gives the job up on its own, while it is still frozen:
+    /// its handler is told. Z's lease runs out, node N leases the job and is still working when Z wakes up. Z must write
+    /// nothing. Before the lease was fenced, Z's late completion closed the job while N was still running it; before a
+    /// renewal that never answered cost the lease, Z's handler worked on to the end of an attempt it no longer held.
     /// </summary>
-    /// <param name="renewalAnswersFirst">
-    /// <see langword="true"/>: Z's held renewal reaches the database first and learns the lease is gone, so Z stops
-    /// before it writes. <see langword="false"/>: Z's completion reaches the database first, and the lease fence in
-    /// the store is what refuses it.
+    /// <param name="renewalsThawFirst">
+    /// <see langword="true"/>: Z's frozen renewal is let go before its writes. <see langword="false"/>: the writes first.
+    /// Either way Z's held renewal was cancelled when Z gave the lease up, so it never reaches the database, and Z's worker
+    /// has nothing to write for an attempt it lost.
     /// </param>
     /// <returns>A task that completes when the scenario is checked.</returns>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task A_node_that_stalls_past_its_lease_cannot_close_the_job_the_other_node_took_over(bool renewalAnswersFirst)
+    public async Task A_node_that_stalls_past_its_lease_cannot_close_the_job_the_other_node_took_over(bool renewalsThawFirst)
     {
         var probe = new LeaseLossProbe();
 
@@ -68,28 +70,28 @@ public abstract partial class TwoNodeAcceptanceContract
         held.Attempt.ShouldBe(2);
         held.LeaseOwner.ShouldBe(holder);
 
+        // The stalled node knew before it woke up: its renewal never answered, the lease could no longer be proven, and the
+        // worker told the handler while every call the node made was still frozen.
+        await probe.FirstAttemptCancelled.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
         // The stalled node wakes up.
-        if (renewalAnswersFirst)
+        if (renewalsThawFirst)
         {
             probe.ThawRenewals();
-            await probe.WaitForAsync(stalled, "renew", applied: false);
-
-            // The worker has to act on the answer, not only receive it: the handler is stopped before it is let go,
-            // so the stalled node knows the lease is gone by the time it could write.
-            await probe.FirstAttemptCancelled.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
             probe.ThawWrites();
-            probe.ResumeFirstAttempt.TrySetResult();
         }
         else
         {
             probe.ThawWrites();
-            probe.ResumeFirstAttempt.TrySetResult();
-            await probe.WaitForAsync(stalled, "complete", applied: false);
-
-            // The attempt is over, so its held renewal is cancelled with it and never reaches the database.
             probe.ThawRenewals();
         }
+
+        probe.ResumeFirstAttempt.TrySetResult();
+        await probe.FirstAttemptReturned.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        // Whatever the stalled node was going to write would reach the store at once: it has no signal to wait on, so the
+        // time is given for a write that must NOT come.
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken); // delay: negative
 
         // Nothing the stalled node did changed the job the other node holds.
         var afterWake = (await jobs.GetAsync("default", job.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
@@ -116,10 +118,11 @@ public abstract partial class TwoNodeAcceptanceContract
         await probe.WaitForAsync(holder, "complete", applied: true);
         probe.Applied().ShouldBe([$"{holder}:2:complete"]);
 
-        // In the first order the stalled node stopped before it wrote; in the second, its write reached the store
-        // and the store refused it. Either way it never closed or requeued anything.
+        // The stalled node gave the lease up by itself: the renewal it held was cancelled with it and never reached the
+        // store, and the worker wrote nothing for an attempt it had lost.
+        probe.HasCall(stalled, "renew").ShouldBeFalse();
+        probe.HasCall(stalled, "complete").ShouldBeFalse();
         probe.HasCall(stalled, "release").ShouldBeFalse();
-        probe.HasCall(stalled, "complete").ShouldBe(!renewalAnswersFirst);
         probe.Executions.OrderBy(static execution => execution.Attempt).Select(static execution => execution.Attempt).ShouldBe([1, 2]);
     }
 
@@ -134,6 +137,7 @@ public abstract partial class TwoNodeAcceptanceContract
         private readonly TaskCompletionSource<string> _firstAttemptRunning = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<string> _secondAttemptRunning = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _firstAttemptCancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _firstAttemptReturned = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly ConcurrentQueue<(string Owner, int Attempt, string Call, bool Applied)> _calls = new();
         private string? _stalledOwner;
 
@@ -141,6 +145,9 @@ public abstract partial class TwoNodeAcceptanceContract
 
         /// <summary>Completes when the first attempt's handler token is cancelled.</summary>
         public Task FirstAttemptCancelled => _firstAttemptCancelled.Task;
+
+        /// <summary>Completes when the first attempt's handler has returned.</summary>
+        public Task FirstAttemptReturned => _firstAttemptReturned.Task;
 
         public Task<string> SecondAttemptRunning => _secondAttemptRunning.Task;
 
@@ -197,6 +204,9 @@ public abstract partial class TwoNodeAcceptanceContract
         /// <summary>Tells the first attempt's handler token was cancelled.</summary>
         public void TokenCancelled() => _firstAttemptCancelled.TrySetResult();
 
+        /// <summary>Tells the first attempt's handler has returned.</summary>
+        public void FirstAttemptDone() => _firstAttemptReturned.TrySetResult();
+
         /// <summary>Tells whether the store answered a node's call, applied or not.</summary>
         /// <param name="owner">The node's lease owner.</param>
         /// <param name="call">The call: <c>renew</c>, <c>complete</c> or <c>release</c>.</param>
@@ -241,6 +251,8 @@ public abstract partial class TwoNodeAcceptanceContract
                 using var registration = cancellationToken.Register(static state => ((LeaseLossProbe)state!).TokenCancelled(), probe);
 
                 await probe.ResumeFirstAttempt.Task.ConfigureAwait(false);
+
+                probe.FirstAttemptDone();
 
                 return;
             }
