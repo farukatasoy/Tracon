@@ -108,7 +108,7 @@ guides/write-your-own-job-handler.md#38d09a5b | CS0246: The type or namespace na
 guides/write-your-own-script-executor.md#8ed401d8 | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-script-executor.md#82e8e888 | CS0246: The type or namespace name 'RunnerServiceScriptExecutor' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-script-executor.md#581ba9b0 | CS0246: The type or namespace name 'RunnerServiceScriptExecutor' could not be found (are you missing a using directive or an assembly reference?)
-guides/write-your-own-store.md#956875f1 | CS0161: 'MyRunStore.StartRunAsync(RunStartInfo, CancellationToken)': not all code paths return a value
+guides/write-your-own-store.md#79a297b0 | CS0161: 'MyRunStore.StartRunAsync(RunStartInfo, CancellationToken)': not all code paths return a value
 guides/write-your-own-store.md#4b4016c5 | CS0246: The type or namespace name 'MyRunStore' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-store.md#0d255be0 | CS0246: The type or namespace name 'MyRecord' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-store.md#9227fb6d | CS0246: The type or namespace name 'IDatabase' could not be found (are you missing a using directive or an assembly reference?)
