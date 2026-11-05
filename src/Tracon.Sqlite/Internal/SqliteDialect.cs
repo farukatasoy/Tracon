@@ -88,15 +88,20 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     private readonly SqliteQueries _queries;
     private readonly string _tablePrefix;
+    private readonly TimeProvider _clock;
 
     private FileStream? _lockFile;
 
     /// <summary>Creates a new SQLite dialect.</summary>
     /// <param name="tablePrefix">The table prefix to validate.</param>
-    public SqliteDialect(string tablePrefix)
+    /// <param name="timeProvider">
+    /// The clock the migration lock wait is measured on and sleeps on; the system clock when omitted.
+    /// </param>
+    public SqliteDialect(string tablePrefix, TimeProvider? timeProvider = null)
     {
         _queries = new SqliteQueries(tablePrefix);
         _tablePrefix = _queries.Schema;
+        _clock = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc />
@@ -163,7 +168,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     /// <remarks>
     /// Opens a lock file next to the SQLite file (<see cref="FileShare.None"/>); a second
     /// process cannot open the same file and waits, polling, for up to
-    /// <paramref name="commandTimeout"/> seconds. Skipped for <c>:memory:</c> databases
+    /// <paramref name="commandTimeout"/> seconds, measured on the monotonic clock: a wall clock that steps
+    /// while another process applies a long migration neither ends the wait early nor stretches it.
+    /// Skipped for <c>:memory:</c> databases
     /// (<see cref="SqliteConnection.DataSource"/> empty): another process cannot share the
     /// same in-memory database anyway.
     /// </remarks>
@@ -187,7 +194,8 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
         var lockPath = dataSource + "." + _tablePrefix + LockFileSuffix;
         var waitSeconds = commandTimeout > 0 ? commandTimeout : DefaultLockWaitSeconds;
-        var deadline = DateTime.UtcNow.AddSeconds(waitSeconds);
+        var waitStarted = _clock.GetTimestamp();
+        var waitFor = TimeSpan.FromSeconds(waitSeconds);
 
         while (true)
         {
@@ -197,9 +205,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
                 return;
             }
-            catch (IOException) when (DateTime.UtcNow < deadline)
+            catch (IOException) when (_clock.GetElapsedTime(waitStarted) < waitFor)
             {
-                await Task.Delay(PollIntervalMilliseconds, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(PollIntervalMilliseconds), _clock, cancellationToken).ConfigureAwait(false);
             }
             catch (IOException ex)
             {
@@ -417,17 +425,25 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
     /// SQLite keeps the application clock: one process uses the file, so no second node can disagree about the time.
-    /// The current time is read once and both <c>now</c> and <c>lease_until</c> come from it.
+    /// </para>
+    /// <para>
+    /// Two readings are bound. <c>now</c> is the wall clock, for what is promised on the calendar (<c>scheduled_for</c>,
+    /// <c>started_at</c>). <c>lease_now</c> and <c>lease_until</c> come from a reading a step of the wall clock does not
+    /// move (<see cref="SteadyClock"/>): a lease is a span of time, and a wall clock that stepped forward past it while its
+    /// owner kept renewing must not make the statements read the lease as over and hand the job to a second worker.
+    /// </para>
     /// </remarks>
     public override void AddLeaseWindow(DbCommand command, TimeProvider clock, TimeSpan duration)
     {
         ArgumentNullException.ThrowIfNull(clock);
 
-        var now = clock.GetUtcNow();
+        var leaseNow = SteadyClock.For(clock).Now;
 
-        AddTimestamp(command, "now", now);
-        AddTimestamp(command, "lease_until", now + duration);
+        AddTimestamp(command, "now", clock.GetUtcNow());
+        AddTimestamp(command, "lease_now", leaseNow);
+        AddTimestamp(command, "lease_until", leaseNow + duration);
     }
 
     /// <inheritdoc />

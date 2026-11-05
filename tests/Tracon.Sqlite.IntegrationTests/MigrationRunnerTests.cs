@@ -175,6 +175,58 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     /// <summary>
+    /// The wait for the migration lock is a span of time: it is measured on the monotonic clock, so a wall clock that steps
+    /// while another process applies a long migration neither ends the wait early (a step forward) nor stretches it (a step
+    /// back).
+    /// </summary>
+    /// <param name="wallStepSeconds">How far the wall clock steps once the waiter is polling.</param>
+    [Theory]
+    [InlineData(3600)]
+    [InlineData(-3600)]
+    public async Task The_migration_lock_wait_is_measured_on_the_monotonic_clock(int wallStepSeconds)
+    {
+        var clock = new ManualClock();
+        var prefix = SqliteTestContext.NewTablePrefix();
+        var holder = new SqliteDialect(prefix);
+        var waiter = new SqliteDialect(prefix, clock);
+        var file = fixture.ConnectionStringFor(prefix);
+
+        await using var holderConnection = new SqliteConnection(file);
+        await holderConnection.OpenAsync(TestContext.Current.CancellationToken);
+        await holder.AcquireMigrationLockAsync(holderConnection, 30, CancellationToken.None);
+
+        try
+        {
+            await using var waiterConnection = new SqliteConnection(file);
+            await waiterConnection.OpenAsync(TestContext.Current.CancellationToken);
+
+            var acquire = waiter.AcquireMigrationLockAsync(waiterConnection, 30, CancellationToken.None).AsTask();
+
+            await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the waiter to be sleeping between two polls");
+
+            clock.StepWallClock(TimeSpan.FromSeconds(wallStepSeconds));
+
+            // Twenty-nine seconds of the monotonic clock, one poll at a time: the waiter is still waiting for a lock whose
+            // bound is thirty, whatever the wall clock reads.
+            for (var second = 0; second < 29; second++)
+            {
+                clock.Advance(TimeSpan.FromSeconds(1));
+                await WaitUntil.TrueAsync(() => clock.Pending.Count > 0 || acquire.IsCompleted, "the waiter to poll again");
+            }
+
+            acquire.IsCompleted.ShouldBeFalse("twenty-nine of the thirty seconds have passed on the monotonic clock");
+
+            clock.Advance(TimeSpan.FromSeconds(2));
+
+            await Should.ThrowAsync<TraconException>(async () => await acquire.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            await holder.ReleaseMigrationLockAsync(holderConnection, 30, CancellationToken.None);
+        }
+    }
+
+    /// <summary>
     /// SQLite index names are database-wide, so every index name in the
     /// migrations carries the table prefix. Two prefixes in ONE file must each
     /// get the full index set; an unprefixed name would turn the second

@@ -48,7 +48,9 @@ namespace Tracon;
 /// instance whose clock is ahead cannot take a lease that is live. What remains are the
 /// causes above (a pause, a partition) and the server's own clock. The in-memory store
 /// and SQLite are used by one process and measure with the clock they were given
-/// (<see cref="TimeProvider"/>).
+/// (<see cref="TimeProvider"/>), on its monotonic reading: a lease is a span of time, so a
+/// wall clock that a time service steps forward does not end a lease whose owner still holds
+/// it, and one stepped back does not keep a lease alive past the span it was taken for.
 /// </para>
 /// </remarks>
 public interface ISingletonLeaseStore

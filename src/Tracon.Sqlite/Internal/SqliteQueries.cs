@@ -113,7 +113,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
     /// <remarks>
     /// The parameter the store binds from the application clock. A SQLite file is used by one process
     /// (<c>StateSharing.AcrossProcesses</c> is false), so the lease statements have no second node to disagree with
-    /// and keep the clock the store was given.
+    /// and keep the clock the store was given. This is the wall clock: it stamps what is promised on the calendar
+    /// (<c>scheduled_for</c>, <c>started_at</c>, a heartbeat). The end of a lease is a span of time, so a statement
+    /// compares <c>lease_until</c> and <c>expires_at</c> with <c>@lease_now</c>, which the store binds from a reading a
+    /// step of the wall clock does not move (see <c>SqliteDialect.AddLeaseWindow</c>).
     /// </remarks>
     protected override string LeaseNow => "@now";
 
@@ -1282,7 +1285,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
              WHERE id = (
                    SELECT id FROM {Schema}jobs
                     WHERE ((status = 0 AND scheduled_for <= @now)
-                       OR (status IN (1, 2) AND lease_until < @now))
+                       OR (status IN (1, 2) AND lease_until < @lease_now))
                       AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM json_each(@lanes) WHERE value = lane))
                     ORDER BY scheduled_for
                     LIMIT 1)
@@ -1300,14 +1303,14 @@ internal sealed class SqliteQueries : SqlQueriesBase
              WHERE id = (
                    SELECT j.id FROM {Schema}jobs AS j
                     WHERE ((j.status = 0 AND j.scheduled_for <= @now)
-                       OR (j.status IN (1, 2) AND j.lease_until < @now))
+                       OR (j.status IN (1, 2) AND j.lease_until < @lease_now))
                       AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM json_each(@lanes) WHERE value = j.lane))
                       AND NOT (EXISTS (SELECT 1 FROM json_each(@cap_keys) WHERE value = j.handler_key)
                            AND j.tenant_id IN (
                                 SELECT held.tenant_id
                                   FROM {Schema}jobs AS held
                                  WHERE held.status IN (1, 2)
-                                   AND held.lease_until >= @now
+                                   AND held.lease_until >= @lease_now
                                    AND EXISTS (SELECT 1 FROM json_each(@cap_keys) WHERE value = held.handler_key)
                                  GROUP BY held.tenant_id
                                 HAVING COUNT(*) >= @cap_max))
@@ -1762,7 +1765,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 expires_at = excluded.expires_at,
                 updated_at = excluded.updated_at
             WHERE {Schema}singleton_leases.owner_id = excluded.owner_id
-               OR {Schema}singleton_leases.expires_at < @now
+               OR {Schema}singleton_leases.expires_at < @lease_now
             RETURNING name;
             """;
 

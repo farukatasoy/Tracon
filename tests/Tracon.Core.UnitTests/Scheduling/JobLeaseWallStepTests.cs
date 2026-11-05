@@ -4,32 +4,26 @@ using static Tracon.Core.UnitTests.Scheduling.JobAttemptProbes;
 namespace Tracon.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// PROBE, not a gate: measures what a job store does with a running job's lease when the wall clock the store reads is
-/// stepped forward past the lease while the worker that holds it renews on its own monotonic clock. A lease is stamped
-/// with the clock of the node that calls the store, so a node whose clock steps ahead sees a live lease as expired. The
-/// worker is not at fault: its renewals go on and are confirmed.
+/// What an in-process job store does with a running job's lease when the wall clock it reads steps forward past the lease
+/// while the worker that holds the lease renews on its own monotonic clock.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured (2026-11-04, in-memory store, a fake clock stepped two hours, a 900 ms lease and two slots): the second slot leased
-/// the running job at its first poll after the step, before the first renewal after the step had been answered:
-/// <c>handlerCalls=2 attempt=2 renewals=1</c>. The in-memory store is the reference the SQL stores follow, so this is the same
-/// finding the SQL measurement of the two providers recorded; it is kept as a probe here because the worker-side tests of
-/// <c>JobLeaseClockStepTests</c> hold ONE slot and cannot see it. Fixing it is a decision about the lease's time source,
-/// not a change of the worker.
+/// A lease is a span of time, so the store decides when it ends on a monotonic reading, not on the wall clock: a wall clock
+/// that a time service steps forward by two hours (or a resumed virtual machine) must not make a lease that was taken a
+/// moment ago look over. Before the store read a monotonic clock, the second slot of a worker leased the running job at
+/// its first poll after the step, before the first renewal after the step had been answered (<c>handlerCalls=2
+/// attempt=2</c>), and the job ran twice at once.
 /// </para>
 /// <para>
-/// <strong>Still open for the stores that read the application's clock</strong> (the in-memory store and SQLite, whose file
-/// is used by one process). The PostgreSQL and SQL Server stores read the database server's clock inside the lease
-/// statements, so a step of a node's wall clock no longer reaches their leases; their scenarios are in the clock-skew
-/// contract. What remains here is a step of the one clock a single-process store reads, and closing it means deciding a
-/// lease's end on a monotonic reading in those stores.
+/// The scenarios hold TWO slots: the second one polls and sees what the store shows it. Tests that hold one slot
+/// (<c>JobLeaseClockStepTests</c>) cannot see the lease being taken again.
 /// </para>
 /// </remarks>
-public sealed class JobLeaseWallStepProbe
+public sealed class JobLeaseWallStepTests
 {
     [Fact]
-    public async Task A_wall_clock_stepped_past_the_lease_lets_a_second_slot_lease_the_job_that_is_still_running()
+    public async Task A_wall_clock_stepped_past_the_lease_does_not_let_a_second_slot_lease_the_job_that_is_still_running()
     {
         var clock = new ManualTimeProvider();
         var store = new ProbeJobStore(new InMemoryJobStore(clock));
@@ -81,7 +75,7 @@ public sealed class JobLeaseWallStepProbe
             handler.Release.TrySetResult();
             await worker.StopAsync(TestContext.Current.CancellationToken);
 
-            Console.Error.WriteLine($"PROBE wall step: handlerCalls={calls} attempt={job?.Attempt} renewals={store.Renewals}");
+            job.ShouldNotBeNull().Attempt.ShouldBe(1, "the lease was never taken again");
 
             // The invariant a store owes the worker that renews: the job it is running is not leased to anyone else.
             calls.ShouldBe(1, "the running job was leased again because the store read a wall clock past the lease");

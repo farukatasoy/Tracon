@@ -14,13 +14,17 @@ namespace Tracon;
 internal sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
 {
     private readonly ConcurrentDictionary<string, Lease> _leases = new(StringComparer.Ordinal);
-    private readonly TimeProvider _clock;
+    private readonly SteadyClock _clock;
 
     /// <summary>Initializes a new in-memory lease store.</summary>
     /// <param name="timeProvider">The time provider. Uses <see cref="TimeProvider.System"/> when omitted.</param>
+    /// <remarks>
+    /// A lease is a span of time, so it is written and compared on a reading a step of the wall clock does not move
+    /// (<see cref="SteadyClock"/>): a wall clock that steps forward does not end a lease its owner still holds.
+    /// </remarks>
     public InMemorySingletonLeaseStore(TimeProvider? timeProvider = null)
     {
-        _clock = timeProvider ?? TimeProvider.System;
+        _clock = SteadyClock.For(timeProvider ?? TimeProvider.System);
     }
 
     /// <inheritdoc />
@@ -35,7 +39,7 @@ internal sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
         LeaseTimeRange.ThrowIfInvalid(duration, nameof(duration));
         cancellationToken.ThrowIfCancellationRequested();
 
-        var now = _clock.GetUtcNow();
+        var now = _clock.Now;
         var expiresAt = now + duration;
 
         lock (_leases)
@@ -64,7 +68,7 @@ internal sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
         LeaseTimeRange.ThrowIfInvalid(duration, nameof(duration));
         cancellationToken.ThrowIfCancellationRequested();
 
-        var expiresAt = _clock.GetUtcNow() + duration;
+        var expiresAt = _clock.Now + duration;
 
         lock (_leases)
         {

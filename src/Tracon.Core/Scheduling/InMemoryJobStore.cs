@@ -22,6 +22,10 @@ internal sealed class InMemoryJobStore : IJobStore
     private readonly ConcurrentDictionary<Guid, JobRecord> _jobs = new();
     private readonly ConcurrentDictionary<Guid, List<JobItemRecord>> _items = new();
     private readonly TimeProvider _clock;
+
+    // The end of a lease is a span of time, so it is written and compared on a reading a step of the wall clock does not move.
+    // A promise made on the calendar (scheduled_for, the end of a retry delay) stays on the wall clock.
+    private readonly SteadyClock _leaseClock;
     private readonly IOptionsMonitor<TraconSchedulingOptions>? _schedulingOptions;
 
     /// <summary>Initializes a new in-memory job store.</summary>
@@ -32,6 +36,7 @@ internal sealed class InMemoryJobStore : IJobStore
     public InMemoryJobStore(TimeProvider? timeProvider = null, IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null)
     {
         _clock = timeProvider ?? TimeProvider.System;
+        _leaseClock = SteadyClock.For(_clock);
         _schedulingOptions = schedulingOptions;
     }
 
@@ -113,31 +118,30 @@ internal sealed class InMemoryJobStore : IJobStore
         }
 
         var now = _clock.GetUtcNow();
+        var leaseNow = _leaseClock.Now;
 
         lock (_jobs)
         {
             // The tenants at the ceiling, counted once per call: a lease that is still alive counts, an
             // expired one does not (the same rule as the SQL stores' lease_until >= now).
-            var tenantsAtCap = cap is null ? null : TenantsAtCap(cap, now);
+            var tenantsAtCap = cap is null ? null : TenantsAtCap(cap, leaseNow);
 
             JobRecord? candidate = null;
 
             foreach (var job in _jobs.Values)
             {
-                if (job.ScheduledFor > now)
-                {
-                    continue;
-                }
-
                 if (lanes is { Count: > 0 } && !lanes.Contains(job.Lane, StringComparer.Ordinal))
                 {
                     continue;
                 }
 
-                var claimable = job.Status == JobStatus.Pending
+                // The same rule as the SQL stores: a pending job is ready when the wall clock reaches the time it is
+                // scheduled for; a job whose lease is over is ready again whatever time it was scheduled for, since it was
+                // ready when it was leased (and a wall clock stepped back must not keep it waiting).
+                var claimable = (job.Status == JobStatus.Pending && job.ScheduledFor <= now)
                     || (job.Status is JobStatus.Leased or JobStatus.Running
                         && job.LeaseUntil is { } leaseUntil
-                        && leaseUntil < now);
+                        && leaseUntil < leaseNow);
 
                 if (!claimable)
                 {
@@ -166,7 +170,7 @@ internal sealed class InMemoryJobStore : IJobStore
             {
                 Status = JobStatus.Leased,
                 LeaseOwner = owner,
-                LeaseUntil = now + request.LeaseDuration,
+                LeaseUntil = leaseNow + request.LeaseDuration,
                 Attempt = candidate.Attempt + 1,
                 StartedAt = candidate.StartedAt ?? now,
             };
@@ -177,7 +181,7 @@ internal sealed class InMemoryJobStore : IJobStore
         }
     }
 
-    private HashSet<string> TenantsAtCap(JobTenantCap cap, DateTimeOffset now)
+    private HashSet<string> TenantsAtCap(JobTenantCap cap, DateTimeOffset leaseNow)
     {
         // A job's tenant is stored in its canonical form (EnqueueAsync folds it), so an ordinal comparison already
         // counts "Acme" and "acme" as one tenant, as the SQL stores do.
@@ -188,7 +192,7 @@ internal sealed class InMemoryJobStore : IJobStore
         {
             if (job.Status is JobStatus.Leased or JobStatus.Running
                 && job.LeaseUntil is { } leaseUntil
-                && leaseUntil >= now
+                && leaseUntil >= leaseNow
                 && cap.HandlerKeys.Contains(job.HandlerKey, StringComparer.Ordinal))
             {
                 var count = counts.GetValueOrDefault(job.TenantId) + 1;
@@ -218,7 +222,7 @@ internal sealed class InMemoryJobStore : IJobStore
         {
             if (_jobs.TryGetValue(lease.JobId, out var job) && Holds(job, lease))
             {
-                _jobs[lease.JobId] = job with { LeaseUntil = _clock.GetUtcNow() + leaseDuration };
+                _jobs[lease.JobId] = job with { LeaseUntil = _leaseClock.Now + leaseDuration };
 
                 return new ValueTask<bool>(true);
             }

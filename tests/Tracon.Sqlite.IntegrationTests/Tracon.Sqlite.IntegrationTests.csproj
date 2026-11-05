@@ -31,6 +31,8 @@
     <Compile Include="../Shared/Differential/*.cs" LinkBase="Shared/Differential" />
     <!-- A clock the test moves by hand, for the registration test of the lease stores' clock. -->
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
+    <!-- What a lease store that reads the application's clock does when the wall clock steps, written once. -->
+    <Compile Include="../Shared/Infrastructure/LeaseWallStepContract.cs" Link="Infrastructure/Shared/LeaseWallStepContract.cs" />
   </ItemGroup>
 
   <!--

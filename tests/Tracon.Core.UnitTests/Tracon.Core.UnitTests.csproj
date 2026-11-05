@@ -49,6 +49,8 @@
     <Compile Include="../Shared/Infrastructure/PackableProjects.cs" Link="Infrastructure/Shared/PackableProjects.cs" />
     <!-- The due-time clock the job worker's poll and deadline tests advance. -->
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
+    <!-- What a lease store that reads the application's clock does when the wall clock steps, written once. -->
+    <Compile Include="../Shared/Infrastructure/LeaseWallStepContract.cs" Link="Infrastructure/Shared/LeaseWallStepContract.cs" />
     <!-- Wraps an interface so a test can count, hook, fail or cancel at its Nth call. -->
     <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
     <!-- A vector store that runs the filter it is given, for the conversation memory tests. -->

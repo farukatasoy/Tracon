@@ -30,6 +30,7 @@ internal sealed class ManualClock : TimeProvider
     private readonly Lock _gate = new();
     private readonly List<ManualTimer> _timers = [];
     private long _elapsedTicks;
+    private long _wallStepTicks;
 
     /// <inheritdoc />
     public override long TimestampFrequency => TimeSpan.TicksPerSecond;
@@ -38,7 +39,15 @@ internal sealed class ManualClock : TimeProvider
     public override long GetTimestamp() => Interlocked.Read(ref _elapsedTicks);
 
     /// <inheritdoc />
-    public override DateTimeOffset GetUtcNow() => Start + TimeSpan.FromTicks(Interlocked.Read(ref _elapsedTicks));
+    public override DateTimeOffset GetUtcNow()
+        => Start + TimeSpan.FromTicks(Interlocked.Read(ref _elapsedTicks) + Interlocked.Read(ref _wallStepTicks));
+
+    /// <summary>
+    /// Steps only the wall clock, in either direction, as a time sync correction or a resumed virtual machine does: no time
+    /// passes on the monotonic clock and no timer fires.
+    /// </summary>
+    /// <param name="amount">How far to step the wall clock.</param>
+    public void StepWallClock(TimeSpan amount) => Interlocked.Add(ref _wallStepTicks, amount.Ticks);
 
     /// <summary>Gets the due times, from now, of the timers that are armed.</summary>
     public IReadOnlyList<TimeSpan> Pending
