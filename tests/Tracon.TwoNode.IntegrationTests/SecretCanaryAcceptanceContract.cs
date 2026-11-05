@@ -21,8 +21,8 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// sends it, and every failure of a connection is written by the driver's own words.
 /// </para>
 /// <para>
-/// The scenarios are the ones a secret meets: the provider accepts, refuses (the tenant's key is quoted back, the setup
-/// key is not), the client leaves while the provider holds the call, and a second host on the same schema reads what the
+/// The scenarios are the ones a secret meets: the provider accepts, refuses (and quotes back the key the call was made
+/// with, the tenant's or the setup key), the client leaves while the provider holds the call, and a second host on the same schema reads what the
 /// first wrote and replays a run. Then the connection fails three ways (a wrong password, a server nothing listens on
 /// with migrations on, the same with migrations off) and the same search runs over what each of them wrote.
 /// </para>
@@ -84,11 +84,10 @@ public abstract class SecretCanaryAcceptanceContract
                     status.ShouldBe(HttpStatusCode.OK);
                 }
 
-                // The provider refuses. It quotes the tenant's key, which the call's own mask replaces; the setup key it does not quote.
-                wire.Mode = CanaryWireServer.Behavior.Refuse;
-                await setup.RunTheSixWaysAsync(SetupAgent);
-
+                // The provider refuses and quotes the key it was called with: the tenant's key, which the call's own mask
+                // replaces, and the setup key, which the provider reports and the mask of its calls replaces.
                 wire.Mode = CanaryWireServer.Behavior.RefuseAndQuote;
+                await setup.RunTheSixWaysAsync(SetupAgent);
                 await tenant.RunTheSixWaysAsync(TenantAgent);
 
                 wire.Mode = CanaryWireServer.Behavior.Hold;
@@ -98,10 +97,8 @@ public abstract class SecretCanaryAcceptanceContract
                 await tenant.WaitForRunsToSettleAsync();
             }
 
-            wire.Mode = CanaryWireServer.Behavior.Refuse;
-            answered += await setup.ReadEverythingAsync(replayFirstCompleted: second);
-
             wire.Mode = CanaryWireServer.Behavior.RefuseAndQuote;
+            answered += await setup.ReadEverythingAsync(replayFirstCompleted: second);
             answered += await tenant.ReadEverythingAsync(replayFirstCompleted: second);
 
             logs.AddRange(host.Logs.Entries);

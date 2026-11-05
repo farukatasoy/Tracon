@@ -13,8 +13,8 @@ namespace Tracon;
 /// so does a span whose status description is the exception's message.
 /// </para>
 /// <para>
-/// The match is exact. The mask holds the values of ONE call's credential and replaces those values, in the three
-/// shapes a body carries them (as they are, escaped for JSON, escaped for a URL). It looks for no pattern of a key:
+/// The match is exact. The mask holds the secret values ONE client sends (a tenant's credential, or the keys the
+/// provider reports it was set up with) and replaces those values, in the three shapes a body carries them (as they are, escaped for JSON, escaped for a URL). It looks for no pattern of a key:
 /// a pattern also rewrites ordinary text, and it cannot know a provider's key format. What follows from that is
 /// stated, not hidden. A provider that quotes only part of the key (a few leading and trailing characters) leaves that
 /// part as it is, and a credential shorter than <see cref="MinimumValueLength"/> characters is not masked, because a
@@ -27,8 +27,8 @@ namespace Tracon;
 /// and nothing else, never the raw text.
 /// </para>
 /// <para>
-/// A mask belongs to the pipeline built for one credential. It is immutable, and a pipeline of another tenant has its
-/// own: one tenant's value never changes another tenant's text.
+/// A mask belongs to the pipeline built for one client. It is immutable, and a pipeline of another tenant or another
+/// provider has its own: one client's value never changes another client's text.
 /// </para>
 /// </remarks>
 internal sealed class ProviderSecretMask
@@ -54,7 +54,7 @@ internal sealed class ProviderSecretMask
     internal bool IsEmpty => _needles.Length == 0;
 
     /// <summary>Builds the mask of one call's credential.</summary>
-    /// <param name="credential">The credential the client was built with, or <see langword="null"/> for the setup-time key.</param>
+    /// <param name="credential">The credential the client was built with, or <see langword="null"/> when the call has none (the setup keys are built with <see cref="ForValues"/>).</param>
     /// <returns>The mask; <see cref="Empty"/> when there is no credential value long enough to mask.</returns>
     internal static ProviderSecretMask For(ModelProviderCredential? credential)
         => credential is null ? Empty : ForValue(credential.ApiKey);
@@ -63,22 +63,41 @@ internal sealed class ProviderSecretMask
     /// <param name="value">The value.</param>
     /// <returns>The mask; <see cref="Empty"/> when the value is missing or shorter than <see cref="MinimumValueLength"/>.</returns>
     internal static ProviderSecretMask ForValue(string? value)
+        => ForValues([value]);
+
+    /// <summary>Builds the mask of several values.</summary>
+    /// <param name="values">The values; a missing one, and one shorter than <see cref="MinimumValueLength"/>, is skipped.</param>
+    /// <returns>The mask; <see cref="Empty"/> when no value is long enough to mask.</returns>
+    /// <remarks>
+    /// The needles of all values are ordered together, longest first, so a value that contains another is replaced
+    /// before the shorter one can split it.
+    /// </remarks>
+    internal static ProviderSecretMask ForValues(IEnumerable<string?> values)
     {
-        if (value is null || value.Length < MinimumValueLength)
-        {
-            return Empty;
-        }
+        ArgumentNullException.ThrowIfNull(values);
 
         // A set, longest first: a shape that contains another is replaced before the shorter one can split it.
-        var shapes = new HashSet<string>(StringComparer.Ordinal) { value };
+        var shapes = new HashSet<string>(StringComparer.Ordinal);
 
-        AddShape(shapes, value, static v => JsonEncodedText.Encode(v).Value);
-        AddShape(shapes, value, static v => JsonEncodedText.Encode(v, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).Value);
-        AddShape(shapes, value, static v => JsonEncodedText.Encode(v, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).Value.Replace("/", "\\/", StringComparison.Ordinal));
-        AddShape(shapes, value, static v => Uri.EscapeDataString(v));
-        AddShape(shapes, value, static v => System.Net.WebUtility.UrlEncode(v));
+        foreach (var value in values)
+        {
+            if (value is null || value.Length < MinimumValueLength)
+            {
+                continue;
+            }
 
-        return new([.. shapes.OrderByDescending(static shape => shape.Length).ThenBy(static shape => shape, StringComparer.Ordinal)]);
+            shapes.Add(value);
+
+            AddShape(shapes, value, static v => JsonEncodedText.Encode(v).Value);
+            AddShape(shapes, value, static v => JsonEncodedText.Encode(v, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).Value);
+            AddShape(shapes, value, static v => JsonEncodedText.Encode(v, JavaScriptEncoder.UnsafeRelaxedJsonEscaping).Value.Replace("/", "\\/", StringComparison.Ordinal));
+            AddShape(shapes, value, static v => Uri.EscapeDataString(v));
+            AddShape(shapes, value, static v => System.Net.WebUtility.UrlEncode(v));
+        }
+
+        return shapes.Count == 0
+            ? Empty
+            : new([.. shapes.OrderByDescending(static shape => shape.Length).ThenBy(static shape => shape, StringComparer.Ordinal)]);
     }
 
     // A value the encoders refuse (an unpaired surrogate) has no escaped form; the raw form is still replaced. The mask is
@@ -170,6 +189,19 @@ internal sealed class ProviderSecretMask
         ArgumentNullException.ThrowIfNull(exception);
 
         return new MaskedFailureView(exception.GetType().FullName ?? exception.GetType().Name, MessageOf(exception), TextOf(exception));
+    }
+
+    /// <summary>Gets the exception a writer that walks the graph of a failure reaches in place of <paramref name="exception"/>.</summary>
+    /// <param name="exception">The exception the provider client threw.</param>
+    /// <returns>
+    /// <see cref="View"/> of it; the exception itself when this mask replaces nothing, because there is no value to hide
+    /// and a writer keeps the real types.
+    /// </returns>
+    internal Exception Shown(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return IsEmpty ? exception : View(exception);
     }
 
     /// <summary>Names an exception and says its text was not written.</summary>

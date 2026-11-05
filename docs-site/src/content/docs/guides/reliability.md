@@ -180,6 +180,50 @@ no tool has been called yet.
 |---|---:|---|
 | `ModelBinding.Fallbacks` | `[]` | Empty preserves today's behavior: an unavailable primary throws |
 
+### How failures are classified
+
+Tracon decides whether to move to the next `Fallbacks` link by reading the
+exception's type **name** and message **text** across the whole exception graph,
+because the core holds no compile-time reference to any provider SDK's exception
+types. The one typed value it reads is `HttpRequestException.StatusCode`, which
+belongs to .NET itself. What that means when you write a provider:
+
+| Failure | Next fallback link is tried |
+|---|---|
+| A timeout — a `TimeoutException` in the graph, or a message that says it timed out | Yes |
+| `OperationCanceledException` with no timeout signal, while the caller's token is cancelled | No — the caller asked to stop |
+| Message carries `HTTP 401` or `HTTP 403` | No — switching providers would hide a configuration mistake |
+| Any other permanent `4xx` (every `4xx` except `408` and `429`), in an `HTTP nnn` message or in `HttpRequestException.StatusCode` | No — the next provider gets the same request, so a bad body or an unknown model name fails there too |
+| Message carries `429`, `too many requests`, or `rate limit` | Yes |
+| Message carries `HTTP 5xx` | Yes |
+| A transport/SDK-client type with no permanent `4xx` (usually no status at all) | Yes — treated as a connection failure |
+| Anything else | No — the retry set is closed and positive |
+
+:::caution[A timeout is not a cancellation]
+.NET reports an `HttpClient` request timeout as a `TaskCanceledException`, which
+derives from `OperationCanceledException`. Do not let your own provider or retry
+classifier take that type at face value: a timeout with nobody cancelling is a
+failure, and treating it as a cancellation makes a provider outage look like a
+user pressing stop. Tracon separates them by looking for a timeout signal in
+the exception graph and, where a token is in scope, by asking whether that token
+was actually cancelled.
+:::
+
+Two consequences are worth stating plainly. A provider-side safety filter is
+**not** an exception here: return an ordinary `ChatResponse` with
+`ChatFinishReason.ContentFilter` and Tracon raises
+`TraconContentFilteredException` itself when the response is empty, or records a
+`tracon.output.filtered` event when it already has text. The same holds for the output limit:
+report `ChatFinishReason.Length`, and Tracon raises
+`TraconOutputTruncatedException` for a structured request or records a
+`tracon.output.truncated` event for plain text. Throwing instead leaves the decision to
+your exception: one with no readable HTTP status counts against the provider's
+circuit as a connection failure does, so a healthy provider can look like it is
+failing. And a `TraconException` thrown
+from `CreateChatClient` is wrapped as a compilation error naming the agent, while
+every other exception propagates raw — so use it for configuration or binding
+problems the host author can act on.
+
 ## Limit outgoing concurrency per provider
 
 `ModelConcurrency.MaxConcurrentCallsPerProvider` bounds how many calls to one

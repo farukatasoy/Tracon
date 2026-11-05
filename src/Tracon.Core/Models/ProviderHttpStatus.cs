@@ -79,20 +79,9 @@ internal static class ProviderHttpStatus
 
     private static int? ReadStatusCode(Exception exception)
     {
-        for (var candidate = exception; candidate is not null; candidate = candidate.InnerException)
+        foreach (var frame in ProviderFailureGraph.Frames(exception))
         {
-            if (candidate is AggregateException aggregate)
-            {
-                foreach (var inner in aggregate.InnerExceptions)
-                {
-                    if (ReadStatusCode(inner) is { } nested)
-                    {
-                        return nested;
-                    }
-                }
-            }
-
-            if (candidate is HttpRequestException { StatusCode: { } statusCode })
+            if (frame is HttpRequestException { StatusCode: { } statusCode })
             {
                 return (int)statusCode;
             }

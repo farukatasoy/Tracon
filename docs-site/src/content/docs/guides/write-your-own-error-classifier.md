@@ -53,6 +53,16 @@ more than the switch saves. A `bool` contract would force your classifier to
 take a side on every exception, silently breaking that guarantee the moment
 it is registered.
 
+The exception you receive is the failure of one fallback link. Its `Message` and its
+`ToString()` have the key of the call replaced with `[redacted]`, but its `InnerException`
+is the exception the provider's client threw, as it threw it. That is why a check such as
+`exception.InnerException is AcmeSdkException` works, and why walking the inner exceptions
+for an SDK type works. The inner exception holds the provider's text as it was sent, key
+included: match on its type and its properties, and do not write it to a log or an error
+tracker. Tracon's own logs, and the exception your callers catch, carry a masked copy of it
+instead. The exception you receive is a copy built for this call and was never thrown, so its
+`StackTrace` is empty and its `Data` carries nothing: read those from `InnerException`.
+
 A cancellation is never offered to your classifier, however it is nested
 inside the exception you receive — that check runs before this seam and
 cannot be overridden. If your classifier throws, Tracon logs the failure

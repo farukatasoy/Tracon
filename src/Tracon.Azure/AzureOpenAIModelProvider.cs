@@ -87,6 +87,13 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 
     /// <inheritdoc />
     /// <remarks>
+    /// The key the provider's client was built with, trimmed as it is sent. Empty when the provider was built from a
+    /// ready-made client (no key is known). Empty when the provider was set up with a credential factory: a managed credential is not a key.
+    /// </remarks>
+    public IReadOnlyList<string> SetupApiKeys => _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+
+    /// <inheritdoc />
+    /// <remarks>
     /// The provider builds the Chat Completions client of the OpenAI adapter, so it sends what the
     /// <c>openai</c> provider's Chat Completions surface sends (measured 2026-10-20): the seed, the
     /// stop sequences, both penalties, the tool mode and the parallel-tool-calls flag.

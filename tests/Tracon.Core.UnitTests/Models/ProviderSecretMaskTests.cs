@@ -150,6 +150,22 @@ public sealed class ProviderSecretMaskTests
     }
 
     [Fact]
+    public void Concurrent_use_of_one_mask_of_several_values_gives_the_same_answer()
+    {
+        const string other = "canary-mask-second-setup-key-2e6c8b10";
+        var mask = ProviderSecretMask.ForValues([Value, other]);
+        var text = $"left {Value} middle {other} right";
+
+        var results = Enumerable.Range(0, 64)
+            .AsParallel()
+            .WithDegreeOfParallelism(8)
+            .Select(_ => mask.Apply(text))
+            .ToList();
+
+        results.ShouldAllBe(result => string.Equals(result, "left [redacted] middle [redacted] right", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void An_exception_whose_text_cannot_be_read_is_withheld_and_never_shown_raw()
     {
         var mask = ProviderSecretMask.ForValue(Value);
@@ -212,9 +228,58 @@ public sealed class ProviderSecretMaskTests
         tagged.ToString().ShouldContain(nameof(ForeignProviderInvocationException));
         tagged.ToString().ShouldContain(nameof(HttpRequestException));
 
-        // The decisions read the raw graph.
+        // The decisions read the raw graph through Original. What a writer reaches through the inner exception is the
+        // masked view of it.
         tagged.Original.ShouldBeSameAs(raw);
-        tagged.InnerException.ShouldBeSameAs(raw);
+        tagged.InnerException.ShouldBeOfType<MaskedFailureView>();
+        tagged.InnerException.InnerException.ShouldBeNull();
+        tagged.InnerException.Message.ShouldNotContain(Value, Case.Sensitive);
+        tagged.InnerException.ToString().ShouldNotContain(Value, Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_call_with_nothing_to_mask_keeps_the_real_exception_as_the_inner_exception()
+    {
+        // No value to hide, so a writer that walks the graph keeps seeing the real types.
+        var raw = new HttpRequestException("HTTP 503 unavailable", inner: null, HttpStatusCode.ServiceUnavailable);
+
+        new ForeignProviderInvocationException(raw, ProviderSecretMask.Empty).InnerException.ShouldBeSameAs(raw);
+        ProviderInvocationException.UpstreamFailure(raw, "openai", ProviderSecretMask.Empty).InnerException.ShouldBeSameAs(raw);
+        ProviderSecretMask.Empty.Shown(raw).ShouldBeSameAs(raw);
+    }
+
+    [Fact]
+    public void A_writer_that_walks_the_graph_property_by_property_reaches_no_raw_frame()
+    {
+        // The shape of an error tracker or a structured exception formatter: type, message, stack, data and every inner
+        // exception, aggregate branches included. None of it may carry the value, for either exception Tracon throws.
+        var mask = ProviderSecretMask.ForValue(Value);
+        var inner = ThrownWith(new InvalidOperationException($"HTTP 401 Incorrect API key provided: Bearer {Value}"));
+        inner.Data["quoted"] = Value;
+
+        var raw = ThrownWith(new AggregateException($"Retry failed. Bearer {Value}", inner));
+
+        var tagged = new ForeignProviderInvocationException(raw, mask);
+        var normalized = ProviderInvocationException.UpstreamFailure(raw, "openai", mask);
+
+        foreach (var written in new[] { Write(tagged), Write(normalized) })
+        {
+            written.ShouldNotContain(Value, Case.Sensitive);
+            written.ShouldContain("[redacted]");
+        }
+    }
+
+    [Fact]
+    public void A_stack_trace_and_data_of_the_view_carry_no_value()
+    {
+        var mask = ProviderSecretMask.ForValue(Value);
+        var raw = ThrownWith(new InvalidOperationException($"Bearer {Value}"));
+        raw.Data["key"] = Value;
+
+        var view = new ForeignProviderInvocationException(raw, mask).InnerException!;
+
+        view.StackTrace.ShouldBeNull();
+        view.Data.Count.ShouldBe(0);
     }
 
     [Theory]
@@ -266,7 +331,37 @@ public sealed class ProviderSecretMaskTests
         normalized.ToString().ShouldNotContain(Value, Case.Sensitive);
         normalized.ToString().ShouldContain("Incorrect API key provided: Bearer [redacted]");
         normalized.ToString().ShouldContain(nameof(ProviderInvocationException));
-        normalized.InnerException.ShouldBeSameAs(raw);
+        normalized.Original.ShouldBeSameAs(raw);
+        normalized.InnerException.ShouldBeOfType<MaskedFailureView>();
+        normalized.InnerException.ToString().ShouldNotContain(Value, Case.Sensitive);
+    }
+
+    [Fact]
+    public void Several_values_are_masked_together_and_a_missing_or_short_one_is_skipped()
+    {
+        const string other = "canary-mask-second-setup-key-2e6c8b10";
+
+        var mask = ProviderSecretMask.ForValues([Value, null, "short", other]);
+
+        mask.Apply($"first {Value}, second {other}, third short").ShouldBe("first [redacted], second [redacted], third short");
+    }
+
+    [Fact]
+    public void A_value_that_contains_another_is_replaced_whole_whichever_order_they_are_given()
+    {
+        var longer = Value + "-with-a-tail";
+
+        foreach (var values in new[] { new[] { Value, longer }, [longer, Value] })
+        {
+            ProviderSecretMask.ForValues(values).Apply($"a {longer} b").ShouldBe("a [redacted] b");
+        }
+    }
+
+    [Fact]
+    public void No_value_long_enough_gives_the_empty_mask()
+    {
+        ProviderSecretMask.ForValues([]).ShouldBeSameAs(ProviderSecretMask.Empty);
+        ProviderSecretMask.ForValues([null, "short"]).ShouldBeSameAs(ProviderSecretMask.Empty);
     }
 
     [Fact]
@@ -321,6 +416,35 @@ public sealed class ProviderSecretMaskTests
     public void A_cancellation_is_not_a_provider_failure_and_is_not_wrapped()
     {
         ProviderFailureNormalizer.ShouldNormalize(new OperationCanceledException($"cancelled {Value}")).ShouldBeFalse();
+    }
+
+    // What a writer that serializes the graph property by property sends.
+    private static string Write(Exception exception)
+    {
+        var lines = new List<string>();
+        var pending = new Stack<Exception>([exception]);
+
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+
+            lines.Add($"type={current.GetType().FullName} message={current.Message} stack={current.StackTrace} text={current}");
+            lines.AddRange(current.Data.Cast<System.Collections.DictionaryEntry>().Select(static entry => $"data {entry.Key}={entry.Value}"));
+
+            if (current is AggregateException aggregate)
+            {
+                foreach (var branch in aggregate.InnerExceptions)
+                {
+                    pending.Push(branch);
+                }
+            }
+            else if (current.InnerException is { } inner)
+            {
+                pending.Push(inner);
+            }
+        }
+
+        return string.Join('\n', lines);
     }
 
     private static Exception ThrownWith(Exception exception)

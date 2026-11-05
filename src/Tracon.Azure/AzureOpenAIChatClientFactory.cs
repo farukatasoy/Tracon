@@ -65,10 +65,23 @@ internal sealed class AzureOpenAIChatClientFactory
     /// (<c>OutboundApiKey</c>). A credential factory wins over the key, and then the key is not read.
     /// </remarks>
     public AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateSetupClient(options), options.DefaultDeployment, loggerFactory)
+        : this(options, SetupKey(options), loggerFactory)
     {
-        // CreateClient has already refused an empty endpoint.
+    }
+
+    /// <summary>Builds a new factory from options and the setup-time key as it is sent.</summary>
+    /// <param name="options">The provider options.</param>
+    /// <param name="setupApiKey">
+    /// The key, trimmed and checked; the one value the client is built with and the factory reports.
+    /// <see langword="null"/> when a credential factory is given, because that credential is not a key.
+    /// </param>
+    /// <param name="loggerFactory">The logger factory passed to produced clients.</param>
+    private AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, string? setupApiKey, ILoggerFactory? loggerFactory)
+        : this(Build(options, setupApiKey, egressGuard: null, transport: null), options.DefaultDeployment, loggerFactory)
+    {
+        // Build has already refused an empty endpoint.
         _endpoint = V1Endpoint(options.Endpoint!);
+        SetupApiKey = setupApiKey;
     }
 
     /// <summary>Builds a new factory from a ready-made client.</summary>
@@ -144,24 +157,28 @@ internal sealed class AzureOpenAIChatClientFactory
             : client;
     }
 
-    /// <summary>Builds the client for the key (or credential) set up at start.</summary>
+    /// <summary>Gets the key the setup-time client sends, as it is sent.</summary>
+    /// <remarks>
+    /// The trimmed value, read once: a service that refuses a key quotes what it received, so a second read of the
+    /// option could name a different value. <see langword="null"/> for a factory built from a client and for one set
+    /// up with a credential factory: the token of a managed credential is fetched while the client runs and is not a
+    /// static secret. The model provider reports this as <see cref="IModelProvider.SetupApiKeys"/>.
+    /// </remarks>
+    internal string? SetupApiKey { get; }
+
+    /// <summary>Reads the key set up at start, trimmed and checked.</summary>
     /// <param name="options">The provider options.</param>
-    /// <returns>The built client.</returns>
+    /// <returns>The key to send; <see langword="null"/> when nothing is left of it or a credential factory is given.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    /// <exception cref="TraconException">
-    /// <see cref="AzureOpenAIProviderOptions.Endpoint"/> is empty, neither an API key nor a credential factory
-    /// is given, or the API key contains a character an HTTP header cannot carry.
-    /// </exception>
-    private static OpenAIClient CreateSetupClient(AzureOpenAIProviderOptions options)
+    /// <exception cref="TraconException">The API key contains a character an HTTP header cannot carry.</exception>
+    private static string? SetupKey(AzureOpenAIProviderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        // A credential factory wins over the key, so a key that is never sent is not judged.
-        var apiKey = options.CredentialFactory is null
+        // A credential factory wins over the key, so a key that is never sent is neither judged nor reported.
+        return options.CredentialFactory is null
             ? OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey)
-            : options.ApiKey;
-
-        return Build(options, apiKey, egressGuard: null, transport: null);
+            : null;
     }
 
     /// <summary>Builds a client for an Azure OpenAI resource's v1 endpoint from options.</summary>

@@ -137,6 +137,38 @@ public interface IModelProvider
     IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <summary>
+    /// Gets the secret values this provider was set up with and sends to the model service: the API keys it
+    /// puts on every call it makes without a tenant credential.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A model service that refuses a key often quotes it back in the body of its answer, and an SDK puts that body
+    /// into the exception it throws. Tracon replaces every value this member returns, wherever the text of a failure
+    /// of this provider's calls is written: the log, the log record, the status of the <c>chat</c> span, the run record
+    /// and the response a caller reads. Return the value <strong>as it is sent</strong>: a service quotes what it
+    /// received, so a key you trim before you send it is the trimmed key that you report.
+    /// </para>
+    /// <para>
+    /// The member has a default body, so a provider written before it existed still compiles, loads and runs. Its
+    /// default is an empty list, and an empty list means <strong>no value is masked</strong>: a provider that sends
+    /// a key and does not report it leaves that key readable in the text of a failure whenever the service quotes it.
+    /// A provider that holds a key reports it here.
+    /// </para>
+    /// <para>
+    /// Report static secrets only: the keys fixed when the provider was set up. A token a provider fetches while it
+    /// runs and a credential of a tenant (<see cref="ITenantCredentialModelProvider"/>; Tracon masks that one itself,
+    /// from the credential a call was resolved with) do not belong here. A value shorter than eight characters is not
+    /// replaced, because it also matches ordinary text.
+    /// </para>
+    /// <para>
+    /// Tracon reads the values to build a replacement and for nothing else: it does not write, log or serialize them.
+    /// It reads this member once for each client it builds, and a getter that throws leaves that client without a
+    /// replacement and writes a warning that names the provider and the exception type.
+    /// </para>
+    /// </remarks>
+    IReadOnlyList<string> SetupApiKeys => [];
+
+    /// <summary>
     /// Produces a <strong>raw</strong> chat client for the given binding.
     /// </summary>
     /// <param name="binding">The model binding.</param>

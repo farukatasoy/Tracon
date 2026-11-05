@@ -61,7 +61,7 @@ internal static class FinalFailure
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        foreach (var frame in Frames(exception))
+        foreach (var frame in ProviderFailureGraph.Frames(exception))
         {
             switch (frame)
             {
@@ -77,28 +77,5 @@ internal static class FinalFailure
         }
 
         return false;
-    }
-
-    private static IEnumerable<Exception> Frames(Exception exception)
-    {
-        yield return exception;
-
-        if (exception is AggregateException aggregate)
-        {
-            foreach (var inner in aggregate.InnerExceptions)
-            {
-                foreach (var nested in Frames(inner))
-                {
-                    yield return nested;
-                }
-            }
-        }
-        else if (exception.InnerException is { } innerException)
-        {
-            foreach (var nested in Frames(innerException))
-            {
-                yield return nested;
-            }
-        }
     }
 }

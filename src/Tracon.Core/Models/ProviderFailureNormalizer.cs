@@ -71,20 +71,9 @@ internal static partial class ProviderFailureNormalizer
     /// </remarks>
     internal static int? ReadStatus(Exception exception)
     {
-        for (var candidate = exception; candidate is not null; candidate = candidate.InnerException)
+        foreach (var frame in ProviderFailureGraph.Frames(exception))
         {
-            if (candidate is AggregateException aggregate)
-            {
-                foreach (var inner in aggregate.InnerExceptions)
-                {
-                    if (ReadStatus(inner) is { } nested)
-                    {
-                        return nested;
-                    }
-                }
-            }
-
-            if (ReadFrameStatus(candidate) is { } status)
+            if (ReadFrameStatus(frame) is { } status)
             {
                 return status;
             }
@@ -138,14 +127,9 @@ internal static partial class ProviderFailureNormalizer
     {
         var candidate = exception;
 
-        while (candidate is AggregateException { InnerExceptions.Count: > 0 } aggregate)
+        while (candidate is AggregateException && ProviderFailureGraph.Children(candidate) is [var first, ..])
         {
-            candidate = aggregate.InnerExceptions[0];
-        }
-
-        while (candidate.InnerException is { } inner && candidate is AggregateException)
-        {
-            candidate = inner;
+            candidate = first;
         }
 
         return candidate.GetType().Name;
@@ -190,7 +174,7 @@ internal static partial class ProviderFailureNormalizer
         }
 
         logger.LogError(
-            mask.IsEmpty ? exception : mask.View(exception),
+            mask.Shown(exception),
             "Model provider {Provider} failed during {Operation} for model {Model}.",
             binding.Provider,
             operation,
@@ -220,14 +204,17 @@ internal static partial class ProviderFailureNormalizer
 /// <summary>Marks an exception that crossed the raw provider boundary.</summary>
 /// <remarks>
 /// <para>
-/// The original stays whole in <see cref="Original"/> and as the inner exception: the retry classifier, the circuit
-/// breaker and the status reader decide from it. What this exception SAYS is masked. Its message and its
+/// The original stays whole in <see cref="Original"/>: the retry classifier, the circuit breaker and the status reader
+/// decide from it, through <see cref="ProviderFailureGraph"/>. What this exception SAYS is masked. Its message and its
 /// <see cref="ToString"/> replace the call's credential, so the chat telemetry ring above it (which copies the message
 /// to the span's status and logs the exception) and every logger further up write the provider's text without the key.
 /// </para>
 /// <para>
-/// A writer that ignores <see cref="Exception.Message"/> and <see cref="ToString"/> and serializes the properties of the
-/// inner exception reaches the original. That is the price of keeping the graph for the decisions.
+/// The inner exception is a <see cref="MaskedFailureView"/> of the original, so a writer that ignores
+/// <see cref="Exception.Message"/> and <see cref="ToString"/> and serializes the graph property by property (an error
+/// tracker, a structured exception formatter) reaches the type names, messages and stack of every frame with the
+/// credential replaced, and no raw frame. A call with no credential value to hide has nothing to replace, and its
+/// inner exception is the original: the writer keeps the real types.
 /// </para>
 /// </remarks>
 internal sealed class ForeignProviderInvocationException : Exception
@@ -236,15 +223,25 @@ internal sealed class ForeignProviderInvocationException : Exception
 
     /// <summary>Marks <paramref name="original"/> as thrown by the provider client.</summary>
     /// <param name="original">The exception the provider client threw.</param>
-    /// <param name="mask">The mask of the credential the client was built with.</param>
+    /// <param name="mask">The mask of the credential values the client sends.</param>
     internal ForeignProviderInvocationException(Exception original, ProviderSecretMask mask)
-        : base(MaskedMessage(original, mask), original)
+        : this(original, mask, ShownInner(original, mask))
+    {
+    }
+
+    private ForeignProviderInvocationException(Exception original, ProviderSecretMask mask, Exception inner)
+        : base(MaskedMessage(original, mask), inner)
     {
         _mask = mask;
         Original = original;
     }
 
+    /// <summary>Gets the exception the provider client threw, whole and unmasked.</summary>
     internal Exception Original { get; }
+
+    /// <summary>Builds the same failure with the provider client's own exception as its inner exception.</summary>
+    /// <returns>An exception with the masked message and text, for the code that decides from the graph.</returns>
+    internal ForeignProviderInvocationException ForDecision() => new(Original, _mask, Original);
 
     /// <inheritdoc />
     public override string ToString()
@@ -257,6 +254,14 @@ internal sealed class ForeignProviderInvocationException : Exception
         {
             return ProviderSecretMask.Withheld(this);
         }
+    }
+
+    private static Exception ShownInner(Exception original, ProviderSecretMask mask)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        ArgumentNullException.ThrowIfNull(mask);
+
+        return mask.Shown(original);
     }
 
     private static string MaskedMessage(Exception original, ProviderSecretMask mask)
@@ -278,22 +283,11 @@ internal sealed class ForeignProviderInvocationException : Exception
     /// </remarks>
     internal static ForeignProviderInvocationException? Find(Exception exception)
     {
-        for (var current = exception; current is not null; current = current.InnerException)
+        foreach (var frame in ProviderFailureGraph.Frames(exception))
         {
-            if (current is ForeignProviderInvocationException foreign)
+            if (frame is ForeignProviderInvocationException foreign)
             {
                 return foreign;
-            }
-
-            if (current is AggregateException aggregate)
-            {
-                foreach (var inner in aggregate.InnerExceptions)
-                {
-                    if (Find(inner) is { } nested)
-                    {
-                        return nested;
-                    }
-                }
             }
         }
 
@@ -402,26 +396,37 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner, Provid
 
 /// <summary>Internal stable provider failure carried to public protocol adapters.</summary>
 /// <remarks>
-/// The message is a fixed sentence plus facts Tracon chose. The provider's own failure stays as the inner exception, so
-/// a retry decision above this ring (a workflow node, a job) reads the same graph the fallback chain did. What
-/// <see cref="ToString"/> writes is masked: the loggers that take this exception (the run recorder, the endpoints, the
-/// protocol adapters) write the provider's text without the key of the call.
+/// The message is a fixed sentence plus facts Tracon chose. The provider's own failure stays whole in
+/// <see cref="Original"/>, so a retry decision above this ring (a workflow node, a job) reads the same graph the
+/// fallback chain did, through <see cref="ProviderFailureGraph"/>. What a writer reaches is masked: <see cref="ToString"/>
+/// replaces the call's credential, and the inner exception is a <see cref="MaskedFailureView"/> of the original (the
+/// original itself when the call had no credential value to hide). The loggers that take this exception (the run
+/// recorder, the endpoints, the protocol adapters) write the provider's text without the key of the call.
 /// </remarks>
 internal sealed class ProviderInvocationException : TraconException
 {
     private readonly ProviderSecretMask _mask;
 
-    private ProviderInvocationException(string errorType, string message, Exception? innerException, ProviderSecretMask mask)
-        : base(message, innerException)
+    private ProviderInvocationException(string errorType, string message, Exception original, Exception inner, ProviderSecretMask mask)
+        : base(message, inner)
     {
         ErrorType = errorType;
         _mask = mask;
+        Original = original;
     }
 
     public override string ErrorType { get; }
 
     /// <summary>Gets the HTTP status the provider answered with, or <see langword="null"/> when it carried none.</summary>
     internal int? StatusCode { get; private init; }
+
+    /// <summary>Gets the exception the provider client threw, whole and unmasked.</summary>
+    internal Exception Original { get; }
+
+    /// <summary>Builds the same failure with the provider client's own exception as its inner exception.</summary>
+    /// <returns>An exception with the masked text, for the code that decides from the graph.</returns>
+    internal ProviderInvocationException ForDecision()
+        => new(ErrorType, Message, Original, Original, _mask) { StatusCode = StatusCode };
 
     /// <inheritdoc />
     public override string ToString()
@@ -451,6 +456,7 @@ internal sealed class ProviderInvocationException : TraconException
             ProviderFailureNormalizer.UpstreamErrorType,
             ProviderFailureNormalizer.DescribeUpstreamFailure(provider, ProviderFailureNormalizer.ReadFaultType(exception), status),
             exception,
+            mask.Shown(exception),
             mask)
         {
             StatusCode = status,

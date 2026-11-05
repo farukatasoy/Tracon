@@ -12,8 +12,8 @@ namespace Tracon;
 /// When a chat model call is made with this credential and the provider's error text quotes
 /// <see cref="ApiKey"/> back, Tracon replaces the key with <c>[redacted]</c> before that text reaches
 /// a log line or a span status. The match is exact: a part of the key the provider quotes on its own
-/// is left as the provider wrote it. Speech and live voice calls, and the key registered at startup,
-/// are not covered.
+/// is left as the provider wrote it. Speech, live voice and image generation calls are not covered. The key a provider was set up
+/// with is replaced the same way when the provider reports it (<see cref="IModelProvider.SetupApiKeys"/>).
 /// </remarks>
 public sealed record ModelProviderCredential
 {

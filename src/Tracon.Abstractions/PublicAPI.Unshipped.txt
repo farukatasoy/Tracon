@@ -1102,6 +1102,7 @@ Tracon.IModelProvider
 Tracon.IModelProvider.CreateChatClient(Tracon.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
 Tracon.IModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>!
 Tracon.IModelProvider.Name.get -> string!
+Tracon.IModelProvider.SetupApiKeys.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.IModelProviderConfigurationDiagnostics
 Tracon.IModelProviderConfigurationDiagnostics.GetConfigurationDiagnostic() -> Tracon.ConfigurationDiagnostic?
 Tracon.IModelProviderHealthCheck

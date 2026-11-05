@@ -50,8 +50,18 @@ internal sealed class AnthropicChatClientFactory
     /// (<c>OutboundApiKey</c>).
     /// </remarks>
     public AnthropicChatClientFactory(AnthropicProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateSetupClient(options), options.DefaultModel, options.DefaultMaxOutputTokens, loggerFactory)
+        : this(options, SetupKey(options), loggerFactory)
     {
+    }
+
+    /// <summary>Builds a new factory from settings and the setup-time key as it is sent.</summary>
+    /// <param name="options">Provider settings.</param>
+    /// <param name="setupApiKey">The key, trimmed and checked; the one value the client is built with and the factory reports.</param>
+    /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
+    private AnthropicChatClientFactory(AnthropicProviderOptions options, string setupApiKey, ILoggerFactory? loggerFactory)
+        : this(Build(options, setupApiKey, egressGuard: null), options.DefaultModel, options.DefaultMaxOutputTokens, loggerFactory)
+    {
+        SetupApiKey = setupApiKey;
     }
 
     /// <summary>Builds a new factory from an already-constructed client.</summary>
@@ -152,9 +162,16 @@ internal sealed class AnthropicChatClientFactory
             settings);
     }
 
-    /// <summary>Builds the client for the key set up at start.</summary>
+    /// <summary>Gets the key the setup-time client sends, as it is sent; <see langword="null"/> for a factory built from a client.</summary>
+    /// <remarks>
+    /// The trimmed value, read once: a service that refuses a key quotes what it received, so a second read of the
+    /// option could name a different value. The model provider reports it as <see cref="IModelProvider.SetupApiKeys"/>.
+    /// </remarks>
+    internal string? SetupApiKey { get; }
+
+    /// <summary>Reads the key set up at start, trimmed and checked.</summary>
     /// <param name="options">Provider settings.</param>
-    /// <returns>The constructed client.</returns>
+    /// <returns>The key to send.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// <see cref="AnthropicProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
@@ -163,13 +180,11 @@ internal sealed class AnthropicChatClientFactory
     /// The key is trimmed and checked first. The client validates the header it builds and quotes the whole
     /// value when it refuses it, so a key that ends in a line break must never reach it as it is.
     /// </remarks>
-    private static AnthropicClient CreateSetupClient(AnthropicProviderOptions options)
+    private static string SetupKey(AnthropicProviderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var apiKey = OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey) ?? throw EmptyKey();
-
-        return Build(options, apiKey, egressGuard: null);
+        return OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey) ?? throw EmptyKey();
     }
 
     /// <summary>Builds an Anthropic client from the key of a tenant's own credential.</summary>

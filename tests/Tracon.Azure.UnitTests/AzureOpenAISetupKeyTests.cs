@@ -131,4 +131,35 @@ public sealed class AzureOpenAISetupKeyTests
 
         result.Succeeded.ShouldBeTrue();
     }
+
+    [Fact]
+    public void The_provider_reports_the_setup_key_as_it_is_sent()
+    {
+        var factory = new AzureOpenAIChatClientFactory(TestData.Options(options => options.ApiKey = "\r\n" + TestData.ApiKey + "\n"));
+
+        // The trimmed value: a service that refuses a key quotes what it received.
+        new AzureOpenAIModelProvider(AzureOpenAIProviderNames.AzureOpenAI, factory, []).SetupApiKeys.ShouldBe([TestData.ApiKey]);
+    }
+
+    [Fact]
+    public void A_provider_set_up_with_a_credential_factory_reports_no_key_even_when_a_key_is_also_given()
+    {
+        // The managed credential wins and the key is never sent, so it is neither judged nor reported. Its token is
+        // fetched while the client runs and is not a static secret.
+        var factory = new AzureOpenAIChatClientFactory(TestData.Options(options =>
+        {
+            options.ApiKey = TestData.ApiKey;
+            options.CredentialFactory = static () => new FakeTokenCredential();
+        }));
+
+        new AzureOpenAIModelProvider(AzureOpenAIProviderNames.AzureOpenAI, factory, []).SetupApiKeys.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_provider_built_on_a_ready_made_client_reports_no_key()
+    {
+        var factory = AzureOpenAIChatClientFactory.FromClient(AzureOpenAIChatClientFactory.CreateClient(TestData.Options()));
+
+        new AzureOpenAIModelProvider(AzureOpenAIProviderNames.AzureOpenAI, factory, []).SetupApiKeys.ShouldBeEmpty();
+    }
 }

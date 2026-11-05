@@ -74,7 +74,7 @@ guides/hosted-tools.md#0a92a9be | CS0103: The name 'Docs' does not exist in the 
 guides/inbound-triggers.md#aa2107a0 | CS0103: The name 'rawBody' does not exist in the current context
 guides/mcp-across-instances.md#6b548b4b | CS1061: 'IServiceCollection' does not contain a definition for 'AddStackExchangeRedisCache' and no accessible extension method 'AddStackExchangeRedisCache' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
 guides/model-providers.md#4cbee201 | CS1002: ; expected
-guides/model-providers.md#025627bb | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
+guides/model-providers.md#62d1404c | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
 guides/model-providers.md#08f83e42 | CS1002: ; expected
 guides/observability.md#f70b7335 | CS1061: 'IServiceCollection' does not contain a definition for 'AddOpenTelemetry' and no accessible extension method 'AddOpenTelemetry' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
 guides/openai-api.md#811b9f54 | CS0103: The name 'client' does not exist in the current context

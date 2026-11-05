@@ -550,14 +550,28 @@ that text. It reaches five loggers that write the exception with its inner excep
 status description of the `chat` span. With `RecordSensitiveData` on, the trace store keeps that
 status description.
 
-Some providers quote the key they refused inside that text. When the call was made with a
-**tenant's own key** (see [Per-tenant provider credentials](/concepts/governance/#per-tenant-provider-credentials-and-egress)),
-Tracon replaces that key with `[redacted]` in the log lines, in the span status and in the stored
-trace. The match is exact. It finds the key as it is, escaped for JSON and encoded for a URL.
-Everything else the provider wrote stays: the sentence, the HTTP status, the exception types and
-the stack. The one change you may see in a structured log: the `Tracon.ModelProvider` line of such a
-call carries the exception type `Tracon.MaskedFailureView`, and the original type is the first word
-of the exception text.
+Some providers quote the key they refused inside that text. Tracon replaces the key of the call with
+`[redacted]` in the log lines, in the span status, in the stored trace, in the run record and in the
+response a caller reads. Which key that is depends on how the call was made:
+
+- **A tenant's own key** (see [Per-tenant provider credentials](/concepts/governance/#per-tenant-provider-credentials-and-egress)).
+- **The key the provider was set up with**, such as `UseOpenAI(apiKey)`, `UseAnthropic`, `UseGoogle`,
+  `UseAzureOpenAI` and `UseOpenAICompatible`, whether you pass it in code or read it from configuration.
+  Every provider Tracon ships reports its key. A provider you write reports its key by overriding
+  `IModelProvider.SetupApiKeys` (see [A provider without a package](/guides/model-providers/#a-provider-without-a-package)).
+
+The match is exact. It finds the key as it is sent (a key that ends in a line break is sent without
+it), escaped for JSON and encoded for a URL. Everything else the provider wrote stays: the sentence,
+the HTTP status, the exception types and the stack. The one change you may see in a structured log:
+the `Tracon.ModelProvider` line of such a call carries the exception type `Tracon.MaskedFailureView`,
+and the original type is the first word of the exception text.
+
+The inner exception of the exception a failed call ends with is the same view (when every link of a
+fallback chain has failed, the chain's exception holds the first failure, and the view is one level
+down). A writer that walks inner exceptions property by property (an error tracker, Serilog.Exceptions) reads the type names, the
+messages and the stacks with the key replaced, and reaches no frame that holds it. A call that has
+no key to hide keeps the real inner exception. If your code catches a Tracon exception and tests
+`ex.InnerException is HttpRequestException`, that test is `false` for a call that had a key.
 
 ```text
 Incorrect API key provided: Bearer [redacted]. Find your key at the provider's console.
@@ -567,16 +581,16 @@ What this does **not** cover:
 
 | Not replaced | Why | What to do |
 |---|---|---|
-| The shared key you register at startup, such as `UseOpenAI(apiKey)` | Tracon does not hold that value. It lives in the provider's options. | Give the tenant its own key. Keep `RecordSensitiveData` off: a trace store keeps the span status, and a quoted shared key would then reach your database. A logger filter (below) does not touch the span status, which also leaves with every exporter you attach. |
+| A key a custom provider holds and does not report | Tracon replaces only the values it is told of. `SetupApiKeys` is empty by default, so a provider written before it existed keeps working and keeps quoting. | Override `SetupApiKeys` and return the key as you send it. |
+| A token a provider fetches while it runs, such as the Entra token of Azure OpenAI `CredentialFactory` | It is short-lived, it is not a configured key, and `SetupApiKeys` names static keys. | Nothing: the token expires. |
 | A part of the key that the provider quotes itself | The match is exact. It is not a pattern of keys. At the time of writing, OpenAI quotes the first eight and the last four characters of a refused key, and the Anthropic and Google answers quote no part of it. | Nothing: the provider chose to show that part. |
 | A key shorter than eight characters | A value that short is also ordinary text. | Use the key the provider issued. |
-| A log writer that reads inner exceptions property by property | `Message` and `ToString()` are replaced. The original exception stays as the inner exception, because retry, fallback and the circuit breaker decide from it. | Write the exception's text, not its properties. |
-| The error of a speech or live voice provider | These calls do not pass through the model pipeline, and this replacement was not measured on them. | Treat the log line of a failed speech call as readable by anyone who reads the log. |
+| The error of a speech or live voice provider, and of image generation | These calls do not pass through the model pipeline, and this replacement was not measured on them. | Treat the log line of a failed speech, live voice or image call as readable by anyone who reads the log. |
 
-If a log reader must never see a shared key, filter all five loggers. The first two carry nothing but
-the provider's detail. The other three also carry the run id and the `ref` that an operator uses to
-find a failed run, so filtering them hides those too. Filtering only the first two leaves the key in
-the other three.
+If a log reader must never see what a provider quoted (the partial key above, for example), filter all
+five loggers. The first two carry nothing but the provider's detail. The other three also carry the run
+id and the `ref` that an operator uses to find a failed run, so filtering them hides those too.
+Filtering only the first two leaves the provider's text in the other three.
 
 ```json
 {
@@ -592,7 +606,7 @@ the other three.
 }
 ```
 
-This keeps the key out of the log. It does not keep it out of the `chat` span status.
+This keeps the provider's text out of the log. It does not keep it out of the `chat` span status.
 
 ## Add readiness and provider health
 

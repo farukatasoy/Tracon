@@ -576,6 +576,10 @@ public sealed class ContosoModelProvider(HttpClient httpClient, string setupApiK
     public IReadOnlyList<ModelDescriptor> Models { get; } =
         [new ModelDescriptor { Name = "contoso-large", SupportsTools = true }];
 
+    // The key this provider sends when a call has no tenant credential. Report it,
+    // so that a failure never writes it (see "The runtime contract").
+    public IReadOnlyList<string> SetupApiKeys => [setupApiKey];
+
     public IChatClient CreateChatClient(ModelBinding binding)
         => Create(binding, setupApiKey);
 
@@ -643,6 +647,23 @@ drops the reference without disposing. You own the lifetime of what you return,
 and it must tolerate never being disposed — which is why the shipped providers
 return clients backed by a long-lived, shared SDK client.
 
+**Report the key you were set up with.** A service that refuses a key often quotes it in
+the body of its answer, and the SDK puts that body into the exception it throws. Override
+`IModelProvider.SetupApiKeys` and return every static key your provider sends when a call has
+no tenant credential, **as you send it** (trim it first if you trim it before you send it). Tracon
+replaces those values with `[redacted]` wherever the text of a failure of that provider's calls
+is written: logs, the `chat` span, the stored trace, the run record and the response. The
+default is an empty list, so a provider written before the member existed keeps working, but a
+key you do not report stays readable when the service quotes it. Do not report a token you fetch
+while the provider runs, and do not report a tenant's key: Tracon masks that one from the
+credential the call was resolved with. A value shorter than eight characters is not replaced.
+A decorator that wraps your provider must forward `SetupApiKeys`: the default body of a wrapper that does
+not returns an empty list, and the key goes unreported. Tracon reads the list when it builds a client, to
+build the replacement and for nothing else; if
+your getter throws, the client is built without a replacement and Tracon logs a warning that
+names the provider and the exception type. See [Provider error text in
+logs](/guides/observability/#provider-error-text-in-logs).
+
 **Provider settings.** Reject every `ModelBinding.ProviderSettings` key you do not
 support. A provider that supports no key rejects them all. Call
 `ModelProviderSettings.Validate(binding, prefix, supportedKeys)` from
@@ -681,47 +702,9 @@ applies when a tenant overrides only its key.
 
 ### How failures are classified
 
-Tracon decides whether to move to the next `Fallbacks` link by reading the
-exception's type **name** and message **text** across the whole exception graph,
-because the core holds no compile-time reference to any provider SDK's exception
-types. The one typed value it reads is `HttpRequestException.StatusCode`, which
-belongs to .NET itself. What that means when you write a provider:
-
-| Failure | Next fallback link is tried |
-|---|---|
-| A timeout — a `TimeoutException` in the graph, or a message that says it timed out | Yes |
-| `OperationCanceledException` with no timeout signal, while the caller's token is cancelled | No — the caller asked to stop |
-| Message carries `HTTP 401` or `HTTP 403` | No — switching providers would hide a configuration mistake |
-| Any other permanent `4xx` (every `4xx` except `408` and `429`), in an `HTTP nnn` message or in `HttpRequestException.StatusCode` | No — the next provider gets the same request, so a bad body or an unknown model name fails there too |
-| Message carries `429`, `too many requests`, or `rate limit` | Yes |
-| Message carries `HTTP 5xx` | Yes |
-| A transport/SDK-client type with no permanent `4xx` (usually no status at all) | Yes — treated as a connection failure |
-| Anything else | No — the retry set is closed and positive |
-
-:::caution[A timeout is not a cancellation]
-.NET reports an `HttpClient` request timeout as a `TaskCanceledException`, which
-derives from `OperationCanceledException`. Do not let your own provider or retry
-classifier take that type at face value: a timeout with nobody cancelling is a
-failure, and treating it as a cancellation makes a provider outage look like a
-user pressing stop. Tracon separates them by looking for a timeout signal in
-the exception graph and, where a token is in scope, by asking whether that token
-was actually cancelled.
-:::
-
-Two consequences are worth stating plainly. A provider-side safety filter is
-**not** an exception here: return an ordinary `ChatResponse` with
-`ChatFinishReason.ContentFilter` and Tracon raises
-`TraconContentFilteredException` itself when the response is empty, or records a
-`tracon.output.filtered` event when it already has text. The same holds for the output limit:
-report `ChatFinishReason.Length`, and Tracon raises
-`TraconOutputTruncatedException` for a structured request or records a
-`tracon.output.truncated` event for plain text. Throwing instead leaves the decision to
-your exception: one with no readable HTTP status counts against the provider's
-circuit as a connection failure does, so a healthy provider can look like it is
-failing. And a `TraconException` thrown
-from `CreateChatClient` is wrapped as a compilation error naming the agent, while
-every other exception propagates raw — so use it for configuration or binding
-problems the host author can act on.
+How Tracon reads a failure you throw (which ones move to the next `Fallbacks` link, which ones count against the
+provider's circuit, how a safety filter and an output limit are reported) is described with the fallback chain, in
+[How failures are classified](/guides/reliability/#how-failures-are-classified).
 
 ## Model catalog is metadata, not permission
 

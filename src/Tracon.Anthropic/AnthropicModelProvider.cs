@@ -81,6 +81,13 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
     /// <inheritdoc />
     /// <remarks>
+    /// The key the provider's client was built with, trimmed as it is sent. Empty when the provider was built from a
+    /// ready-made client (no key is known).
+    /// </remarks>
+    public IReadOnlyList<string> SetupApiKeys => _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Measured from the Anthropic 13.3.0 chat client adapter (2026-10-28, decompiled and on the wire): it
     /// sends the stop sequences, the tool mode and the parallel-tool-use flag, and maps the reasoning output
     /// to the thinking display. It has no seed and no penalties, and since SDK 13 it has no temperature,

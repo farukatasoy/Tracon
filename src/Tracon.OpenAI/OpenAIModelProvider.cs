@@ -115,6 +115,13 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
 
     /// <inheritdoc />
     /// <remarks>
+    /// The key the provider's client was built with, trimmed as it is sent. Empty when the provider was built from a
+    /// ready-made client (no key is known).
+    /// </remarks>
+    public IReadOnlyList<string> SetupApiKeys => _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Measured from the Microsoft.Extensions.AI.OpenAI 10.11.0 adapters (2026-10-20): Chat
     /// Completions sends the seed, the stop sequences and both penalties and has no top-k or
     /// reasoning output; the Responses API sends the temperature and top-p (measured on the wire,

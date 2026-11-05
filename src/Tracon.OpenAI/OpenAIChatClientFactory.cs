@@ -50,8 +50,18 @@ internal sealed class OpenAIChatClientFactory
     /// (<c>OutboundApiKey</c>).
     /// </remarks>
     public OpenAIChatClientFactory(OpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateSetupClient(options), options.Endpoint ?? DefaultEndpoint, options.DefaultModel, loggerFactory)
+        : this(options, SetupKey(options), loggerFactory)
     {
+    }
+
+    /// <summary>Initializes a new factory from options and the setup-time key as it is sent.</summary>
+    /// <param name="options">Provider options.</param>
+    /// <param name="setupApiKey">The key, trimmed and checked (<c>OutboundApiKey</c>); the one value the client is built with and the factory reports.</param>
+    /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
+    private OpenAIChatClientFactory(OpenAIProviderOptions options, string? setupApiKey, ILoggerFactory? loggerFactory)
+        : this(Build(options, setupApiKey, egressGuard: null), options.Endpoint ?? DefaultEndpoint, options.DefaultModel, loggerFactory)
+    {
+        SetupApiKey = setupApiKey;
     }
 
     /// <summary>Initializes a new factory from an existing client.</summary>
@@ -187,18 +197,23 @@ internal sealed class OpenAIChatClientFactory
                 "OpenAI speech needs the setup-time OpenAI client, whose address is known. " +
                 "A client built from a tenant's own credential carries no speech registration."));
 
-    /// <summary>Builds the client for the key set up at start.</summary>
+    /// <summary>Gets the key the setup-time client sends, as it is sent; <see langword="null"/> for a factory built from a client.</summary>
+    /// <remarks>
+    /// The trimmed value, read once: a service that refuses a key quotes what it received, so a second read of the
+    /// option could name a different value. The model provider reports it as <see cref="IModelProvider.SetupApiKeys"/>.
+    /// </remarks>
+    internal string? SetupApiKey { get; }
+
+    /// <summary>Reads the key set up at start, trimmed and checked.</summary>
     /// <param name="options">Provider options.</param>
-    /// <returns>The client that was built.</returns>
+    /// <returns>The key to send, or <see langword="null"/> when nothing is left of it.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    /// <exception cref="TraconException">
-    /// <see cref="OpenAIProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
-    /// </exception>
-    private static OpenAIClient CreateSetupClient(OpenAIProviderOptions options)
+    /// <exception cref="TraconException"><see cref="OpenAIProviderOptions.ApiKey"/> contains a character an HTTP header cannot carry.</exception>
+    private static string? SetupKey(OpenAIProviderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return Build(options, OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey), egressGuard: null);
+        return OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey);
     }
 
     /// <summary>Builds an OpenAI client from the key of a tenant's own credential.</summary>

@@ -19,7 +19,8 @@ namespace Tracon.Samples.CustomModelProvider;
 /// It deliberately exercises the parts of the contract a real provider has to
 /// get right: it returns a <strong>raw</strong> chat client, it is safe to
 /// call concurrently, it honors a per-tenant credential without ever falling
-/// back to the setup-time key, it validates its own provider settings, and it
+/// back to the setup-time key, it reports the key it was set up with so a
+/// failure never writes it, it validates its own provider settings, and it
 /// never rejects a model the catalog does not list.
 /// </para>
 /// </remarks>
@@ -96,6 +97,16 @@ public sealed class ContosoModelProvider : ITenantCredentialModelProvider
     /// compile path, which runs concurrently.
     /// </remarks>
     public IReadOnlyList<ModelDescriptor> Models { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The key this provider sends when a call has no tenant credential. A service that refuses a key often quotes it
+    /// back in the body of its answer, and the SDK puts that body into the exception it throws; Tracon replaces every
+    /// value reported here wherever the text of such a failure is written. A provider that holds a key and does not
+    /// report it leaves the key readable in that text. The key of a tenant is not reported: Tracon masks it from the
+    /// credential the call was resolved with.
+    /// </remarks>
+    public IReadOnlyList<string> SetupApiKeys => [_setupTimeApiKey];
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

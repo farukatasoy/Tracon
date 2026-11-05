@@ -367,7 +367,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         {
             try
             {
-                var decision = _retryClassifier.Classify(exception);
+                var decision = _retryClassifier.Classify(ProviderFailureGraph.DecisionView(exception));
 
                 if (decision == ProviderRetryDecision.DoNotRetry)
                 {
@@ -713,7 +713,7 @@ internal static class FallbackSkipReasonExtensions
 /// <c>System.ClientModel.ClientResultException</c> ("Connection refused
 /// (...)") — a message with NO "HTTP nnn" text, because no response was ever
 /// received to report a status for. <see cref="IsRetryable"/> therefore
-/// inspects the WHOLE exception graph (<see cref="Flatten"/>: self,
+/// inspects the WHOLE exception graph (<see cref="ProviderFailureGraph.Frames"/>: self,
 /// <see cref="Exception.InnerException"/> recursively, and every branch of an
 /// <see cref="AggregateException"/>), not just the outermost exception — the
 /// same lesson (real SDKs don't throw the type you'd guess) applied one
@@ -781,7 +781,7 @@ internal static partial class FallbackRetryClassifier
             return FallbackSkipReason.Timeout;
         }
 
-        foreach (var candidate in Flatten(exception))
+        foreach (var candidate in ProviderFailureGraph.Frames(exception))
         {
             if (candidate is TraconProviderUnavailableException)
             {
@@ -804,7 +804,7 @@ internal static partial class FallbackRetryClassifier
             }
         }
 
-        foreach (var candidate in Flatten(exception))
+        foreach (var candidate in ProviderFailureGraph.Frames(exception))
         {
             if (RateLimitPattern().IsMatch(candidate.Message))
             {
@@ -833,7 +833,7 @@ internal static partial class FallbackRetryClassifier
         // A status that can still reach this point is a transient
         // one: 408. Since then a 5xx/429 that only HttpRequestException.StatusCode
         // carries is read above, like every other status.
-        foreach (var candidate in Flatten(exception))
+        foreach (var candidate in ProviderFailureGraph.Frames(exception))
         {
             if (TransportExceptionTypePattern().IsMatch(candidate.GetType().FullName ?? string.Empty))
             {
@@ -869,7 +869,7 @@ internal static partial class FallbackRetryClassifier
             return false;
         }
 
-        foreach (var candidate in Flatten(exception))
+        foreach (var candidate in ProviderFailureGraph.Frames(exception))
         {
             if (candidate is OperationCanceledException)
             {
@@ -893,7 +893,7 @@ internal static partial class FallbackRetryClassifier
     /// </remarks>
     internal static bool IsTimeout(Exception exception)
     {
-        foreach (var candidate in Flatten(exception))
+        foreach (var candidate in ProviderFailureGraph.Frames(exception))
         {
             if (candidate is TimeoutException)
             {
@@ -907,30 +907,6 @@ internal static partial class FallbackRetryClassifier
         }
 
         return false;
-    }
-
-    /// <summary>Yields <paramref name="exception"/> and every exception reachable through it.</summary>
-    private static IEnumerable<Exception> Flatten(Exception exception)
-    {
-        yield return exception;
-
-        if (exception is AggregateException aggregate)
-        {
-            foreach (var inner in aggregate.InnerExceptions)
-            {
-                foreach (var nested in Flatten(inner))
-                {
-                    yield return nested;
-                }
-            }
-        }
-        else if (exception.InnerException is { } innerException)
-        {
-            foreach (var nested in Flatten(innerException))
-            {
-                yield return nested;
-            }
-        }
     }
 
     // 🚨 Kept character-for-character identical to DefaultRunErrorClassifier's

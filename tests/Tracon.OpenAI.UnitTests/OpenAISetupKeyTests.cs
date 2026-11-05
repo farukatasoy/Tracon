@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Tracon.OpenAI.UnitTests.Infrastructure;
 using Tracon.ProviderCore.Tests;
@@ -126,5 +127,54 @@ public sealed class OpenAISetupKeyTests
 
         validator.Validate("local", new OpenAIProviderOptions { Endpoint = endpoint }).Succeeded.ShouldBeTrue();
         validator.Validate("local", new OpenAIProviderOptions { Endpoint = endpoint, ApiKey = "test-key-\0-0123456789" }).Failed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Both_surfaces_of_the_provider_report_the_setup_key_as_it_is_sent()
+    {
+        var factory = new OpenAIChatClientFactory(TestData.Options(options => options.ApiKey = "\r\n" + TestData.ApiKey + "\n"));
+
+        foreach (var (name, surface) in new[] { (OpenAIProviderNames.ChatCompletions, OpenAIApiSurface.ChatCompletions), (OpenAIProviderNames.Responses, OpenAIApiSurface.Responses) })
+        {
+            // The trimmed value: a service that refuses a key quotes what it received.
+            new OpenAIModelProvider(name, surface, factory, []).SetupApiKeys.ShouldBe([TestData.ApiKey]);
+        }
+    }
+
+    [Fact]
+    public void A_provider_built_on_a_ready_made_client_reports_no_key()
+    {
+        var factory = OpenAIChatClientFactory.FromClient(OpenAIChatClientFactory.CreateClient(TestData.Options()));
+
+        new OpenAIModelProvider(OpenAIProviderNames.ChatCompletions, OpenAIApiSurface.ChatCompletions, factory, []).SetupApiKeys.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_key_less_compatible_provider_reports_no_key()
+    {
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        services.AddTracon().UseOpenAICompatible("ollama", options => options.Endpoint = new Uri("http://localhost:11434/v1"));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetServices<IModelProvider>().Single(static candidate => string.Equals(candidate.Name, "ollama", StringComparison.Ordinal)).SetupApiKeys.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Two_compatible_providers_each_report_their_own_key_and_not_the_others()
+    {
+        const string alphaKey = "alpha-key-0123456789";
+        const string betaKey = "beta-key-9876543210";
+
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        services.AddTracon()
+            .UseOpenAICompatible("alpha", options => { options.Endpoint = new Uri("https://alpha.example.com/v1"); options.ApiKey = alphaKey; })
+            .UseOpenAICompatible("beta", options => { options.Endpoint = new Uri("https://beta.example.com/v1"); options.ApiKey = " " + betaKey + "\n"; });
+
+        using var provider = services.BuildServiceProvider();
+        var providers = provider.GetServices<IModelProvider>().ToDictionary(static candidate => candidate.Name, StringComparer.Ordinal);
+
+        providers["alpha"].SetupApiKeys.ShouldBe([alphaKey]);
+        providers["beta"].SetupApiKeys.ShouldBe([betaKey]);
     }
 }

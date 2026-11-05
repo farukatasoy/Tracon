@@ -113,4 +113,21 @@ public sealed class GoogleSetupKeyTests
         text.ShouldNotContain("test-key-", Case.Sensitive);
         text.ShouldNotContain("0123456789", Case.Sensitive);
     }
+
+    [Fact]
+    public void The_provider_reports_the_setup_key_as_it_is_sent()
+    {
+        using var factory = new GoogleChatClientFactory(TestData.Options(options => options.ApiKey = "\r\n" + TestData.ApiKey + "\n"));
+
+        // The trimmed value: a service that refuses a key quotes what it received.
+        new GoogleModelProvider(GoogleProviderNames.Google, factory, []).SetupApiKeys.ShouldBe([TestData.ApiKey]);
+    }
+
+    [Fact]
+    public void A_provider_built_on_a_ready_made_client_reports_no_key()
+    {
+        using var factory = GoogleChatClientFactory.FromClient(GoogleChatClientFactory.CreateClient(TestData.Options()));
+
+        new GoogleModelProvider(GoogleProviderNames.Google, factory, []).SetupApiKeys.ShouldBeEmpty();
+    }
 }

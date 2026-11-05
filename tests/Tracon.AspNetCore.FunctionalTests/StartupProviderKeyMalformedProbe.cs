@@ -14,8 +14,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// framework's own refusal of a header value it cannot parse quotes the value: <c>The format of value 'Bearer ...' is
 /// invalid.</c> No request was made, so this was not the provider quoting a key back; it was the key of the call, whole,
 /// in the exception the client throws. For the key of a tenant binding the call's own value is replaced in that text (a
-/// gate in the tenant paths canary asks for it); a key registered at setup has no replacement, so every output that
-/// carries the text of a failed call carried the key: the run's error in the API response and in the run records, the log
+/// gate in the tenant paths canary asks for it); a key registered at setup was not the value the failure quoted (the
+/// untrimmed form), so every output that carries the text of a failed call carried the key: the run's error in the API response and in the run records, the log
 /// lines, the log records an exporter would send, the status of the chat span and, with the trace content setting on, the
 /// database (UTF-8).
 /// </para>

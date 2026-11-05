@@ -84,6 +84,13 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 
     /// <inheritdoc />
     /// <remarks>
+    /// The key the provider's client was built with, trimmed as it is sent. Empty when the provider was built from a
+    /// ready-made client (no key is known).
+    /// </remarks>
+    public IReadOnlyList<string> SetupApiKeys => _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Measured from the Google.GenAI 1.27.0 chat client adapter (decompiled 2026-10-28; its source is identical to the one measured on 2026-10-20): it sends every field
     /// but the parallel-tool-calls flag, which Gemini has no request member for. The reasoning
     /// output becomes <c>includeThoughts</c>.

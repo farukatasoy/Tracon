@@ -45,8 +45,18 @@ internal sealed class GoogleChatClientFactory : IDisposable
     /// (<c>OutboundApiKey</c>).
     /// </remarks>
     public GoogleChatClientFactory(GoogleProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateSetupClient(options), options.DefaultModel, loggerFactory, ownsClient: true)
+        : this(options, SetupKey(options), loggerFactory)
     {
+    }
+
+    /// <summary>Builds a new factory from settings and the setup-time key as it is sent.</summary>
+    /// <param name="options">Provider settings.</param>
+    /// <param name="setupApiKey">The key, trimmed and checked; the one value the client is built with and the factory reports.</param>
+    /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
+    private GoogleChatClientFactory(GoogleProviderOptions options, string? setupApiKey, ILoggerFactory? loggerFactory)
+        : this(Build(options, setupApiKey, egressGuard: null), options.DefaultModel, loggerFactory, ownsClient: true)
+    {
+        SetupApiKey = setupApiKey;
     }
 
     /// <summary>Builds a new factory from a ready-made client.</summary>
@@ -145,18 +155,23 @@ internal sealed class GoogleChatClientFactory : IDisposable
     internal IImageGenerator CreateImageGenerator() => new GoogleImageGenerator(Client);
 #pragma warning restore MEAI001
 
-    /// <summary>Builds the client for the key set up at start.</summary>
+    /// <summary>Gets the key the setup-time client sends, as it is sent; <see langword="null"/> for a factory built from a client.</summary>
+    /// <remarks>
+    /// The trimmed value, read once: a service that refuses a key quotes what it received, so a second read of the
+    /// option could name a different value. The model provider reports it as <see cref="IModelProvider.SetupApiKeys"/>.
+    /// </remarks>
+    internal string? SetupApiKey { get; }
+
+    /// <summary>Reads the key set up at start, trimmed and checked.</summary>
     /// <param name="options">Provider settings.</param>
-    /// <returns>The built client.</returns>
+    /// <returns>The key to send, or <see langword="null"/> when nothing is left of it.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    /// <exception cref="TraconException">
-    /// <see cref="GoogleProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
-    /// </exception>
-    private static Client CreateSetupClient(GoogleProviderOptions options)
+    /// <exception cref="TraconException"><see cref="GoogleProviderOptions.ApiKey"/> contains a character an HTTP header cannot carry.</exception>
+    private static string? SetupKey(GoogleProviderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return Build(options, OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey), egressGuard: null);
+        return OutboundApiKey.Normalize(ApiKeyOptionName, options.ApiKey);
     }
 
     /// <summary>Builds a Google GenAI client from the key of a tenant's own credential.</summary>

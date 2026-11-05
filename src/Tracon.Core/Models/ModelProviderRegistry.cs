@@ -438,6 +438,36 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         return toolLoop;
     }
 
+    /// <summary>Builds the mask of the keys a provider was set up with.</summary>
+    /// <param name="provider">The provider the client is built for.</param>
+    /// <param name="binding">The model binding of the call; its provider name is written when the provider fails to report.</param>
+    /// <returns>The mask; empty when the provider reports no key or fails to report.</returns>
+    /// <remarks>
+    /// The provider is consumer code and the mask is built while a client is built, outside any handler of a provider
+    /// failure: a getter that throws must not break the build. The call goes on without a replacement, and the warning
+    /// names the provider and the exception TYPE, never the exception's text, which the provider wrote and may hold the
+    /// very value it failed to report.
+    /// </remarks>
+    private ProviderSecretMask SetupKeyMask(IModelProvider provider, ModelBinding binding)
+    {
+        try
+        {
+            return ProviderSecretMask.ForValues(provider.SetupApiKeys);
+        }
+        catch (Exception exception)
+        {
+            _loggerFactory?
+                .CreateLogger("Tracon.ModelProvider")
+                .LogWarning(
+                    "Model provider {Provider} failed to report the keys it was set up with ({ExceptionType}); " +
+                    "the text of its failures is not searched for them.",
+                    binding.Provider,
+                    exception.GetType().FullName);
+
+            return ProviderSecretMask.Empty;
+        }
+    }
+
     private ProviderFailureNormalizingChatClient BuildPipeline(
         ModelBinding binding,
         IModelProvider provider,
@@ -445,9 +475,13 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         ChatClientRings rings,
         Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> resolveFallback)
     {
-        // The values of THIS call's credential, replaced wherever a provider failure quotes them back. The
-        // pipeline of another tenant has its own; a setup-time key has none (see ProviderSecretMask).
-        var secretMask = ProviderSecretMask.For(credential);
+        // The secret values THIS client sends, replaced wherever a provider failure quotes them back. A call made with a
+        // tenant credential is masked from that credential, and the pipeline of another tenant has its own; a call made
+        // with the key set up at start is masked from the values its provider reports (IModelProvider.SetupApiKeys).
+        // The two never mix: a tenant call does not send the setup key, so a setup value is not looked for in its text.
+        var secretMask = credential is null
+            ? SetupKeyMask(provider, binding)
+            : ProviderSecretMask.For(credential);
 
         // The provider returns the RAW client; the entire pipeline is assembled here.
         IChatClient chatClient;

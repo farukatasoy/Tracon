@@ -39,6 +39,11 @@ public sealed class TenantProviderFailureTextTests
     // A value no tenant of this host holds: a text that quotes it quotes something that is not the call's own.
     private const string NotTheCallsOwn = "canary-not-the-calls-own-61f0aa83bc";
 
+    // The keys the two providers were set up with, for a call made by a tenant that has no binding of its own.
+    private const string TenantWithoutBinding = "tenant-b";
+    private const string PrimarySetupKey = "canary-primary-setup-4a7d19e0c2";
+    private const string FallbackSetupKey = "canary-fallback-setup-e83b5f6a17";
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -92,6 +97,61 @@ public sealed class TenantProviderFailureTextTests
         host.Logs.AllText.ShouldContain("withheld because it could not be masked", Case.Sensitive);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_fallback_chain_of_providers_set_up_with_keys_writes_neither_setup_key(bool streamed)
+    {
+        await using var host = await StartAsync(
+            Binding(withFallback: true),
+            new SetupKeyProvider(PrimaryProvider, PrimarySetupKey, key => Unavailable($"The primary refused {key}.")),
+            new SetupKeyProvider(FallbackProvider, FallbackSetupKey, key => Unavailable($"The fallback refused {key}.")));
+
+        var response = await RunAsync(host, streamed, TenantWithoutBinding);
+
+        // The tenant has no binding, so both links were called with the key their provider was set up with.
+        host.Logs.AllText.ShouldContain("All providers in the fallback chain failed", Case.Sensitive);
+        host.Logs.AllText.ShouldContain("The primary refused [redacted].", Case.Sensitive);
+        host.Logs.AllText.ShouldNotContain(PrimarySetupKey, Case.Sensitive);
+        host.Logs.AllText.ShouldNotContain(FallbackSetupKey, Case.Sensitive);
+        response.ShouldNotContain(PrimarySetupKey, Case.Sensitive);
+        response.ShouldNotContain(FallbackSetupKey, Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_call_made_with_a_tenant_key_masks_that_key_and_does_not_look_for_the_key_the_provider_was_set_up_with()
+    {
+        // The tenant's call does not send the setup key, so the mask of that call holds the tenant's key alone: what its
+        // text quotes of anything else is left as it is, as for any value that is not the call's own.
+        await using var host = await StartAsync(
+            Binding(withFallback: false),
+            new SetupKeyProvider(
+                PrimaryProvider,
+                PrimarySetupKey,
+                key => Unavailable($"The provider refused {key}."),
+                tenantFailure: key => Unavailable($"The provider refused {key} and also {PrimarySetupKey}.")),
+            fallback: null);
+
+        await RunAsync(host, streamed: false);
+
+        host.Logs.AllText.ShouldContain("The provider refused [redacted] and also " + PrimarySetupKey, Case.Sensitive);
+        host.Logs.AllText.ShouldNotContain(PrimaryKey, Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_provider_that_does_not_report_its_setup_key_keeps_the_text_of_its_failure_as_it_was()
+    {
+        // The documented limit: a value Tracon was not told of is not looked for.
+        await using var host = await StartAsync(
+            Binding(withFallback: false),
+            new SetupKeyProvider(PrimaryProvider, PrimarySetupKey, key => Unavailable($"The provider refused {key}."), reportKey: false),
+            fallback: null);
+
+        await RunAsync(host, streamed: false, TenantWithoutBinding);
+
+        host.Logs.AllText.ShouldContain("The provider refused " + PrimarySetupKey, Case.Sensitive);
+    }
+
     private static HttpRequestException Unavailable(string message)
         => new(message, inner: null, HttpStatusCode.ServiceUnavailable);
 
@@ -103,7 +163,7 @@ public sealed class TenantProviderFailureTextTests
             Fallbacks = withFallback ? [new ModelFallback { Provider = FallbackProvider, Model = "fallback-1" }] : [],
         };
 
-    private static async Task<TraconTestHost> StartAsync(ModelBinding binding, QuotingProvider primary, QuotingProvider? fallback)
+    private static async Task<TraconTestHost> StartAsync(ModelBinding binding, IModelProvider primary, IModelProvider? fallback)
     {
         var host = await TraconTestHost.StartAsync(
             configureTracon: builder =>
@@ -155,16 +215,16 @@ public sealed class TenantProviderFailureTextTests
         return host;
     }
 
-    private static async Task<string> RunAsync(TraconTestHost host, bool streamed)
-        => (await RunWithStatusAsync(host, streamed)).Body;
+    private static async Task<string> RunAsync(TraconTestHost host, bool streamed, string tenant = Tenant)
+        => (await RunWithStatusAsync(host, streamed, tenant)).Body;
 
-    private static async Task<(HttpStatusCode Status, string Body)> RunWithStatusAsync(TraconTestHost host, bool streamed)
+    private static async Task<(HttpStatusCode Status, string Body)> RunWithStatusAsync(TraconTestHost host, bool streamed, string tenant = Tenant)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative))
         {
             Content = JsonContent.Create(new AgentRunRequest { Message = "hello" }),
         };
-        request.Headers.Add(TenantHeader, Tenant);
+        request.Headers.Add(TenantHeader, tenant);
 
         if (!streamed)
         {
@@ -192,6 +252,34 @@ public sealed class TenantProviderFailureTextTests
             ArgumentNullException.ThrowIfNull(credential);
 
             return new QuotingChatClient(failure(credential.ApiKey));
+        }
+    }
+
+    /// <summary>
+    /// A provider that was set up with a key. It reports the key (or not, to show the limit) and the client it builds with
+    /// that key throws what <paramref name="failure"/> builds from it; for a tenant's key it builds from
+    /// <paramref name="tenantFailure"/>.
+    /// </summary>
+    private sealed class SetupKeyProvider(
+        string name,
+        string setupKey,
+        Func<string, Exception> failure,
+        Func<string, Exception>? tenantFailure = null,
+        bool reportKey = true) : ITenantCredentialModelProvider
+    {
+        public string Name { get; } = name;
+
+        public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = "primary-1" }, new ModelDescriptor { Name = "fallback-1" }];
+
+        public IReadOnlyList<string> SetupApiKeys => reportKey ? [setupKey] : [];
+
+        public IChatClient CreateChatClient(ModelBinding binding) => new QuotingChatClient(failure(setupKey));
+
+        public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        {
+            ArgumentNullException.ThrowIfNull(credential);
+
+            return new QuotingChatClient((tenantFailure ?? failure)(credential.ApiKey));
         }
     }
 

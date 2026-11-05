@@ -111,4 +111,21 @@ public sealed class AnthropicSetupKeyTests
         text.ShouldNotContain("test-key-", Case.Sensitive);
         text.ShouldNotContain("0123456789", Case.Sensitive);
     }
+
+    [Fact]
+    public void The_provider_reports_the_setup_key_as_it_is_sent()
+    {
+        var factory = new AnthropicChatClientFactory(TestData.Options(options => options.ApiKey = "\r\n" + TestData.ApiKey + "\n"));
+
+        // The trimmed value: a service that refuses a key quotes what it received.
+        new AnthropicModelProvider(AnthropicProviderNames.Anthropic, factory, []).SetupApiKeys.ShouldBe([TestData.ApiKey]);
+    }
+
+    [Fact]
+    public void A_provider_built_on_a_ready_made_client_reports_no_key()
+    {
+        var factory = AnthropicChatClientFactory.FromClient(AnthropicChatClientFactory.CreateClient(TestData.Options()));
+
+        new AnthropicModelProvider(AnthropicProviderNames.Anthropic, factory, []).SetupApiKeys.ShouldBeEmpty();
+    }
 }

@@ -22,8 +22,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// The scenarios are the ones a key meets: the provider accepts, the provider refuses (without naming the key), the
 /// client leaves while the provider holds the call open, and a second host started on the same database that reads
-/// what the first left and replays a run. The refusal that quotes the key back is a separate measurement: the call's own
-/// key is replaced in a failure's text only when the key came from a tenant binding.
+/// what the first left and replays a run. The refusal that quotes the key back is a separate gate, which asks that the
+/// key the provider reports it was set up with is replaced in a failure's text.
 /// </para>
 /// </remarks>
 public sealed class StartupProviderKeyCanaryTests
