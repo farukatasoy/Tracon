@@ -102,7 +102,8 @@ public sealed class TraconWebhookOptions
     /// </para>
     /// <para>
     /// In configuration, a list (<c>RetryDelays:0 = "00:01:00"</c>) that replaces the
-    /// default. Each delay must be greater than zero: a delay of zero or below, or
+    /// default. Each delay must be greater than zero and at most 2147483647000 milliseconds (a little
+    /// over 68 years, the longest the job queue accepts): a delay of zero or below, a longer one, or
     /// one that is not a <see cref="TimeSpan"/>, stops the application at startup
     /// with an <see cref="Microsoft.Extensions.Options.OptionsValidationException"/>
     /// that names <c>RetryDelays</c> and quotes the entry as written. Such an entry

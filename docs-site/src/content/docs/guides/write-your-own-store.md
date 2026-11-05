@@ -237,6 +237,19 @@ Two more rules carry the
   `MaxLeasedPerTenant` live leases on those keys (an expired lease does not count);
   the oldest job that is still eligible is leased instead. With no cap the oldest
   ready job is leased whichever tenant owns it. The count may be read without a lock.
+- **Lease durations have one range, and a store refuses what is outside it.**
+  `ISingletonLeaseStore.TryAcquireAsync` and `RenewAsync` (`duration`), `IJobStore.LeaseAsync`
+  (`JobLeaseRequest.LeaseDuration`) and `RenewLeaseAsync` (`leaseDuration`) and
+  `IRunStore.ClaimOrphanedRunsAsync` (`staleAfter`) take a duration from **1 millisecond to
+  `2147483647000` milliseconds** (a little over 68 years). Anything else throws
+  `ArgumentOutOfRangeException`, before the cancellation token is looked at and before any
+  row is written: zero or less would be a lease that is over at once (or, for `staleAfter`,
+  a run that is beating called orphaned), `Timeout.InfiniteTimeSpan` is minus one
+  millisecond and not "never", and the upper limit is the one SQL Server's `DATEADD` reaches.
+  `IJobStore.ReleaseForRetryAsync` takes a `retryAfter` that is `null` or from zero to the
+  same maximum; a negative delay is refused, not read as "at once". `SingletonLeaseStoreContract`,
+  `JobStoreContract` and `RunStoreContract` check each of these with the same values, the two
+  ends of the range included.
 - **`IJobStore` fences every write that needs the lease.** `RenewLeaseAsync`,
   `MarkRunningAsync`, `CompleteAsync` and `ReleaseForRetryAsync` take a `JobLease`
   (the job, the owner and the attempt that `LeaseAsync` returned) and change the job only

@@ -75,6 +75,10 @@ public interface IJobStore
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The leased job; <see langword="null"/> if none exists.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <see cref="JobLeaseRequest.LeaseDuration"/> is outside one millisecond to <c>2147483647000</c> milliseconds (a little
+    /// over 68 years). The call checks it before anything else and leases nothing, so no attempt is spent.
+    /// </exception>
     /// <remarks>
     /// <para>
     /// A job is ready when it is pending and due, or when its lease is over. Both are decided on the store's clock, and the
@@ -101,8 +105,14 @@ public interface IJobStore
 
     /// <summary>Extends an in-progress job's lease. Does not change the job's status.</summary>
     /// <param name="lease">The lease to extend.</param>
-    /// <param name="leaseDuration">The new lease duration.</param>
+    /// <param name="leaseDuration">
+    /// The new lease duration: from one millisecond to <c>2147483647000</c> milliseconds (a little over 68 years).
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="leaseDuration"/> is outside that range. The check comes before anything else, and the lease stays as
+    /// it was.
+    /// </exception>
     /// <returns>
     /// <see langword="true"/> if the lease was extended; <see langword="false"/> if the job's
     /// lease is no longer <paramref name="lease"/> (another worker leased the job, or it was
@@ -162,10 +172,15 @@ public interface IJobStore
     /// <param name="lease">The lease the worker holds.</param>
     /// <param name="errorMessage">The most recent attempt's error.</param>
     /// <param name="retryAfter">
-    /// The time to wait before the next attempt. If <see langword="null"/> or
-    /// zero, the job may be re-leased immediately (the old behavior).
+    /// The time to wait before the next attempt, up to <c>2147483647000</c> milliseconds (a little over 68 years). If
+    /// <see langword="null"/> or zero, the job may be re-leased immediately (the old behavior). A negative delay is not
+    /// "at once": it is refused.
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="retryAfter"/> is negative or longer than that. The check comes before anything else, and the job
+    /// stays leased.
+    /// </exception>
     /// <returns>
     /// <see langword="true"/> if the job went back to the queue; <see langword="false"/> if the
     /// job's lease is no longer <paramref name="lease"/>, in which case nothing changed.

@@ -368,6 +368,16 @@ public sealed class JsonFileRunStore : IRunStore
         int max,
         CancellationToken cancellationToken = default)
     {
+        // The contract refuses a threshold outside one millisecond to a little over 68 years, and does so before it looks
+        // at the cancellation token: zero or less would call a run that is beating orphaned.
+        if (staleAfter < TimeSpan.FromMilliseconds(1) || staleAfter > TimeSpan.FromMilliseconds(int.MaxValue * 1000L))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(staleAfter),
+                staleAfter,
+                "The threshold is from 1 ms to 2147483647000 ms (about 68 years).");
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)

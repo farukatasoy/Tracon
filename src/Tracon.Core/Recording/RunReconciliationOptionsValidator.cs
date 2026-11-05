@@ -30,6 +30,16 @@ internal sealed class RunReconciliationOptionsValidator : IValidateOptions<RunRe
                 $"must be greater than zero. Actual value: {options.OrphanThreshold}.");
         }
 
+        // The run store refuses a threshold outside its range on every scan; the host stops here instead of logging the
+        // same failure once a minute.
+        if (options.OrphanThreshold < LeaseTimeRange.Minimum || options.OrphanThreshold > LeaseTimeRange.Maximum)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(RunReconciliationOptions)}.{nameof(RunReconciliationOptions.OrphanThreshold)} " +
+                $"must be {LeaseTimeRange.Describe()}: the run store refuses any other threshold. " +
+                $"Actual value: {options.OrphanThreshold}.");
+        }
+
         if (options.OrphanThreshold < options.HeartbeatInterval)
         {
             return ValidateOptionsResult.Fail(

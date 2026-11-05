@@ -240,7 +240,9 @@ public sealed class TenantWorkflowConcurrencyTests
     {
         // Reconciliation closes a Queued row only when it has a heartbeat. A run that waits in its process writes one
         // as it opens, not at the next cycle: a process that stops in between would leave the row Queued for good.
-        var (host, gate) = await BuildAsync();
+        // The run store's clock is an hour ahead of the clock the runner marks with, so every mark is an hour old when
+        // the scan reads it.
+        var (host, gate) = await BuildAsync(runStoreClock: new AheadOfSystemClock(TimeSpan.FromHours(1)));
         host.Reconciliation = new RunReconciliationOptions { Enabled = reconciliation };
 
         var runner = host.CreateRunner(static options =>
@@ -257,8 +259,8 @@ public sealed class TenantWorkflowConcurrencyTests
 
         (await StatusAsync(host, "tenant-a", waitingId)).ShouldBe(RunStatus.Queued);
 
-        // Everything that ever signaled looks stale from an hour ahead.
-        var claimed = await host.RunStore.ClaimOrphanedRunsAsync(TimeSpan.FromHours(-1), 10, TestContext.Current.CancellationToken);
+        // Everything that ever signaled is an hour old to the store, so a five minute threshold finds it stale.
+        var claimed = await host.RunStore.ClaimOrphanedRunsAsync(TimeSpan.FromMinutes(5), 10, TestContext.Current.CancellationToken);
 
         claimed.Any(run => run.Id == waitingId).ShouldBe(closable);
 
@@ -329,9 +331,10 @@ public sealed class TenantWorkflowConcurrencyTests
 
     private static async Task<(WorkflowTestHost Host, SlowNode Gate)> BuildAsync(
         string[]? tenants = null,
-        bool blocking = true)
+        bool blocking = true,
+        TimeProvider? runStoreClock = null)
     {
-        var host = new WorkflowTestHost("one");
+        var host = new WorkflowTestHost(runStoreClock ?? TimeProvider.System, "one");
         var gate = new SlowNode(blocking);
 
         host.AddFunction<List<ChatMessage>, List<ChatMessage>>("slow", gate.RunAsync);
@@ -596,5 +599,12 @@ public sealed class TenantWorkflowConcurrencyTests
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken cancellationToken = default)
             => inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken);
+    }
+
+    /// <summary>The system clock moved forward by a fixed distance: a store whose clock runs ahead of the writers'.</summary>
+    /// <param name="offset">How far ahead.</param>
+    private sealed class AheadOfSystemClock(TimeSpan offset) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => TimeProvider.System.GetUtcNow() + offset;
     }
 }

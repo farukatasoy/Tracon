@@ -138,7 +138,9 @@ tracon.UseScheduling(options =>
 **Execution is at-least-once, not exactly-once.** The same job — the same
 `JobContext.Job`, with the SAME item list — can reach `ExecuteAsync` more than
 once: a thrown exception is retried up to the job's attempt limit
-(`JobRetryException.RetryAfter` controls the delay), and a worker that
+(`JobRetryException.RetryAfter` controls the delay, from zero to a little over 68 years: the
+worker brings a negative delay to "at once" and a longer one to the maximum, and writes a
+warning to the log), and a worker that
 crashes, or whose lease lapses, lets another worker (or the same one, on its
 next poll) re-lease the job and call `ExecuteAsync` again from scratch.
 Neither path resets item progress. A store error after `ExecuteAsync` has
@@ -162,7 +164,7 @@ handler throws:
 |---|---|---|
 | The worker stops | Host shutdown | Nothing is written; the job is leased again when its lease runs out |
 | The job is cancelled | `POST /api/jobs/{id}/cancel`, read every `PollInterval` (10 seconds by default) | The job stays `Cancelled`, with no error |
-| The worker loses the lease | The store refused a renewal because another worker leased the job after the lease lapsed, or renewals kept failing until the worker could no longer prove it holds the lease | Nothing is written for this attempt, whatever the handler does next: the job belongs to the worker that took it over, and that worker completes it or returns it to the queue |
+| The worker loses the lease | The store refused a renewal because another worker leased the job after the lease lapsed, or renewals kept failing, or one renewal did not answer, until the worker could no longer prove it holds the lease | Nothing is written for this attempt, whatever the handler does next: the job belongs to the worker that took it over, and that worker completes it or returns it to the queue |
 | The time limit passes | The attempt ran longer than its limit | The attempt fails with `tracon.job.max-duration-exceeded`; the job is leased again while attempts are left |
 
 A handler that returns normally after its token was cancelled (except for a

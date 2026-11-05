@@ -345,7 +345,7 @@ open a continuation for it.
 |---|---:|---|
 | `RunReconciliation.Enabled` | `false` | No heartbeats, scan or cross-instance cancel until enabled |
 | `HeartbeatInterval` | 30 seconds | 1 ms to about 49.7 days |
-| `OrphanThreshold` | 5 minutes | Must be positive and at least the heartbeat interval |
+| `OrphanThreshold` | 5 minutes | Must be at least the heartbeat interval and at most about 68 years (`2147483647000` milliseconds, the longest the run store accepts); startup fails with any other value |
 | `ScanInterval` | 1 minute | 1 ms to about 49.7 days |
 | `MaxRunsPerScan` | `100` | Must be positive; bounds one pass |
 

@@ -997,8 +997,22 @@ internal sealed class JobWorkerBackgroundService(
         }
 
         // The handler may request a delay; if not, the old behavior
-        // (immediately re-leasable) is preserved.
-        var retryAfter = (exception as JobRetryException)?.RetryAfter;
+        // (immediately re-leasable) is preserved. What a handler asks for is a request, and a store refuses a call whose
+        // delay is outside its range: the worker brings the request into range and says so, instead of handing the store a
+        // value it throws on, which would leave the job Running until its lease ran out.
+        var requestedRetryAfter = (exception as JobRetryException)?.RetryAfter;
+        var retryAfter = LeaseTimeRange.ClampRetryDelay(requestedRetryAfter, out var retryAfterChanged);
+
+        if (retryAfterChanged && logger is not null && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(
+                "Job {JobId} attempt {Attempt}: the handler asked to retry after {Requested}, which is outside the range the job store accepts (zero to about 68 years); the job is retried after {Used} instead.",
+                job.Id,
+                job.Attempt,
+                requestedRetryAfter,
+                retryAfter ?? TimeSpan.Zero);
+        }
+
         var releaseLease = LeaseOf(job);
 
         var released = await RetryFinalizationAsync(
@@ -1511,16 +1525,30 @@ internal sealed class JobWorkerBackgroundService(
                 {
                     var requestedAt = _clock.GetTimestamp();
 
-                    if (await jobStore.RenewLeaseAsync(lease, leaseDuration, token).ConfigureAwait(false))
+                    switch (await RenewWithinAsync(job, lease, leaseDuration, renewal.CallBudget, token).ConfigureAwait(false))
                     {
-                        renewal.Confirm(requestedAt);
+                        case RenewalOutcome.Renewed:
+                            renewal.Confirm(requestedAt);
 
-                        continue;
+                            continue;
+
+                        case RenewalOutcome.Unanswered:
+                            await LoseLeaseAsync(job, renewal, "a renewal did not answer before the lease could no longer be proven").ConfigureAwait(false);
+
+                            return;
+
+                        default:
+                            // The attempt may have ended while the answer was on its way: a job this worker closed answers
+                            // "refused" too, and that is not a lease lost.
+                            if (token.IsCancellationRequested)
+                            {
+                                return;
+                            }
+
+                            await StopRefusedRenewalAsync(job, renewal, token).ConfigureAwait(false);
+
+                            return;
                     }
-
-                    await StopRefusedRenewalAsync(job, renewal, token).ConfigureAwait(false);
-
-                    return;
                 }
                 catch (Exception exception) when (OperationCancellation.IsFailure(exception, token))
                 {
@@ -1533,8 +1561,7 @@ internal sealed class JobWorkerBackgroundService(
                     // the job may be another worker's, and this one cannot tell.
                     if (renewal.ProvableRemaining <= TimeSpan.Zero)
                     {
-                        LogLeaseLost(job, "its renewals kept failing until the lease could no longer be proven");
-                        renewal.MarkLost();
+                        await LoseLeaseAsync(job, renewal, "its renewals kept failing until the lease could no longer be proven").ConfigureAwait(false);
 
                         return;
                     }
@@ -1545,6 +1572,155 @@ internal sealed class JobWorkerBackgroundService(
         {
             // The job finished, or the worker is shutting down. Only then: a
             // store's own timeout is a renewal failure and is logged above.
+        }
+    }
+
+    /// <summary>How one renewal call came out.</summary>
+    private enum RenewalOutcome
+    {
+        /// <summary>The store extended the lease.</summary>
+        Renewed,
+
+        /// <summary>The store answered that the lease is not this worker's (or the job is closed).</summary>
+        Refused,
+
+        /// <summary>The store did not answer within the time the lease could still be proven.</summary>
+        Unanswered,
+    }
+
+    /// <summary>Sends one renewal and waits for the answer no longer than <paramref name="budget"/>.</summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="lease">The lease to renew.</param>
+    /// <param name="leaseDuration">The duration to renew it for.</param>
+    /// <param name="budget">How long the answer may take: what is left of the lease this worker can prove.</param>
+    /// <param name="token">The renewal's token.</param>
+    /// <returns>What the store answered, or <see cref="RenewalOutcome.Unanswered"/> when it did not in time.</returns>
+    /// <remarks>
+    /// <para>
+    /// A call that never returns used to hold the loop for good: the lease ran out under a handler that was never told. The
+    /// wait is bounded and the call is let go of when the time is up. <see cref="Task.WaitAsync(TimeSpan, TimeProvider, CancellationToken)"/>
+    /// ends the wait but not the call, so the call gets its own token to be cancelled (a store that honors it stops) and
+    /// is looked at until it ends, or what it ends with would surface later as an unobserved exception.
+    /// </para>
+    /// <para>
+    /// An answer that comes after the time is up is not read: the loop has given the lease up by then, and what the store
+    /// says about a lease the worker can no longer prove does not give it back.
+    /// </para>
+    /// </remarks>
+    private async Task<RenewalOutcome> RenewWithinAsync(
+        JobRecord job,
+        JobLease lease,
+        TimeSpan leaseDuration,
+        TimeSpan budget,
+        CancellationToken token)
+    {
+        var callSource = CancellationTokenSource.CreateLinkedTokenSource(token);
+        Task<bool> call;
+
+        try
+        {
+            call = jobStore.RenewLeaseAsync(lease, leaseDuration, callSource.Token).AsTask();
+        }
+        catch
+        {
+            callSource.Dispose();
+
+            throw;
+        }
+
+        try
+        {
+            return await call.WaitAsync(budget, _clock, token).ConfigureAwait(false)
+                ? RenewalOutcome.Renewed
+                : RenewalOutcome.Refused;
+        }
+        catch (TimeoutException) when (!call.IsCompleted)
+        {
+            // A store that throws a TimeoutException of its own has completed the call: that one is a failed renewal.
+            return RenewalOutcome.Unanswered;
+        }
+        finally
+        {
+            if (call.IsCompleted)
+            {
+                callSource.Dispose();
+            }
+            else
+            {
+                _ = AbandonRenewalAsync(job, call, callSource);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Cancels a renewal call the loop will not wait for any longer, and looks at how it ends.
+    /// </summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="call">The call that has not ended.</param>
+    /// <param name="callSource">The call's token source; disposed once the call has ended, not before, because the call may still read its token.</param>
+    /// <returns>A task that ends with the call and never faults.</returns>
+    private async Task AbandonRenewalAsync(JobRecord job, Task<bool> call, CancellationTokenSource callSource)
+    {
+        // The token that governs the call, read while the source is alive.
+        var callToken = callSource.Token;
+
+        try
+        {
+            try
+            {
+                await callSource.CancelAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, callToken))
+            {
+                // A callback the store put on the token threw. The loop has nothing to do with it.
+                LogAbandonedRenewal(job, exception);
+            }
+
+            await call.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (callToken.IsCancellationRequested)
+        {
+            // The call honored the token the loop cancelled.
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, callToken))
+        {
+            // Nobody is waiting for the answer any more; looking at the failure keeps it from surfacing later as an
+            // unobserved one.
+            LogAbandonedRenewal(job, exception);
+        }
+        finally
+        {
+            callSource.Dispose();
+        }
+    }
+
+    private void LogAbandonedRenewal(JobRecord job, Exception exception)
+    {
+        if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug(exception, "The renewal call of job {JobId} that the worker gave up on ended with an error.", job.Id);
+        }
+    }
+
+    /// <summary>
+    /// Gives the lease up: says why, and tells the handler.
+    /// </summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="renewal">The attempt's renewal.</param>
+    /// <param name="why">Why the lease can no longer be counted on.</param>
+    /// <returns>A task that completes when the handler's token has been cancelled.</returns>
+    private async Task LoseLeaseAsync(JobRecord job, LeaseRenewal renewal, string why)
+    {
+        LogLeaseLost(job, why);
+
+        if (await renewal.MarkLostAsync().ConfigureAwait(false) is { } failure
+            && logger is not null
+            && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(
+                failure,
+                "Job {JobId}: a callback on the handler's token threw while the lease loss was announced; the handler is stopped all the same.",
+                job.Id);
         }
     }
 
@@ -1561,19 +1737,19 @@ internal sealed class JobWorkerBackgroundService(
     /// is the cancel watch's: it reads the status itself, stops the handler as a cancel and counts the
     /// job as cancelled, and a handler told that its lease was lost would leave a cancelled job's
     /// checkpoints behind. A read that throws propagates to the loop, which counts it as a missed
-    /// tick and asks again on the next one.
+    /// tick and asks again on the next one. A read that comes back after the attempt ended finds the job
+    /// this worker closed, and says nothing about a lease.
     /// </remarks>
     private async Task StopRefusedRenewalAsync(JobRecord job, LeaseRenewal renewal, CancellationToken token)
     {
         var current = await jobStore.GetAsync(job.TenantId, job.Id, token).ConfigureAwait(false);
 
-        if (current is null || current.Status == JobStatus.Cancelled)
+        if (current is null || current.Status == JobStatus.Cancelled || token.IsCancellationRequested)
         {
             return;
         }
 
-        LogLeaseLost(job, "the store refused the renewal");
-        renewal.MarkLost();
+        await LoseLeaseAsync(job, renewal, "the store refused the renewal").ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1626,6 +1802,26 @@ internal sealed class JobWorkerBackgroundService(
         public TimeSpan ProvableRemaining
             => _duration - _margin - _clock.GetElapsedTime(Volatile.Read(ref _confirmedAt));
 
+        /// <summary>
+        /// How long a renewal sent now may go unanswered before the lease is given up: the time left on the proven lease,
+        /// less the margin. Once the margin is reached nothing is left to prove: a renewal that fails already costs the
+        /// lease (the loop's catch), and one that does not answer gets one more margin, the length of a renewal interval.
+        /// </summary>
+        /// <remarks>
+        /// Never zero or negative, and not "lost at once" when the proof has run out: a store that answers the next
+        /// renewal still tells who holds the lease, and a worker whose clock jumped past the lease on a healthy store
+        /// finishes its job (see <c>JobLeaseClockStepTests</c>).
+        /// </remarks>
+        public TimeSpan CallBudget
+        {
+            get
+            {
+                var remaining = ProvableRemaining;
+
+                return remaining > TimeSpan.Zero ? remaining : _margin;
+            }
+        }
+
         /// <summary>Records a renewal that succeeded.</summary>
         /// <param name="requestedAt">The monotonic timestamp taken before the renewal was sent.</param>
         public void Confirm(long requestedAt)
@@ -1640,17 +1836,33 @@ internal sealed class JobWorkerBackgroundService(
         }
 
         /// <summary>Records that the lease is lost and cancels <see cref="LostToken"/>.</summary>
-        public void MarkLost()
+        /// <returns>
+        /// What a callback registered on the token threw while the token was cancelled, or <see langword="null"/>. The
+        /// loss is recorded and the token is cancelled whatever the callbacks do.
+        /// </returns>
+        /// <remarks>
+        /// The handler's token is linked to this one, and a token that is cancelled runs the callbacks registered on it on
+        /// the thread that cancelled it. A callback of the handler's that throws must not leave the renewal loop with the
+        /// exception: the loop runs as a task nobody awaits, and the failure would be lost.
+        /// </remarks>
+        public async ValueTask<Exception?> MarkLostAsync()
         {
             Volatile.Write(ref _isLost, 1);
 
             try
             {
-                _lost.Cancel();
+                await _lost.CancelAsync().ConfigureAwait(false);
+
+                return null;
             }
             catch (ObjectDisposedException)
             {
                 // The attempt ended while the loop was answering: nobody is left to tell.
+                return null;
+            }
+            catch (Exception exception)
+            {
+                return exception;
             }
         }
 

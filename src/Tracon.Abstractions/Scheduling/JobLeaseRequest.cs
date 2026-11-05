@@ -21,6 +21,10 @@ public sealed record JobLeaseRequest
     public required string Owner { get; init; }
 
     /// <summary>Gets the lease's validity duration.</summary>
+    /// <remarks>
+    /// From one millisecond to <c>2147483647000</c> milliseconds (a little over 68 years); <see cref="IJobStore.LeaseAsync"/>
+    /// refuses any other value with <see cref="ArgumentOutOfRangeException"/>.
+    /// </remarks>
     public required TimeSpan LeaseDuration { get; init; }
 
     /// <summary>

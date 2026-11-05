@@ -613,7 +613,7 @@ as an IP literal, and on every connection for one written as a host name. See
 | `Timeout` | 10 seconds |
 | `MaxResponseBytes` | `8192` |
 | `DisableAfterConsecutiveFailures` | `20` |
-| `RetryDelays` | 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours. A delay that is not above zero or not a time span fails at startup |
+| `RetryDelays` | 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours. A delay that is not above zero, is longer than about 68 years (`2147483647000` milliseconds, the longest the job queue accepts), or is not a time span fails at startup |
 | `SignatureTolerance` | 5 minutes |
 
 No request is sent while no subscription exists. Private targets, insecure HTTP, and

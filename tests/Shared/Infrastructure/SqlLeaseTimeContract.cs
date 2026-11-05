@@ -12,7 +12,9 @@ namespace Tracon.Tests.Common;
 /// scenarios read <c>lease_until</c> and the instant the same statement stamped (<c>started_at</c> for a job,
 /// <c>updated_at</c> for a single-executor lease) back from the table and require the span to be the duration: a duration
 /// that is cut to whole seconds, rounded, or lost to the column's precision shows here. They run for a millisecond, a
-/// second and a half, thirty seconds and forty days (past what an <c>int</c> of milliseconds holds).
+/// second and a half, thirty seconds, forty days (past what an <c>int</c> of milliseconds holds) and the longest span a
+/// store accepts, which is written whole and not cut. A duration outside that range never reaches the database: the
+/// store refuses it first and writes nothing.
 /// </para>
 /// <para>
 /// <strong>The rolling deployment.</strong> While a deployment rolls, a node of the older version writes a lease whose end it
@@ -27,9 +29,9 @@ public abstract class SqlLeaseTimeContract
 {
     /// <summary>
     /// The longest span a lease statement is handed, in milliseconds: what <c>DATEADD</c> reaches in whole seconds on SQL
-    /// Server, a little over 68 years. A longer duration is cut to it.
+    /// Server, a little over 68 years. A longer duration is refused by the store.
     /// </summary>
-    private const long LongestSpanMilliseconds = int.MaxValue * 1000L;
+    private const long LongestSpanMilliseconds = 2_147_483_647_000L;
 
     private static readonly TimeSpan SingletonLease = TimeSpan.FromSeconds(30);
 
@@ -68,6 +70,7 @@ public abstract class SqlLeaseTimeContract
     [InlineData(1500L)]
     [InlineData(30_000L)]
     [InlineData(86_400_000L * 40)]
+    [InlineData(LongestSpanMilliseconds)]
     public async Task A_job_lease_lasts_exactly_its_duration(long milliseconds)
     {
         var (_, jobs) = await OpenAsync();
@@ -102,6 +105,7 @@ public abstract class SqlLeaseTimeContract
     [InlineData(1500L)]
     [InlineData(30_000L)]
     [InlineData(86_400_000L * 40)]
+    [InlineData(LongestSpanMilliseconds)]
     public async Task A_single_executor_lease_lasts_exactly_its_duration(long milliseconds)
     {
         var (leases, _) = await OpenAsync();
@@ -118,94 +122,62 @@ public abstract class SqlLeaseTimeContract
         (await SingletonLeaseSpanMicrosecondsAsync(name)).ShouldBeInRange((milliseconds * 1000) - 1000, (milliseconds * 1000) + 1000);
     }
 
-    /// <summary>The durations at the edge of what a lease statement adds, and whether the lease is still held a moment after.</summary>
-    public static TheoryData<TimeSpan, bool> EdgeDurations => new()
+    /// <summary>The durations a lease statement cannot be handed: the store refuses each before it builds one.</summary>
+    public static TheoryData<TimeSpan> RefusedDurations => new()
     {
-        { TimeSpan.Zero, false },
-        { TimeSpan.FromMilliseconds(-1), false },
-        { Timeout.InfiniteTimeSpan, false },
-        { TimeSpan.MaxValue, true },
+        TimeSpan.Zero,
+        TimeSpan.FromMilliseconds(-1),
+        Timeout.InfiniteTimeSpan,
+        TimeSpan.FromMilliseconds(LongestSpanMilliseconds + 1),
+        TimeSpan.MaxValue,
+        TimeSpan.MinValue,
     };
 
     /// <summary>
-    /// A single-executor lease is not given a duration it cannot add. A duration of zero or less is written and the lease is
-    /// over at once, which includes <see cref="Timeout.InfiniteTimeSpan"/> (it is minus one millisecond, not "never"); a
-    /// duration past what the database adds is cut to a little over 68 years and the lease stays held, instead of the
-    /// statement failing with an arithmetic overflow.
+    /// A single-executor lease is refused a duration it cannot add, and nothing is written. Zero or less used to be written
+    /// as a lease that was over at once (which includes <see cref="Timeout.InfiniteTimeSpan"/>: it is minus one
+    /// millisecond, not "never"); a duration past what the database adds used to be cut to a little over 68 years and held.
     /// </summary>
     /// <param name="duration">The duration.</param>
-    /// <param name="heldAfterwards">Whether another owner is refused a moment after the lease is written.</param>
     [Theory]
-    [MemberData(nameof(EdgeDurations))]
-    public async Task A_single_executor_lease_of_an_edge_duration_is_written_and_cut_to_what_the_database_adds(TimeSpan duration, bool heldAfterwards)
+    [MemberData(nameof(RefusedDurations))]
+    public async Task A_single_executor_lease_of_an_edge_duration_is_refused_and_writes_no_row(TimeSpan duration)
     {
         var (leases, _) = await OpenAsync();
         var name = $"edge-{Guid.NewGuid():N}";
 
-        (await leases.TryAcquireAsync(name, "a", duration, TestContext.Current.CancellationToken))
-            .ShouldBeTrue("the duration is not validated: the lease is written");
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await leases.TryAcquireAsync(name, "a", duration, TestContext.Current.CancellationToken));
 
-        await LetTheDatabaseClockPassTheLeaseAsync(duration);
+        // No row of a long lease is left to hold the name: the next owner takes it, and its lease is its own.
+        (await leases.TryAcquireAsync(name, "b", SingletonLease, TestContext.Current.CancellationToken)).ShouldBeTrue();
+        var expectedMicroseconds = (long)SingletonLease.TotalMilliseconds * 1000;
 
-        (await leases.TryAcquireAsync(name, "b", SingletonLease, TestContext.Current.CancellationToken))
-            .ShouldBe(!heldAfterwards);
-
-        if (heldAfterwards)
-        {
-            (await SingletonLeaseSpanMicrosecondsAsync(name))
-                .ShouldBeInRange((LongestSpanMilliseconds * 1000) - 1000, (LongestSpanMilliseconds * 1000) + 1000);
-        }
+        (await SingletonLeaseSpanMicrosecondsAsync(name)).ShouldBeInRange(expectedMicroseconds - 1000, expectedMicroseconds + 1000);
     }
 
     /// <summary>
-    /// A lease of zero length ends at the very instant the database wrote it, and the statement that follows asks whether it
-    /// ended before <em>now</em>. On a fast machine the two statements can read the same tick of the database clock, and the
-    /// answer is "not yet" (measured: about half of the runs, on the commit before this change too). A short wait lets the
-    /// clock move; the other edge durations do not need it, as they ended before they were written.
-    /// </summary>
-    /// <param name="duration">The duration the lease was written with.</param>
-    /// <returns>The completion task.</returns>
-    private static async Task LetTheDatabaseClockPassTheLeaseAsync(TimeSpan duration)
-    {
-        if (duration == TimeSpan.Zero)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken); // delay: product
-        }
-    }
-
-    /// <summary>
-    /// A job lease is given the same edge durations the same way: zero or less is leased and over at once, so the next
-    /// worker takes the job as another attempt; a duration past what the database adds is cut to a little over 68 years
-    /// and the job is not taken again.
+    /// A job lease is refused the same durations the same way: nothing is written and no attempt is spent, so the next
+    /// worker leases the job as attempt one.
     /// </summary>
     /// <param name="duration">The duration.</param>
-    /// <param name="heldAfterwards">Whether another worker is refused a moment after the lease is written.</param>
     [Theory]
-    [MemberData(nameof(EdgeDurations))]
-    public async Task A_job_lease_of_an_edge_duration_is_written_and_cut_to_what_the_database_adds(TimeSpan duration, bool heldAfterwards)
+    [MemberData(nameof(RefusedDurations))]
+    public async Task A_job_lease_of_an_edge_duration_is_refused_and_spends_no_attempt(TimeSpan duration)
     {
         var (_, jobs) = await OpenAsync();
         var job = TestData.Job();
 
         await jobs.EnqueueAsync(job, ["a"], TestContext.Current.CancellationToken);
 
-        (await jobs.LeaseAsync(new JobLeaseRequest { Owner = "a", LeaseDuration = duration }, TestContext.Current.CancellationToken))
-            .ShouldNotBeNull("the duration is not validated: the lease is written");
-
-        await LetTheDatabaseClockPassTheLeaseAsync(duration);
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await jobs.LeaseAsync(new JobLeaseRequest { Owner = "a", LeaseDuration = duration }, TestContext.Current.CancellationToken));
 
         var second = await jobs.LeaseAsync(
             new JobLeaseRequest { Owner = "b", LeaseDuration = TimeSpan.FromMinutes(5) },
             TestContext.Current.CancellationToken);
 
-        (second is null).ShouldBe(heldAfterwards);
-        second?.Attempt.ShouldBe(2, "the take-over counts as another attempt");
-
-        if (heldAfterwards)
-        {
-            (await JobLeaseSpanMicrosecondsAsync(job.Id))
-                .ShouldBeInRange((LongestSpanMilliseconds * 1000) - 1000, (LongestSpanMilliseconds * 1000) + 1000);
-        }
+        second.ShouldNotBeNull().Attempt.ShouldBe(1, "the refused call leased nothing");
     }
 
     /// <summary>

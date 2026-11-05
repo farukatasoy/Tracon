@@ -59,9 +59,16 @@ public interface ISingletonLeaseStore
     /// </summary>
     /// <param name="name">The name of the lease (the id of the protected job).</param>
     /// <param name="ownerId">The id of this instance. It is compared by its characters, letter case included; SQL Server still ignores trailing blanks.</param>
-    /// <param name="duration">How long the lease stays valid.</param>
+    /// <param name="duration">
+    /// How long the lease stays valid: from one millisecond to <c>2147483647000</c> milliseconds (a little over 68
+    /// years). <see cref="Timeout.InfiniteTimeSpan"/> is minus one millisecond, not a lease that never ends.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> when the lease was taken.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="duration"/> is outside that range. The call checks it before anything else, before the
+    /// cancellation token as well, and writes nothing.
+    /// </exception>
     ValueTask<bool> TryAcquireAsync(
         string name,
         string ownerId,
@@ -74,9 +81,15 @@ public interface ISingletonLeaseStore
     /// </summary>
     /// <param name="name">The name of the lease.</param>
     /// <param name="ownerId">The id of the instance that claims to hold the lease, compared by its characters, letter case included.</param>
-    /// <param name="duration">The new lease duration.</param>
+    /// <param name="duration">
+    /// The new lease duration, in the range <see cref="TryAcquireAsync"/> accepts: from one millisecond to
+    /// <c>2147483647000</c> milliseconds.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> when the renewal succeeded.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="duration"/> is outside that range. The lease stays as it was.
+    /// </exception>
     ValueTask<bool> RenewAsync(
         string name,
         string ownerId,

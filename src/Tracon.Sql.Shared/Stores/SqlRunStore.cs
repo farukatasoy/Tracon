@@ -438,6 +438,8 @@ internal sealed class SqlRunStore : IRunStore
         int max,
         CancellationToken cancellationToken = default)
     {
+        LeaseTimeRange.ThrowIfInvalid(staleAfter, nameof(staleAfter));
+
         var now = _clock.GetUtcNow();
 
         var claimed = await _context.ExecuteStatementAsync(

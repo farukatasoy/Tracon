@@ -1113,6 +1113,143 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldBeNull();
     }
 
+    /// <summary>The durations a lease cannot have: zero or less, under a whole millisecond, or past a little over 68 years.</summary>
+    public static TheoryData<TimeSpan> InvalidLeaseDurations => LeaseDurationCases.Invalid();
+
+    /// <summary>The delays a retry cannot wait: below zero, or past a little over 68 years.</summary>
+    public static TheoryData<TimeSpan> InvalidRetryDelays => LeaseDurationCases.InvalidRetryDelays();
+
+    /// <summary>
+    /// A lease request whose duration is outside one millisecond to a little over 68 years is refused with
+    /// <see cref="ArgumentOutOfRangeException"/>, and no attempt is spent.
+    /// </summary>
+    /// <remarks>
+    /// A store that wrote the duration it was given leased the job for a time that was already over, which another worker
+    /// took as a second attempt at once, or for a length it cut without saying so. The check is the first thing the call
+    /// does, so the job is as it was: the next request with a real duration leases it as attempt one.
+    /// </remarks>
+    /// <param name="duration">The duration.</param>
+    [Theory]
+    [MemberData(nameof(InvalidLeaseDurations))]
+    public async Task LeaseAsync_refuses_a_duration_outside_the_lease_range_and_spends_no_attempt(TimeSpan duration)
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(async () => await LeaseAsync(Owner(), duration));
+
+        var leased = (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldNotBeNull();
+
+        leased.Id.ShouldBe(job.Id);
+        leased.Attempt.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// A renewal with a duration outside the lease range is refused with <see cref="ArgumentOutOfRangeException"/> and
+    /// leaves the lease as it was.
+    /// </summary>
+    /// <param name="duration">The duration.</param>
+    [Theory]
+    [MemberData(nameof(InvalidLeaseDurations))]
+    public async Task RenewLeaseAsync_refuses_a_duration_outside_the_lease_range_and_keeps_the_lease(TimeSpan duration)
+    {
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(async () => await Store.RenewLeaseAsync(lease, duration));
+
+        // Still leased for the five minutes it was taken for: another worker finds nothing to take, and the holder can
+        // still renew and write.
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
+        (await Store.RenewLeaseAsync(lease, TimeSpan.FromMinutes(5))).ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// A retry delay below zero or past a little over 68 years is refused with <see cref="ArgumentOutOfRangeException"/>,
+    /// and the job stays leased by the worker that asked.
+    /// </summary>
+    /// <remarks>
+    /// A negative delay is not "at once": the documented ways to ask for that are <see langword="null"/> and zero. A store
+    /// that took a negative number for one hid the caller's arithmetic mistake.
+    /// </remarks>
+    /// <param name="delay">The delay.</param>
+    [Theory]
+    [MemberData(nameof(InvalidRetryDelays))]
+    public async Task ReleaseForRetryAsync_refuses_a_delay_outside_the_retry_range_and_keeps_the_job_leased(TimeSpan delay)
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await Store.ReleaseForRetryAsync(lease, "retry", delay));
+
+        (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull().Status.ShouldBe(JobStatus.Leased);
+        (await Store.ReleaseForRetryAsync(lease, "retry")).ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// The range is checked before the cancellation token: a cancelled call whose duration cannot be accepted reports the
+    /// duration.
+    /// </summary>
+    [Fact]
+    public async Task A_refused_duration_is_reported_before_a_cancelled_token()
+    {
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await Store.RenewLeaseAsync(lease, TimeSpan.Zero, cancelled.Token));
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await Store.ReleaseForRetryAsync(lease, "retry", TimeSpan.FromMilliseconds(-1), cancelled.Token));
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await Store.LeaseAsync(
+                new JobLeaseRequest { Owner = Owner(), LeaseDuration = TimeSpan.Zero },
+                cancelled.Token));
+    }
+
+    /// <summary>One millisecond and the longest duration are the two ends of the lease range, and both are accepted.</summary>
+    [Fact]
+    public async Task The_two_ends_of_the_lease_range_are_accepted()
+    {
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        await Store.EnqueueAsync(TestData.Job(), ["a"]);
+
+        // The longest lease goes first: it stays held, so the second request leases the other job and not this one again.
+        var longest = JobLease.Of((await LeaseAsync(Owner(), LeaseDurationCases.Longest)).ShouldNotBeNull());
+        var shortest = JobLease.Of((await LeaseAsync(Owner(), LeaseDurationCases.Shortest)).ShouldNotBeNull());
+
+        // The longest lease is a lease: it is renewed at the same length and at the shortest one.
+        (await Store.RenewLeaseAsync(longest, LeaseDurationCases.Longest)).ShouldBeTrue();
+        (await Store.RenewLeaseAsync(longest, LeaseDurationCases.Shortest)).ShouldBeTrue();
+
+        // The shortest lease may be over by now; whether it is renewable is the store's own business, a refusal of the
+        // duration is not.
+        _ = await Store.RenewLeaseAsync(shortest, LeaseDurationCases.Shortest);
+    }
+
+    /// <summary>
+    /// A retry delay of <see langword="null"/>, zero, one millisecond or the longest duration is accepted: the job returns
+    /// to <see cref="JobStatus.Pending"/>.
+    /// </summary>
+    /// <param name="milliseconds">The delay in milliseconds; negative stands for no delay (<see langword="null"/>).</param>
+    [Theory]
+    [InlineData(-1L)]
+    [InlineData(0L)]
+    [InlineData(1L)]
+    [InlineData(LeaseDurationCases.LongestMilliseconds)]
+    public async Task ReleaseForRetryAsync_accepts_every_delay_in_the_retry_range(long milliseconds)
+    {
+        TimeSpan? delay = milliseconds < 0 ? null : TimeSpan.FromMilliseconds(milliseconds);
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var lease = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        (await Store.ReleaseForRetryAsync(lease, "retry", delay)).ShouldBeTrue();
+
+        (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull().Status.ShouldBe(JobStatus.Pending);
+    }
+
     /// <summary>
     /// The job a call returns carries the canonical tenant, as the record a later read returns does.
     /// </summary>

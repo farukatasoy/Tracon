@@ -24,9 +24,17 @@ internal sealed class WorkflowTestHost
     private readonly List<WorkflowFunctionRegistration> _functionRegistrations = [];
 
     public WorkflowTestHost(params string[] agentNames)
+        : this(TimeProvider.System, agentNames)
+    {
+    }
+
+    /// <summary>Creates a host whose run store ages heartbeats with <paramref name="runStoreClock"/>.</summary>
+    /// <param name="runStoreClock">The run store's clock; the runner still marks heartbeats with its own.</param>
+    /// <param name="agentNames">The agents to register.</param>
+    public WorkflowTestHost(TimeProvider runStoreClock, params string[] agentNames)
     {
         TenantContext = new FixedTenantContext();
-        RunStore = new InMemoryRunStore(tenantContext: TenantContext);
+        RunStore = new InMemoryRunStore(tenantContext: TenantContext, timeProvider: runStoreClock);
         DefinitionStore = new InMemoryWorkflowDefinitionStore();
         CheckpointStore = new InMemoryWorkflowCheckpointStore();
 

@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Upgrading from 1.0.0-preview.6
 
+- **A store refuses a lease duration, a retry delay or an orphan threshold outside one range, and the shipped contracts check it.** The four stores answered the same input in two ways. `TryAcquireAsync`, `RenewAsync`, `LeaseAsync`
+  and `RenewLeaseAsync` wrote a duration of zero or less (`Timeout.InfiniteTimeSpan` is minus one millisecond, not "never") as a lease that is over at once, and the in-memory store and SQLite did the same for half a millisecond;
+  PostgreSQL and SQL Server also cut `TimeSpan.MaxValue` to a little over 68 years and held the lease. `ClaimOrphanedRunsAsync` with a threshold of zero or less counted a run that was beating as orphaned (the documentation said it was
+  not rejected), and `TimeSpan.MinValue` failed with an `OverflowException` on the SQL stores. A lease, a renewal and an orphan threshold are now from **1 millisecond to `2147483647000` milliseconds** (a little over 68 years: the farthest
+  SQL Server's `DATEADD` reaches in whole seconds), and a `retryAfter` is `null` or from zero to the same maximum. Every store throws `ArgumentOutOfRangeException` for anything else, before it looks at the cancellation token and before
+  it writes, so a refused call changes no row and spends no attempt. The shipped `RunReconciliation:OrphanThreshold` and `Webhooks:RetryDelays` check the range at startup, and the worker brings a `JobRetryException.RetryAfter` outside it into
+  range (a negative delay to "at once", a longer one to the maximum) and logs a warning, so a handler's request is never an error of the store.
+  What to do:
+  - **Breaking, for a custom `ISingletonLeaseStore`, `IJobStore` or `IRunStore`: refuse the range yourself.** The new cases fail on a store that writes or cuts the value:
+    `SingletonLeaseStoreContract.TryAcquireAsync_refuses_a_duration_outside_the_lease_range_and_writes_nothing`, `SingletonLeaseStoreContract.RenewAsync_refuses_a_duration_outside_the_lease_range_and_keeps_the_lease`,
+    `SingletonLeaseStoreContract.A_refused_duration_is_reported_before_a_cancelled_token`, `SingletonLeaseStoreContract.The_two_ends_of_the_lease_range_are_accepted`,
+    `JobStoreContract.LeaseAsync_refuses_a_duration_outside_the_lease_range_and_spends_no_attempt`, `JobStoreContract.RenewLeaseAsync_refuses_a_duration_outside_the_lease_range_and_keeps_the_lease`,
+    `JobStoreContract.ReleaseForRetryAsync_refuses_a_delay_outside_the_retry_range_and_keeps_the_job_leased`, `JobStoreContract.ReleaseForRetryAsync_accepts_every_delay_in_the_retry_range`,
+    `JobStoreContract.A_refused_duration_is_reported_before_a_cancelled_token`, `JobStoreContract.The_two_ends_of_the_lease_range_are_accepted`,
+    and `RunStoreContract.ClaimOrphanedRunsAsync_takes_only_a_threshold_inside_the_range`. Check the duration first in `TryAcquireAsync`, `RenewAsync`, `LeaseAsync` (`request.LeaseDuration`), `RenewLeaseAsync`, `ReleaseForRetryAsync` (`retryAfter`) and `ClaimOrphanedRunsAsync` (`staleAfter`), and throw
+    `ArgumentOutOfRangeException` with the parameter name. The guide [Write your own store](/guides/write-your-own-store/) states the range.
+  - **A caller of a store that passes zero, a negative value or `TimeSpan.MaxValue` now gets the exception.** The shipped callers do not: the options validators already refuse zero and below, and the two upper bounds above are new.
+    A host that set `RunReconciliation:OrphanThreshold` or an entry of `Webhooks:RetryDelays` above the maximum stops at startup with a message that names the setting.
+  - **The worker no longer waits for ever on a lease renewal.** A renewal call that neither returned nor failed (a store call with no command timeout, a network that dropped the answer) held the renewal loop, and the handler kept running
+    past the end of its lease while another worker took the job. The worker now waits for each renewal no longer than the time left on the lease it can prove, cancels the call, and tells the handler the lease is lost, as it does when
+    renewals fail. Nothing is written for that attempt.
+
 - **`TraconApiClient.TraconMcpOAuthCallbackAsync` returns `Task<string>` instead of `Task`, and `@tracon/client` types the callback's `200` as `text/html`.** The published document said the OAuth callback answers "200, no content", and a client generated from it returned nothing for an HTML page. The document now lists `text/html`, so the .NET method returns the page as text and the TypeScript operation has `content: { "text/html": string }`. Nothing but the OAuth redirect from the provider calls this operation, so most code is unaffected. What to do: a call that awaited the old `Task` still compiles; read the result only if you want the page.
 
 - **On PostgreSQL and SQL Server a lease ends on the database server's clock, not on the clock of the machine that wrote it.** Every lease row used to carry the instant the writing node computed from its own clock,

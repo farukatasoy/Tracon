@@ -53,6 +53,7 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        LeaseTimeRange.ThrowIfInvalid(duration, nameof(duration));
 
         var result = await _context.ExecuteUpsertAsync(
             _sql.AcquireSingletonLease,
@@ -79,6 +80,7 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        LeaseTimeRange.ThrowIfInvalid(duration, nameof(duration));
 
         return await _context.ExecuteStatementAsync(
             _sql.RenewSingletonLease,

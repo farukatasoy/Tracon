@@ -715,10 +715,12 @@ internal abstract class SqlDialect
 
     /// <summary>
     /// The longest duration a lease statement is handed, in milliseconds: a little over 68 years, which is as far as
-    /// SQL Server's <c>DATEADD</c> reaches in whole seconds. A longer duration is cut to it, so a lease that is meant to
-    /// last "forever" does not fail in the database with an arithmetic overflow.
+    /// SQL Server's <c>DATEADD</c> reaches in whole seconds. The stores refuse a duration outside the range before
+    /// they build a statement (<see cref="LeaseTimeRange"/>), so this cut is no longer how a duration is checked: it is
+    /// the last defence of a caller that reaches the dialect without going through a store, so that a duration too long
+    /// for the database never fails there with an arithmetic overflow.
     /// </summary>
-    protected const long MaxLeaseMilliseconds = int.MaxValue * 1000L;
+    protected const long MaxLeaseMilliseconds = LeaseTimeRange.MaximumMilliseconds;
 
     /// <summary>
     /// Binds what a lease statement needs to know about time to take a lease of <paramref name="duration"/> from now:

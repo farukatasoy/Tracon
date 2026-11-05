@@ -171,4 +171,85 @@ public abstract class SingletonLeaseStoreContract : StoreCancellationContract<IS
 
         (await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5))).ShouldBeFalse();
     }
+
+    /// <summary>The durations a lease cannot have: zero or less, under a whole millisecond, or past a little over 68 years.</summary>
+    public static TheoryData<TimeSpan> InvalidDurations => LeaseDurationCases.Invalid();
+
+    /// <summary>
+    /// A duration outside one millisecond to a little over 68 years is refused with
+    /// <see cref="ArgumentOutOfRangeException"/>, and nothing is written.
+    /// </summary>
+    /// <remarks>
+    /// A store that wrote what it was given made a lease of zero or less a lease that is over at once, and a lease past
+    /// the database's reach either failed with an arithmetic overflow or was cut to a length the caller never asked for.
+    /// The check comes before the cancellation check and before any statement, so a refused call changes no row: an owner
+    /// that asked for a lease it cannot have does not hold one.
+    /// </remarks>
+    /// <param name="duration">The duration.</param>
+    [Theory]
+    [MemberData(nameof(InvalidDurations))]
+    public async Task TryAcquireAsync_refuses_a_duration_outside_the_lease_range_and_writes_nothing(TimeSpan duration)
+    {
+        var lease = Lease();
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await Store.TryAcquireAsync(lease, Owner(), duration));
+
+        // Nothing was written: the first owner to ask for a real duration takes the lease, and the second is refused.
+        (await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5))).ShouldBeTrue();
+        (await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5))).ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// A renewal with a duration outside the lease range is refused with <see cref="ArgumentOutOfRangeException"/> and
+    /// leaves the lease as it was.
+    /// </summary>
+    /// <param name="duration">The duration.</param>
+    [Theory]
+    [MemberData(nameof(InvalidDurations))]
+    public async Task RenewAsync_refuses_a_duration_outside_the_lease_range_and_keeps_the_lease(TimeSpan duration)
+    {
+        var lease = Lease();
+        var owner = Owner();
+
+        (await Store.TryAcquireAsync(lease, owner, TimeSpan.FromMinutes(5))).ShouldBeTrue();
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await Store.RenewAsync(lease, owner, duration));
+
+        // Still held for the five minutes it was taken for: a renewal of zero or less would have ended it.
+        (await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5))).ShouldBeFalse();
+        (await Store.RenewAsync(lease, owner, TimeSpan.FromMinutes(5))).ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// The duration is checked before the cancellation token: a cancelled call with a duration that cannot be accepted
+    /// reports the duration.
+    /// </summary>
+    [Fact]
+    public async Task A_refused_duration_is_reported_before_a_cancelled_token()
+    {
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await Store.TryAcquireAsync(Lease(), Owner(), TimeSpan.Zero, cancelled.Token));
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await Store.RenewAsync(Lease(), Owner(), TimeSpan.Zero, cancelled.Token));
+    }
+
+    /// <summary>One millisecond and the longest duration are the two ends of the range, and both are accepted.</summary>
+    [Fact]
+    public async Task The_two_ends_of_the_lease_range_are_accepted()
+    {
+        var shortest = Lease();
+        var longest = Lease();
+        var owner = Owner();
+
+        (await Store.TryAcquireAsync(shortest, owner, LeaseDurationCases.Shortest)).ShouldBeTrue();
+
+        (await Store.TryAcquireAsync(longest, owner, LeaseDurationCases.Longest)).ShouldBeTrue();
+        (await Store.RenewAsync(longest, owner, LeaseDurationCases.Longest)).ShouldBeTrue();
+        (await Store.TryAcquireAsync(longest, Owner(), TimeSpan.FromMinutes(5))).ShouldBeFalse();
+    }
 }

@@ -74,6 +74,16 @@ internal sealed class TraconWebhookOptionsValidator : IValidateOptions<TraconWeb
         {
             var delay = options.RetryDelays[index];
 
+            if (delay > LeaseTimeRange.Maximum)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.RetryDelays)} " +
+                    $"values must be at most {LeaseTimeRange.MaximumMilliseconds} milliseconds (about 68 years): " +
+                    $"the job queue refuses a longer delay. Actual value: {delay}.");
+
+                continue;
+            }
+
             if (delay > TimeSpan.Zero)
             {
                 continue;

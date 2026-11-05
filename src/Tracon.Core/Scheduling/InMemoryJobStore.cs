@@ -97,6 +97,7 @@ internal sealed class InMemoryJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Owner, nameof(request));
+        LeaseTimeRange.ThrowIfInvalid(request.LeaseDuration, LeaseTimeRange.LeaseRequestDurationName);
 
         var owner = request.Owner;
         cancellationToken.ThrowIfCancellationRequested();
@@ -210,6 +211,7 @@ internal sealed class InMemoryJobStore : IJobStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(lease);
+        LeaseTimeRange.ThrowIfInvalid(leaseDuration, nameof(leaseDuration));
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)
@@ -280,6 +282,7 @@ internal sealed class InMemoryJobStore : IJobStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(lease);
+        LeaseTimeRange.ThrowIfInvalidRetryDelay(retryAfter, nameof(retryAfter));
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)

@@ -129,6 +129,7 @@ internal sealed class SqlJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Owner, nameof(request));
+        LeaseTimeRange.ThrowIfInvalid(request.LeaseDuration, LeaseTimeRange.LeaseRequestDurationName);
 
         var owner = request.Owner;
 
@@ -170,6 +171,7 @@ internal sealed class SqlJobStore : IJobStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(lease);
+        LeaseTimeRange.ThrowIfInvalid(leaseDuration, nameof(leaseDuration));
 
         return await _context.ExecuteStatementAsync(
             _sql.RenewJobLease,
@@ -230,6 +232,7 @@ internal sealed class SqlJobStore : IJobStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(lease);
+        LeaseTimeRange.ThrowIfInvalidRetryDelay(retryAfter, nameof(retryAfter));
 
         return await _context.ExecuteStatementAsync(
             _sql.ReleaseJobForRetry,

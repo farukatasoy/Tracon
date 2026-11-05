@@ -666,6 +666,10 @@ Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Same_owner_can_reac
 Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Second_owner_cannot_acquire_while_lease_is_held() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.SingletonLeaseStoreContract() -> void
 Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Someone_else_can_acquire_once_the_lease_expires() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.A_refused_duration_is_reported_before_a_cancelled_token() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.RenewAsync_refuses_a_duration_outside_the_lease_range_and_keeps_the_lease(System.TimeSpan duration) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.The_two_ends_of_the_lease_range_are_accepted() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.TryAcquireAsync_refuses_a_duration_outside_the_lease_range_and_writes_nothing(System.TimeSpan duration) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Content_hash_round_trips() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Expired_grant_is_not_returned() -> System.Threading.Tasks.Task!
@@ -1079,6 +1083,9 @@ static Tracon.Testing.Contracts.ContractCoverage.ContractTypes(string! namespace
 static Tracon.Testing.Contracts.ContractCoverage.MissingDerivedTypes(System.Reflection.Assembly! consumerAssembly, string! namespaceScope, System.Collections.Generic.IReadOnlyCollection<string!>? except = null) -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.Testing.Contracts.Judges.RunJudgeContract.ShouldBeStorable(Tracon.RunJudgment! judgment) -> void
 static Tracon.Testing.Contracts.Storage.AuditLogContract.LongLabels() -> Xunit.TheoryData<string!, string!>!
+static Tracon.Testing.Contracts.Storage.JobStoreContract.InvalidLeaseDurations.get -> Xunit.TheoryData<System.TimeSpan>!
+static Tracon.Testing.Contracts.Storage.JobStoreContract.InvalidRetryDelays.get -> Xunit.TheoryData<System.TimeSpan>!
+static Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.InvalidDurations.get -> Xunit.TheoryData<System.TimeSpan>!
 static Tracon.Testing.Contracts.Storage.TestData.Definition(string! name) -> Tracon.AgentDefinition!
 static Tracon.Testing.Contracts.Storage.TestData.EvalCase(System.Guid suiteId, string! query = "question") -> Tracon.EvalCase!
 static Tracon.Testing.Contracts.Storage.TestData.EvalCaseDraft(System.Guid? sourceRunId = null, string! query = "question") -> Tracon.EvalCaseDraft!
@@ -1248,6 +1255,12 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.The_non_token_cost_of_a_tree_i
 Tracon.Testing.Contracts.Storage.RunStoreContract.Every_decimal_a_run_holds_reads_back_digit_for_digit() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_job_whose_payload_and_input_hold_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.The_enqueued_job_is_the_job_a_read_reports() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.A_refused_duration_is_reported_before_a_cancelled_token() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.LeaseAsync_refuses_a_duration_outside_the_lease_range_and_spends_no_attempt(System.TimeSpan duration) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.ReleaseForRetryAsync_accepts_every_delay_in_the_retry_range(long milliseconds) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.ReleaseForRetryAsync_refuses_a_delay_outside_the_retry_range_and_keeps_the_job_leased(System.TimeSpan delay) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.RenewLeaseAsync_refuses_a_duration_outside_the_lease_range_and_keeps_the_lease(System.TimeSpan duration) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.The_two_ends_of_the_lease_range_are_accepted() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.A_schedule_whose_payload_holds_a_NUL_character_is_stored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Paging_through_sessions_with_the_same_update_time_returns_each_one_once() -> System.Threading.Tasks.Task!
@@ -1287,5 +1300,6 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Users_that_differ_only_in_lett
 Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_of_variants_that_differ_only_in_case_are_listed_apart() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_return_value_is_the_run_a_read_reports() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_return_value_carries_the_continuation_link_the_row_kept() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_takes_only_a_threshold_inside_the_range() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Owners_that_differ_only_in_letter_case_are_two_owners() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.A_read_by_identifier_answers_with_the_identifier_the_store_holds() -> System.Threading.Tasks.Task!

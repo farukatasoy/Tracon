@@ -40,6 +40,8 @@ public sealed class RunReconciliationOptions
     /// <remarks>
     /// Defaults to ten times <see cref="HeartbeatInterval"/>: a single GC
     /// pause or a brief database interruption must NOT declare a job running dead.
+    /// The value is from one millisecond to 2147483647000 milliseconds (a little over 68 years), the range
+    /// the run store accepts; the application stops at startup with any other.
     /// </remarks>
     public TimeSpan OrphanThreshold { get; set; } = TimeSpan.FromMinutes(5);
 

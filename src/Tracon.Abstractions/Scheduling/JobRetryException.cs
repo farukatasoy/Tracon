@@ -47,6 +47,11 @@ public sealed class JobRetryException : TraconException
     /// The time to wait before the next attempt. If <see langword="null"/>,
     /// the job may be re-leased immediately.
     /// </summary>
+    /// <remarks>
+    /// A store accepts a delay of zero up to <c>2147483647000</c> milliseconds (a little over 68 years). What a handler
+    /// asks for is a request and not a call to the store, so a value outside that range is not an error: the worker brings
+    /// a negative delay to "at once" and a longer one to 68 years, and writes a warning to the log.
+    /// </remarks>
     public TimeSpan? RetryAfter { get; init; }
 
     /// <inheritdoc />

@@ -238,6 +238,7 @@ internal sealed partial class InMemoryRunStore
         int max,
         CancellationToken cancellationToken = default)
     {
+        LeaseTimeRange.ThrowIfInvalid(staleAfter, nameof(staleAfter));
         cancellationToken.ThrowIfCancellationRequested();
 
         // The heartbeat is marked with the clock the writer was given (TouchHeartbeatAsync's `at`), which is the

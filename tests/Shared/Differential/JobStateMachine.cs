@@ -281,6 +281,8 @@ internal sealed class JobStateMachine : StateMachine<JobPlan, JobStep>
             (3, Gen.Int[0, Handlers.Length - 1].Array[1, 3].SelectMany(handlers => Gen.Int[1, 3].Select(max => (CapSpec?)new CapSpec(handlers, max)))),
             (1, Gen.Int[0, 0].Select(static _ => (CapSpec?)new CapSpec([], 1))),
             (1, Gen.Int[0, 2].Select(static handler => (CapSpec?)new CapSpec([handler], 0))));
+        // A duration of zero is not a short lease: the range starts at one millisecond, so the step is a refused input and
+        // every store has to say so in the same words.
         var duration = Gen.Frequency(
             (1, Gen.Const(0L)),
             (8, Gen.Int[1, 600].Select(static seconds => seconds * 1000L)),
@@ -440,7 +442,7 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
             {
                 EnqueueJobStep s => Enqueue(s),
                 LeaseJobStep s => Lease(s),
-                RenewJobStep s => Holder(s, job => { job.LeaseUntil = Stamp(_now + (s.DurationMs * TimeSpan.TicksPerMillisecond)); }, requireLeased: false),
+                RenewJobStep s => Renew(s),
                 MarkRunningJobStep s => Holder(s, job => job.Status = JobStatus.Running, requireLeased: true),
                 CompleteJobStep s => Holder(s, job => Finish(job, s), requireLeased: false),
                 ReleaseJobStep s => Holder(s, job => Release(job, s), requireLeased: false),
@@ -544,8 +546,30 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
 
     private string Handler(int handler) => JobStateMachine.Handlers[handler];
 
+    /// <summary>
+    /// The range a store accepts comes before anything else: a duration under one millisecond is refused whether or
+    /// not the request would have found a job, and whether or not the lease it names is the current one.
+    /// </summary>
+    /// <param name="durationMs">The lease duration in milliseconds.</param>
+    private static void RequireLeaseRange(long durationMs)
+    {
+        if (durationMs < 1)
+        {
+            throw new ArgumentException("a lease lasts at least one millisecond", nameof(durationMs));
+        }
+    }
+
+    private Observation Renew(RenewJobStep s)
+    {
+        RequireLeaseRange(s.DurationMs);
+
+        return Holder(s, job => { job.LeaseUntil = Stamp(_now + (s.DurationMs * TimeSpan.TicksPerMillisecond)); }, requireLeased: false);
+    }
+
     private Observation Lease(LeaseJobStep s)
     {
+        RequireLeaseRange(s.DurationMs);
+
         if (s.Cap is { } capCheck && (capCheck.Handlers.Length == 0 || capCheck.Max < 1))
         {
             throw new ArgumentException("a tenant cap names a handler key and a room", nameof(s));

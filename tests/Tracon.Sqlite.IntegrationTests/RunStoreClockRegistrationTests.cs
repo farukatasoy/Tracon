@@ -64,10 +64,15 @@ public sealed class RunStoreClockRegistrationTests(SqliteSchemaFixture schema) :
             .ShouldHaveSingleItem().Id.ShouldBe(runId);
     }
 
+    /// <summary>
+    /// A threshold of zero or less would count a run that was marked a moment ago as orphaned and close it while it is
+    /// beating. The store refuses it, and the run stays open.
+    /// </summary>
+    /// <param name="staleAfterSeconds">The threshold, in seconds.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(-60)]
-    public async Task A_threshold_of_zero_or_less_counts_a_run_that_was_marked_a_moment_ago(int staleAfterSeconds)
+    public async Task A_threshold_of_zero_or_less_is_refused_and_closes_no_run(int staleAfterSeconds)
     {
         await schema.ResetAsync();
         var clock = new ManualClock();
@@ -80,8 +85,10 @@ public sealed class RunStoreClockRegistrationTests(SqliteSchemaFixture schema) :
 
         clock.Advance(TimeSpan.FromMilliseconds(1));
 
-        (await runs.ClaimOrphanedRunsAsync(TimeSpan.FromSeconds(staleAfterSeconds), 10, TestContext.Current.CancellationToken))
-            .ShouldHaveSingleItem().Id.ShouldBe(runId);
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await runs.ClaimOrphanedRunsAsync(TimeSpan.FromSeconds(staleAfterSeconds), 10, TestContext.Current.CancellationToken));
+
+        (await runs.GetRunAsync(runId, TestContext.Current.CancellationToken))!.Status.ShouldBe(RunStatus.Running);
     }
 
     private static RunStartInfo Start(Guid runId, TimeProvider clock)

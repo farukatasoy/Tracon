@@ -3619,6 +3619,38 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         step.Depth.ShouldBe(1);
     }
 
+    // A threshold outside one millisecond to a little over 68 years (zero or less would call a run that is beating
+    // orphaned, and the SQL stores cannot subtract TimeSpan.MinValue) is refused before the cancellation token is looked
+    // at and before any run is closed; the two ends of the range are accepted. The run started ten minutes ago and never
+    // sent a heartbeat.
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_takes_only_a_threshold_inside_the_range()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10) });
+
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        foreach (var refused in LeaseDurationCases.InvalidDurations)
+        {
+            await Should.ThrowAsync<ArgumentOutOfRangeException>(
+                async () => await Store.ClaimOrphanedRunsAsync(refused, max: 10));
+
+            // The threshold is reported before a cancelled token is.
+            await Should.ThrowAsync<ArgumentOutOfRangeException>(
+                async () => await Store.ClaimOrphanedRunsAsync(refused, max: 10, cancelled.Token));
+        }
+
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+
+        // Nothing is as old as a little over 68 years; the run is older than one millisecond.
+        (await Store.ClaimOrphanedRunsAsync(LeaseDurationCases.Longest, max: 10)).ShouldBeEmpty();
+        (await Store.ClaimOrphanedRunsAsync(LeaseDurationCases.Shortest, max: 10)).ShouldHaveSingleItem().Id.ShouldBe(runId);
+    }
+
     [Fact]
     public async Task ClaimOrphanedRunsAsync_does_not_touch_a_Running_row_within_the_threshold()
     {

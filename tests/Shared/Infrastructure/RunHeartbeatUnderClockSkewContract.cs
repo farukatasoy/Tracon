@@ -127,14 +127,14 @@ public abstract class RunHeartbeatUnderClockSkewContract
     }
 
     /// <summary>
-    /// A threshold of zero or less is not rejected by the store: zero counts a mark older than the database server's clock
-    /// at the call, a negative value counts every mark, so a run that was marked a moment ago is closed.
+    /// A threshold of zero or less is refused by the store: zero would count a mark older than the database server's clock
+    /// at the call and a negative value every mark, and so close a run that was marked a moment ago while it is beating.
     /// </summary>
     /// <param name="staleAfterSeconds">The threshold, in seconds.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(-60)]
-    public async Task A_threshold_of_zero_or_less_closes_a_run_that_was_marked_a_moment_ago(int staleAfterSeconds)
+    public async Task A_threshold_of_zero_or_less_is_refused_and_closes_no_run(int staleAfterSeconds)
     {
         var (runs, _, _) = await OpenAsync();
         var runId = TraconId.NewId();
@@ -143,12 +143,12 @@ public abstract class RunHeartbeatUnderClockSkewContract
         await runs.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
 
         // The mark is older than the database server's clock from the next statement on; the wait only covers a clock tick.
-        var claimed = await WaitUntil.ValueAsync(
-            async () => await runs.ClaimOrphanedRunsAsync(TimeSpan.FromSeconds(staleAfterSeconds), 10),
-            closed => closed.Count > 0,
-            "the run marked a moment ago to be counted as orphaned");
+        await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken); // delay: product
 
-        claimed.ShouldHaveSingleItem().Id.ShouldBe(runId);
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(
+            async () => await runs.ClaimOrphanedRunsAsync(TimeSpan.FromSeconds(staleAfterSeconds), 10));
+
+        (await runs.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
     }
 
     private async Task<RunStatus> RunBothNodesAsync(

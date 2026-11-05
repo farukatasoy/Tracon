@@ -617,6 +617,511 @@ public sealed class JobWorkerLeaseContractTests
         logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal));
     }
 
+    // ---- A renewal that never answers, and the lease it leaves unproven ----
+
+    private static readonly TimeSpan ManualPoll = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan ManualLease = TimeSpan.FromSeconds(30);
+
+    /// <summary>One third of <see cref="ManualLease"/>: the renewal interval, and the margin kept on the proven lease.</summary>
+    private static readonly TimeSpan ManualInterval = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// A renewal call that never returns, to a store that ignores its token, costs the worker the lease at the moment it
+    /// could no longer prove it, and the handler is told.
+    /// </summary>
+    /// <remarks>
+    /// The renewal loop awaited the call without a time limit, and read how much of the lease it could still prove only
+    /// when a call threw. A call that neither returned nor threw held the loop for ever: the handler kept running past the
+    /// end of its lease while another worker took the job.
+    /// </remarks>
+    [Fact]
+    public async Task A_renewal_call_that_never_returns_loses_the_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new StuckRenewalJobStore(clock);
+        var handler = new StopsWhenCancelledHandler();
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll, logger: logger);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        // The first renewal tick: the call is made and does not answer.
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+
+        handler.WasCancelled.ShouldBeFalse("the lease is still provable: the call has had no time yet");
+
+        // The tick came a third of the way in, so a third of the lease was left to prove: the call has that long.
+        clock.Advance(ManualInterval);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+        jobs.RenewCalls.ShouldBe(1, "the loop does not send another renewal after it gave the lease up");
+        jobs.CompleteCalls.ShouldBe(0, "a worker that lost its lease would close the attempt of the worker that holds it");
+        jobs.ReleaseCalls.ShouldBe(0, "a worker that lost its lease would requeue the attempt of the worker that holds it");
+        logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal));
+
+        var record = (await jobs.PeekAsync(jobId)).ShouldNotBeNull();
+
+        record.Status.ShouldBe(JobStatus.Running);
+        record.Attempt.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// A store that honors its token is stopped when the worker gives the call up: the call is cancelled, and it ends with
+    /// a cancellation nobody has to look at.
+    /// </summary>
+    [Fact]
+    public async Task A_renewal_call_the_worker_gave_up_is_cancelled()
+    {
+        var clock = new ManualClock();
+        var jobs = new StuckRenewalJobStore(clock) { HonorsToken = true };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+
+        jobs.CallTokenCancelled.ShouldBeFalse("the call was cancelled before its time was up");
+
+        clock.Advance(ManualInterval);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => jobs.CallTokenCancelled, "the abandoned renewal call to be cancelled");
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>
+    /// The call the worker gave up fails later, and nobody awaits it: the worker has to have looked at it, or the failure
+    /// surfaces as an unobserved task exception that fails the whole test run.
+    /// </summary>
+    [Fact]
+    public async Task A_renewal_call_the_worker_gave_up_leaves_no_unobserved_exception_when_it_fails()
+    {
+        var jobs = new StuckRenewalJobStore(new ManualClock());
+
+        await GiveUpOnTheRenewalAsync(jobs);
+
+        jobs.Fail(new InvalidOperationException("the renewal broke after the worker gave it up"));
+
+        UnobservedTaskGuard.ForceCollection();
+
+        UnobservedTaskGuard.Take(static e => e.Message.Contains("broke after the worker gave it up", StringComparison.Ordinal))
+            .ShouldBeEmpty("the abandoned renewal failed and nobody looked at it");
+    }
+
+    /// <summary>Runs a worker until it has given up on a renewal, in a frame of its own so that nothing of it stays reachable.</summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static async Task GiveUpOnTheRenewalAsync(StuckRenewalJobStore jobs)
+    {
+        var clock = jobs.Clock;
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+
+        clock.Advance(ManualInterval);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>
+    /// An answer that comes after the worker gave the lease up does not give it back: the attempt stays lost, nothing is
+    /// written for it, and the answer is not an error.
+    /// </summary>
+    [Fact]
+    public async Task A_late_answer_to_a_renewal_does_not_undo_a_lost_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new StuckRenewalJobStore(clock);
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+
+        clock.Advance(ManualInterval);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        // The store answers "extended" a long time after the proof ran out.
+        jobs.Answer(renewed: true);
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+        jobs.CompleteCalls.ShouldBe(0);
+        jobs.ReleaseCalls.ShouldBe(0);
+        (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Running);
+    }
+
+    /// <summary>
+    /// A renewal that is slow but answers within the time the lease can still be proven is not a lost lease: the worker
+    /// counts the answer, and the handler is not touched.
+    /// </summary>
+    [Fact]
+    public async Task A_slow_renewal_that_answers_in_time_does_not_lose_the_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new StuckRenewalJobStore(clock);
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+
+        // One millisecond short of what the call is given. The call's own time is a timer on the clock: it is gone once
+        // the loop has taken the answer, and only then does the clock move on to where the timer would have fired.
+        clock.Advance(ManualInterval - TimeSpan.FromMilliseconds(1));
+
+        var timers = clock.Pending.Count;
+
+        jobs.Answer(renewed: true);
+        await WaitUntil.TrueAsync(() => clock.Pending.Count < timers, "the loop to take the answer");
+
+        // The answer was counted: the next tick comes a third after the one the call was sent at, and its renewal is
+        // sent and answered by the store itself.
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 2, "the next renewal to be sent");
+
+        handler.WasCancelled.ShouldBeFalse("a renewal that answered in time lost the lease");
+
+        handler.Release();
+
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.PeekAsync(jobId).AsTask(),
+            static job => job?.Status is JobStatus.Completed or JobStatus.Failed,
+            "the job to finish");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        record!.Status.ShouldBe(JobStatus.Completed);
+    }
+
+    // ---- What happens when the lease is lost ----
+
+    /// <summary>
+    /// A callback the handler put on its own token that throws when the lease is lost does not end the renewal loop with
+    /// an exception nobody sees: the failure is logged, and the handler is stopped all the same.
+    /// </summary>
+    /// <remarks>
+    /// The handler's token is linked to the one the loop cancels, and a cancelled token runs its callbacks on the thread
+    /// that cancelled it. The loop made that call from inside a catch block, so a callback that threw left the loop with
+    /// the exception, and the task the loop runs as was dropped.
+    /// </remarks>
+    [Fact]
+    public async Task A_callback_that_throws_when_the_lease_is_lost_does_not_end_the_loop_with_an_unseen_exception()
+    {
+        var clock = new ManualClock();
+        var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.Throw };
+        var handler = new ThrowingCallbackHandler();
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll, logger: logger);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        // The renewals throw: the first tick is inside the margin, the second is where the lease can no longer be proven.
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+        clock.Advance(ManualInterval);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+
+        UnobservedTaskGuard.ForceCollection();
+
+        UnobservedTaskGuard.Take(static e => e.Message.Contains("callback broke on the lost lease", StringComparison.Ordinal))
+            .ShouldBeEmpty("the exception the callback threw left the renewal loop and nobody observed it");
+    }
+
+    /// <summary>
+    /// The lease is lost and the time limit passes while the handler is still running: the lease wins, and nothing is
+    /// written for the attempt, whatever the handler returns.
+    /// </summary>
+    /// <remarks>
+    /// Both signals cancel the handler's token, and a handler that returns normally after both looks like a finished job.
+    /// The reason the worker reads decides the outcome: a lost lease says the job is another worker's, a time limit says
+    /// the attempt is this worker's to close. Only the first is allowed to write nothing.
+    /// </remarks>
+    [Fact]
+    public async Task A_lease_lost_before_the_time_limit_passes_writes_nothing_for_the_attempt()
+    {
+        var clock = new ManualClock();
+        var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.Refuse };
+        var handler = new HoldsUntilReleasedHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var now = clock.GetUtcNow();
+        var jobId = Guid.NewGuid();
+
+        await jobs.EnqueueAsync(
+            new JobRecord
+            {
+                Id = jobId,
+                TenantId = TenantId,
+                HandlerKey = JobHandlerKeys.AgentBatch,
+                TargetName = "lease-contract",
+                Status = JobStatus.Pending,
+                MaxAttempts = 3,
+                MaxDuration = TimeSpan.FromSeconds(15),
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            [],
+            TestContext.Current.CancellationToken);
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        // The renewal at ten seconds is refused: the lease is lost, and the handler, which ignores its token, goes on.
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RefusedRenewals >= 1, "the store to refuse the renewal");
+        await WaitUntil.TrueAsync(() => handler.Signals!.Reason == JobStopReason.LeaseLost, "the worker to tell the handler the lease is lost");
+
+        // The time limit passes too: sixteen seconds in, the limit of fifteen was counted from the start of the attempt. The
+        // timer's callback runs on the thread that advances the clock, so the source is cancelled when this returns.
+        clock.Advance(TimeSpan.FromSeconds(6));
+
+        // The attempt is over once a poll finds the slot free and asks for another job: counted from before the handler is let go.
+        var leaseCalls = jobs.LeaseCalls;
+
+        handler.Release();
+
+        await AttemptEndedOnClockAsync(jobs, clock, leaseCalls);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenReleased.ShouldBe(JobStopReason.LeaseLost, "both signals fired and the lease outranks the time limit");
+        jobs.CompleteCalls.ShouldBe(0, "a worker that lost its lease would close the attempt of the worker that holds it");
+        jobs.ReleaseCalls.ShouldBe(0, "a worker that lost its lease would requeue the attempt of the worker that holds it");
+        (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Running);
+    }
+
+    /// <summary>
+    /// A renewal that was in flight when the attempt ended and comes back refused is not a lost lease: the attempt wrote
+    /// its outcome, and the refusal only says the job is closed.
+    /// </summary>
+    /// <remarks>
+    /// The renewal call is held until the job has completed. The answer is "refused" because the job is closed, and
+    /// treating it as a lost lease wrote a warning that this worker no longer holds a lease it had just used.
+    /// </remarks>
+    [Fact]
+    public async Task A_renewal_answered_after_the_attempt_ended_is_not_a_lost_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new StuckRenewalJobStore(clock);
+        var handler = new BlockingHandler();
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll, logger: logger);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+
+        // The handler finishes and the job completes while the renewal is still out.
+        handler.Release();
+        await WaitUntil.ValueAsync(
+            () => jobs.PeekAsync(jobId).AsTask(),
+            static job => job?.Status == JobStatus.Completed,
+            "the job to complete");
+
+        // The store answers the renewal: the job is closed, so it is refused.
+        jobs.Answer(renewed: false);
+
+        await SettleAsync();
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        logger.Entries.ShouldNotContain(
+            entry => entry.Level == LogLevel.Warning && entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal),
+            "the attempt had ended: a refusal then is the job being closed");
+    }
+
+    /// <summary>
+    /// A refused renewal whose status read comes back after the attempt ended is not a lost lease either.
+    /// </summary>
+    /// <remarks>
+    /// The loop reads the job to tell a cancel from a lost lease. The read is held until the job has completed; it then
+    /// finds a closed job, which is neither cancelled nor gone, and the loop took it for a job another worker finished.
+    /// </remarks>
+    [Fact]
+    public async Task A_status_read_answered_after_the_attempt_ended_is_not_a_lost_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new StuckRenewalJobStore(clock) { RefuseRenewalsAtOnce = true, HoldStatusReadAfterRefusal = true };
+        var handler = new BlockingHandler();
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        // The cancel watch polls at the same interval, and it reads the job too: an hour keeps it silent while the test
+        // runs, so the status read that is held is the renewal loop's.
+        var hour = TimeSpan.FromHours(1);
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: hour, logger: logger);
+
+        await StartAttemptAsync(worker, clock, handler.Started, hour);
+
+        // The renewal is refused at once, and the status read the loop makes next is held.
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.StatusReadHeld, "the loop to ask for the job's status");
+
+        handler.Release();
+        await WaitUntil.ValueAsync(
+            () => jobs.PeekAsync(jobId).AsTask(),
+            static job => job?.Status == JobStatus.Completed,
+            "the job to complete");
+
+        jobs.ReleaseStatusRead();
+
+        await SettleAsync();
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        logger.Entries.ShouldNotContain(
+            entry => entry.Level == LogLevel.Warning && entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal),
+            "the attempt had ended: the job read back is the one this worker closed");
+    }
+
+    // ---- The delay a handler asks for ----
+
+    /// <summary>
+    /// A handler that asks for a retry delay the store cannot take does not leave the job running: the worker brings the
+    /// delay into range, says so, and releases the job.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="JobRetryException.RetryAfter"/> reached the store as it was written. A delay of
+    /// <see cref="TimeSpan.MaxValue"/> made the store throw, the release was retried until the lease window closed, and the
+    /// job stayed Running for as long as its lease lasted.
+    /// </remarks>
+    [Fact]
+    public async Task A_retry_delay_longer_than_the_store_accepts_is_brought_to_the_longest_one()
+    {
+        var jobs = new InMemoryJobStore();
+        var handler = new RetryAfterHandler(TimeSpan.MaxValue);
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+        var queuedAt = DateTimeOffset.UtcNow;
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, queuedAt);
+
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5), logger: logger);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.GetAsync(TenantId, jobId, TestContext.Current.CancellationToken).AsTask(),
+            static job => job is { Attempt: 1, Status: JobStatus.Pending },
+            "the job to be released for another attempt");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.Calls.ShouldBe(1, "the job is not due for sixty-eight years");
+        record!.ScheduledFor.ShouldBeGreaterThan(queuedAt + TimeSpan.FromDays(365 * 60));
+        record.ScheduledFor.ShouldBeLessThanOrEqualTo(DateTimeOffset.UtcNow + TimeSpan.FromMilliseconds(2_147_483_647_000L));
+        logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("outside the range", StringComparison.Ordinal));
+    }
+
+    /// <summary>A negative delay is not a wait: the worker takes it as "at once", says so, and the job runs again.</summary>
+    [Fact]
+    public async Task A_negative_retry_delay_is_taken_as_at_once()
+    {
+        var jobs = new InMemoryJobStore();
+        var handler = new RetryAfterHandler(TimeSpan.FromHours(-1));
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5), logger: logger);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.GetAsync(TenantId, jobId, TestContext.Current.CancellationToken).AsTask(),
+            static job => job?.Status is JobStatus.Completed or JobStatus.Failed,
+            "the job to run again and finish");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.Calls.ShouldBe(2);
+        record!.Status.ShouldBe(JobStatus.Completed);
+        record.Attempt.ShouldBe(2);
+        logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("outside the range", StringComparison.Ordinal));
+    }
+
+    /// <summary>Starts the worker on <paramref name="clock"/>, gives it its first tick, and waits until the handler is running.</summary>
+    private static async Task StartAttemptAsync(JobWorkerBackgroundService worker, ManualClock clock, Task started, TimeSpan? poll = null)
+    {
+        var interval = poll ?? ManualPoll;
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(interval), "the worker to arm its poll timer");
+
+        clock.Advance(interval);
+
+        await started.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>
+    /// Waits until the worker has finished the attempt and asked the store for another job. On a manual clock a poll
+    /// happens when the clock is advanced, and a poll that finds the slot taken asks for nothing, so the clock is advanced
+    /// until one finds it free.
+    /// </summary>
+    /// <param name="jobs">The store that counts the lease calls.</param>
+    /// <param name="clock">The worker's clock.</param>
+    /// <param name="leaseCallsBefore">The lease calls counted before the attempt was let go.</param>
+    private static Task AttemptEndedOnClockAsync(LeaseLossJobStore jobs, ManualClock clock, int leaseCallsBefore)
+        => WaitUntil.TrueAsync(
+            () =>
+            {
+                clock.Advance(ManualPoll);
+
+                return jobs.LeaseCalls > leaseCallsBefore;
+            },
+            "the worker to finish the attempt and ask for another job");
+
+    /// <summary>A short wait for work that has no signal to wait on: a step that must NOT have an effect.</summary>
+    private static Task SettleAsync()
+        => Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken); // delay: negative
+
     /// <summary>
     /// The attempt is over once the worker asks for another job: a worker with one slot leases only while
     /// the slot is free. Stopping the worker earlier would let the shutdown decide the outcome.
@@ -1065,6 +1570,187 @@ public sealed class JobWorkerLeaseContractTests
                 throw new OperationCanceledException(cancellationToken);
             }
         }
+    }
+
+    /// <summary>
+    /// Counts the worker's lease-bound calls and answers its first renewal as a store that neither answers nor looks at its
+    /// token would: the call returns a task that ends when the test says so. Every later renewal reaches the store.
+    /// </summary>
+    private sealed class StuckRenewalJobStore(ManualClock clock) : DelegatingJobStore(clock)
+    {
+        private readonly TaskCompletionSource _statusGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource<bool>? _stuck;
+        private int _renewCalls;
+        private int _completeCalls;
+        private int _releaseCalls;
+        private int _tokenCancelled;
+        private int _refused;
+        private int _statusReadHeld;
+
+        public ManualClock Clock { get; } = clock;
+
+        /// <summary>Gets whether the stuck call ends with a cancellation when its token is cancelled.</summary>
+        public bool HonorsToken { get; init; }
+
+        /// <summary>Gets whether every renewal answers <see langword="false"/> at once.</summary>
+        public bool RefuseRenewalsAtOnce { get; init; }
+
+        /// <summary>Gets whether the first status read after a refused renewal waits for <see cref="ReleaseStatusRead"/>.</summary>
+        public bool HoldStatusReadAfterRefusal { get; init; }
+
+        public int RenewCalls => Volatile.Read(ref _renewCalls);
+
+        public int CompleteCalls => Volatile.Read(ref _completeCalls);
+
+        public int ReleaseCalls => Volatile.Read(ref _releaseCalls);
+
+        public bool CallTokenCancelled => Volatile.Read(ref _tokenCancelled) == 1;
+
+        public bool StatusReadHeld => Volatile.Read(ref _statusReadHeld) == 1;
+
+        /// <summary>Answers the call that is stuck, and lets go of its task.</summary>
+        public void Answer(bool renewed) => Interlocked.Exchange(ref _stuck, null)?.TrySetResult(renewed);
+
+        /// <summary>Fails the call that is stuck, and lets go of its task.</summary>
+        public void Fail(Exception exception) => Interlocked.Exchange(ref _stuck, null)?.TrySetException(exception);
+
+        public void ReleaseStatusRead() => _statusGate.TrySetResult();
+
+        public override ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+        {
+            var call = Interlocked.Increment(ref _renewCalls);
+
+            if (RefuseRenewalsAtOnce)
+            {
+                Volatile.Write(ref _refused, 1);
+
+                return new ValueTask<bool>(false);
+            }
+
+            if (call > 1)
+            {
+                return base.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
+            }
+
+            var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Volatile.Write(ref _stuck, pending);
+
+            if (HonorsToken)
+            {
+                cancellationToken.Register(
+                    () =>
+                    {
+                        Volatile.Write(ref _tokenCancelled, 1);
+                        pending.TrySetCanceled(cancellationToken);
+                    });
+            }
+
+            return new ValueTask<bool>(pending.Task);
+        }
+
+        public override ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _completeCalls);
+
+            return base.CompleteAsync(lease, completion, cancellationToken);
+        }
+
+        public override ValueTask<bool> ReleaseForRetryAsync(JobLease lease, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _releaseCalls);
+
+            return base.ReleaseForRetryAsync(lease, errorMessage, retryAfter, cancellationToken);
+        }
+
+        /// <summary>A store that does not look at the token a read is given: it answers once the attempt that asked is over.</summary>
+        public override ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
+        {
+            if (HoldStatusReadAfterRefusal
+                && Volatile.Read(ref _refused) == 1
+                && Interlocked.CompareExchange(ref _statusReadHeld, 1, 0) == 0)
+            {
+                return HoldAsync(tenantId, jobId);
+            }
+
+            return Inner.GetAsync(tenantId, jobId, CancellationToken.None);
+        }
+
+        private async ValueTask<JobRecord?> HoldAsync(string tenantId, Guid jobId)
+        {
+            await _statusGate.Task.ConfigureAwait(false);
+
+            return await Inner.GetAsync(tenantId, jobId, CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Puts a callback on its token that throws, and records why the worker cancelled it.</summary>
+    private sealed class ThrowingCallbackHandler : IJobHandler
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Started => _started.Task;
+
+        public Task Cancelled => _cancelled.Task;
+
+        public JobStopReason ReasonWhenCancelled { get; private set; }
+
+        public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            // A cancelled token runs its callbacks on the thread that cancelled it. The one that throws is the handler's
+            // own bug; the other tells the test the token was cancelled.
+            using var broken = cancellationToken.Register(
+                static () => throw new InvalidOperationException("the callback broke on the lost lease"));
+            using var seen = cancellationToken.Register(
+                () =>
+                {
+                    ReasonWhenCancelled = context.Signals!.Reason;
+                    _cancelled.TrySetResult();
+                });
+
+            _started.TrySetResult();
+
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
+        }
+    }
+
+    /// <summary>Ignores its token and works until the test releases it; records the reason the worker would give at that point.</summary>
+    private sealed class HoldsUntilReleasedHandler : IJobHandler
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Started => _started.Task;
+
+        public JobAttemptSignals? Signals { get; private set; }
+
+        public JobStopReason ReasonWhenReleased { get; private set; }
+
+        public void Release() => _release.TrySetResult();
+
+        public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            Signals = context.Signals;
+            _started.TrySetResult();
+
+            await _release.Task.ConfigureAwait(false);
+
+            ReasonWhenReleased = context.Signals!.Reason;
+        }
+    }
+
+    /// <summary>Asks for a retry after <paramref name="retryAfter"/> on its first call, then succeeds.</summary>
+    private sealed class RetryAfterHandler(TimeSpan retryAfter) : IJobHandler
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+            => Interlocked.Increment(ref _calls) == 1
+                ? throw new JobRetryException("try again later") { RetryAfter = retryAfter }
+                : ValueTask.CompletedTask;
     }
 
     private sealed class CollectingLogger : ILogger<JobWorkerBackgroundService>
