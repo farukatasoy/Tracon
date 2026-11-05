@@ -60,6 +60,52 @@ public sealed class DataSubjectUncompilableAgentTests
         (await host.Services.GetRequiredService<ISessionStore>().GetAsync("doomed-session")).ShouldNotBeNull();
     }
 
+    /// <summary>
+    /// A subject with one session whose agent cannot be compiled and one whose agent is gone is not half-erased: the
+    /// refusal wins in either order, and the skip that was counted before it is thrown away with the rest of the lookup.
+    /// </summary>
+    [Theory]
+    [InlineData("GET", "data-subjects/subject/export", "doomed-session", "ghost-session")]
+    [InlineData("GET", "data-subjects/subject/export", "ghost-session", "doomed-session")]
+    [InlineData("DELETE", "data-subjects/subject", "doomed-session", "ghost-session")]
+    [InlineData("DELETE", "data-subjects/subject", "ghost-session", "doomed-session")]
+    [InlineData("DELETE", "data-subjects/subject?dryRun=false", "doomed-session", "ghost-session")]
+    [InlineData("DELETE", "data-subjects/subject?dryRun=false", "ghost-session", "doomed-session")]
+    public async Task A_session_that_cannot_be_compiled_and_one_whose_agent_is_gone_apply_nothing_in_either_order(
+        string method,
+        string path,
+        string first,
+        string second)
+    {
+        var store = new CountingDataSubjectStore();
+        await using var host = await StartAsync(store, [first, second]);
+        var tenant = host.Services.GetRequiredService<ITenantContext>().TenantId;
+
+        await SaveSessionAsync(host, "doomed-session", Doomed, tenant);
+        await SaveSessionAsync(host, "ghost-session", "vanished-agent", tenant);
+        await BreakBindingAsync(host, "doomed-provider", tenant);
+
+        using var response = await host.Client.SendAsync(new HttpRequestMessage(
+            new HttpMethod(method),
+            new Uri($"/tracon/api/{path}", UriKind.Relative)));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+        response.Headers.Contains("X-Tracon-Unresolved-Conversations").ShouldBeFalse("a refused call has no count to report");
+
+        var problem = await TraconTestHost.ReadJsonAsync(response);
+        problem.GetProperty("title").GetString().ShouldBe("Agent compilation failed");
+
+        store.ExportCalls.ShouldBe(0);
+        store.PreviewCalls.ShouldBe(0);
+        store.EraseCalls.ShouldBe(0);
+        (await host.Services.GetRequiredService<IAuditLog>().QueryAsync(new AuditQuery { TenantId = tenant, Action = "data_subject.erase" }))
+            .ShouldBeEmpty();
+
+        var sessions = host.Services.GetRequiredService<ISessionStore>();
+        (await sessions.GetAsync("doomed-session")).ShouldNotBeNull();
+        (await sessions.GetAsync("ghost-session")).ShouldNotBeNull();
+    }
+
     /// <summary>The control: the same session on an agent that compiles is exported and erased as before.</summary>
     [Fact]
     public async Task A_session_of_an_agent_that_compiles_is_exported_and_erased()
@@ -80,7 +126,7 @@ public sealed class DataSubjectUncompilableAgentTests
         store.EraseCalls.ShouldBe(1);
     }
 
-    private static Task<TraconTestHost> StartAsync(CountingDataSubjectStore store)
+    private static Task<TraconTestHost> StartAsync(CountingDataSubjectStore store, string[]? sessionIds = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder => builder
                 .AddModelProvider(new FakeModelProvider("doomed-provider").ForModel("m", cfg => cfg.EchoesUserMessage()))
@@ -89,7 +135,7 @@ public sealed class DataSubjectUncompilableAgentTests
                 .AddAgent(TestData.Definition(Healthy) with { Model = new ModelBinding { Provider = "healthy-provider", Model = "m" } }),
             configureServices: services =>
             {
-                services.AddSingleton<IDataSubjectResolver>(new SessionsOfTheSubjectResolver());
+                services.AddSingleton<IDataSubjectResolver>(new SessionsOfTheSubjectResolver(sessionIds ?? ["doomed-session", "healthy-session"]));
                 services.AddSingleton<IDataSubjectStore>(store);
             });
 
@@ -115,10 +161,10 @@ public sealed class DataSubjectUncompilableAgentTests
             },
             TestContext.Current.CancellationToken);
 
-    private sealed class SessionsOfTheSubjectResolver : IDataSubjectResolver
+    private sealed class SessionsOfTheSubjectResolver(string[] sessionIds) : IDataSubjectResolver
     {
         public ValueTask<DataSubjectScope> ResolveAsync(string subjectId, string tenantId, CancellationToken cancellationToken = default)
-            => new(new DataSubjectScope { SessionIds = ["doomed-session", "healthy-session"], RunIds = [], ConversationIds = [] });
+            => new(new DataSubjectScope { SessionIds = sessionIds, RunIds = [], ConversationIds = [] });
     }
 
     private sealed class CountingDataSubjectStore : IDataSubjectStore

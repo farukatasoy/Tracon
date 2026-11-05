@@ -730,18 +730,17 @@ Erasure removes the session, run, conversation, attachment, score, voice-session
 [workflow checkpoint](/concepts/workflows/#checkpoints) rows that belong to the
 subject — including summarized conversation messages, which retention otherwise keeps
 forever. Four copies of a run's text go with the run: an eval case promoted from it,
-the stored response of an idempotent request that started it, the job of a queued run
-and the batch item that started it. A batch job keeps its other items. Checkpoints are matched by the subject's session ids and run ids, and their
-state can hold the subject's own messages. Erasure has no exemption for a run that
-waits for input: retention keeps such a run's checkpoints so the request stays
-answerable, but an erasure deletes the run itself, together with its checkpoints. It never touches the audit trail: an audit record
-is "who did what", not the subject's own data, and stays intact and verifiable after
-an erasure. The erasure itself **is** written there, with the row count per target; if
+the stored response of an idempotent request that started it, the job of a queued run,
+and the batch item that started it (the batch job keeps its other items). Checkpoints are
+matched by the subject's session ids and run ids, because their state can hold the
+subject's own messages. Unlike retention, erasure has no exemption for a run that waits
+for input: it deletes the run with its checkpoints. It never touches the audit trail: an
+audit record is "who did what", not the subject's own data, and stays intact and
+verifiable. The erasure itself **is** written there, with the row count per target; if
 that write fails, the whole erasure rolls back. On SQLite the entry is written in the
-erasure's own transaction, so the entry and the erasure commit or roll back together:
-SQLite lets one connection write at a time, and a write from a second connection would
-wait for the erasure's lock. On PostgreSQL and SQL Server the entry is written on its own
-connection, just before the erasure commits. An `IAuditLog` you register in place of
+erasure's own transaction, because SQLite lets one connection write at a time and a second
+connection would wait for the erasure's lock. On PostgreSQL and SQL Server it is written
+on its own connection, just before the commit. An `IAuditLog` you register in place of
 Tracon's own writes on its own connection, so on SQLite it must not write to the same
 database file.
 
@@ -749,9 +748,9 @@ If [conversation memory](/guides/context-and-memory/#remember-a-user-across-sess
 is set up, the copy of the subject's sessions that your vector store keeps goes too, and so do the files of
 their [session workspaces](/guides/context-and-memory/#give-an-agent-files-in-each-session). Both are found by
 the subject's session ids and the caller's tenant, and both are deleted **first**, before the erasure
-opens its SQL transaction: a store that cannot delete fails the request with every row still in place, and
-you repeat it when the store is back. A copy that is already gone when a later step fails stays gone; repeating
-the request deletes the rest, and the audit entry of that second request counts only what was left. The preview counts them under `conversation_memory` and `session_workspace`, and the
+opens its SQL transaction: a store that cannot delete fails the request with every row still in place, so
+repeat it when the store is back. A copy that is already gone when a later step fails stays gone; repeating
+the request deletes the rest, and its audit entry counts only what was left. The preview counts them under `conversation_memory` and `session_workspace`, and the
 export lists them (for a workspace file: `sessionId`, `agent`, `path` and `content`). Records the store keeps for its
 own reasons, such as backups, are outside Tracon's reach.
 
@@ -767,6 +766,13 @@ A column that [content protection](#content-protection) encrypts is exported as
 plaintext. Attachment file bytes are not included — only their metadata. A workflow checkpoint's
 `state` is the framework's own serialized format: export returns it as the stored
 JSON text (a string), the same way it returns session state.
+
+**A session whose agent is gone.** Tracon finds a session's chat history through the
+session's own agent. If that agent is not registered, the call still answers `200`: an
+erasure deletes the session row and leaves the conversation. `unresolvedConversations`
+counts such sessions (an upper bound) in a preview, in an erasure and its audit entry, and
+in the `X-Tracon-Unresolved-Conversations` header of an export. Preview first, register the
+agent again, then erase. An agent that cannot be compiled fails the call with `400`.
 
 ## Content protection
 

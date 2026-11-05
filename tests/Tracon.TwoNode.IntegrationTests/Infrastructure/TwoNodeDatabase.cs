@@ -48,6 +48,11 @@ public abstract class TwoNodeDatabase
     /// <returns>A task that completes when the row is written.</returns>
     public abstract Task PlantAsync(string value);
 
+    /// <summary>Counts the rows of a table of the schema, through a new connection.</summary>
+    /// <param name="table">The table, without its schema.</param>
+    /// <returns>The number of rows.</returns>
+    public abstract Task<long> CountRowsAsync(string table);
+
     /// <summary>Reads the columns of the schema that can hold text and the rows of each.</summary>
     /// <param name="connection">An open connection to the database.</param>
     /// <param name="schema">The schema.</param>
@@ -154,6 +159,18 @@ internal sealed class PostgreSqlTwoNodeDatabase(string connectionString, string 
     }
 
     /// <inheritdoc />
+    public override async Task<long> CountRowsAsync(string table)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT COUNT(*) FROM \"{schemaName}\".\"{table}\"";
+
+        return Convert.ToInt64(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    /// <inheritdoc />
     public override async Task<string> DumpTextAsync()
     {
         await using var connection = new NpgsqlConnection(connectionString);
@@ -201,6 +218,18 @@ internal sealed class SqlServerTwoNodeDatabase(string connectionString, string s
             + $"INSERT INTO [{schemaName}].canary_plant VALUES (@v, N'{{\"v\":\"' + @v + N'\"}}', CAST(@v AS varbinary(max)));";
         command.Parameters.AddWithValue("@v", value);
         await command.ExecuteNonQueryAsync();
+    }
+
+    /// <inheritdoc />
+    public override async Task<long> CountRowsAsync(string table)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT COUNT(*) FROM [{schemaName}].[{table}]";
+
+        return Convert.ToInt64(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
     /// <inheritdoc />

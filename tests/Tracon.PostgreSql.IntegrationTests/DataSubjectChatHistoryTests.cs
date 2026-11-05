@@ -49,7 +49,8 @@ public sealed class DataSubjectChatHistoryTests(PostgresFixture fixture)
 
             var found = await resolver.ResolveAsync([SessionId]);
 
-            found.ShouldHaveSingleItem().ShouldBe(conversationId);
+            found.ConversationIds.ShouldHaveSingleItem().ShouldBe(conversationId);
+            found.Unresolved.ShouldBe(0);
         }
     }
 
@@ -79,7 +80,7 @@ public sealed class DataSubjectChatHistoryTests(PostgresFixture fixture)
                 provider.GetRequiredService<ISessionStore>(),
                 provider.GetRequiredService<IAgentCatalog>());
 
-            var conversationIds = await resolver.ResolveAsync([SessionId]);
+            var conversationIds = (await resolver.ResolveAsync([SessionId])).ConversationIds;
 
             await context.DataSubjects.EraseAsync(
                 context.TenantContext.TenantId,
@@ -94,7 +95,7 @@ public sealed class DataSubjectChatHistoryTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task A_session_whose_agent_no_longer_exists_is_skipped_not_thrown()
+    public async Task A_session_whose_agent_no_longer_exists_is_skipped_and_counted_not_thrown()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
         const string SessionId = "orphaned-agent-session";
@@ -128,7 +129,8 @@ public sealed class DataSubjectChatHistoryTests(PostgresFixture fixture)
 
         var found = await resolver.ResolveAsync([SessionId]);
 
-        found.ShouldBeEmpty();
+        found.ConversationIds.ShouldBeEmpty();
+        found.Unresolved.ShouldBe(1);
     }
 
     private static async ValueTask<Microsoft.Agents.AI.AIAgent> ResolveAsync(IServiceProvider provider, string name)

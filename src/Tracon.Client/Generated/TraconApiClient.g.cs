@@ -16205,7 +16205,7 @@ namespace Tracon.Client.Generated
         /// Exports a data subject's content as one JSON document.
         /// </summary>
         /// <remarks>
-        /// '{id}' is resolved through IDataSubjectResolver, which is registered by the consumer — Tracon does not store personal identity. Without a registered resolver this returns 409, never an empty document. The document holds every column of every matching row, keyed by target table (session state, runs, run inputs, attachment METADATA only — no file bytes, voice session summaries, run scores, workflow checkpoints, conversations, conversation items, and responses); a target with no matching rows is present as an empty array, not omitted.
+        /// '{id}' is resolved through IDataSubjectResolver, which is registered by the consumer — Tracon does not store personal identity. Without a registered resolver this returns 409, never an empty document. The document holds every column of every matching row, keyed by target table (session state, runs, run inputs, attachment METADATA only — no file bytes, voice session summaries, run scores, workflow checkpoints, conversations, conversation items, and responses); a target with no matching rows is present as an empty array, not omitted. A session's internal conversation is found by restoring the session through its own agent. An agent that is no longer registered cannot do that: the session's row is still in the document, its conversation is not, and the response header 'X-Tracon-Unresolved-Conversations' says how many sessions this applies to (an upper bound; '0' when every conversation was looked up; written on every 200 response, and a proxy may drop it). A session whose saved state cannot be restored is counted the same way. An agent that is registered but cannot be compiled (a tenant key with no value, an egress policy that no longer allows the provider) fails the whole call with 400 and nothing is read.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -16257,6 +16257,16 @@ namespace Tracon.Client.Generated
                             return;
                         }
                         else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -16281,7 +16291,7 @@ namespace Tracon.Client.Generated
         /// Deletes a data subject's content.
         /// </summary>
         /// <remarks>
-        /// '{id}' is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as 'already erased'. '?dryRun=' DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; '?dryRun=false' deletes for real. The audit trail (audit_log) is never touched — it is deliberately outside a data subject's erasable content (by design: an audit record is 'who did what', not the subject's own data) — but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow. A run of the subject that is still Running or Queued would write its session and checkpoints back after the erasure commits: '?dryRun=false' is refused with 409 that names those runs, and the preview lists them in 'activeRunIds'. '?force=true' erases anyway, for a row a crashed process left behind; cancel a run that is really running first.
+        /// '{id}' is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as 'already erased'. '?dryRun=' DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; '?dryRun=false' deletes for real. The audit trail (audit_log) is never touched — it is deliberately outside a data subject's erasable content (by design: an audit record is 'who did what', not the subject's own data) — but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow. A run of the subject that is still Running or Queued would write its session and checkpoints back after the erasure commits: '?dryRun=false' is refused with 409 that names those runs, and the preview lists them in 'activeRunIds'. '?force=true' erases anyway, for a row a crashed process left behind; cancel a run that is really running first. A session's internal conversation is found by restoring the session through its own agent. An agent that is no longer registered cannot do that: the session row IS erased, its conversation stays, and 'unresolvedConversations' says how many sessions this applies to (an upper bound, in the preview as well as in the erasure, and in the audit entry; a session whose saved state cannot be restored is counted too). Preview first: when it is above 0 because an agent was deleted or renamed, register the agent again and erase afterwards, and the conversation goes with the session. A repeated call finds the session already gone and counts 0, so keep the answer of the first call. An agent that is registered but cannot be compiled (a tenant key with no value, an egress policy that no longer allows the provider) fails the whole call with 400, and nothing is erased.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -16346,6 +16356,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 409)
@@ -20756,6 +20776,16 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("activeRunIds")]
         public System.Collections.Generic.ICollection<System.Guid> ActiveRunIds { get; set; } = new System.Collections.Generic.List<System.Guid>();
+
+        /// <summary>
+        /// Gets how many of the subject's sessions have an internal chat-history conversation that this
+        /// <br/>request could not look up, because the session's agent is not registered (or the session
+        /// <br/>state could not be restored). At most that many conversations are left out of an export and
+        /// <br/>stay after an erasure. `0` when every conversation was looked up. A call that finds the
+        /// <br/>session already erased counts it no more, so keep the answer of the first call.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("unresolvedConversations")]
+        public int UnresolvedConversations { get; set; } = default!;
 
     }
 

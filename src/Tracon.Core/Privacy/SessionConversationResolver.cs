@@ -30,10 +30,19 @@ namespace Tracon;
 /// OpenAI-compatible Conversations API — is actually reachable.
 /// </para>
 /// <para>
-/// A session whose agent can no longer be resolved, or whose state cannot be
-/// deserialized (a version mismatch, for example), is skipped and logged rather
-/// than thrown: one unresolvable session must not block export/erasure of every
-/// other session in the same request.
+/// A session whose agent is no longer registered, or whose state cannot be
+/// deserialized (a version mismatch, for example), is skipped, logged and COUNTED
+/// rather than thrown: one unresolvable session must not block export/erasure of
+/// every other session in the same request, and a skip nobody can see would let the
+/// caller read a <c>200</c> as "everything is gone". An agent the catalog refuses to
+/// compile is neither: that failure propagates, because an erasure that skipped the
+/// session would delete the rest of the subject's rows and leave its conversation
+/// behind.
+/// </para>
+/// <para>
+/// A session that does not exist in the ambient tenant is NOT counted. A session id of
+/// another tenant answers <see langword="null"/> exactly as an id that does not exist
+/// anywhere does, and counting it would tell the caller that the id exists elsewhere.
 /// </para>
 /// </remarks>
 internal sealed class SessionConversationResolver
@@ -64,10 +73,15 @@ internal sealed class SessionConversationResolver
     /// <param name="sessionIds">The session ids to look up.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// The resolved conversation ids. Shorter than <paramref name="sessionIds"/> when a
-    /// session does not exist, has no conversation yet, or could not be restored.
+    /// The resolved conversation ids, and how many sessions could not be looked up. The ids are
+    /// fewer than <paramref name="sessionIds"/> when a session does not exist, has no
+    /// conversation yet, or could not be looked up.
     /// </returns>
-    public async ValueTask<IReadOnlyList<Guid>> ResolveAsync(
+    /// <exception cref="TraconException">
+    /// The catalog refuses to compile the agent of a session. Nothing is returned: the caller
+    /// must not act on a partial answer.
+    /// </exception>
+    public async ValueTask<SessionConversationLookup> ResolveAsync(
         IReadOnlyList<string> sessionIds,
         CancellationToken cancellationToken = default)
     {
@@ -75,12 +89,14 @@ internal sealed class SessionConversationResolver
 
         if (sessionIds.Count == 0)
         {
-            return [];
+            return new SessionConversationLookup([], 0);
         }
 
         var found = new List<Guid>(sessionIds.Count);
+        var unresolved = 0;
 
-        foreach (var sessionId in sessionIds)
+        // A resolver that names a session twice still has one session to look up, and the count is of sessions.
+        foreach (var sessionId in sessionIds.Distinct(StringComparer.Ordinal))
         {
             var record = await _sessions.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
@@ -98,6 +114,8 @@ internal sealed class SessionConversationResolver
                     "its internal conversation could not be resolved for export/erasure.",
                     sessionId,
                     record.AgentName);
+
+                unresolved++;
 
                 continue;
             }
@@ -118,6 +136,8 @@ internal sealed class SessionConversationResolver
                     "resolved for export/erasure.",
                     sessionId);
 
+                unresolved++;
+
                 continue;
             }
 
@@ -132,6 +152,15 @@ internal sealed class SessionConversationResolver
             }
         }
 
-        return found;
+        return new SessionConversationLookup(found, unresolved);
     }
 }
+
+/// <summary>What looking up the internal conversations of a set of sessions found.</summary>
+/// <param name="ConversationIds">The conversation ids that were found.</param>
+/// <param name="Unresolved">
+/// How many sessions have a conversation this lookup could not find, because the agent of the session is not registered
+/// or the session state could not be restored. An upper bound: without the agent, whether the session had a conversation
+/// at all cannot be known.
+/// </param>
+internal readonly record struct SessionConversationLookup(IReadOnlyList<Guid> ConversationIds, int Unresolved);

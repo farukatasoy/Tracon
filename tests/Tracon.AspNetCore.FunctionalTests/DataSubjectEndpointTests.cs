@@ -74,6 +74,49 @@ public sealed class DataSubjectEndpointTests
     }
 
     [Fact]
+    public async Task The_answer_and_the_audit_entry_carry_a_count_of_zero_when_every_conversation_was_looked_up()
+    {
+        // The count is required in the answer: a missing value would read as 0 ("everything was looked up") and be wrong.
+        var store = new RecordingDataSubjectStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => RegisterFakes(services, store));
+
+        using var preview = await host.Client.DeleteAsync(EraseUri);
+        using var erase = await host.Client.DeleteAsync(
+            new Uri("/tracon/api/data-subjects/subject-1?dryRun=false", UriKind.Relative));
+
+        (await TraconTestHost.ReadJsonAsync(preview)).GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
+        (await TraconTestHost.ReadJsonAsync(erase)).GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
+
+        using var audit = await host.Client.GetAsync(
+            new Uri("/tracon/api/audit?entity=data-subject:subject-1", UriKind.Relative));
+        var entry = (await TraconTestHost.ReadJsonAsync(audit)).EnumerateArray().ShouldHaveSingleItem();
+
+        entry.GetProperty("after").GetString().ShouldBe(
+            """{"subjectId":"subject-1","rowsByTarget":{},"unresolvedConversations":0}""");
+    }
+
+    [Fact]
+    public async Task The_export_writes_the_unresolved_header_even_when_the_subject_has_no_session()
+    {
+        var store = new RecordingDataSubjectStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services =>
+            {
+                services.AddSingleton<IDataSubjectResolver>(new EmptyDataSubjectResolver());
+                services.AddSingleton<IDataSubjectStore>(store);
+            });
+
+        using var response = await host.Client.GetAsync(ExportUri);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Headers.GetValues("X-Tracon-Unresolved-Conversations").ShouldBe(["0"]);
+        (await response.Content.ReadAsStringAsync()).ShouldBe("{}", "the document is the store's, untouched");
+    }
+
+    [Fact]
     public async Task Erase_with_dryRun_false_actually_erases()
     {
         var store = new RecordingDataSubjectStore();

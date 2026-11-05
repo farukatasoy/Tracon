@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -24,6 +25,9 @@ namespace Tracon;
 /// </remarks>
 internal static class DataSubjectEndpoints
 {
+    /// <summary>The response header an export carries the count of conversations it could not look up in.</summary>
+    internal const string UnresolvedConversationsHeader = "X-Tracon-Unresolved-Conversations";
+
     /// <summary>Maps the data subject endpoints.</summary>
     /// <param name="builder">The endpoint group.</param>
     /// <param name="roles">The resolved role policies.</param>
@@ -42,7 +46,19 @@ internal static class DataSubjectEndpoints
                 "column of every matching row, keyed by target table (session state, runs, run " +
                 "inputs, attachment METADATA only — no file bytes, voice session summaries, run " +
                 "scores, workflow checkpoints, conversations, conversation items, and responses); " +
-                "a target with no matching rows is present as an empty array, not omitted.");
+                "a target with no matching rows is present as an empty array, not omitted. A " +
+                "session's internal conversation is found by restoring the session through its own " +
+                "agent. An agent that is no longer registered cannot do that: the session's row is " +
+                "still in the document, its conversation is not, and the response header " +
+                "'X-Tracon-Unresolved-Conversations' says how many sessions this applies to (an " +
+                "upper bound; '0' when every conversation was looked up; written on every 200 " +
+                "response, and a proxy may drop it). A session whose saved state cannot be restored " +
+                "is counted the same way. An agent that is registered but cannot be compiled " +
+                "(a tenant key with no value, an egress policy that no longer allows the provider) " +
+                "fails the whole call with 400 and nothing is read.")
+            // Declaring any response removes the default 200 from the document; this keeps the one the endpoint had.
+            .Produces(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         builder.MapDelete("/api/data-subjects/{id}", EraseAsync)
             .RequireRole(roles.Admin)
@@ -63,8 +79,20 @@ internal static class DataSubjectEndpoints
                 "Running or Queued would write its session and checkpoints back after the erasure " +
                 "commits: '?dryRun=false' is refused with 409 that names those runs, and the preview " +
                 "lists them in 'activeRunIds'. '?force=true' erases anyway, for a row a crashed " +
-                "process left behind; cancel a run that is really running first.")
+                "process left behind; cancel a run that is really running first. A session's " +
+                "internal conversation is found by restoring the session through its own agent. " +
+                "An agent that is no longer registered cannot do that: the session row IS erased, " +
+                "its conversation stays, and 'unresolvedConversations' says how many sessions this " +
+                "applies to (an upper bound, in the preview as well as in the erasure, and in the " +
+                "audit entry; a session whose saved state cannot be restored is counted too). " +
+                "Preview first: when it is above 0 because an agent was deleted or renamed, register " +
+                "the agent again and erase afterwards, and the conversation goes with the session. " +
+                "A repeated call finds the session already gone and counts 0, so keep the answer of " +
+                "the first call. An agent that is registered but cannot be compiled (a tenant key " +
+                "with no value, an egress policy that no longer allows the provider) fails the " +
+                "whole call with 400, and nothing is erased.")
             .Produces<DataSubjectErasureResult>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
@@ -74,6 +102,7 @@ internal static class DataSubjectEndpoints
         [FromServices] IDataSubjectStore store,
         [FromServices] SessionConversationResolver conversations,
         [FromServices] ITenantContext tenants,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         if (resolver is null)
@@ -81,7 +110,7 @@ internal static class DataSubjectEndpoints
             return ResolverNotRegistered();
         }
 
-        var (scope, refusal) = await ExpandScopeAsync(resolver, conversations, id, tenants.TenantId, cancellationToken)
+        var (scope, unresolved, refusal) = await ExpandScopeAsync(resolver, conversations, id, tenants.TenantId, cancellationToken)
             .ConfigureAwait(false);
 
         if (refusal is not null)
@@ -90,6 +119,9 @@ internal static class DataSubjectEndpoints
         }
 
         var export = await store.ExportAsync(tenants.TenantId, scope!, cancellationToken).ConfigureAwait(false);
+
+        // The document is the store's and is written as it is; the count is not part of it, so it travels beside it.
+        context.Response.Headers[UnresolvedConversationsHeader] = unresolved.ToString(CultureInfo.InvariantCulture);
 
         return TypedResults.Content(export.Json, "application/json");
     }
@@ -115,7 +147,7 @@ internal static class DataSubjectEndpoints
             return ResolverNotRegistered();
         }
 
-        var (expanded, refusal) = await ExpandScopeAsync(resolver, conversations, id, tenants.TenantId, cancellationToken)
+        var (expanded, unresolved, refusal) = await ExpandScopeAsync(resolver, conversations, id, tenants.TenantId, cancellationToken)
             .ConfigureAwait(false);
 
         if (refusal is not null)
@@ -134,7 +166,13 @@ internal static class DataSubjectEndpoints
         {
             var preview = await store.PreviewAsync(tenants.TenantId, scope, cancellationToken).ConfigureAwait(false);
 
-            return TypedResults.Ok(new DataSubjectErasureResult { DryRun = true, RowsByTarget = preview, ActiveRunIds = activeRunIds });
+            return TypedResults.Ok(new DataSubjectErasureResult
+            {
+                DryRun = true,
+                RowsByTarget = preview,
+                ActiveRunIds = activeRunIds,
+                UnresolvedConversations = unresolved,
+            });
         }
 
         if (activeRunIds.Count > 0 && force != true)
@@ -176,13 +214,19 @@ internal static class DataSubjectEndpoints
                 // but this was the ONLY direct IAuditLog write that skipped the
                 // filter; the next change to the payload's shape would have had
                 // no protection at all.
-                after: DescribeErasure(id, counts),
+                after: DescribeErasure(id, counts, unresolved),
                 refusal: $"The erasure of data subject '{id}' was not applied",
                 timeProvider,
                 ct),
             cancellationToken).ConfigureAwait(false);
 
-        return TypedResults.Ok(new DataSubjectErasureResult { DryRun = false, RowsByTarget = deleted, ActiveRunIds = activeRunIds });
+        return TypedResults.Ok(new DataSubjectErasureResult
+        {
+            DryRun = false,
+            RowsByTarget = deleted,
+            ActiveRunIds = activeRunIds,
+            UnresolvedConversations = unresolved,
+        });
     }
 
     private static readonly RunStatus[] InProgress = [RunStatus.Running, RunStatus.Queued];
@@ -249,8 +293,14 @@ internal static class DataSubjectEndpoints
     /// the session would delete the rest of the subject's rows, leave its conversation behind and answer <c>200</c>. Only
     /// the catalog's refusal is answered here; the resolver is the consumer's code and its own failures are not.
     /// </para>
+    /// <para>
+    /// An agent the catalog does not know at all (deleted, renamed) is the other case. The session is skipped and
+    /// COUNTED: the count is the second element of the result, and the callers put it in the answer and, for an erasure,
+    /// in the audit entry. A refusal discards the count with the rest of the lookup: no answer, no audit entry and no
+    /// delete follows it, in whatever order the sessions came.
+    /// </para>
     /// </remarks>
-    private static async ValueTask<(DataSubjectScope? Scope, ProblemHttpResult? Refusal)> ExpandScopeAsync(
+    private static async ValueTask<(DataSubjectScope? Scope, int Unresolved, ProblemHttpResult? Refusal)> ExpandScopeAsync(
         IDataSubjectResolver resolver,
         SessionConversationResolver conversations,
         string subjectId,
@@ -259,40 +309,41 @@ internal static class DataSubjectEndpoints
     {
         var scope = await resolver.ResolveAsync(subjectId, tenantId, cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyList<Guid> internalConversationIds;
+        SessionConversationLookup lookup;
 
         try
         {
-            internalConversationIds = await conversations
+            lookup = await conversations
                 .ResolveAsync(scope.SessionIds, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (TraconException ex)
         {
-            return (null, TypedResults.Problem(
+            return (null, 0, TypedResults.Problem(
                 title: "Agent compilation failed",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status400BadRequest));
         }
 
-        if (internalConversationIds.Count == 0)
+        if (lookup.ConversationIds.Count == 0)
         {
-            return (scope, null);
+            return (scope, lookup.Unresolved, null);
         }
 
         return (
             scope with
             {
                 ConversationIds = scope.ConversationIds
-                    .Concat(internalConversationIds)
+                    .Concat(lookup.ConversationIds)
                     .Distinct()
                     .ToArray(),
             },
+            lookup.Unresolved,
             null);
     }
 
     /// <summary>Summarizes an erasure for the audit trail.</summary>
-    private static string DescribeErasure(string subjectId, IReadOnlyDictionary<string, int> rowsByTarget)
+    private static string DescribeErasure(string subjectId, IReadOnlyDictionary<string, int> rowsByTarget, int unresolvedConversations)
     {
         using var buffer = new MemoryStream();
         using var writer = new Utf8JsonWriter(buffer);
@@ -307,6 +358,7 @@ internal static class DataSubjectEndpoints
         }
 
         writer.WriteEndObject();
+        writer.WriteNumber("unresolvedConversations", unresolvedConversations);
         writer.WriteEndObject();
         writer.Flush();
 
