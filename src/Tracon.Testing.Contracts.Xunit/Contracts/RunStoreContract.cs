@@ -3507,6 +3507,14 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Completed);
     }
 
+    // A run that is running is marked when it starts, and the mark is the store's own clock (a database server's, for a
+    // store that shares its database), so it cannot be backdated: a test that needs an orphan lets a short threshold pass
+    // instead of starting a run in the past.
+    private static readonly TimeSpan OrphanThreshold = TimeSpan.FromMilliseconds(200);
+
+    private static async Task LetTheMarkAgeAsync()
+        => await Task.Delay(TimeSpan.FromMilliseconds(400)); // delay: product
+
     [Fact]
     public async Task ClaimOrphanedRunsAsync_marks_a_stale_Running_row_as_Failed()
     {
@@ -3516,8 +3524,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var startedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = startedAt });
 
+        await LetTheMarkAgeAsync();
+
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleAfter: TimeSpan.FromMinutes(5),
+            staleAfter: OrphanThreshold,
             max: 10);
 
         var record = claimed.ShouldHaveSingleItem();
@@ -3566,8 +3576,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             ContinuedFromRunId = sourceRunId,
         });
 
+        await LetTheMarkAgeAsync();
+
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleAfter: TimeSpan.FromMinutes(5),
+            staleAfter: OrphanThreshold,
             max: 10);
 
         claimed.Count.ShouldBe(2);
@@ -3602,8 +3614,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             Depth = 1,
         });
 
+        await LetTheMarkAgeAsync();
+
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleAfter: TimeSpan.FromMinutes(5),
+            staleAfter: OrphanThreshold,
             max: 10);
 
         var workflow = claimed.Single(record => record.Id == workflowRunId);
@@ -3665,6 +3679,48 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         claimed.ShouldNotContain(record => record.Id == runId);
         (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_does_not_touch_a_Queued_row_that_has_just_started_running()
+    {
+        // A queued run is started a second time, as Running, when the worker runs the job.
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow, Status = RunStatus.Queued });
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow, Status = RunStatus.Running });
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleAfter: TimeSpan.FromMinutes(5),
+            max: 10);
+
+        claimed.ShouldNotContain(record => record.Id == runId);
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    [Fact]
+    public async Task StartRunAsync_a_second_time_leaves_the_heartbeat_the_run_already_has()
+    {
+        // The second start of a run (the job worker running a run the request queued, or a repeated start) must not make
+        // a run that stopped beating look alive: the heartbeat is written by TouchHeartbeatAsync and by the first start
+        // that runs the row, not by every start.
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
+        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+
+        // The heartbeat is stamped with the store's own clock, so it cannot be backdated: the test lets a short threshold pass.
+        await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken); // delay: product
+
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleAfter: TimeSpan.FromMilliseconds(200),
+            max: 10);
+
+        claimed.ShouldContain(record => record.Id == runId, "the second start did not mark the run again");
     }
 
     [Fact]
@@ -3975,8 +4031,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10) });
         await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow.AddMinutes(-9));
 
+        await LetTheMarkAgeAsync();
+
         var claimed = await Store.ClaimOrphanedRunsAsync(
-            staleAfter: TimeSpan.FromMinutes(5),
+            staleAfter: OrphanThreshold,
             max: 10);
 
         var record = claimed.Single(candidate => candidate.Id == runId);

@@ -404,18 +404,26 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    -- right. Attribution never legitimately goes from set back to
                    -- unset for the same run, so preserving is always correct.
                    user_id       = COALESCE(@user_id, user_id),
-                   labels        = COALESCE(@labels, labels)
+                   labels        = COALESCE(@labels, labels),
+                   -- A queued run is marked when it starts running (the second write); a mark the row already has is kept, so a
+                   -- second start of a run that stopped beating does not make it look alive.
+                   heartbeat_at  = COALESCE(heartbeat_at, CASE WHEN @status = @status_running THEN {LeaseNow} END)
             OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
              WHERE id = @id;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id, user_id, labels, continued_from_run_id)
+                                       replay_of_run_id, user_id, labels, continued_from_run_id, heartbeat_at)
             OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id);
+                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id,
+                    -- 🚨 A run that is running is born with its first heartbeat, stamped by the database server's clock. Left
+                    -- NULL, the orphan sweep would age the run by started_at, which is the clock of the node that started it:
+                    -- a node whose clock is behind the server by more than the orphan threshold would have its new run closed
+                    -- by the first scan, before its writer had beaten once. A queued run stays NULL: the job queue owns it.
+                    CASE WHEN @status = @status_running THEN {LeaseNow} END);
             """;
 
         UpdateRunCompletion = $"""

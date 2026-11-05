@@ -1,3 +1,4 @@
+using System.Globalization;
 using Tracon.SqlServer.IntegrationTests.Infrastructure;
 
 namespace Tracon.SqlServer.IntegrationTests;
@@ -25,4 +26,12 @@ public sealed class RunHeartbeatUnderClockSkewTests(SqlServerSchemaFixture schem
     /// <inheritdoc />
     protected override IRunStore OpenRunStore(TimeProvider clock)
         => new SqlRunStore(schema.Context.StoreContext, schema.Context.TenantContext, clock);
+
+    /// <inheritdoc />
+    protected override async ValueTask ClearHeartbeatAsync(Guid runId, DateTimeOffset startedAt)
+        => await schema.Context.ExecuteAsync($"""
+            UPDATE {schema.Context.SchemaName}.runs
+               SET heartbeat_at = NULL, started_at = CAST('{startedAt.ToString("O", CultureInfo.InvariantCulture)}' AS datetimeoffset(7))
+             WHERE id = '{runId}';
+            """);
 }

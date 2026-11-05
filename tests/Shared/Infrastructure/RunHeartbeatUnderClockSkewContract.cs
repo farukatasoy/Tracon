@@ -56,6 +56,15 @@ public abstract class RunHeartbeatUnderClockSkewContract
     protected abstract IRunStore OpenRunStore(TimeProvider clock);
 
     /// <summary>
+    /// Writes the row an older node writes when it starts a run: the run is <c>Running</c>, it has never beaten (no
+    /// <c>heartbeat_at</c>) and it started at <paramref name="startedAt"/> on that node's clock.
+    /// </summary>
+    /// <param name="runId">The run, already started.</param>
+    /// <param name="startedAt">When the older node started it, on its own clock.</param>
+    /// <returns>The completion task.</returns>
+    protected abstract ValueTask ClearHeartbeatAsync(Guid runId, DateTimeOffset startedAt);
+
+    /// <summary>
     /// A run that is beating is not closed, whatever the clocks of the node that runs it and of the node that scans read.
     /// </summary>
     /// <param name="aheadSeconds">How far the scanning node's clock is ahead of the database server's.</param>
@@ -87,22 +96,120 @@ public abstract class RunHeartbeatUnderClockSkewContract
     }
 
     /// <summary>
-    /// The control: with no heartbeat at all the same scan closes a run that started longer ago than the threshold, so the
-    /// scenario above can tell a closed run from one nobody looked at.
+    /// The control: a run an older node wrote, with no heartbeat at all, is closed by the same scan once it started longer ago
+    /// than the threshold, so the scenario above can tell a closed run from one nobody looked at. A run this version starts
+    /// is marked when it starts (the scenarios below), so the row has to be written by hand, as the older node wrote it.
     /// </summary>
     [Fact]
-    public async Task A_run_that_never_beats_is_closed_by_the_scan_the_other_scenarios_run()
+    public async Task A_run_an_older_node_wrote_without_a_heartbeat_is_closed_by_the_scan_the_other_scenarios_run()
     {
         var (runs, leases, jobs) = await OpenAsync();
         var runId = TraconId.NewId();
 
-        await runs.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow - Threshold - TimeSpan.FromMinutes(1) });
+        await runs.StartRunAsync(TestData.Run(runId));
+        await ClearHeartbeatAsync(runId, DateTimeOffset.UtcNow - Threshold - TimeSpan.FromMinutes(1));
 
         var status = await RunBothNodesAsync(runs, leases, jobs, new RunCancellationRegistry(), TimeSpan.Zero, TimeSpan.Zero, runId);
 
-        Describe("no beat at all, started 6 minutes ago, scanning node on time", $"the run is {status}");
+        Describe("a row with no mark, started 6 minutes ago, scanning node on time", $"the run is {status}");
 
-        status.ShouldBe(RunStatus.Failed);
+        status.ShouldBe(RunStatus.Failed, "a row with no mark is aged by when it started, so that a run an older node left behind does not stay Running for ever");
+    }
+
+    /// <summary>
+    /// A run that is running is marked by the database server's clock the moment it starts, so a run whose node reads a clock
+    /// behind the database's is not closed by the first scan before its first beat. Aged by <c>started_at</c>, which is the
+    /// node's own clock, a node an hour slow would have its new run read as an hour old.
+    /// </summary>
+    /// <param name="nodeBehindSeconds">How far the clock of the node that starts the run is behind the database server's.</param>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(301)]
+    [InlineData(600)]
+    [InlineData(3600)]
+    public async Task A_run_is_not_closed_before_its_first_beat_because_its_node_reads_a_clock_behind_the_database(int nodeBehindSeconds)
+    {
+        var (runs, _, _) = await OpenAsync();
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow - TimeSpan.FromSeconds(nodeBehindSeconds) });
+
+        var claimed = await runs.ClaimOrphanedRunsAsync(Threshold, 10);
+
+        Describe($"a run started by a node {nodeBehindSeconds}s behind, no beat yet, then a scan with a threshold of 5 minutes", $"{claimed.Count} run(s) closed");
+
+        claimed.ShouldBeEmpty("the run was marked when it started, and the mark is the database server's clock");
+        (await runs.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    /// <summary>
+    /// The control of the scenario above: the mark a run starts with ages like any other. A run that starts and never beats is
+    /// closed once the threshold has passed since the start, so the first mark is not a way to keep a run alive for ever.
+    /// </summary>
+    [Fact]
+    public async Task A_run_that_starts_and_never_beats_is_closed_once_the_threshold_has_passed_since_it_started()
+    {
+        var (runs, _, _) = await OpenAsync();
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(TestData.Run(runId));
+
+        // The mark is older than the threshold from the next statement on; the wait is the time the threshold has to pass.
+        await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken); // delay: product
+
+        var claimed = await runs.ClaimOrphanedRunsAsync(TimeSpan.FromMilliseconds(200), 10);
+
+        Describe("a run that started 400 ms ago and never beat, then a scan with a threshold of 200 ms", $"{claimed.Count} run(s) closed");
+
+        claimed.Select(run => run.Id).ShouldBe([runId]);
+    }
+
+    /// <summary>
+    /// A run that was queued has no mark (the job queue owns it, and a sweep does not touch a queued row that never beat). It
+    /// is marked when it starts running, the second start of the same run, and by the database server's clock like any start.
+    /// </summary>
+    [Fact]
+    public async Task A_queued_run_is_not_marked_until_it_starts_running_and_is_then_marked_when_it_does()
+    {
+        var (runs, _, _) = await OpenAsync();
+        var runId = TraconId.NewId();
+        var nodeBehind = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10);
+
+        await runs.StartRunAsync(TestData.Run(runId) with { Status = RunStatus.Queued, StartedAt = nodeBehind });
+
+        (await runs.ClaimOrphanedRunsAsync(Threshold, 10)).ShouldBeEmpty("a queued run that never beat is not swept");
+
+        await runs.StartRunAsync(TestData.Run(runId) with { Status = RunStatus.Running, StartedAt = nodeBehind });
+
+        var claimed = await runs.ClaimOrphanedRunsAsync(Threshold, 10);
+
+        Describe("queued, then started running by a node 10 minutes behind, then a scan with a threshold of 5 minutes", $"{claimed.Count} run(s) closed");
+
+        claimed.ShouldBeEmpty("the run was marked when it started running, not aged by the node's own start");
+        (await runs.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    /// <summary>
+    /// A start of a run that was already marked leaves the mark as it was: a second start (the job worker running a run the
+    /// HTTP request queued, or the same run started again) does not make a run that stopped beating look alive.
+    /// </summary>
+    [Fact]
+    public async Task A_second_start_of_a_run_leaves_the_mark_it_already_has()
+    {
+        var (runs, _, _) = await OpenAsync();
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(TestData.Run(runId));
+
+        await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken); // delay: product
+
+        await runs.StartRunAsync(TestData.Run(runId));
+
+        var claimed = await runs.ClaimOrphanedRunsAsync(TimeSpan.FromMilliseconds(200), 10);
+
+        Describe("a run marked 400 ms ago and started again, then a scan with a threshold of 200 ms", $"{claimed.Count} run(s) closed");
+
+        claimed.Select(run => run.Id).ShouldBe([runId], "the second start did not mark the run again");
     }
 
     /// <summary>

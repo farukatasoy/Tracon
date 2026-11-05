@@ -522,6 +522,8 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Applied_unit_prices_round_trip
 Tracon.Testing.Contracts.Storage.RunStoreContract.Attribution_round_trips() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Canceled_token_throws_on_the_first_step_of_the_event_stream() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_does_not_touch_a_Running_row_within_the_threshold() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_does_not_touch_a_Queued_row_that_has_just_started_running() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_a_second_time_leaves_the_heartbeat_the_run_already_has() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_marks_a_stale_Running_row_as_Failed() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_never_touches_a_Queued_row_that_has_no_heartbeat() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_closes_a_Queued_row_whose_heartbeat_is_stale() -> System.Threading.Tasks.Task!

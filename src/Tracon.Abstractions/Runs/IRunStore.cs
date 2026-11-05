@@ -98,6 +98,15 @@ public interface IRunStore
     /// run's heartbeat (<see cref="TouchHeartbeatAsync"/>) as it was.
     /// </para>
     /// <para>
+    /// <strong>The first heartbeat.</strong> A store that shares its database between nodes (PostgreSQL, SQL Server)
+    /// marks a run that is <see cref="RunStatus.Running"/> as alive in the statement that writes it, with the
+    /// database server's clock, so that <see cref="ClaimOrphanedRunsAsync"/> never has to judge a new run by
+    /// <see cref="RunStartInfo.StartedAt"/>, which is the clock of the node that started it: a node whose clock is behind the
+    /// database's by more than the orphan threshold would otherwise have its new run closed by the first scan, before its
+    /// heartbeat writer had beaten once. A <see cref="RunStatus.Queued"/> run is not marked (the job queue owns it); it is
+    /// marked by the write that makes it <see cref="RunStatus.Running"/>, unless it already has a mark, which is kept.
+    /// </para>
+    /// <para>
     /// Every field is overwritten by the second call <strong>except</strong>
     /// <see cref="RunStartInfo.UserId"/>, <see cref="RunStartInfo.Labels"/> and
     /// <see cref="RunStartInfo.ContinuedFromRunId"/>,
@@ -478,8 +487,11 @@ public interface IRunStore
     /// beating. In memory and on SQLite there is no clock shared between nodes: the
     /// mark and the age are both read from the application's <see cref="TimeProvider"/>
     /// (the one the heartbeat writer marks with), so a host that registers its own
-    /// clock ages a run on it. A <c>Running</c> row that never sent a heartbeat is judged
-    /// by the time it started, which its own node wrote. The threshold is from one millisecond to
+    /// clock ages a run on it. A <c>Running</c> row that has no mark at all is judged
+    /// by the time it started, which its own node wrote: on PostgreSQL and SQL Server only a row an
+    /// older version wrote is in that state (see <see cref="StartRunAsync"/>), and that fallback stays so that such a row
+    /// does not remain <c>Running</c> for ever; in memory and on SQLite it is the state of a run that has not beaten yet,
+    /// and the start time is read from the same clock as the age. The threshold is from one millisecond to
     /// <c>2147483647000</c> milliseconds (a little over 68 years): zero or less would call a run that is beating orphaned,
     /// so the store refuses it, as it refuses one the clock cannot subtract.
     /// </param>

@@ -112,6 +112,8 @@ internal sealed class SqlRunStore : IRunStore
                 AddNullableText(command, "model_id", record.ModelId);
                 AddNullableText(command, "model_provider", record.ModelProvider);
                 DbHelpers.Add(command, "status", (short)record.Status);
+                // The statements of the providers that read the database server's clock mark a run that is running with it.
+                DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
                 Dialect.AddTimestamp(command, "started_at", record.StartedAt);
                 DbHelpers.Add(command, "is_streaming", record.IsStreaming);
                 AddNullableUuid(command, "parent_run_id", record.ParentRunId);
