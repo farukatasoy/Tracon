@@ -1194,7 +1194,7 @@ Tracon.IRunStore.ReadEventsAsync(System.Guid runId, long fromSequence = 0, Syste
 Tracon.IRunStore.RecordToolInvocationAsync(Tracon.ToolInvocationRecord! invocation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRunStore.RequestCancellationAsync(System.Guid runId, string! tenantId, System.DateTimeOffset at, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IRunStore.StartRunAsync(Tracon.RunStartInfo! info, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunRecord!>
-Tracon.IRunStore.TouchHeartbeatAsync(System.Collections.Generic.IReadOnlyCollection<System.Guid>! runIds, System.DateTimeOffset at, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RunCancellationRequest!>!>
+Tracon.IRunStore.TouchHeartbeatAsync(System.Collections.Generic.IReadOnlyCollection<System.Guid>! runIds, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RunCancellationRequest!>!>
 Tracon.IRunStore.UpdateRunCostAsync(System.Guid runId, Tracon.RunCost? cost, string? tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.ISamplingSupport
 Tracon.ISamplingSupport.SamplingLimits.get -> Tracon.SamplingLimits!

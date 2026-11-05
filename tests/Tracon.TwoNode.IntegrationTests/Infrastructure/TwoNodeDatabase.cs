@@ -53,6 +53,15 @@ public abstract class TwoNodeDatabase
     /// <returns>The number of rows.</returns>
     public abstract Task<long> CountRowsAsync(string table);
 
+    /// <summary>
+    /// Makes a run the row an older node writes when it starts a run: it has never beaten (no <c>heartbeat_at</c>) and it
+    /// started at <paramref name="startedAt"/> on that node's clock. A run this version starts is marked when it starts.
+    /// </summary>
+    /// <param name="runId">The run, already started.</param>
+    /// <param name="startedAt">When the older node started it.</param>
+    /// <returns>A task that completes when the row is written.</returns>
+    public abstract Task ClearRunHeartbeatAsync(Guid runId, DateTimeOffset startedAt);
+
     /// <summary>Reads the columns of the schema that can hold text and the rows of each.</summary>
     /// <param name="connection">An open connection to the database.</param>
     /// <param name="schema">The schema.</param>
@@ -171,6 +180,19 @@ internal sealed class PostgreSqlTwoNodeDatabase(string connectionString, string 
     }
 
     /// <inheritdoc />
+    public override async Task ClearRunHeartbeatAsync(Guid runId, DateTimeOffset startedAt)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"UPDATE \"{schemaName}\".runs SET heartbeat_at = NULL, started_at = @started WHERE id = @id";
+        command.Parameters.AddWithValue("started", startedAt);
+        command.Parameters.AddWithValue("id", runId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    /// <inheritdoc />
     public override async Task<string> DumpTextAsync()
     {
         await using var connection = new NpgsqlConnection(connectionString);
@@ -230,6 +252,19 @@ internal sealed class SqlServerTwoNodeDatabase(string connectionString, string s
         command.CommandText = $"SELECT COUNT(*) FROM [{schemaName}].[{table}]";
 
         return Convert.ToInt64(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    /// <inheritdoc />
+    public override async Task ClearRunHeartbeatAsync(Guid runId, DateTimeOffset startedAt)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"UPDATE [{schemaName}].runs SET heartbeat_at = NULL, started_at = @started WHERE id = @id";
+        command.Parameters.AddWithValue("@started", startedAt);
+        command.Parameters.AddWithValue("@id", runId);
+        await command.ExecuteNonQueryAsync();
     }
 
     /// <inheritdoc />

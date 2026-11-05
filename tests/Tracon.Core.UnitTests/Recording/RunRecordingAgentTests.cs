@@ -723,7 +723,6 @@ public sealed class RunRecordingAgentTests
 
         public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
-            DateTimeOffset at,
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unavailable");
 

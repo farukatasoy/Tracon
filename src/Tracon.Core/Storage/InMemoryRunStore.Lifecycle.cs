@@ -158,7 +158,6 @@ internal sealed partial class InMemoryRunStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
-        DateTimeOffset at,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runIds);
@@ -173,7 +172,7 @@ internal sealed partial class InMemoryRunStore
             // exist or is in another status is silently skipped (a maintenance signal).
             if (_runs.TryGetValue(runId, out var run) && run.Status is RunStatus.Running or RunStatus.Queued)
             {
-                _heartbeats[runId] = at;
+                _heartbeats[runId] = _clock.GetUtcNow();
 
                 if (run.CancelRequestedAt is { } requestedAt)
                 {
@@ -241,8 +240,8 @@ internal sealed partial class InMemoryRunStore
         LeaseTimeRange.ThrowIfInvalid(staleAfter, nameof(staleAfter));
         cancellationToken.ThrowIfCancellationRequested();
 
-        // The heartbeat is marked with the clock the writer was given (TouchHeartbeatAsync's `at`), which is the
-        // registered one, so the age is read from the same clock.
+        // The heartbeat is marked with this store's clock (TouchHeartbeatAsync reads it), which is the registered one,
+        // so the age is read from the same clock.
         var now = _clock.GetUtcNow();
         var staleBefore = now - staleAfter;
 

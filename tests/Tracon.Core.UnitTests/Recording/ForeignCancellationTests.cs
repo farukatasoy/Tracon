@@ -257,7 +257,6 @@ public sealed class ForeignCancellationTests
 
         public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
-            DateTimeOffset at,
             CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _touchCalls);

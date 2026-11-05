@@ -240,9 +240,10 @@ public sealed class TenantWorkflowConcurrencyTests
     {
         // Reconciliation closes a Queued row only when it has a heartbeat. A run that waits in its process writes one
         // as it opens, not at the next cycle: a process that stops in between would leave the row Queued for good.
-        // The run store's clock is an hour ahead of the clock the runner marks with, so every mark is an hour old when
-        // the scan reads it.
-        var (host, gate) = await BuildAsync(runStoreClock: new AheadOfSystemClock(TimeSpan.FromHours(1)));
+        // The store marks with its own clock, so the test moves that clock an hour ahead once the runs are open: every
+        // mark is then an hour old when the scan reads it.
+        var storeClock = new SteppedSystemClock();
+        var (host, gate) = await BuildAsync(runStoreClock: storeClock);
         host.Reconciliation = new RunReconciliationOptions { Enabled = reconciliation };
 
         var runner = host.CreateRunner(static options =>
@@ -260,6 +261,8 @@ public sealed class TenantWorkflowConcurrencyTests
         (await StatusAsync(host, "tenant-a", waitingId)).ShouldBe(RunStatus.Queued);
 
         // Everything that ever signaled is an hour old to the store, so a five minute threshold finds it stale.
+        storeClock.Step(TimeSpan.FromHours(1));
+
         var claimed = await host.RunStore.ClaimOrphanedRunsAsync(TimeSpan.FromMinutes(5), 10, TestContext.Current.CancellationToken);
 
         claimed.Any(run => run.Id == waitingId).ShouldBe(closable);
@@ -578,7 +581,7 @@ public sealed class TenantWorkflowConcurrencyTests
         public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
             => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
-        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, CancellationToken cancellationToken = default)
         {
             if (RefuseHeartbeats)
             {
@@ -587,7 +590,7 @@ public sealed class TenantWorkflowConcurrencyTests
                 throw new InvalidOperationException("the run store blinked");
             }
 
-            return inner.TouchHeartbeatAsync(runIds, at, cancellationToken);
+            return inner.TouchHeartbeatAsync(runIds, cancellationToken);
         }
 
         public ValueTask<bool> RequestCancellationAsync(
@@ -601,10 +604,15 @@ public sealed class TenantWorkflowConcurrencyTests
             => inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken);
     }
 
-    /// <summary>The system clock moved forward by a fixed distance: a store whose clock runs ahead of the writers'.</summary>
-    /// <param name="offset">How far ahead.</param>
-    private sealed class AheadOfSystemClock(TimeSpan offset) : TimeProvider
+    /// <summary>The system clock plus a distance the test moves: a store whose clock runs ahead once the test says so.</summary>
+    private sealed class SteppedSystemClock : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => TimeProvider.System.GetUtcNow() + offset;
+        private long _offsetTicks;
+
+        public override DateTimeOffset GetUtcNow() => TimeProvider.System.GetUtcNow() + TimeSpan.FromTicks(Interlocked.Read(ref _offsetTicks));
+
+        /// <summary>Moves the clock forward.</summary>
+        /// <param name="amount">How far.</param>
+        public void Step(TimeSpan amount) => Interlocked.Add(ref _offsetTicks, amount.Ticks);
     }
 }

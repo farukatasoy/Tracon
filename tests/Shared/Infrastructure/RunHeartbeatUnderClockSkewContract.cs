@@ -21,8 +21,8 @@ namespace Tracon.Tests.Common;
 /// <para>
 /// The two services run for real, on the real SQL store, each with its own <see cref="TimeProvider"/>: the scanning node's wall
 /// clock is shifted ahead (its service and its run store read the same shifted clock) and the run's node's clock behind, their
-/// timers are the system's. The run's node passes its own reading of the time to <see cref="IRunStore.TouchHeartbeatAsync"/>
-/// and the statements ignore it, so a node whose clock is behind by more than the threshold still keeps its run alive; the
+/// timers are the system's. The run's node hands no time to <see cref="IRunStore.TouchHeartbeatAsync"/>
+/// (the store marks the row with the database server's clock), so a node whose clock is behind by more than the threshold still keeps its run alive; the
 /// scanning node's store cuts the threshold from the database server's clock, not from its own. The intervals are shortened so that a case ends in about a second; what is
 /// measured is the shape (the threshold minus the age of the last beat), not the defaults.
 /// </para>
@@ -213,24 +213,28 @@ public abstract class RunHeartbeatUnderClockSkewContract
     }
 
     /// <summary>
-    /// The mark is the database server's clock, not the time the caller passes: a heartbeat handed a time an hour in the
-    /// past leaves the run alive. This is the store on its own, with no node between the caller and the statement.
+    /// The mark is the database server's clock, not the clock of the node that writes it: a heartbeat written through a store
+    /// whose node reads a clock an hour ahead is still an ordinary mark, so a run that stops beating is closed once the
+    /// threshold has passed. A mark taken from the node's clock would sit an hour in the future and keep the run alive for an
+    /// hour. This is the store on its own, with no node between the caller and the statement.
     /// </summary>
     [Fact]
-    public async Task A_heartbeat_handed_a_time_an_hour_behind_leaves_the_run_alive()
+    public async Task A_heartbeat_written_through_a_store_whose_node_reads_a_clock_an_hour_ahead_is_still_aged_by_the_database()
     {
         var (runs, _, _) = await OpenAsync();
         var runId = TraconId.NewId();
 
-        await runs.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
-        await runs.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow - TimeSpan.FromHours(1));
+        await runs.StartRunAsync(TestData.Run(runId));
+        await OpenRunStore(new SkewedTimeProvider(TimeSpan.FromHours(1))).TouchHeartbeatAsync([runId]);
 
-        var claimed = await runs.ClaimOrphanedRunsAsync(Threshold, 10);
+        // The mark is older than the threshold from the next statement on; the wait is the time the threshold has to pass.
+        await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken); // delay: product
 
-        Describe("one beat handed a time an hour behind, then a scan with a threshold of 5 minutes", $"{claimed.Count} run(s) closed");
+        var claimed = await runs.ClaimOrphanedRunsAsync(TimeSpan.FromMilliseconds(200), 10);
 
-        claimed.ShouldBeEmpty("the mark is the database server's clock, so the time the caller passes cannot age the run");
-        (await runs.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+        Describe("one beat written by a node an hour ahead, then a scan 400 ms later with a threshold of 200 ms", $"{claimed.Count} run(s) closed");
+
+        claimed.Select(run => run.Id).ShouldBe([runId], "the mark is the database server's clock, so the clock of the node that wrote it cannot keep the run alive");
     }
 
     /// <summary>
@@ -247,7 +251,7 @@ public abstract class RunHeartbeatUnderClockSkewContract
         var runId = TraconId.NewId();
 
         await runs.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
-        await runs.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+        await runs.TouchHeartbeatAsync([runId]);
 
         // The mark is older than the database server's clock from the next statement on; the wait only covers a clock tick.
         await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken); // delay: product

@@ -3502,7 +3502,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         // Neither a nonexistent id nor a Completed row should throw -- this is
         // a maintenance signal, it must not interrupt the run.
-        await Store.TouchHeartbeatAsync([runId, TraconId.NewId()], DateTimeOffset.UtcNow);
+        await Store.TouchHeartbeatAsync([runId, TraconId.NewId()]);
 
         (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Completed);
     }
@@ -3709,7 +3709,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         var runId = TraconId.NewId();
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
-        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+        await Store.TouchHeartbeatAsync([runId]);
 
         // The heartbeat is stamped with the store's own clock, so it cannot be backdated: the test lets a short threshold pass.
         await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken); // delay: product
@@ -3750,7 +3750,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         var runId = TraconId.NewId();
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10), Status = RunStatus.Queued });
-        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+        await Store.TouchHeartbeatAsync([runId]);
 
         // The heartbeat is stamped with the store's own clock (a database server's, for a store that shares its
         // database), so it cannot be backdated: the test lets a short threshold pass instead.
@@ -3782,7 +3782,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         var runId = TraconId.NewId();
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10), Status = RunStatus.Queued });
-        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+        await Store.TouchHeartbeatAsync([runId]);
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
             staleAfter: TimeSpan.FromMinutes(5),
@@ -3800,7 +3800,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var runId = TraconId.NewId();
         var queued = TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10), Status = RunStatus.Queued };
         await Store.StartRunAsync(queued);
-        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+        await Store.TouchHeartbeatAsync([runId]);
 
         // The second write of the same run (StartRunAsync is an upsert) must not undo the heartbeat: were
         // it reset, the row would fall back to its ten-minute-old start and be closed under a live run.
@@ -3825,7 +3825,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         // heartbeat_at OVERRIDES started_at: a run that signaled recently,
         // despite an old start time, must be considered alive.
-        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+        await Store.TouchHeartbeatAsync([runId]);
 
         var claimed = await Store.ClaimOrphanedRunsAsync(
             staleAfter: TimeSpan.FromMinutes(5),
@@ -3854,7 +3854,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         record.Status.ShouldBe(RunStatus.Running);
         record.CancelRequestedAt!.Value.ShouldBe(requestedAt, CancelTimeTolerance);
 
-        var requests = await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+        var requests = await Store.TouchHeartbeatAsync([runId]);
 
         var request = requests.ShouldHaveSingleItem();
         request.RunId.ShouldBe(runId);
@@ -3875,7 +3875,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow)).ShouldBeTrue();
 
         (await Store.GetRunAsync(runId))!.CancelRequestedAt.ShouldNotBeNull();
-        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldHaveSingleItem().RunId.ShouldBe(runId);
+        (await Store.TouchHeartbeatAsync([runId])).ShouldHaveSingleItem().RunId.ShouldBe(runId);
     }
 
     [Fact]
@@ -3933,7 +3933,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.RequestCancellationAsync(runId, TenantB, DateTimeOffset.UtcNow)).ShouldBeFalse();
 
         (await Store.GetRunAsync(runId))!.CancelRequestedAt.ShouldBeNull();
-        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldBeEmpty();
+        (await Store.TouchHeartbeatAsync([runId])).ShouldBeEmpty();
     }
 
     [Fact]
@@ -3949,7 +3949,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.RequestCancellationAsync(runId, TenantA, DateTimeOffset.UtcNow)).ShouldBeTrue();
 
         AmbientTenant.TenantId = TenantA;
-        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldHaveSingleItem();
+        (await Store.TouchHeartbeatAsync([runId])).ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -3983,8 +3983,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         // The heartbeat is tenant-agnostic: ids come from the calling process's own ledger and the
         // answer carries each run's OWN tenant. A request on a row the caller did not name stays out.
         var requests = await Store.TouchHeartbeatAsync(
-            [requestedA, requestedB, untouched, requestedThenCompleted, TraconId.NewId()],
-            DateTimeOffset.UtcNow);
+            [requestedA, requestedB, untouched, requestedThenCompleted, TraconId.NewId()]);
 
         requests.Count.ShouldBe(2);
         requests.Single(request => request.RunId == requestedA).TenantId.ShouldBe(TenantA);
@@ -3999,8 +3998,8 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var runId = TraconId.NewId();
         await Store.StartRunAsync(TestData.Run(runId));
 
-        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldBeEmpty();
-        (await Store.TouchHeartbeatAsync([], DateTimeOffset.UtcNow)).ShouldBeEmpty();
+        (await Store.TouchHeartbeatAsync([runId])).ShouldBeEmpty();
+        (await Store.TouchHeartbeatAsync([])).ShouldBeEmpty();
     }
 
     [Fact]
@@ -4017,7 +4016,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.StartRunAsync(queued with { Status = RunStatus.Running });
 
         (await Store.GetRunAsync(runId))!.CancelRequestedAt.ShouldNotBeNull();
-        (await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow)).ShouldHaveSingleItem();
+        (await Store.TouchHeartbeatAsync([runId])).ShouldHaveSingleItem();
     }
 
     [Fact]

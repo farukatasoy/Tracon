@@ -87,8 +87,8 @@ internal sealed class FlakyCompletionRunStore(IRunStore inner, int failures) : I
         => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
-        => inner.TouchHeartbeatAsync(runIds, at, cancellationToken);
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, CancellationToken cancellationToken = default)
+        => inner.TouchHeartbeatAsync(runIds, cancellationToken);
 
     /// <inheritdoc />
     public ValueTask<bool> RequestCancellationAsync(

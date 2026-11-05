@@ -290,7 +290,6 @@ public sealed class JsonFileRunStore : IRunStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
-        DateTimeOffset at,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runIds);
@@ -305,7 +304,7 @@ public sealed class JsonFileRunStore : IRunStore
                 // A Queued row is a workflow run waiting in its process for a concurrency slot; it signals too.
                 if (_runs.TryGetValue(runId, out var run) && run.Status is RunStatus.Running or RunStatus.Queued)
                 {
-                    _heartbeats[runId] = at;
+                    _heartbeats[runId] = DateTimeOffset.UtcNow;
 
                     // The same call hands back the cancellation requests other instances wrote onto
                     // the rows this process owns; the caller cancels them.

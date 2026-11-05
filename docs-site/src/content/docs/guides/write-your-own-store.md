@@ -50,7 +50,7 @@ public sealed class MyRunStore : IRunStore
     public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken ct = default) { /* ... */ }
-    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, CancellationToken ct = default) { /* ... */ }
     public ValueTask<bool> RequestCancellationAsync(Guid runId, string tenantId, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken ct = default) { /* ... */ }
 }
@@ -265,10 +265,14 @@ Two more rules carry the
   `TouchHeartbeatAsync` writes `Running` and `Queued` rows, and `ClaimOrphanedRunsAsync`
   closes a `Queued` row whose heartbeat is stale as `Failed` (`orphaned`). A `Queued`
   row that never sent a heartbeat belongs to the job queue and is never closed by it.
-  A second `StartRunAsync` leaves the heartbeat as it was. `ClaimOrphanedRunsAsync` takes an age
+  A second `StartRunAsync` leaves the heartbeat as it was. `TouchHeartbeatAsync` takes no time:
+  the store marks the row with its own clock. `ClaimOrphanedRunsAsync` takes an age
   (`staleAfter`), not an instant: a store whose database is shared between nodes stamps the heartbeat
   and measures that age with one clock, the database server's, so a node whose own clock is ahead
-  cannot close a run that is beating. `RunStoreContract` lets a short age pass in real time, because
+  cannot close a run that is beating. Such a store also marks a run as alive when it starts running
+  (`StartRunAsync` with `RunStatus.Running`), with the same clock, so a run is never aged by the
+  `StartedAt` of a node whose clock is behind before its first beat; a `Queued` run is marked
+  when it starts running. `RunStoreContract` lets a short age pass in real time, because
   such a store cannot backdate a heartbeat.
 - **`IRunStore` carries cancellation requests across instances.**
   `RequestCancellationAsync` records a request on the row and `TouchHeartbeatAsync` hands it

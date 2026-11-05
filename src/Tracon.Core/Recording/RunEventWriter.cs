@@ -265,7 +265,6 @@ public sealed class RunEventWriter
     /// <summary>
     /// Writes this run's "still here" mark now, instead of at the next heartbeat cycle.
     /// </summary>
-    /// <param name="at">The mark time (UTC).</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
     /// <remarks>
@@ -274,7 +273,7 @@ public sealed class RunEventWriter
     /// cycle would otherwise leave the row queued for good. A failure is logged and ignored; the cycle
     /// that follows writes the mark again, and the writer stays usable.
     /// </remarks>
-    internal async ValueTask TouchHeartbeatAsync(DateTimeOffset at, CancellationToken cancellationToken = default)
+    internal async ValueTask TouchHeartbeatAsync(CancellationToken cancellationToken = default)
     {
         if (IsDisabled)
         {
@@ -283,7 +282,7 @@ public sealed class RunEventWriter
 
         try
         {
-            await _store.TouchHeartbeatAsync([RunId], at, cancellationToken).ConfigureAwait(false);
+            await _store.TouchHeartbeatAsync([RunId], cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {

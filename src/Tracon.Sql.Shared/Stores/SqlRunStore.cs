@@ -356,7 +356,6 @@ internal sealed class SqlRunStore : IRunStore
         "its own row's tenant.")]
     public async ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
-        DateTimeOffset at,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runIds);
@@ -381,7 +380,7 @@ internal sealed class SqlRunStore : IRunStore
                 command =>
                 {
                     DbHelpers.Add(command, "id", runId);
-                    Dialect.AddLeaseNow(command, at);
+                    Dialect.AddLeaseNow(command, _clock.GetUtcNow());
                     DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
                     DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
                 },

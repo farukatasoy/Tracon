@@ -93,7 +93,7 @@ internal sealed class RunHeartbeatWriter(
         try
         {
             var requests = await runStore
-                .TouchHeartbeatAsync(activeRunIds, _clock.GetUtcNow(), stoppingToken)
+                .TouchHeartbeatAsync(activeRunIds, stoppingToken)
                 .ConfigureAwait(false);
 
             foreach (var request in requests)

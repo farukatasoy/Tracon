@@ -237,7 +237,11 @@ latency and more than two hosts were not measured.
 
 - **Clocks.** On PostgreSQL and SQL Server the database server's clock decides every lease, every retry delay and
   whether a queued job is due, and it ages the heartbeat of a run: an instance whose own clock is wrong cannot take a
-  single-executor lease or a running job that another instance holds, and cannot close a run that is beating as orphaned. The one thing that still reads each instance's own clock is the deployment
+  single-executor lease or a running job that another instance holds, and cannot close a run that is beating as orphaned.
+  A run is marked as alive by the same clock the moment it starts running, so an instance whose clock is behind does not
+  have its new run closed by the first scan before its first heartbeat. In memory and on SQLite, which run in one process,
+  a lease ends on elapsed time, not on the calendar: a wall clock that a time service steps does not end a lease its owner
+  still holds. The one thing that still reads each instance's own clock is the deployment
   rate-limit window, which is cut from the Unix epoch. Keep the clocks of your instances synchronised with NTP for that
   window. The stored window never moves back, so an instance whose clock jumps ahead holds a partition closed for as
   long as the jump lasts. A job is due when the database server's clock passes the time it was queued for, and an

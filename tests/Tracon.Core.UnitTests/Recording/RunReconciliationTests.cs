@@ -675,7 +675,6 @@ public sealed class RunReconciliationTests
 
         public async ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
-            DateTimeOffset at,
             CancellationToken cancellationToken = default)
         {
             if (FailedTouches < failures)
@@ -685,7 +684,7 @@ public sealed class RunReconciliationTests
                 throw new InvalidOperationException("the run store blinked");
             }
 
-            var requests = await inner.TouchHeartbeatAsync(runIds, at, cancellationToken).ConfigureAwait(false);
+            var requests = await inner.TouchHeartbeatAsync(runIds, cancellationToken).ConfigureAwait(false);
             Interlocked.Add(ref _requestsSeen, requests.Count);
             Interlocked.Increment(ref _touchCalls);
 

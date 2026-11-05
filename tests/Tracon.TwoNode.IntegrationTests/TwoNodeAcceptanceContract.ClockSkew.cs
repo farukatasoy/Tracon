@@ -125,9 +125,10 @@ public abstract partial class TwoNodeAcceptanceContract
     public async Task A_run_that_keeps_beating_is_not_closed_by_a_scan_on_a_node_whose_clock_is_an_hour_ahead()
     {
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var database = NewDatabase();
 
         await using var pair = await TwoNodeCluster.StartAsync(
-            NewDatabase(),
+            database,
             configure: builder => builder
                 .AddModelProvider(hanging)
                 .AddAgent(TestData.Definition() with { Model = new ModelBinding { Provider = hanging.Name, Model = "hanging-1" } }),
@@ -158,6 +159,9 @@ public abstract partial class TwoNodeAcceptanceContract
                 },
                 TestContext.Current.CancellationToken);
 
+            // A run is marked when it starts, so the row of the run nobody runs is made the one an older node left.
+            await database.ClearRunHeartbeatAsync(orphanId, DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10));
+
             await pair.B.WaitForRunStatusAsync(orphanId, nameof(RunStatus.Failed));
 
             (await ReadRunStatusAsync(pair.A, runId)).ShouldBe(nameof(RunStatus.Running), "the scan on the node whose clock is ahead closed a run that was beating");
@@ -170,6 +174,69 @@ public abstract partial class TwoNodeAcceptanceContract
             await pair.A.WaitForRunStatusAsync(runId, nameof(RunStatus.Canceled));
 
             hanging.Calls.ShouldBe(1);
+        }
+        finally
+        {
+            await DrainAsync(running);
+        }
+    }
+
+    /// <summary>
+    /// A run that a node whose clock is an hour BEHIND has just started is not closed as orphaned by a scan on another node
+    /// before its first beat.
+    /// </summary>
+    /// <remarks>
+    /// Aged by the time its node wrote when it started it, the new run read as an hour old to the scan and was closed at once:
+    /// measured on PostgreSQL 18, three runs of four were closed before they had beaten once. A run is marked when it starts, by
+    /// the database server's clock. The scan's pass is seen by the closing of a run that nobody runs, as in the scenario above.
+    /// </remarks>
+    /// <returns>A task that completes when the scenario is checked.</returns>
+    [Fact]
+    public async Task A_run_started_by_a_node_whose_clock_is_an_hour_behind_is_not_closed_before_its_first_beat()
+    {
+        var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var database = NewDatabase();
+
+        await using var pair = await TwoNodeCluster.StartAsync(
+            database,
+            configure: builder => builder
+                .AddModelProvider(hanging)
+                .AddAgent(TestData.Definition() with { Model = new ModelBinding { Provider = hanging.Name, Model = "hanging-1" } }),
+            configureA: builder =>
+            {
+                builder.Services.AddSingleton<TimeProvider>(new SkewedTimeProvider(-HourAhead));
+                builder.Services.Configure<RunReconciliationOptions>(static options => options.ScanInterval = TimeSpan.FromHours(1));
+
+                // The first beat is two minutes off (the threshold is five): the run has to survive the scans before it.
+                builder.Services.Configure<RunReconciliationOptions>(static options => options.HeartbeatInterval = TimeSpan.FromMinutes(2));
+            },
+            configureB: static builder => builder.Services.Configure<RunReconciliationOptions>(static options => options.ScanInterval = TimeSpan.FromMilliseconds(200)),
+            reconciliation: true);
+
+        var running = StartDirectRun(pair.A);
+        var runId = await WaitForRunAsync(pair.A);
+        await hanging.Started.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        try
+        {
+            // A run nobody runs, started ten minutes ago: the scan closes it, which shows that the scan has passed.
+            var orphanId = TraconId.NewId();
+
+            await pair.B.Services.GetRequiredService<IRunStore>().StartRunAsync(
+                new RunStartInfo
+                {
+                    RunId = orphanId,
+                    AgentName = AgentName,
+                    TenantId = "default",
+                    StartedAt = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
+                },
+                TestContext.Current.CancellationToken);
+
+            await database.ClearRunHeartbeatAsync(orphanId, DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10));
+
+            await pair.B.WaitForRunStatusAsync(orphanId, nameof(RunStatus.Failed));
+
+            (await ReadRunStatusAsync(pair.A, runId)).ShouldBe(nameof(RunStatus.Running), "the scan closed a run that had not had time to beat, because the clock of the node that started it is an hour behind");
         }
         finally
         {

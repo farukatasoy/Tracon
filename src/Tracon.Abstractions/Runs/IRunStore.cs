@@ -396,11 +396,6 @@ public interface IRunStore
     /// cancellation requests that wait on them.
     /// </summary>
     /// <param name="runIds">The ids of the runs to mark.</param>
-    /// <param name="at">
-    /// The mark time (UTC) on the caller's clock. A store that shares its database between nodes (PostgreSQL, SQL
-    /// Server) marks the row with the database server's clock instead and ignores it, so that the node that closes
-    /// orphaned runs compares the mark with a clock that is the same for every node.
-    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// The runs among <paramref name="runIds"/> that are still <c>Running</c> or
@@ -413,6 +408,13 @@ public interface IRunStore
     /// waits in its process for a concurrency slot is <c>Queued</c> and still owned
     /// by that process); an id that does not exist or is in another status is
     /// skipped silently — this is a maintenance signal and must not interrupt a run.
+    /// </para>
+    /// <para>
+    /// <strong>The mark is the store's own clock.</strong> The caller does not hand a time in: a store that shares its
+    /// database between nodes (PostgreSQL, SQL Server) marks the row with the database server's clock, so that the node
+    /// that closes orphaned runs compares the mark with a clock that is the same for every node; a store that runs in
+    /// one process (in memory, SQLite, or a custom one) marks it with the <see cref="TimeProvider"/> it was given, the
+    /// one <see cref="ClaimOrphanedRunsAsync"/> ages the mark on.
     /// </para>
     /// <para>
     /// The cancellation read is part of the same write. A store reads the request in
@@ -431,7 +433,6 @@ public interface IRunStore
     /// </remarks>
     ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
-        DateTimeOffset at,
         CancellationToken cancellationToken = default);
 
     /// <summary>

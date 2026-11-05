@@ -26,7 +26,7 @@ public sealed class RunStoreClockRegistrationTests
         var runId = TraconId.NewId();
 
         await runs.StartRunAsync(Start(runId, clock), TestContext.Current.CancellationToken);
-        await runs.TouchHeartbeatAsync([runId], clock.GetUtcNow(), TestContext.Current.CancellationToken);
+        await runs.TouchHeartbeatAsync([runId], TestContext.Current.CancellationToken);
 
         // The mark is fresh on the clock it was written with; the wall clock is weeks past it.
         (await runs.ClaimOrphanedRunsAsync(Threshold, 10, TestContext.Current.CancellationToken))
@@ -75,7 +75,7 @@ public sealed class RunStoreClockRegistrationTests
         var runId = TraconId.NewId();
 
         await runs.StartRunAsync(Start(runId, clock), TestContext.Current.CancellationToken);
-        await runs.TouchHeartbeatAsync([runId], clock.GetUtcNow(), TestContext.Current.CancellationToken);
+        await runs.TouchHeartbeatAsync([runId], TestContext.Current.CancellationToken);
 
         clock.Advance(TimeSpan.FromMilliseconds(1));
 

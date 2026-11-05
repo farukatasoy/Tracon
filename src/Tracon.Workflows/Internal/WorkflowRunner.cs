@@ -1053,7 +1053,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // writes it.
             if (opensQueued && (_reconciliation?.Value.Enabled ?? true))
             {
-                await writer.TouchHeartbeatAsync(_timeProvider.GetUtcNow(), CancellationToken.None).ConfigureAwait(false);
+                await writer.TouchHeartbeatAsync(CancellationToken.None).ConfigureAwait(false);
             }
 
             yield return FirstEvent(execution);

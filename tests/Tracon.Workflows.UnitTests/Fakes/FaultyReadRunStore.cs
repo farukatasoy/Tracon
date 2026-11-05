@@ -88,8 +88,8 @@ internal sealed class FaultyReadRunStore(IRunStore inner, Func<CancellationToken
         => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
-        => inner.TouchHeartbeatAsync(runIds, at, cancellationToken);
+    public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, CancellationToken cancellationToken = default)
+        => inner.TouchHeartbeatAsync(runIds, cancellationToken);
 
     /// <inheritdoc />
     public ValueTask<bool> RequestCancellationAsync(

@@ -104,7 +104,7 @@ public sealed class WorkflowRecordingFailureTests
         public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
 
-        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default)
+        public ValueTask<IReadOnlyList<RunCancellationRequest>> TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<IReadOnlyList<RunCancellationRequest>>([]);
 
         public ValueTask<bool> RequestCancellationAsync(
