@@ -563,8 +563,8 @@ internal static class WorkflowResponseGate
                     approval.Facts.ToolName,
                     approval.Approved,
                     approval.Reason,
-                    cancellationToken,
-                    timeProvider: services.GetService<TimeProvider>())
+                    services.GetService<TimeProvider>(),
+                    cancellationToken)
                 .ConfigureAwait(false);
         }
 

@@ -3,9 +3,9 @@ using System.Text.RegularExpressions;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Every file in <c>src/</c> that reads the wall clock directly (<c>DateTimeOffset.UtcNow</c>, <c>DateTime.UtcNow</c>), and
-/// every call that hands the audit recorder a <see langword="null"/> clock, is a known site with its count and the reason
-/// it stays.
+/// Every file in <c>src/</c> that reads the wall clock directly (<c>DateTimeOffset.UtcNow</c>, <c>DateTime.UtcNow</c>,
+/// <c>.Now</c>, <c>.Today</c>, <c>TimeProvider.System.GetUtcNow()</c>), and every call that hands the audit recorder a
+/// <see langword="null"/> clock by name, is a known site with its count and the reason it stays.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -29,14 +29,11 @@ public sealed partial class WallClockSiteTests
         ["src/Tracon.Abstractions/Security/ApiKeyRecord.cs"] = (1, "ApiKeyRecord.IsActive is documented as a display value only; authentication reads the registered clock (ApiKeyAuthenticator)"),
         ["src/Tracon.Abstractions/TraconId.cs"] = (1, "the time component of a new identifier"),
         ["src/Tracon.AspNetCore/A2A/ExternalAgentProxy.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
-        ["src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs"] = (2, "the endpoint stamps what it writes and the time a queued job is scheduled for (the node's reading, as the job store documents); not read from the registered clock yet"),
         ["src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
-        ["src/Tracon.AspNetCore/Endpoints/SchedulingEndpoints.cs"] = (3, "the endpoint stamps what it writes and the time a queued job is scheduled for (the node's reading, as the job store documents); not read from the registered clock yet"),
         ["src/Tracon.AspNetCore/Endpoints/SkillScriptGrantEndpoints.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
         ["src/Tracon.AspNetCore/Endpoints/TenantProviderEndpoints.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
         ["src/Tracon.AspNetCore/Endpoints/VoiceEndpoints.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
-        ["src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs"] = (3, "the endpoint stamps what it writes and the time a queued job is scheduled for (the node's reading, as the job store documents); not read from the registered clock yet"),
-        ["src/Tracon.AspNetCore/Internal/ToolApprovalDecisionRecorder.cs"] = (1, "RememberAsync stamps the standing rule; neither caller holds a clock in scope yet"),
+        ["src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
         ["src/Tracon.AspNetCore/McpServer/CatalogToolCallHandler.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
         ["src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
         ["src/Tracon.AspNetCore/OpenAICompat/OpenAICompatSupport.cs"] = (1, "the stamp an endpoint writes on a row or a response it builds; no decision compares it with another clock"),
@@ -81,7 +78,6 @@ public sealed partial class WallClockSiteTests
 
     private static readonly Dictionary<string, (int Count, string Reason)> KnownNullClocks = new(StringComparer.Ordinal)
     {
-        ["src/Tracon.AspNetCore/Internal/ToolInputResolver.cs"] = (1, "the audit row of an answer to an input request; the resolver is static and its caller holds no clock in scope yet"),
         ["src/Tracon.Core/Compilation/CompiledAgentCache.cs"] = (1, "the constructor chain of the cache: it hands the clock on to the entry it builds"),
     };
 
@@ -114,6 +110,10 @@ public sealed partial class WallClockSiteTests
     [InlineData("var now = DateTimeOffset.UtcNow;", 1)]
     [InlineData("return DateTime.UtcNow - start;", 1)]
     [InlineData("var a = DateTimeOffset.UtcNow; var b = DateTime.UtcNow;", 2)]
+    [InlineData("var now = DateTime.Now;", 1)]
+    [InlineData("var today = DateTime.Today;", 1)]
+    [InlineData("var now = TimeProvider.System.GetUtcNow();", 1)]
+    [InlineData("var now = (timeProvider ?? TimeProvider.System).GetUtcNow();", 0)]
     [InlineData("var now = clock.GetUtcNow();", 0)]
     [InlineData("// DateTimeOffset.UtcNow is read here", 0)]
     [InlineData("/// <see cref=\"DateTimeOffset.UtcNow\"/>", 0)]
@@ -129,7 +129,7 @@ public sealed partial class WallClockSiteTests
         => CountIn(source, NullClockArgument()).ShouldBe(expected);
 
     [GeneratedRegex(
-        @"\b(?:DateTimeOffset|DateTime)\.UtcNow\b",
+        @"\b(?:DateTimeOffset|DateTime)\.(?:UtcNow|Now|Today)\b|\bTimeProvider\.System\.GetUtcNow\(\)",
         RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 5000)]
     private static partial Regex WallClockRead();

@@ -7,10 +7,10 @@ namespace Tracon.Core.UnitTests.Storage;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The heartbeat writer marks a run with the registered clock, and the store decides whether the mark is old with its own
-/// clock. A store that read the wall clock while the writer read a registered one (a fake clock in a test host, a clock a
-/// consumer controls) closed every run that was beating as orphaned on the first scan, because the mark and the age were
-/// read from two different times. The check goes through the registration a host uses.
+/// The store marks a run with its own clock when a heartbeat is written and decides whether the mark is old with the same
+/// clock, the one the host registered. A store that read the wall clock for either while the host registered another one (a
+/// fake clock in a test host, a clock a consumer controls) closed every run that was beating as orphaned on the first scan,
+/// because the mark and the age were read from two different times. The check goes through the registration a host uses.
 /// </para>
 /// </remarks>
 public sealed class RunStoreClockRegistrationTests

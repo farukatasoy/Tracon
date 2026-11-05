@@ -50,7 +50,9 @@ namespace Tracon;
 /// and SQLite are used by one process and measure with the clock they were given
 /// (<see cref="TimeProvider"/>), on its monotonic reading: a lease is a span of time, so a
 /// wall clock that a time service steps forward does not end a lease whose owner still holds
-/// it, and one stepped back does not keep a lease alive past the span it was taken for.
+/// it, and one stepped back does not keep a lease alive past the span it was taken for. A fake
+/// <see cref="TimeProvider"/> that a test uses to expire a lease has to advance <see cref="TimeProvider.GetTimestamp"/> with
+/// <see cref="TimeProvider.GetUtcNow"/>, as <c>FakeTimeProvider</c> does.
 /// </para>
 /// </remarks>
 public interface ISingletonLeaseStore

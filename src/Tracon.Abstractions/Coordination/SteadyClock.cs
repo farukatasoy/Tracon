@@ -27,6 +27,11 @@ namespace Tracon;
 /// dead process is taken sooner, the safe side), and when it stepped back it ends later by at most the step.
 /// </para>
 /// <para>
+/// A <see cref="TimeProvider"/> that a test advances has to advance the monotonic reading
+/// (<see cref="TimeProvider.GetTimestamp"/>) with the wall clock, as <c>Microsoft.Extensions.Time.Testing.FakeTimeProvider</c>
+/// does: a fake that overrides only <see cref="TimeProvider.GetUtcNow"/> moves the calendar and leaves every lease alive.
+/// </para>
+/// <para>
 /// A database server's clock (PostgreSQL, SQL Server) needs none of this: the lease statements read it themselves, and the
 /// application's clock never reaches them.
 /// </para>

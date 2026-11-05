@@ -892,6 +892,7 @@ internal sealed class PreparedTurn(
                 services.GetRequiredService<IAuditActorResolver>(),
                 loggerFactory.CreateLogger(typeof(ToolApprovalResolver).FullName!),
                 services.GetRequiredService<TraconMetrics>(),
+                services.GetService<TimeProvider>(),
                 cancellationToken,
                 surface).ConfigureAwait(false);
 
@@ -965,6 +966,7 @@ internal sealed class PreparedTurn(
                     services.GetRequiredService<IAuditActorResolver>(),
                     loggerFactory.CreateLogger(typeof(ToolInputResolver).FullName!),
                     services.GetRequiredService<TraconMetrics>(),
+                    services.GetService<TimeProvider>(),
                     cancellationToken).ConfigureAwait(false);
 
                 messages.AddRange(continuation.Messages);

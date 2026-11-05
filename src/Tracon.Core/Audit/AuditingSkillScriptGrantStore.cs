@@ -32,7 +32,7 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
         IAuditActorResolver actorResolver,
         ILogger<AuditingSkillScriptGrantStore> logger,
         TraconMetrics? metrics,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);

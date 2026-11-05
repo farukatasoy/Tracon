@@ -32,8 +32,9 @@ internal sealed class SqlRunStore : IRunStore
     /// <param name="tenantContext">The tenant context.</param>
     /// <param name="timeProvider">
     /// The application clock: the time a closed run is stamped with, and, where the database has no clock of its own
-    /// (SQLite), the clock a heartbeat is aged with. It is the clock the heartbeat writer marks a run with. PostgreSQL and
-    /// SQL Server age a heartbeat on the database server's clock and do not use it for that. The system clock when not given.
+    /// (SQLite), the clock a heartbeat is marked and aged with: the store reads it in <see cref="IRunStore.TouchHeartbeatAsync"/>
+    /// and in <see cref="IRunStore.ClaimOrphanedRunsAsync"/>. PostgreSQL and SQL Server mark and age a heartbeat on the
+    /// database server's clock and do not use it for that. The system clock when not given.
     /// </param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public SqlRunStore(

@@ -1521,6 +1521,7 @@ internal static class WorkflowEndpoints
             facts.ToolName,
             facts.ArgumentsHash,
             rememberArgumentsOnly: false,
+            services.GetService<TimeProvider>(),
 
             // After the answer is accepted: the caller going away must not leave the rule half written.
             CancellationToken.None);
@@ -1670,7 +1671,7 @@ internal static class WorkflowEndpoints
                 Kind = RunKind.Workflow,
                 WorkflowName = workflowName,
                 Status = RunStatus.Queued,
-                StartedAt = DateTimeOffset.UtcNow,
+                StartedAt = (httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow(),
                 TenantId = tenants.TenantId,
                 UserId = attribution.UserId,
                 Labels = attribution.Labels,
@@ -1730,7 +1731,8 @@ internal static class WorkflowEndpoints
         var services = httpContext.RequestServices;
         var asyncOptions = services.GetRequiredService<IOptionsMonitor<TraconAsyncRunOptions>>().CurrentValue;
         var recoveryPolicy = services.GetService<IWorkflowRecoveryPolicy>();
-        var now = DateTimeOffset.UtcNow;
+        // The job store decides whether the job is ready on the registered clock, so the time it is scheduled for is read from it.
+        var now = (services.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow();
 
         return await QueuedRunPlaceholder.EnqueueAsync(
             services.GetRequiredService<IJobStore>(),
@@ -1753,8 +1755,8 @@ internal static class WorkflowEndpoints
             },
             [],
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.WorkflowEndpoints"),
-            cancellationToken,
-            services.GetService<TimeProvider>()).ConfigureAwait(false);
+            services.GetService<TimeProvider>(),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

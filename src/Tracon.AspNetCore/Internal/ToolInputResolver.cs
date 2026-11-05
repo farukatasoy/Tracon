@@ -103,6 +103,7 @@ internal static class ToolInputResolver
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="metrics">The metric set that counts a failed audit write.</param>
+    /// <param name="timeProvider">The clock the audit entries are stamped with; the system clock when <see langword="null"/> (no clock registered).</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The continuation; empty when <paramref name="matched"/> is empty.</returns>
     /// <exception cref="TraconException">An audit entry could not be written; no answer is applied.</exception>
@@ -128,6 +129,7 @@ internal static class ToolInputResolver
         IAuditActorResolver actorResolver,
         ILogger logger,
         TraconMetrics? metrics,
+        TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         if (matched.Count == 0)
@@ -158,7 +160,7 @@ internal static class ToolInputResolver
                     fields = response.Content?.Keys.Order(StringComparer.Ordinal).ToArray() ?? [],
                 }),
                 refusal: $"The answer to the input request of tool '{pending.ToolName}' was not applied",
-                timeProvider: null,
+                timeProvider: timeProvider,
                 cancellationToken).ConfigureAwait(false);
 
             var replayId = pending.ReplayCallId;

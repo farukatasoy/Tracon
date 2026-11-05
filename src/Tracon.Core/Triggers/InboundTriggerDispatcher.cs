@@ -345,8 +345,8 @@ internal sealed class InboundTriggerDispatcher
                 },
                 [],
                 _logger,
-                cancellationToken,
-                _clock).ConfigureAwait(false);
+                _clock,
+                cancellationToken).ConfigureAwait(false);
 
             return new InboundTriggerDispatchResult { RunId = runId, JobId = job.Id };
         }

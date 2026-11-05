@@ -48,12 +48,12 @@ internal static class ToolApprovalDecisionRecorder
     /// <param name="toolName">The tool the decision is about.</param>
     /// <param name="approved">Whether the call is approved.</param>
     /// <param name="reason">The reason the decision gave.</param>
+    /// <param name="timeProvider">The clock the row is stamped with; the system clock when <see langword="null"/> (no clock registered).</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <param name="surface">
     /// The surface that carried the decision, such as <c>ag-ui</c>; <see langword="null"/> for the surfaces whose
     /// row never named one, so their rows keep their shape.
     /// </param>
-    /// <param name="timeProvider">The clock the row is stamped with; the system clock when <see langword="null"/>.</param>
     /// <exception cref="TraconException">The row could not be written; the decision must not be applied.</exception>
     public static ValueTask WriteAuditAsync(
         IAuditLog auditLog,
@@ -64,9 +64,9 @@ internal static class ToolApprovalDecisionRecorder
         string toolName,
         bool approved,
         string? reason,
+        TimeProvider? timeProvider,
         CancellationToken cancellationToken,
-        string? surface = null,
-        TimeProvider? timeProvider = null)
+        string? surface = null)
         => AuditRecorder.WriteOrThrowAsync(
             auditLog,
             actor,
@@ -97,6 +97,7 @@ internal static class ToolApprovalDecisionRecorder
     /// <see langword="null"/> when the caller does not know it.
     /// </param>
     /// <param name="rememberArgumentsOnly">Whether the rule covers only a call with the same arguments.</param>
+    /// <param name="timeProvider">The clock the rule is stamped with; the system clock when <see langword="null"/> (no clock registered).</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes when the rule is written or the reason it was not is logged.</returns>
     public static async ValueTask RememberAsync(
@@ -108,6 +109,7 @@ internal static class ToolApprovalDecisionRecorder
         string toolName,
         string? argumentsHash,
         bool rememberArgumentsOnly,
+        TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         var bindToArguments = rememberArgumentsOnly || IsScriptDispatcher(toolName);
@@ -149,7 +151,7 @@ internal static class ToolApprovalDecisionRecorder
                     // The same source binding as an admin-written rule: "do not ask
                     // again" holds for this tool of THIS endpoint only.
                     SourceFingerprint = sourceFingerprint,
-                    CreatedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = (timeProvider ?? TimeProvider.System).GetUtcNow(),
                 },
                 cancellationToken).ConfigureAwait(false);
         }

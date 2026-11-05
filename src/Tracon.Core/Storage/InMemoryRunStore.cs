@@ -42,8 +42,9 @@ internal sealed partial class InMemoryRunStore : IRunStore
     /// single-tenant.
     /// </param>
     /// <param name="timeProvider">
-    /// The clock a heartbeat is aged with. It is the clock the heartbeat writer marks the run with, so a host that registers
-    /// its own <see cref="TimeProvider"/> ages a run on the clock that marked it. The system clock when not given.
+    /// The clock a heartbeat is marked and aged with: the store reads it in <see cref="IRunStore.TouchHeartbeatAsync"/> and
+    /// in <see cref="IRunStore.ClaimOrphanedRunsAsync"/>, so a host that registers its own <see cref="TimeProvider"/> ages a
+    /// run on the clock that marked it. The system clock when not given.
     /// </param>
     public InMemoryRunStore(IRunScoreStore? scores = null, ITenantContext? tenantContext = null, TimeProvider? timeProvider = null)
     {

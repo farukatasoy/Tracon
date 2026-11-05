@@ -44,6 +44,7 @@ internal static class ToolApprovalResolver
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="metrics">The metric set that counts a failed audit write.</param>
+    /// <param name="timeProvider">The clock the audit rows and standing rules are stamped with; the system clock when <see langword="null"/> (no clock registered).</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <param name="surface">
     /// The surface that carried the decisions, written into the audit row when it is not the management API's own
@@ -66,6 +67,7 @@ internal static class ToolApprovalResolver
         IAuditActorResolver actorResolver,
         ILogger logger,
         TraconMetrics? metrics,
+        TimeProvider? timeProvider,
         CancellationToken cancellationToken,
         string? surface = null)
     {
@@ -113,6 +115,7 @@ internal static class ToolApprovalResolver
                 toolName,
                 decision.Approved,
                 decision.Reason,
+                timeProvider,
                 cancellationToken,
                 surface).ConfigureAwait(false);
 
@@ -120,7 +123,7 @@ internal static class ToolApprovalResolver
 
             if (decision is { Approved: true, Remember: true })
             {
-                await RememberAsync(decision, request, agentName, rules, tenantContext, tools, logger, cancellationToken)
+                await RememberAsync(decision, request, agentName, rules, tenantContext, tools, logger, timeProvider, cancellationToken)
                     .ConfigureAwait(false);
             }
         }
@@ -175,6 +178,7 @@ internal static class ToolApprovalResolver
         ITenantContext tenantContext,
         IToolRegistry tools,
         ILogger logger,
+        TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         if (request.ToolCall is not FunctionCallContent call)
@@ -195,6 +199,7 @@ internal static class ToolApprovalResolver
             call.Name,
             ToolApprovalRuleEvaluator.ComputeArgumentsHash(call.Arguments),
             decision.RememberArgumentsOnly,
+            timeProvider,
             cancellationToken).ConfigureAwait(false);
     }
 }

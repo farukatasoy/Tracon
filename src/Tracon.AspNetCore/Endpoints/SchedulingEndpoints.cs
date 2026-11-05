@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -265,7 +266,8 @@ internal static class SchedulingEndpoints
                 return InvalidSchedule($"'{cron}' does not match the supported five-field cron subset.");
             }
 
-            nextRunAt = parsed!.GetNextOccurrence(DateTimeOffset.UtcNow, timeZone);
+            // The worker decides whether a schedule is due on the registered clock, so the first occurrence is cut from it too.
+            nextRunAt = parsed!.GetNextOccurrence((httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow(), timeZone);
         }
 
         // A workflow or agent batch payload may be an attribution
@@ -298,7 +300,7 @@ internal static class SchedulingEndpoints
         }
 
         var existing = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
-        var now = DateTimeOffset.UtcNow;
+        var now = (httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow();
 
         var schedule = new JobSchedule
         {
@@ -425,7 +427,8 @@ internal static class SchedulingEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var now = DateTimeOffset.UtcNow;
+        // The job store decides whether the job is ready on the registered clock, so the time it is scheduled for is read from it.
+        var now = (httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow();
 
         var job = await jobStore.EnqueueAsync(
             new JobRecord

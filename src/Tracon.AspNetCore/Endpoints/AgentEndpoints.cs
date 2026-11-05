@@ -875,7 +875,8 @@ internal static class AgentEndpoints
             return AgentParameterGate.Problem(unbound.Missing);
         }
 
-        var now = DateTimeOffset.UtcNow;
+        // The job store decides whether the job is ready on the registered clock, so the time it is scheduled for is read from it.
+        var now = (httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow();
 
         // Read once, so the placeholder row and the job payload carry the same
         // values (RunAttributionGate already checked them above).
@@ -942,8 +943,8 @@ internal static class AgentEndpoints
             },
             [],
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints"),
-            cancellationToken,
-            httpContext.RequestServices.GetService<TimeProvider>()).ConfigureAwait(false);
+            httpContext.RequestServices.GetService<TimeProvider>(),
+            cancellationToken).ConfigureAwait(false);
 
         // 🚨 RFC 7240 treats the preference as *advisory*; the server may ignore
         // it. Tracon does not carry this ambiguity: if the preference was
@@ -1209,7 +1210,7 @@ internal static class AgentEndpoints
                 httpContext.RequestServices.GetService<IRunStore>(),
                 turn.RunId,
                 httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId,
-                DateTimeOffset.UtcNow,
+                (httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow(),
                 httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints"),
                 CancellationToken.None);
 

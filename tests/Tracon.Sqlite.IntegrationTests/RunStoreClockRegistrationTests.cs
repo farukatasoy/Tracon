@@ -8,10 +8,10 @@ namespace Tracon.Sqlite.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The heartbeat writer marks a run with the registered clock, and SQLite, which has no server clock of its own, writes the
-/// mark as it is given. A store that measured the age on the wall clock while the writer read a registered one (a fake clock
-/// in a test host, a clock a consumer controls) closed every run that was beating as orphaned on the first scan, because the
-/// mark and the age were read from two different times. The check goes through <c>UseSqlite()</c>, the registration a host
+/// SQLite has no server clock of its own: the store marks a run with the registered clock when a heartbeat is written and
+/// ages the mark with the same clock. A store that read the wall clock for either while the host registered another one (a
+/// fake clock in a test host, a clock a consumer controls) closed every run that was beating as orphaned on the first scan,
+/// because the mark and the age were read from two different times. The check goes through <c>UseSqlite()</c>, the registration a host
 /// uses. PostgreSQL and SQL Server read the database server's clock for both and do not use the registered one.
 /// </para>
 /// </remarks>

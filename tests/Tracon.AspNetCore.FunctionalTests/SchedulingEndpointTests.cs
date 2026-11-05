@@ -120,6 +120,40 @@ public sealed class SchedulingEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    /// <summary>
+    /// The worker decides whether a schedule is due, and the job store whether a job is ready, on the clock the host
+    /// registered. The first occurrence of a cron schedule and the time a triggered job is scheduled for are read from it too:
+    /// read from the system clock, a host whose clock is in another year would have a schedule that never fires and a job that
+    /// is never ready.
+    /// </summary>
+    [Fact]
+    public async Task A_schedule_and_the_job_it_triggers_are_timed_on_the_registered_clock()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
+
+        using var created = await host.Client.PutAsync(
+            new Uri("/tracon/api/schedules/clock", UriKind.Relative),
+            JsonBody("""{"handlerKey":"tracon.agent-batch","targetName":"ozetleyici","cron":"0 3 * * *","enabled":true}"""));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var schedule = await TraconTestHost.ReadJsonAsync(created);
+
+        schedule.GetProperty("nextRunAt").GetDateTimeOffset().ShouldBe(new DateTimeOffset(2000, 1, 2, 3, 0, 0, TimeSpan.Zero));
+        schedule.GetProperty("createdAt").GetDateTimeOffset().Year.ShouldBe(2000);
+
+        using var triggered = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/schedules/clock/trigger", UriKind.Relative),
+            new { });
+
+        var job = await TraconTestHost.ReadJsonAsync(triggered);
+
+        job.GetProperty("scheduledFor").GetDateTimeOffset().ShouldBe(clock.GetUtcNow());
+    }
+
     [Fact]
     public async Task Trigger_inherits_the_schedules_lane()
     {

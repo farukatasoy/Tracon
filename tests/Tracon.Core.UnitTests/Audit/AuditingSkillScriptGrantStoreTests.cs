@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Audit;
 
@@ -77,13 +78,28 @@ public sealed class AuditingSkillScriptGrantStoreTests
         inner.Grants.ShouldBeEmpty();
     }
 
-    private static AuditingSkillScriptGrantStore Create(ISkillScriptGrantStore inner, IAuditLog auditLog)
+    /// <summary>The audit row of a grant is stamped with the clock the host registered, not the system's.</summary>
+    [Fact]
+    public async Task A_grant_and_a_revoke_are_stamped_with_the_registered_clock()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var audit = new CapturingAuditLog();
+        var store = Create(new RecordingGrantStore(), audit, clock);
+
+        await store.GrantAsync(Grant(), TestContext.Current.CancellationToken);
+        await store.RevokeAsync(Tenant, "notes", "build", TestContext.Current.CancellationToken);
+
+        audit.Entries.Select(entry => entry.CreatedAt).ShouldBe([clock.GetUtcNow(), clock.GetUtcNow()]);
+    }
+
+    private static AuditingSkillScriptGrantStore Create(ISkillScriptGrantStore inner, IAuditLog auditLog, TimeProvider? clock = null)
         => new(
             inner,
             auditLog,
             new NullAuditActorResolver(),
             NullLogger<AuditingSkillScriptGrantStore>.Instance,
-            metrics: null);
+            metrics: null,
+            clock);
 
     private static SkillScriptGrant Grant()
         => new()

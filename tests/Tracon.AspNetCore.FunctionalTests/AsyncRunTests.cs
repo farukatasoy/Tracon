@@ -128,6 +128,43 @@ public sealed class AsyncRunTests
         status.ShouldBe("Completed");
     }
 
+    /// <summary>
+    /// A queued run is ready when the registered clock says so. The time the job is scheduled for is read from that clock, so
+    /// a host whose clock is in another year than the system's still has its queued run picked up: scheduled by the system
+    /// clock, the job would be in the future of the host's clock for ever and the run would stay <c>Queued</c>.
+    /// </summary>
+    [Fact]
+    public async Task A_queued_run_is_picked_up_on_a_host_whose_registered_clock_is_in_another_year()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+
+        await using var host = await TraconTestHost.StartAsync(
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            },
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
+
+        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
+        var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
+
+        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
+
+        var status = await WaitUntil.ValueAsync(
+            async () =>
+            {
+                using var poll = await host.Client.GetAsync(uri);
+
+                return (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
+            },
+            static status => !string.Equals(status, "Queued", StringComparison.Ordinal) &&
+                             !string.Equals(status, "Running", StringComparison.Ordinal),
+            $"run {runId} to leave Queued and Running");
+
+        status.ShouldBe("Completed");
+    }
+
     [Fact]
     public async Task SSE_behavior_is_unchanged_without_the_header()
     {
