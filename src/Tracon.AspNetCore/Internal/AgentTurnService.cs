@@ -498,7 +498,7 @@ internal static class AgentTurnService
                         RunId = runId,
                         Sequence = (lastSequence ?? -1) + 1,
                         Type = RunEventType.SessionWriteConflicted,
-                        Timestamp = DateTimeOffset.UtcNow,
+                        Timestamp = (httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow(),
                         Text = conflict.SessionId,
                         TenantId = httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId,
                     },

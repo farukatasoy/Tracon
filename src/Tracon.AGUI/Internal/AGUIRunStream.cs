@@ -116,7 +116,7 @@ internal sealed class AGUIRunStream(
                     Sequence = (lastSequence ?? -1) + 1,
                     Type = RunEventType.Custom,
                     CustomType = RunEventCustomTypes.AGUIToolsIgnored,
-                    Timestamp = DateTimeOffset.UtcNow,
+                    Timestamp = (httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow(),
                     Text = $"{ignoredTools.Count} AG-UI tool(s) ignored",
                     Payload = JsonSerializer.Serialize(new { tools = names }),
                     TenantId = httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId,

@@ -35,8 +35,11 @@ internal sealed class AgentBatchJobHandler(
     IAgentCatalog catalog,
     ILogger<AgentBatchJobHandler>? logger = null,
     ParameterizedAgentFactory? parameterFactory = null,
-    IRunStore? runStore = null) : IJobHandler
+    IRunStore? runStore = null,
+    TimeProvider? timeProvider = null) : IJobHandler
 {
+    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {
@@ -167,7 +170,7 @@ internal sealed class AgentBatchJobHandler(
                 if (SessionlessApprovalRun.StoppedAtApproval(response.Messages))
                 {
                     await SessionlessApprovalRun
-                        .CloseAsFailedAsync(runStore, runId, context.Job.TenantId, DateTimeOffset.UtcNow, logger, cancellationToken)
+                        .CloseAsFailedAsync(runStore, runId, context.Job.TenantId, _clock.GetUtcNow(), logger, cancellationToken)
                         .ConfigureAwait(false);
 
                     error = SessionlessApprovalRun.Message;

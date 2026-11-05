@@ -93,7 +93,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSkillScriptGrantStore>>(),
-            provider.GetRequiredService<TraconMetrics>()));
+            provider.GetRequiredService<TraconMetrics>(),
+                provider.GetService<TimeProvider>()));
 
         services.TryAddTraconDefault<ISessionStore>(static provider => new AuditingSessionStore(
             new InMemorySessionStore(provider.GetRequiredService<ITenantContext>()),

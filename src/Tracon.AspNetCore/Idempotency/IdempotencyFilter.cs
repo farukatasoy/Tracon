@@ -143,7 +143,9 @@ internal sealed class IdempotencyFilter : IEndpointFilter
 
         // The reservation is known by this time: Complete and Release carry it, so a request that was taken over (it ran longer
         // than ReservationTimeout) cannot store its response under, or delete, the record of the request that took the key.
-        var reservedAt = DateTimeOffset.UtcNow;
+        // The store compares this time with the one it holds to decide whether a reservation has run past its timeout,
+        // so it is read from the registered clock, like the rest of the host's decisions about time.
+        var reservedAt = (httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow();
 
         var reservation = await store.ReserveAsync(
             new IdempotencyRequest

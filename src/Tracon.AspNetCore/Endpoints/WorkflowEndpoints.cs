@@ -1753,7 +1753,8 @@ internal static class WorkflowEndpoints
             },
             [],
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.WorkflowEndpoints"),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            services.GetService<TimeProvider>()).ConfigureAwait(false);
     }
 
     /// <summary>

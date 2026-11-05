@@ -194,7 +194,8 @@ public static class TraconSqlServerBuilderExtensions
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>(),
-                provider.GetRequiredService<TraconMetrics>())));
+                provider.GetRequiredService<TraconMetrics>(),
+                provider.GetService<TimeProvider>())));
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunStore, SqlRunStore>());
 
         // Workflow definitions and checkpoints. The definition store

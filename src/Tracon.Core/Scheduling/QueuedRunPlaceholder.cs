@@ -48,6 +48,7 @@ internal static class QueuedRunPlaceholder
     /// <param name="items">The job's items.</param>
     /// <param name="logger">Logs the refusal with a correlation id.</param>
     /// <param name="cancellationToken">The cancellation token for the enqueue.</param>
+    /// <param name="timeProvider">The clock the closed row is stamped with; the system clock when <see langword="null"/>.</param>
     /// <returns>The stored job.</returns>
     public static async ValueTask<JobRecord> EnqueueAsync(
         IJobStore jobStore,
@@ -55,7 +56,8 @@ internal static class QueuedRunPlaceholder
         JobRecord job,
         IReadOnlyList<string> items,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null)
     {
         try
         {
@@ -83,7 +85,7 @@ internal static class QueuedRunPlaceholder
                     {
                         RunId = job.Id,
                         Status = RunStatus.Failed,
-                        CompletedAt = DateTimeOffset.UtcNow,
+                        CompletedAt = (timeProvider ?? TimeProvider.System).GetUtcNow(),
                         Error = new RunError
                         {
                             Type = exception.GetType().Name,

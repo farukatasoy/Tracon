@@ -73,6 +73,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
     private readonly EgressSocketGuard? _egressGuard;
     private readonly McpKeySpace _keySpace;
     private readonly McpOAuthRendezvous? _rendezvous;
+    private readonly TimeProvider _clock;
 
     private readonly ConcurrentDictionary<string, PendingAuthorization> _pending = new(StringComparer.Ordinal);
 
@@ -86,7 +87,8 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         McpOAuthDistributedBackend backend,
         IOptions<TraconOptions> coreOptions,
         EgressSocketGuard? egressGuard = null,
-        IOptions<TraconMcpSecurityOptions>? securityOptions = null)
+        IOptions<TraconMcpSecurityOptions>? securityOptions = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(servers);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -105,6 +107,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         _tokenCaches = tokenCaches;
         _catalog = catalog;
         _egressGuard = egressGuard;
+        _clock = timeProvider ?? TimeProvider.System;
         _keySpace = McpKeySpace.From(securityOptions, coreOptions);
         _rendezvous = backend.Enabled
             ? new McpOAuthRendezvous(backend, loggerFactory.CreateLogger<McpOAuthRendezvous>())
@@ -140,7 +143,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
 
         // The flow is registered under the SDK's state once the SDK has built the
         // authorization address (RunAuthorizationAsync's callback handler).
-        var pending = new PendingAuthorization(tenantId, serverName);
+        var pending = new PendingAuthorization(tenantId, serverName, _clock.GetUtcNow());
 
         // 🚨 The flow outlives the request that started it (the administrator has until AuthorizationWindow to
         // click), so it starts on a clean execution context, as McpConnection does for a connection. Started
@@ -535,7 +538,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
     /// <summary>Clears pending entries that have expired (the administrator abandoned the flow).</summary>
     private void PurgeExpired()
     {
-        var cutoff = DateTimeOffset.UtcNow - AuthorizationWindow;
+        var cutoff = _clock.GetUtcNow() - AuthorizationWindow;
 
         foreach (var (state, pending) in _pending)
         {
@@ -547,7 +550,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         }
     }
 
-    private sealed class PendingAuthorization(string tenantId, string serverName)
+    private sealed class PendingAuthorization(string tenantId, string serverName, DateTimeOffset createdAt)
     {
         private readonly List<string> _states = [];
 
@@ -555,7 +558,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
 
         public string ServerName { get; } = serverName;
 
-        public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset CreatedAt { get; } = createdAt;
 
         /// <summary>
         /// The state the SDK put into the authorization address; set before

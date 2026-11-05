@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Tracon;
 
@@ -56,7 +57,10 @@ internal static class QuotaGate
         // Retry-After; the client should not have to guess.
         if (decision.ResetsAt is { } resetsAt)
         {
-            var seconds = Math.Max(1, (int)Math.Ceiling((resetsAt - DateTimeOffset.UtcNow).TotalSeconds));
+            // The reset time was worked out on the registered clock, so the wait is measured on it too: a host that
+            // registers its own clock would otherwise get the difference of two clocks.
+            var clock = httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System;
+            var seconds = Math.Max(1, (int)Math.Ceiling((resetsAt - clock.GetUtcNow()).TotalSeconds));
 
             httpContext.Response.Headers.RetryAfter =
                 seconds.ToString(CultureInfo.InvariantCulture);

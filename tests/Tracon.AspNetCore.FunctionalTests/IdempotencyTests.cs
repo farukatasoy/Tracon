@@ -134,6 +134,46 @@ public sealed class IdempotencyTests
         response.StatusCode.ShouldBe(expected);
     }
 
+    /// <summary>
+    /// How old a reservation is, is judged on the clock the host registered: a reservation five minutes old on that clock is
+    /// not taken over when the timeout is an hour, whatever the system clock reads.
+    /// </summary>
+    [Fact]
+    public async Task A_reservation_is_judged_on_the_registered_clock()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+
+        await using var host = await TraconTestHost.StartAsync(
+            static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.UseScheduling(o => o.RunWorker = false);
+            },
+            configureServices: services =>
+            {
+                services.AddSingleton<TimeProvider>(clock);
+                services.Configure<TraconIdempotencyOptions>(options => options.ReservationTimeout = TimeSpan.FromHours(1));
+            });
+
+        var key = Guid.NewGuid().ToString("N");
+
+        var reserved = await host.Services.GetRequiredService<IIdempotencyStore>().ReserveAsync(
+            new IdempotencyRequest
+            {
+                TenantId = host.Services.GetRequiredService<ITenantContext>().TenantId,
+                Key = key,
+                Fingerprint = "a-request-that-died",
+                CreatedAt = clock.GetUtcNow().AddMinutes(-5),
+            },
+            TestContext.Current.CancellationToken);
+
+        reserved.State.ShouldBe(IdempotencyState.Reserved);
+
+        using var response = await PostAsyncWithKeyAsync(host, Run, new AgentRunRequest { Message = "hello" }, key);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
     [Fact]
     public async Task Same_key_DIFFERENT_body_returns_422()
     {

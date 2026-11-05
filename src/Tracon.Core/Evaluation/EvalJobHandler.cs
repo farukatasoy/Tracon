@@ -96,7 +96,7 @@ internal sealed class EvalJobHandler(
                             {
                                 EvalRunId = evalRun.Id,
                                 Status = EvalRunStatus.Failed,
-                                CompletedAt = DateTimeOffset.UtcNow,
+                                CompletedAt = _clock.GetUtcNow(),
                                 Total = evalRun.Total,
                                 Passed = 0,
                                 Failed = evalRun.Total,
@@ -308,7 +308,7 @@ internal sealed class EvalJobHandler(
             {
                 EvalRunId = evalRun.Id,
                 Status = status,
-                CompletedAt = DateTimeOffset.UtcNow,
+                CompletedAt = _clock.GetUtcNow(),
                 Total = cases.Count,
                 Passed = passedCases,
                 Failed = failedCases,
@@ -353,7 +353,7 @@ internal sealed class EvalJobHandler(
                 WebhookEvents.EvalCompleted,
                 new WebhookEventPayload
                 {
-                    OccurredAt = DateTimeOffset.UtcNow,
+                    OccurredAt = _clock.GetUtcNow(),
                     Eval = new WebhookEvalSummary
                     {
                         EvalRunId = evalRun.Id.ToString(),

@@ -604,6 +604,7 @@ internal static class EvalEndpoints
         [FromServices] IOptionsMonitor<TraconSchedulingOptions> schedulingOptions,
         [FromServices] IAgentCatalog catalog,
         [FromServices] IAgentDefinitionStore definitions,
+        [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         var (request, bindError) = await RequestBodyBinding
@@ -666,7 +667,7 @@ internal static class EvalEndpoints
         }
 
         var items = cases.Select(static evalCase => evalCase.Id.ToString()).ToArray();
-        var now = DateTimeOffset.UtcNow;
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
 
         var job = await jobStore.EnqueueAsync(
             new JobRecord

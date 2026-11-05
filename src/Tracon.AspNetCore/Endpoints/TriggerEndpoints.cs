@@ -162,6 +162,7 @@ internal static class TriggerEndpoints
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] TraconMetrics metrics,
+        [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -203,7 +204,7 @@ internal static class TriggerEndpoints
         }
 
         var existing = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
-        var now = DateTimeOffset.UtcNow;
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
 
         var trigger = new InboundTrigger
         {
@@ -233,7 +234,7 @@ internal static class TriggerEndpoints
             before: null,
             after: DescribeForAudit(trigger),
             refusal: $"'trigger:{name}' was not saved",
-            timeProvider: null,
+            timeProvider: timeProvider,
             cancellationToken).ConfigureAwait(false);
 
         var saved = await store.UpsertAsync(trigger, cancellationToken).ConfigureAwait(false);
@@ -249,6 +250,7 @@ internal static class TriggerEndpoints
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] TraconMetrics metrics,
+        [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         var existing = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
@@ -269,7 +271,7 @@ internal static class TriggerEndpoints
             before: null,
             after: DescribeForAudit(existing),
             refusal: $"'trigger:{name}' was not deleted",
-            timeProvider: null,
+            timeProvider: timeProvider,
             cancellationToken).ConfigureAwait(false);
 
         await store.DeleteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);

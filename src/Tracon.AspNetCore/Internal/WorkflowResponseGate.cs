@@ -154,7 +154,7 @@ internal static class WorkflowResponseGate
                     answer,
                     answer.NewRunId,
                     services,
-                    () => store.AddAsync(Record(answer, answer.NewRunId, claimScope: null, actor), CancellationToken.None).AsTask())
+                    () => store.AddAsync(Record(answer, answer.NewRunId, claimScope: null, actor, Now(services)), CancellationToken.None).AsTask())
                 .ConfigureAwait(false);
 
             await MarkAnsweredAsync(answer, answer.NewRunId, services).ConfigureAwait(false);
@@ -177,7 +177,7 @@ internal static class WorkflowResponseGate
                         answer,
                         answer.NewRunId,
                         services,
-                        () => store.AddAsync(Record(answer, answer.NewRunId, scope, actor), CancellationToken.None).AsTask())
+                        () => store.AddAsync(Record(answer, answer.NewRunId, scope, actor, Now(services)), CancellationToken.None).AsTask())
                     .ConfigureAwait(false);
 
                 if (claim.Claimed)
@@ -232,7 +232,7 @@ internal static class WorkflowResponseGate
                     answer,
                     redriveRunId,
                     services,
-                    () => store.ReplaceAsync(existing.ResponseRunId, Record(answer, redriveRunId, scope, actor), CancellationToken.None).AsTask())
+                    () => store.ReplaceAsync(existing.ResponseRunId, Record(answer, redriveRunId, scope, actor, Now(services)), CancellationToken.None).AsTask())
                 .ConfigureAwait(false);
 
             if (replaced)
@@ -367,6 +367,10 @@ internal static class WorkflowResponseGate
         return false;
     }
 
+    /// <summary>The time on the clock the host registered; the system clock when it registered none.</summary>
+    private static DateTimeOffset Now(IServiceProvider services)
+        => (services.GetService<TimeProvider>() ?? TimeProvider.System).GetUtcNow();
+
     /// <summary>
     /// Opens the row of the run an answer starts, before the record that names it is written.
     /// </summary>
@@ -382,7 +386,7 @@ internal static class WorkflowResponseGate
                 // A queued run stays Queued until the worker starts it (a run cancelled from the
                 // queue closes like any queued run); a streamed one starts on this request.
                 Status = answer.Queued ? RunStatus.Queued : RunStatus.Running,
-                StartedAt = DateTimeOffset.UtcNow,
+                StartedAt = Now(services),
                 TenantId = answer.TenantId,
                 UserId = answer.UserId,
                 Labels = answer.Labels,
@@ -449,7 +453,7 @@ internal static class WorkflowResponseGate
                 answer.Source.SessionId!,
                 answer.RequestId,
                 responseRunId,
-                DateTimeOffset.UtcNow,
+                Now(services),
                 CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
@@ -502,7 +506,7 @@ internal static class WorkflowResponseGate
                 {
                     RunId = runId,
                     Status = status,
-                    CompletedAt = DateTimeOffset.UtcNow,
+                    CompletedAt = Now(services),
                     Error = error,
                     TenantId = answer.TenantId,
                 },
@@ -522,7 +526,7 @@ internal static class WorkflowResponseGate
 
     private static Decision Start(Guid runId, bool redrive) => new(Outcome.Start, runId, runId, redrive, MissingJob: false);
 
-    private static WorkflowResponseRecord Record(Answer answer, Guid runId, string? claimScope, string? actor)
+    private static WorkflowResponseRecord Record(Answer answer, Guid runId, string? claimScope, string? actor, DateTimeOffset respondedAt)
         => new()
         {
             ResponseRunId = runId,
@@ -533,7 +537,7 @@ internal static class WorkflowResponseGate
             ClaimScope = claimScope,
             Status = WorkflowResponseStatus.Accepted,
             RespondedBy = actor,
-            RespondedAt = DateTimeOffset.UtcNow,
+            RespondedAt = respondedAt,
             TenantId = answer.TenantId,
         };
 
@@ -559,7 +563,8 @@ internal static class WorkflowResponseGate
                     approval.Facts.ToolName,
                     approval.Approved,
                     approval.Reason,
-                    cancellationToken)
+                    cancellationToken,
+                    timeProvider: services.GetService<TimeProvider>())
                 .ConfigureAwait(false);
         }
 
@@ -582,7 +587,7 @@ internal static class WorkflowResponseGate
                 writer.WriteBoolean("redrive", redrive);
             }),
             refusal: $"The answer to request '{answer.RequestId}' of run '{answer.Source.Id}' was not applied",
-            timeProvider: null,
+            timeProvider: services.GetService<TimeProvider>(),
             cancellationToken).ConfigureAwait(false);
     }
 

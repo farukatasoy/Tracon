@@ -127,6 +127,36 @@ public sealed class TriggerEndpointTests
         auditBody.ShouldContain("configKeyName");
     }
 
+    /// <summary>
+    /// A host that registers its own clock gets every stamp from it: the trigger's times and the audit entry of the save
+    /// are in the clock's year, not the system's. A read of the system clock shows as the current year.
+    /// </summary>
+    [Fact]
+    public async Task Save_stamps_the_trigger_and_its_audit_entry_with_the_registered_clock()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
+
+        using var response = await host.Client.PutAsJsonAsync(
+            "/tracon/api/triggers/slack",
+            new { targetKind = "agent", targetName = "demo", signingSecretConfigurationName = SecretConfigurationKey });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var saved = await TraconTestHost.ReadJsonAsync(response);
+
+        saved.GetProperty("createdAt").GetDateTimeOffset().Year.ShouldBe(2000);
+        saved.GetProperty("updatedAt").GetDateTimeOffset().Year.ShouldBe(2000);
+
+        using var auditResponse = await host.Client.GetAsync(new Uri("/tracon/api/audit", UriKind.Relative));
+        var audit = await TraconTestHost.ReadJsonAsync(auditResponse);
+        var entry = audit.EnumerateArray().First(item => string.Equals(item.GetProperty("action").GetString(), "trigger.create", StringComparison.Ordinal));
+
+        entry.GetProperty("createdAt").GetDateTimeOffset().Year.ShouldBe(2000);
+    }
+
     [Fact]
     public async Task Unknown_name_returns_404_on_get_and_delete()
     {

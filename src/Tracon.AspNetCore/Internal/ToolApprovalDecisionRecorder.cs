@@ -53,6 +53,7 @@ internal static class ToolApprovalDecisionRecorder
     /// The surface that carried the decision, such as <c>ag-ui</c>; <see langword="null"/> for the surfaces whose
     /// row never named one, so their rows keep their shape.
     /// </param>
+    /// <param name="timeProvider">The clock the row is stamped with; the system clock when <see langword="null"/>.</param>
     /// <exception cref="TraconException">The row could not be written; the decision must not be applied.</exception>
     public static ValueTask WriteAuditAsync(
         IAuditLog auditLog,
@@ -64,7 +65,8 @@ internal static class ToolApprovalDecisionRecorder
         bool approved,
         string? reason,
         CancellationToken cancellationToken,
-        string? surface = null)
+        string? surface = null,
+        TimeProvider? timeProvider = null)
         => AuditRecorder.WriteOrThrowAsync(
             auditLog,
             actor,
@@ -78,7 +80,7 @@ internal static class ToolApprovalDecisionRecorder
                 ? JsonSerializer.Serialize(new { approved, reason })
                 : JsonSerializer.Serialize(new { approved, reason, surface }),
             refusal: $"The approval decision for tool '{toolName}' was not applied",
-            timeProvider: null,
+            timeProvider: timeProvider,
             cancellationToken);
 
     /// <summary>

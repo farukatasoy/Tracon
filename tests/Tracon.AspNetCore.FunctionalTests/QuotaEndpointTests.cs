@@ -186,6 +186,41 @@ public sealed class QuotaEndpointTests
         problem.GetProperty("quotaResetsAt").GetString().ShouldNotBeNullOrWhiteSpace();
     }
 
+    /// <summary>
+    /// The wait a rejected run is told is measured on the clock the host registered, the same one that worked out when the
+    /// quota resets. Measured on the system clock instead, a host with its own clock would be told the difference of two
+    /// clocks.
+    /// </summary>
+    [Fact]
+    public async Task Retry_After_is_the_wait_to_the_reset_on_the_registered_clock()
+    {
+        // Thirty seconds before the daily period ends.
+        var clock = new ManualTimeProvider(new DateTimeOffset(2030, 5, 1, 23, 59, 30, TimeSpan.Zero));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
+
+        using (var created = await host.Client.PutAsJsonAsync(Quotas, Request(maxRuns: 1)))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        await host.Services.GetRequiredService<QuotaEnforcer>().RecordAsync(new QuotaConsumption
+        {
+            TenantId = "default",
+            AgentName = "ozetleyici",
+            Runs = 1,
+            OccurredAt = clock.GetUtcNow(),
+        });
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents/ozetleyici/run", UriKind.Relative),
+            new { message = "merhaba" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        response.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldBe(TimeSpan.FromSeconds(30));
+    }
+
     [Fact]
     public async Task Run_is_not_rejected_when_under_quota()
     {

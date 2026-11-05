@@ -163,6 +163,7 @@ internal static class ApprovalEndpoints
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] TraconMetrics metrics,
+        [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -219,12 +220,12 @@ internal static class ApprovalEndpoints
             }
 
             return await ResumeAsync(
-                approval, runStore, jobStore, tenants, cancellationToken).ConfigureAwait(false);
+                approval, runStore, jobStore, tenants, timeProvider, cancellationToken).ConfigureAwait(false);
         }
 
         var logger = loggerFactory.CreateLogger("Tracon.ApprovalEndpoints");
         var actor = actorResolver.Resolve() ?? "unknown";
-        var now = DateTimeOffset.UtcNow;
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
 
         // The audit trail entry is written BEFORE the decision. If the
         // write fails, the exception causes the caller to get 500 and DecideAsync
@@ -242,7 +243,7 @@ internal static class ApprovalEndpoints
             after: JsonSerializer.Serialize(
                 new { approved = request.Approved, approvalId = approval.Id }),
             refusal: $"The approval decision with id '{approval.Id}' was not applied",
-            timeProvider: null,
+            timeProvider: timeProvider,
             cancellationToken).ConfigureAwait(false);
 
         var applied = await approvals
@@ -259,7 +260,7 @@ internal static class ApprovalEndpoints
 
         var decided = await approvals.GetAsync(id, cancellationToken).ConfigureAwait(false) ?? approval;
 
-        return await ResumeAsync(decided, runStore, jobStore, tenants, cancellationToken).ConfigureAwait(false);
+        return await ResumeAsync(decided, runStore, jobStore, tenants, timeProvider, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The status a decision leaves the approval in.</summary>
@@ -296,6 +297,7 @@ internal static class ApprovalEndpoints
         IRunStore runStore,
         IJobStore jobStore,
         ITenantContext tenants,
+        TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         var originalRun = await runStore.GetRunAsync(approval.RunId, cancellationToken).ConfigureAwait(false)
@@ -305,7 +307,7 @@ internal static class ApprovalEndpoints
 
         // Both inputs are stored values, so every attempt derives the same id.
         var newRunId = TraconId.DeriveId(approval.CreatedAt, $"approval-resume:{approval.Id}");
-        var at = approval.DecidedAt ?? DateTimeOffset.UtcNow;
+        var at = approval.DecidedAt ?? (timeProvider ?? TimeProvider.System).GetUtcNow();
 
         if (await runStore.GetRunAsync(newRunId, cancellationToken).ConfigureAwait(false) is null)
         {

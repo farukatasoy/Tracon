@@ -16,6 +16,7 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingSkillScriptGrantStore> _logger;
     private readonly TraconMetrics? _metrics;
+    private readonly TimeProvider? _timeProvider;
 
     /// <summary>Initializes a new audited grant store.</summary>
     /// <param name="inner">The wrapped store.</param>
@@ -23,13 +24,15 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="metrics">The metric set that counts a failed audit write.</param>
+    /// <param name="timeProvider">The clock the audit rows are stamped with; the system clock when <see langword="null"/>.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public AuditingSkillScriptGrantStore(
         ISkillScriptGrantStore inner,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
         ILogger<AuditingSkillScriptGrantStore> logger,
-        TraconMetrics? metrics)
+        TraconMetrics? metrics,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -41,6 +44,7 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
         _actorResolver = actorResolver;
         _logger = logger;
         _metrics = metrics;
+        _timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
@@ -90,7 +94,7 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
             before: null,
             after: JsonSerializer.Serialize(grant, TraconCoreJsonContext.Default.SkillScriptGrant),
             refusal: $"Script permission '{grantEntity}' was not changed",
-            timeProvider: null,
+            timeProvider: _timeProvider,
             cancellationToken).ConfigureAwait(false);
 
         return await _inner.GrantAsync(grant, cancellationToken).ConfigureAwait(false);
@@ -122,7 +126,7 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
             before: null,
             after: null,
             refusal: $"Script permission '{revokeEntity}' was not changed",
-            timeProvider: null,
+            timeProvider: _timeProvider,
             cancellationToken).ConfigureAwait(false);
 
         return await _inner.RevokeAsync(tenantId, skillName, scriptName, cancellationToken)

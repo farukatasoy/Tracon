@@ -942,7 +942,8 @@ internal static class AgentEndpoints
             },
             [],
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints"),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            httpContext.RequestServices.GetService<TimeProvider>()).ConfigureAwait(false);
 
         // 🚨 RFC 7240 treats the preference as *advisory*; the server may ignore
         // it. Tracon does not carry this ambiguity: if the preference was
