@@ -335,6 +335,15 @@ var tracon = builder.AddTracon()
     // are the columns this sample leaves in scope).
     .AddContentProtection();
 
+// A refused role or policy answers with a ProblemDetails body, as Tracon's own refusals
+// do. WITHOUT this call the answer of the authorization middleware is empty: the status
+// code and nothing else, while the published document says problem+json. The key turns it
+// off so the empty answer can still be observed in one run.
+if (builder.Configuration.GetValue("Tracon:Demo:ProblemDetailsOnDenial", defaultValue: true))
+{
+    tracon.UseProblemDetailsOnDenial();
+}
+
 // The provider is optional. Without an API key, the app runs with a sample
 // provider that makes no network calls; nothing breaks.
 var openAi = builder.Configuration.GetSection(OpenAIProviderOptions.SectionName);

@@ -87,6 +87,7 @@ public static class TraconMcpServerExtensions
             services.GetRequiredService<ILogger<McpApprovalGuardFilter>>());
 
         var group = endpoints.MapGroup(pattern).WithTags("Tracon", "MCP");
+        group.WithMetadata(ProblemDetailsOnDenialMarker.Instance);
         // 🚨 Order matters and this one is deliberate: authentication runs FIRST.
         // The approval guard awaits a startup check that has no timeout and no
         // retry limit (only ApplicationStopping cancels it), so with

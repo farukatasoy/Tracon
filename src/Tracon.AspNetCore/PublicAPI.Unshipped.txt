@@ -176,6 +176,7 @@ Tracon.TraconMcpServerOptions.ToolNamePrefix.get -> string!
 Tracon.TraconMcpServerOptions.ToolNamePrefix.set -> void
 Tracon.TraconMcpServerOptions.TraconMcpServerOptions() -> void
 Tracon.TraconPolicies
+Tracon.TraconProblemDetailsOnDenialBuilderExtensions
 Tracon.TraconTenancyBuilderExtensions
 Tracon.TraconTenancyOptions
 Tracon.TraconTenancyOptions.AllowHeaderResolution.get -> bool
@@ -260,6 +261,7 @@ static Tracon.TraconEndpointRouteBuilderExtensions.MapTracon(this Microsoft.AspN
 static Tracon.TraconHealthCheckExtensions.AddTraconHealthChecks(this Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder! builder, string! name = "tracon", System.Collections.Generic.IEnumerable<string!>? tags = null) -> Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder!
 static Tracon.TraconMcpServerBuilderExtensions.UseMcpServer(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconMcpServerOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.TraconMcpServerExtensions.MapTraconMcpServer(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/mcp") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconProblemDetailsOnDenialBuilderExtensions.UseProblemDetailsOnDenial(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconTenancyBuilderExtensions.UseTenancy(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconTenancyOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.UploadDocumentChunk.operator !=(Tracon.UploadDocumentChunk? left, Tracon.UploadDocumentChunk? right) -> bool
 static Tracon.UploadDocumentChunk.operator ==(Tracon.UploadDocumentChunk? left, Tracon.UploadDocumentChunk? right) -> bool

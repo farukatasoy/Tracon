@@ -50,6 +50,7 @@ internal static class OpenAIConversationsEndpoints
     {
         builder.MapPost("/v1/conversations", CreateAsync)
             .RequireRole(roles.Operator)
+            .WithMetadata(OpenAIDenialShapeMarker.Instance)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("TraconOpenAICreateConversation")
             .WithTags("Tracon", "OpenAI")
@@ -62,6 +63,7 @@ internal static class OpenAIConversationsEndpoints
 
         builder.MapGet("/v1/conversations/{conversationId}", RetrieveAsync)
             .RequireRole(roles.Operator)
+            .WithMetadata(OpenAIDenialShapeMarker.Instance)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("TraconOpenAIGetConversation")
             .WithTags("Tracon", "OpenAI")
@@ -78,6 +80,7 @@ internal static class OpenAIConversationsEndpoints
 
         builder.MapDelete("/v1/conversations/{conversationId}", DeleteAsync)
             .RequireRole(roles.Operator)
+            .WithMetadata(OpenAIDenialShapeMarker.Instance)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("TraconOpenAIDeleteConversation")
             .WithTags("Tracon", "OpenAI")
@@ -94,6 +97,7 @@ internal static class OpenAIConversationsEndpoints
 
         builder.MapGet("/v1/conversations/{conversationId}/items", ListItemsAsync)
             .RequireRole(roles.Operator)
+            .WithMetadata(OpenAIDenialShapeMarker.Instance)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("TraconOpenAIListConversationItems")
             .WithTags("Tracon", "OpenAI")

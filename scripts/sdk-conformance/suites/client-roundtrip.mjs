@@ -25,14 +25,9 @@ const BODY_OVERRIDES = {
   TraconOpenAIChatCompletions: { model: AGENT, messages: [{ role: 'user', content: 'sweep' }] },
 };
 
-// Operations that fail the sweep and are tolerated, each with the reason. The list only shrinks. Each one is a probe that
-// fails today and is written up in client-roundtrip.finding.
-export const KNOWN_OPEN = new Map([
-  ['TraconA2A_summarizer', 'answers a JSON-RPC body; the document lists no content for its 200'],
-  ['TraconA2AAgentCard_summarizer', 'answers the agent card as JSON; the document lists no content for its 200'],
-  ['TraconMcpOAuthCallback', 'answers an HTML page; the document lists no content for its 200'],
-  ['TraconDownloadAttachment', 'answers the stored media type (text/plain for the sample); the document lists only application/octet-stream'],
-]);
+// Operations that fail the sweep and are tolerated, each with the reason. The list only shrinks, and it is empty: a
+// probe that fails again is a regression, not a known gap. An entry added here must say why it is not fixed.
+export const KNOWN_OPEN = new Map([]);
 
 /** The number of operations that must read back as a typed value; it grows when the fixtures improve, never shrinks. */
 export const MINIMUM_RETURNED = 85;
@@ -139,6 +134,14 @@ function mediaTypeOf(contentType) {
   return (contentType ?? '').split(';')[0].trim().toLowerCase();
 }
 
+// Whether a media type the document lists covers the one the server answered: the same type, the any-type wildcard,
+// or a whole-type wildcard such as text/*.
+export function coversMediaType(listedMedia, actual) {
+  const listed = listedMedia.toLowerCase();
+
+  return listed === actual || listed === '*/*' || (listed.endsWith('/*') && actual.startsWith(listed.slice(0, -1)));
+}
+
 function describe(operation, kind, status, detail) {
   return { operationId: operation.operationId, method: operation.method.toUpperCase(), path: operation.path, kind, status, detail };
 }
@@ -156,7 +159,7 @@ function judge(operation, raw, validator) {
   const listed = Object.keys(content);
   const actual = mediaTypeOf(raw.contentType);
 
-  if (raw.text.length > 0 && listed.length > 0 && !listed.some((media) => media.toLowerCase() === actual)) {
+  if (raw.text.length > 0 && listed.length > 0 && !listed.some((media) => coversMediaType(media, actual))) {
     return describe(operation, OUTCOME.contentTypeMismatch, raw.status, `answered ${actual || '(none)'}, the document lists ${listed.join(', ')}`);
   }
 
@@ -165,7 +168,7 @@ function judge(operation, raw, validator) {
   }
 
   if (actual.endsWith('json') && raw.text.length > 0) {
-    const schema = content[listed.find((media) => media.toLowerCase() === actual)]?.schema;
+    const schema = content[listed.find((media) => media.toLowerCase() === actual) ?? listed.find((media) => coversMediaType(media, actual))]?.schema;
     let body;
 
     try {
@@ -315,6 +318,19 @@ async function selfTest(baseUrl, document) {
     detail: `${media?.kind}: ${media?.detail}`,
   });
 
+  const wildcard = [
+    ['*/*', 'text/plain', true],
+    ['text/*', 'text/plain', true],
+    ['text/*', 'application/pdf', false],
+    ['application/octet-stream', 'text/plain', false],
+  ].filter(([listed, actual, expected]) => coversMediaType(listed, actual) !== expected);
+
+  results.push({
+    id: 'self-test: a wildcard media type covers what it names and nothing else',
+    ok: wildcard.length === 0,
+    detail: wildcard.map(([listed, actual]) => `${listed} vs ${actual}`).join(', '),
+  });
+
   return results;
 }
 
@@ -327,6 +343,16 @@ export async function run({ baseUrl, document }) {
     id: 'one outcome per operation of the live document',
     ok: outcomes.length === operations.length && new Set(outcomes.map((o) => o.operationId)).size === operations.length,
     detail: `${outcomes.length} outcomes, ${operations.length} operations`,
+  });
+
+  // The AG-UI request is refused without a thread, so the document has to say the thread is required: a generated client
+  // builds the request from it.
+  const agUiRequired = document.components?.schemas?.RunAgentInput?.required ?? [];
+
+  results.push({
+    id: 'the AG-UI request lists threadId as required',
+    ok: agUiRequired.includes('threadId'),
+    detail: JSON.stringify(agUiRequired),
   });
 
   const problems = outcomes.filter(isProblem);

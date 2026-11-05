@@ -201,7 +201,7 @@ experiment, and automatic rollback is off until you configure it.
 | Loopback restriction | All mapped management surfaces | Remote access is off by default |
 | Static bearer token | `MapTracon()` options | Optional; compare uses constant time |
 | ASP.NET Core policy | `RequireAuthorization(policy)` | Uses your authentication and identity pipeline |
-| Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup |
+| Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup; `UseProblemDetailsOnDenial()` gives a refused role a problem body |
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
 | Session ownership | `Tracon:SessionOwnership` | A second boundary drawn under the tenant; off by default (`false`)<!-- claim:option TraconSessionOwnershipOptions.Enabled=false -->, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |

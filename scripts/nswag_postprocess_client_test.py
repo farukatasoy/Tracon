@@ -354,6 +354,19 @@ def document(content: dict):
         yield str(path)
 
 
+class PlainTextOperationTests(unittest.TestCase):
+    """The plain-text pass covers a text page as well as an event stream."""
+
+    def test_an_operation_that_answers_only_a_page_is_counted(self):
+        with document({"text/html": {}}) as path:
+            self.assertEqual(nswag_postprocess_client.count_plain_text_operations(path), 1)
+
+    def test_an_event_stream_a_json_answer_and_an_empty_answer_are_not_counted(self):
+        for content in ({"text/event-stream": {}}, {"application/json": {}}, {"text/html": {}, "application/json": {}}, {}):
+            with self.subTest(content=content), document(content) as path:
+                self.assertEqual(nswag_postprocess_client.count_plain_text_operations(path), 0)
+
+
 class StreamingSiblingTests(unittest.TestCase):
     """The sixth pass: a `<operation>StreamAsync` per SSE operation."""
 

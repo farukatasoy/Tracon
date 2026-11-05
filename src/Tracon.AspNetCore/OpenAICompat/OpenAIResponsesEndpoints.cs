@@ -84,6 +84,7 @@ internal static class OpenAIResponsesEndpoints
                     prefix,
                     cancellationToken))
             .RequireRole(roles.Operator)
+            .WithMetadata(OpenAIDenialShapeMarker.Instance)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
             .WithName("TraconOpenAIResponses")

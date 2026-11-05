@@ -6,8 +6,8 @@ using Microsoft.OpenApi;
 namespace Tracon.Api;
 
 /// <summary>
-/// Rewrites three shapes the .NET OpenAPI generator writes so the published document says what the
-/// server really accepts and returns.
+/// Rewrites the shapes the .NET OpenAPI generator writes, and adds what an endpoint's metadata cannot
+/// say, so the published document says what the server really accepts and returns.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -47,10 +47,34 @@ namespace Tracon.Api;
 /// property is found by its CLR type: the document no longer shows what the values were.
 /// </description>
 /// </item>
+/// <item>
+/// <description>
+/// The attachment download answers with the media type the file was stored under, so its <c>200</c>
+/// lists <c>*/*</c> next to <c>application/octet-stream</c>. The generator throws when an endpoint
+/// declares a wildcard content type, so the entry is added to the finished document instead. Only
+/// that one operation is touched.
+/// </description>
+/// </item>
+/// <item>
+/// <description>
+/// The AG-UI request body lists no required member, yet the server refuses a body without
+/// <c>threadId</c>. The component is found by its name, which the generator takes from the AG-UI
+/// package's type; the package is not referenced here. <c>runId</c> and <c>messages</c> stay
+/// optional because the server fills them in.
+/// </description>
+/// </item>
 /// </list>
 /// </remarks>
 internal static class PublishedDocumentCorrections
 {
+    private const string AttachmentDownloadOperationId = "TraconDownloadAttachment";
+
+    private const string AnyMediaType = "*/*";
+
+    private const string AgUiRequestSchemaName = "RunAgentInput";
+
+    private const string AgUiThreadMember = "threadId";
+
     /// <summary>Registers the corrections on the document named <c>v1</c>.</summary>
     /// <param name="options">The OpenAPI options of the host.</param>
     public static void Configure(OpenApiOptions options)
@@ -75,26 +99,28 @@ internal static class PublishedDocumentCorrections
         });
     }
 
-    /// <summary>Applies the document-level corrections (the first and the second) to a document in place.</summary>
+    /// <summary>Applies the document-level corrections (all but the dictionary one) to a document in place.</summary>
     /// <param name="document">The generated document.</param>
     /// <returns>How many entries each correction changed.</returns>
     public static CorrectionCounts Apply(OpenApiDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
 
+        var downloadsWidened = WidenAttachmentDownload(document);
         var schemas = document.Components?.Schemas;
 
         if (schemas is null)
         {
-            return new CorrectionCounts(0, 0);
+            return new CorrectionCounts(0, 0, downloadsWidened, 0);
         }
 
         // The enum goes first: once a component has lost its null, a property that wraps it is not a case for the
         // second correction.
         var enumsClosed = CloseNullableEnums(schemas);
         var anyOfRewritten = RewriteNullableAnyValue(schemas);
+        var requiredAdded = RequireThreadId(schemas);
 
-        return new CorrectionCounts(enumsClosed, anyOfRewritten);
+        return new CorrectionCounts(enumsClosed, anyOfRewritten, downloadsWidened, requiredAdded);
     }
 
     /// <summary>Gets whether a CLR type is a dictionary keyed by string whose values are <see cref="JsonElement"/>.</summary>
@@ -117,6 +143,57 @@ internal static class PublishedDocumentCorrections
         return definition == typeof(IReadOnlyDictionary<,>)
             || definition == typeof(IDictionary<,>)
             || definition == typeof(Dictionary<,>);
+    }
+
+    // The download answers the stored media type, which no declaration can name: the wildcard is added to the document.
+    private static int WidenAttachmentDownload(OpenApiDocument document)
+    {
+        if (document.Paths is null)
+        {
+            return 0;
+        }
+
+        foreach (var item in document.Paths.Values)
+        {
+            if (item.Operations is not { } operations)
+            {
+                continue;
+            }
+
+            foreach (var operation in operations.Values)
+            {
+                if (!string.Equals(operation.OperationId, AttachmentDownloadOperationId, StringComparison.Ordinal)
+                    || operation.Responses is null
+                    || !operation.Responses.TryGetValue("200", out var response)
+                    || response.Content is not { } content
+                    || content.ContainsKey(AnyMediaType)
+                    || !content.TryGetValue("application/octet-stream", out var stored))
+                {
+                    continue;
+                }
+
+                content[AnyMediaType] = new OpenApiMediaType { Schema = stored.Schema };
+
+                return 1;
+            }
+        }
+
+        return 0;
+    }
+
+    // The AG-UI request needs a thread: the server answers 400 without one.
+    private static int RequireThreadId(IDictionary<string, IOpenApiSchema> schemas)
+    {
+        if (!schemas.TryGetValue(AgUiRequestSchemaName, out var component)
+            || component is not OpenApiSchema { Properties: { } properties } schema
+            || !properties.ContainsKey(AgUiThreadMember))
+        {
+            return 0;
+        }
+
+        schema.Required ??= new HashSet<string>(StringComparer.Ordinal);
+
+        return schema.Required.Add(AgUiThreadMember) ? 1 : 0;
     }
 
     // Removes the null entry from the value list of an enum component.
@@ -211,4 +288,6 @@ internal static class PublishedDocumentCorrections
 /// <summary>How many entries each document-level correction of <see cref="PublishedDocumentCorrections"/> changed.</summary>
 /// <param name="NullableEnumComponents">Enum components that lost their <c>null</c> value.</param>
 /// <param name="AnyOfWrappers">Wrappers rewritten from <c>oneOf</c> to <c>anyOf</c>.</param>
-internal sealed record CorrectionCounts(int NullableEnumComponents, int AnyOfWrappers);
+/// <param name="DownloadMediaTypes">Operations whose <c>200</c> gained the <c>*/*</c> media type (0 or 1).</param>
+/// <param name="RequiredMembers">Components that gained a <c>required</c> member (0 or 1).</param>
+internal sealed record CorrectionCounts(int NullableEnumComponents, int AnyOfWrappers, int DownloadMediaTypes, int RequiredMembers);

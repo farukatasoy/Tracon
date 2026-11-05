@@ -117,6 +117,40 @@ public sealed class AGUIEndpointProtectionTests
     }
 
     [Fact]
+    public async Task A_refused_role_gets_a_problem_body_only_when_the_host_asks_for_it()
+    {
+        static void Configure(IServiceCollection services)
+        {
+            services
+                .AddAuthentication("Test")
+                .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", configureOptions: null);
+            services.AddAuthorizationBuilder()
+                .AddPolicy(TraconPolicies.Reader, static policy => policy.RequireAssertion(static _ => true))
+                .AddPolicy(TraconPolicies.Operator, static policy => policy.RequireAssertion(static _ => false));
+        }
+
+        await using var asked = await AGUITestHost.StartAsync(
+            static builder =>
+            {
+                TestAgents.AddEcho(builder);
+                builder.UseProblemDetailsOnDenial();
+            },
+            configureServices: Configure);
+        await using var notAsked = await AGUITestHost.StartAsync(TestAgents.AddEcho, configureServices: Configure);
+
+        var withBody = await asked.RunAsync(TestAgents.Echo, AGUIInputs.User("t-denied", "hi"));
+        var withoutBody = await notAsked.RunAsync(TestAgents.Echo, AGUIInputs.User("t-denied", "hi"));
+
+        withBody.Status.ShouldBe(HttpStatusCode.Forbidden);
+        withBody.ContentType.ShouldContain("application/problem+json");
+        JsonDocument.Parse(withBody.Body).RootElement.GetProperty("title").GetString().ShouldBe("Access denied");
+
+        // The refusal is the same refusal without the call; it is only empty.
+        withoutBody.Status.ShouldBe(HttpStatusCode.Forbidden);
+        withoutBody.Body.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task An_API_key_needs_the_runs_write_scope()
     {
         await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);

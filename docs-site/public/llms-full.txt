@@ -212,7 +212,7 @@ experiment, and automatic rollback is off until you configure it.
 | Loopback restriction | All mapped management surfaces | Remote access is off by default |
 | Static bearer token | `MapTracon()` options | Optional; compare uses constant time |
 | ASP.NET Core policy | `RequireAuthorization(policy)` | Uses your authentication and identity pipeline |
-| Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup |
+| Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup; `UseProblemDetailsOnDenial()` gives a refused role a problem body |
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
 | Session ownership | `Tracon:SessionOwnership` | A second boundary drawn under the tenant; off by default (`false`)<!-- claim:option TraconSessionOwnershipOptions.Enabled=false -->, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
@@ -7221,6 +7221,55 @@ becomes a **startup** error instead of a silent gap. If your
 role is treated as not registered and a `Warning` is logged in the
 `Tracon.RolePolicies` category; with `RequireRolePolicies` on, the startup error
 carries the provider's exception as its inner exception.
+
+### A refused role answers with a body
+
+When a role policy refuses a request, ASP.NET Core's authorization middleware writes the
+answer, and its answer is empty: the status code and whatever header your authentication
+scheme sets, but no body and no content type. Tracon's own refusals (a wrong token, an API
+key without the scope, another tenant's resource) carry an `application/problem+json` body,
+so by default one API speaks two shapes. One call makes them the same:
+
+```csharp
+builder.Services.AddTracon()
+    .UseProblemDetailsOnDenial();
+```
+
+With the call, a `401` or `403` that a role or policy produces for a Tracon endpoint gets a
+problem document. Nothing else about the answer changes: the status code, the
+`WWW-Authenticate` header your scheme sets, a cookie or OpenID Connect scheme's redirect
+and the scheme's challenge events all stay as they were.
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+  "title": "Access denied",
+  "status": 403,
+  "detail": "The caller is not allowed to perform this operation.",
+  "traceId": "00-7c1f…"
+}
+```
+
+- **The text is fixed.** It is the same for every caller and every tenant, and it names no
+  role, policy, tenant or user and does not echo the credential. What failed is in the
+  server log, not in the answer.
+- **Only Tracon's endpoints change.** The management API, the AG-UI, MCP and A2A endpoints and
+  the voice socket get the body. The console shell and the OAuth callback page (a browser
+  navigates to both), and every endpoint of your own application, answer as before.
+- **The OpenAI-compatible endpoints keep their own error shape.** `/v1/*` answers every error as
+  `{"error": {"message": …, "type": …}}`, which is what the OpenAI SDKs parse, so a refused role there
+  is `authentication_error` (`401`) or `permission_error` (`403`) in that shape, not a problem document.
+- **A refusal is never turned into anything else.** If the body cannot be written, the status
+  stays and a warning is logged in the `Tracon.ProblemDetailsOnDenial` category.
+- **Order does not matter, and a handler you register wins.** Call it before or after
+  `AddAuthorization()`. If you registered your own `IAuthorizationMiddlewareResultHandler`
+  with `AddSingleton` or `Replace`, Tracon leaves it alone. A `TryAddSingleton` of your own
+  that comes after this call is skipped, because a handler is already registered.
+
+Without the call nothing changes, and the refusal is still a refusal; it is only empty. A
+host-wide alternative is `AddProblemDetails()` with `UseStatusCodePages()`, which gives
+every empty `401` and `403` in the application a body, yours included. It depends on where
+the middleware sits in your pipeline, so it is yours to place.
 
 ### Acting on another tenant
 
@@ -22452,8 +22501,8 @@ shows server text as it is.
 | Status | Means |
 |---|---|
 | `400` | The request is malformed or fails validation. A query parameter or a body field that names no member of its enum is `400` whether it is written as text or as a number (`?bucket=99`, `"kind": 0` for an enum that starts at `1`), and the answer lists the members; a value that is only whitespace is no value: a blank `model`, a blank OAuth `state`. A value the store itself refuses is `400` too (below) |
-| `401` | Missing or invalid credentials |
-| `403` | Authenticated, but not allowed — including the loopback restriction |
+| `401` | Missing or invalid credentials. A role or policy that refuses the caller answers `401` without a body unless the host calls `UseProblemDetailsOnDenial()` (see [Security](/getting-started/security/#a-refused-role-answers-with-a-body)) |
+| `403` | Authenticated, but not allowed — including the loopback restriction. The same call gives a refused role a problem body |
 | `404` | Not found, or not yours. A path segment that is only whitespace is a name nobody can have saved, so it is `404` too |
 | `409` | Conflicting state — a name in use, a running experiment, a code-defined agent, a client-side tool that cannot be replayed |
 | `413` | The JSON body is longer than `TraconEndpointOptions.MaxJsonBodyBytes` (8 MiB by default). It is counted as it arrives, so a body sent chunked or with a wrong length stops there too |

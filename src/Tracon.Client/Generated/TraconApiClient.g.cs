@@ -980,7 +980,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // A text body (an event stream, an HTML page) is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -1634,7 +1634,7 @@ namespace Tracon.Client.Generated
                 using (var request_ = new System.Net.Http.HttpRequestMessage())
                 {
                     request_.Method = new System.Net.Http.HttpMethod("GET");
-                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/octet-stream"));
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("*/*"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
                 
@@ -3129,7 +3129,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // A text body (an event stream, an HTML page) is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -4799,7 +4799,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // A text body (an event stream, an HTML page) is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -5212,7 +5212,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // A text body (an event stream, an HTML page) is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -5750,7 +5750,7 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            // An SSE body is not JSON - ReadObjectResponseAsync<string>
+                            // A text body (an event stream, an HTML page) is not JSON - ReadObjectResponseAsync<string>
                             // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
                             // text and throw. Read it as plain text instead. response_.Content is
                             // nullable per HttpResponseMessage's own contract - same null check
@@ -17710,11 +17710,11 @@ namespace Tracon.Client.Generated
         /// Processes the OAuth provider's callback request.
         /// </summary>
         /// <remarks>
-        /// This endpoint is outside the access layers: the browser redirected by the provider cannot carry our bearer token. Security relies on the single-use 'state' value.
+        /// This endpoint is outside the access layers: the browser redirected by the provider cannot carry our bearer token. Security relies on the single-use 'state' value. The answer is a small HTML page the browser shows, not data a client reads.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task TraconMcpOAuthCallbackAsync(string name, string? code = null, string? state = null, string? iss = null, string? error = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<string> TraconMcpOAuthCallbackAsync(string name, string? code = null, string? state = null, string? iss = null, string? error = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             if (name == null)
                 throw new System.ArgumentNullException("name");
@@ -17726,6 +17726,7 @@ namespace Tracon.Client.Generated
                 using (var request_ = new System.Net.Http.HttpRequestMessage())
                 {
                     request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("text/html"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
                 
@@ -17777,7 +17778,16 @@ namespace Tracon.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            return;
+                            // A text body (an event stream, an HTML page) is not JSON - ReadObjectResponseAsync<string>
+                            // would JsonSerializer.Deserialize<string> the raw "event: ...\ndata: ..."
+                            // text and throw. Read it as plain text instead. response_.Content is
+                            // nullable per HttpResponseMessage's own contract - same null check
+                            // ReadObjectResponseAsync<T> above makes before it reads the body.
+                            if (response_.Content == null)
+                            {
+                                return string.Empty;
+                            }
+                            return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         }
                         else
                         {

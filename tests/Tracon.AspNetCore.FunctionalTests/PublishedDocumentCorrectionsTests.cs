@@ -112,6 +112,72 @@ public sealed class PublishedDocumentCorrectionsTests
         second.AnyOfWrappers.ShouldBe(0);
     }
 
+    [Fact]
+    public void The_attachment_download_lists_every_media_type_next_to_the_stored_one()
+    {
+        var document = Document();
+        var download = Operation("TraconDownloadAttachment", ("200", new Dictionary<string, OpenApiMediaType>(StringComparer.Ordinal)
+        {
+            ["application/octet-stream"] = new OpenApiMediaType { Schema = new OpenApiSchemaReference("Stream") },
+        }));
+        var other = Operation("TraconListAttachments", ("200", new Dictionary<string, OpenApiMediaType>(StringComparer.Ordinal)
+        {
+            ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+        }));
+        document.Paths = new OpenApiPaths
+        {
+            ["/api/attachments/{id}"] = new OpenApiPathItem { Operations = new Dictionary<HttpMethod, OpenApiOperation> { [HttpMethod.Get] = download } },
+            ["/api/attachments"] = new OpenApiPathItem { Operations = new Dictionary<HttpMethod, OpenApiOperation> { [HttpMethod.Get] = other } },
+        };
+
+        var counts = PublishedDocumentCorrections.Apply(document);
+
+        counts.DownloadMediaTypes.ShouldBe(1);
+        download.Responses!["200"].Content!.Keys.OrderBy(static key => key, StringComparer.Ordinal).ShouldBe(["*/*", "application/octet-stream"]);
+        download.Responses["200"].Content!["*/*"].Schema.ShouldBeSameAs(download.Responses["200"].Content!["application/octet-stream"].Schema);
+
+        // No other operation is widened, and a second run adds nothing.
+        other.Responses!["200"].Content!.Keys.ShouldBe(["application/json"]);
+        PublishedDocumentCorrections.Apply(document).DownloadMediaTypes.ShouldBe(0);
+    }
+
+    [Fact]
+    public void The_agui_request_requires_the_thread_and_nothing_else()
+    {
+        var input = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Object,
+            Properties = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal)
+            {
+                ["threadId"] = new OpenApiSchema { Type = JsonSchemaType.String },
+                ["runId"] = new OpenApiSchema { Type = JsonSchemaType.String },
+                ["messages"] = new OpenApiSchema { Type = JsonSchemaType.Array },
+            },
+        };
+        var unrelated = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Object,
+            Properties = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal) { ["threadId"] = new OpenApiSchema { Type = JsonSchemaType.String } },
+        };
+        var document = Document(("RunAgentInput", input), ("SomethingElse", unrelated));
+
+        var counts = PublishedDocumentCorrections.Apply(document);
+
+        counts.RequiredMembers.ShouldBe(1);
+        input.Required.ShouldNotBeNull().ShouldBe(["threadId"]);
+        unrelated.Required.ShouldBeNull();
+        PublishedDocumentCorrections.Apply(document).RequiredMembers.ShouldBe(0);
+    }
+
+    [Fact]
+    public void A_document_without_the_agui_request_or_the_download_is_left_alone()
+    {
+        var counts = PublishedDocumentCorrections.Apply(Document(("Other", new OpenApiSchema { Type = JsonSchemaType.Object })));
+
+        counts.RequiredMembers.ShouldBe(0);
+        counts.DownloadMediaTypes.ShouldBe(0);
+    }
+
     [Theory]
     [InlineData(typeof(IReadOnlyDictionary<string, JsonElement>), true)]
     [InlineData(typeof(IDictionary<string, JsonElement>), true)]
@@ -123,6 +189,18 @@ public sealed class PublishedDocumentCorrectionsTests
     [InlineData(typeof(string), false)]
     public void Only_a_string_keyed_dictionary_of_json_elements_is_a_free_form_dictionary(Type type, bool expected)
         => PublishedDocumentCorrections.IsJsonElementDictionary(type).ShouldBe(expected);
+
+    private static OpenApiOperation Operation(string operationId, params (string Status, Dictionary<string, OpenApiMediaType> Content)[] responses)
+    {
+        var operation = new OpenApiOperation { OperationId = operationId, Responses = new OpenApiResponses() };
+
+        foreach (var (status, content) in responses)
+        {
+            operation.Responses[status] = new OpenApiResponse { Description = "OK", Content = content.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal) };
+        }
+
+        return operation;
+    }
 
     private static OpenApiDocument Document(params (string Name, OpenApiSchema Schema)[] schemas)
     {

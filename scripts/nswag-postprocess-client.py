@@ -78,7 +78,11 @@ that combination (verified 2026-09-05: exactly 5 occurrences, all under
 `status_ == 200`, matching the 5 pure-SSE endpoints; the two dual JSON/SSE
 endpoints - `/v1/responses`, `/v1/chat/completions` - generate a JSON return
 type instead and are unaffected, a separate pre-existing limitation this pass
-does not attempt to fix).
+does not attempt to fix). Since the OAuth callback declares a `text/html` 200
+there is a sixth occurrence, and it needs the same fix for the same reason (an
+HTML page is no JSON string literal either): the pass counts the operations
+whose 200 declares only a text media type, event stream or page, and fails when
+the numbers differ.
 
 A fifth pass fixes a NULL-COLLECTION class of defect (found by an
 independent audit while writing a real-server test). NJsonSchema emits
@@ -379,7 +383,7 @@ def rewrite_sse_string_responses(source: str) -> tuple[str, int]:
         return (
             f"{indent}if (status_ == 200)\n"
             f"{indent}{{\n"
-            f"{indent}    // An SSE body is not JSON - ReadObjectResponseAsync<string>\n"
+            f"{indent}    // A text body (an event stream, an HTML page) is not JSON - ReadObjectResponseAsync<string>\n"
             f"{indent}    // would JsonSerializer.Deserialize<string> the raw \"event: ...\\ndata: ...\"\n"
             f"{indent}    // text and throw. Read it as plain text instead. response_.Content is\n"
             f"{indent}    // nullable per HttpResponseMessage's own contract - same null check\n"
@@ -545,6 +549,32 @@ def read_event_stream_operations(document_path: str) -> list[tuple[str, bool]]:
             operations.append((operation_id, JSON_MEDIA_TYPE in content))
 
     return operations
+
+
+def count_plain_text_operations(document_path: str) -> int:
+    """How many operations answer 200 with a text media type other than the event stream and nothing else.
+
+    NSwag types such a 200 as `string` and reads it through the JSON helper, exactly like a pure event stream, so
+    the pass that reads the body as plain text has to cover them too. A 200 that also declares JSON is a JSON
+    operation; one that declares no content is no text operation.
+    """
+    with open(document_path, encoding="utf-8") as f:
+        document = json.load(f)
+
+    count = 0
+
+    for path_item in document.get("paths", {}).values():
+        for method, operation in path_item.items():
+            if method.lower() not in HTTP_METHODS or not isinstance(operation, dict):
+                continue
+
+            media_types = set(operation.get("responses", {}).get("200", {}).get("content", {}))
+
+            if media_types and EVENT_STREAM_MEDIA_TYPE not in media_types and all(
+                    media_type.startswith("text/") for media_type in media_types):
+                count += 1
+
+    return count
 
 
 # One whole generated operation method, from its XML doc block to the closing
@@ -801,12 +831,13 @@ def main() -> int:
     source, sse_string_count = rewrite_sse_string_responses(source)
 
     pure_sse_count = len(operations) - guarded_count
+    plain_text_count = count_plain_text_operations(sys.argv[2])
 
-    if sse_string_count != pure_sse_count:
+    if sse_string_count != pure_sse_count + plain_text_count:
         raise SystemExit(
-            f"The pure-SSE pass rewrote {sse_string_count} response(s) but the document declares "
-            f"{pure_sse_count} pure-SSE operation(s). The streaming siblings must not be visible "
-            "to that pass, and every pure-SSE method must still be fixed by it "
+            f"The plain-text pass rewrote {sse_string_count} response(s) but the document declares "
+            f"{pure_sse_count} pure-SSE and {plain_text_count} other text operation(s). The streaming "
+            "siblings must not be visible to that pass, and every text method must still be fixed by it "
             "(inspect the generated file).")
 
     source, null_collection_count = rewrite_null_collection_defaults(source)
@@ -825,7 +856,7 @@ def main() -> int:
         f"{any_type_reference_count} colliding any-type reference(s) "
         f"({', '.join(COLLIDING_ANY_TYPES)}), added {sibling_count} streaming sibling method(s) "
         f"and guarded {guarded_count} dual JSON/SSE method(s) against the other shape, fixed "
-        f"{sse_string_count} pure-SSE 200 response(s) to read plain text instead of JSON, and gave "
+        f"{sse_string_count} plain-text 200 response(s) (event streams and pages) to read plain text instead of JSON, and gave "
         f"{null_collection_count} non-nullable collection property(ies) an empty "
         f"default instead of null, and wrote the documented default of {default_count} integer/enum "
         f"property(ies) in {path}"

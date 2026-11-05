@@ -176,6 +176,44 @@ public sealed class OpenApiDocumentShapeTests
         bare.ShouldBeEmpty("a dictionary with no value schema is Record<string, never> in TypeScript: " + string.Join(", ", bare));
     }
 
+    [Fact]
+    public async Task The_attachment_download_and_the_oauth_callback_list_what_they_answer()
+    {
+        var document = await FetchDocumentAsync();
+
+        var download = OpenApiTestHelpers.FindByOperationId(document, "TraconDownloadAttachment").GetProperty("responses").GetProperty("200").GetProperty("content");
+        var callback = OpenApiTestHelpers.FindByOperationId(document, "TraconMcpOAuthCallback").GetProperty("responses").GetProperty("200").GetProperty("content");
+
+        // The stored media type is the file's own, so the document lists any type next to the octet stream.
+        download.TryGetProperty("*/*", out _).ShouldBeTrue("the download lists no wildcard media type");
+        download.TryGetProperty("application/octet-stream", out _).ShouldBeTrue();
+
+        // The callback answers a page, which the document used to call "no content".
+        callback.TryGetProperty("text/html", out _).ShouldBeTrue("the callback lists no HTML answer");
+    }
+
+    [Fact]
+    public async Task The_a2a_operations_list_their_json_answer()
+    {
+        await using var host = await OpenApiSnapshotTests.StartFullSurfaceHostAsync(
+            configureMoreTracon: static builder => builder
+                .AddAgent(TestData.Definition("probe"))
+                .UseA2A(static options => options.ExposedAgents.Add("probe")),
+            configureAfterMap: static app => app.MapTraconA2A());
+
+        using var response = await host.Client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative), TestContext.Current.CancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+
+        foreach (var operationId in new[] { "TraconA2A_probe", "TraconA2AAgentCard_probe" })
+        {
+            var content = OpenApiTestHelpers.FindByOperationId(document, operationId).GetProperty("responses").GetProperty("200").GetProperty("content");
+
+            content.TryGetProperty("application/json", out _).ShouldBeTrue($"{operationId} lists no JSON answer");
+        }
+    }
+
     [Theory]
     [MemberData(nameof(OperationsThatAnswerNotImplemented))]
     public async Task An_operation_that_answers_501_for_a_missing_capability_lists_it(string operationId)

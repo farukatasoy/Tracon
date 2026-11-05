@@ -76,6 +76,7 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
 
         // The stream keeps itself alive at the cadence MapTracon's group sets.
         group.WithMetadata(new SseKeepAliveMetadata(endpointOptions.StreamKeepAliveInterval));
+        group.WithMetadata(ProblemDetailsOnDenialMarker.Instance);
         group.AddEndpointFilter(new TraconEndpointFilter(endpointOptions));
 
         // Off by default, like the management API's. The group counts its own window: an AG-UI

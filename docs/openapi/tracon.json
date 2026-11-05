@@ -736,6 +736,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Stream"
                 }
+              },
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stream"
+                }
               }
             }
           },
@@ -8151,7 +8156,7 @@
           "Governance"
         ],
         "summary": "Processes the OAuth provider\u0027s callback request.",
-        "description": "This endpoint is outside the access layers: the browser redirected by the provider cannot carry our bearer token. Security relies on the single-use \u0027state\u0027 value.",
+        "description": "This endpoint is outside the access layers: the browser redirected by the provider cannot carry our bearer token. Security relies on the single-use \u0027state\u0027 value. The answer is a small HTML page the browser shows, not data a client reads.",
         "operationId": "TraconMcpOAuthCallback",
         "parameters": [
           {
@@ -8193,7 +8198,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }

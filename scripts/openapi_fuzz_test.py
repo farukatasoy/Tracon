@@ -417,13 +417,13 @@ class PolicyFileTests(unittest.TestCase):
         # The configuration applies only the first of several per-operation entries; the table above does not.
         self.assertFalse((SCRIPTS / "openapi-fuzz.toml").exists())
 
-    def test_the_schema_check_gates_and_the_two_checks_with_a_written_reason_report(self):
+    def test_the_schema_and_content_type_checks_gate_and_the_check_with_a_written_reason_reports(self):
         # A regression gate, not evidence: the evidence is a run on a tree without the document corrections, which
         # has to be red. This only pins which checks sit where.
         self.assertIn("not_a_server_error", openapi_fuzz.GATING_CHECKS)
         self.assertIn("response_schema_conformance", openapi_fuzz.GATING_CHECKS)
+        self.assertIn("content_type_conformance", openapi_fuzz.GATING_CHECKS)
         self.assertIn("status_code_conformance", openapi_fuzz.REPORT_CHECKS)
-        self.assertIn("content_type_conformance", openapi_fuzz.REPORT_CHECKS)
         self.assertFalse(set(openapi_fuzz.GATING_CHECKS) & set(openapi_fuzz.REPORT_CHECKS))
 
     def test_a_response_is_an_event_stream_by_its_content_type_in_any_letter_case(self):

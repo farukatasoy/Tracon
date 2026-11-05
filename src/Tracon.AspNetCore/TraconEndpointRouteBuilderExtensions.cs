@@ -179,6 +179,10 @@ public static class TraconEndpointRouteBuilderExtensions
         // Every SSE stream under the group keeps itself alive at this cadence;
         // SseWriter reads it from the endpoint.
         group.WithMetadata(new SseKeepAliveMetadata(options.StreamKeepAliveInterval));
+
+        // A refused role or policy check answers with a problem body once the host asked for it
+        // (UseProblemDetailsOnDenial); the mark keeps that to Tracon's own endpoints.
+        group.WithMetadata(ProblemDetailsOnDenialMarker.Instance);
         group.WithMetadata(new JsonBodyLimitMetadata(options.MaxJsonBodyBytes, normalizedPrefix + "/v1/"));
         group.AddEndpointFilter(new TraconEndpointFilter(options));
 
@@ -356,6 +360,7 @@ public static class TraconEndpointRouteBuilderExtensions
         }
 
         var voiceGroup = endpoints.MapGroup(prefix).WithTags("Tracon");
+        voiceGroup.WithMetadata(ProblemDetailsOnDenialMarker.Instance);
         voiceGroup.AddEndpointFilter(new TraconEndpointFilter(options, requireBearerToken: false));
 
         if (options.AuthorizationPolicy is { Length: > 0 } policy)

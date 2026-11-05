@@ -2973,7 +2973,7 @@ export interface paths {
         };
         /**
          * Processes the OAuth provider's callback request.
-         * @description This endpoint is outside the access layers: the browser redirected by the provider cannot carry our bearer token. Security relies on the single-use 'state' value.
+         * @description This endpoint is outside the access layers: the browser redirected by the provider cannot carry our bearer token. Security relies on the single-use 'state' value. The answer is a small HTML page the browser shows, not data a client reads.
          */
         get: operations["TraconMcpOAuthCallback"];
         put?: never;
@@ -10217,6 +10217,7 @@ export interface operations {
                 };
                 content: {
                     "application/octet-stream": components["schemas"]["Stream"];
+                    "*/*": components["schemas"]["Stream"];
                 };
             };
             /** @description Not Found */
@@ -15155,7 +15156,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "text/html": string;
+                };
             };
         };
     };

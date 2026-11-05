@@ -62,6 +62,11 @@ The safe default is deliberate: an application that maps Tracon and forgets to
 configure anything is not exposed to the network. Never ship `AllowRemoteAccess` on
 without a token, a key, or a policy behind it.
 
+A role or policy that refuses a request is answered by the ASP.NET Core authorization middleware,
+and that answer has no body. Call `AddTracon().UseProblemDetailsOnDenial()` to give a refused
+role a `ProblemDetails` body like the refusals Tracon writes itself; the status code and the
+challenge header stay as your authentication scheme sets them.
+
 > The UI shell is exempt from the bearer layer — a browser cannot attach an
 > `Authorization` header to a script or stylesheet request. The loopback restriction
 > and the authorization policy still apply to it.

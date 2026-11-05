@@ -40,6 +40,9 @@ public sealed partial class EndpointAuthorizationMatrixTests
 
     internal const string RoleHeader = "X-Test-Role";
 
+    /// <summary>Makes the test scheme leave the caller unauthenticated, so a policy answers 401 instead of 403.</summary>
+    internal const string AnonymousHeader = "X-Test-Anonymous";
+
     private const string Json = "application/json";
 
     /// <summary>
@@ -237,6 +240,67 @@ public sealed partial class EndpointAuthorizationMatrixTests
     }
 
     [Fact]
+    public async Task Every_role_refusal_carries_a_body_in_the_shape_its_endpoint_speaks()
+    {
+        await using var host = await OpenApiSnapshotTests.StartFullSurfaceHostAsync(
+            configureMoreServices: AddRoleScheme,
+            configureMoreTracon: static builder => builder.UseProblemDetailsOnDenial());
+
+        var operations = ScopedOperations(host).Where(static operation => operation.Policy is not null).ToList();
+        var wrong = new List<string>();
+
+        foreach (var operation in operations)
+        {
+            var forbidden = await SendForRefusalAsync(host, operation, role: "nobody");
+            var unauthorized = await SendForRefusalAsync(host, operation, anonymous: true);
+
+            Judge(wrong, operation, "a caller with the wrong role", forbidden, HttpStatusCode.Forbidden, ProblemDetailsOnDenialHandler.ForbiddenTitle);
+            Judge(wrong, operation, "an unauthenticated caller", unauthorized, HttpStatusCode.Unauthorized, ProblemDetailsOnDenialHandler.UnauthorizedTitle);
+        }
+
+        operations.Count.ShouldBeGreaterThan(150);
+
+        // The mark decides the shape, so a mark that goes missing would move its route to the other set quietly.
+        operations.Count(static operation => operation.AnswersInOpenAiShape).ShouldBe(6);
+        operations.Count(static operation => !operation.AnswersInOpenAiShape).ShouldBeGreaterThan(140);
+        wrong.ShouldBeEmpty();
+
+        static void Judge(List<string> wrong, Operation operation, string caller, Refusal reply, HttpStatusCode status, string title)
+        {
+            var openAi = operation.AnswersInOpenAiShape;
+
+            if (reply.Status != status)
+            {
+                wrong.Add($"{operation.Label} -> {(int)reply.Status} for {caller}, expected {(int)status}");
+                return;
+            }
+
+            var expectedType = openAi ? "application/json" : "application/problem+json";
+
+            if (!string.Equals(reply.ContentType, expectedType, StringComparison.Ordinal))
+            {
+                wrong.Add($"{operation.Label} -> {(int)status} for {caller} has content type '{reply.ContentType}', expected '{expectedType}'");
+                return;
+            }
+
+            var body = System.Text.Json.Nodes.JsonNode.Parse(reply.Body);
+            var good = openAi
+                ? string.Equals(
+                      (string?)body?["error"]?["type"],
+                      status == HttpStatusCode.Unauthorized
+                          ? ProblemDetailsOnDenialHandler.OpenAIUnauthorizedType
+                          : ProblemDetailsOnDenialHandler.OpenAIForbiddenType,
+                      StringComparison.Ordinal)
+                : string.Equals((string?)body?["title"], title, StringComparison.Ordinal) && (int?)body?["status"] == (int)status;
+
+            if (!good)
+            {
+                wrong.Add($"{operation.Label} -> {(int)status} for {caller} has the body '{reply.Body}'");
+            }
+        }
+    }
+
+    [Fact]
     public async Task No_scoped_endpoint_answers_a_caller_without_the_configured_token()
     {
         const string Token = "matrix-static-token";
@@ -276,21 +340,23 @@ public sealed partial class EndpointAuthorizationMatrixTests
     }
 
     private static Task<TraconTestHost> StartRoleHostAsync()
-        => OpenApiSnapshotTests.StartFullSurfaceHostAsync(static services =>
+        => OpenApiSnapshotTests.StartFullSurfaceHostAsync(AddRoleScheme);
+
+    private static void AddRoleScheme(IServiceCollection services)
+    {
+        services
+            .AddAuthentication(RoleHeaderAuthenticationHandler.SchemeName)
+            .AddScheme<AuthenticationSchemeOptions, RoleHeaderAuthenticationHandler>(
+                RoleHeaderAuthenticationHandler.SchemeName,
+                configureOptions: null);
+
+        var authorization = services.AddAuthorizationBuilder();
+
+        foreach (var (policy, role) in RoleOfPolicy)
         {
-            services
-                .AddAuthentication(RoleHeaderAuthenticationHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, RoleHeaderAuthenticationHandler>(
-                    RoleHeaderAuthenticationHandler.SchemeName,
-                    configureOptions: null);
-
-            var authorization = services.AddAuthorizationBuilder();
-
-            foreach (var (policy, role) in RoleOfPolicy)
-            {
-                authorization.AddPolicy(policy, builder => builder.RequireRole(role));
-            }
-        });
+            authorization.AddPolicy(policy, builder => builder.RequireRole(role));
+        }
+    }
 
     /// <summary>Lists every method and route that declares an API key scope.</summary>
     private static List<Operation> ScopedOperations(TraconTestHost host)
@@ -313,7 +379,12 @@ public sealed partial class EndpointAuthorizationMatrixTests
             {
                 if (method is "GET" or "POST" or "PUT" or "PATCH" or "DELETE")
                 {
-                    operations.Add(new Operation(method, endpoint.RoutePattern.RawText ?? string.Empty, requirement.Scope, policy));
+                    operations.Add(new Operation(
+                        method,
+                        endpoint.RoutePattern.RawText ?? string.Empty,
+                        requirement.Scope,
+                        policy,
+                        endpoint.Metadata.GetMetadata<OpenAIDenialShapeMarker>() is not null));
                 }
             }
         }
@@ -372,6 +443,43 @@ public sealed partial class EndpointAuthorizationMatrixTests
         }
     }
 
+    /// <summary>Sends the request of <paramref name="operation"/> and reads the body of the refusal it gets.</summary>
+    private static async Task<Refusal> SendForRefusalAsync(TraconTestHost host, Operation operation, string? role = null, bool anonymous = false)
+    {
+        using var request = new HttpRequestMessage(
+            new HttpMethod(operation.Method),
+            new Uri(Fill(operation.Template, OwnTenant), UriKind.Relative));
+
+        if (operation.Method is "POST" or "PUT" or "PATCH")
+        {
+            request.Content = BodyOverrides.TryGetValue(operation.Label, out var body)
+                ? body()
+                : new StringContent("{}", Encoding.UTF8, Json);
+        }
+
+        if (role is not null)
+        {
+            request.Headers.Add(RoleHeader, role);
+        }
+
+        if (anonymous)
+        {
+            request.Headers.Add(AnonymousHeader, "1");
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+
+        using var reply = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+
+        // Only a refusal is read to its end: any other answer may be a stream that never finishes.
+        var text = reply.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden
+            ? await reply.Content.ReadAsStringAsync(timeout.Token)
+            : string.Empty;
+
+        return new Refusal(reply.StatusCode, reply.Content.Headers.ContentType?.MediaType, text);
+    }
+
     /// <summary>Replaces each route parameter with a value its constraint accepts.</summary>
     internal static string Fill(string template, string tenantParameter)
         => ParameterPattern().Replace(
@@ -399,12 +507,19 @@ public sealed partial class EndpointAuthorizationMatrixTests
     [GeneratedRegex(@"\{\*{0,2}(?<name>\w+)(?<constraint>:[^}?]+)?\??\}", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex ParameterPattern();
 
+    /// <summary>What a refusal looked like.</summary>
+    /// <param name="Status">The status code.</param>
+    /// <param name="ContentType">The media type of the body, or <see langword="null"/>.</param>
+    /// <param name="Body">The body text.</param>
+    private sealed record Refusal(HttpStatusCode Status, string? ContentType, string Body);
+
     /// <summary>One method on one route, with what it declares.</summary>
     /// <param name="Method">The HTTP method.</param>
     /// <param name="Template">The route template.</param>
     /// <param name="Scope">The API key scope the route declares.</param>
     /// <param name="Policy">The Tracon role policy the route declares, or <see langword="null"/> when it declares none.</param>
-    private sealed record Operation(string Method, string Template, ApiKeyScope Scope, string? Policy)
+    /// <param name="AnswersInOpenAiShape">Whether the route is marked to answer a refused role in the OpenAI error shape.</param>
+    private sealed record Operation(string Method, string Template, ApiKeyScope Scope, string? Policy, bool AnswersInOpenAiShape = false)
     {
         public string Label => $"{Method} {Template}";
     }
@@ -419,6 +534,11 @@ public sealed partial class EndpointAuthorizationMatrixTests
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
+            if (Request.Headers.ContainsKey(AnonymousHeader))
+            {
+                return Task.FromResult(AuthenticateResult.NoResult());
+            }
+
             var claims = new List<Claim> { new(ClaimTypes.Name, "matrix-user") };
 
             if (Request.Headers.TryGetValue(RoleHeader, out var role) && role.ToString() is { Length: > 0 } name)

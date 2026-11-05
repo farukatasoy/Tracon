@@ -75,7 +75,9 @@ internal static class GovernanceEndpoints
             .WithSummary("Processes the OAuth provider's callback request.")
             .WithDescription(
                 "This endpoint is outside the access layers: the browser redirected by the " +
-                "provider cannot carry our bearer token. Security relies on the single-use 'state' value.");
+                "provider cannot carry our bearer token. Security relies on the single-use 'state' value. " +
+                "The answer is a small HTML page the browser shows, not data a client reads.")
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/html");
     }
 
     private static string DescribeOAuthFailure(McpOAuthCompleteResult result)

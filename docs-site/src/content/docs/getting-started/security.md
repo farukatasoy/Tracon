@@ -122,6 +122,55 @@ role is treated as not registered and a `Warning` is logged in the
 `Tracon.RolePolicies` category; with `RequireRolePolicies` on, the startup error
 carries the provider's exception as its inner exception.
 
+### A refused role answers with a body
+
+When a role policy refuses a request, ASP.NET Core's authorization middleware writes the
+answer, and its answer is empty: the status code and whatever header your authentication
+scheme sets, but no body and no content type. Tracon's own refusals (a wrong token, an API
+key without the scope, another tenant's resource) carry an `application/problem+json` body,
+so by default one API speaks two shapes. One call makes them the same:
+
+```csharp
+builder.Services.AddTracon()
+    .UseProblemDetailsOnDenial();
+```
+
+With the call, a `401` or `403` that a role or policy produces for a Tracon endpoint gets a
+problem document. Nothing else about the answer changes: the status code, the
+`WWW-Authenticate` header your scheme sets, a cookie or OpenID Connect scheme's redirect
+and the scheme's challenge events all stay as they were.
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.4",
+  "title": "Access denied",
+  "status": 403,
+  "detail": "The caller is not allowed to perform this operation.",
+  "traceId": "00-7c1f…"
+}
+```
+
+- **The text is fixed.** It is the same for every caller and every tenant, and it names no
+  role, policy, tenant or user and does not echo the credential. What failed is in the
+  server log, not in the answer.
+- **Only Tracon's endpoints change.** The management API, the AG-UI, MCP and A2A endpoints and
+  the voice socket get the body. The console shell and the OAuth callback page (a browser
+  navigates to both), and every endpoint of your own application, answer as before.
+- **The OpenAI-compatible endpoints keep their own error shape.** `/v1/*` answers every error as
+  `{"error": {"message": …, "type": …}}`, which is what the OpenAI SDKs parse, so a refused role there
+  is `authentication_error` (`401`) or `permission_error` (`403`) in that shape, not a problem document.
+- **A refusal is never turned into anything else.** If the body cannot be written, the status
+  stays and a warning is logged in the `Tracon.ProblemDetailsOnDenial` category.
+- **Order does not matter, and a handler you register wins.** Call it before or after
+  `AddAuthorization()`. If you registered your own `IAuthorizationMiddlewareResultHandler`
+  with `AddSingleton` or `Replace`, Tracon leaves it alone. A `TryAddSingleton` of your own
+  that comes after this call is skipped, because a handler is already registered.
+
+Without the call nothing changes, and the refusal is still a refusal; it is only empty. A
+host-wide alternative is `AddProblemDetails()` with `UseStatusCodePages()`, which gives
+every empty `401` and `403` in the application a body, yours included. It depends on where
+the middleware sits in your pipeline, so it is yours to place.
+
 ### Acting on another tenant
 
 A few endpoints take the tenant from the request instead of the caller: another

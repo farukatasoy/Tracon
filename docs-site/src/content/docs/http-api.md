@@ -178,8 +178,8 @@ shows server text as it is.
 | Status | Means |
 |---|---|
 | `400` | The request is malformed or fails validation. A query parameter or a body field that names no member of its enum is `400` whether it is written as text or as a number (`?bucket=99`, `"kind": 0` for an enum that starts at `1`), and the answer lists the members; a value that is only whitespace is no value: a blank `model`, a blank OAuth `state`. A value the store itself refuses is `400` too (below) |
-| `401` | Missing or invalid credentials |
-| `403` | Authenticated, but not allowed — including the loopback restriction |
+| `401` | Missing or invalid credentials. A role or policy that refuses the caller answers `401` without a body unless the host calls `UseProblemDetailsOnDenial()` (see [Security](/getting-started/security/#a-refused-role-answers-with-a-body)) |
+| `403` | Authenticated, but not allowed — including the loopback restriction. The same call gives a refused role a problem body |
 | `404` | Not found, or not yours. A path segment that is only whitespace is a name nobody can have saved, so it is `404` too |
 | `409` | Conflicting state — a name in use, a running experiment, a code-defined agent, a client-side tool that cannot be replayed |
 | `413` | The JSON body is longer than `TraconEndpointOptions.MaxJsonBodyBytes` (8 MiB by default). It is counted as it arrives, so a body sent chunked or with a wrong length stops there too |

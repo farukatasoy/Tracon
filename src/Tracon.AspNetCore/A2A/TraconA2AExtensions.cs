@@ -1,3 +1,4 @@
+using System.Text.Json;
 using A2A;
 using A2A.AspNetCore;
 using Microsoft.AspNetCore.Builder;
@@ -128,6 +129,7 @@ public static class TraconA2AExtensions
             services.GetRequiredService<ILogger<A2AApprovalGuardFilter>>());
 
         var group = endpoints.MapGroup(pattern).WithTags("Tracon", "A2A");
+        group.WithMetadata(ProblemDetailsOnDenialMarker.Instance);
         // 🚨 Order matters and this one is deliberate: authentication runs FIRST.
         // The approval guard awaits a startup check that has no timeout and no
         // retry limit (only ApplicationStopping cancels it), so with
@@ -170,7 +172,9 @@ public static class TraconA2AExtensions
                     "A message with a contextId continues a conversation that belongs to the " +
                     "caller; another caller that sends the same contextId starts a new one. " +
                     "A tool call that needs approval cannot be answered over this surface and " +
-                    "ends the run instead of waiting.");
+                    "ends the run instead of waiting.")
+                // MapA2A returns the general convention builder, which has no Produces extension.
+                .WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status200OK, typeof(JsonElement), ["application/json"]));
 
             // The card is answered here and not by the SDK's MapWellKnownAgentCard: that one serves a card built once, and
             // the address in it has to be the one this request arrived on (A2AAgentCardResponse).
@@ -190,7 +194,8 @@ public static class TraconA2AExtensions
                     "so editing the agent's description changes the card. Streaming and push " +
                     "notifications are declared unsupported. The interface address in the card is " +
                     "absolute: the scheme and host of the request (as the host's forwarded headers " +
-                    "middleware sets them) and the application's path base.");
+                    "middleware sets them) and the application's path base.")
+                .Produces<JsonElement>(StatusCodes.Status200OK, contentType: "application/json");
         }
 
         return group;

@@ -69,25 +69,26 @@ ROLES = ("admin", "operator", "reader", "anonymous")
 
 # The checks that fail a leg. Each one has been driven to zero findings on the in-memory store, as the admin
 # role, before it was listed here. The published document is a shipped claim, so a response that departs from its
-# schema is a defect: `response_schema_conformance` gates.
+# schema is a defect: `response_schema_conformance` gates. So does `content_type_conformance`: the download of an
+# attachment answers with the stored file's own media type and the document lists `*/*` for it, and a refused role
+# answers with a problem document once the host asked for it, so no answer of the reference host has a media type the
+# document does not list.
 GATING_CHECKS = (
     "not_a_server_error",
     "unsupported_method",
     "response_schema_conformance",
+    "content_type_conformance",
 )
 # Measured and printed with a count on every run, never failing a leg. Each stays here for a reason that is written
 # in the code, not in a flag, and the reason is what has to change before it can gate:
 #   * status_code_conformance: most operations list no 4xx at all (124 of 182 when this was written; the document
 #     names the statuses of a handler's own answers, not the shared ones: 400, 401, 403, 404, 415, 503), so the
-#     check cannot pass without documenting every shared answer on every operation. That is a decision about the published document and about
-#     the generated clients (each listed status becomes a typed exception), and it is not taken yet. A listed
-#     shared 401/403 would also need a body: the real answers of the reference host are empty, not problem details.
-#   * content_type_conformance: the download of an attachment answers with the stored file's own media type, and
-#     the generator refuses a wildcard content type in the endpoint metadata, so the document names
-#     `application/octet-stream` only. The 2 findings of a seeded run are exactly this endpoint.
+#     check cannot pass without documenting every shared answer on every operation. That is a decision about the
+#     published document and about the generated clients (each listed status becomes a typed exception), and it is
+#     not taken yet. The 401 and 403 of a refused role carry a problem document only for a host that calls
+#     UseProblemDetailsOnDenial, so a listed 401/403 would be true for that host and not for another.
 REPORT_CHECKS = (
     "status_code_conformance",
-    "content_type_conformance",
 )
 
 # The one kind of server status the run accepts, per operation: an answer that says "this host cannot do that" and is
