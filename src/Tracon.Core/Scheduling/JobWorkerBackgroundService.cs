@@ -1804,23 +1804,22 @@ internal sealed class JobWorkerBackgroundService(
 
         /// <summary>
         /// How long a renewal sent now may go unanswered before the lease is given up: the time left on the proven lease,
-        /// less the margin. Once the margin is reached nothing is left to prove: a renewal that fails already costs the
-        /// lease (the loop's catch), and one that does not answer gets one more margin, the length of a renewal interval.
+        /// less the margin, and never less than half a margin.
         /// </summary>
         /// <remarks>
-        /// Never zero or negative, and not "lost at once" when the proof has run out: a store that answers the next
-        /// renewal still tells who holds the lease, and a worker whose clock jumped past the lease on a healthy store
-        /// finishes its job (see <c>JobLeaseClockStepTests</c>).
+        /// <para>
+        /// A tick that comes on schedule leaves a full margin to prove (the last confirmation was one interval ago), so
+        /// the renewal is given up at the point the proof ends. A tick that comes after a missed one finds that point
+        /// reached, and a store that is healthy must still be able to answer: it gets half a margin, which leaves the other
+        /// half as the time to stop in before the lease runs out. The budget is one continuous function of the time
+        /// left, so a renewal that is a few milliseconds earlier or later is given the same time within a few
+        /// milliseconds. It is never zero or negative, and not "lost at once" when the proof has run out: a store that
+        /// answers the next renewal still tells who holds the lease, and a worker whose clock jumped past the lease on a
+        /// healthy store finishes its job (see <c>JobLeaseClockStepTests</c>).
+        /// </para>
         /// </remarks>
         public TimeSpan CallBudget
-        {
-            get
-            {
-                var remaining = ProvableRemaining;
-
-                return remaining > TimeSpan.Zero ? remaining : _margin;
-            }
-        }
+            => TimeSpan.FromTicks(Math.Max(ProvableRemaining.Ticks, _margin.Ticks / 2));
 
         /// <summary>Records a renewal that succeeded.</summary>
         /// <param name="requestedAt">The monotonic timestamp taken before the renewal was sent.</param>

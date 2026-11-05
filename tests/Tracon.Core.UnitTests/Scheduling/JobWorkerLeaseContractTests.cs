@@ -826,6 +826,83 @@ public sealed class JobWorkerLeaseContractTests
         record!.Status.ShouldBe(JobStatus.Completed);
     }
 
+    /// <summary>
+    /// A renewal that comes after a missed one finds the point where the proof ends already reached, and is given half a
+    /// margin: a store that answers within it keeps the lease.
+    /// </summary>
+    [Fact]
+    public async Task A_renewal_after_a_missed_one_that_answers_within_half_the_margin_keeps_the_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new StuckRenewalJobStore(clock) { HoldCall = 2, ThrowEarlierCalls = true };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        // The first renewal throws: a miss, inside the margin. The second is sent exactly where the proof ends.
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 2, "the second renewal to be sent");
+
+        // One millisecond short of half the margin. The call's own time is a timer on the clock: it is gone once the loop
+        // has taken the answer, and only then does the clock move to where the timer would have fired.
+        clock.Advance((ManualInterval / 2) - TimeSpan.FromMilliseconds(1));
+
+        var timers = clock.Pending.Count;
+
+        jobs.Answer(renewed: true);
+        await WaitUntil.TrueAsync(() => clock.Pending.Count < timers, "the loop to take the answer");
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        await SettleAsync();
+
+        handler.WasCancelled.ShouldBeFalse("a store that answered within half the margin lost the lease");
+
+        handler.Release();
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>A renewal that comes after a missed one and does not answer in half a margin loses the lease.</summary>
+    [Fact]
+    public async Task A_renewal_after_a_missed_one_that_does_not_answer_in_half_the_margin_loses_the_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new StuckRenewalJobStore(clock) { HoldCall = 2, ThrowEarlierCalls = true };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 2, "the second renewal to be sent");
+
+        // Half the margin less a millisecond is not enough to give the call up; the last millisecond is.
+        clock.Advance((ManualInterval / 2) - TimeSpan.FromMilliseconds(1));
+        await SettleAsync();
+
+        handler.WasCancelled.ShouldBeFalse("the call was given up before its half margin was over");
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+        jobs.CompleteCalls.ShouldBe(0);
+        jobs.ReleaseCalls.ShouldBe(0);
+    }
+
     // ---- What happens when the lease is lost ----
 
     /// <summary>
@@ -860,6 +937,12 @@ public sealed class JobWorkerLeaseContractTests
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
         handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+
+        // The failure is logged, not lost: a callback that throws is the handler's own bug and must be findable.
+        logger.Entries.ShouldContain(
+            entry => entry.Level == LogLevel.Warning
+                && entry.Message.Contains("a callback on the handler's token threw", StringComparison.Ordinal),
+            "the exception the callback threw was swallowed without a trace");
 
         UnobservedTaskGuard.ForceCollection();
 
@@ -1592,6 +1675,12 @@ public sealed class JobWorkerLeaseContractTests
         /// <summary>Gets whether the stuck call ends with a cancellation when its token is cancelled.</summary>
         public bool HonorsToken { get; init; }
 
+        /// <summary>Gets which renewal call is the one that does not answer; the first by default.</summary>
+        public int HoldCall { get; init; } = 1;
+
+        /// <summary>Gets whether the renewal calls before <see cref="HoldCall"/> throw, as a store that blips once does.</summary>
+        public bool ThrowEarlierCalls { get; init; }
+
         /// <summary>Gets whether every renewal answers <see langword="false"/> at once.</summary>
         public bool RefuseRenewalsAtOnce { get; init; }
 
@@ -1627,7 +1716,12 @@ public sealed class JobWorkerLeaseContractTests
                 return new ValueTask<bool>(false);
             }
 
-            if (call > 1)
+            if (call < HoldCall && ThrowEarlierCalls)
+            {
+                throw new TimeoutException("The store did not answer in time.");
+            }
+
+            if (call != HoldCall)
             {
                 return base.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
             }
