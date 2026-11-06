@@ -123,7 +123,8 @@ public sealed class StructuredResponseRepairEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        // Tracon's own budget refusal, not an upstream failure: 422, never 502 (the answer names the setting to raise).
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -158,7 +159,8 @@ public sealed class StructuredResponseRepairEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        // Tracon's own budget refusal, not an upstream failure: 422, never 502 (the answer names the setting to raise).
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
