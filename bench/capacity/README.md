@@ -192,7 +192,11 @@ that would have counted. A flat row is "no growth above the floor", and a short 
 `tenant-ramp-short` is the five-minute development form; it proves the apparatus can be red and says nothing about
 slow leaks. `tenant-ramp-features` is a ten-minute ramp to 4 000 tenants for a feature the host leaves off:
 `TRACON_CAPACITY_RATE_LIMIT=instance` turns the per-tenant endpoint limiter on with a limit nothing reaches, and
-`TRACON_CAPACITY_TENANT_TAG=1` (through the profile's `tenantTag`) turns the per-tenant metric tag on. A rise that is one
+`TRACON_CAPACITY_TENANT_TAG=1` (through the profile's `tenantTag`) turns the per-tenant metric tag on.
+`TRACON_CAPACITY_TENANT_ENDPOINTS=1` makes the model provider report a provider endpoint of its own for each tenant (an
+address that ends in `.invalid`; nothing is called), which is what makes the telemetry cost of tenant-chosen endpoints
+visible, and `TRACON_CAPACITY_TELEMETRY_LANE_LIMIT=<n>` sets how many of them get telemetry of their own (the product's
+value when unset); the host reads this variable and not a `Tracon__…` setting. A rise that is one
 jump, level before and after, is written as a note and is never red.
 
 Two conveniences help while developing the apparatus (neither is read by anything shipped):

@@ -173,10 +173,11 @@ until you set `IncludeTenantTag` to `true`. The release notes list the change.
 A model call writes a `chat` span, and an agent run writes an `invoke_agent` span. Both carry the
 provider name, and the host and port of the provider endpoint (`server.address`, `server.port`) when the
 model client reports one. The `invoke_agent` span also carries the agent's default model as
-`gen_ai.request.model`. Each distinct provider, endpoint and model gets a meter and an activity
-source of its own that live until the host stops, and the host and the port are text a tenant
-administrator writes when they bind a provider endpoint of their own. A host with many tenants on their own
-endpoints would therefore keep one set for every address a tenant ever wrote.
+`gen_ai.request.model`. The model calls get a meter and an activity source of their own for each distinct
+provider, host and port, and the agents for each distinct provider, default model, host and port. They live until
+the host stops, and the host and the port are text a tenant administrator writes when they bind a provider
+endpoint of their own. A host with many tenants on their own endpoints would therefore keep one set for every
+address a tenant ever wrote.
 
 `Observability:MaxTelemetryLaneCardinality` (1024 by default) bounds that. The model calls and the agents
 each keep telemetry of their own for that many distinct endpoints and models. An endpoint or a model that comes
@@ -191,8 +192,8 @@ An endpoint that earned telemetry of its own keeps it for the life of the proces
 endpoint move between its own series and the shared one. Which endpoints earned it is decided by which came
 first, so it can differ from one start to the next. Set the limit above the number of endpoints and models you
 expect. The limit is separate from `AgentCache:MaxEntries`, which bounds compiled agents and not the endpoints
-they report. `0` gives no endpoint or model a label of its own; a negative value, or one above 1 000 000, stops
-startup.
+they report. `0` gives no endpoint a label of its own, and no agent span its default model; a negative value, or one above
+1 000 000, stops startup.
 :::
 
 ### What a failed audit write looks like

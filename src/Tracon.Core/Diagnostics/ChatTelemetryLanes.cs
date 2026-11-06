@@ -238,7 +238,11 @@ internal sealed class ChatTelemetryLanes : IDisposable
 
     private void WarnOnce()
     {
-        if (Interlocked.Exchange(ref _overflowWarned, 1) != 0 || _logger is null || !_logger.IsEnabled(LogLevel.Warning))
+        // A read first: after the first overflow the flag is only read, so a pipeline over the limit does not write a shared field.
+        if (Volatile.Read(ref _overflowWarned) != 0
+            || Interlocked.Exchange(ref _overflowWarned, 1) != 0
+            || _logger is null
+            || !_logger.IsEnabled(LogLevel.Warning))
         {
             return;
         }

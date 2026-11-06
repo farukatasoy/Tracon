@@ -932,15 +932,17 @@ public sealed class TraconObservabilityOptions
     /// </para>
     /// <para>
     /// An endpoint or a model that arrives after the limit is reached still writes its spans and its metrics. They name the
-    /// provider and carry no <c>server.address</c>, no <c>server.port</c> and, on an agent span, no default
-    /// <c>gen_ai.request.model</c>, and they are summed with every other identity over the limit. One <c>Warning</c> says so,
-    /// without the host or the model. An identity that earned its own telemetry keeps it for the life of the process, so
+    /// provider and carry no <c>server.address</c> and no <c>server.port</c>; an agent span also carries no default
+    /// <c>gen_ai.request.model</c>, while a model call's span still names the model of the call. They are summed with every
+    /// other identity over the limit. One <c>Warning</c> for the model calls and one for the agents say so, without the host
+    /// or the model. An identity that earned its own telemetry keeps it for the life of the process, so
     /// which identities carry their labels can differ from one start to the next: set the limit above the number of
     /// endpoints and models you expect. It is a separate limit from <see cref="TraconAgentCacheOptions.MaxEntries"/>,
     /// which bounds compiled agents and not the identities they report.
     /// </para>
     /// <para>
-    /// <c>0</c> keys no identity: every call is written without an endpoint or a model label. A negative value or one
+    /// <c>0</c> keys no identity: every call is written without an endpoint label, and every agent span without its default
+    /// model. A negative value or one
     /// above 1 000 000 stops startup. The value is read when the host starts; a later change takes effect at the next start.
     /// </para>
     /// </remarks>

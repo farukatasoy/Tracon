@@ -315,9 +315,10 @@ their own before the rest are folded into a single `other` series — see
 [observability](/guides/observability/#what-the-job-metrics-count).
 
 `MaxTelemetryLaneCardinality` bounds how many distinct provider endpoints and models get spans and
-metrics labeled with their own address and model, for model calls and for agents alike. An endpoint
-or a model over the limit keeps its spans and loses only those labels. `0` is valid and labels none; a
-negative value or one above 1 000 000 stops startup. The value is read at startup. See
+metrics labeled with their own address (`server.address`, `server.port`) and, on an agent's span, its default
+model. Model calls and agents each keep that many. An endpoint or a model over the limit keeps its spans and
+loses only those labels. `0` is valid and labels none; a negative value or one above 1 000 000 stops
+startup. The value is read at startup. See
 [observability](/guides/observability/#what-a-tenants-own-provider-endpoint-does-to-the-spans).
 
 ### Run recording

@@ -173,7 +173,9 @@ internal sealed class TelemetryLanePool : IDisposable
             if (admitted >= _maxIdentities)
             {
                 // The thread that took the last place for this very key may not have stored it yet; the next run of it
-                // finds it. Nothing about the turned-away run is remembered, so no set of overflowing identities grows.
+                // finds it. A place handed back by a run that lost the race for its own key is free again a moment later,
+                // so an identity that arrives in that moment overflows once too. Nothing about a turned-away run is
+                // remembered, so no set of overflowing identities grows, and the next run of the identity asks again.
                 return _idle.ContainsKey(key) ? key : Overflow(key);
             }
 
@@ -197,7 +199,11 @@ internal sealed class TelemetryLanePool : IDisposable
     {
         Interlocked.Increment(ref _overflowed);
 
-        if (Interlocked.Exchange(ref _overflowWarned, 1) == 0 && _logger is not null && _logger.IsEnabled(LogLevel.Warning))
+        // A read first: after the first overflow the flag is only read, so a run over the limit does not write a shared field.
+        if (Volatile.Read(ref _overflowWarned) == 0
+            && Interlocked.Exchange(ref _overflowWarned, 1) == 0
+            && _logger is not null
+            && _logger.IsEnabled(LogLevel.Warning))
         {
             // 🚨 The text names neither a host, a port nor a model: they are the tenant's own settings, and a log is not
             // where a tenant's resource name belongs.

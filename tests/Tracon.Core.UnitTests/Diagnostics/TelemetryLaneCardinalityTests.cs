@@ -3,6 +3,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Tracon.Tests.Common;
 
 namespace Tracon.Core.UnitTests.Diagnostics;
 
@@ -479,6 +480,153 @@ public sealed class TelemetryLaneCardinalityTests
         }
 
         decorator.LaneCount.ShouldBe(2, "the identity the limit allows and the lane of the overflow");
+    }
+
+    [Fact]
+    public async Task Runs_of_one_new_agent_identity_that_arrive_at_the_same_moment_take_one_place_between_them()
+    {
+        // Every run of a new identity reserves a place before the key is stored, and the runs that lose the race for the
+        // key hand theirs back. A pool that forgot to hand them back would lose a place for each lost race, and the
+        // limit would shrink without a word. The identity is new to all of them, so many rounds make the race happen.
+        for (var round = 0; round < 40; round++)
+        {
+            using var probe = new ChatSpanProbe();
+            using var pool = new TelemetryLanePool(probe.Source, enableSensitiveData: false, maxIdentities: 64);
+            var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var runs = Enumerable.Range(0, 32)
+                .Select(index => Task.Run(
+                    async () =>
+                    {
+                        await start.Task;
+                        await new PooledOpenTelemetryAgent(Agent($"agent-{index}", "provider", "https://same.example.test/", "model"), pool)
+                            .RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+                    },
+                    TestContext.Current.CancellationToken))
+                .ToList();
+
+            start.SetResult();
+            await Task.WhenAll(runs);
+
+            pool.AdmittedIdentities.ShouldBe(1, $"round {round}: one identity takes one place, however many of its runs arrive together");
+            pool.OverflowedCalls.ShouldBe(0, $"round {round}");
+        }
+    }
+
+    [Fact]
+    public async Task Overflowing_runs_that_arrive_at_the_same_moment_write_one_warning_between_them()
+    {
+        for (var round = 0; round < 20; round++)
+        {
+            using var probe = new ChatSpanProbe();
+            var logs = new WarningLogFactory();
+            using var pool = new TelemetryLanePool(probe.Source, enableSensitiveData: false, logs.CreateLogger("pool"), maxIdentities: 2);
+            var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var runs = Enumerable.Range(0, 80)
+                .Select(index => Task.Run(
+                    async () =>
+                    {
+                        await start.Task;
+                        await new PooledOpenTelemetryAgent(Agent("agent", "provider", $"https://host-{index % 20}.example.test/", "model"), pool)
+                            .RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+                    },
+                    TestContext.Current.CancellationToken))
+                .ToList();
+
+            start.SetResult();
+            await Task.WhenAll(runs);
+
+            logs.Entries.Count.ShouldBe(1, $"round {round}: the first overflow writes the warning and the runs that arrive with it write none");
+        }
+    }
+
+    [Fact]
+    public async Task Pipelines_that_overflow_at_the_same_moment_write_one_warning_between_them()
+    {
+        for (var round = 0; round < 20; round++)
+        {
+            using var probe = new ChatSpanProbe();
+            var logs = new WarningLogFactory();
+            using var lanes = probe.NewLanes(logs, maxIdentities: 1);
+            var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var wraps = Enumerable.Range(0, 64)
+                .Select(index => Task.Run(
+                    async () =>
+                    {
+                        await start.Task;
+                        lanes.Wrap(new ScriptedPipeline("a", Metadata("provider", $"https://host-{index}.example.test/", "m")));
+                    },
+                    TestContext.Current.CancellationToken))
+                .ToList();
+
+            start.SetResult();
+            await Task.WhenAll(wraps);
+
+            logs.Entries.Count.ShouldBe(1, $"round {round}");
+        }
+    }
+
+    [Fact]
+    public async Task An_agent_endpoint_without_a_default_model_counts_as_an_identity()
+    {
+        using var probe = new ChatSpanProbe();
+        using var pool = new TelemetryLanePool(probe.Source, enableSensitiveData: false, maxIdentities: 2);
+
+        for (var endpoint = 0; endpoint < 4; endpoint++)
+        {
+            await new PooledOpenTelemetryAgent(Agent($"agent-{endpoint}", "provider", $"https://host-{endpoint}.example.test/", model: null), pool)
+                .RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+        }
+
+        pool.AdmittedIdentities.ShouldBe(2, "the endpoint is free text of the tenant whether or not the client names a model");
+        pool.OverflowedCalls.ShouldBe(2);
+
+        var spans = AgentSpans(probe);
+
+        spans.Take(2).ShouldAllBe(static span => Tag(span, "server.address") != null);
+        spans.Skip(2).ShouldAllBe(static span => Tag(span, "server.address") == null && Tag(span, "server.port") == null);
+    }
+
+    [Fact]
+    public async Task Hundreds_of_endpoints_past_the_limit_leave_a_bounded_number_of_telemetry_instruments_and_sources_alive()
+    {
+        using var probe = new ChatSpanProbe();
+        using var census = InstrumentCensus.Open(probe.Source);
+        using var lanes = probe.NewLanes(maxIdentities: 3);
+        const int endpoints = 600;
+
+        for (var endpoint = 0; endpoint < endpoints; endpoint++)
+        {
+            var client = lanes.Wrap(new ScriptedPipeline("answer", Metadata("provider", $"https://host-{endpoint}.example.test/", "m")));
+
+            await client.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken);
+        }
+
+        census.CreatedSources.ShouldBe(4, "three endpoints and the lane of the provider");
+
+        // The census selects by the name of the instrument, and every other test of the process makes some at the same
+        // moment, so the bound has room; a lane for every endpoint would leave at least six hundred.
+        census.LiveInstruments.ShouldBeLessThan(endpoints / 2);
+    }
+
+    [Fact]
+    public async Task Hundreds_of_agent_identities_past_the_limit_leave_a_bounded_number_of_telemetry_instruments_and_sources_alive()
+    {
+        using var probe = new ChatSpanProbe();
+        using var census = InstrumentCensus.Open(probe.Source);
+        using var pool = new TelemetryLanePool(probe.Source, enableSensitiveData: false, maxIdentities: 3);
+        const int identities = 600;
+
+        for (var identity = 0; identity < identities; identity++)
+        {
+            await new PooledOpenTelemetryAgent(Agent("agent", "provider", $"https://host-{identity}.example.test/", "model"), pool)
+                .RunAsync("hello", cancellationToken: TestContext.Current.CancellationToken);
+        }
+
+        census.CreatedSources.ShouldBe(4, "three identities and the lane of the provider, because the runs came one after another");
+        census.LiveInstruments.ShouldBeLessThan(identities / 2);
     }
 
     private static ChatClientMetadata Metadata(string? provider, string? uri, string model)
