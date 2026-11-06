@@ -99,8 +99,9 @@ internal sealed class IdempotencyFilter : IEndpointFilter
             return Results.Problem(
                 title: "Idempotency support disabled",
                 detail: $"The '{HeaderName}' header was sent, but idempotency support is disabled in " +
-                        "this setup (TraconIdempotencyOptions.Enabled = false). The request is " +
-                        "processed ANYWAY, but a repeated request runs again; do NOT assume you are protected.",
+                        "this setup (TraconIdempotencyOptions.Enabled = false). The request was NOT " +
+                        "processed: nothing ran and nothing was stored. Send it again without the header, " +
+                        "or enable idempotency.",
                 statusCode: StatusCodes.Status501NotImplemented);
         }
 

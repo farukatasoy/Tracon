@@ -13,10 +13,9 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <remarks>
 /// <para>
 /// Both options default to on, so neither the sample host nor the OpenAPI fuzz can reach these two refusals. The body
-/// of the idempotency refusal says the request "is processed anyway"; the filter answers without calling the endpoint,
-/// so the body and the behavior disagree. This class pins the behavior (nothing runs, nothing is stored) in every
-/// combination of store and job worker, and states the disagreement in the open: the day the body is corrected, the
-/// last assertion of the idempotency case is the one that stays.
+/// of the idempotency refusal used to say the request "is processed anyway" while the filter answers without calling the
+/// endpoint; the body now says what happens, and this class pins both the behavior (nothing runs, nothing is stored)
+/// and the words, in every combination of store and job worker.
 /// </para>
 /// <para>
 /// The refusal comes before the store is touched, so the in-memory and the SQLite store answer alike. The job worker
@@ -95,7 +94,14 @@ public sealed class HeaderDisabled501Tests
         var problem = await TraconTestHost.ReadJsonAsync(response);
 
         problem.GetProperty("status").GetInt32().ShouldBe(501);
-        problem.GetProperty("detail").GetString().ShouldNotBeNullOrWhiteSpace();
+        var detail = problem.GetProperty("detail").GetString();
+
+        detail.ShouldNotBeNullOrWhiteSpace();
+
+        // The behavior is "refused, nothing ran": a body that says the request was processed would send a caller to look
+        // for a run that does not exist.
+        detail.ShouldNotContain("anyway", Case.Insensitive);
+        detail.ShouldNotContain("is processed", Case.Insensitive);
 
         // Nothing ran: no run row (the placeholder row of a queued run included) and no call to the model.
         using var listed = await host.Client.GetAsync(Runs, TestContext.Current.CancellationToken);

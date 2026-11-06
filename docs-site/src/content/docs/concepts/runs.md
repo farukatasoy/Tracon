@@ -181,10 +181,10 @@ Every stream Tracon writes itself (the run event stream, the streamed answer of
 `POST /api/agents/{name}/run`, AG-UI, and `stream: true` on Chat Completions and Responses)
 carries `X-Accel-Buffering: no` and `Cache-Control: no-cache, no-store, no-transform`. The MCP
 endpoint's stream is written by the MCP library and carries `X-Accel-Buffering: no`. The A2A
-streaming answer (`SendStreamingMessage`) is written by the A2A library and carries neither
-`X-Accel-Buffering` nor a keep-alive: measured against a silent model, it sent no byte, headers
-included, until the agent answered, so turn buffering off for the A2A location (the configuration
-below) and give it an idle timeout longer than your slowest agent. A proxy that honours the headers passes each frame on as it arrives. A proxy
+streaming answer (`SendStreamingMessage`) is written by the A2A library; Tracon adds
+`X-Accel-Buffering: no` to it, but the library sends no keep-alive: measured against a silent model,
+it sent no byte, headers included, until the agent answered, so give the A2A location an idle
+timeout longer than your slowest agent. A proxy that honours the headers passes each frame on as it arrives. A proxy
 that ignores the header and buffers the response holds the first events of a quiet run
 until its buffer is full. Measured with nginx 1.27 in front of the sample host, on a run
 that stayed silent:

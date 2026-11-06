@@ -174,7 +174,8 @@ public static class TraconA2AExtensions
                     "A tool call that needs approval cannot be answered over this surface and " +
                     "ends the run instead of waiting.")
                 // MapA2A returns the general convention builder, which has no Produces extension.
-                .WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status200OK, typeof(JsonElement), ["application/json"]));
+                .WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status200OK, typeof(JsonElement), ["application/json"]))
+                .AddEndpointFilter(KeepStreamUnbufferedAsync);
 
             // The card is answered here and not by the SDK's MapWellKnownAgentCard: that one serves a card built once, and
             // the address in it has to be the one this request arrived on (A2AAgentCardResponse).
@@ -199,6 +200,24 @@ public static class TraconA2AExtensions
         }
 
         return group;
+    }
+
+    /// <summary>
+    /// Tells a reverse proxy not to buffer the answer: <c>SendStreamingMessage</c> is written by the A2A library, which
+    /// sets no <c>X-Accel-Buffering</c> header, so an nginx with its default buffering held the first events of a
+    /// quiet run back (the other streams Tracon serves carry the header).
+    /// </summary>
+    /// <remarks>
+    /// The header is set before the library writes anything. A unary call carries it too, which costs nothing: a proxy
+    /// that honours it only stops holding a short body back. The library still writes no byte, headers included, until
+    /// its first event, so against a model that stays silent a proxy sees nothing before the agent answers; the
+    /// <c>proxy_read_timeout</c> of that location has to outlast the slowest agent.
+    /// </remarks>
+    private static async ValueTask<object?> KeepStreamUnbufferedAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        context.HttpContext.Response.Headers["X-Accel-Buffering"] = "no";
+
+        return await next(context).ConfigureAwait(false);
     }
 
     private static AgentCard BuildAgentCard(string agentName, AgentDescriptor? descriptor, string interfaceUrl)
