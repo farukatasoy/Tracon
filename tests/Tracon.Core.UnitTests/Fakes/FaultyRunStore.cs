@@ -21,6 +21,18 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
     /// <summary>Gets how many closing writes reached the store, failed ones included.</summary>
     public int CompleteAttempts { get; private set; }
 
+    /// <summary>Gets or sets whether closing a run is refused with the store's own verdict, which asking again does not change.</summary>
+    public bool RefuseCompletes { get; set; }
+
+    /// <summary>Gets how many calls that open or rewrite a run's row reached the store.</summary>
+    public int StartAttempts { get; private set; }
+
+    /// <summary>
+    /// Gets or sets what happens after a row is written and before the call returns: a test cancels the caller's token
+    /// there, so the call ends with a cancellation that arrives after the store took the row.
+    /// </summary>
+    public Action? AfterStart { get; set; }
+
     /// <summary>Gets or sets whether appending an event fails.</summary>
     public bool FailEventAppends { get; set; }
 
@@ -40,10 +52,25 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
         return inner.GetRunAsync(runId, cancellationToken);
     }
 
-    public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
-        => FailContinuationStart && info.ContinuedFromRunId is not null
-            ? throw new InvalidOperationException("the store is unavailable")
-            : inner.StartRunAsync(info, cancellationToken);
+    public async ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
+    {
+        StartAttempts++;
+
+        if (FailContinuationStart && info.ContinuedFromRunId is not null)
+        {
+            throw new InvalidOperationException("the store is unavailable");
+        }
+
+        var record = await inner.StartRunAsync(info, cancellationToken);
+
+        if (AfterStart is not null)
+        {
+            AfterStart();
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        return record;
+    }
 
     public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
         => FailEventAppends ? throw new InvalidOperationException("the store is unavailable") : inner.AppendEventAsync(runEvent, cancellationToken);
@@ -63,6 +90,11 @@ internal sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
         if (HangCompletes)
         {
             return new ValueTask(Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)); // delay: simulated
+        }
+
+        if (RefuseCompletes)
+        {
+            throw new TraconException("the store refuses this closing write");
         }
 
         if (FailCompletes)

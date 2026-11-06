@@ -93,6 +93,12 @@ public sealed class RunEventWriter
 
     private long _sequence;
 
+    // Whether the call that opens this run's row was made. Set just BEFORE StartRunAsync is called, never after it
+    // answers: a call that was sent and ended without an answer (a timeout, a stop that arrived after the store took
+    // the row) may have written the row, and the writer cannot tell, so it counts as sent. Only a call that was never
+    // made counts as not sent, and only then can the closing write be left out: there is no row to close.
+    private volatile bool _rowSent;
+
     // Backs IsDisabled. An int rather than a bool so that the transition can be
     // claimed exactly once: two writes racing into the same failure must log
     // twice (they are two different diagnostics) but count once, because the
@@ -192,8 +198,15 @@ public sealed class RunEventWriter
             return;
         }
 
+        // A stop that is already in force sends nothing: the writer knows it did not ask the store, so the closing
+        // write has no row to close. Without this line a store that ignores the token would write the row, and one that
+        // honours it would refuse the call, and the writer could not tell the two apart.
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
+            _rowSent = true;
+
             await _store.StartRunAsync(info, cancellationToken).ConfigureAwait(false);
 
             // 🚨 A retried run keeps its identity: StartRunAsync UPSERTS the row
@@ -306,7 +319,7 @@ public sealed class RunEventWriter
     /// observability must not interrupt the response streaming to the client.
     /// </remarks>
     public ValueTask<RunEvent> AppendAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
-        => AppendCoreAsync(draft, allowReserved: false, cancellationToken);
+        => AppendCoreAsync(draft, allowReserved: false, toStore: true, cancellationToken);
 
     /// <summary>
     /// Appends an event whose <see cref="RunEventDraft.CustomType"/> falls
@@ -320,9 +333,9 @@ public sealed class RunEventWriter
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The event with its sequence number and timestamp assigned.</returns>
     internal ValueTask<RunEvent> AppendReservedAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
-        => AppendCoreAsync(draft, allowReserved: true, cancellationToken);
+        => AppendCoreAsync(draft, allowReserved: true, toStore: true, cancellationToken);
 
-    private async ValueTask<RunEvent> AppendCoreAsync(RunEventDraft draft, bool allowReserved, CancellationToken cancellationToken)
+    private async ValueTask<RunEvent> AppendCoreAsync(RunEventDraft draft, bool allowReserved, bool toStore, CancellationToken cancellationToken)
     {
         ValidateCustomType(draft, allowReserved);
 
@@ -340,7 +353,7 @@ public sealed class RunEventWriter
 
         try
         {
-            return await AppendInOrderAsync(draft, allowReserved, cancellationToken).ConfigureAwait(false);
+            return await AppendInOrderAsync(draft, allowReserved, toStore, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -349,7 +362,11 @@ public sealed class RunEventWriter
     }
 
     /// <summary>Numbers, stores and dispatches one event; runs under the append gate only.</summary>
-    private async ValueTask<RunEvent> AppendInOrderAsync(RunEventDraft draft, bool allowReserved, CancellationToken cancellationToken)
+    /// <remarks>
+    /// <paramref name="toStore"/> is <see langword="false"/> only for the closing event of a run whose row was never
+    /// sent: the sinks still get it, the store is not asked to append to a run it does not know.
+    /// </remarks>
+    private async ValueTask<RunEvent> AppendInOrderAsync(RunEventDraft draft, bool allowReserved, bool toStore, CancellationToken cancellationToken)
     {
         var runEvent = new RunEvent
         {
@@ -403,7 +420,7 @@ public sealed class RunEventWriter
             TenantId = TenantId,
         };
 
-        if (!IsDisabled)
+        if (toStore && !IsDisabled)
         {
             try
             {
@@ -711,7 +728,19 @@ public sealed class RunEventWriter
             _ => new RunEventDraft(RunEventType.RunFailed) { Text = "The run was canceled." },
         };
 
-        await AppendAsync(closingEvent, cancellationToken).ConfigureAwait(false);
+        // 🚨 A run whose row was never sent has no row to close. The closing event still goes to the sinks, which must
+        // not miss the terminal event, but it does not go to the store and the closing write is not made: the store
+        // would answer "no such run" to both, the writer would disable itself on that answer and count a lost record
+        // that never existed, and the closing write would wait a pause before it asked a second time. A row that WAS
+        // sent keeps both writes, whatever happened to the call: see _rowSent.
+        var rowSent = _rowSent;
+
+        await AppendCoreAsync(closingEvent, allowReserved: false, toStore: rowSent, cancellationToken).ConfigureAwait(false);
+
+        if (!rowSent)
+        {
+            return;
+        }
 
         // 🚨 NOT gated on IsDisabled either, and tried twice. Every other write gives up on the first
         // failure, so one dropped connection costs the rest of a run's events; if the closing write went

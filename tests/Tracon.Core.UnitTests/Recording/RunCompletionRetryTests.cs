@@ -123,18 +123,89 @@ public sealed class RunCompletionRetryTests
     [Fact]
     public async Task A_refusal_the_store_means_is_not_tried_again()
     {
-        var store = new FaultyRunStore(new InMemoryRunStore());
+        var store = new FaultyRunStore(new InMemoryRunStore()) { RefuseCompletes = true };
         var clock = new ManualClock();
         var writer = NewWriter(store, metrics: null, clock);
 
-        // The run was never opened, so the store answers with its own verdict (no such run), first for the
-        // closing event and then for the closing write. A second try of the closing write asks the same question.
+        await writer.StartAsync(Start(writer), "hello");
+
+        // The store answers with its own verdict (a run of another tenant, a run it does not know). A second try of the
+        // closing write asks the same question.
         var pauses = await CloseAsync(writer, clock);
 
         store.CompleteAttempts.ShouldBe(1);
 
-        // The one wait is the one an earlier loss costs, not a wait between two tries.
-        pauses.ShouldBe(1);
+        // Nothing failed earlier in this run, so the first try is not preceded by a wait, and a verdict is not followed by one.
+        pauses.ShouldBe(0);
+        writer.IsDisabled.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_run_whose_row_was_never_sent_closes_without_asking_the_store()
+    {
+        // The row was never written, so there is nothing to close: the closing event reached the store as an append for a
+        // run it did not know, the store said so, the writer disabled itself, waited a pause and asked a second time.
+        var store = new FaultyRunStore(new InMemoryRunStore());
+        var clock = new ManualClock();
+        var sink = new RecordingSink();
+        var writer = NewWriter(store, metrics: null, clock, sink);
+
+        var pauses = await CloseAsync(writer, clock, RunStatus.Canceled);
+
+        store.CompleteAttempts.ShouldBe(0);
+        store.StartAttempts.ShouldBe(0);
+        pauses.ShouldBe(0, "a closing write that is not made does not wait");
+        clock.Pending.Count.ShouldBe(0);
+        writer.IsDisabled.ShouldBeFalse("nothing failed: there was no row to write");
+
+        // The sinks still get the terminal event, as they do when the store fails.
+        sink.Types.ShouldBe([RunEventType.RunFailed]);
+    }
+
+    [Fact]
+    public async Task A_start_with_a_token_that_is_already_cancelled_sends_no_row_and_the_run_closes_without_the_store()
+    {
+        var store = new FaultyRunStore(new InMemoryRunStore());
+        var clock = new ManualClock();
+        var writer = NewWriter(store, metrics: null, clock);
+
+        using var stopped = new CancellationTokenSource();
+        await stopped.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            () => writer.StartAsync(Start(writer), "hello", stopped.Token).AsTask());
+
+        var pauses = await CloseAsync(writer, clock, RunStatus.Canceled);
+
+        store.StartAttempts.ShouldBe(0, "a token that is already cancelled sends nothing");
+        store.CompleteAttempts.ShouldBe(0);
+        pauses.ShouldBe(0);
+        writer.IsDisabled.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_row_that_was_sent_and_then_cancelled_still_gets_its_closing_write()
+    {
+        // A stop can arrive after the store took the row and before the call returned (the caller leaves, an operator
+        // cancels). The writer cannot tell that from a row that was never written, so it asks: skipping the closing
+        // write would leave the row Running.
+        var inner = new InMemoryRunStore();
+        var store = new FaultyRunStore(inner);
+        var clock = new ManualClock();
+        var writer = NewWriter(store, metrics: null, clock);
+
+        using var stopped = new CancellationTokenSource();
+        store.AfterStart = () => stopped.Cancel();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            () => writer.StartAsync(Start(writer), "hello", stopped.Token).AsTask());
+
+        store.StartAttempts.ShouldBe(1);
+
+        await CloseAsync(writer, clock, RunStatus.Canceled);
+
+        store.CompleteAttempts.ShouldBe(1);
+        (await inner.GetRunAsync(writer.RunId, TestContext.Current.CancellationToken))!.Status.ShouldBe(RunStatus.Canceled);
     }
 
     [Fact]
@@ -229,9 +300,9 @@ public sealed class RunCompletionRetryTests
     /// Closes the run and answers every pause of the writer, so the test never sleeps. Returns how many pauses there
     /// were. The budget timer is armed too, but it is far longer than a pause and is left alone.
     /// </summary>
-    private static async Task<int> CloseAsync(RunEventWriter writer, ManualClock clock)
+    private static async Task<int> CloseAsync(RunEventWriter writer, ManualClock clock, RunStatus status = RunStatus.Completed)
     {
-        var closing = writer.CompleteAsync(RunStatus.Completed).AsTask();
+        var closing = writer.CompleteAsync(status).AsTask();
         var pauses = 0;
 
         while (true)
@@ -252,8 +323,34 @@ public sealed class RunCompletionRetryTests
         return pauses;
     }
 
-    private static RunEventWriter NewWriter(IRunStore store, TraconMetrics? metrics, TimeProvider clock)
-        => new(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics, sinks: null, clock);
+    private static RunEventWriter NewWriter(IRunStore store, TraconMetrics? metrics, TimeProvider clock, IRunEventSink? sink = null)
+        => new(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics, sink is null ? null : [sink], clock);
+
+    private sealed class RecordingSink : IRunEventSink
+    {
+        private readonly List<RunEventType> _types = [];
+
+        public IReadOnlyList<RunEventType> Types
+        {
+            get
+            {
+                lock (_types)
+                {
+                    return [.. _types];
+                }
+            }
+        }
+
+        public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+        {
+            lock (_types)
+            {
+                _types.Add(runEvent.Type);
+            }
+
+            return ValueTask.CompletedTask;
+        }
+    }
 
     private static RunStartInfo Start(RunEventWriter writer) => new()
     {
