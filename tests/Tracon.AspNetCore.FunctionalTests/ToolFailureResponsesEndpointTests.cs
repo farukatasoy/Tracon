@@ -1,13 +1,8 @@
-// FINDING - not compiled. Rename to ToolFailureResponsesEndpointTests.cs to run it.
-//
-// Measured 2026-11-06: an agent whose tool throws an exception that is not Tracon's own (here an InvalidOperationException
-// whose message carries a connection string) is told "Error: Function failed." by the model call, as intended, but
-// POST /tracon/v1/responses (buffered and with stream:true) writes the exception's type and message into the
-// function_call_output item of its answer:  "output":"InvalidOperationException(\"Server=...;Password=...\")".
-// POST /tracon/api/agents/{name}/run and POST /tracon/v1/chat/completions do not show it.
-//
-// The Responses conversation reader says the opposite in a comment ("never the exception's message: it can carry a
-// connection string or a path"), so the expectation is the repository's own. Passing this probe is the proof the fix landed.
+// An agent whose tool throws an exception that is not Tracon's own (here an InvalidOperationException whose message
+// carries a connection string) is told "Error: Function failed." by the model call. POST /tracon/v1/responses, buffered
+// and with stream:true, must not write that exception's type and message into the function_call_output item of its
+// answer: the framework's writer does so for any tool result that carries an exception, and the answer's caller must
+// not be handed more than the model was (ResponsesToolFailureText). The run endpoint and Chat Completions never did.
 using System.Net.Http.Json;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 

@@ -1,16 +1,9 @@
-// FINDING - not compiled. Rename to LiveVoiceSidebandRefusalStatusTests.cs to run it.
-//
-// Measured 2026-11-06 on a real Kestrel socket: POST /tracon/api/voice/live/sessions with a provider that accepts the
-// create call and refuses the sideband handshake (FakeGptLiveServer.RefuseAttach) answers 500, with no Content-Type
-// and an empty body. Expected: 502 with a problem+json body, as the create-call refusal does.
-//
-// Cause (by reading, confirmed by the measurement): ClientWebSocket.ConnectAsync throws WebSocketException when the
-// handshake is refused; LiveVoiceSessionLauncher.LaunchAsync closes the record and rethrows; LiveVoiceEndpoints.CreateAsync
-// catches TraconException, HttpRequestException, TimeoutException and NotSupportedException only. The exception reaches
-// the server's last-resort handler.
-//
-// Passing this probe is the proof that the fix landed. The aftermath (slot returned, record closed with Error, host still
-// serving) is already pinned by LiveVoiceSidebandRefusalTests and stays green on either status.
+// POST /tracon/api/voice/live/sessions with a provider that accepts the create call and refuses the sideband handshake
+// (FakeGptLiveServer.RefuseAttach) answers 502 with a problem+json body, as the create-call refusal does. It answered 500
+// with no Content-Type and an empty body: ClientWebSocket.ConnectAsync throws WebSocketException for a refused handshake
+// and the endpoint's catch list did not name it, so it reached the server's last-resort handler. Only a real Kestrel
+// socket shows it (the in-process test server hands the exception to the client), which is why this test starts one.
+// The aftermath (slot returned, record closed with Error, host still serving) is pinned by LiveVoiceSidebandRefusalTests.
 using System.Net;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 

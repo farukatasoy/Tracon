@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Net.WebSockets;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -227,11 +228,18 @@ internal static class LiveVoiceEndpoints
                     context.RequestAborted)
                 .ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is TraconException or HttpRequestException or TimeoutException or NotSupportedException)
+        catch (Exception exception) when (exception is TraconException or HttpRequestException or TimeoutException or NotSupportedException or WebSocketException)
         {
             // NotSupportedException: a provider that claims tenant credentials
             // but does not override AttachSessionAsync refuses the credential on
             // attach (the contract's own default). A provider answer, not a 500.
+            //
+            // WebSocketException: the provider accepted the create call and then
+            // refused the sideband handshake (ClientWebSocket.ConnectAsync throws
+            // it for a refused upgrade, a reset or a bad status). The launcher has
+            // already closed the record and returned the slot; the answer is the
+            // same 502 a refused create call gets. Measured on a real socket only:
+            // the in-process test server rethrows the exception to the client.
             //
             // 🚨 HttpRequestException belongs here as much as TraconException:
             // the outbound address policy refuses a connection through the socket

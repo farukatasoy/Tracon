@@ -328,10 +328,13 @@ internal static class OpenAIResponsesEndpoints
 
             await sessionStore.SaveSessionAsync(agent, new AgentSessionStoreKey(saveId), session, cancellationToken).ConfigureAwait(false);
 
-            var responseJson = OpenAIResponses.WriteResponse(response, responseId, runRequest.ConversationId);
+            // 🚨 Written from a copy that carries no tool exception: the framework writes a failed tool's
+            // exception type and message into function_call_output (ResponsesToolFailureText).
+            var answer = ResponsesToolFailureText.Redact(response);
+            var responseJson = OpenAIResponses.WriteResponse(answer, responseId, runRequest.ConversationId);
 
             return Results.Json(
-                PatchResponse(responseJson, response.Messages, response.FinishReason, agentName),
+                PatchResponse(responseJson, answer.Messages, answer.FinishReason, agentName),
                 statusCode: StatusCodes.Status200OK);
         }
         // 🚨 A provider timeout arrives as an OperationCanceledException while
@@ -569,8 +572,9 @@ internal static class OpenAIResponsesEndpoints
                 // answer and passes every other frame through as the same string.
                 var rewriter = new ResponsesStreamRewriter(model);
 
+                // The rewriter sees the run's own updates; only what is written has the tool exceptions taken out.
                 var frames = OpenAIResponses.WriteResponseStreamAsync(
-                    rewriter.Observe(updates, cancellationToken),
+                    ResponsesToolFailureText.Redact(rewriter.Observe(updates, cancellationToken), cancellationToken),
                     responseId,
                     request.ConversationId,
                     cancellationToken);

@@ -579,7 +579,7 @@ status description of the `chat` span. With `RecordSensitiveData` on, the trace 
 status description. The same holds for a tool that throws an exception other than a `TraconException`:
 the exception's message is the `error.message` of the `execute_tool` span, so with the flag on the stored
 trace and `GET /api/runs/{id}/trace` carry it, and with the flag off they do not. The model is told a fixed
-sentence either way, and the log keeps the full exception. A `TraconException` is different: its message
+sentence either way, a Responses answer carries that sentence in `function_call_output`, and the log keeps the full exception. A `TraconException` is different: its message
 is a sentence written for the model, so the model reads it.
 
 Some providers quote the key they refused inside that text. Tracon replaces the key of the call with

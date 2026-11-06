@@ -142,6 +142,8 @@ that the conversation WebSocket needs does not apply here.
 `{ voiceSessionId, sdp, model, persistTranscript }`. Hand the `sdp` to
 `RTCPeerConnection.setRemoteDescription` and the media flows.
 
+A provider that refuses the create call, or accepts it and then refuses the sideband handshake, is answered `502`.
+
 A caller that may not reach a session is told the session does not exist, in exactly
 the words a genuinely missing session produces. That is deliberate: a distinguishable
 `403` would tell an attacker which session ids are real in someone else's tenant.

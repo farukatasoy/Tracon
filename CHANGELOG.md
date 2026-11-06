@@ -1547,6 +1547,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that ignores `Vary`, behind a proxy that passes a forwarded header through unchecked, would have kept one caller's address for every caller for an hour. A client or a gateway that cached the card for an hour caches it for five minutes, and only for the one caller. An application that is reachable under any host name sets `AllowedHosts`, as it does for any absolute address it builds. A card with a fixed
   public address independent of the request (a `PublicBaseUrl` option) was not added: nothing in the options surface asked for it, and it can be added later without breaking anything.
 
+- **`POST /v1/responses` no longer writes the exception text of a failed tool into its answer.** A tool that threw an exception of its own (not a `TraconException`) was reported to the model as `Error: Function failed.`, but the `function_call_output` item of the Responses answer, buffered and streamed, carried the exception's type name and message, for example `InvalidOperationException("Server=db.internal;Password=…")`. A tool's exception can hold a connection string or a path. The item now carries the text the model was given; the run endpoint and Chat Completions always did. The full exception stays in the log and in the tool's span.
+  What to do: nothing. A client that read the exception type out of `output` should read the run record instead.
+
+- **A live voice session whose provider refuses the sideband connection is answered with `502 Bad Gateway`.** `POST /api/voice/live/sessions` answered `500` with an empty body when the provider accepted the create call and then refused the WebSocket handshake of the sideband; a refused create call already answered `502` with a problem document. The slot is released and the run record is closed with `Error`, as before.
+  What to do: nothing. A client that took `500` for this refusal should handle `502` as it handles a refused create call.
+
 ## [1.0.0-preview.6] - 2026-10-27
 
 Agents and workflows gain the controls a production host needs before the surface
