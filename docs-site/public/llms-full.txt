@@ -2980,13 +2980,14 @@ streamed answer of `POST /api/agents/{name}/run` is not resumable and does not s
 
 ### Behind a reverse proxy
 
-Every stream Tracon writes itself carries `X-Accel-Buffering: no` and `Cache-Control: no-cache,
-no-store, no-transform`: the run event stream, the streamed answer of `POST /api/agents/{name}/run`,
-AG-UI, `stream: true` on Chat Completions and Responses, and the MCP endpoint. The A2A streaming
-answer (`SendStreamingMessage`) is written by the A2A library and carries neither `X-Accel-Buffering`
-nor a keep-alive: measured against a silent model, it sent no byte, headers included, until the agent
-answered, so turn buffering off for the A2A location (the configuration below) and give it an idle timeout
-longer than your slowest agent. A proxy that honours the headers passes each frame on as it arrives. A proxy
+Every stream Tracon writes itself (the run event stream, the streamed answer of
+`POST /api/agents/{name}/run`, AG-UI, and `stream: true` on Chat Completions and Responses)
+carries `X-Accel-Buffering: no` and `Cache-Control: no-cache, no-store, no-transform`. The MCP
+endpoint's stream is written by the MCP library and carries `X-Accel-Buffering: no`. The A2A
+streaming answer (`SendStreamingMessage`) is written by the A2A library and carries neither
+`X-Accel-Buffering` nor a keep-alive: measured against a silent model, it sent no byte, headers
+included, until the agent answered, so turn buffering off for the A2A location (the configuration
+below) and give it an idle timeout longer than your slowest agent. A proxy that honours the headers passes each frame on as it arrives. A proxy
 that ignores the header and buffers the response holds the first events of a quiet run
 until its buffer is full. Measured with nginx 1.27 in front of the sample host, on a run
 that stayed silent:
@@ -12533,8 +12534,8 @@ itself: a header the host does not honour changes nothing. The response is marke
 headers the address depends on, and `Cache-Control: private, max-age=300` keeps a cache shared between
 callers from holding one caller's address. Measured with nginx 1.27 `proxy_cache`: a default cache honours
 `private` and stores nothing; one told to ignore `Cache-Control` still keeps a separate entry for each
-`Host` and `X-Forwarded-Host`, because it honours `Vary`; only a cache told to ignore both headers and
-keyed without the `Host` hands one caller's address to another.
+`Host` and `X-Forwarded-Host`, because it honours `Vary`; only a cache told to ignore both `Cache-Control`
+and `Vary`, and keyed without the `Host`, hands one caller's address to another.
 
 A2A names are frozen during service registration because the underlying hosting API
 registers one server per name. The agent implementation is still resolved from the
@@ -16336,10 +16337,11 @@ that text. It reaches five loggers that write the exception with its inner excep
 `Microsoft.Extensions.AI.OpenTelemetryChatClient` (at `Warning`), `Tracon.ModelProvider`,
 `Tracon.RunRecordingAgent`, `Tracon.AgentEndpoints` and `Tracon.OpenAICompat`. It also becomes the
 status description of the `chat` span. With `RecordSensitiveData` on, the trace store keeps that
-status description. The same holds for a tool that throws: the exception's message is the `error.message`
-of the `execute_tool` span, so with the flag on the stored trace and `GET /api/runs/{id}/trace` carry it,
-and with the flag off they do not. The model is told a fixed sentence either way, and the log keeps the
-full exception.
+status description. The same holds for a tool that throws an exception other than a `TraconException`:
+the exception's message is the `error.message` of the `execute_tool` span, so with the flag on the stored
+trace and `GET /api/runs/{id}/trace` carry it, and with the flag off they do not. The model is told a fixed
+sentence either way, and the log keeps the full exception. A `TraconException` is different: its message
+is a sentence written for the model, so the model reads it.
 
 Some providers quote the key they refused inside that text. Tracon replaces the key of the call with
 `[redacted]` in the log lines, in the span status, in the stored trace, in the run record and in the
