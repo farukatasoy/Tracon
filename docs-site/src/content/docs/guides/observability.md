@@ -609,6 +609,8 @@ no key to hide keeps the real inner exception. If your code catches a Tracon exc
 Incorrect API key provided: Bearer [redacted]. Find your key at the provider's console.
 ```
 
+An image call is covered the same way: the key set up for OpenAI, Azure OpenAI or Google is replaced in the log and in the span of a failed image generation. The speech clients of OpenAI and Gemini report a failure that never carries the service's text.
+
 What this does **not** cover:
 
 | Not replaced | Why | What to do |
@@ -617,7 +619,7 @@ What this does **not** cover:
 | A token a provider fetches while it runs, such as the Entra token of Azure OpenAI `CredentialFactory` | It is short-lived, it is not a configured key, and `SetupApiKeys` names static keys. | Nothing: the token expires. |
 | A part of the key that the provider quotes itself | The match is exact. It is not a pattern of keys. At the time of writing, OpenAI quotes the first eight and the last four characters of a refused key, and the Anthropic and Google answers quote no part of it. | Nothing: the provider chose to show that part. |
 | A key shorter than eight characters | A value that short is also ordinary text. | Use the key the provider issued. |
-| The error of a speech or live voice provider, and of image generation | These calls do not pass through the model pipeline, and this replacement was not measured on them. | Treat the log line of a failed speech, live voice or image call as readable by anyone who reads the log. |
+| The error of a live voice provider | This call does not pass through the model pipeline, and this replacement was not measured on it. | Treat the log line of a failed live voice call as readable by anyone who reads the log. |
 
 If a log reader must never see what a provider quoted (the partial key above, for example), filter all
 five loggers. The first two carry nothing but the provider's detail. The other three also carry the run

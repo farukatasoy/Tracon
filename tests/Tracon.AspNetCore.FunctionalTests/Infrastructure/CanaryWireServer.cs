@@ -155,7 +155,10 @@ internal sealed class CanaryWireServer : IAsyncDisposable
         var isModelCall = path.Contains("/messages", StringComparison.Ordinal)
             || path.Contains("chat/completions", StringComparison.Ordinal)
             || path.EndsWith("/responses", StringComparison.Ordinal)
-            || path.Contains("generateContent", StringComparison.OrdinalIgnoreCase);
+            || path.Contains("generateContent", StringComparison.OrdinalIgnoreCase)
+            || path.Contains("images/generations", StringComparison.Ordinal)
+            || path.Contains("audio/speech", StringComparison.Ordinal)
+            || path.Contains("audio/transcriptions", StringComparison.Ordinal);
 
         if (!isModelCall)
         {

@@ -136,7 +136,7 @@ internal sealed class ImageGeneratorResolver
     }
 
     private IImageGenerator WrapInRing(IImageGenerator generator)
-        => new ImageGeneratorBuilder(generator)
+        => new ImageGeneratorBuilder(ProviderFailureMasking.Wrap(generator, _services, _options.Value.Provider))
             .UseOpenTelemetry(_services.GetService<ILoggerFactory>(), TraconDiagnostics.ActivitySourceName)
             .Build();
 }
