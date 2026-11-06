@@ -433,6 +433,104 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
+    public void A_connection_pool_that_moves_with_the_load_and_not_with_the_tenants_is_not_a_leak()
+    {
+        // The pool ends its plateaus at 9, 13 and 17 connections while the plateaus as a whole sit near 11: what the
+        // rule for a plain count called a leak in a soak whose pool simply opened more connections under load. The
+        // same readings under a plain count's name are the control: that rule is red on them.
+        var run = Fixture.Build((metric, time, _, stage) => metric is "pg.connections" or "host.osThreads" ? PoolWave(time, stage) : null);
+
+        var analysis = FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options);
+        var pool = analysis.Metrics.Single(static m => string.Equals(m.Name, "pg.connections", StringComparison.Ordinal));
+        var plain = analysis.Metrics.Single(static m => string.Equals(m.Name, "host.osThreads", StringComparison.Ordinal));
+
+        plain.Verdict.ShouldBe(FootprintVerdict.Red, "the control: a plain count reads the pool's breathing as growth");
+
+        pool.Kind.ShouldBe(MetricKind.Pooled);
+        pool.Verdict.ShouldBe(FootprintVerdict.Green, string.Join("; ", pool.Reasons));
+        pool.Steps.ShouldAllBe(static s => string.Equals(s.Verdict, FootprintVerdict.Green, StringComparison.Ordinal));
+        pool.Levels.ShouldAllBe(static l => l.HasValue && l.Value > 10 && l.Value < 12, "a plateau stands for its median, not for its last third");
+        pool.Breath.ShouldNotBeNull().ShouldBeGreaterThanOrEqualTo(8);
+    }
+
+    [Fact]
+    public void A_connection_pool_whose_lowest_reading_climbs_with_the_tenants_is_red()
+    {
+        // The same breathing with one more connection for every ten tenants: 0.2, 2 and 20 on top of it.
+        var run = Fixture.Build((metric, time, tenants, stage) => string.Equals(metric, "pg.connections", StringComparison.Ordinal)
+            ? PoolWave(time, stage) + (tenants / 10.0)
+            : null);
+
+        var pool = FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "pg.connections", StringComparison.Ordinal));
+
+        pool.Verdict.ShouldBe(FootprintVerdict.Red);
+        pool.Steps.Last().Verdict.ShouldBe(FootprintVerdict.Red);
+        pool.Reasons.ShouldContain(r => r.Contains("its lowest window rose too", StringComparison.Ordinal));
+        pool.Troughs.Last().ShouldNotBeNull().ShouldBeGreaterThan(pool.Troughs[0]!.Value + 15);
+    }
+
+    [Fact]
+    public void A_connection_pool_that_filled_for_the_load_but_went_back_down_is_not_a_leak()
+    {
+        // 8 connections, then 20 for most of the last plateau: the level is up by more than the pool breathes, but
+        // the pool still touched 8 when the load let it. A connection held for a tenant does not go back.
+        var run = Fixture.Build((metric, time, _, stage) => string.Equals(metric, "pg.connections", StringComparison.Ordinal)
+            ? (stage == 2 && time >= 160 ? 20 : 8)
+            : null);
+
+        var pool = FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "pg.connections", StringComparison.Ordinal));
+
+        pool.Steps.Last().Delta.ShouldBeGreaterThan(pool.Breath!.Value);
+        pool.Steps.Last().Verdict.ShouldBe(FootprintVerdict.Green);
+        pool.Steps.Last().Note.ShouldContain("filled for the load");
+        string.Equals(pool.Verdict, FootprintVerdict.Red, StringComparison.Ordinal).ShouldBeFalse(string.Join("; ", pool.Reasons));
+    }
+
+    [Fact]
+    public void A_connection_pool_whose_plateau_reaches_the_limit_is_red_however_slowly_it_got_there()
+    {
+        // 18, 19 and 20 connections: each step is within the breathing, and the last plateau sits at a limit of 20.
+        var readings = (Func<string, double, int, int, double?>)((metric, _, _, stage) => string.Equals(metric, "pg.connections", StringComparison.Ordinal) ? 18 + stage : null);
+
+        var limited = Fixture.Build(readings);
+        limited.Ramp.MaxPoolSize = 20;
+
+        var pool = FootprintAnalysis.Analyse("cell", limited.Samples, limited.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "pg.connections", StringComparison.Ordinal));
+
+        pool.Steps.ShouldAllBe(static s => string.Equals(s.Verdict, FootprintVerdict.Green, StringComparison.Ordinal));
+        pool.Verdict.ShouldBe(FootprintVerdict.Red);
+        pool.Reasons.ShouldContain(r => r.Contains("the pool is used up", StringComparison.Ordinal));
+
+        // The same readings against a pool of a hundred, or against a ramp that did not record the limit, are flat.
+        var roomy = Fixture.Build(readings);
+        roomy.Ramp.MaxPoolSize = 100;
+        var unknown = Fixture.Build(readings);
+
+        foreach (var run in new[] { roomy, unknown })
+        {
+            FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options)
+                .Metrics.Single(static m => string.Equals(m.Name, "pg.connections", StringComparison.Ordinal))
+                .Verdict.ShouldBe(FootprintVerdict.Green);
+        }
+
+        // The limit travels in ramp.json; a file written before it was recorded has none.
+        JsonSerializer.Deserialize(JsonSerializer.Serialize(limited.Ramp, CapacityJson.Default.RampRecord), CapacityJson.Default.RampRecord)
+            .ShouldNotBeNull().MaxPoolSize.ShouldBe(20);
+        JsonSerializer.Deserialize(JsonSerializer.Serialize(unknown.Ramp, CapacityJson.Default.RampRecord), CapacityJson.Default.RampRecord)
+            .ShouldNotBeNull().MaxPoolSize.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Only_the_connection_count_is_judged_as_a_pool_and_the_ones_in_a_transaction_stay_plain()
+    {
+        FootprintCatalog.Find("pg.connections").ShouldNotBeNull().Kind.ShouldBe(MetricKind.Pooled);
+        FootprintCatalog.Find("pg.idleInTransaction").ShouldNotBeNull().Kind.ShouldBe(MetricKind.Count);
+    }
+
+    [Fact]
     public void Framework_pool_gauges_are_written_down_and_judged_by_nobody()
     {
         FootprintCatalog.Find("host.upDownTotals.Microsoft.AspNetCore.MemoryPool/aspnetcore.memory_pool.pooled").ShouldBeNull();
@@ -531,6 +629,13 @@ public sealed class CapacityFootprintTests
     // Five-second windows: the fixture's plateaus are a minute long, so ten-second windows would leave too few
     // points to judge, which is its own (tested) outcome.
     private static FootprintAnalysisOptions Options { get; } = new() { BucketSeconds = 5 };
+
+    // A pool between 4 and 18 connections whose cycle is as long as a plateau. The phase of each stage puts the end of its
+    // plateau at 9, 13 and 17, which the median of the whole plateau (about 11 in all three) does not follow.
+    private static readonly double[] PoolPhases = [2.190, 3.107, 2.094];
+
+    private static double PoolWave(double time, int stage)
+        => 11 + (7 * Math.Sin((2 * Math.PI * time / 48) + PoolPhases[stage]));
 
     private static double Noise(double time, double amplitude)
         => amplitude * Math.Sin(time * 1.7) * Math.Cos(time * 0.31);

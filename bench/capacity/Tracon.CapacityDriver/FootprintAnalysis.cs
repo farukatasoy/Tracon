@@ -20,6 +20,14 @@ public enum MetricKind
     /// cost per tenant that climbs is super-linear. Judged like <see cref="Bytes"/>, with the floors of <see cref="Count"/>.
     /// </summary>
     Objects,
+
+    /// <summary>
+    /// A count a pool keeps between a minimum and a ceiling and moves by itself with the load: the database client's
+    /// connections. It is never flat, so the rule for <see cref="Count"/> reads its breathing as growth. Judged by where
+    /// the plateau as a whole sits, and a rise counts only when it is larger than the pool's own breathing and the pool's
+    /// lowest reading rose too; a pool that fills up is red at any size.
+    /// </summary>
+    Pooled,
 }
 
 /// <summary>One thing the host or the database reports about the host's footprint.</summary>
@@ -53,7 +61,7 @@ public static class FootprintCatalog
         new("host.meterInstruments", "Metric instruments that published", MetricKind.Count),
         new("host.meterPublications", "Instrument announcements (a meter made again counts again)", MetricKind.Objects),
         new("host.loadedAssemblies", "Loaded assemblies", MetricKind.Count),
-        new("pg.connections", "PostgreSQL client connections", MetricKind.Count),
+        new("pg.connections", "PostgreSQL client connections", MetricKind.Pooled),
         new("pg.idleInTransaction", "PostgreSQL idle in transaction", MetricKind.Count),
     ];
 
@@ -133,6 +141,19 @@ public sealed record FootprintAnalysisOptions
 
     /// <summary>How much larger one step's cost per tenant must be than the step before it to be called super-linear.</summary>
     public double SuperLinearRatio { get; init; } = 1.5;
+
+    /// <summary>
+    /// The smallest rise of a <see cref="MetricKind.Pooled"/> metric from one plateau to the next that counts: how far a
+    /// connection pool's level moves between two plateaus with nothing about the tenants changing. A run whose first plateau
+    /// breathes wider than this raises it for that run.
+    /// </summary>
+    /// <remarks>
+    /// 8, from the six <c>tenant-ramp</c> cells recorded in November 2026 (28 plateaus): the median of a plateau sat between 9
+    /// and 15 connections at 2 to 10 000 tenants with no relation to the tenants, and the largest rise from one plateau to the
+    /// next was 5 (7 when the end of the plateau is read instead of the whole). Inside one plateau the pool was flat to within a
+    /// connection, so the first plateau alone says almost nothing about how far it moves between two.
+    /// </remarks>
+    public double PooledBreath { get; init; } = 8;
 
     /// <summary>The smallest change that counts for a metric of a kind at a level.</summary>
     /// <param name="kind">The metric's kind.</param>
@@ -283,6 +304,18 @@ public sealed class MetricAnalysis
 
     /// <summary>The level at each plateau, in stage order.</summary>
     public List<double?> Levels { get; set; } = [];
+
+    /// <summary>
+    /// For a <see cref="MetricKind.Pooled"/> metric, the lowest window of each plateau, in stage order: where the pool went
+    /// when the load let it.
+    /// </summary>
+    public List<double?> Troughs { get; set; } = [];
+
+    /// <summary>
+    /// For a <see cref="MetricKind.Pooled"/> metric, the rise from one plateau to the next that it takes to be called more
+    /// than the pool breathing, or <see langword="null"/> for any other kind.
+    /// </summary>
+    public double? Breath { get; set; }
 
     /// <summary>How the metric moved inside each plateau.</summary>
     public List<StageTrend> Trends { get; set; } = [];
@@ -464,14 +497,36 @@ public static class FootprintAnalysis
 
         var conclusive = 0;
 
+        if (metric.Kind == MetricKind.Pooled && holds.Count > 0)
+        {
+            // How far the pool moves with nothing about the tenants changing is read once, from the first plateau, and
+            // is the smallest rise that counts everywhere after it: inside a plateau and from one plateau to the next.
+            var first = Window(holds[0], options);
+
+            analysis.Breath = Math.Max(
+                options.PooledBreath,
+                Spread(points.Where(p => p.Time >= first.Start && p.Time <= first.End).ToList()));
+        }
+
         foreach (var hold in holds)
         {
             var window = Window(hold, options);
             var inWindow = points.Where(p => p.Time >= window.Start && p.Time <= window.End).ToList();
 
-            var trend = Trend(hold, window, inWindow, metric.Kind, options, RequestsPerSecond(hold));
+            var trend = Trend(hold, window, inWindow, metric.Kind, options, RequestsPerSecond(hold), analysis.Breath ?? 0);
             analysis.Trends.Add(trend);
-            analysis.Levels.Add(Level(inWindow));
+
+            if (metric.Kind == MetricKind.Pooled)
+            {
+                // A pool moves with the load and sits on one level for a while: the last third of a plateau is a stretch
+                // of that, not the plateau, so the plateau as a whole stands for it.
+                analysis.Levels.Add(WholeWindowLevel(inWindow));
+                analysis.Troughs.Add(Trough(inWindow, window.Start, options.BucketSeconds));
+            }
+            else
+            {
+                analysis.Levels.Add(Level(inWindow));
+            }
 
             if (!string.Equals(trend.Verdict, FootprintVerdict.Inconclusive, StringComparison.Ordinal))
             {
@@ -480,6 +535,9 @@ public static class FootprintAnalysis
         }
 
         ConfirmDrift(analysis);
+
+        var exhausted = metric.Kind == MetricKind.Pooled && ramp.MaxPoolSize is > 0 ? ExhaustedPlateaus(analysis, holds, ramp.MaxPoolSize.Value) : [];
+        analysis.Reasons.AddRange(exhausted);
 
         foreach (var trend in analysis.Trends)
         {
@@ -549,7 +607,8 @@ public static class FootprintAnalysis
         }
 
         var red = analysis.Trends.Any(static t => string.Equals(t.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))
-            || analysis.Steps.Any(static s => string.Equals(s.Verdict, FootprintVerdict.Red, StringComparison.Ordinal));
+            || analysis.Steps.Any(static s => string.Equals(s.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))
+            || exhausted.Count > 0;
 
         // Green is a claim about every plateau. A metric with one plateau too thin to judge is inconclusive, not
         // green: the plateau nobody could judge is exactly where a leak would be.
@@ -589,7 +648,7 @@ public static class FootprintAnalysis
     // early rise was the process warming up (a thread pool finding its size, a pool opening its connections).
     private static void ConfirmSteps(MetricAnalysis analysis)
     {
-        if (analysis.Kind != MetricKind.Count)
+        if (analysis.Kind is not (MetricKind.Count or MetricKind.Pooled))
         {
             return;
         }
@@ -644,7 +703,8 @@ public static class FootprintAnalysis
         List<(double Time, double Value)> inWindow,
         MetricKind kind,
         FootprintAnalysisOptions options,
-        double requestsPerSecond)
+        double requestsPerSecond,
+        double minimumFloor)
     {
         var trend = new StageTrend
         {
@@ -660,7 +720,7 @@ public static class FootprintAnalysis
 
         if (buckets.Count < options.MinimumPoints)
         {
-            trend.Floor = options.Floor(kind, buckets.Count == 0 ? 0 : buckets[0].Value);
+            trend.Floor = Math.Max(options.Floor(kind, buckets.Count == 0 ? 0 : buckets[0].Value), minimumFloor);
             return trend;
         }
 
@@ -679,7 +739,7 @@ public static class FootprintAnalysis
         var test = TrendStatistics.MannKendall(values);
         trend.Tau = test.Tau;
         trend.PValue = test.PValue;
-        trend.Floor = options.Floor(kind, trend.FirstThird);
+        trend.Floor = Math.Max(options.Floor(kind, trend.FirstThird), minimumFloor);
 
         // All of the following, so that no one of them can carry a verdict alone: a significant rank trend that
         // is tiny is breathing; a big difference between thirds without a trend is one burst; a slope without
@@ -750,6 +810,59 @@ public static class FootprintAnalysis
         return TrendStatistics.Median(ordered.Skip(ordered.Count - take).Select(static p => p.Value).ToList());
     }
 
+    // The level of a plateau for a pooled count: the median of every point in its window.
+    private static double? WholeWindowLevel(List<(double Time, double Value)> inWindow)
+        => inWindow.Count == 0 ? null : TrendStatistics.Median(inWindow.Select(static p => p.Value).ToList());
+
+    // The lowest window of a plateau: the window medians are the smoothed series the trend is judged on.
+    private static double? Trough(List<(double Time, double Value)> inWindow, double origin, double width)
+    {
+        var buckets = Bucket(inWindow, origin, width);
+
+        return buckets.Count == 0 ? null : buckets.Min(static b => b.Value);
+    }
+
+    // How far a plateau's readings range: the 95th percentile less the 5th, so one stray reading is not the range.
+    private static double Spread(List<(double Time, double Value)> inWindow)
+    {
+        if (inWindow.Count < 2)
+        {
+            return 0;
+        }
+
+        var ordered = inWindow.Select(static p => p.Value).Order().ToList();
+
+        return Percentile(ordered, 0.95) - Percentile(ordered, 0.05);
+    }
+
+    private static double Percentile(List<double> ordered, double fraction)
+    {
+        var position = fraction * (ordered.Count - 1);
+        var below = (int)Math.Floor(position);
+        var above = Math.Min(below + 1, ordered.Count - 1);
+
+        return ordered[below] + ((ordered[above] - ordered[below]) * (position - below));
+    }
+
+    // A pool whose plateau sits at its ceiling has used itself up: tenants are waiting for a connection, whatever the
+    // plateau before it looked like.
+    private static List<string> ExhaustedPlateaus(MetricAnalysis analysis, List<StageMark> holds, int ceiling)
+    {
+        var reasons = new List<string>();
+
+        for (var index = 0; index < holds.Count && index < analysis.Levels.Count; index++)
+        {
+            if (analysis.Levels[index] is { } level && level >= ceiling)
+            {
+                reasons.Add(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"stage {holds[index].Stage} ({holds[index].Tenants} tenants): the median of the plateau is {level:0.##}, the pool's limit is {ceiling}; the pool is used up"));
+            }
+        }
+
+        return reasons;
+    }
+
     private static StageStep Step(
         MetricAnalysis analysis,
         List<StageMark> holds,
@@ -775,21 +888,42 @@ public static class FootprintAnalysis
         step.PerTenant = step.AddedTenants > 0 ? step.Delta / step.AddedTenants : 0;
         step.Floor = options.Floor(kind, from);
 
+        if (kind == MetricKind.Pooled)
+        {
+            // A pool moves by itself between plateaus: a rise smaller than that is the pool, not the tenants.
+            step.Floor = Math.Max(step.Floor, analysis.Breath ?? 0);
+        }
+
         if (step.Delta < step.Floor)
         {
             step.Verdict = FootprintVerdict.Green;
-            step.Note = "no change above the floor";
+            step.Note = kind == MetricKind.Pooled
+                ? string.Create(CultureInfo.InvariantCulture, $"{from:0.##} -> {to:0.##}: within the {step.Floor:0.##} the pool moves between plateaus by itself")
+                : "no change above the floor";
             return step;
         }
 
-        if (kind == MetricKind.Count)
+        if (kind == MetricKind.Pooled
+            && analysis.Troughs[index - 1] is { } troughBefore
+            && analysis.Troughs[index] is { } troughAfter
+            && troughAfter <= troughBefore)
+        {
+            // Connections held for good do not go back down when the load eases; a pool that filled for the load does.
+            step.Verdict = FootprintVerdict.Green;
+            step.Note = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{from:0.##} -> {to:0.##}, but the lowest window did not rise ({troughBefore:0.##} -> {troughAfter:0.##}): the pool filled for the load, no connection is held per tenant");
+            return step;
+        }
+
+        if (kind is MetricKind.Count or MetricKind.Pooled)
         {
             // Not a byte cost a tenant may reasonably have: a thread, a timer, a descriptor or a connection per tenant
             // is a resource that was started for a caller and not given back.
             step.Verdict = FootprintVerdict.Red;
             step.Note = string.Create(
                 CultureInfo.InvariantCulture,
-                $"{from:0.##} -> {to:0.##} across {step.AddedTenants} added tenants ({step.PerTenant:0.####} per tenant); a count of held resources should not follow the number of tenants");
+                $"{from:0.##} -> {to:0.##} across {step.AddedTenants} added tenants ({step.PerTenant:0.####} per tenant); a count of held resources should not follow the number of tenants{(kind == MetricKind.Pooled ? ", and this is more than the pool moves by itself and its lowest window rose too" : "")}");
             return step;
         }
 
@@ -823,7 +957,7 @@ public static class FootprintAnalysis
     /// <returns>For bytes, a binary-prefixed size; for counts, a plain number.</returns>
     public static string Format(MetricKind kind, double value)
     {
-        if (kind is MetricKind.Count or MetricKind.Objects)
+        if (kind is MetricKind.Count or MetricKind.Objects or MetricKind.Pooled)
         {
             return value.ToString("0.###", CultureInfo.InvariantCulture);
         }

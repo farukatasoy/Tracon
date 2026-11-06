@@ -183,6 +183,12 @@ public sealed class RampRecord
     /// Tenants the host had seen before the first stage (the warm-up's two), which every later count sits on top of.
     /// </summary>
     public int BaselineTenants { get; set; }
+
+    /// <summary>
+    /// The most connections the host's database pool may hold, as the host reported it, or <see langword="null"/> when the
+    /// cell did not record it. A pooled count that reaches it has used the pool up.
+    /// </summary>
+    public int? MaxPoolSize { get; set; }
 }
 
 /// <summary>The tenant and place of one request the schedule hands out.</summary>
