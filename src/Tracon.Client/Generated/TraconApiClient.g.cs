@@ -22471,10 +22471,10 @@ namespace Tracon.Client.Generated
         public string? PayloadPath { get; set; } = default!;
 
         /// <summary>
-        /// Gets whether the trigger accepts requests. Default `true`.
+        /// Gets whether the trigger accepts requests. Left out, the trigger is saved paused: set `true` to start accepting them.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; set; } = false;
 
     }
 
@@ -22946,10 +22946,10 @@ namespace Tracon.Client.Generated
         public System.Text.Json.JsonElement? Payload { get; set; } = default!;
 
         /// <summary>
-        /// Whether the schedule is enabled.
+        /// Whether the schedule is enabled. Left out, the schedule is saved paused: set `true` to start running it.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; set; } = false;
 
     }
 
@@ -29453,10 +29453,10 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.IDictionary<string, string>? HeaderConfigurationKeys { get; set; } = default!;
 
         /// <summary>
-        /// Whether the subscription is enabled.
+        /// Whether the subscription is enabled. Left out, the subscription is saved paused: set `true` to start delivering.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("enabled")]
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; set; } = false;
 
     }
 

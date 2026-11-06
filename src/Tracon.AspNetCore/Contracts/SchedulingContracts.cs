@@ -43,9 +43,9 @@ internal sealed record JobScheduleSaveRequest
     [Description("Input set or parameters. Left out or null, the schedule has no payload.")]
     public JsonElement? Payload { get; init; }
 
-    [Description("Whether the schedule is enabled.")]
-    [DefaultValue(true)]
-    public bool Enabled { get; init; } = true;
+    [Description("Whether the schedule is enabled. Left out, the schedule is saved paused: set `true` to start running it.")]
+    [DefaultValue(false)]
+    public bool Enabled { get; init; }
 }
 
 [Description("Request to trigger a schedule immediately.")]

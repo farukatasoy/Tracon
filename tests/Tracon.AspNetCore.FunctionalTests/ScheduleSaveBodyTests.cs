@@ -49,14 +49,14 @@ public sealed class ScheduleSaveBodyTests
     [Theory]
     [InlineData("memory")]
     [InlineData("sqlite")]
-    public async Task A_schedule_that_leaves_out_its_time_zone_and_enabled_flag_runs_in_utc_and_is_enabled(string store)
+    public async Task A_schedule_that_leaves_out_its_time_zone_runs_in_utc_and_has_a_next_run(string store)
     {
         using var database = new TempSqliteDatabase("schedule-body");
         await using var host = await StartAsync(store, database);
 
         using var saved = await host.Client.PutAsync(
             ScheduleUri,
-            Json("""{"handlerKey":"tracon.agent-batch","targetName":"ozetleyici","cron":"0 3 * * *"}"""));
+            Json("""{"handlerKey":"tracon.agent-batch","targetName":"ozetleyici","cron":"0 3 * * *","enabled":true}"""));
 
         saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
 

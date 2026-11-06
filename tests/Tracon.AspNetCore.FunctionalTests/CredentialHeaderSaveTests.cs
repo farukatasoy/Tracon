@@ -407,6 +407,7 @@ public sealed class CredentialHeaderSaveTests
             events = new[] { "run.completed" },
             headers,
             headerConfigurationKeys = keys,
+            enabled = true,
         };
 
     internal static Dictionary<string, string> Map(params (string Name, string Value)[] entries)

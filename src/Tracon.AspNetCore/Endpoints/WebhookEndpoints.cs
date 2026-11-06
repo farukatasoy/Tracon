@@ -614,9 +614,9 @@ internal sealed record WebhookSaveRequest
         "the stored map; `{}` removes it.")]
     public IReadOnlyDictionary<string, string>? HeaderConfigurationKeys { get; init; }
 
-    [Description("Whether the subscription is enabled.")]
-    [DefaultValue(true)]
-    public bool Enabled { get; init; } = true;
+    [Description("Whether the subscription is enabled. Left out, the subscription is saved paused: set `true` to start delivering.")]
+    [DefaultValue(false)]
+    public bool Enabled { get; init; }
 }
 
 [Description("The response for the test event.")]

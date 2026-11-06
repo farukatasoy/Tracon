@@ -168,6 +168,7 @@ public sealed class SecretCanarySweepTests
                 url = $"{address}/hook",
                 events = new[] { "run.completed" },
                 headerConfigurationKeys = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-API-Key"] = WebhookConfigurationKey },
+                enabled = true,
             });
             (await SendAsync(host, webhook, seen)).ShouldBe(HttpStatusCode.OK);
         }

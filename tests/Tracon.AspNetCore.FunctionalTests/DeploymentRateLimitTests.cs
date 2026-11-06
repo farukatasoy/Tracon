@@ -467,7 +467,7 @@ public sealed class DeploymentRateLimitTests
     {
         using var response = await host.Client.PutAsJsonAsync(
             "/tracon/api/triggers/slack",
-            new { targetKind = "agent", targetName = "demo", signingSecretConfigurationName = TriggerSecretKey });
+            new { targetKind = "agent", targetName = "demo", signingSecretConfigurationName = TriggerSecretKey, enabled = true });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }

@@ -33,6 +33,7 @@ public sealed class TriggerEndpointTests
                 targetKind = "agent",
                 targetName = "demo",
                 signingSecretConfigurationName = SecretConfigurationKey,
+                enabled = true,
             });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);

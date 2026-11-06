@@ -118,7 +118,7 @@ public sealed class GeneratedClientDefaultFidelityTests
     }
 
     [Fact]
-    public async Task A_schedule_saved_with_only_a_handler_and_a_target_is_enabled_and_runs_in_utc()
+    public async Task A_schedule_saved_with_only_a_handler_and_a_target_is_paused_and_runs_in_utc()
     {
         await using var host = await OpenApiSnapshotTests.StartFullSurfaceHostAsync();
         var client = Client(host);
@@ -127,7 +127,7 @@ public sealed class GeneratedClientDefaultFidelityTests
             "minimal-schedule",
             new Generated.JobScheduleSaveRequest { HandlerKey = "tracon.agent-batch", TargetName = "kod-agent" });
 
-        saved.Enabled.ShouldBeTrue();
+        saved.Enabled.ShouldBeFalse("a schedule that is not told to run is saved paused");
         saved.TimeZone.ShouldBe("UTC");
     }
 

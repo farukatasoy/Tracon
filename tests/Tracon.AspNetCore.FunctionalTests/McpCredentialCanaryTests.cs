@@ -188,7 +188,7 @@ public sealed class McpCredentialCanaryTests
         (await drive.SendAsync(HttpMethod.Post, "/tracon/api/webhooks/legacy-hook/test", new { })).ShouldBe(HttpStatusCode.OK);
 
         // An update that leaves the headers out keeps the old ones: the audit entry and the answer must not carry them.
-        await drive.SendAsync(HttpMethod.Put, "/tracon/api/webhooks/legacy-hook", new { url = receiver.Address + "/hook", events = new[] { "run.completed" } });
+        await drive.SendAsync(HttpMethod.Put, "/tracon/api/webhooks/legacy-hook", new { url = receiver.Address + "/hook", events = new[] { "run.completed" }, enabled = true });
         await drive.SendAsync(HttpMethod.Put, "/tracon/api/mcp-servers/legacy-mcp", new { endpoint = receiver.Address + "/mcp", enabled = true });
 
         var settled = await WaitUntil.ValueAsync(

@@ -5027,8 +5027,8 @@ export interface components {
             /** @description Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path. */
             payloadPath?: null | string;
             /**
-             * @description Gets whether the trigger accepts requests. Default `true`.
-             * @default true
+             * @description Gets whether the trigger accepts requests. Left out, the trigger is saved paused: set `true` to start accepting them.
+             * @default false
              */
             enabled?: boolean;
         };
@@ -5281,8 +5281,8 @@ export interface components {
             lane?: null | string;
             payload?: null | components["schemas"]["JsonElement"];
             /**
-             * @description Whether the schedule is enabled.
-             * @default true
+             * @description Whether the schedule is enabled. Left out, the schedule is saved paused: set `true` to start running it.
+             * @default false
              */
             enabled?: boolean;
         };
@@ -8721,8 +8721,8 @@ export interface components {
                 [key: string]: string;
             };
             /**
-             * @description Whether the subscription is enabled.
-             * @default true
+             * @description Whether the subscription is enabled. Left out, the subscription is saved paused: set `true` to start delivering.
+             * @default false
              */
             enabled?: boolean;
         };

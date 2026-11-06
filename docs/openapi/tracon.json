@@ -13178,8 +13178,8 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Gets whether the trigger accepts requests. Default \u0060true\u0060.",
-            "default": true
+            "description": "Gets whether the trigger accepts requests. Left out, the trigger is saved paused: set \u0060true\u0060 to start accepting them.",
+            "default": false
           }
         },
         "description": "The request body for creating or replacing an inbound trigger."
@@ -13685,8 +13685,8 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Whether the schedule is enabled.",
-            "default": true
+            "description": "Whether the schedule is enabled. Left out, the schedule is saved paused: set \u0060true\u0060 to start running it.",
+            "default": false
           }
         },
         "description": "Request to create/update a schedule."
@@ -20399,8 +20399,8 @@
           },
           "enabled": {
             "type": "boolean",
-            "description": "Whether the subscription is enabled.",
-            "default": true
+            "description": "Whether the subscription is enabled. Left out, the subscription is saved paused: set \u0060true\u0060 to start delivering.",
+            "default": false
           }
         },
         "description": "The request body for saving a webhook subscription."

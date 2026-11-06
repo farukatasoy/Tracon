@@ -456,7 +456,7 @@ public sealed class RunAuthorizationEndpointTests
 
         using (var saved = await host.Client.PutAsJsonAsync(
             "/tracon/api/triggers/hook",
-            new { targetKind = "agent", targetName = "kod-agent", signingSecretConfigurationName = secretKey }))
+            new { targetKind = "agent", targetName = "kod-agent", signingSecretConfigurationName = secretKey, enabled = true }))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
         }

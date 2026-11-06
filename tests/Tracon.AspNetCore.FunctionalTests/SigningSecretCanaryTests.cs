@@ -103,13 +103,13 @@ public sealed class SigningSecretCanaryTests
             host,
             HttpMethod.Put,
             "/tracon/api/triggers/slack",
-            new { targetKind = "agent", targetName = "kod-agent", signingSecretConfigurationName = TriggerKey },
+            new { targetKind = "agent", targetName = "kod-agent", signingSecretConfigurationName = TriggerKey, enabled = true },
             seen)).ShouldBe(HttpStatusCode.OK);
         (await SendAsync(
             host,
             HttpMethod.Put,
             "/tracon/api/webhooks/w1",
-            new { url = $"{address}/hook", events = new[] { "run.completed" }, secretConfigurationKey = WebhookKey },
+            new { url = $"{address}/hook", events = new[] { "run.completed" }, secretConfigurationKey = WebhookKey, enabled = true },
             seen)).ShouldBe(HttpStatusCode.OK);
 
         // A stranger drives the inbound side: correctly signed, signed with another secret, tampered, stale, replayed.

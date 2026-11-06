@@ -257,7 +257,7 @@ public sealed class QueuedWorkflowAttributionTests
     {
         using var saved = await host.Client.PutAsJsonAsync(
             "/tracon/api/triggers/hooks",
-            new { targetKind, targetName, signingSecretConfigurationName = SecretConfigurationKey });
+            new { targetKind, targetName, signingSecretConfigurationName = SecretConfigurationKey, enabled = true });
 
         saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
     }

@@ -49,9 +49,12 @@ curl -sS -X PUT \
     "targetName": "support",
     "signingSecretConfigurationName": "Tracon:TriggerSecrets:Slack",
     "payloadMode": "path",
-    "payloadPath": "event.text"
+    "payloadPath": "event.text",
+    "enabled": true
   }'
 ```
+
+A trigger saved without `enabled` is saved paused and accepts nothing until you save it with `true`.
 
 `signingSecretConfigurationName` carries only the configuration **key's
 name** — never the secret value. Tracon reads the value from

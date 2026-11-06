@@ -55,9 +55,9 @@ internal sealed record InboundTriggerSaveRequest
     [Description("Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path.")]
     public string? PayloadPath { get; init; }
 
-    [Description("Gets whether the trigger accepts requests. Default `true`.")]
-    [DefaultValue(true)]
-    public bool Enabled { get; init; } = true;
+    [Description("Gets whether the trigger accepts requests. Left out, the trigger is saved paused: set `true` to start accepting them.")]
+    [DefaultValue(false)]
+    public bool Enabled { get; init; }
 }
 
 [Description("The response for a successfully accepted inbound trigger event.")]
