@@ -11,19 +11,23 @@ namespace Tracon.Core.UnitTests.Configuration;
 public sealed class TraconTenantProviderOptionsBindingTests
 {
     [Fact]
+    public void The_section_name_is_the_documented_path()
+        => TraconTenantProviderOptions.SectionName.ShouldBe("Tracon:TenantProviders");
+
+    [Fact]
     public void Every_scalar_of_the_section_is_bound()
     {
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["Tracon:TenantProviders:AllowedConfigurationPrefix"] = "Contoso:ProviderKeys:",
-            ["Tracon:TenantProviders:RequireEgressPolicy"] = "true",
+            [$"{TraconTenantProviderOptions.SectionName}:AllowedConfigurationPrefix"] = "Contoso:ProviderKeys:",
+            [$"{TraconTenantProviderOptions.SectionName}:RequireEgressPolicy"] = "true",
         };
 
         var options = SectionBinding.Bind<TraconTenantProviderOptions>(values);
 
         string.Equals(options.AllowedConfigurationPrefix, "Contoso:ProviderKeys:", StringComparison.Ordinal).ShouldBeTrue();
         options.RequireEgressPolicy.ShouldBeTrue();
-        OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:TenantProviders", options);
+        OptionsKeyCoverage.ShouldCoverEveryMember(values, TraconTenantProviderOptions.SectionName, options);
     }
 
     [Fact]

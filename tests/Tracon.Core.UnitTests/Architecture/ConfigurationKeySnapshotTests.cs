@@ -19,8 +19,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// Where the keys come from. The options types are bound by hand (no reflection in the library), so
 /// there is no schema to read. The public surface of every tracked package is: a <c>PublicAPI.*.txt</c> file
 /// lists every option type with its properties and their types. The tree is walked from every type that names a
-/// section (<c>const SectionName</c>) and from the two sections whose options type does not
-/// (<see cref="RootsWithoutSectionName"/>). A dictionary or a list contributes <c>*</c> for its key. Reading
+/// section (<c>const SectionName</c>): an options type that does not is not a section the snapshot can find. A dictionary or a list contributes <c>*</c> for its key. Reading
 /// the text rather than the assemblies keeps this test in <c>Tracon.Core.UnitTests</c>: the provider, voice,
 /// workflow and database packages are not referenced from here, and referencing them would pull their SDKs in.
 /// </para>
@@ -33,13 +32,6 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </remarks>
 public sealed class ConfigurationKeySnapshotTests
 {
-    /// <summary>Sections bound to an options type that has no <c>SectionName</c> constant.</summary>
-    private static readonly (string Path, string Type)[] RootsWithoutSectionName =
-    [
-        ("Tracon:TenantProviders", "Tracon.TraconTenantProviderOptions"),
-        ("Tracon:InboundTriggers", "Tracon.TraconInboundTriggerOptions"),
-    ];
-
     /// <summary>
     /// Keys a consumer writes that are read straight from <c>IConfiguration</c> and bound to no options type, so the
     /// public API text cannot list them. The audit chain key VALUES are the case: they are a <c>secret</c> and
@@ -184,8 +176,8 @@ public sealed class ConfigurationKeySnapshotTests
             .ToList();
 
         withoutKeys.ShouldBeEmpty(
-            "A section is bound by hand but no option type with a SectionName (or an entry in RootsWithoutSectionName) " +
-            "reaches it, so its keys are missing from the snapshot.");
+            "A section is bound by hand but no option type with a SectionName reaches it, " +
+            "so its keys are missing from the snapshot.");
     }
 
     [Fact]
@@ -257,12 +249,9 @@ public sealed class ConfigurationKeySnapshotTests
     private static List<string> Keys()
     {
         var api = ReadApi();
-        var roots = new List<(string Path, string Type)>(api.Sections);
-        roots.AddRange(RootsWithoutSectionName);
-
         var keys = new SortedSet<string>(StringComparer.Ordinal);
 
-        foreach (var (path, type) in roots)
+        foreach (var (path, type) in api.Sections)
         {
             Walk(api, type, path, keys, ImmutableHashSet<string>.Empty);
         }

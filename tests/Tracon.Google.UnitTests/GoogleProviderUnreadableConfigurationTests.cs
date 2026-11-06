@@ -98,4 +98,10 @@ public sealed class GoogleProviderUnreadableConfigurationTests
 
         options.Models.ShouldBeEmpty();
     }
+
+    [Theory]
+    [InlineData(nameof(GoogleProviderOptions.DefaultModel))]
+    [InlineData(nameof(GoogleProviderOptions.ApiVersion))]
+    public void A_text_of_only_white_space_stops_the_host(string member)
+        => UnreadableProviderConfiguration.WhiteSpaceTextStopsTheHost(Provider, member);
 }

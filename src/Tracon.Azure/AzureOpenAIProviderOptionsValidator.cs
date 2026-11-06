@@ -71,6 +71,13 @@ internal sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azu
                 timeout));
         }
 
+        // A text of blanks is a typing mistake: the host would call a model called "   ". The check is on the value
+        // the options hold, so a value that code assigns is refused too.
+        // The messages carry the member name and the length, never the value: the audience and the deployment are
+        // part of an organization's topology.
+        OptionText.AddWhenOnlyWhiteSpace(options.DefaultDeployment, nameof(AzureOpenAIProviderOptions), nameof(AzureOpenAIProviderOptions.DefaultDeployment), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.Audience, nameof(AzureOpenAIProviderOptions), nameof(AzureOpenAIProviderOptions.Audience), ref failures);
+
         for (var index = 0; index < options.Models.Count; index++)
         {
             if (string.IsNullOrWhiteSpace(options.Models[index]?.Name))

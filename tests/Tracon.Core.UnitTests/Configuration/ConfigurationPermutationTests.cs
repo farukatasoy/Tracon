@@ -59,6 +59,17 @@ public sealed partial class ConfigurationPermutationTests
             {
                 var baseline = Run(scalar, string.Empty, enabled, culture: null);
 
+                if (baseline.Kind == OutcomeKind.Crash)
+                {
+                    // A raw exception with the key left empty is not "the switch alone does not start": the key is
+                    // "not given" and the host has to start, or stop with an options failure. A reader that throws
+                    // for an empty text (the framework binder does, for a number that is not nullable) would hide
+                    // behind the skip below, and every text of the key with it.
+                    failures.Add($"{scalar.Display} ({scalar.Key}) = ''{(enabled ? " with its feature on" : string.Empty)}: {baseline.Message}");
+
+                    continue;
+                }
+
                 if (baseline.Kind != OutcomeKind.Bound)
                 {
                     // The switch alone does not start: nothing to learn from this variant.
@@ -310,33 +321,8 @@ public sealed partial class ConfigurationPermutationTests
                            string.Join(Environment.NewLine, failures));
     }
 
-    [Fact]
-    public void Every_key_a_scope_records_as_read_by_the_framework_binder_still_is()
-    {
-        var failures = new List<string>();
-
-        foreach (var (key, reason) in ReadByFrameworkBinder)
-        {
-            var scalar = Scalars.Value.SingleOrDefault(candidate => string.Equals(candidate.Key, key, StringComparison.Ordinal));
-
-            if (scalar is null)
-            {
-                failures.Add($"'{key}' is recorded as read by the framework binder, but no scalar has that key.");
-
-                continue;
-            }
-
-            if (Run(scalar, "not-readable", enabled: false, culture: null).Kind == OutcomeKind.StartFailure)
-            {
-                failures.Add($"'{key}' ({reason}) stops the host with an options failure now: remove it from {nameof(ReadByFrameworkBinder)}.");
-            }
-        }
-
-        failures.ShouldBeEmpty(customMessage: string.Join(Environment.NewLine, failures));
-    }
-
     private static bool SkipsReadingProbe(OptionScalar scalar)
-        => NotBoundOnPurpose.ContainsKey(scalar.Key) || ReadByFrameworkBinder.ContainsKey(scalar.Key);
+        => NotBoundOnPurpose.ContainsKey(scalar.Key);
 
     private static bool IsLimit(OptionScalar scalar)
     {

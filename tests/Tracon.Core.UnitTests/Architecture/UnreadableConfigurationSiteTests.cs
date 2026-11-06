@@ -22,6 +22,12 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// that every file that uses the reader is one of them, so a binder in a file the name
 /// pattern misses cannot hide.
 /// </para>
+/// <para>
+/// The framework's own binder is the other way to read a section, and it is not allowed in a binder file
+/// either. It reads <c>30</c> for a duration as 30 days, throws a raw exception for text it cannot read, and
+/// registers a change token source that makes a reload reach some readers of the options and not others
+/// (the workflow options were the one case, until they were bound by hand).
+/// </para>
 /// </remarks>
 public sealed partial class UnreadableConfigurationSiteTests
 {
@@ -76,6 +82,72 @@ public sealed partial class UnreadableConfigurationSiteTests
             .ShouldBeEmpty("A file reads configuration through the reader but is not scanned: extend BinderFiles().");
     }
 
+    [Fact]
+    public void No_binder_file_reads_a_section_with_the_framework_binder()
+    {
+        var root = FindRepositoryRoot();
+        var offending = new List<string>();
+
+        foreach (var path in BinderFiles(root))
+        {
+            var lines = File.ReadAllLines(path);
+
+            for (var index = 0; index < lines.Length; index++)
+            {
+                if (FrameworkBinder().IsMatch(lines[index]) && !IsComment(lines[index]))
+                {
+                    offending.Add($"{Path.GetRelativePath(root, path).Replace('\\', '/')}:{index + 1}: {lines[index].Trim()}");
+                }
+            }
+        }
+
+        // BindConfiguration is refused in every file of src: a registration that is not in a file the name pattern finds
+        // would bring back the three defects as well.
+        foreach (var path in Directory
+            .EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(static path => !IsBuildOutput(path)))
+        {
+            var lines = File.ReadAllLines(path);
+
+            for (var index = 0; index < lines.Length; index++)
+            {
+                if (BindConfigurationCall().IsMatch(lines[index]) && !IsComment(lines[index]))
+                {
+                    offending.Add($"{Path.GetRelativePath(root, path).Replace('\\', '/')}:{index + 1}: {lines[index].Trim()}");
+                }
+            }
+        }
+
+        offending.Distinct(StringComparer.Ordinal).ShouldBeEmpty(
+            "A source file reads a section with the framework's configuration binder (BindConfiguration, Bind, Get<T>). " +
+            "Read it by hand with ConfigurationValueReader, so a duration is a clock time, text it cannot read stops the " +
+            "host and names the key, and no change token source is registered.");
+    }
+
+    [Theory]
+    [InlineData("            .BindConfiguration(TraconWorkflowOptions.SectionName)")]
+    [InlineData("services.AddOptions<X>().BindConfiguration(\"Tracon:X\");")]
+    [InlineData("section.Bind(options);")]
+    [InlineData("configuration.GetSection(\"Tracon\").Bind(options);")]
+    [InlineData("optionsBuilder.Bind(section);")]
+    [InlineData("var options = section.Get<MyOptions>();")]
+    [InlineData("var options = configuration.GetSection(\"Tracon:X\").Get<MyOptions>();")]
+    [InlineData("            .Bind(section);")]
+    [InlineData("builder.Configuration.Bind(options);")]
+    [InlineData("ConfigurationBinder.Bind(section, options);")]
+    [InlineData("var value = ConfigurationBinder.Get<MyOptions>(section);")]
+    public void The_framework_binder_pattern_sees_the_framework_reads(string source)
+        => FrameworkBinder().IsMatch(source).ShouldBeTrue();
+
+    [Theory]
+    [InlineData("return builder.UseOpenAICompatible(name, options => OpenAIProviderExtensions.Bind(configurationSection, options));")]
+    [InlineData("Bind(configuration.GetSection(TraconWorkflowOptions.SectionName), options);")]
+    [InlineData("var boundInstructions = InstructionParameterBinder.Bind(")]
+    [InlineData("response.HttpContext.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();")]
+    [InlineData("read.Int32(nameof(X.Y), static o => o.Y, static (o, v) => o.Y = v);")]
+    public void The_framework_binder_pattern_leaves_the_hand_written_binders_alone(string source)
+        => FrameworkBinder().IsMatch(source).ShouldBeFalse();
+
     [Theory]
     [InlineData("if (int.TryParse(section[key], out var v))")]
     [InlineData("if (TimeSpan.TryParse(section[nameof(X.Y)], CultureInfo.InvariantCulture, out var v))")]
@@ -125,6 +197,18 @@ public sealed partial class UnreadableConfigurationSiteTests
         RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 5000)]
     private static partial Regex SilentRead();
+
+    [GeneratedRegex(@"\bBindConfiguration\s*[(<]", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 5000)]
+    private static partial Regex BindConfigurationCall();
+
+    // The framework binder: BindConfiguration, an instance's Bind (a lower-case receiver, a call chain or a line that
+    // starts with the dot, so the repository's own static Bind(section, options) methods are left alone), ConfigurationBinder
+    // itself, and Get<T> on a configuration.
+    [GeneratedRegex(
+        @"\bBindConfiguration\b|(?:\b[a-z]\w*|\))\s*\.Bind\(|^\s*\.Bind\(|\bConfigurationBinder\.|\b(?:Configuration|configuration|configurationSection|section|[a-z]\w*Section)\s*\.(?:Bind\(|Get<)|\)\s*\.Get<[A-Z]\w*>\(\)",
+        RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: 5000)]
+    private static partial Regex FrameworkBinder();
 
     [GeneratedRegex(
         @"\bConfigurationValueReader\.For\(|\bnew\s+ConfigurationValueBatch\(",

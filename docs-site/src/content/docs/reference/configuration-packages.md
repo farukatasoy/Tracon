@@ -157,6 +157,8 @@ tracon.UseMcp(
 | `MaxSuperSteps` | `100`; a sequential chain that needs more super-steps than this is refused when it is saved |
 | `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
+| `ResumeInterruptedRuns` | `false`; requires `EnableCheckpointing` |
+| `MaxResumeAttempts` | `1`; from `0` to `100` |
 | `RequestExpirationScanInterval` | 1 minute |
 | `MaxRequestExpirationsPerScan` | `100` |
 
@@ -165,7 +167,14 @@ in each process and, for queued workflow jobs, in the job queue (a soft count ac
 processes). See [How many runs go at once](/guides/background-work/#limit-workflow-runs-per-tenant).
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
-binds this section and then applies its optional code override.
+binds this section and then applies its optional code override. A change to the section needs a
+restart, like every other section: nothing that reads these options follows a reload.
+
+The durations are clock times: `00:30:00` is thirty minutes and `1.00:00:00` is a day. A bare
+number (`30`) and an hour above 23 (`24:00:00`) stop the host at startup, because .NET would read
+them as 30 and 24 days, and so does any text the key's type cannot read (`MaxConcurrentRunsPerTenant=abc`);
+the message names the full key and quotes the text. A key that is empty or blank is not given and
+keeps its default.
 
 `MaxRunTimeout` is the longest run timeout a workflow definition may set. A save above
 it, or above `RunTimeout` while it is unset, is refused with `400`. A workflow defined in code

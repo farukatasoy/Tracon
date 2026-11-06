@@ -115,4 +115,10 @@ public sealed class OpenAIProviderUnreadableConfigurationTests
 
         options.Models.ShouldBeEmpty();
     }
+
+    [Theory]
+    [InlineData(nameof(OpenAIProviderOptions.DefaultModel))]
+    [InlineData(nameof(OpenAIProviderOptions.Organization))]
+    public void A_text_of_only_white_space_stops_the_host(string member)
+        => UnreadableProviderConfiguration.WhiteSpaceTextStopsTheHost(Provider, member);
 }

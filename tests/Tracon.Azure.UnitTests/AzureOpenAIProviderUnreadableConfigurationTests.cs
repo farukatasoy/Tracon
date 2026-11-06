@@ -104,4 +104,10 @@ public sealed class AzureOpenAIProviderUnreadableConfigurationTests
 
         options.Models.ShouldBeEmpty();
     }
+
+    [Theory]
+    [InlineData(nameof(AzureOpenAIProviderOptions.DefaultDeployment))]
+    [InlineData(nameof(AzureOpenAIProviderOptions.Audience))]
+    public void A_text_of_only_white_space_stops_the_host(string member)
+        => UnreadableProviderConfiguration.WhiteSpaceTextStopsTheHost(Provider, member);
 }

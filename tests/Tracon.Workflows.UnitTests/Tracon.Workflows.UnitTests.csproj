@@ -6,6 +6,11 @@
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- In-memory configuration provider: the options tests write the configuration the container reads. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
   <!-- The due-time clock of the timeout tests, shared with the job worker's tests: linked, not copied. -->
   <ItemGroup>
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />

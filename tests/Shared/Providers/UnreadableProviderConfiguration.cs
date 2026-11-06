@@ -151,6 +151,40 @@ internal static class UnreadableProviderConfiguration
     }
 
     /// <summary>
+    /// A text option made only of white space stops the host, whether the text comes from configuration or from code,
+    /// and the message names the member and the length of the text and never the text itself.
+    /// </summary>
+    /// <typeparam name="TOptions">The provider options type.</typeparam>
+    /// <param name="provider">The provider as a host binds it.</param>
+    /// <param name="member">The text member, such as <c>DefaultModel</c>.</param>
+    internal static void WhiteSpaceTextStopsTheHost<TOptions>(ProviderConfiguration<TOptions> provider, string member)
+        where TOptions : class
+    {
+        var property = typeof(TOptions).GetProperty(member)
+            ?? throw new InvalidOperationException($"{typeof(TOptions).Name} has no property {member}.");
+
+        property.PropertyType.ShouldBe(typeof(string), $"{member} is not a text option.");
+
+        var expected = $"{typeof(TOptions).Name}.{member} is only white space (3 characters).";
+
+        // From configuration: the binder reads the text as written, and the validator refuses it.
+        provider.FailsAtStartup((member, "   ")).Message.ShouldContain(expected);
+
+        // From code: a value assigned after binding never went through the binder, so only the validator can see it.
+        using (var container = provider.Build([], options => property.SetValue(options, "   ")))
+        {
+            var failure = Should.Throw<OptionsValidationException>(
+                () => container.GetRequiredService<IStartupValidator>().Validate());
+
+            failure.Message.ShouldContain(expected);
+        }
+
+        // An empty text is "not given" and a text with a visible character is a value.
+        provider.StartsCleanly([(member, string.Empty)]);
+        provider.StartsCleanly([(member, "visible-value")]);
+    }
+
+    /// <summary>
     /// Every scalar of the options type stops the host when its text cannot be read, and the message names
     /// the full key and the text.
     /// </summary>

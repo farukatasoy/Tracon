@@ -149,6 +149,10 @@ endpoint follows: a write that cannot be audited is not applied.
 | `MaxRequestsPerMinute` | 60 | Per trigger (`429` beyond the limit); counted per process unless `Tracon:RateLimit:Scope` is `Deployment` |
 | `AllowedConfigurationPrefix` | `Tracon:TriggerSecrets:` | The only prefix a signing secret's configuration key name may start with; inside it, a tenant uses `{prefix}{tenant}:` and a flat name belongs to the default tenant |
 
+The three limits must be positive: a `TimestampTolerance` of zero or less, a `MaxBodyBytes` below `1` or a
+`MaxRequestsPerMinute` below `1` stops the host at startup and the message names the setting. A body limit of zero
+would refuse every request that has a body, and a tolerance of zero would call every request stale.
+
 ```json
 {
   "Tracon": {

@@ -73,12 +73,6 @@ public sealed partial class ConfigurationPermutationTests
     };
 
     /// <summary>
-    /// Scalars a scope reads with the framework's own binder instead of Tracon's reader: an unreadable text is a raw
-    /// <see cref="InvalidOperationException"/> and a time span written without a clock is read as days. None in this scope.
-    /// </summary>
-    private static readonly Dictionary<string, string> ReadByFrameworkBinder = new(StringComparer.Ordinal);
-
-    /// <summary>
     /// Text options that keep a whitespace-only value as written, where a number option treats it as not given. The
     /// behaviour is recorded here until it is decided; a key that starts to refuse the text stops the build, so the list
     /// only shrinks. None in this scope: every text option of the core sections refuses blanks.

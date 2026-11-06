@@ -1,4 +1,5 @@
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -35,11 +36,18 @@ public static class TraconWorkflowsBuilderExtensions
     /// </para>
     /// <para>
     /// <see cref="TraconWorkflowOptions.SectionName"/> (<c>Tracon:Workflows</c>)
-    /// is BOUND from <c>IConfiguration</c> - the same contract as
+    /// is BOUND from the <c>IConfiguration</c> of the host's container - the same contract as
     /// every other <c>Use*()</c> extension (<c>UseOpenAI</c>,
     /// <c>UsePostgreSql</c>, <c>UseSkillScripts</c>, and so on).
     /// <paramref name="configure"/> runs AFTER this binding, so code can still
     /// override the config.
+    /// </para>
+    /// <para>
+    /// Like every other Tracon section, it is read once, when the host starts, and a change to
+    /// the configuration needs a restart. A value that cannot be read stops the host at start, and the message
+    /// names the key and the text: <c>30</c> or <c>24:00:00</c> for a duration (write a clock time, such as
+    /// <c>00:30:00</c>, or <c>1.00:00:00</c> for a day) or <c>abc</c> for a number. A key that is empty or blank
+    /// is not given and keeps its default.
     /// </para>
     /// <example>
     /// <code>
@@ -59,10 +67,17 @@ public static class TraconWorkflowsBuilderExtensions
 
         var services = builder.Services;
 
+        // The section is bound BY HAND, over the container's IConfiguration, and registers no change token
+        // source: a configuration reload reaches no reader of these options (a change needs a restart).
+        // The framework's binder reads a duration "30" as 30 days, throws a raw InvalidOperationException for
+        // text it cannot read, and registers a source that made a reload reach the monitor and not the runner.
+        // UnreadableConfigurationValidator registers ValidateOnStart and turns the text the reader could not
+        // read into one list of keys.
+        UnreadableConfigurationValidator.Add<TraconWorkflowOptions>(services);
         services
             .AddOptions<TraconWorkflowOptions>()
-            .BindConfiguration(TraconWorkflowOptions.SectionName)
-            .ValidateOnStart();
+            .Configure<IConfiguration>(static (options, configuration) =>
+                Bind(configuration.GetSection(TraconWorkflowOptions.SectionName), options));
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconWorkflowOptions>, TraconWorkflowOptionsValidator>());
 
@@ -114,6 +129,85 @@ public static class TraconWorkflowsBuilderExtensions
             ServiceDescriptor.Singleton<IHostedService, WorkflowRequestExpirationService>());
 
         return builder;
+    }
+
+    /// <summary>
+    /// Binds the <c>Tracon:Workflows</c> section by hand.
+    /// </summary>
+    /// <remarks>
+    /// Every other section is read the same way, so one rule holds everywhere: the framework's binder reads a
+    /// duration written without a clock (<c>30</c>) as days and throws a raw exception for text it cannot read.
+    /// When a new option is added to <see cref="TraconWorkflowOptions"/>, it must also be added to this method;
+    /// otherwise the option silently fails to bind (the binding test names it).
+    /// </remarks>
+    private static void Bind(IConfiguration section, TraconWorkflowOptions options)
+    {
+        var read = ConfigurationValueReader.For(section, options);
+
+        read.Boolean(
+            nameof(TraconWorkflowOptions.Enabled),
+            static o => o.Enabled,
+            static (o, v) => o.Enabled = v);
+
+        read.Boolean(
+            nameof(TraconWorkflowOptions.EnableCheckpointing),
+            static o => o.EnableCheckpointing,
+            static (o, v) => o.EnableCheckpointing = v);
+
+        read.Int32(
+            nameof(TraconWorkflowOptions.MaxConcurrentRuns),
+            static o => o.MaxConcurrentRuns,
+            static (o, v) => o.MaxConcurrentRuns = v);
+
+        read.Int32(
+            nameof(TraconWorkflowOptions.MaxConcurrentRunsPerTenant),
+            static o => o.MaxConcurrentRunsPerTenant,
+            static (o, v) => o.MaxConcurrentRunsPerTenant = v);
+
+        read.TimeSpan(
+            nameof(TraconWorkflowOptions.RunTimeout),
+            static o => o.RunTimeout,
+            static (o, v) => o.RunTimeout = v);
+
+        read.TimeSpan(
+            nameof(TraconWorkflowOptions.MaxRunTimeout),
+            static o => o.MaxRunTimeout,
+            static (o, v) => o.MaxRunTimeout = v);
+
+        read.Int32(
+            nameof(TraconWorkflowOptions.MaxSuperSteps),
+            static o => o.MaxSuperSteps,
+            static (o, v) => o.MaxSuperSteps = v);
+
+        read.Int32(
+            nameof(TraconWorkflowOptions.MaxNodeSettingsLength),
+            static o => o.MaxNodeSettingsLength,
+            static (o, v) => o.MaxNodeSettingsLength = v);
+
+        read.Boolean(
+            nameof(TraconWorkflowOptions.KeepCheckpointsAfterCompletion),
+            static o => o.KeepCheckpointsAfterCompletion,
+            static (o, v) => o.KeepCheckpointsAfterCompletion = v);
+
+        read.Boolean(
+            nameof(TraconWorkflowOptions.ResumeInterruptedRuns),
+            static o => o.ResumeInterruptedRuns,
+            static (o, v) => o.ResumeInterruptedRuns = v);
+
+        read.Int32(
+            nameof(TraconWorkflowOptions.MaxResumeAttempts),
+            static o => o.MaxResumeAttempts,
+            static (o, v) => o.MaxResumeAttempts = v);
+
+        read.TimeSpan(
+            nameof(TraconWorkflowOptions.RequestExpirationScanInterval),
+            static o => o.RequestExpirationScanInterval,
+            static (o, v) => o.RequestExpirationScanInterval = v);
+
+        read.Int32(
+            nameof(TraconWorkflowOptions.MaxRequestExpirationsPerScan),
+            static o => o.MaxRequestExpirationsPerScan,
+            static (o, v) => o.MaxRequestExpirationsPerScan = v);
     }
 
     /// <summary>

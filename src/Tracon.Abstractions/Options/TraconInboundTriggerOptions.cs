@@ -10,13 +10,25 @@ namespace Tracon;
 /// </remarks>
 public sealed class TraconInboundTriggerOptions
 {
-    /// <summary>Gets or sets how far the request's <c>X-Tracon-Timestamp</c> may drift. Default five minutes.</summary>
+    /// <summary>Gets the configuration section name.</summary>
+    public const string SectionName = "Tracon:InboundTriggers";
+
+    /// <summary>
+    /// Gets or sets how far the request's <c>X-Tracon-Timestamp</c> may drift. Default five minutes. Must be greater than
+    /// zero; any other value stops the host at start.
+    /// </summary>
     public TimeSpan TimestampTolerance { get; set; } = TimeSpan.FromMinutes(5);
 
-    /// <summary>Gets or sets the maximum accepted body size, in bytes. Default 256 KB.</summary>
+    /// <summary>
+    /// Gets or sets the maximum accepted body size, in bytes. Default 256 KB. Must be at least 1; any other value stops
+    /// the host at start.
+    /// </summary>
     public int MaxBodyBytes { get; set; } = 256 * 1024;
 
-    /// <summary>Gets or sets the maximum accepted requests per trigger per minute. Default 60.</summary>
+    /// <summary>
+    /// Gets or sets the maximum accepted requests per trigger per minute. Default 60. Must be at least 1; any other value
+    /// stops the host at start.
+    /// </summary>
     public int MaxRequestsPerMinute { get; set; } = 60;
 
     /// <summary>

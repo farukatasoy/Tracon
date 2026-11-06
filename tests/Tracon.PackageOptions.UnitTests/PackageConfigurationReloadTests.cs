@@ -9,19 +9,20 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tracon binds its sections by hand, so a configuration provider that reloads never reaches them. One call is the
-/// exception: <c>UseWorkflows</c> binds its options through the framework's configuration binder
-/// (<c>BindConfiguration</c>), and the binder registers a change token source on its own. The documentation states that
-/// exception; this test is what keeps the statement true. A second package that starts to follow a reload, or a
-/// workflow options type that stops, fails here and says which.
+/// Tracon binds its sections by hand, so a configuration provider that reloads never reaches them, and a change to the
+/// configuration needs a restart. The workflow options used to be read by the framework's configuration binder
+/// (<c>BindConfiguration</c>), which registers a change token source on its own and split the settings between the
+/// readers; they are bound by hand now. This test is what keeps the statement true for every package: an options type
+/// that starts to follow a reload fails here and says which.
 /// </para>
 /// </remarks>
 public sealed class PackageConfigurationReloadTests
 {
     [Fact]
-    public void The_workflow_options_are_the_only_ones_with_a_change_token_source()
+    public void No_options_type_of_a_package_has_a_change_token_source()
     {
         var sources = new SortedSet<string>(StringComparer.Ordinal);
+        var composed = 0;
 
         foreach (var scalar in OptionScalarCatalog.All().GroupBy(static scalar => scalar.RootType).Select(static group => group.First()))
         {
@@ -32,6 +33,7 @@ public sealed class PackageConfigurationReloadTests
             var section = configuration.GetSection("Tracon");
             var builder = services.AddTracon(section);
             scalar.Compose?.Invoke(builder, section);
+            composed++;
 
             foreach (var descriptor in services)
             {
@@ -43,9 +45,10 @@ public sealed class PackageConfigurationReloadTests
             }
         }
 
-        sources.ShouldBe(
-            ["TraconWorkflowOptions"],
-            "only the workflow options follow a configuration reload (UseWorkflows binds them through the framework's binder). " +
-            "Any other options type with a source changes what the documentation says about a restart: decide each reader first.");
+        // A scan that composed few options types would pass for the wrong reason.
+        composed.ShouldBeGreaterThanOrEqualTo(10);
+        sources.ShouldBeEmpty(
+            "no Tracon options type follows a configuration reload, and the documentation says that a change needs a restart. " +
+            "An options type with a source changes that statement: decide each reader of it first.");
     }
 }

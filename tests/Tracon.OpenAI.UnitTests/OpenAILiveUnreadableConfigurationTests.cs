@@ -97,4 +97,9 @@ public sealed class OpenAILiveUnreadableConfigurationTests
     [Fact]
     public void Every_scalar_assigned_in_code_after_binding_wins_over_an_unreadable_value()
         => UnreadableProviderConfiguration.CodeAssignedScalarsWinOverUnreadableText(Provider);
+
+    [Theory]
+    [InlineData(nameof(OpenAILiveOptions.Voice))]
+    public void A_text_of_only_white_space_stops_the_host(string member)
+        => UnreadableProviderConfiguration.WhiteSpaceTextStopsTheHost(Provider, member);
 }

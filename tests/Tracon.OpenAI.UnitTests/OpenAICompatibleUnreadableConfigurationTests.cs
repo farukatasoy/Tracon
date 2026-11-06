@@ -66,6 +66,27 @@ public sealed class OpenAICompatibleUnreadableConfigurationTests
         Should.NotThrow(() => provider.GetRequiredService<IStartupValidator>().Validate());
     }
 
+    [Theory]
+    [InlineData(nameof(OpenAIProviderOptions.DefaultModel))]
+    [InlineData(nameof(OpenAIProviderOptions.Organization))]
+    public void A_text_of_only_white_space_stops_the_host_for_a_named_compatible_provider(string member)
+    {
+        // The named instance has its own options and the same validator: the check must not stop at the unnamed one.
+        using var fromConfiguration = Compose((member, "   "));
+
+        var failure = Should.Throw<OptionsValidationException>(
+            () => fromConfiguration.GetRequiredService<IStartupValidator>().Validate());
+
+        failure.Message.ShouldContain($"{nameof(OpenAIProviderOptions)}.{member} is only white space (3 characters).");
+
+        // A value that code assigns after binding never went through the binder.
+        var property = typeof(OpenAIProviderOptions).GetProperty(member)!;
+        using var fromCode = Compose(options => property.SetValue(options, "   "));
+
+        Should.Throw<OptionsValidationException>(() => fromCode.GetRequiredService<IStartupValidator>().Validate())
+            .Message.ShouldContain($"{nameof(OpenAIProviderOptions)}.{member} is only white space (3 characters).");
+    }
+
     private static ServiceProvider Compose(params (string Name, string Text)[] keys)
         => Compose(configure: null, keys);
 

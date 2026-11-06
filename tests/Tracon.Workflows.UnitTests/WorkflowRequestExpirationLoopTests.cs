@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -69,30 +67,17 @@ public sealed class WorkflowRequestExpirationLoopTests
     }
 
     [Fact]
-    public async Task A_reloaded_value_that_fails_validation_skips_the_scan_and_the_loop_lives_on()
+    public async Task Options_that_cannot_be_read_skip_the_scan_and_the_loop_lives_on()
     {
-        // Tracon:Workflows is the one set of options that follows a configuration reload, so this is a path an operator
-        // reaches by saving appsettings.json with a value the validation refuses. The monitor then throws on every read,
-        // and the scan read its options at the top of the tick, outside any try.
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
-            {
-                ["Tracon:Workflows:RequestExpirationScanInterval"] = "00:01:00",
-            })
-            .Build();
-
-        var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(configuration);
-        services.AddTracon().UseWorkflows();
-
-        await using var provider = services.BuildServiceProvider();
-
+        // The scan reads its options through a monitor, and a monitor can throw on a read: a host that registers a
+        // change token source of its own for these options (Tracon registers none, and supports no reload) and then
+        // reloads a value the validation refuses reaches this path. The scan read its options at the top of the tick,
+        // outside any try, so it has to skip the tick and keep the loop alive.
+        var options = new SwitchableOptions<TraconWorkflowOptions>(new TraconWorkflowOptions { RequestExpirationScanInterval = Interval });
         var capture = new CapturingLoggerProvider();
         using var loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(capture));
 
-        var (service, plan, clock) = Build(
-            provider.GetRequiredService<IOptionsMonitor<TraconWorkflowOptions>>(),
-            loggerFactory.CreateLogger<WorkflowRequestExpirationService>());
+        var (service, plan, clock) = Build(options, loggerFactory.CreateLogger<WorkflowRequestExpirationService>());
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the loop to arm its timer");
@@ -102,8 +87,10 @@ public sealed class WorkflowRequestExpirationLoopTests
             () => plan.CountOf(nameof(IWorkflowRequestStore.ExpireAsync)) >= 1,
             "the loop to scan while the value is valid");
 
-        configuration["Tracon:Workflows:RequestExpirationScanInterval"] = "00:00:00";
-        Should.Throw<AggregateException>(configuration.Reload);
+        options.Failure = new OptionsValidationException(
+            Options.DefaultName,
+            typeof(TraconWorkflowOptions),
+            ["TraconWorkflowOptions.RequestExpirationScanInterval must be at least one millisecond."]);
 
         clock.Advance(Interval);
         await WaitUntil.TrueAsync(
@@ -114,8 +101,7 @@ public sealed class WorkflowRequestExpirationLoopTests
         service.ExecuteTask!.IsCompleted.ShouldBeFalse("the loop ended when its options could not be read");
         plan.CountOf(nameof(IWorkflowRequestStore.ExpireAsync)).ShouldBe(1, "a scan ran on options that could not be read");
 
-        configuration["Tracon:Workflows:RequestExpirationScanInterval"] = "00:01:00";
-        configuration.Reload();
+        options.Failure = null;
 
         clock.Advance(Interval);
         await WaitUntil.TrueAsync(
@@ -151,6 +137,18 @@ public sealed class WorkflowRequestExpirationLoopTests
         public T CurrentValue => value;
 
         public T Get(string? name) => value;
+
+        public IDisposable? OnChange(Action<T, string?> listener) => null;
+    }
+
+    /// <summary>A monitor whose reads throw while <see cref="Failure"/> is set, as a monitor does for a value that fails validation.</summary>
+    private sealed class SwitchableOptions<T>(T value) : IOptionsMonitor<T>
+    {
+        public Exception? Failure { get; set; }
+
+        public T CurrentValue => Failure is null ? value : throw Failure;
+
+        public T Get(string? name) => CurrentValue;
 
         public IDisposable? OnChange(Action<T, string?> listener) => null;
     }

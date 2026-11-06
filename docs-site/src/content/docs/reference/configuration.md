@@ -57,8 +57,10 @@ validator, which refuses a relative address.
 - **Empty means not given.** A key with no text keeps the default, and so does a number, flag, duration or
   address key that holds only white space.
 - **A text option made only of white space stops the host.** `Audit:ChainKeyId` set to `"   "`, a `Provider` or a
-  `Model` of spaces, a mask of blanks: the value would look applied and name nothing, so the message names the member and
-  asks you to write a value or remove the key. This holds for a value assigned in code as well.
+  `Model` of spaces, a mask of blanks, and the text options of the model providers (`DefaultModel`, the OpenAI
+  `Organization`, the Google `ApiVersion`, the Azure `DefaultDeployment` and `Audience`, the live voice `Voice`; the same
+  holds for a provider added with `UseOpenAICompatible`): the value would look applied and name nothing, so the message
+  names the member and asks you to write a value or remove the key. This holds for a value assigned in code as well.
 - **A list is written as one entry per key.** `EnvironmentAllowList:0=PATH` is a list of
   one; `EnvironmentAllowList=PATH` is refused, and the message shows the `:0` form. A list
   that is present replaces the default. A JSON `[]` and a key with no text are "not
@@ -80,19 +82,17 @@ Tracon reads its options once, when the host starts. A configuration provider th
 it does not change the options Tracon reads, and no option of Tracon is meant to change while
 the host runs. Restart the host to apply a change.
 
-One part follows a reload anyway: the `Tracon:Workflows` options. `UseWorkflows()` binds the
-section through the .NET configuration binder, which registers a change token source on its own.
-The readers that look these options up through `IOptionsMonitor` see the new value: the run
-limits a save checks (`RunTimeout`, `MaxRunTimeout`, `MaxSuperSteps`), the resume settings the
-job handlers read (`ResumeInterruptedRuns`, `MaxResumeAttempts`), and the cap of the
-request-expiration sweep. The workflow runner does not: it keeps the values it read at start. A
-reload therefore splits the settings, so a save can check a new limit while the runner applies
-the old one. Treat it as unsupported and restart.
+The `Tracon:Workflows` options hold the same rule. `UseWorkflows()` binds the section by hand and
+registers no change token source, so a reload reaches none of its readers: not the run limits a
+save checks (`RunTimeout`, `MaxRunTimeout`, `MaxSuperSteps`), not the resume settings the job
+handlers read (`ResumeInterruptedRuns`, `MaxResumeAttempts`), and not the workflow runner, which
+builds its slots at start. A save and the runner apply the same limits until the next restart.
 
-A reloaded `Tracon:Workflows` value that fails validation does not stop the request-expiration
-sweep. Every later read of the options throws until a valid value replaces it, so the sweep skips
-each tick it cannot read them for, writes one warning, and works again on the first tick after the
-value is valid. These loops read their options on every tick and behave the same way: the
+A loop that reads its options on every tick survives a monitor that cannot answer. If a host
+registers its own change token source and reloads a `Tracon:Workflows` value that fails
+validation, every later read of the options throws until a valid value replaces it; the
+request-expiration sweep skips each tick it cannot read them for, writes one warning, and works
+again on the first tick after the value is valid. These loops behave the same way: the
 approval-expiration and run-reconciliation scans, the job worker, and the database-backed gauges.
 
 Many readers look an option up on every call, which can look like live reconfiguration. It is

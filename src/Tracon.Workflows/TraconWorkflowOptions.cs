@@ -3,16 +3,19 @@ namespace Tracon;
 /// <summary>Settings that control workflow execution.</summary>
 /// <remarks>
 /// <para>
-/// Tracon reads its options once, when the host starts, and a change to the configuration needs a restart. These options
-/// are the one exception: <c>UseWorkflows</c> binds this section through the framework's configuration binder, which
-/// registers a change token source, so a configuration provider that reloads reaches the readers that look the value up through
-/// <see cref="Microsoft.Extensions.Options.IOptionsMonitor{TOptions}"/> on every call. Those are the run limits
-/// (<see cref="RunTimeout"/>, <see cref="MaxRunTimeout"/>, <see cref="MaxSuperSteps"/>) that a save checks, the recovery
-/// settings (<see cref="ResumeInterruptedRuns"/>, <see cref="MaxResumeAttempts"/>) the job handlers read, and the cap of
-/// the request-expiration sweep (<see cref="MaxRequestExpirationsPerScan"/>). The runner reads
-/// <see cref="Microsoft.Extensions.Options.IOptions{TOptions}"/> and keeps the value it built at start. A reload therefore
-/// splits the settings between readers until the host restarts, and a new value that fails validation makes every later
-/// read through the monitor throw. Restart the host to apply a change to all of them.
+/// Like every Tracon options type, these are read once, when the host starts, and a change to the configuration needs a
+/// restart. <c>UseWorkflows</c> binds the <c>Tracon:Workflows</c> section by hand and registers no change token source, so
+/// a configuration provider that reloads (a file with <c>reloadOnChange</c>, a vault, a configuration server) changes
+/// <c>IConfiguration</c> and reaches no reader of these options: not the run limits and the recovery settings the HTTP layer
+/// and the job handlers look up through <see cref="Microsoft.Extensions.Options.IOptionsMonitor{TOptions}"/>, and not the
+/// runner, which reads <see cref="Microsoft.Extensions.Options.IOptions{TOptions}"/> and builds its slots at start. A host
+/// that registers a change token source of its own gets an unsupported half of a reload: the monitor sees the new value,
+/// the runner keeps the old one, and a new value that fails validation makes every later read through the monitor throw.
+/// </para>
+/// <para>
+/// A value that cannot be read stops the host at start and the message names the key and the text. A duration is a clock
+/// time: <c>00:30:00</c> is thirty minutes and <c>1.00:00:00</c> is a day, while <c>30</c> and <c>24:00:00</c> are refused
+/// (they would be read as 30 and 24 days). A key that is empty or blank is not given and keeps its default.
 /// </para>
 /// </remarks>
 public sealed class TraconWorkflowOptions
@@ -143,8 +146,8 @@ public sealed class TraconWorkflowOptions
     /// <para>
     /// A definition whose value is above the ceiling is refused when it is saved
     /// (<c>400</c>). A stored definition whose value is above a ceiling that was
-    /// lowered later (by a new deployment: a configuration reload does not lower the ceiling the runner
-    /// applies) still runs, cut to the ceiling, and a warning is logged.
+    /// lowered later (by a new deployment: a configuration reload does not lower the ceiling, because nothing
+    /// follows a reload and a change needs a restart) still runs, cut to the ceiling, and a warning is logged.
     /// </para>
     /// <para>
     /// Must be from one millisecond to about 49.7 days, and not below

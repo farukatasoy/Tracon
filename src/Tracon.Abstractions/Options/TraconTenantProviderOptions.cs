@@ -10,6 +10,9 @@ namespace Tracon;
 /// </remarks>
 public sealed class TraconTenantProviderOptions
 {
+    /// <summary>Gets the configuration section name.</summary>
+    public const string SectionName = "Tracon:TenantProviders";
+
     /// <summary>
     /// Gets or sets the only prefix under which a configuration key may be
     /// referenced by a tenant provider binding. Default is

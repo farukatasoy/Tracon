@@ -11,9 +11,9 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The workflows package is the one exception, because it binds its section through the framework's configuration binder.
-/// This project does not reference it; <c>PackageConfigurationReloadTests</c> lists every options type with a change token
-/// source across the packages, and <c>WorkflowOptionsReloadTests</c> pins what a reload does to the workflow readers.
+/// The packages hold the same rule. This project does not reference them; <c>PackageConfigurationReloadTests</c> lists every
+/// options type with a change token source across the packages, and <c>WorkflowOptionsReloadTests</c> pins what a reload
+/// does to the workflow readers.
 /// </para>
 /// <para>
 /// Tracon binds its sections by hand and registers no <see cref="IOptionsChangeTokenSource{TOptions}"/>, so a

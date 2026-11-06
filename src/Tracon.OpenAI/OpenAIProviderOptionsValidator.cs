@@ -75,6 +75,11 @@ internal sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIPr
                 timeout));
         }
 
+        // A text of blanks is a typing mistake: the host would call a model called "   ". The check is on the value
+        // the options hold, so a value that code assigns is refused too.
+        OptionText.AddWhenOnlyWhiteSpace(options.DefaultModel, nameof(OpenAIProviderOptions), nameof(OpenAIProviderOptions.DefaultModel), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.Organization, nameof(OpenAIProviderOptions), nameof(OpenAIProviderOptions.Organization), ref failures);
+
         for (var index = 0; index < options.Models.Count; index++)
         {
             if (string.IsNullOrWhiteSpace(options.Models[index]?.Name))

@@ -36,32 +36,11 @@ public sealed partial class ConfigurationPermutationTests
     };
 
     /// <summary>
-    /// Scalars read with the framework's own binder instead of Tracon's reader. An unreadable text is a raw
-    /// <see cref="InvalidOperationException"/> out of the first read of the options (the host still stops, but not with an
-    /// options failure that lists every key), and a time span written without a clock is read as days.
+    /// Text options that keep a whitespace-only value as written, where a number option treats it as not given. The
+    /// behaviour is recorded here until it is decided; a key that starts to refuse the text stops the build, so the list
+    /// only shrinks. None in this scope: every text option of the package sections refuses blanks.
     /// </summary>
-    private static readonly Dictionary<string, string> ReadByFrameworkBinder = new(StringComparer.Ordinal)
-    {
-        ["Tracon:Workflows:MaxConcurrentRunsPerTenant"] = "open finding: 'abc' is a raw InvalidOperationException, not the reader's failure naming every key",
-        ["Tracon:Workflows:MaxRunTimeout"] = "open finding: '30' and '24:00:00' bind as 30 and 24 DAYS; every other duration option refuses them",
-    };
-
-    /// <summary>
-    /// Text options that keep a whitespace-only value as written. Each is an open finding that waits for the decision the
-    /// core options already have: the provider packages cannot see the core's helper, so the same rule needs one in the
-    /// shared provider sources.
-    /// </summary>
-    private static readonly Dictionary<string, string> WhitespaceTextKept = new(StringComparer.Ordinal)
-    {
-        ["Tracon:Providers:Anthropic:DefaultModel"] = "open finding: a model called blanks, found at the first call",
-        ["Tracon:Providers:Google:DefaultModel"] = "open finding: a model called blanks, found at the first call",
-        ["Tracon:Providers:Google:ApiVersion"] = "open finding: an API version of blanks goes into the request path",
-        ["Tracon:Providers:OpenAI:DefaultModel"] = "open finding: a model called blanks, found at the first call",
-        ["Tracon:Providers:OpenAI:Organization"] = "open finding: an organization header of blanks",
-        ["Tracon:Providers:OpenAI:Live:Voice"] = "open finding: a voice called blanks, found at the first session",
-        ["Tracon:Providers:AzureOpenAI:DefaultDeployment"] = "open finding: a deployment called blanks, found at the first call",
-        ["Tracon:Providers:AzureOpenAI:Audience"] = "open finding: a token audience of blanks, found at the first token request",
-    };
+    private static readonly Dictionary<string, string> WhitespaceTextKept = new(StringComparer.Ordinal);
 
     /// <summary>The fractions this scope holds to a range of 0 to 1. None in this scope.</summary>
     private static readonly string[] RatioKeys = [];

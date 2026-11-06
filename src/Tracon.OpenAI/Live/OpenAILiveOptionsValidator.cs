@@ -63,6 +63,9 @@ internal sealed class OpenAILiveOptionsValidator : IValidateOptions<OpenAILiveOp
                 options.Timeout));
         }
 
+        // A voice called "   " would be found at the first session.
+        OptionText.AddWhenOnlyWhiteSpace(options.Voice, nameof(OpenAILiveOptions), nameof(OpenAILiveOptions.Voice), ref failures);
+
         // 🚨 The message says WHICH CALL is missing. The live provider reuses the
         // OpenAI key, so an application that calls UseOpenAILive() without UseOpenAI()
         // would otherwise fail at the first session with an opaque authentication error.

@@ -9,8 +9,8 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// <remarks>
 /// <para>
 /// <see cref="ConfigurationPermutationTests"/> walks every text option of a type that carries a section name and writes
-/// blanks into it. Two options types are bound under a section the permutation cannot find by reflection (they have no
-/// <c>SectionName</c> constant), and a value assigned in code never passes a binder at all; both are tried here by name.
+/// blanks into it, in the core scope and in the package scope. A value assigned in code never passes a binder at all, so
+/// it is tried here.
 /// </para>
 /// <para>
 /// Empty is a different value: a key with no text is not given and the option keeps its default.
@@ -18,18 +18,6 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </remarks>
 public sealed class WhitespaceOnlyTextOptionTests
 {
-    [Theory]
-    [InlineData("Tracon:TenantProviders:AllowedConfigurationPrefix", "TraconTenantProviderOptions.AllowedConfigurationPrefix")]
-    [InlineData("Tracon:InboundTriggers:AllowedConfigurationPrefix", "TraconInboundTriggerOptions.AllowedConfigurationPrefix")]
-    public void A_prefix_of_blanks_on_an_options_type_without_a_section_constant_stops_the_host(string key, string member)
-    {
-        var failure = SectionBinding.FailsAtStartup(
-            new Dictionary<string, string?>(StringComparer.Ordinal) { [key] = "   " });
-
-        failure.Message.ShouldContain(member, Case.Sensitive);
-        failure.Message.ShouldContain("white space", Case.Sensitive);
-    }
-
     [Fact]
     public void A_value_assigned_in_code_is_refused_by_the_same_validator()
     {

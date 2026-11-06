@@ -13282,6 +13282,10 @@ endpoint follows: a write that cannot be audited is not applied.
 | `MaxRequestsPerMinute` | 60 | Per trigger (`429` beyond the limit); counted per process unless `Tracon:RateLimit:Scope` is `Deployment` |
 | `AllowedConfigurationPrefix` | `Tracon:TriggerSecrets:` | The only prefix a signing secret's configuration key name may start with; inside it, a tenant uses `{prefix}{tenant}:` and a flat name belongs to the default tenant |
 
+The three limits must be positive: a `TimestampTolerance` of zero or less, a `MaxBodyBytes` below `1` or a
+`MaxRequestsPerMinute` below `1` stops the host at startup and the message names the setting. A body limit of zero
+would refuse every request that has a body, and a tolerance of zero would call every request stale.
+
 ```json
 {
   "Tracon": {
@@ -23671,6 +23675,8 @@ tracon.UseMcp(
 | `MaxSuperSteps` | `100`; a sequential chain that needs more super-steps than this is refused when it is saved |
 | `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
+| `ResumeInterruptedRuns` | `false`; requires `EnableCheckpointing` |
+| `MaxResumeAttempts` | `1`; from `0` to `100` |
 | `RequestExpirationScanInterval` | 1 minute |
 | `MaxRequestExpirationsPerScan` | `100` |
 
@@ -23679,7 +23685,14 @@ in each process and, for queued workflow jobs, in the job queue (a soft count ac
 processes). See [How many runs go at once](/guides/background-work/#limit-workflow-runs-per-tenant).
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
-binds this section and then applies its optional code override.
+binds this section and then applies its optional code override. A change to the section needs a
+restart, like every other section: nothing that reads these options follows a reload.
+
+The durations are clock times: `00:30:00` is thirty minutes and `1.00:00:00` is a day. A bare
+number (`30`) and an hour above 23 (`24:00:00`) stop the host at startup, because .NET would read
+them as 30 and 24 days, and so does any text the key's type cannot read (`MaxConcurrentRunsPerTenant=abc`);
+the message names the full key and quotes the text. A key that is empty or blank is not given and
+keeps its default.
 
 `MaxRunTimeout` is the longest run timeout a workflow definition may set. A save above
 it, or above `RunTimeout` while it is unset, is refused with `400`. A workflow defined in code
@@ -23812,8 +23825,10 @@ validator, which refuses a relative address.
 - **Empty means not given.** A key with no text keeps the default, and so does a number, flag, duration or
   address key that holds only white space.
 - **A text option made only of white space stops the host.** `Audit:ChainKeyId` set to `"   "`, a `Provider` or a
-  `Model` of spaces, a mask of blanks: the value would look applied and name nothing, so the message names the member and
-  asks you to write a value or remove the key. This holds for a value assigned in code as well.
+  `Model` of spaces, a mask of blanks, and the text options of the model providers (`DefaultModel`, the OpenAI
+  `Organization`, the Google `ApiVersion`, the Azure `DefaultDeployment` and `Audience`, the live voice `Voice`; the same
+  holds for a provider added with `UseOpenAICompatible`): the value would look applied and name nothing, so the message
+  names the member and asks you to write a value or remove the key. This holds for a value assigned in code as well.
 - **A list is written as one entry per key.** `EnvironmentAllowList:0=PATH` is a list of
   one; `EnvironmentAllowList=PATH` is refused, and the message shows the `:0` form. A list
   that is present replaces the default. A JSON `[]` and a key with no text are "not
@@ -23835,19 +23850,17 @@ Tracon reads its options once, when the host starts. A configuration provider th
 it does not change the options Tracon reads, and no option of Tracon is meant to change while
 the host runs. Restart the host to apply a change.
 
-One part follows a reload anyway: the `Tracon:Workflows` options. `UseWorkflows()` binds the
-section through the .NET configuration binder, which registers a change token source on its own.
-The readers that look these options up through `IOptionsMonitor` see the new value: the run
-limits a save checks (`RunTimeout`, `MaxRunTimeout`, `MaxSuperSteps`), the resume settings the
-job handlers read (`ResumeInterruptedRuns`, `MaxResumeAttempts`), and the cap of the
-request-expiration sweep. The workflow runner does not: it keeps the values it read at start. A
-reload therefore splits the settings, so a save can check a new limit while the runner applies
-the old one. Treat it as unsupported and restart.
+The `Tracon:Workflows` options hold the same rule. `UseWorkflows()` binds the section by hand and
+registers no change token source, so a reload reaches none of its readers: not the run limits a
+save checks (`RunTimeout`, `MaxRunTimeout`, `MaxSuperSteps`), not the resume settings the job
+handlers read (`ResumeInterruptedRuns`, `MaxResumeAttempts`), and not the workflow runner, which
+builds its slots at start. A save and the runner apply the same limits until the next restart.
 
-A reloaded `Tracon:Workflows` value that fails validation does not stop the request-expiration
-sweep. Every later read of the options throws until a valid value replaces it, so the sweep skips
-each tick it cannot read them for, writes one warning, and works again on the first tick after the
-value is valid. These loops read their options on every tick and behave the same way: the
+A loop that reads its options on every tick survives a monitor that cannot answer. If a host
+registers its own change token source and reloads a `Tracon:Workflows` value that fails
+validation, every later read of the options throws until a valid value replaces it; the
+request-expiration sweep skips each tick it cannot read them for, writes one warning, and works
+again on the first tick after the value is valid. These loops behave the same way: the
 approval-expiration and run-reconciliation scans, the job worker, and the database-backed gauges.
 
 Many readers look an option up on every call, which can look like live reconfiguration. It is

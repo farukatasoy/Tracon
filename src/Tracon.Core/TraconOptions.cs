@@ -8,14 +8,13 @@ namespace Tracon;
 /// <see cref="TraconOptionsValidator"/> performs validation manually.
 /// </para>
 /// <para>
-/// Every Tracon options type is read when the host starts, with one exception. Tracon binds its sections by hand and registers
+/// Every Tracon options type is read when the host starts. Tracon binds its sections by hand and registers
 /// no <c>IOptionsChangeTokenSource&lt;T&gt;</c>, so a configuration provider that reloads (a file with <c>reloadOnChange</c>,
 /// a vault, a configuration server) changes <c>IConfiguration</c> and not the options: a change needs a restart. Many readers
 /// look a value up on every call, which can look like live reconfiguration, and it is not supported. A host that adds a change
 /// token source of its own gets a part of it (a reader that built something from the old value keeps it) and a new value that
-/// fails validation makes every later read of that options type throw. The exception is <c>TraconWorkflowOptions</c>: the
-/// workflows package binds its section through the framework's binder, so the readers of those options that use the options
-/// monitor follow a reload (see that type).
+/// fails validation makes every later read of that options type throw. The options of the packages (workflows included) hold
+/// the same rule.
 /// </para>
 /// </remarks>
 public sealed class TraconOptions
