@@ -21,13 +21,18 @@ public sealed class JobWorkerLeaseContractTests
     [Fact]
     public async Task Lease_renewal_continues_after_a_failed_renewal()
     {
-        var jobs = new FailFirstRenewalJobStore();
+        // 🚨 The clock is never advanced, for the reason given in A_transient_store_error_in_renewal_does_not_lose_the_lease:
+        // on the real clock a 300 ms lease leaves a margin of 100 ms, and a tick that a loaded machine delayed by that much
+        // made the worker give the lease up on purpose, the renewals stopped at two and the wait below ran out its 30 s. The
+        // renewal timer still ticks in real time; only the time a lease may go unproven is read from this clock.
+        var clock = new ManualTimeProvider();
+        var jobs = new FailFirstRenewalJobStore(clock);
         var handler = new BlockingHandler();
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
 
-        await EnqueueAsync(jobs, maxAttempts: 1, DateTimeOffset.UtcNow);
+        await EnqueueAsync(jobs, maxAttempts: 1, clock.GetUtcNow());
 
-        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMilliseconds(300));
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMilliseconds(300), clock);
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
         await handler.Started.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
@@ -1477,7 +1482,7 @@ public sealed class JobWorkerLeaseContractTests
     }
 
     /// <summary>Throws on the first renewal, the way a store that blips once does.</summary>
-    private sealed class FailFirstRenewalJobStore : DelegatingJobStore
+    private sealed class FailFirstRenewalJobStore(TimeProvider? clock = null) : DelegatingJobStore(clock)
     {
         private int _renewCalls;
 
