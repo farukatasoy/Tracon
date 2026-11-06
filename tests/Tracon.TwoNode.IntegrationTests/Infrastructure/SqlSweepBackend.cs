@@ -254,10 +254,11 @@ internal sealed class PostgreSqlSweepBackend : SqlSweepBackend
         public PoolUsage(string poolName)
         {
             _poolName = poolName;
+            // Npgsql's meter is internal, so there is no instance to target. Another pool of the process publishes the
+            // same instrument under its own name; the pool name this class made up is what keeps their numbers out.
             _listener.InstrumentPublished = static (instrument, listener) =>
             {
-                if (string.Equals(instrument.Meter.Name, "Npgsql", StringComparison.Ordinal)
-                    && string.Equals(instrument.Name, "db.client.connection.count", StringComparison.Ordinal))
+                if (string.Equals(instrument.Name, "db.client.connection.count", StringComparison.Ordinal))
                 {
                     listener.EnableMeasurementEvents(instrument);
                 }
