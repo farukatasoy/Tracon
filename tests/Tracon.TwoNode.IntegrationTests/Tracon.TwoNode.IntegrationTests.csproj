@@ -21,6 +21,11 @@
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
     <!-- The secret canary drives the AG-UI endpoint on the two server databases. -->
     <ProjectReference Include="../../src/Tracon.AGUI/Tracon.AGUI.csproj" />
+    <!--
+      CliConnectedSecretCanaryAcceptanceContract runs the command-line tool as a process of its own against the container. The
+      project is built beside this one; its assembly is not referenced (the test starts it, it does not call it).
+    -->
+    <ProjectReference Include="../../src/Tracon.Cli/Tracon.Cli.csproj" ReferenceOutputAssembly="false" />
     <!-- Fake model provider (FakeModelProvider). -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
   </ItemGroup>
