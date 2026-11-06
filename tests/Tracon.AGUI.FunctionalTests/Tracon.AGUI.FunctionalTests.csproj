@@ -10,6 +10,9 @@
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
     <!-- AGUIInputRequiredTests: an MCP server's request for user input arrives through a real MCP client. -->
     <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
+    <!-- AguiSecretCanaryTests: the run goes to a real local provider through the OpenAI client, and its records are read from SQLite. -->
+    <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
+    <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +20,12 @@
     <Compile Include="../Shared/Infrastructure/ElicitingMcpServer.cs" LinkBase="Shared" />
     <!-- Makes one member of a registered store throw while every other member keeps the real behavior (the management API's tests use it too). -->
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/FaultInjection.cs" LinkBase="Shared" />
+    <!-- The secret canary: the same wire server and searches that run through the management API's host, here through the AG-UI endpoint. -->
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/CanaryWireServer.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/SecretHits.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/StructuredLogProbe.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/LeakProbe.cs" LinkBase="Shared" />
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/TempSqliteDatabase.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>
