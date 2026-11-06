@@ -400,8 +400,10 @@ An unmatched culture never fails the run; it falls back to the default. The
 the content sent to the model would be a surprise, so the culture is always an
 explicit field on the request.
 
-A compiled agent is cached per resolved culture: two runs of the same agent in
-different cultures never share a compiled instance.
+A compiled agent is cached per tenant and per instruction entry the culture selects:
+`tr` and `tr-TR` share one compiled instance when the agent has a `tr` entry, every
+culture that matches no entry shares the one with the default instructions, and runs
+that select different entries never share an instance.
 
 A queued run (`Prefer: respond-async`) uses the `culture` of the request that queued
 it. The run record does not store the culture. A run that Tracon starts from an
@@ -473,7 +475,7 @@ inserted as-is.
 
 Binding runs once per request, after culture resolution and before compilation, and
 the compiled agent is never cached for that run — two runs with different parameter
-values never share a compiled instance, the same rule culture resolution follows.
+values never share a compiled instance.
 Kind (`Text`, `Number`, `Boolean`) only labels the value's expected shape for the
 console's own input form; every value travels as a string.
 
