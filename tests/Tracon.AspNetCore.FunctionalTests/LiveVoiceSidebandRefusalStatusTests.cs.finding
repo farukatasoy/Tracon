@@ -31,7 +31,8 @@ public sealed class LiveVoiceSidebandRefusalStatusTests
         var body = await reply.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         reply.StatusCode.ShouldBe(HttpStatusCode.BadGateway, $"the real server answered {(int)reply.StatusCode} with body '{body}'");
-        reply.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        reply.Content.Headers.ContentType.ShouldNotBeNull();
+        reply.Content.Headers.ContentType.MediaType.ShouldBe("application/problem+json");
         body.ShouldContain("Live voice session could not be created");
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 using Tracon.TwoNode.IntegrationTests.Infrastructure;
 
 namespace Tracon.TwoNode.IntegrationTests;
@@ -162,7 +163,7 @@ public abstract class SecretCanaryAcceptanceContract
                     options.MaxAttempts = 1;
                 })
                 .AddTool(
-                    (Func<string>)(() => throw new InvalidOperationException($"Server=db.internal;Password={ToolStem}-0e5a1b")), // SYNTHETIC-CREDENTIAL: the text a tool's exception carries, searched for in every output
+                    (Func<string>)(() => throw new InvalidOperationException($"Server=db.internal;Password={ToolStem}-0e5a1b")), // SYNTHETIC-CREDENTIAL: the text a tool's exception carries; its places are asserted in the SQLite canary of failing tools
                     name: ToolName,
                     description: "Looks an order up.")
                 .AddAgent(new AgentDefinition
@@ -260,24 +261,22 @@ public abstract class SecretCanaryAcceptanceContract
 
             clock.Advance(TimeSpan.FromMinutes(2));
 
-            var ended = false;
-            var waitUntil = DateTimeOffset.UtcNow.AddSeconds(60);
-
-            while (DateTimeOffset.UtcNow < waitUntil && !ended)
+            try
             {
-                var now = (await JobStatusesAsync(host, null)).Concat(await JobStatusesAsync(host, Tenant)).ToList();
+                await WaitUntil.TrueAsync(
+                    async () =>
+                    {
+                        var now = (await JobStatusesAsync(host, null)).Concat(await JobStatusesAsync(host, Tenant)).ToList();
 
-                ended = now.Count(static status => status is "Completed" or "Failed" or "Cancelled") >= jobStatuses.Count + schedules.Count
-                    && !now.Any(static status => status is "Pending" or "Leased" or "Running");
-
-                if (!ended)
-                {
-                    await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken); // delay: polling
-                }
+                        return now.Count(static status => status is "Completed" or "Failed" or "Cancelled") >= jobStatuses.Count + schedules.Count
+                            && !now.Any(static status => status is "Pending" or "Leased" or "Running");
+                    },
+                    $"the {phase} jobs to end",
+                    TimeSpan.FromSeconds(60));
             }
-
-            if (!ended)
+            catch (TimeoutException timeout)
             {
+                // What the jobs say is the cause of a timeout; the wait itself only says that it happened.
                 var detail = new StringBuilder();
 
                 foreach (var t in (string?[])[null, Tenant])
@@ -293,7 +292,7 @@ public abstract class SecretCanaryAcceptanceContract
                     detail.AppendLine("tenant " + (t ?? "(none)") + ": " + await listed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
                 }
 
-                throw new InvalidOperationException($"the {phase} jobs did not end in time: " + detail);
+                throw new InvalidOperationException($"the {phase} jobs did not end in time: " + detail, timeout);
             }
 
             jobStatuses.Clear();

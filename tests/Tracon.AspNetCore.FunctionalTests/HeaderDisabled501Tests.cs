@@ -89,7 +89,8 @@ public sealed class HeaderDisabled501Tests
         using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull();
+        response.Content.Headers.ContentType.MediaType.ShouldBe("application/problem+json");
 
         var problem = await TraconTestHost.ReadJsonAsync(response);
 

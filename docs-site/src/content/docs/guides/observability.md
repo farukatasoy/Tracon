@@ -576,10 +576,11 @@ that text. It reaches five loggers that write the exception with its inner excep
 `Microsoft.Extensions.AI.OpenTelemetryChatClient` (at `Warning`), `Tracon.ModelProvider`,
 `Tracon.RunRecordingAgent`, `Tracon.AgentEndpoints` and `Tracon.OpenAICompat`. It also becomes the
 status description of the `chat` span. With `RecordSensitiveData` on, the trace store keeps that
-status description. The same holds for a tool that throws: the exception's message is the `error.message`
-of the `execute_tool` span, so with the flag on the stored trace and `GET /api/runs/{id}/trace` carry it,
-and with the flag off they do not. The model is told a fixed sentence either way, and the log keeps the
-full exception.
+status description. The same holds for a tool that throws an exception other than a `TraconException`:
+the exception's message is the `error.message` of the `execute_tool` span, so with the flag on the stored
+trace and `GET /api/runs/{id}/trace` carry it, and with the flag off they do not. The model is told a fixed
+sentence either way, and the log keeps the full exception. A `TraconException` is different: its message
+is a sentence written for the model, so the model reads it.
 
 Some providers quote the key they refused inside that text. Tracon replaces the key of the call with
 `[redacted]` in the log lines, in the span status, in the stored trace, in the run record and in the

@@ -151,7 +151,8 @@ public sealed class AguiSecretCanaryTests
         wire.Mode = CanaryWireServer.Behavior.Accept;
 
         // What an operator reads afterwards: the list, every part of every run, the audit trail, the diagnostics.
-        var runs = await ReadAsync(host, "/tracon/api/runs?limit=200", tenantKey, seen);
+        var answered = new Counter();
+        var runs = await ReadAsync(host, "/tracon/api/runs?limit=200", tenantKey, seen, answered);
 
         foreach (var run in runs.EnumerateArray())
         {
@@ -159,17 +160,18 @@ public sealed class AguiSecretCanaryTests
 
             foreach (var suffix in (string[])["", "/events", "/trace", "/tools", "/input", "/tree", "/usage", "/feedback"])
             {
-                await ReadAsync(host, $"/tracon/api/runs/{id}{suffix}", tenantKey, seen);
+                await ReadAsync(host, $"/tracon/api/runs/{id}{suffix}", tenantKey, seen, answered);
             }
         }
 
         foreach (var path in (string[])["/tracon/api/definitions/export", "/tracon/api/audit?limit=500", "/tracon/api/diagnostics", "/tracon/api/agents"])
         {
-            await ReadAsync(host, path, tenantKey, seen);
+            await ReadAsync(host, path, tenantKey, seen, answered);
         }
 
         // Proof that the runs reached the provider and were recorded.
         runs.GetArrayLength().ShouldBeGreaterThanOrEqualTo(3, "the three runs are not in the run list");
+        answered.Ok.ShouldBeGreaterThanOrEqualTo(20, "the read sweep reached too few operations for an empty search to mean anything");
         wire.Requests.ShouldBeGreaterThanOrEqualTo(3);
         wire.Credentials.ShouldContain(credential => credential.Contains(key, StringComparison.Ordinal), "the provider was never sent the key");
 
@@ -196,7 +198,12 @@ public sealed class AguiSecretCanaryTests
         hits.ShouldBeEmpty();
     }
 
-    private static async Task<JsonElement> ReadAsync(AGUITestHost host, string path, bool tenantKey, StringBuilder seen)
+    private sealed class Counter
+    {
+        public int Ok { get; set; }
+    }
+
+    private static async Task<JsonElement> ReadAsync(AGUITestHost host, string path, bool tenantKey, StringBuilder seen, Counter answered)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(path, UriKind.Relative));
 
@@ -207,6 +214,11 @@ public sealed class AguiSecretCanaryTests
 
         using var reply = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
         var text = await reply.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        if (reply.StatusCode == HttpStatusCode.OK)
+        {
+            answered.Ok++;
+        }
 
         seen.AppendLine((int)reply.StatusCode + " " + reply.Headers + " " + reply.Content.Headers + "\n" + text);
 

@@ -59,17 +59,17 @@ public sealed class ScheduledJobSecretCanaryTests
             $"/tracon/api/workflows/{Workflow}",
             new { description = "One step.", kind = "Sequential", agentNames = new[] { KeyedCanaryHost.AgentName } })).ShouldBe(HttpStatusCode.OK);
 
-        var rounds = new List<(string Name, CanaryWireServer.Behavior Mode, string[] Outcome)>
+        var rounds = new List<(string Name, CanaryWireServer.Behavior Mode)>
         {
-            ("accepted", CanaryWireServer.Behavior.Accept, ["Completed"]),
-            ("refused", CanaryWireServer.Behavior.RefuseAndQuote, ["Failed", "Completed"]),
+            ("accepted", CanaryWireServer.Behavior.Accept),
+            ("refused", CanaryWireServer.Behavior.RefuseAndQuote),
         };
 
         var statuses = new List<string>();
         var reached = 0;
         var jobsSeen = 0;
 
-        foreach (var (name, mode, _) in rounds)
+        foreach (var (name, mode) in rounds)
         {
             wire.Mode = mode;
             var before = wire.Requests;

@@ -110,6 +110,12 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
     /// <param name="agent">The agent's name, which is also the <c>model</c> of the compatible endpoints.</param>
     /// <returns>The six statuses, in that order.</returns>
     public async Task<IReadOnlyList<HttpStatusCode>> RunTheSixWaysAsync(string agent)
+        => [.. await RunTheAgentAndChatWaysAsync(agent), .. await RunTheResponsesWaysAsync(agent)];
+
+    /// <summary>Runs the agent the first four ways: the agent endpoint (one JSON body and a stream) and Chat Completions (buffered and streamed).</summary>
+    /// <param name="agent">The agent's name, which is also the <c>model</c> of Chat Completions.</param>
+    /// <returns>The four statuses, in that order.</returns>
+    public async Task<IReadOnlyList<HttpStatusCode>> RunTheAgentAndChatWaysAsync(string agent)
     {
         var message = new[] { new { role = "user", content = "hello" } };
 
@@ -119,10 +125,18 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
             await SendAsync(HttpMethod.Post, $"/tracon/api/agents/{agent}/run", new { message = "hello" }),
             await SendAsync(HttpMethod.Post, "/tracon/v1/chat/completions", new { model = agent, messages = message }),
             await SendAsync(HttpMethod.Post, "/tracon/v1/chat/completions", new { model = agent, stream = true, messages = message }),
+        ];
+    }
+
+    /// <summary>Runs the agent the last two ways: Responses, buffered and streamed.</summary>
+    /// <param name="agent">The agent's name, which is also the <c>model</c> of Responses.</param>
+    /// <returns>The two statuses, in that order.</returns>
+    public async Task<IReadOnlyList<HttpStatusCode>> RunTheResponsesWaysAsync(string agent)
+        =>
+        [
             await SendAsync(HttpMethod.Post, "/tracon/v1/responses", new { model = agent, input = "hello" }),
             await SendAsync(HttpMethod.Post, "/tracon/v1/responses", new { model = agent, stream = true, input = "hello" }),
         ];
-    }
 
     /// <summary>Starts a streamed run and abandons it after a moment, as a client that disconnects does.</summary>
     /// <param name="agent">The agent's name.</param>

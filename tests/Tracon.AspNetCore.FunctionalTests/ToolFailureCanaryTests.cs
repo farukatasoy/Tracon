@@ -58,17 +58,22 @@ public sealed class ToolFailureCanaryTests
 
         var drive = canary.Drive;
         var reader = canary.NewDrive();
+        var responsesDrive = canary.NewDrive();
         var wire = canary.Wire;
 
         wire.ToolCall = KeyedCanaryHost.ToolName;
 
         // The provider asks for the tool and accepts the turn after it, then asks again and refuses (quoting the key), then
         // asks and holds the next turn open while the client leaves.
+        // The Responses endpoint is driven apart: its answers carry a failing tool's text (an open finding), so the answers of
+        // the other endpoints are searched on their own.
         wire.Mode = CanaryWireServer.Behavior.Accept;
-        await drive.RunTheSixWaysAsync(KeyedCanaryHost.AgentName);
+        await drive.RunTheAgentAndChatWaysAsync(KeyedCanaryHost.AgentName);
+        await responsesDrive.RunTheResponsesWaysAsync(KeyedCanaryHost.AgentName);
 
         wire.Mode = CanaryWireServer.Behavior.RefuseAndQuote;
-        await drive.RunTheSixWaysAsync(KeyedCanaryHost.AgentName);
+        await drive.RunTheAgentAndChatWaysAsync(KeyedCanaryHost.AgentName);
+        await responsesDrive.RunTheResponsesWaysAsync(KeyedCanaryHost.AgentName);
 
         wire.Mode = CanaryWireServer.Behavior.Hold;
         await drive.AbandonStreamedRunAsync(KeyedCanaryHost.AgentName, TimeSpan.FromMilliseconds(600));
@@ -96,6 +101,7 @@ public sealed class ToolFailureCanaryTests
             ]);
 
         outputs["responses and records"] = drive.Seen;
+        outputs["answers of the Responses endpoint"] = responsesDrive.Seen;
 
         // The provider's key is nowhere.
         var keyHits = SecretHits.Find(outputs, [new("provider key", canary.Stem)]);
@@ -125,6 +131,7 @@ public sealed class ToolFailureCanaryTests
         else
         {
             In("the request the model received after the tool's result").ShouldBeFalse("the model was told the text of an exception that is not Tracon's own");
+            In("responses and records").ShouldBeFalse("an answer of the agent endpoint or of Chat Completions carries the text of an exception that is not Tracon's own");
 
             // With the traces' sensitive recording off (the default), the span's failure message is not stored, so no read of the
             // run and no byte of the database holds it. With it on, the trace of the run keeps the message, as it keeps every

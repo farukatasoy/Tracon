@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -28,6 +29,10 @@ public sealed class HostStopOpenEventStreamTests
 
     // The stop is cut at ShutdownTimeout; the margin is what a loaded machine may add.
     private static readonly TimeSpan StopBound = ShutdownTimeout + TimeSpan.FromSeconds(20);
+
+    // The host's own timeout is what ends the wait, not the drain wait (ten seconds here): a stop that took as long as the
+    // drain would be linked to it. Measured: four seconds, a second of it Kestrel's.
+    private static readonly TimeSpan TightStopBound = ShutdownTimeout + TimeSpan.FromSeconds(5);
 
     public enum EventClient
     {
@@ -121,6 +126,14 @@ public sealed class HostStopOpenEventStreamTests
             var stop = Stopwatch.StartNew();
             await origin.StopAsync().WaitAsync(StopBound, TestContext.Current.CancellationToken);
             var stopTime = stop.Elapsed;
+
+            // The run's own request may outlive the stop (its model ignores the token); a connection to the event stream
+            // must not: its handler ends when the host aborts the connection.
+            await WaitUntil.TrueAsync(
+                () => Task.FromResult(origin.InFlight <= 1),
+                "the event stream's request to end after the host stopped",
+                TimeSpan.FromSeconds(10));
+
             var inFlightAfterStop = origin.InFlight;
 
             stop.Restart();
@@ -132,6 +145,7 @@ public sealed class HostStopOpenEventStreamTests
                 $"host stop: drain={drain} events={events} stop={stopTime.TotalSeconds:F2}s dispose={disposeTime.TotalSeconds:F2}s inFlightAfterStop={inFlightAfterStop}");
 
             stopTime.ShouldBeLessThan(StopBound);
+            stopTime.ShouldBeLessThan(TightStopBound, "the stop took as long as the drain wait, so it is tied to it");
             disposeTime.ShouldBeLessThan(StopBound);
 
             await reading.WaitAsync(StopBound, TestContext.Current.CancellationToken);
