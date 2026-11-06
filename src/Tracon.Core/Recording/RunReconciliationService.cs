@@ -45,6 +45,7 @@ internal sealed class RunReconciliationService(
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly TickOptions<RunReconciliationOptions> _tickOptions = new(optionsMonitor, logger, "run reconciliation scan");
+    private readonly TickOptions<TraconRunContinuationOptions> _continuationOptions = new(continuationOptionsMonitor, logger, "run reconciliation scan (continuation)");
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -99,6 +100,14 @@ internal sealed class RunReconciliationService(
             return;
         }
 
+        // Read BEFORE the claim, with the scan's own options: the claim closes every run it returns, and the decision to
+        // continue each one needs these. A read that failed after the claim would leave the claimed runs closed with no
+        // decision made, and no later scan looks at those rows again.
+        if (!_continuationOptions.TryRead(out var continuation))
+        {
+            return;
+        }
+
         try
         {
             var claimed = await runStore
@@ -120,7 +129,7 @@ internal sealed class RunReconciliationService(
             {
                 try
                 {
-                    await TryContinueAsync(record, stoppingToken).ConfigureAwait(false);
+                    await TryContinueAsync(record, continuation, stoppingToken).ConfigureAwait(false);
                 }
                 catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
                 {
@@ -156,10 +165,8 @@ internal sealed class RunReconciliationService(
     /// can act on (not a root agent turn, an unsafe tool) is also written to
     /// the run as a <see cref="RunEventType.RunContinuationBlocked"/> event.
     /// </remarks>
-    private async Task TryContinueAsync(RunRecord record, CancellationToken cancellationToken)
+    private async Task TryContinueAsync(RunRecord record, TraconRunContinuationOptions continuation, CancellationToken cancellationToken)
     {
-        var continuation = continuationOptionsMonitor.CurrentValue;
-
         if (!continuation.Enabled ||
             record.SessionId is not { Length: > 0 } ||
             record.TenantId is not { Length: > 0 } tenantId)

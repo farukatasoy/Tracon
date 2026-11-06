@@ -127,6 +127,66 @@ public sealed class TickOptionsReadTests
             .WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task A_continuation_option_that_cannot_be_read_skips_the_scan_before_it_closes_any_run()
+    {
+        // The scan closes the runs it claims before it decides, one by one, whether to continue them. An option read
+        // after the claim that fails leaves every claimed run closed with no decision made, and no later scan looks at
+        // those rows again. The option is therefore read before the claim, with the scan's own.
+        var clock = new ManualClock();
+        var plan = new FaultPlan();
+        var continuation = new SwitchableOptionsMonitor<TraconRunContinuationOptions>(new TraconRunContinuationOptions());
+
+        using var service = new RunReconciliationService(
+            FaultProxy<IRunStore>.Create(new InMemoryRunStore(), plan),
+            new InMemorySingletonLeaseStore(),
+            new InMemoryJobStore(),
+            TestData.Registry(),
+            new StaticOptionsMonitor<RunReconciliationOptions>(new RunReconciliationOptions
+            {
+                Enabled = true,
+                ScanInterval = Interval,
+                HeartbeatInterval = Interval,
+                OrphanThreshold = TimeSpan.FromMinutes(5),
+            }),
+            new StaticOptionsMonitor<SingletonExecutionOptions>(new SingletonExecutionOptions()),
+            continuation,
+            new SchemaReadyGate([]),
+            clock,
+            NullLogger<RunReconciliationService>.Instance);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the scan to arm its timer");
+
+        clock.Advance(Interval);
+        await WaitUntil.TrueAsync(
+            () => plan.CountOf(nameof(IRunStore.ClaimOrphanedRunsAsync)) >= 1,
+            "the scan to claim on a tick that can read its options");
+
+        var claimsBefore = plan.CountOf(nameof(IRunStore.ClaimOrphanedRunsAsync));
+
+        continuation.Invalid = true;
+        clock.Advance(Interval);
+        await WaitUntil.TrueAsync(
+            () => continuation.RefusedReads > 0,
+            "the scan to try its continuation options",
+            FailureBound);
+
+        // The refused read happens before the claim, so no claim follows it.
+        await Task.Delay(100, TestContext.Current.CancellationToken); // delay: negative
+        plan.CountOf(nameof(IRunStore.ClaimOrphanedRunsAsync)).ShouldBe(claimsBefore, "the scan claimed runs it could not decide about");
+        service.ExecuteTask!.IsCompleted.ShouldBeFalse();
+
+        continuation.Invalid = false;
+        clock.Advance(Interval);
+        await WaitUntil.TrueAsync(
+            () => plan.CountOf(nameof(IRunStore.ClaimOrphanedRunsAsync)) > claimsBefore,
+            "the scan to claim again once its options could be read");
+
+        await service.StopAsync(TestContext.Current.CancellationToken)
+            .WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+    }
+
     private static Loop Build(string loopName)
     {
         var clock = new ManualClock();
