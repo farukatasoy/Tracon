@@ -198,12 +198,13 @@ public sealed class CompiledAgentCache
     /// See <see cref="GetOrAdd(string, string, string, string, Func{AIAgent})"/>.
     /// </param>
     /// <param name="culture">
-    /// The culture the definition was compiled with (resolved against
-    /// <see cref="AgentDefinition.InstructionsByCulture"/>).
-    /// An empty string when the run requested no culture. Part of the key: two runs of the
-    /// same definition in different cultures must not share a compiled agent - the requested
-    /// instructions text is baked into <see cref="Microsoft.Extensions.AI.ChatOptions"/> at
-    /// compile time.
+    /// The key of the <see cref="AgentDefinition.InstructionsByCulture"/> entry the definition was
+    /// compiled with, as the dictionary spells it. An empty string when the default instructions
+    /// were used. Part of the key: two runs of the same definition with different instruction texts
+    /// must not share a compiled agent - the text is baked into
+    /// <see cref="Microsoft.Extensions.AI.ChatOptions"/> at compile time. A caller passes the entry
+    /// the culture resolves to, not the culture a request named: that is free text, and each
+    /// distinct string would open a slot of its own.
     /// </param>
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>

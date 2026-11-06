@@ -591,6 +591,11 @@ public sealed partial class AgentDefinitionCompiler
     /// <param name="culture">The requested instruction culture.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The executable agent.</returns>
+    /// <remarks>
+    /// The requested culture is free text from the caller, and the compilation reads it only to pick one of the
+    /// definition's instruction texts. It is reduced to the entry it picks before it reaches the cache key, so
+    /// two requests that pick the same text share a slot and a caller cannot open a slot by inventing a string.
+    /// </remarks>
     public async ValueTask<AIAgent> CompileCachedAsync(
         AgentDefinition definition,
         CompiledAgentCache cache,
@@ -602,11 +607,14 @@ public sealed partial class AgentDefinitionCompiler
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
+        // The key and the compilation come from the same value, so a slot never holds a text its key does not name.
+        var resolvedCulture = InstructionCultureResolver.Canonical(definition, culture);
+
         var dependencies = await ResolveDependenciesAsync(definition, cancellationToken).ConfigureAwait(false);
 
         if (dependencies.BypassCache)
         {
-            return await CompileAsync(definition, dependencies.CallableAgents, culture, cancellationToken).ConfigureAwait(false);
+            return await CompileAsync(definition, dependencies.CallableAgents, resolvedCulture, cancellationToken).ConfigureAwait(false);
         }
 
         return await cache.GetOrAddAsync(
@@ -614,8 +622,8 @@ public sealed partial class AgentDefinitionCompiler
             definition.Name,
             CreateDefinitionFingerprint(definition),
             dependencies.CacheFingerprint,
-            culture ?? string.Empty,
-            () => CompileAsync(definition, dependencies.CallableAgents, culture, cancellationToken)).ConfigureAwait(false);
+            resolvedCulture,
+            () => CompileAsync(definition, dependencies.CallableAgents, resolvedCulture, cancellationToken)).ConfigureAwait(false);
     }
 
     private AIAgent BuildAgent(
