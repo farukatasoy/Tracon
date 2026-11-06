@@ -92,7 +92,7 @@ the old one. Treat it as unsupported and restart.
 A reloaded `Tracon:Workflows` value that fails validation does not stop the request-expiration
 sweep. Every later read of the options throws until a valid value replaces it, so the sweep skips
 each tick it cannot read them for, writes one warning, and works again on the first tick after the
-value is valid. The scans and loops that read their options on every tick behave the same way: the
+value is valid. These loops read their options on every tick and behave the same way: the
 approval-expiration and run-reconciliation scans, the job worker, and the database-backed gauges.
 
 Many readers look an option up on every call, which can look like live reconfiguration. It is
