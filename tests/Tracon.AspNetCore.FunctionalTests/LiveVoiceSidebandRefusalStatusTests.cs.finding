@@ -1,0 +1,37 @@
+// FINDING - not compiled. Rename to LiveVoiceSidebandRefusalStatusTests.cs to run it.
+//
+// Measured 2026-11-06 on a real Kestrel socket: POST /tracon/api/voice/live/sessions with a provider that accepts the
+// create call and refuses the sideband handshake (FakeGptLiveServer.RefuseAttach) answers 500, with no Content-Type
+// and an empty body. Expected: 502 with a problem+json body, as the create-call refusal does.
+//
+// Cause (by reading, confirmed by the measurement): ClientWebSocket.ConnectAsync throws WebSocketException when the
+// handshake is refused; LiveVoiceSessionLauncher.LaunchAsync closes the record and rethrows; LiveVoiceEndpoints.CreateAsync
+// catches TraconException, HttpRequestException, TimeoutException and NotSupportedException only. The exception reaches
+// the server's last-resort handler.
+//
+// Passing this probe is the proof that the fix landed. The aftermath (slot returned, record closed with Error, host still
+// serving) is already pinned by LiveVoiceSidebandRefusalTests and stays green on either status.
+using System.Net;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+
+namespace Tracon.AspNetCore.FunctionalTests;
+
+public sealed class LiveVoiceSidebandRefusalStatusTests
+{
+    [Fact]
+    public async Task A_refused_sideband_is_answered_with_a_502_problem()
+    {
+        await using var provider = await FakeGptLiveServer.StartAsync();
+        provider.RefuseAttach = true;
+
+        await using var app = await LiveVoiceSidebandRefusalTests.StartKestrelAsync(provider);
+        using var client = new HttpClient { BaseAddress = new Uri(app.Urls.First()) };
+
+        using var reply = await LiveVoiceSidebandRefusalTests.CreateAsync(client, "refused");
+        var body = await reply.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        reply.StatusCode.ShouldBe(HttpStatusCode.BadGateway, $"the real server answered {(int)reply.StatusCode} with body '{body}'");
+        reply.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        body.ShouldContain("Live voice session could not be created");
+    }
+}
