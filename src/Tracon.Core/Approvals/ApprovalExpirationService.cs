@@ -34,6 +34,7 @@ internal sealed class ApprovalExpirationService(
     ILogger<ApprovalExpirationService>? logger = null) : BackgroundService
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+    private readonly TickOptions<TraconApprovalOptions> _tickOptions = new(optionsMonitor, logger, "approval expiration scan");
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -80,7 +81,11 @@ internal sealed class ApprovalExpirationService(
 
     internal async Task TickAsync(CancellationToken stoppingToken)
     {
-        var options = optionsMonitor.CurrentValue;
+        if (!_tickOptions.TryRead(out var options))
+        {
+            return;
+        }
+
         var now = _clock.GetUtcNow();
 
         try

@@ -75,7 +75,7 @@ internal sealed class JobQueueDepthObserver : CachedGaugeSource<JobQueueDepth>
         TimeProvider? timeProvider = null,
         ILogger<JobQueueDepthObserver>? logger = null,
         TraconMetrics? metrics = null)
-        : base(options, schemaReadyGate, timeProvider)
+        : base(options, schemaReadyGate, timeProvider, logger)
     {
         ArgumentNullException.ThrowIfNull(jobStore);
 

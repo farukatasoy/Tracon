@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -40,6 +41,7 @@ internal abstract class CachedGaugeSource<TSample> : BackgroundService
 {
     private readonly IOptionsMonitor<TraconOptions> _options;
     private readonly SchemaReadyGate _schemaReadyGate;
+    private readonly TickOptions<TraconOptions> _tickOptions;
     private IReadOnlyList<TSample> _snapshot = [];
     private int _completedRefreshes;
 
@@ -50,17 +52,20 @@ internal abstract class CachedGaugeSource<TSample> : BackgroundService
     /// </param>
     /// <param name="schemaReadyGate">The gate the first query waits on.</param>
     /// <param name="timeProvider">The time source for the refresh timer. If <see langword="null"/>, <see cref="TimeProvider.System"/>.</param>
+    /// <param name="logger">Where a refresh skipped because the options could not be read is reported; <see langword="null"/> reports nowhere.</param>
     /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     protected CachedGaugeSource(
         IOptionsMonitor<TraconOptions> options,
         SchemaReadyGate schemaReadyGate,
-        TimeProvider? timeProvider)
+        TimeProvider? timeProvider,
+        ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(schemaReadyGate);
 
         _options = options;
         _schemaReadyGate = schemaReadyGate;
+        _tickOptions = new TickOptions<TraconOptions>(options, logger, "gauge refresh");
         Clock = timeProvider ?? TimeProvider.System;
     }
 
@@ -121,7 +126,9 @@ internal abstract class CachedGaugeSource<TSample> : BackgroundService
 
             do
             {
-                if (IsEnabled(_options.CurrentValue.Observability))
+                // A value the options validation refuses skips this refresh and keeps the loop; the gauge goes on
+                // publishing the last snapshot until a valid value is configured.
+                if (_tickOptions.TryRead(out var current) && IsEnabled(current.Observability))
                 {
                     await RefreshAsync(stoppingToken).ConfigureAwait(false);
                 }

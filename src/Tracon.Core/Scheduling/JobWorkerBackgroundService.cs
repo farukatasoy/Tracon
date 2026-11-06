@@ -53,6 +53,7 @@ internal sealed class JobWorkerBackgroundService(
 
     private readonly string _ownerId = $"{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+    private readonly TickOptions<TraconSchedulingOptions> _tickOptions = new(optionsMonitor, logger, "job worker");
     private readonly ConcurrentDictionary<Guid, Task> _runningJobs = new();
 
     /// <inheritdoc />
@@ -112,16 +113,12 @@ internal sealed class JobWorkerBackgroundService(
     /// <param name="timer">The poll timer.</param>
     private void FollowPollInterval(PeriodicTimer timer)
     {
-        TimeSpan configured;
-
-        try
-        {
-            configured = optionsMonitor.CurrentValue.PollInterval;
-        }
-        catch (OptionsValidationException)
+        if (!_tickOptions.TryRead(out var options))
         {
             return;
         }
+
+        var configured = options.PollInterval;
 
         // Only a change is written: setting the period restarts the wait, and a restart on every tick would
         // push the next tick out by the time the tick itself took.
@@ -155,7 +152,12 @@ internal sealed class JobWorkerBackgroundService(
             }
         }
 
-        var options = optionsMonitor.CurrentValue;
+        // Read once for the tick: the jobs it leases run on this view as well, so one tick sees one set of options. A tick
+        // that cannot read them is skipped, and the loop keeps its timer.
+        if (!_tickOptions.TryRead(out var options))
+        {
+            return;
+        }
 
         // A lane listed in MaxConcurrentJobsPerLane gets its OWN lease pass,
         // scoped to exactly that lane, so a full lane never blocks another
@@ -169,7 +171,7 @@ internal sealed class JobWorkerBackgroundService(
             }
 
             var slotPool = slots.ForLane(lane, max);
-            await LeaseLoopAsync(slotPool, [lane], options.LeaseDuration, stoppingToken).ConfigureAwait(false);
+            await LeaseLoopAsync(slotPool, [lane], options, stoppingToken).ConfigureAwait(false);
         }
 
         var sharedLanes = ComputeSharedLanes(options);
@@ -178,7 +180,7 @@ internal sealed class JobWorkerBackgroundService(
         // own dedicated pass above; there is nothing left for the shared pool.
         if (sharedLanes is null || sharedLanes.Length > 0)
         {
-            await LeaseLoopAsync(slots.Shared, sharedLanes, options.LeaseDuration, stoppingToken).ConfigureAwait(false);
+            await LeaseLoopAsync(slots.Shared, sharedLanes, options, stoppingToken).ConfigureAwait(false);
         }
     }
 
@@ -213,7 +215,7 @@ internal sealed class JobWorkerBackgroundService(
     private async Task LeaseLoopAsync(
         SlotPool slotPool,
         IReadOnlyList<string>? lanes,
-        TimeSpan leaseDuration,
+        TraconSchedulingOptions options,
         CancellationToken stoppingToken)
     {
         while (await slotPool.TryAcquireAsync(stoppingToken).ConfigureAwait(false))
@@ -231,7 +233,7 @@ internal sealed class JobWorkerBackgroundService(
                     new JobLeaseRequest
                     {
                         Owner = _ownerId,
-                        LeaseDuration = leaseDuration,
+                        LeaseDuration = options.LeaseDuration,
                         Lanes = lanes,
                         TenantCap = tenantCapSource?.Current,
                     },
@@ -270,17 +272,18 @@ internal sealed class JobWorkerBackgroundService(
                 // ran out, and then failed it as out of attempts without running the
                 // attempt. The new lease waits for the previous attempt instead, and
                 // MarkRunningAsync still refuses it if that attempt finished the job.
-                _ = RunAfterPreviousAttemptAsync(job, leaseRequestedAt, slotPool, completion, stoppingToken);
+                _ = RunAfterPreviousAttemptAsync(job, options, leaseRequestedAt, slotPool, completion, stoppingToken);
 
                 continue;
             }
 
-            _ = RunJobAsync(job, leaseRequestedAt, slotPool, completion, stoppingToken);
+            _ = RunJobAsync(job, options, leaseRequestedAt, slotPool, completion, stoppingToken);
         }
     }
 
     private async Task RunAfterPreviousAttemptAsync(
         JobRecord job,
+        TraconSchedulingOptions options,
         long leaseRequestedAt,
         SlotPool slotPool,
         TaskCompletionSource completion,
@@ -303,11 +306,12 @@ internal sealed class JobWorkerBackgroundService(
             }
         }
 
-        await RunJobAsync(job, leaseRequestedAt, slotPool, completion, stoppingToken).ConfigureAwait(false);
+        await RunJobAsync(job, options, leaseRequestedAt, slotPool, completion, stoppingToken).ConfigureAwait(false);
     }
 
     private async Task RunJobAsync(
         JobRecord job,
+        TraconSchedulingOptions options,
         long leaseRequestedAt,
         SlotPool slotPool,
         TaskCompletionSource completion,
@@ -315,7 +319,7 @@ internal sealed class JobWorkerBackgroundService(
     {
         try
         {
-            await ExecuteJobAsync(job, leaseRequestedAt, stoppingToken).ConfigureAwait(false);
+            await ExecuteJobAsync(job, options, leaseRequestedAt, stoppingToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {
@@ -342,9 +346,12 @@ internal sealed class JobWorkerBackgroundService(
         }
     }
 
-    private async Task ExecuteJobAsync(JobRecord job, long leaseRequestedAt, CancellationToken stoppingToken)
+    private async Task ExecuteJobAsync(
+        JobRecord job,
+        TraconSchedulingOptions options,
+        long leaseRequestedAt,
+        CancellationToken stoppingToken)
     {
-        var options = optionsMonitor.CurrentValue;
         var now = _clock.GetUtcNow();
 
         // MONOTONIC clock, not the wall clock: a clock adjustment mid-attempt

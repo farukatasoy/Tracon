@@ -69,7 +69,7 @@ internal sealed class QuotaUsageObserver : CachedGaugeSource<QuotaUsageObserver.
         IMeterFactory? meterFactory = null,
         TimeProvider? timeProvider = null,
         ILogger<QuotaUsageObserver>? logger = null)
-        : base(options, schemaReadyGate, timeProvider)
+        : base(options, schemaReadyGate, timeProvider, logger)
     {
         ArgumentNullException.ThrowIfNull(quotaStore);
         ArgumentNullException.ThrowIfNull(tenantStore);

@@ -71,6 +71,7 @@ internal sealed class WorkflowRequestExpirationService(
     private const int MaxCloseAttempts = 10;
 
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+    private readonly TickOptions<TraconWorkflowOptions> _tickOptions = new(optionsMonitor, logger, "workflow request expiration scan");
 
     // The runs whose rows are closed but which are not closed themselves yet, with the scans that
     // already tried. Read and written only by the scan, which never overlaps itself.
@@ -137,7 +138,11 @@ internal sealed class WorkflowRequestExpirationService(
     /// </remarks>
     internal async Task TickAsync(CancellationToken stoppingToken)
     {
-        var options = optionsMonitor.CurrentValue;
+        if (!_tickOptions.TryRead(out var options))
+        {
+            return;
+        }
+
         var now = _clock.GetUtcNow();
 
         if (!_recovered)

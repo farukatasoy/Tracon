@@ -44,6 +44,7 @@ internal sealed class RunReconciliationService(
     HostedToolRegistry? hostedTools = null) : BackgroundService
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+    private readonly TickOptions<RunReconciliationOptions> _tickOptions = new(optionsMonitor, logger, "run reconciliation scan");
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -93,7 +94,10 @@ internal sealed class RunReconciliationService(
 
     private async Task TickAsync(CancellationToken stoppingToken)
     {
-        var options = optionsMonitor.CurrentValue;
+        if (!_tickOptions.TryRead(out var options))
+        {
+            return;
+        }
 
         try
         {
