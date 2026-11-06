@@ -45,6 +45,13 @@ internal sealed class RunSampler
     /// <summary>Gets how many tenants have a budget window: a tenant sampled in an earlier hour is not kept.</summary>
     internal int TrackedTenants => _windows.Count;
 
+    /// <summary>
+    /// Gets or sets an action that runs between the lookup of a tenant's window and the lock on it: the point
+    /// where a sweep can remove the window. A test sets it to make that interleaving happen on purpose; it is
+    /// <see langword="null"/> in production.
+    /// </summary>
+    internal Action? AfterLookup { get; set; }
+
     /// <summary>Evaluates a run for sampling and queues it when required.</summary>
     /// <param name="request">The summary of the run to sample.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -187,6 +194,8 @@ internal sealed class RunSampler
         {
             var window = _windows.GetOrAdd(tenantId, static _ => new HourlyWindow());
 
+            AfterLookup?.Invoke();
+
             lock (window)
             {
                 // The sweep removed this window between the lookup and the lock: count in the one that
@@ -222,7 +231,7 @@ internal sealed class RunSampler
     /// tenant comes from the request. Which hour is checked on every call, so the sweep costs one comparison until
     /// the hour changes.
     /// </remarks>
-    private void DropWindowsOfEarlierHours(DateTimeOffset windowStart)
+    internal void DropWindowsOfEarlierHours(DateTimeOffset windowStart)
     {
         var swept = Volatile.Read(ref _sweptWindowTicks);
 

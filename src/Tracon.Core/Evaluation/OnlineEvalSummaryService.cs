@@ -37,6 +37,13 @@ internal sealed class OnlineEvalSummaryService(
     internal int TrackedTenants => _windows.Count;
 
     /// <summary>
+    /// Gets or sets an action that runs between the lookup of a tenant's window and the lock on it: the point
+    /// where a sweep can remove the window. A test sets it to make that interleaving happen on purpose; it is
+    /// <see langword="null"/> in production.
+    /// </summary>
+    internal Action? AfterLookup { get; set; }
+
+    /// <summary>
     /// Adds a newly written judge score to the window and publishes
     /// <see cref="WebhookEvents.RunScoreLow"/> when needed.
     /// </summary>
@@ -63,6 +70,8 @@ internal sealed class OnlineEvalSummaryService(
         while (true)
         {
             var window = _windows.GetOrAdd(tenantId, static _ => new TenantWindow());
+
+            AfterLookup?.Invoke();
 
             lock (window)
             {
@@ -193,7 +202,7 @@ internal sealed class OnlineEvalSummaryService(
     /// for good all the same, one entry for every tenant that ever had a score recorded, and the tenant comes from
     /// the request.
     /// </remarks>
-    private void DropEmptyWindows(DateTimeOffset now, TimeSpan windowSize)
+    internal void DropEmptyWindows(DateTimeOffset now, TimeSpan windowSize)
     {
         var due = Volatile.Read(ref _nextSweepTicks);
 

@@ -96,6 +96,65 @@ public sealed class EvaluationWindowCardinalityTests
     }
 
     [Fact]
+    public async Task A_sweep_that_removes_the_sampling_window_between_the_lookup_and_the_lock_does_not_give_a_second_budget()
+    {
+        var (sampler, _) = BuildSampler(maxScoresPerHour: 1);
+        var swept = false;
+
+        // The next hour starts exactly where the race is: the caller holds the window it looked up and has not locked it.
+        sampler.AfterLookup = () =>
+        {
+            if (swept)
+            {
+                return;
+            }
+
+            swept = true;
+            sampler.DropWindowsOfEarlierHours(Noon.AddHours(1));
+        };
+
+        var first = await sampler.SampleAsync(Completed("acme"));
+        var second = await sampler.SampleAsync(Completed("acme"));
+
+        swept.ShouldBeTrue("the sweep must have run between the lookup and the lock, or the test proves nothing");
+        first.ShouldBeTrue();
+        second.ShouldBeFalse("the first sample was counted in the window that replaced the removed one, so the budget of one is spent");
+    }
+
+    [Fact]
+    public async Task A_sweep_that_removes_the_score_window_between_the_lookup_and_the_lock_does_not_lose_the_score()
+    {
+        var clock = new ManualTimeProvider(Noon);
+        var window = TimeSpan.FromHours(1);
+        var options = new OnlineEvaluationOptions { EvaluationWindow = window, MinSampleSize = 2, LowScoreThreshold = 60 };
+        var publisher = new CountingPublisher();
+        var service = new OnlineEvalSummaryService(
+            new InMemoryRunStore(),
+            new StaticOptionsMonitor<OnlineEvaluationOptions>(options),
+            publisher,
+            clock);
+        var swept = false;
+
+        // The window is empty when the sweep runs (the score is added after the lock), so the sweep removes it.
+        service.AfterLookup = () =>
+        {
+            if (swept)
+            {
+                return;
+            }
+
+            swept = true;
+            service.DropEmptyWindows(Noon.AddHours(2), window);
+        };
+
+        await service.RecordScoreAsync("acme", 10);
+        await service.RecordScoreAsync("acme", 10);
+
+        swept.ShouldBeTrue("the sweep must have run between the lookup and the lock, or the test proves nothing");
+        publisher.Published.ShouldBe(1, "two low scores are in one window: the first was not counted in a window nobody reads");
+    }
+
+    [Fact]
     public async Task The_score_windows_that_hold_no_score_are_removed()
     {
         var clock = new ManualTimeProvider(Noon);

@@ -72,6 +72,33 @@ public sealed class RateLimitMemoryCardinalityTests
     }
 
     [Fact]
+    public async Task A_sweep_that_removes_the_entry_between_the_lookup_and_the_lock_does_not_lose_the_count()
+    {
+        var store = new InMemoryRateLimitCounterStore();
+        var swept = false;
+
+        // The sweep runs exactly where the race is: the caller holds the entry it looked up and has not locked it.
+        store.AfterLookup = () =>
+        {
+            if (swept)
+            {
+                return;
+            }
+
+            swept = true;
+            store.RemoveEndedWindows(Start.AddMinutes(2), Minute);
+        };
+
+        var first = await store.IncrementAsync("endpoint:tracon:tenant:acme", Start);
+        var second = await store.IncrementAsync("endpoint:tracon:tenant:acme", Start);
+
+        swept.ShouldBeTrue("the sweep must have run between the lookup and the lock, or the test proves nothing");
+        first.Count.ShouldBe(1);
+        second.Count.ShouldBe(2, "the first count went into the entry that replaced the removed one, where the second reads it");
+        store.TrackedPartitions.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task A_window_that_starts_ahead_of_this_clock_stays_until_real_time_reaches_its_end()
     {
         var store = new InMemoryRateLimitCounterStore();

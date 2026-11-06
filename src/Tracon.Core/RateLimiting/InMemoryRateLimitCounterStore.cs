@@ -24,6 +24,13 @@ internal sealed class InMemoryRateLimitCounterStore : IRateLimitCounterStore
     /// <summary>Gets how many partitions have an entry.</summary>
     internal int TrackedPartitions => _windows.Count;
 
+    /// <summary>
+    /// Gets or sets an action that runs between the lookup of a partition's entry and the lock on it: the point
+    /// where a sweep can remove the entry. A test sets it to make that interleaving happen on purpose; it is
+    /// <see langword="null"/> in production.
+    /// </summary>
+    internal Action? AfterLookup { get; set; }
+
     /// <inheritdoc />
     public ValueTask<RateLimitWindowCount> IncrementAsync(
         string partitionKey,
@@ -36,6 +43,8 @@ internal sealed class InMemoryRateLimitCounterStore : IRateLimitCounterStore
         while (true)
         {
             var window = _windows.GetOrAdd(partitionKey, static (_, start) => new Window(start), windowStart);
+
+            AfterLookup?.Invoke();
 
             lock (window)
             {
