@@ -32,4 +32,14 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
 
+  <!--
+    The two-node acceptance set runs the workflow cancellation sweep on PostgreSQL and SQL Server. The sweep is the one the
+    unit tests run in memory, and it drives the runner, its catalog and its compiler directly, to cancel a run at each of
+    its awaited calls; none of them is a consumer seam. The default test-project names (the project's own name followed
+    by .UnitTests or .IntegrationTests) do not cover a project that carries another name.
+  -->
+  <ItemGroup Label="Internal visibility - two-node acceptance tests">
+    <InternalsVisibleTo Include="Tracon.TwoNode.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Data.SqlClient;
 using Npgsql;
+using Tracon.Tests.Workflows;
 
 namespace Tracon.TwoNode.IntegrationTests.Infrastructure;
 
@@ -61,6 +62,13 @@ public abstract class TwoNodeDatabase
     /// <param name="startedAt">When the older node started it.</param>
     /// <returns>A task that completes when the row is written.</returns>
     public abstract Task ClearRunHeartbeatAsync(Guid runId, DateTimeOffset startedAt);
+
+    /// <summary>
+    /// Migrates the schema and opens the stores of a workflow run over it, with a look at the pool and at the server for what
+    /// a canceled run might leave behind. No host is started.
+    /// </summary>
+    /// <returns>The backend of a cancellation sweep.</returns>
+    internal abstract Task<SqlSweepBackend> OpenSweepBackendAsync();
 
     /// <summary>Reads the columns of the schema that can hold text and the rows of each.</summary>
     /// <param name="connection">An open connection to the database.</param>
@@ -193,6 +201,10 @@ internal sealed class PostgreSqlTwoNodeDatabase(string connectionString, string 
     }
 
     /// <inheritdoc />
+    internal override async Task<SqlSweepBackend> OpenSweepBackendAsync()
+        => await PostgreSqlSweepBackend.CreateAsync(connectionString, schemaName);
+
+    /// <inheritdoc />
     public override async Task<string> DumpTextAsync()
     {
         await using var connection = new NpgsqlConnection(connectionString);
@@ -266,6 +278,10 @@ internal sealed class SqlServerTwoNodeDatabase(string connectionString, string s
         command.Parameters.AddWithValue("@id", runId);
         await command.ExecuteNonQueryAsync();
     }
+
+    /// <inheritdoc />
+    internal override async Task<SqlSweepBackend> OpenSweepBackendAsync()
+        => await SqlServerSweepBackend.CreateAsync(connectionString, schemaName);
 
     /// <inheritdoc />
     public override async Task<string> DumpTextAsync()

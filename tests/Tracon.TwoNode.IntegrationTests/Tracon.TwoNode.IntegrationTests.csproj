@@ -67,6 +67,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The workflow cancellation sweep: the driver the unit tests run in memory and on SQLite, with the graphs it sweeps and
+      the plan that numbers the awaited calls of a run. Here it runs where a cancel meets a real server.
+    -->
+    <Compile Include="../Shared/Workflows/*.cs" LinkBase="Shared/Workflows" />
+    <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

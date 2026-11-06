@@ -7,7 +7,7 @@ namespace Tracon.Tests.Workflows;
 /// A backend that shares one database between all the runs of a sweep (every SQL backend) separates them by tenant: the
 /// sweep sets <see cref="Tenant"/> before it takes the stores of a run, and the stores read it on every call.
 /// </remarks>
-internal interface IWorkflowSweepBackend
+internal interface IWorkflowSweepBackend : IAsyncDisposable
 {
     /// <summary>Gets the name of the backend, for a report.</summary>
     string Name { get; }
@@ -63,22 +63,25 @@ internal sealed record SweepReport(int AwaitPoints, IReadOnlyDictionary<string, 
 /// whatever the backend itself can say (no busy connection, no open transaction, no lock).
 /// </para>
 /// <para>
-/// Cost, measured on one machine (Apple silicon, release build, in-memory backend; a sweep is one run per await point, and
-/// the wall time is one combination of kind of store and way to cancel, the shortest and the longest of the four):
+/// Cost, measured on one machine (Apple silicon, release build, the two servers in Docker Desktop). The await points of a
+/// run are the same on every backend, because they are the calls the runner makes; a sweep is one run for each of them. The
+/// wall time is that of one sweep (one way to cancel) and gives the shortest and the longest of the combinations of the
+/// backend. On a database it counts the sweep and nothing else: the schema is migrated before the first run.
 /// </para>
 /// <list type="table">
-/// <listheader><term>Graph and start</term><description>Await points of a run, wall time of a sweep</description></listheader>
-/// <item><term>Sequential, fresh</term><description>72 points, 0.2 to 5.9 s</description></item>
-/// <item><term>FunctionNode, fresh</term><description>49 points, 0.1 to 0.7 s</description></item>
-/// <item><term>Handoff, fresh</term><description>92 points, 1.0 to 2.7 s</description></item>
-/// <item><term>AwaitingInput, fresh</term><description>37 points, 0.1 s</description></item>
-/// <item><term>AwaitingInput, resume</term><description>47 points, 0.1 s</description></item>
-/// <item><term>ToolApproval, fresh</term><description>46 points, 0.1 to 0.4 s</description></item>
-/// <item><term>ToolApproval, resume</term><description>82 points, 1.2 to 2.4 s</description></item>
+/// <listheader><term>Graph and start</term><description>Await points of a run; wall time of a sweep</description></listheader>
+/// <item><term>Sequential, fresh</term><description>72; in memory 0.2 to 5.9 s, SQLite 2.2 to 2.3 s, PostgreSQL 3.4 to 4.7 s, SQL Server 14.8 to 17.8 s</description></item>
+/// <item><term>FunctionNode, fresh</term><description>49; in memory 0.1 to 0.7 s, SQLite 1.3 to 1.7 s, PostgreSQL 1.9 s, SQL Server 8.5 to 9.9 s</description></item>
+/// <item><term>Handoff, fresh</term><description>92; in memory 1.0 to 2.7 s, SQLite 4.0 to 4.1 s, PostgreSQL 3.9 to 5.6 s, SQL Server 23.1 to 25.0 s</description></item>
+/// <item><term>AwaitingInput, fresh</term><description>37; in memory 0.1 s, SQLite 0.4 to 0.5 s, PostgreSQL 0.6 s, SQL Server 2.9 to 3.0 s</description></item>
+/// <item><term>AwaitingInput, resume</term><description>47; in memory 0.1 s, SQLite 1.0 to 1.4 s, PostgreSQL 2.0 to 2.4 s, SQL Server 5.4 s</description></item>
+/// <item><term>ToolApproval, fresh</term><description>46; in memory 0.1 to 0.4 s, SQLite 1.1 s, PostgreSQL 1.3 to 1.6 s, SQL Server 5.5 to 6.1 s</description></item>
+/// <item><term>ToolApproval, resume</term><description>82; in memory 1.2 to 2.4 s, SQLite 2.9 to 3.4 s, PostgreSQL 4.9 s, SQL Server 20.1 to 20.4 s</description></item>
 /// </list>
 /// <para>
-/// The 28 combinations of the in-memory class take about 25 s together. The spread of one graph is the collector
-/// (the sweep forces a collection at its end), not the graph.
+/// A whole class takes about 25 s in memory (28 combinations), 30 s on SQLite (14), 47 s on PostgreSQL (14, the container
+/// start included) and 3.5 min on SQL Server (14). The spread of one graph in memory is the collector (the sweep forces a
+/// collection at its end), not the graph.
 /// </para>
 /// </remarks>
 internal static class WorkflowCancellationSweep

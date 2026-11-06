@@ -22,7 +22,7 @@ namespace Tracon.Workflows.UnitTests.Fakes;
 /// sets on every connection, so the stores behave as they do in a host.
 /// </para>
 /// </remarks>
-internal sealed class SqliteSweepBackend : IWorkflowSweepBackend, IAsyncDisposable
+internal sealed class SqliteSweepBackend : IWorkflowSweepBackend
 {
     private static readonly TimeSpan LeakGrace = TimeSpan.FromSeconds(3);
 
@@ -132,8 +132,8 @@ internal sealed class SqliteSweepBackend : IWorkflowSweepBackend, IAsyncDisposab
         return last;
     }
 
-    /// <summary>Closes the stores and deletes the file; a file that cannot be deleted was held by a connection that is still open.</summary>
-    /// <returns>A task that completes when the directory is gone.</returns>
+    /// <inheritdoc />
+    /// <remarks>Closes the stores and deletes the file; a file that cannot be deleted was held by a connection that is still open.</remarks>
     public async ValueTask DisposeAsync()
     {
         await _provider.DisposeAsync().ConfigureAwait(false);

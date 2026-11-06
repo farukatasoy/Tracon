@@ -26,4 +26,7 @@ internal sealed class InMemorySweepBackend : IWorkflowSweepBackend
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<string>> FindLeaksAsync() => new([]);
+
+    /// <inheritdoc />
+    public ValueTask DisposeAsync() => default;
 }
