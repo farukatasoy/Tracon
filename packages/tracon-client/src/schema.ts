@@ -595,7 +595,7 @@ export interface paths {
         put?: never;
         /**
          * Starts a new run with recorded input.
-         * @description The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. An agent that declares parameters is replayed with the values the source run was bound with; 'parameters' changes the names it gives and keeps the rest, and a name the replayed version does not declare returns 400. A run that recorded no values (input recording was off, or it predates parameter recording) cannot be replayed when the agent declares parameters, and returns 400. A workflow run is not replayed; it is continued from its checkpoints.
+         * @description The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422; so does a replay the run budget stops. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. An agent that declares parameters is replayed with the values the source run was bound with; 'parameters' changes the names it gives and keeps the rest, and a name the replayed version does not declare returns 400. A run that recorded no values (input recording was off, or it predates parameter recording) cannot be replayed when the agent declares parameters, and returns 400. A workflow run is not replayed; it is continued from its checkpoints.
          */
         post: operations["TraconReplayRun"];
         delete?: never;
@@ -14912,6 +14912,15 @@ export interface operations {
                     "application/json": components["schemas"]["OpenAIErrorEnvelope"];
                 };
             };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
+                };
+            };
             /** @description Bad Gateway */
             502: {
                 headers: {
@@ -14984,6 +14993,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

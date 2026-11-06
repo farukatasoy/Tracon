@@ -130,6 +130,7 @@ internal static class OpenAIResponsesEndpoints
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status422UnprocessableEntity)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status503ServiceUnavailable);
     }
@@ -368,6 +369,15 @@ internal static class OpenAIResponsesEndpoints
                 StatusCodes.Status409Conflict,
                 ex.Message,
                 type: TraconSessionConflictException.SessionConflictErrorType);
+        }
+        catch (TraconRunBudgetExceededException ex)
+        {
+            // Tracon's own policy, not an upstream failure: a 502 would send the caller to the provider. The
+            // message names the setting to raise.
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status422UnprocessableEntity,
+                ex.Message,
+                type: ex.ErrorType);
         }
         catch (Exception ex)
         {

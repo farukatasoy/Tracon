@@ -1553,6 +1553,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A live voice session whose provider refuses the sideband connection is answered with `502 Bad Gateway`.** `POST /api/voice/live/sessions` answered `500` with an empty body when the provider accepted the create call and then refused the WebSocket handshake of the sideband; a refused create call already answered `502` with a problem document. The slot is released and the run record is closed with `Error`, as before.
   What to do: nothing. A client that took `500` for this refusal should handle `502` as it handles a refused create call.
 
+- **A run that the run budget stops is answered with `422 Unprocessable Entity`, not `502 Bad Gateway`, when the answer has not begun to stream.** `POST /api/runs/{runId}/replay`, a non-streaming `POST /api/agents/{name}/run`, and the non-streaming `POST /v1/chat/completions` and `POST /v1/responses` answered `502` for a refusal that Tracon itself makes (`TraconRunBudgetExceededException`); a `502` says the provider is broken and sent the caller looking at the wrong system. The problem document (the OpenAI-shaped error on the `/v1` endpoints) now carries `errorType` `run_budget_exceeded` and names the setting to raise, `Tracon:AgentGraph:MaxTotalTokens` for the token budget. A replay also names the new run, which ends `Failed`. `422` is declared on the two `/v1` operations; the replay and run operations already declared it.
+  What to do: a client that retried a `502` from these endpoints should not retry this `422`; raise the budget or shorten the work.
+
 ## [1.0.0-preview.6] - 2026-10-27
 
 Agents and workflows gain the controls a production host needs before the surface

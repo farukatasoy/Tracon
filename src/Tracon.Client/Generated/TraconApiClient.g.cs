@@ -3784,7 +3784,7 @@ namespace Tracon.Client.Generated
         /// Starts a new run with recorded input.
         /// </summary>
         /// <remarks>
-        /// The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. An agent that declares parameters is replayed with the values the source run was bound with; 'parameters' changes the names it gives and keeps the rest, and a name the replayed version does not declare returns 400. A run that recorded no values (input recording was off, or it predates parameter recording) cannot be replayed when the agent declares parameters, and returns 400. A workflow run is not replayed; it is continued from its checkpoints.
+        /// The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422; so does a replay the run budget stops. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. An agent that declares parameters is replayed with the values the source run was bound with; 'parameters' changes the names it gives and keeps the rest, and a name the replayed version does not declare returns 400. A run that recorded no values (input recording was off, or it predates parameter recording) cannot be replayed when the agent declares parameters, and returns 400. A workflow run is not replayed; it is continued from its checkpoints.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -16832,6 +16832,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<OpenAIErrorEnvelope>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 422)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Unprocessable Entity", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 502)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -16980,6 +16990,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<OpenAIErrorEnvelope>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 422)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Unprocessable Entity", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 502)
@@ -17136,6 +17156,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<OpenAIErrorEnvelope>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 422)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Unprocessable Entity", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 502)
@@ -17296,6 +17326,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<OpenAIErrorEnvelope>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 422)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Unprocessable Entity", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 502)

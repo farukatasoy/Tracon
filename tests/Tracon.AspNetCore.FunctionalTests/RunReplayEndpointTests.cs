@@ -206,6 +206,40 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
+    public async Task A_replay_that_runs_into_the_run_budget_is_answered_with_422_and_leaves_a_failed_run()
+    {
+        // The budget is Tracon's own policy, not an upstream failure: the answer says which setting to raise and names the
+        // new run, whose record ends Failed with the budget's identity. It was a 502 "Replay failed".
+        ReplayProbeTools.Reset();
+
+        await using var host = await TraconTestHost.StartAsync(
+            ConfigureBudgetAgent,
+            configureServices: static services => services.Configure<TraconOptions>(
+                static options => options.AgentGraph.MaxTotalTokens = 500));
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "where is ORD-7")]);
+
+        await RecordToolCallAsync(host, runId, "get_order_status", "orderId=ORD-7", "in transit");
+
+        using var response = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "ReplayTools" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity, await response.Content.ReadAsStringAsync());
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
+
+        var body = await TraconTestHost.ReadJsonAsync(response);
+
+        body.GetProperty("errorType").GetString().ShouldBe(TraconRunBudgetExceededException.RunBudgetExceededErrorType);
+        body.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("Tracon:AgentGraph:MaxTotalTokens", Case.Sensitive);
+
+        var replayId = body.GetProperty("runId").GetGuid();
+        var record = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(replayId);
+
+        record.ShouldNotBeNull().Status.ShouldBe(RunStatus.Failed);
+        record.ReplayOfRunId.ShouldBe(runId);
+        record.Error.ShouldNotBeNull().Type.ShouldBe(TraconRunBudgetExceededException.RunBudgetExceededErrorType);
+        ReplayProbeTools.Calls.ShouldBe(0, "a replay in ReplayTools mode runs no tool body");
+    }
+
+    [Fact]
     public async Task A_tool_requiring_approval_returns_409_with_LiveTools()
     {
         await using var host = await TraconTestHost.StartAsync(ConfigureApprovalAgent);
@@ -354,6 +388,25 @@ public sealed class RunReplayEndpointTests
     /// has its definition in the catalog but it does NOT exist in
     /// <see cref="IAgentDefinitionStore"/>, so overriding cannot be applied.
     /// </remarks>
+    private static void ConfigureBudgetAgent(ITraconBuilder builder)
+    {
+        // The turn that asks for the tool reports 600 tokens against a budget of 500, so the model call after the tool
+        // result is the one the budget refuses.
+        builder
+            .AddModelProvider(new FakeModelProvider("tool-echo")
+                .CallsTools(inputTokens: 400, outputTokens: 200, ("get_order_status", new { orderId = "ORD-7" }))
+                .EchoesLastToolResult("Done: ", inputTokens: 4, outputTokens: 6))
+            .AddToolsFrom(typeof(ReplayProbeTools));
+
+        SaveDefinition(builder, new AgentDefinition
+        {
+            Name = AgentName,
+            Instructions = "Give a short answer.",
+            Model = new ModelBinding { Provider = "tool-echo", Model = ModelId },
+            ToolNames = ["get_order_status"],
+        });
+    }
+
     private static void SaveDefinition(ITraconBuilder builder, AgentDefinition definition)
         => builder.Services.AddSingleton<IStartupSeed>(new StartupSeed(definition));
 

@@ -568,6 +568,19 @@ internal static class AgentTurnService
                         ["direction"] = blocked.Direction.ToString(),
                     });
 
+            case TraconRunBudgetExceededException budget:
+                // The run budget is Tracon's own policy: the request was understood and the run stopped at the
+                // limit the deployment set. A 502 would say "upstream is broken" and steer the caller to the provider;
+                // the message names the setting to raise.
+                return Results.Problem(
+                    title: "Run budget exhausted",
+                    detail: budget.Message,
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["errorType"] = budget.ErrorType,
+                    });
+
             case TraconSessionOwnerRequiredException ownerRequired:
                 // 🚨 403, not 500: session ownership is on and the deployment asked for exactly this refusal, so it is a
                 // policy decision and not a fault. Not 401 either - the caller cleared the endpoint's own role policy

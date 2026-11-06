@@ -123,6 +123,7 @@ internal static class OpenAIChatCompletionsEndpoints
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status409Conflict)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status422UnprocessableEntity)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status503ServiceUnavailable);
     }
@@ -314,6 +315,15 @@ internal static class OpenAIChatCompletionsEndpoints
         catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
         {
             throw;
+        }
+        catch (TraconRunBudgetExceededException ex)
+        {
+            // Tracon's own policy, not an upstream failure: a 502 would send the caller to the provider. The
+            // message names the setting to raise.
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status422UnprocessableEntity,
+                ex.Message,
+                type: ex.ErrorType);
         }
         catch (Exception ex)
         {

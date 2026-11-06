@@ -414,7 +414,7 @@ internal static class RunEndpoints
                 "The input is preserved, the conditions change: 'agentVersion', 'modelId', and " +
                 "'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — " +
                 "recorded results are replayed. Replaying a call with no recorded result STOPS the " +
-                "replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, " +
+                "replay and returns 422; so does a replay the run budget stops. 'LiveTools' ACTUALLY runs tools, produces side effects, " +
                 "requires the Admin role, and returns 409 if a tool requires approval. An agent carrying " +
                 "a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns " +
                 "409 — its body runs in the caller's browser and no call to it was recorded. " +
@@ -829,6 +829,21 @@ internal static class RunEndpoints
                 {
                     ["toolName"] = ex.ToolName,
                     ["arguments"] = ex.Arguments,
+                    ["runId"] = newRunId,
+                });
+        }
+        catch (TraconRunBudgetExceededException ex)
+        {
+            // 🚨 422, not 502: the run budget is Tracon's own policy, and the replay is the only thing the
+            // caller asked for. A 502 says "the provider is broken" and sends the caller to the wrong system;
+            // the message names the setting to raise, and the new run is a Failed record the caller can open.
+            return Results.Problem(
+                title: "Run budget exhausted",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["errorType"] = ex.ErrorType,
                     ["runId"] = newRunId,
                 });
         }

@@ -356,7 +356,7 @@ your architecture permits.
 | `401` | Bearer token or API key is missing, invalid, revoked, or expired |
 | `403` | Role, scope, loopback, or tenant rule refused the call |
 | `404 model_not_found` | The selected Tracon agent does not resolve |
-| `422` | A Tracon content guard or idempotency contract rejected the request |
+| `422` | A Tracon content guard, the run budget (`run_budget_exceeded`) or the idempotency contract rejected the request |
 | `429` | A rate or quota boundary was reached |
 | `502` | The configured upstream provider failed |
 
