@@ -61,9 +61,11 @@ adapter you write yourself — see `Tracon.PostgreSql`'s
 
 | Environment | Status |
 |-------|-------|
-| SQL Server 2019+ | Supported, tested in CI (2022 image) |
-| Azure SQL Database | Supported, **not tested in CI** — cannot be spun up via container |
+| SQL Server 2019 and later | Supported. The CI matrix runs 2019 and 2022; SQL Server 2025 has no run yet |
+| Azure SQL Database | **Not verified, no CI run** — it cannot be started as a container, so it is not part of the support promise |
 | SQL Server 2017 and earlier | Not supported |
+
+Microsoft ended mainstream support for SQL Server 2019 in February 2025; extended support ends in January 2030.
 
 ## Migrations
 

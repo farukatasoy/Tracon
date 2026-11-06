@@ -1,6 +1,7 @@
 import { checkCapacityStamp } from './check-capacity-stamp.mjs';
 import { checkConsoleScreens } from './check-console-screens.mjs';
 import { checkLandingCaptures } from './landing-captures.mjs';
+import { checkVerifiedPlatforms } from './check-verified-platforms.mjs';
 // Product-documentation invariants that are cheap enough to run on every build.
 //
 // 🚨 This script needs the GENERATED pages on disk. `reference/changelog.md` and the
@@ -892,6 +893,10 @@ errors.push(...checkLandingCaptures(siteRoot, docsRoot));
 // A published capacity number is a shipped claim, and the audit found
 // five of them wrong in the step between the measurement file and the page.
 errors.push(...checkCapacityStamp(docsRoot, join(repositoryRoot, 'bench/capacity/measurements')));
+
+// The compatibility page promises a platform only when a leg of the CI workflow runs it: every row of
+// "Verified platforms" names a job, and a matrix cell where it cites one, that the workflow still has.
+errors.push(...checkVerifiedPlatforms(compatibility, readFileSync(join(repositoryRoot, '.github/workflows/ci.yml'), 'utf8')));
 
 const manualProse = manualContent.map((file) => readFileSync(file, 'utf8')).join('\n');
 

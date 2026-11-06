@@ -70,6 +70,17 @@ These are not hidden; they are reported in this README and in the `/api/meta` ou
 
 > These limits do not make SQLite bad; **using it in the wrong place** does.
 
+## Supported versions
+
+| Environment | Status |
+|-------|-------|
+| SQLite 3.44.0 and later | Supported. The CI runs the bundled library and 3.44.0 |
+| SQLite older than 3.44.0 | Not supported |
+
+SQLite is a library, so the version is the version of the native file your process loads: the one `Microsoft.Data.Sqlite`
+brings, or a system library you load yourself. A version between the two the CI runs, or newer than the bundled one, has no
+run behind it.
+
 ## Migrations
 
 Embedded `.sql` files are applied automatically at application startup. The lock carries no

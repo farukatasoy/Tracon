@@ -1,0 +1,107 @@
+name: SDK conformance
+
+# Runs the protocol SDKs and the TypeScript client against the reference host (samples/Tracon.Api), once a week and on
+# demand. It is not part of the pull request gate: it installs two sets of Node packages, builds the host and opens a
+# loopback port, and a failure here is a finding about one protocol surface to triage, not a reason to hold a change.
+#
+# The job runs the command a developer runs on a laptop, in the order the runner script documents:
+#
+#   (cd packages/tracon-client && npm ci && npm run build)
+#   (cd scripts/sdk-conformance && npm ci && node run.mjs --report ../../artifacts/sdk-conformance)
+#
+# so a failing run is replayed by copying those lines. The TypeScript client is read from its built `dist/` folder, which
+# is why it is built first. The dependencies of the runner are pinned to exact versions in its own lock file and belong to
+# no published package.
+#
+# The exit code is 1 when a check fails, and also when a check on the known-open list of a suite starts to pass: that list
+# only shrinks, so a green check that is still listed has to be taken off it.
+
+on:
+  schedule:
+    # Wednesday, 04:23 UTC. An odd minute keeps the run off the top of the hour, when scheduled workflows queue longest,
+    # and the day keeps it apart from the OpenAPI fuzz run of Monday.
+    - cron: '23 4 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A second run waits for the first instead of racing it for the same runner pool.
+concurrency:
+  group: sdk-conformance
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  CI: true
+
+jobs:
+  conformance:
+    name: Protocol SDKs against the reference host
+    # The canonical repository only: the development repository and forks never run this job.
+    if: github.repository == 'farukatasoy/Tracon'
+    runs-on: ubuntu-latest
+    # A laptop does the whole job in under a minute (host build 15 s, both npm installs about 5 s, the four suites 22 s),
+    # so the ten-minute floor applies: the network latency of the setup steps must not produce a false red. It is not a
+    # runner measurement: re-measure after the first run and move the limit with it.
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # MinVer derives the version from git tags; the whole history is needed.
+          fetch-depth: 0
+
+      - name: Set up the .NET SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            packages/tracon-client/package-lock.json
+            scripts/sdk-conformance/package-lock.json
+
+      - name: Cache the NuGet packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      # The runner reads the client from its built output, so the client is built before the runner starts.
+      - name: Build the TypeScript client
+        working-directory: packages/tracon-client
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install the runner dependencies
+        working-directory: scripts/sdk-conformance
+        run: npm ci
+
+      # The script builds the host (without its console, which is not part of the HTTP surface), starts it on a free
+      # loopback port, runs the four suites and stops the host.
+      - name: Run the suites
+        working-directory: scripts/sdk-conformance
+        run: node run.mjs --report ../../artifacts/sdk-conformance
+
+      # Uploaded whether the run passed or not: the host log explains a failure the suite output only names.
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk-conformance
+          path: |
+            artifacts/sdk-conformance/host.log
+            artifacts/sdk-conformance/*-outcomes.tsv
+          retention-days: 30
+          if-no-files-found: warn

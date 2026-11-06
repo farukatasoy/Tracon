@@ -105,6 +105,106 @@ def _korumasiz_isler(isler: dict[str, dict]) -> list[str]:
                 "depo koşulunu kendisi taşımalı")
     return sorunlar
 
+
+# `ci.yml` işleri depo koşulunu `build` üzerinden miras alır (`_korumasiz_isler`). Zincire bağlı olmayan
+# her iş dosyası -- haftalık fuzz, SDK uyum işi -- koşulu işin kendisinde taşımalıdır.
+ZINCIRSIZ_DOSYA_DISI = {"ci.yml", "ayna.yml"}
+
+
+def _zincirsiz_korumasiz_isler(isler: dict[str, dict]) -> list[str]:
+    """Depo koşulunu kendisi taşımayan işler. `||` korumayı deler: her depoda doğrudur."""
+    sorunlar = []
+    for ad, is_ in isler.items():
+        kosul = is_["if"] or ""
+        if KANONIK_REPO_KOSULU not in kosul or "||" in kosul:
+            sorunlar.append(f"`{ad}` işi kanonik depo koşulunu kendisi taşımıyor")
+    return sorunlar
+
+
+
+def _is_blogu(metin: str, ad: str) -> str:
+    """`ad` işinin satırları: iki boşluk girintili iş başlığından sonraki iş başlığına kadar."""
+    satirlar = metin.splitlines()
+    baslangic = next(i for i, satir in enumerate(satirlar) if re.match(rf"^  {re.escape(ad)}:\s*$", satir))
+    son = next(
+        (i for i in range(baslangic + 1, len(satirlar)) if re.match(r"^  [A-Za-z0-9_-]+:\s*$", satirlar[i])),
+        len(satirlar))
+    return "\n".join(satirlar[baslangic:son])
+
+
+def _matris_girdileri(blok: str) -> list[dict[str, str]]:
+    """Bir işin `include:` girdileri: [{anahtar: değer}]. Yorum satırları ve tırnaklar atılır."""
+    girdiler: list[dict[str, str]] = []
+    icinde = False
+    for satir in blok.splitlines():
+        if re.match(r"^\s+include:\s*$", satir):
+            icinde = True
+            continue
+        if not icinde or not satir.strip() or satir.lstrip().startswith("#"):
+            continue
+        if not re.match(r"^ {10,}", satir):
+            break
+        girdi = re.match(r"^\s*(-\s+)?([A-Za-z_][\w-]*):\s*(.*?)\s*$", satir)
+        if not girdi:
+            continue
+        deger = girdi.group(3)
+        deger = deger[1:-1] if len(deger) >= 2 and deger[0] == deger[-1] and deger[0] in "'\"" else deger
+        if girdi.group(1):
+            girdiler.append({})
+        girdiler[-1][girdi.group(2)] = deger
+    return girdiler
+
+
+def _matris_bag_sorunlari(metin: str, varsayilan_imaj: dict[str, str]) -> list[str]:
+    """Platform bacaklarının adı, ortam değişkeni ve imajı birbirine bağlı mı.
+
+    Bir bacak yalnız bir ortam değişkeni setidir. Bağ kopunca (yazım hatası, silinmiş anahtar, yanlış imaj)
+    bacak varsayılan imajla koşar ve adının söylediği sürümü sınamadan yeşil kalır.
+    """
+    sorunlar = []
+    for is_adi in ("postgres-matrix", "sqlserver-matrix", "sqlite-floor", "culture-matrix"):
+        blok = _is_blogu(metin, is_adi)
+        girdiler = _matris_girdileri(blok)
+        if not girdiler:
+            sorunlar.append(f"`{is_adi}` işinin matrisi okunamadı")
+            continue
+        for anahtar in sorted(set(re.findall(r"\$\{\{\s*matrix\.([A-Za-z_][\w-]*)\s*\}\}", blok))):
+            for girdi in girdiler:
+                if anahtar not in girdi:
+                    sorunlar.append(
+                        f"`{is_adi}`: `matrix.{anahtar}` kullanılıyor ama {girdi} girdisinde `{anahtar}` yok")
+        for girdi in girdiler:
+            ad = girdi.get("name", "")
+            imaj = girdi.get("image", "")
+            if is_adi == "postgres-matrix":
+                beklenen = int(re.match(r"\d+", ad).group())
+                etkin = imaj or varsayilan_imaj["postgres"]
+                bulunan = re.search(r"[:-]pg(\d+)(?:-|$)", etkin)
+                if not bulunan or int(bulunan.group(1)) != beklenen:
+                    sorunlar.append(f"`{is_adi}` hücresi `{ad}`: imaj `{etkin}` {beklenen} sürümünü söylemiyor")
+            elif is_adi == "sqlserver-matrix":
+                beklenen = int(ad[:4])
+                etkin = imaj or varsayilan_imaj["sqlserver"]
+                bulunan = re.search(r":(\d{4})(?:-|$)", etkin)
+                if not bulunan or int(bulunan.group(1)) != beklenen:
+                    sorunlar.append(f"`{is_adi}` hücresi `{ad}`: imaj `{etkin}` {beklenen} sürümünü söylemiyor")
+            elif is_adi == "sqlite-floor" and not girdi.get("sqlite"):
+                sorunlar.append(f"`{is_adi}`: `sqlite` sürümü boş; sürüm testi boş değişkende atlanır")
+    return sorunlar
+
+
+def _varsayilan_imajlar() -> dict[str, str]:
+    """Fikstürlerin boş değişkende kullandığı imaj: bacağın boş `image:` değeri bu imajı söyler."""
+    okunan = {}
+    for ad, yol in (
+        ("postgres", ROOT / "tests" / "Tracon.PostgreSql.IntegrationTests" / "Infrastructure" / "PostgresFixture.cs"),
+        ("sqlserver", ROOT / "tests" / "Tracon.SqlServer.IntegrationTests" / "Infrastructure" / "SqlServerFixture.cs"),
+    ):
+        eslesme = re.search(r'const string DefaultImage = "([^"]+)";', yol.read_text(encoding="utf-8"))
+        okunan[ad] = eslesme.group(1) if eslesme else ""
+    return okunan
+
+
 class KapiTestleri(unittest.TestCase):
     def test_git_tum_metin_dosyalarini_lf_olarak_checkout_eder(self):
         attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
@@ -1111,6 +1211,63 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertEqual(isler["ozet"]["if"], "github.ref == 'refs/heads/main' && !cancelled()")
         self.assertEqual(sorunlu, ["basarisiz", "delik", "kopuk", "ozet", "rapor"])
+
+    def test_zincirsiz_is_akislarinin_her_isi_kanonik_repo_korumasini_kendisi_tasir(self):
+        # Özel depoda ve fork'larda haftalık işler de dakika harcamamalı. `ayna.yml` özel depoda koşar ve
+        # public ağaca girmez; `ci.yml` korumayı `build` üzerinden miras alır.
+        dosyalar = sorted(
+            p for p in (ROOT / ".github" / "workflows").glob("*.yml") if p.name not in ZINCIRSIZ_DOSYA_DISI)
+
+        self.assertIn("sdk-conformance.yml", [p.name for p in dosyalar])
+        self.assertIn("openapi-fuzz.yml", [p.name for p in dosyalar])
+        for dosya in dosyalar:
+            isler = _ci_isleri(dosya.read_text(encoding="utf-8"))
+            with self.subTest(dosya=dosya.name):
+                self.assertTrue(isler, "iş bulunamadı: ayrıştırıcı dosyayı okuyamadı")
+                self.assertEqual(_zincirsiz_korumasiz_isler(isler), [])
+
+    def test_zincirsiz_koruma_kontrolu_eksik_ve_delik_korumayi_yakalar(self):
+        gercek = (ROOT / ".github" / "workflows" / "sdk-conformance.yml").read_text(encoding="utf-8")
+        korumali = f"    if: {KANONIK_REPO_KOSULU}\n"
+        self.assertIn(korumali, gercek)
+
+        korumasiz = _ci_isleri(gercek.replace(korumali, ""))
+        delik = _ci_isleri(gercek.replace(korumali, f"    if: always() || {KANONIK_REPO_KOSULU}\n"))
+
+        self.assertEqual(_zincirsiz_korumasiz_isler(_ci_isleri(gercek)), [])
+        self.assertEqual(len(_zincirsiz_korumasiz_isler(korumasiz)), 1)
+        self.assertEqual(len(_zincirsiz_korumasiz_isler(delik)), 1)
+
+    def test_platform_bacaklari_ad_ortam_degiskeni_ve_imaj_birbirine_bagli(self):
+        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        imajlar = _varsayilan_imajlar()
+
+        self.assertTrue(all(imajlar.values()), imajlar)
+        self.assertEqual(_matris_bag_sorunlari(metin, imajlar), [])
+        # Ayrıştırıcı gerçekten okuyor: yedi PostgreSQL hücresi, iki SQL Server hücresi.
+        self.assertEqual(
+            [g["name"] for g in _matris_girdileri(_is_blogu(metin, "postgres-matrix"))],
+            ["12", "13", "14", "15", "16", "17", "18, ICU tr-TR"])
+        self.assertEqual(len(_matris_girdileri(_is_blogu(metin, "sqlserver-matrix"))), 2)
+
+    def test_platform_bacagi_bagi_kopunca_kirmizi(self):
+        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        imajlar = _varsayilan_imajlar()
+
+        yazim = metin.replace("TRACON_TEST_POSTGRES_IMAGE: ${{ matrix.image }}", "TRACON_TEST_POSTGRES_IMAGE: ${{ matrix.imge }}")
+        yanlis_imaj = metin.replace("image: pgvector/pgvector:pg13", "image: pgvector/pgvector:pg14")
+        imajsiz = metin.replace("          - name: '13'\n            image: pgvector/pgvector:pg13\n", "          - name: '13'\n            image: ''\n")
+        sql_yil = metin.replace("image: mcr.microsoft.com/mssql/server:2019-latest", "image: mcr.microsoft.com/mssql/server:2022-latest")
+        bos_surum = metin.replace("sqlite: '3.44.0'", "sqlite: ''")
+        for degisen in (yazim, yanlis_imaj, imajsiz, sql_yil, bos_surum):
+            self.assertNotEqual(degisen, metin)
+
+        self.assertTrue(any("matrix.imge" in s for s in _matris_bag_sorunlari(yazim, imajlar)))
+        self.assertEqual(len(_matris_bag_sorunlari(yanlis_imaj, imajlar)), 1)
+        self.assertIn("13", _matris_bag_sorunlari(yanlis_imaj, imajlar)[0])
+        self.assertEqual(len(_matris_bag_sorunlari(imajsiz, imajlar)), 1)  # boş imaj = pg18, hücre 13
+        self.assertEqual(len(_matris_bag_sorunlari(sql_yil, imajlar)), 1)
+        self.assertEqual(len(_matris_bag_sorunlari(bos_surum, imajlar)), 1)
 
     def test_uret_alt_komutu_yalniz_ureticileri_kosar(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:

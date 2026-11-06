@@ -339,9 +339,11 @@ jobs:
   # kalir ve kanonik depo okunamiyor. Ilk kosumdan sonra sure siniri olculenle
   # guncellenir ve bu uyari silinir.
   #
-  # Kosul `build` ile ayni: yalniz kanonik repo. `needs: build` YOK, cunku bir
-  # veritabani bacagi `build`'in 40 dakikasini beklememeli; PR'de kosmaz (her PR
-  # on bacak yakmasin), `main`, etiket ve elle tetiklemede kosar.
+  # Kosul `build` ile ayni: yalniz kanonik repo. Her bacak `needs: build` tasir,
+  # cunku depo korumasi yalniz `build`'de durur ve atlanan bir bagimlilik onlari
+  # da atlatir; kapi testi bu zinciri zorunlu kilar. Bedel: bacaklar `build`'in
+  # suresini bekler ve `build` kirmizi ise kosmaz. PR'de kosmaz (her PR on bacak
+  # yakmasin), `main`, etiket ve elle tetiklemede kosar.
   #
   # Bacak = bir ortam degiskeni seti. Test sinifi degismez: `SqlServerFixture` ve
   # `PostgresFixture` degiskenleri okur; bos deger varsayilani korur.

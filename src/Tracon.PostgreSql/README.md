@@ -53,6 +53,17 @@ string does **not** share a pool â€” Npgsql pools per instance, not per string â
 this is the only way to actually share one. Full pattern, including EF Core:
 <https://tracon.dev/guides/ef-core/>.
 
+## Supported versions
+
+| Environment | Status |
+|-------|-------|
+| PostgreSQL 12 and later | Supported. The CI matrix runs 12, 13, 14, 15, 16, 17 and 18; PostgreSQL 19 has no run yet |
+| PostgreSQL 11 and earlier | Not supported |
+
+The knowledge store needs the `pgvector` extension; on PostgreSQL 12 that is the 0.7 series, because pgvector 0.8 needs
+PostgreSQL 13 or later. The PostgreSQL project has ended or is ending support for the oldest versions in this range;
+Tracon still runs and tests them. The dates are on <https://tracon.dev/reference/compatibility/>.
+
 ## Migrations
 
 29 SQL migrations ship embedded in the assembly and are applied at startup by

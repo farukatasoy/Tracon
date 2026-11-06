@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>SQL Server persistence layer for Tracon. Agent definitions, sessions, conversations, runs, and events are stored in a separate 'tracon' schema. Ships with embedded SQL migrations. SQL Server 2019+ and Azure SQL.</Description>
-    <PackageTags>$(CommonPackageTags);sqlserver;mssql;azure-sql;persistence</PackageTags>
+    <Description>SQL Server persistence layer for Tracon. Agent definitions, sessions, conversations, runs, and events are stored in a separate 'tracon' schema. Ships with embedded SQL migrations. SQL Server 2019 and later.</Description>
+    <PackageTags>$(CommonPackageTags);sqlserver;mssql;persistence</PackageTags>
   </PropertyGroup>
 
   <!--

@@ -35,6 +35,14 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <summary>The environment variable that replaces the default image.</summary>
     public const string ImageVariable = "TRACON_TEST_POSTGRES_IMAGE";
 
+    /// <summary>The image a run uses when <see cref="ImageVariable"/> is empty or unset.</summary>
+    public const string DefaultImage = "pgvector/pgvector:pg18";
+
+    /// <summary>Gets the image this run starts: the variable when it has a value, the default image otherwise.</summary>
+    public static string Image => Environment.GetEnvironmentVariable(ImageVariable) is { } image && !string.IsNullOrWhiteSpace(image)
+        ? image
+        : DefaultImage;
+
     /// <summary>
     /// The environment variable that initializes the cluster with an ICU locale
     /// (<c>--locale-provider=icu --icu-locale=…</c>), for example <c>tr-TR</c>.
@@ -84,10 +92,9 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// </summary>
     private static PostgreSqlContainer CreateContainer()
     {
-        var image = Environment.GetEnvironmentVariable(ImageVariable);
         var icuLocale = Environment.GetEnvironmentVariable(IcuLocaleVariable);
 
-        var builder = new PostgreSqlBuilder(string.IsNullOrWhiteSpace(image) ? "pgvector/pgvector:pg18" : image)
+        var builder = new PostgreSqlBuilder(Image)
             .WithDatabase("tracon_tests")
             // The tests of the project share this server and run in parallel, each host with a pool of its own: the
             // default limit of 100 connections ran out ("too many clients already") in a full run.

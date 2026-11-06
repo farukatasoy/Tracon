@@ -31,7 +31,7 @@
         { "choice": "memory", "description": "No database - persistence ends with the process" },
         { "choice": "postgres", "description": "PostgreSQL" },
         { "choice": "sqlite", "description": "SQLite (single file)" },
-        { "choice": "sqlserver", "description": "SQL Server / Azure SQL" }
+        { "choice": "sqlserver", "description": "SQL Server" }
       ],
       "defaultValue": "memory",
       "description": "The persistence provider."

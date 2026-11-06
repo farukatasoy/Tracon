@@ -31,6 +31,14 @@ public sealed class SqlServerFixture : IAsyncLifetime
     /// <summary>The environment variable that replaces the default image.</summary>
     public const string ImageVariable = "TRACON_TEST_SQLSERVER_IMAGE";
 
+    /// <summary>The image a run uses when <see cref="ImageVariable"/> is empty or unset.</summary>
+    public const string DefaultImage = "mcr.microsoft.com/mssql/server:2022-latest";
+
+    /// <summary>Gets the image this run starts: the variable when it has a value, the default image otherwise.</summary>
+    public static string Image => Environment.GetEnvironmentVariable(ImageVariable) is { } image && !string.IsNullOrWhiteSpace(image)
+        ? image
+        : DefaultImage;
+
     /// <summary>The environment variable that sets the server collation (<c>MSSQL_COLLATION</c>).</summary>
     public const string CollationVariable = "TRACON_TEST_SQLSERVER_COLLATION";
 
@@ -122,11 +130,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
     /// </summary>
     private static MsSqlContainer CreateContainer()
     {
-        var image = Environment.GetEnvironmentVariable(ImageVariable);
         var collation = Environment.GetEnvironmentVariable(CollationVariable);
         var lcid = Environment.GetEnvironmentVariable(LcidVariable);
 
-        var builder = new MsSqlBuilder(string.IsNullOrWhiteSpace(image) ? "mcr.microsoft.com/mssql/server:2022-latest" : image)
+        var builder = new MsSqlBuilder(Image)
             .WithCleanUp(true);
 
         if (!string.IsNullOrWhiteSpace(collation))
