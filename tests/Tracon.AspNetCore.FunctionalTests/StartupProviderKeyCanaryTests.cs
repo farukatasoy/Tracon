@@ -8,7 +8,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// The key a provider is registered with at setup (Anthropic, Azure OpenAI, Google, OpenAI) is sent to that provider and
+/// The key a provider is registered with at setup (Anthropic, Azure OpenAI, Google, OpenAI on both of its surfaces) is sent to that provider and
 /// appears nowhere else: not in a response, a run record, a trace, an audit entry, a log record in any of its parts, a
 /// span, a metric tag, an export or a byte of the database.
 /// </summary>
@@ -40,6 +40,8 @@ public sealed class StartupProviderKeyCanaryTests
         { "google", true },
         { "openai", false },
         { "openai", true },
+        { "openai-responses", false },
+        { "openai-responses", true },
     };
 
     [Theory]

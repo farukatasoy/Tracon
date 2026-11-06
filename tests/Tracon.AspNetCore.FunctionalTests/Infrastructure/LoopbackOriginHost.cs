@@ -49,13 +49,18 @@ internal sealed class LoopbackOriginHost : IAsyncDisposable
     /// <summary>Starts the host.</summary>
     /// <param name="gated">The model the agent runs on.</param>
     /// <param name="pollInterval">How often a live event stream polls for new events; the default of the endpoints when omitted.</param>
+    /// <param name="configureServices">Adds to the host's services before Tracon is registered; for options a case turns on.</param>
     /// <returns>The running host.</returns>
-    public static async Task<LoopbackOriginHost> StartAsync(GatedModelProvider gated, TimeSpan? pollInterval = null)
+    public static async Task<LoopbackOriginHost> StartAsync(
+        GatedModelProvider gated,
+        TimeSpan? pollInterval = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var inFlight = new InFlightCounter();
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.ConfigureKestrel(static options => options.Listen(IPAddress.Loopback, 0));
         builder.Logging.ClearProviders();
+        configureServices?.Invoke(builder.Services);
 
         var tracon = builder.Services.AddTracon();
         tracon.AddModelProvider(gated);
@@ -120,6 +125,10 @@ internal sealed class LoopbackOriginHost : IAsyncDisposable
 
         return recorded[0].Id;
     }
+
+    /// <summary>Stops the host the way a shutdown does, without opening the model's gate first.</summary>
+    /// <returns>A task that completes when the host has stopped.</returns>
+    public Task StopAsync() => _app.StopAsync();
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()

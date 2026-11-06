@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -9,7 +10,8 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
 /// One local HTTP server that speaks the chat wire of four model providers (Anthropic Messages, Azure and plain OpenAI
-/// chat completions, Google Gemini) and keeps every credential it is sent, wherever the provider's SDK puts it.
+/// chat completions and Responses, Google Gemini) and keeps every credential it is sent, wherever the provider's SDK
+/// puts it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -30,6 +32,7 @@ internal sealed class CanaryWireServer : IAsyncDisposable
 
     private readonly WebApplication _app;
     private readonly List<string> _credentials = [];
+    private readonly List<string> _bodies = [];
     private int _requests;
 
     private CanaryWireServer(WebApplication app, Uri baseAddress)
@@ -62,6 +65,25 @@ internal sealed class CanaryWireServer : IAsyncDisposable
 
     /// <summary>Gets the number of model calls the server received.</summary>
     public int Requests => Volatile.Read(ref _requests);
+
+    /// <summary>
+    /// Gets or sets the name of a tool the server asks for. While it is set, a chat completions call that carries no tool
+    /// result is answered with a call of that tool (with no arguments); a call that carries one is answered as
+    /// <see cref="Mode"/> says. It lets a test send a run through a tool and then refuse the model's next turn.
+    /// </summary>
+    public string? ToolCall { get; set; }
+
+    /// <summary>Gets the body of every model call the server received, in order.</summary>
+    public IReadOnlyList<string> Bodies
+    {
+        get
+        {
+            lock (_bodies)
+            {
+                return [.. _bodies];
+            }
+        }
+    }
 
     /// <summary>Gets every credential the server was sent: header values and query values, one per request and place.</summary>
     public IReadOnlyList<string> Credentials
@@ -132,6 +154,7 @@ internal sealed class CanaryWireServer : IAsyncDisposable
         var path = request.Path.Value ?? string.Empty;
         var isModelCall = path.Contains("/messages", StringComparison.Ordinal)
             || path.Contains("chat/completions", StringComparison.Ordinal)
+            || path.EndsWith("/responses", StringComparison.Ordinal)
             || path.Contains("generateContent", StringComparison.OrdinalIgnoreCase);
 
         if (!isModelCall)
@@ -147,6 +170,19 @@ internal sealed class CanaryWireServer : IAsyncDisposable
 
         using var reader = new StreamReader(request.Body);
         var body = await reader.ReadToEndAsync(context.RequestAborted);
+
+        lock (_bodies)
+        {
+            _bodies.Add(body);
+        }
+
+        if (ToolCall is { } tool && path.Contains("chat/completions", StringComparison.Ordinal)
+            && !body.Contains("\"role\":\"tool\"", StringComparison.Ordinal))
+        {
+            await AskForToolAsync(context, tool, body);
+
+            return;
+        }
 
         switch (Mode)
         {
@@ -196,10 +232,100 @@ internal sealed class CanaryWireServer : IAsyncDisposable
         });
     }
 
+    private static async Task AskForToolAsync(HttpContext context, string tool, string body)
+    {
+        const string CallId = "call_canary_1";
+
+        if (body.Contains("\"stream\":true", StringComparison.Ordinal))
+        {
+            context.Response.ContentType = "text/event-stream";
+            await context.Response.WriteAsync(
+                $"data: {Chunk($$$"""{"role":"assistant","tool_calls":[{"index":0,"id":"{{{CallId}}}","type":"function","function":{"name":"{{{tool}}}","arguments":"{}"}}]}""", null)}\n\n" +
+                $"data: {Chunk("{}", "tool_calls")}\n\n" +
+                "data: [DONE]\n\n",
+                Encoding.UTF8,
+                context.RequestAborted);
+
+            return;
+        }
+
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(
+            $$$"""
+            {"id":"chatcmpl-canary","object":"chat.completion","created":1,"model":"canary-model",
+             "choices":[{"index":0,"message":{"role":"assistant","content":null,
+               "tool_calls":[{"id":"{{{CallId}}}","type":"function","function":{"name":"{{{tool}}}","arguments":"{}"}}]},
+               "finish_reason":"tool_calls"}],
+             "usage":{"prompt_tokens":5,"completion_tokens":3,"total_tokens":8} }
+            """,
+            context.RequestAborted);
+    }
+
+    private static async Task AcceptResponsesAsync(HttpContext context, bool streaming)
+    {
+        JsonObject Message() => JsonNode.Parse(
+            $$"""{"type":"message","id":"msg_canary","status":"completed","role":"assistant","content":[{"type":"output_text","text":"{{Sentence}}","annotations":[]}]}""")!.AsObject();
+
+        JsonObject Response(string status, JsonArray output) => new()
+        {
+            ["id"] = "resp_canary",
+            ["object"] = "response",
+            ["created_at"] = 1,
+            ["status"] = status,
+            ["model"] = "canary-model",
+            ["output"] = output,
+            ["usage"] = JsonNode.Parse(
+                """{"input_tokens":5,"output_tokens":3,"total_tokens":8,"input_tokens_details":{"cached_tokens":0},"output_tokens_details":{"reasoning_tokens":0}}"""),
+        };
+
+        if (!streaming)
+        {
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(Response("completed", [Message()]).ToJsonString(), context.RequestAborted);
+
+            return;
+        }
+
+        var sequence = 0;
+        var frames = new StringBuilder();
+
+        void Send(string type, JsonObject data)
+        {
+            data["type"] = type;
+            data["sequence_number"] = sequence++;
+            frames.Append("event: ").Append(type).Append("\ndata: ").Append(data.ToJsonString()).Append("\n\n");
+        }
+
+        JsonObject Part(string text) => new() { ["type"] = "output_text", ["text"] = text, ["annotations"] = new JsonArray() };
+
+        Send("response.created", new JsonObject { ["response"] = Response("in_progress", []) });
+        Send("response.output_item.added", new JsonObject
+        {
+            ["output_index"] = 0,
+            ["item"] = new JsonObject { ["type"] = "message", ["id"] = "msg_canary", ["status"] = "in_progress", ["role"] = "assistant", ["content"] = new JsonArray() },
+        });
+        Send("response.content_part.added", new JsonObject { ["item_id"] = "msg_canary", ["output_index"] = 0, ["content_index"] = 0, ["part"] = Part(string.Empty) });
+        Send("response.output_text.delta", new JsonObject { ["item_id"] = "msg_canary", ["output_index"] = 0, ["content_index"] = 0, ["delta"] = Sentence });
+        Send("response.output_text.done", new JsonObject { ["item_id"] = "msg_canary", ["output_index"] = 0, ["content_index"] = 0, ["text"] = Sentence });
+        Send("response.content_part.done", new JsonObject { ["item_id"] = "msg_canary", ["output_index"] = 0, ["content_index"] = 0, ["part"] = Part(Sentence) });
+        Send("response.output_item.done", new JsonObject { ["output_index"] = 0, ["item"] = Message() });
+        Send("response.completed", new JsonObject { ["response"] = Response("completed", [Message()]) });
+
+        context.Response.ContentType = "text/event-stream";
+        await context.Response.WriteAsync(frames.ToString(), Encoding.UTF8, context.RequestAborted);
+    }
+
     private static async Task AcceptAsync(HttpContext context, string path, string body)
     {
         var streaming = path.Contains("streamGenerateContent", StringComparison.OrdinalIgnoreCase)
             || body.Contains("\"stream\":true", StringComparison.Ordinal);
+
+        if (path.EndsWith("/responses", StringComparison.Ordinal))
+        {
+            await AcceptResponsesAsync(context, streaming);
+
+            return;
+        }
 
         if (path.Contains("/messages", StringComparison.Ordinal))
         {
