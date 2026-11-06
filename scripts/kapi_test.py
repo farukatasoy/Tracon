@@ -1130,6 +1130,8 @@ class KapiTestleri(unittest.TestCase):
 
     def test_sicak_yol_degisikligi_performans_kapisini_tetikler(self):
         self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Recording/RunEventWriter.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Compilation/CompiledAgentCache.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Diagnostics/ChatTelemetryLanes.cs"]))
         self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Sql.Shared/Stores/SqlRunStore.cs"]))
         self.assertTrue(kapi.performance_gate_triggered(["bench/Tracon.Benchmarks/Program.cs"]))
         self.assertFalse(kapi.performance_gate_triggered(["src/Tracon.Core/TraconOptions.cs"]))

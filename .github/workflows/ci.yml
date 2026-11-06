@@ -184,7 +184,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket
 
-      # Tahsis kapısı yalnız üç sıcak yoldan biri (veya bench/ kendisi)
+      # Tahsis kapısı yalnız dört sıcak yoldan biri (veya bench/ kendisi)
       # değiştiyse koşar - `kapi.py performans`'ın kendi mantığı
       # (`performance_gate_triggered`) yeniden kullanılır, CI kendi diff
       # tabanını hesaplar (PR'de taban dal, push'ta önceki commit).

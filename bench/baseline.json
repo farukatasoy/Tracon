@@ -1,17 +1,25 @@
 {
-  "measuredAt": "2026-11-04T16:57:37Z",
+  "measuredAt": "2026-11-06T15:29:28Z",
   "benchmarks": {
+    "Tracon.Benchmarks.ChatTelemetryRingBenchmarks.ModelCall": {
+      "allocatedBytes": 264,
+      "meanNanoseconds": 46.446831962891984
+    },
     "Tracon.Benchmarks.CompiledAgentCacheBenchmarks.CacheHit": {
       "allocatedBytes": 0,
-      "meanNanoseconds": 38.9544581224521
+      "meanNanoseconds": 39.85489787505223
+    },
+    "Tracon.Benchmarks.CompiledAgentCacheBenchmarks.EvictOnMiss": {
+      "allocatedBytes": 124464,
+      "meanNanoseconds": 3773563.771183894
     },
     "Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent": {
       "allocatedBytes": 112,
-      "meanNanoseconds": 81.2639865233348
+      "meanNanoseconds": 84.78026840516499
     },
     "Tracon.Benchmarks.RunStoreQueryBenchmarks.QueryRuns": {
       "allocatedBytes": 84880,
-      "meanNanoseconds": 1063765.315625
+      "meanNanoseconds": 1138254.8828125
     }
   }
 }

@@ -149,6 +149,61 @@ public sealed class CompiledAgentCacheBoundTests
     }
 
     [Fact]
+    public void The_entries_dropped_are_the_ones_a_full_sort_by_use_time_and_then_store_order_would_drop()
+    {
+        // Many entries share a use time (the clock often does not move between two uses), so the order of storing
+        // decides among them. The expectation is a plain sort over the same bookkeeping the cache is meant to keep.
+        for (var seed = 0; seed < 20; seed++)
+        {
+            var random = new Random(seed);
+            var clock = new ManualTimeProvider();
+            var cache = Create(maxEntries: 60, clock: clock);
+            var lastUsed = new Dictionary<string, (long Use, int Stored)>(StringComparer.Ordinal);
+
+            for (var tenant = 0; tenant < 60; tenant++)
+            {
+                var name = $"tenant-{tenant}";
+
+                Resolve(cache, name);
+                lastUsed[name] = (clock.GetTimestamp(), tenant);
+                clock.Advance(TimeSpan.FromSeconds(random.Next(0, 3)));
+            }
+
+            for (var use = 0; use < 40; use++)
+            {
+                var name = $"tenant-{random.Next(0, 60)}";
+
+                Resolve(cache, name);
+                lastUsed[name] = (clock.GetTimestamp(), lastUsed[name].Stored);
+                clock.Advance(TimeSpan.FromSeconds(random.Next(0, 3)));
+            }
+
+            // Keeping fifty-four of sixty drops six: the six with the oldest use, the earliest store among equals.
+            var dropped = lastUsed
+                .OrderBy(static pair => pair.Value.Use)
+                .ThenBy(static pair => pair.Value.Stored)
+                .Take(6)
+                .Select(static pair => pair.Key)
+                .ToList();
+
+            Resolve(cache, "newcomer");
+
+            cache.Count.ShouldBe(55, $"seed {seed}");
+
+            // A miss stores the entry it asks for, which can drop others: the entries that stayed are asked first.
+            foreach (var name in lastUsed.Keys.Except(dropped, StringComparer.Ordinal))
+            {
+                IsCached(cache, name).ShouldBeTrue($"seed {seed}, {name} stayed");
+            }
+
+            foreach (var name in dropped)
+            {
+                IsCached(cache, name).ShouldBeFalse($"seed {seed}, {name} was dropped");
+            }
+        }
+    }
+
+    [Fact]
     public void The_entry_just_stored_is_never_the_one_dropped_even_when_every_entry_is_equally_old()
     {
         // A clock that does not move gives every entry the same age: nothing but the order of storing

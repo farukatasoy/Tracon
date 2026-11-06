@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using Microsoft.Agents.AI;
 
 namespace Tracon;
@@ -438,36 +439,42 @@ public sealed class CompiledAgentCache
     }
 
     /// <summary>Drops the entries used least recently until <paramref name="keep"/> are left. The caller holds the gate.</summary>
+    /// <remarks>
+    /// The entries to drop are a tenth of a full cache, so they are held in a heap of that size with the most recently
+    /// used of them on top, and the cache is walked once. Copying every entry into an array and sorting it took two
+    /// arrays of the size of the cache for each eviction, both on the large object heap.
+    /// </remarks>
     private void DropLeastRecentlyUsed(int keep)
     {
-        var pairs = _entries.ToArray();
-        var drop = pairs.Length - keep;
+        var drop = _entries.Count - keep;
 
         if (drop <= 0)
         {
             return;
         }
 
-        // The use time is read once per entry. A hit that touches an entry while the array is sorted would
-        // otherwise change a key under the sort, and a sort over keys that change can fail.
-        var ranked = new Ranked[pairs.Length];
+        var oldest = new PriorityQueue<KeyValuePair<SlotKey, Entry>, Rank>(drop + 1, NewestFirst.Instance);
 
-        for (var index = 0; index < pairs.Length; index++)
+        foreach (var pair in _entries)
         {
-            ranked[index] = new Ranked(pairs[index].Value.LastUsed, pairs[index].Value.Sequence, pairs[index]);
+            // The use time is read once per entry. A hit that touches an entry while the cache is walked would
+            // otherwise change a key under the heap, and a heap over keys that change can lose an entry.
+            var rank = new Rank(pair.Value.LastUsed, pair.Value.Sequence);
+
+            if (oldest.Count < drop)
+            {
+                oldest.Enqueue(pair, rank);
+            }
+            else if (oldest.TryPeek(out _, out var newest) && NewestFirst.Instance.Compare(rank, newest) > 0)
+            {
+                // Used less recently than the most recent of the entries chosen so far: it takes that one's place.
+                oldest.EnqueueDequeue(pair, rank);
+            }
         }
 
-        Array.Sort(ranked, static (left, right) =>
+        while (oldest.TryDequeue(out var victim, out _))
         {
-            var byUse = left.LastUsed.CompareTo(right.LastUsed);
-
-            // Entries with the same time (a clock that moved less than its resolution): the older store goes first.
-            return byUse != 0 ? byUse : left.Sequence.CompareTo(right.Sequence);
-        });
-
-        for (var index = 0; index < drop; index++)
-        {
-            _entries.TryRemove(ranked[index].Pair);
+            _entries.TryRemove(victim);
         }
     }
 
@@ -476,7 +483,22 @@ public sealed class CompiledAgentCache
 
     private readonly record struct SlotKey(string TenantId, string Name, string DefinitionFingerprint, string Culture);
 
-    private readonly record struct Ranked(long LastUsed, long Sequence, KeyValuePair<SlotKey, Entry> Pair);
+    // Entries with the same time (a clock that moved less than its resolution): the older store is the older entry.
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct Rank(long LastUsed, long Sequence);
+
+    // Orders the most recently used first, so the top of the heap is the entry that is next to leave it.
+    private sealed class NewestFirst : IComparer<Rank>
+    {
+        public static readonly NewestFirst Instance = new();
+
+        public int Compare(Rank left, Rank right)
+        {
+            var byUse = right.LastUsed.CompareTo(left.LastUsed);
+
+            return byUse != 0 ? byUse : right.Sequence.CompareTo(left.Sequence);
+        }
+    }
 
     // A class, not a record: the sweep removes an entry only while the dictionary still holds THIS instance, and a
     // record would compare by content.

@@ -688,6 +688,7 @@ def frontend_changed(paths: Iterable[str]) -> bool:
 PERFORMANCE_HOT_PATHS = (
     "src/Tracon.Core/Recording/RunEventWriter.cs",
     "src/Tracon.Core/Compilation/CompiledAgentCache.cs",
+    "src/Tracon.Core/Diagnostics/ChatTelemetryLanes.cs",
     "src/Tracon.Sql.Shared/Stores/SqlRunStore.cs",
     "bench/",
 )
@@ -698,7 +699,7 @@ BENCHMARK_REPORT_DIR = ARTIFACTS / "benchmarks" / "results"
 
 
 def performance_gate_triggered(paths: Iterable[str]) -> bool:
-    """Whether any of the three benchmarked hot paths (or the benchmark project
+    """Whether any of the four benchmarked hot paths (or the benchmark project
     itself) changed - the allocation gate only runs when it can move."""
     return any(
         path == hot_path or (hot_path.endswith("/") and path.startswith(hot_path))
@@ -1520,7 +1521,7 @@ def closing_commands(
     # reliably avoids the false failure.
     commands.append(Command(("dotnet", "format", "Tracon.slnx", "--verify-no-changes")))
     # Path-triggered: a fifth ALWAYS-ON gate would run BenchmarkDotNet
-    # on every phase closing, even when nothing near the three hot paths
+    # on every phase closing, even when nothing near the four hot paths
     # changed. `kapi.py performans` stays a normal subcommand; `main()` decides
     # whether THIS closing run needs it, the same way `affected_test_projects`
     # already scopes `ic-dongu`.
@@ -2797,7 +2798,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
     closing = subparsers.add_parser("kapanis", help="tam doğrulama kapıları")
     closing.add_argument("--taban", required=True, help="faz öncesi commit SHA")
     closing.add_argument("--site-atla", action="store_true", help="docs-site kapısını atla")
-    performans = subparsers.add_parser("performans", help="tahsis kapısı - üç sıcak yolu ölçer")
+    performans = subparsers.add_parser("performans", help="tahsis kapısı - dört sıcak yolu ölçer")
     performans.add_argument(
         "--guncelle", action="store_true",
         help="bench/baseline.json'ı bu koşumun sonucuyla değiştirir (karşılaştırma yapılmaz)")
