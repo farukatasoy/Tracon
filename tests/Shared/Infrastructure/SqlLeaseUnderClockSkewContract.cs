@@ -395,11 +395,14 @@ public abstract class SqlLeaseUnderClockSkewContract
         }
 
         // The same comparison lets a job in when the database reaches its time: this one is due a second and a half from now.
+        // 🚨 The clock starts before that time is fixed, not after the write returns: a write on a loaded machine can take
+        // longer than the lead the job has, and the job is then due by the database's clock before a clock started after
+        // the write has run its length.
+        clock.Restart();
+
         var soon = TestData.Job(scheduledFor: DateTimeOffset.UtcNow + ShortLease);
 
         await stores.FirstJobs.EnqueueAsync(soon, ["b"], TestContext.Current.CancellationToken);
-
-        clock.Restart();
 
         JobRecord? leasedSoon = null;
 
@@ -415,7 +418,7 @@ public abstract class SqlLeaseUnderClockSkewContract
         Report(
             "scheduled time",
             $"writer's clock ahead of the database by 90s, job queued to run at once; a second job {ShortLease.TotalMilliseconds} ms ahead",
-            $"the first job was leased {leasedEarly.Count} times in {2 * ShortLease.TotalMilliseconds} ms; the second was leased {Describe(dueAfter)} after it was written");
+            $"the first job was leased {leasedEarly.Count} times in {2 * ShortLease.TotalMilliseconds} ms; the second was leased {Describe(dueAfter)} after its time was fixed");
 
         leasedEarly.ShouldBeEmpty("the job's time is ninety seconds ahead of the database server's clock");
         dueAfter.ShouldNotBeNull("the job is ready when the database server's clock reaches its time");

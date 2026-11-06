@@ -54,7 +54,7 @@ public sealed class RunEventConnectionCutTests
         // The run request itself is being served: the stream that is cut must bring the count back to this.
         var baseline = origin.InFlight;
 
-        var firstPart = await ReadThroughAsync(forwarder.Address, runId, lastEventId: null, cutAfter: 1);
+        var firstPart = await ReadThroughAsync(forwarder.Address, runId, lastEventId: null, cutAfter: 1, close);
 
         // An abort resets the connection, and a reset discards what the reader has not read yet: it may hold the event or not.
         firstPart.Count.ShouldBeLessThanOrEqualTo(1, "the run is held by its model; run.started is the one event there is");
@@ -96,7 +96,7 @@ public sealed class RunEventConnectionCutTests
 
         for (var cutAfter = 1; cutAfter < full.Count; cutAfter++)
         {
-            var first = await ReadThroughAsync(forwarder.Address, runId, lastEventId: null, cutAfter);
+            var first = await ReadThroughAsync(forwarder.Address, runId, lastEventId: null, cutAfter, close);
 
             // A response that ends normally delivers every event the forwarder passed; an abort resets the connection and may
             // drop the last ones the reader had not read. Either way what arrived is the start of the sequence.
@@ -114,6 +114,49 @@ public sealed class RunEventConnectionCutTests
         }
 
         await WaitUntil.TrueAsync(() => origin.InFlight == 0, "every stream that was cut to leave the server");
+    }
+
+    [Fact]
+    public async Task An_abort_that_reaches_the_reader_before_it_has_read_the_response_head_leaves_it_with_nothing()
+    {
+        // The forwarder aborts right after it wrote the n-th event. The head of the response and that event are in the
+        // reader's socket buffer by then, and a reset that arrives before the reader's first read discards both: on some
+        // systems the first read then fails with "connection reset by peer", and the failure comes out of the request itself,
+        // not out of the body. The reader holds no event, which is the same prefix of the run (the empty one) that an abort
+        // after the head is allowed to leave. Here the reset is delivered to the reader as that failure.
+        using var reset = new ResettingHandler(new HttpRequestException(
+            "An error occurred while sending the request.",
+            new IOException("Unable to read data from the transport connection: Connection reset by peer.", new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionReset))));
+
+        var seen = await ReadThroughAsync(new Uri("http://127.0.0.1:1/"), Guid.NewGuid(), lastEventId: null, cutAfter: 1, Close.Abort, reset);
+
+        seen.ShouldBeEmpty();
+        reset.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_reset_before_the_response_head_is_not_expected_when_the_response_is_ended_normally()
+    {
+        // A response that ends normally never resets the connection, so a reader that fails there found a defect.
+        using var reset = new ResettingHandler(new HttpRequestException(
+            "An error occurred while sending the request.",
+            new IOException("Unable to read data from the transport connection: Connection reset by peer.", new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionReset))));
+
+        await Should.ThrowAsync<HttpRequestException>(
+            async () => await ReadThroughAsync(new Uri("http://127.0.0.1:1/"), Guid.NewGuid(), lastEventId: null, cutAfter: 1, Close.EndOfResponse, reset));
+    }
+
+    [Fact]
+    public async Task A_failure_that_is_not_a_reset_of_an_open_connection_still_fails_the_reader_after_an_abort()
+    {
+        // Only the loss of a connection that was open is what an abort does. A connection that was never made (the origin or
+        // the forwarder is down) is a test that is not running what it says.
+        using var refused = new ResettingHandler(new HttpRequestException(
+            "Connection refused",
+            new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionRefused)));
+
+        await Should.ThrowAsync<HttpRequestException>(
+            async () => await ReadThroughAsync(new Uri("http://127.0.0.1:1/"), Guid.NewGuid(), lastEventId: null, cutAfter: 1, Close.Abort, refused));
     }
 
     private static async Task<List<SseFrame>> ReadDirectAsync(Uri address, Guid runId, string? lastEventId)
@@ -135,10 +178,21 @@ public sealed class RunEventConnectionCutTests
         return await Collect(body);
     }
 
-    /// <summary>Reads a stream through the forwarder, which closes the connection after <paramref name="cutAfter"/> events.</summary>
-    private static async Task<List<SseFrame>> ReadThroughAsync(Uri forwarder, Guid runId, string? lastEventId, int cutAfter)
+    /// <summary>
+    /// Reads a stream through the forwarder, which closes the connection after <paramref name="cutAfter"/> events. After an
+    /// abort the reader holds a prefix of those events, which may be empty: the reset can discard the head of the response too.
+    /// </summary>
+    private static async Task<List<SseFrame>> ReadThroughAsync(
+        Uri forwarder,
+        Guid runId,
+        string? lastEventId,
+        int cutAfter,
+        Close close,
+        HttpMessageHandler? handler = null)
     {
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        using var client = handler is null
+            ? new HttpClient { Timeout = TimeSpan.FromSeconds(30) }
+            : new HttpClient(handler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(30) };
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(forwarder, $"/tracon/api/runs/{runId}/events?cut={cutAfter}"));
 
         if (lastEventId is not null)
@@ -146,11 +200,23 @@ public sealed class RunEventConnectionCutTests
             request.Headers.TryAddWithoutValidation("Last-Event-ID", lastEventId);
         }
 
-        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, TestContext.Current.CancellationToken);
+        try
+        {
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, TestContext.Current.CancellationToken);
 
-        await using var body = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
+            await using var body = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
 
-        return await Collect(body);
+            return await Collect(body);
+        }
+        catch (HttpRequestException exception) when (close == Close.Abort && exception.InnerException is IOException)
+        {
+            // 🚨 The abort can reach the reader before it has read the head of the response: the head and the first event
+            // sit in its socket buffer, the reset discards them, and the first read fails inside the request, outside the
+            // body that Collect guards. The reader then holds no event, which is a prefix of the run like any other an
+            // abort leaves. Only the loss of a connection that was open is taken for this (the inner exception is an
+            // IOException): a connection that was never made, or a response that was ended normally, still fails the test.
+            return [];
+        }
     }
 
     /// <summary>Reads frames until the body ends or breaks; what was read before a break is what the reader has.</summary>
@@ -171,6 +237,21 @@ public sealed class RunEventConnectionCutTests
         }
 
         return frames;
+    }
+
+    /// <summary>A handler whose every request fails with the given exception, as a request does when the connection is reset under it.</summary>
+    private sealed class ResettingHandler(Exception failure) : HttpMessageHandler
+    {
+        private int _requests;
+
+        public int Requests => Volatile.Read(ref _requests);
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _requests);
+
+            return Task.FromException<HttpResponseMessage>(failure);
+        }
     }
 
     /// <summary>
