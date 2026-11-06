@@ -27,22 +27,29 @@ public sealed class CapacityModelProvider : IModelProvider
     private readonly CapacityCounters _counters;
     private readonly CapacityExecutionLog _executions;
     private readonly string _processName;
+    private readonly Func<string?>? _currentTenant;
 
     /// <summary>Creates the provider.</summary>
     /// <param name="workload">The synthetic workload to replay.</param>
     /// <param name="counters">Where the host's own counters live.</param>
     /// <param name="executions">Where this process records what it served.</param>
     /// <param name="processName">This process's label.</param>
+    /// <param name="currentTenant">
+    /// The tenant the client is being built for, or <see langword="null"/> when the process has no request to read it from.
+    /// Used only when <see cref="CapacityEnvironment.TenantEndpoints"/> is on.
+    /// </param>
     public CapacityModelProvider(
         HostWorkload workload,
         CapacityCounters counters,
         CapacityExecutionLog executions,
-        string processName)
+        string processName,
+        Func<string?>? currentTenant = null)
     {
         _workload = workload;
         _counters = counters;
         _executions = executions;
         _processName = processName;
+        _currentTenant = currentTenant;
     }
 
     /// <inheritdoc />
@@ -65,7 +72,24 @@ public sealed class CapacityModelProvider : IModelProvider
     public IChatClient CreateChatClient(ModelBinding binding)
     {
         ArgumentNullException.ThrowIfNull(binding);
-        return new CapacityChatClient(_workload, _counters, _executions, _processName);
+        return new CapacityChatClient(_workload, _counters, _executions, _processName, TenantEndpoint());
+    }
+
+    /// <summary>
+    /// What a model client bound to the tenant's own endpoint says about itself: the provider, a host that names the
+    /// tenant, and the model. The telemetry lanes are keyed by it, which is the thing the tenant-endpoint knob exists to
+    /// exercise; without it the client says nothing and every tenant falls in the same lane.
+    /// </summary>
+    private ChatClientMetadata? TenantEndpoint()
+    {
+        if (!CapacityEnvironment.TenantEndpoints
+            || _currentTenant?.Invoke() is not { Length: > 0 } tenant
+            || !Uri.TryCreate($"https://{tenant}.capacity.invalid:443", UriKind.Absolute, out var endpoint))
+        {
+            return null;
+        }
+
+        return new ChatClientMetadata(CapacityContract.ProviderName, endpoint, CapacityContract.ModelName);
     }
 
     private sealed class CapacityChatClient : IChatClient
@@ -74,17 +98,20 @@ public sealed class CapacityModelProvider : IModelProvider
         private readonly CapacityCounters _counters;
         private readonly CapacityExecutionLog _executions;
         private readonly string _processName;
+        private readonly ChatClientMetadata? _metadata;
 
         public CapacityChatClient(
             HostWorkload workload,
             CapacityCounters counters,
             CapacityExecutionLog executions,
-            string processName)
+            string processName,
+            ChatClientMetadata? metadata)
         {
             _workload = workload;
             _counters = counters;
             _executions = executions;
             _processName = processName;
+            _metadata = metadata;
         }
 
         public async Task<ChatResponse> GetResponseAsync(
@@ -163,7 +190,8 @@ public sealed class CapacityModelProvider : IModelProvider
             Finish(turn);
         }
 
-        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public object? GetService(Type serviceType, object? serviceKey = null)
+            => serviceKey is null && _metadata is not null && serviceType.IsInstanceOfType(_metadata) ? _metadata : null;
 
         public void Dispose()
         {

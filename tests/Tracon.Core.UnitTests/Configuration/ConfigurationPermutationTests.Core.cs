@@ -29,6 +29,7 @@ public sealed partial class ConfigurationPermutationTests
         ["Tracon:Knowledge:ChunkOverlap"] = "no overlap between chunks",
         ["Tracon:Observability:MaxJobLaneCardinality"] = "clamped to one series where it is read",
         ["Tracon:Observability:MaxSpansPerRun"] = "every span is dropped and a warning is logged (fail-closed, diagnostics only)",
+        ["Tracon:Observability:MaxTelemetryLaneCardinality"] = "keys no endpoint or model: every call is written under its provider without those labels",
         ["Tracon:Observability:SuccessSampleRatio"] = "persists no successful run",
         ["Tracon:OnlineEvaluation:LowScoreThreshold"] = "marks no score as low",
         ["Tracon:OnlineEvaluation:MaxScoresPerHour"] = "scores nothing (the cost cap is zero)",

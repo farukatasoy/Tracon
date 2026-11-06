@@ -287,6 +287,7 @@ on the model binding, not a global setting. See
 | `Observability:EnableJobQueueDepthGauge` | `false` |
 | `Observability:JobQueueDepthRefreshInterval` | 30 seconds |
 | `Observability:MaxJobLaneCardinality` | `64` |
+| `Observability:MaxTelemetryLaneCardinality` | `1024` |
 
 These settings control Tracon span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
@@ -312,6 +313,12 @@ fails.
 `MaxJobLaneCardinality` bounds how many distinct job lanes get a metric series of
 their own before the rest are folded into a single `other` series — see
 [observability](/guides/observability/#what-the-job-metrics-count).
+
+`MaxTelemetryLaneCardinality` bounds how many distinct provider endpoints and models get spans and
+metrics labeled with their own address and model, for model calls and for agents alike. An endpoint
+or a model over the limit keeps its spans and loses only those labels. `0` is valid and labels none; a
+negative value or one above 1 000 000 stops startup. The value is read at startup. See
+[observability](/guides/observability/#what-a-tenants-own-provider-endpoint-does-to-the-spans).
 
 ### Run recording
 

@@ -34,6 +34,14 @@ namespace Tracon;
 /// that identity borrow it. The number of lanes is the sum, over the identities in use, of the runs of that identity in
 /// flight at its busiest moment.
 /// </para>
+/// <para>
+/// The default model and the endpoint of that identity are free text that a tenant chooses, and a lane is never disposed.
+/// The pool therefore accepts at most a fixed number of identities that carry a model or an endpoint
+/// (<see cref="TraconObservabilityOptions.MaxTelemetryLaneCardinality"/>). A run of any further identity borrows a lane of
+/// its providers that names no model and no endpoint: it still writes its span and its metrics, and loses those labels.
+/// An identity that was accepted keeps its lanes for the life of the pool, because taking a lane back would turn one
+/// series into two (see above).
+/// </para>
 /// </remarks>
 internal sealed class TelemetryLanePool : IDisposable
 {
@@ -42,7 +50,11 @@ internal sealed class TelemetryLanePool : IDisposable
     private readonly ILogger? _logger;
     private readonly Func<TelemetryIdentity, string, bool, TelemetryLane> _createLane;
     private readonly ConcurrentDictionary<TelemetryKey, ConcurrentStack<TelemetryLane>> _idle = [];
+    private readonly int _maxIdentities;
     private int _lanes;
+    private int _admitted;
+    private int _overflowed;
+    private int _overflowWarned;
     private int _disposed;
 
     /// <summary>Initializes a pool of lanes that write to one telemetry source.</summary>
@@ -50,18 +62,23 @@ internal sealed class TelemetryLanePool : IDisposable
     /// <param name="enableSensitiveData">Whether the lanes record message content.</param>
     /// <param name="logger">Where a lane that could not be built is reported, or <see langword="null"/> to report nowhere.</param>
     /// <param name="createLane">Builds a lane; the framework's telemetry agent when omitted. A seam for tests only.</param>
+    /// <param name="maxIdentities">How many identities that carry a model or an endpoint are accepted; the rest share the lanes of their providers.</param>
     /// <exception cref="ArgumentException"><paramref name="sourceName"/> is <see langword="null"/> or white space.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxIdentities"/> is negative.</exception>
     internal TelemetryLanePool(
         string sourceName,
         bool enableSensitiveData,
         ILogger? logger = null,
-        Func<TelemetryIdentity, string, bool, TelemetryLane>? createLane = null)
+        Func<TelemetryIdentity, string, bool, TelemetryLane>? createLane = null,
+        int maxIdentities = TraconObservabilityOptions.DefaultMaxTelemetryLaneCardinality)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxIdentities);
         _sourceName = sourceName;
         _enableSensitiveData = enableSensitiveData;
         _logger = logger;
         _createLane = createLane ?? NewLane;
+        _maxIdentities = maxIdentities;
     }
 
     private static TelemetryLane NewLane(TelemetryIdentity identity, string sourceName, bool enableSensitiveData)
@@ -69,6 +86,12 @@ internal sealed class TelemetryLanePool : IDisposable
 
     /// <summary>Gets the number of lanes made and not yet disposed.</summary>
     internal int LaneCount => Volatile.Read(ref _lanes);
+
+    /// <summary>Gets the number of identities that carry a model or an endpoint and were accepted, which never goes above the limit.</summary>
+    internal int AdmittedIdentities => Volatile.Read(ref _admitted);
+
+    /// <summary>Gets the number of runs that borrowed a lane of their providers because the limit was reached.</summary>
+    internal int OverflowedCalls => Volatile.Read(ref _overflowed);
 
     /// <summary>Gets the number of lanes waiting for a run.</summary>
     internal int IdleCount => _idle.Values.Sum(static stack => stack.Count);
@@ -90,16 +113,25 @@ internal sealed class TelemetryLanePool : IDisposable
             return null;
         }
 
-        var stack = _idle.GetOrAdd(identity.Key, static _ => new ConcurrentStack<TelemetryLane>());
+        // An identity the pool already holds takes one lookup, as it did before there was a limit; only a key the pool has
+        // not seen goes through the admission.
+        var key = identity.Key;
+
+        if (!_idle.TryGetValue(key, out var stack))
+        {
+            key = Admit(key);
+            stack = _idle.GetOrAdd(key, static _ => new ConcurrentStack<TelemetryLane>());
+        }
 
         if (!stack.TryPop(out var lane))
         {
             // 🚨 Telemetry is observability, and observability never breaks the run. The caller runs the agent
             // without a lane when this returns null, so a lane that cannot be built costs the run its spans and
-            // nothing else; the next run tries again, because nothing about the failure is remembered.
+            // nothing else; the next run tries again, because nothing about the failure is remembered. An identity
+            // that was accepted keeps its place even then: the place belongs to the identity and not to the lane.
             try
             {
-                lane = _createLane(identity, _sourceName, _enableSensitiveData);
+                lane = _createLane(key == identity.Key ? identity : identity.ForOverflow(), _sourceName, _enableSensitiveData);
             }
             catch (Exception exception)
             {
@@ -117,6 +149,65 @@ internal sealed class TelemetryLanePool : IDisposable
         lane.Target = target;
 
         return lane;
+    }
+
+    /// <summary>
+    /// Says which key a run of <paramref name="key"/> borrows its lane under: its own while the pool has a place for it, or
+    /// the key of its providers without a model and an endpoint when it has none.
+    /// </summary>
+    /// <param name="key">The identity of the agent the run calls.</param>
+    /// <returns>The key to borrow under.</returns>
+    private TelemetryKey Admit(TelemetryKey key)
+    {
+        // A key without a model and an endpoint is the key an overflowing identity falls back to. It takes no place, so
+        // an agent whose chat client says nothing about itself is never turned away.
+        if (!key.NamesModelOrEndpoint || _idle.ContainsKey(key))
+        {
+            return key;
+        }
+
+        while (true)
+        {
+            var admitted = Volatile.Read(ref _admitted);
+
+            if (admitted >= _maxIdentities)
+            {
+                // The thread that took the last place for this very key may not have stored it yet; the next run of it
+                // finds it. Nothing about the turned-away run is remembered, so no set of overflowing identities grows.
+                return _idle.ContainsKey(key) ? key : Overflow(key);
+            }
+
+            // The place is taken before the key is stored, as the job-lane tags do: two identities that arrive together
+            // cannot both take the last one. A run that loses the race for its own key hands the place back.
+            if (Interlocked.CompareExchange(ref _admitted, admitted + 1, admitted) != admitted)
+            {
+                continue;
+            }
+
+            if (!_idle.TryAdd(key, new ConcurrentStack<TelemetryLane>()))
+            {
+                Interlocked.Decrement(ref _admitted);
+            }
+
+            return key;
+        }
+    }
+
+    private TelemetryKey Overflow(TelemetryKey key)
+    {
+        Interlocked.Increment(ref _overflowed);
+
+        if (Interlocked.Exchange(ref _overflowWarned, 1) == 0 && _logger is not null && _logger.IsEnabled(LogLevel.Warning))
+        {
+            // 🚨 The text names neither a host, a port nor a model: they are the tenant's own settings, and a log is not
+            // where a tenant's resource name belongs.
+            _logger.LogWarning(
+                "Agent telemetry keeps lanes for {Limit} models and endpoints, and every further one is written without its model, address and port. " +
+                "Raise Tracon:Observability:MaxTelemetryLaneCardinality if the host expects more models or endpoints.",
+                _maxIdentities);
+        }
+
+        return key.WithoutModelAndEndpoint();
     }
 
     /// <summary>Takes a lane back and forgets its target.</summary>
@@ -314,7 +405,15 @@ internal readonly record struct TelemetryKey(
     string? ChatProvider,
     string? DefaultModelId,
     string? ServerAddress,
-    int ServerPort);
+    int ServerPort)
+{
+    /// <summary>Gets a value that says whether the key carries a default model or an endpoint, which is what the pool counts.</summary>
+    internal bool NamesModelOrEndpoint => DefaultModelId is not null || ServerAddress is not null || ServerPort != 0;
+
+    /// <summary>Gets the key of the lanes that serve every identity of these providers the pool has no place for.</summary>
+    /// <returns>The key without its default model, host and port.</returns>
+    internal TelemetryKey WithoutModelAndEndpoint() => new(AgentProvider, ChatProvider, DefaultModelId: null, ServerAddress: null, ServerPort: 0);
+}
 
 /// <summary>An agent's <see cref="TelemetryKey"/> together with the chat client metadata it was read from.</summary>
 internal sealed class TelemetryIdentity
@@ -330,6 +429,17 @@ internal sealed class TelemetryIdentity
 
     /// <summary>Gets the metadata a new lane answers with. Another instance with the same key reads the same.</summary>
     internal ChatClientMetadata? ChatMetadata { get; }
+
+    /// <summary>
+    /// Makes the identity a lane is built for when the pool has no place for this one: the same providers, and a chat
+    /// client that names no default model and no endpoint. The lane must not be told more than that, or its spans would
+    /// still carry the address of the identity that was turned away.
+    /// </summary>
+    /// <returns>The identity of the providers.</returns>
+    internal TelemetryIdentity ForOverflow()
+        => new(
+            Key.WithoutModelAndEndpoint(),
+            ChatMetadata is null ? null : new ChatClientMetadata(ChatMetadata.ProviderName, providerUri: null, defaultModelId: null));
 
     /// <summary>Reads the identity of <paramref name="agent"/> the way the framework's telemetry agent would.</summary>
     /// <param name="agent">The agent a run calls.</param>

@@ -15,6 +15,7 @@
 // The process prints CAPACITY-HOST-READY (or CAPACITY-WORKER-READY) once it is
 // listening. The orchestrator waits for that LINE, not for a duration.
 using System.Globalization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -80,6 +81,12 @@ if (CapacityEnvironment.TenantTag)
     builder.Services.Configure<TraconOptions>(options => options.Observability.IncludeTenantTag = true);
 }
 
+// Unset, the product's own limit on telemetry identities applies. A profile sets it low to see where the lanes stop.
+if (CapacityEnvironment.TelemetryLaneLimit is { } laneLimit)
+{
+    builder.Services.Configure<TraconOptions>(options => options.Observability.MaxTelemetryLaneCardinality = laneLimit);
+}
+
 // Off in the product. On, the endpoint filter keeps a partition per tenant in this process; the limit is set so high
 // that nothing is ever refused, because the question is what the limiter keeps, not what it does to a caller.
 if (CapacityEnvironment.RateLimitInstance)
@@ -101,8 +108,18 @@ if (CapacityEnvironment.ObservabilityOff)
     builder.Services.Configure<TraconOptions>(options => options.Observability.Enabled = false);
 }
 
+// The tenant a client is built for comes from the request that triggered the compile, which is where the product's own
+// tenant context reads it. Only the tenant-endpoint knob reads it; with the knob off the provider ignores it.
+var requests = new HttpContextAccessor();
+builder.Services.AddSingleton<IHttpContextAccessor>(requests);
+
 tracon
-    .AddModelProvider(new CapacityModelProvider(settings.Workload, counters, executions, settings.Name))
+    .AddModelProvider(new CapacityModelProvider(
+        settings.Workload,
+        counters,
+        executions,
+        settings.Name,
+        () => requests.HttpContext?.Request.Headers[CapacityContract.TenantHeader].ToString()))
     .AddTool(probe.CreateFunction())
     .AddAgent(new AgentDefinition
     {

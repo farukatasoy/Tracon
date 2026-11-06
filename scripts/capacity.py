@@ -1031,6 +1031,8 @@ def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any]
             "rateLimitEnabled": str(os.environ.get("TRACON_CAPACITY_RATE_LIMIT", "off").lower() == "instance").lower(),
             "msbuildExtraArguments": " ".join(extra_msbuild_arguments()) or "none",
             "observability": os.environ.get("TRACON_CAPACITY_OBSERVABILITY", "on"),
+            "tenantEndpoints": str(os.environ.get("TRACON_CAPACITY_TENANT_ENDPOINTS", "0") == "1").lower(),
+            "telemetryLaneLimit": os.environ.get("TRACON_CAPACITY_TELEMETRY_LANE_LIMIT", "product default"),
             "openTenancy": str(profile.get("tenantRamp") is not None).lower(),
             "tenantTag": str(bool((profile.get("tenantRamp") or {}).get("tenantTag", False))).lower(),
             "tenantRamp": json.dumps(profile.get("tenantRamp")) if profile.get("tenantRamp") else "none",

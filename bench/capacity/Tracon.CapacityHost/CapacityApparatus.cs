@@ -58,6 +58,8 @@ public static class CapacityApparatus
                 ["inFlightRuns"] = CapacityRunLedger.InFlight,
                 ["openTenancy"] = CapacityEnvironment.OpenTenants,
                 ["tenantTag"] = CapacityEnvironment.TenantTag,
+                ["tenantEndpoints"] = CapacityEnvironment.TenantEndpoints,
+                ["telemetryLaneLimit"] = services.GetRequiredService<IOptions<TraconOptions>>().Value.Observability.MaxTelemetryLaneCardinality,
                 ["rateLimitEnabled"] = services.GetRequiredService<IOptions<TraconRateLimitOptions>>().Value.Enabled,
                 ["observabilityEnabled"] = services.GetRequiredService<IOptions<TraconOptions>>().Value.Observability.Enabled,
 

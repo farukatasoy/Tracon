@@ -411,6 +411,8 @@ Tracon.TraconObservabilityOptions.MaxJobLaneCardinality.get -> int
 Tracon.TraconObservabilityOptions.MaxJobLaneCardinality.set -> void
 Tracon.TraconObservabilityOptions.MaxSpansPerRun.get -> int
 Tracon.TraconObservabilityOptions.MaxSpansPerRun.set -> void
+Tracon.TraconObservabilityOptions.MaxTelemetryLaneCardinality.get -> int
+Tracon.TraconObservabilityOptions.MaxTelemetryLaneCardinality.set -> void
 Tracon.TraconObservabilityOptions.PersistSpans.get -> bool
 Tracon.TraconObservabilityOptions.PersistSpans.set -> void
 Tracon.TraconObservabilityOptions.QuotaUsageRefreshInterval.get -> System.TimeSpan

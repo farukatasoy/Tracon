@@ -214,7 +214,9 @@ public static partial class TraconServiceCollectionExtensions
         // is disposed. The container disposes this singleton when the host stops.
         services.TryAddSingleton(static provider => new ChatTelemetryLanes(
             TraconDiagnostics.ActivitySourceName,
-            provider.GetService<ILoggerFactory>()));
+            provider.GetService<ILoggerFactory>(),
+            maxIdentities: provider.GetService<IOptions<TraconOptions>>()?.Value.Observability.MaxTelemetryLaneCardinality
+                ?? TraconObservabilityOptions.DefaultMaxTelemetryLaneCardinality));
 
         // Sets up the WHOLE registry pipeline (moved out of the provider
         // packages). An explicit factory is required: the built-in

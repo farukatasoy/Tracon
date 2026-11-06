@@ -30,6 +30,13 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
     /// </remarks>
     internal const int MaxAgentCacheEntries = 1_000_000;
 
+    /// <summary>The most identities the telemetry of the model calls and of the agents may each be set to key.</summary>
+    /// <remarks>
+    /// Past this a number is a typing error, not a budget: it is the bound of the compiled agent cache, and a lane is
+    /// lighter than a compiled agent.
+    /// </remarks>
+    internal const int MaxTelemetryLaneCardinalityLimit = 1_000_000;
+
     /// <summary>The longest idle lifetime the compiled agent cache may be set to.</summary>
     internal static readonly TimeSpan MaxAgentCacheIdleLifetime = TimeSpan.FromDays(30);
 
@@ -368,6 +375,15 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             (failures ??= []).Add(
                 $"{nameof(TraconObservabilityOptions)}.{nameof(TraconObservabilityOptions.SuccessSampleRatio)} " +
                 $"must be a fraction from 0 to 1 (0.1 keeps one successful run in ten). Actual value: {Format(observability.SuccessSampleRatio)}.");
+        }
+
+        // Zero is a setting: no endpoint and no model is keyed. A negative number would read the same where it is used,
+        // so it is refused here instead of being taken for "no limit".
+        if (options.Observability is { } telemetry && telemetry.MaxTelemetryLaneCardinality is < 0 or > MaxTelemetryLaneCardinalityLimit)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconObservabilityOptions)}.{nameof(TraconObservabilityOptions.MaxTelemetryLaneCardinality)} " +
+                $"must be between 0 and {MaxTelemetryLaneCardinalityLimit}. Actual value: {telemetry.MaxTelemetryLaneCardinality}.");
         }
 
         if (options.Preflight is { } preflight && !IsFraction(preflight.ReserveRatio))

@@ -451,6 +451,11 @@ public static partial class TraconServiceCollectionExtensions
             nameof(TraconObservabilityOptions.MaxJobLaneCardinality),
             static o => o.MaxJobLaneCardinality,
             static (o, v) => o.MaxJobLaneCardinality = v);
+
+        read.Int32(
+            nameof(TraconObservabilityOptions.MaxTelemetryLaneCardinality),
+            static o => o.MaxTelemetryLaneCardinality,
+            static (o, v) => o.MaxTelemetryLaneCardinality = v);
     }
 
     /// <summary>Binds the <c>Tracon:OnlineEvaluation</c> section.</summary>

@@ -53,8 +53,9 @@ internal sealed class ChatSpanProbe : IDisposable
 
     public ChatTelemetryLanes NewLanes(
         ILoggerFactory? loggerFactory = null,
-        Func<ChatTelemetryKey, ChatClientMetadata?, ChatTelemetryLane>? createLane = null)
-        => new(Source, loggerFactory, createLane);
+        Func<ChatTelemetryKey, ChatClientMetadata?, ChatTelemetryLane>? createLane = null,
+        int maxIdentities = TraconObservabilityOptions.DefaultMaxTelemetryLaneCardinality)
+        => new(Source, loggerFactory, createLane, maxIdentities);
 
     /// <summary>Gets the spans written so far, in the order they ended.</summary>
     public List<Activity> Spans()

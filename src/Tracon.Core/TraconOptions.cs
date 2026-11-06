@@ -909,6 +909,42 @@ public sealed class TraconObservabilityOptions
     /// the process; the set never shrinks.
     /// </remarks>
     public int MaxJobLaneCardinality { get; set; } = 64;
+
+    /// <summary>The value of <see cref="MaxTelemetryLaneCardinality"/> a new options object starts with.</summary>
+    /// <remarks>
+    /// The largest power of two whose worst case, one lane of each kind per identity, stays inside the memory the compiled
+    /// agent cache is already allowed to hold: measured live (Release, .NET 10, a metrics and a trace provider listening)
+    /// at about 9.4 KB for a model-call lane and 10.8 KB for an agent lane, 1024 of each is about 20 MiB where the cache of
+    /// 4096 agents holds about 33 MiB. The next power of two is about 40 MiB.
+    /// </remarks>
+    internal const int DefaultMaxTelemetryLaneCardinality = 1024;
+
+    /// <summary>
+    /// Gets or sets how many distinct provider endpoints and models get telemetry of their own before every further one
+    /// shares a single series and span shape for its provider.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A tenant administrator who writes a provider endpoint of their own chooses the host and the port of it, and an agent
+    /// definition names the model: both are free text, and each new value makes a meter and an activity source that stay
+    /// until the host stops. This limit is a memory budget, not a design constraint. It counts the model-call telemetry
+    /// and the agent telemetry apart, so each accepts this many.
+    /// </para>
+    /// <para>
+    /// An endpoint or a model that arrives after the limit is reached still writes its spans and its metrics. They name the
+    /// provider and carry no <c>server.address</c>, no <c>server.port</c> and, on an agent span, no default
+    /// <c>gen_ai.request.model</c>, and they are summed with every other identity over the limit. One <c>Warning</c> says so,
+    /// without the host or the model. An identity that earned its own telemetry keeps it for the life of the process, so
+    /// which identities carry their labels can differ from one start to the next: set the limit above the number of
+    /// endpoints and models you expect. It is a separate limit from <see cref="TraconAgentCacheOptions.MaxEntries"/>,
+    /// which bounds compiled agents and not the identities they report.
+    /// </para>
+    /// <para>
+    /// <c>0</c> keys no identity: every call is written without an endpoint or a model label. A negative value or one
+    /// above 1 000 000 stops startup. The value is read when the host starts; a later change takes effect at the next start.
+    /// </para>
+    /// </remarks>
+    public int MaxTelemetryLaneCardinality { get; set; } = DefaultMaxTelemetryLaneCardinality;
 }
 
 /// <summary>Defines how much detail run recording retains.</summary>

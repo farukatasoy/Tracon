@@ -86,6 +86,7 @@ Tracon:Observability:IncludeTenantTag
 Tracon:Observability:JobQueueDepthRefreshInterval
 Tracon:Observability:MaxJobLaneCardinality
 Tracon:Observability:MaxSpansPerRun
+Tracon:Observability:MaxTelemetryLaneCardinality
 Tracon:Observability:PersistSpans
 Tracon:Observability:QuotaUsageRefreshInterval
 Tracon:Observability:RecordSensitiveData

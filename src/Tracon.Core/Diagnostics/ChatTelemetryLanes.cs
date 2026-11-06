@@ -36,6 +36,14 @@ namespace Tracon;
 /// name it writes; the client reads the model of a call from the options of the call before it reads its default, and
 /// <see cref="SharedTelemetryChatClient"/> puts the default of its own pipeline there.
 /// </para>
+/// <para>
+/// The host and the port are free text too: a tenant administrator who binds a provider endpoint of their own chooses
+/// them, and the lanes are never disposed. The pool therefore keys at most a fixed number of endpoints
+/// (<see cref="TraconObservabilityOptions.MaxTelemetryLaneCardinality"/>). An endpoint that arrives after that goes to the
+/// lane of its provider, which names no host and no port: the call still writes its span and its metrics, and loses only
+/// the endpoint label. An endpoint that has a lane keeps it for the life of the pool, because a lane taken back would turn
+/// one series into two (see above).
+/// </para>
 /// </remarks>
 internal sealed class ChatTelemetryLanes : IDisposable
 {
@@ -45,28 +53,43 @@ internal sealed class ChatTelemetryLanes : IDisposable
     private readonly Func<ChatTelemetryKey, ChatClientMetadata?, ChatTelemetryLane> _createLane;
     private readonly ConcurrentDictionary<ChatTelemetryKey, ChatTelemetryLane> _lanes = [];
     private readonly Lock _gate = new();
+    private readonly int _maxIdentities;
+    private int _admitted;
+    private int _overflowed;
+    private int _overflowWarned;
     private int _disposed;
 
     /// <summary>Initializes a pool of lanes that write to one telemetry source.</summary>
     /// <param name="sourceName">The activity source and meter name of every lane.</param>
     /// <param name="loggerFactory">Where the lanes log, or <see langword="null"/> for no logger.</param>
     /// <param name="createLane">Builds a lane; the framework's telemetry client when omitted. A seam for tests only.</param>
+    /// <param name="maxIdentities">How many provider endpoints get a lane of their own; the rest share the lane of their provider.</param>
     /// <exception cref="ArgumentException"><paramref name="sourceName"/> is <see langword="null"/> or white space.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxIdentities"/> is negative.</exception>
     internal ChatTelemetryLanes(
         string sourceName,
         ILoggerFactory? loggerFactory = null,
-        Func<ChatTelemetryKey, ChatClientMetadata?, ChatTelemetryLane>? createLane = null)
+        Func<ChatTelemetryKey, ChatClientMetadata?, ChatTelemetryLane>? createLane = null,
+        int maxIdentities = TraconObservabilityOptions.DefaultMaxTelemetryLaneCardinality)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxIdentities);
 
         _sourceName = sourceName;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory?.CreateLogger<ChatTelemetryLanes>();
         _createLane = createLane ?? NewLane;
+        _maxIdentities = maxIdentities;
     }
 
     /// <summary>Gets the number of lanes made and not yet disposed.</summary>
     internal int LaneCount => _lanes.Count;
+
+    /// <summary>Gets the number of endpoints that were given a lane of their own, which never goes above the limit.</summary>
+    internal int AdmittedIdentities => Volatile.Read(ref _admitted);
+
+    /// <summary>Gets the number of pipelines that were sent to the lane of their provider because the limit was reached.</summary>
+    internal int OverflowedCalls => Volatile.Read(ref _overflowed);
 
     /// <summary>
     /// Puts the shared telemetry client above <paramref name="pipeline"/>: the part of a model-call pipeline that writes
@@ -137,9 +160,17 @@ internal sealed class ChatTelemetryLanes : IDisposable
             return existing;
         }
 
+        // A full pool answers an endpoint it has never seen without the lock: the count only goes up, so a read that
+        // says "full" stays true.
+        if (key.NamesEndpoint && Volatile.Read(ref _admitted) >= _maxIdentities)
+        {
+            return OverflowLane(key, metadata);
+        }
+
         // 🚨 A lane is made under a lock and not by GetOrAdd(factory): two pipelines that miss together would each build
         // a client, the loser of the race would be dropped without a dispose, and that is the leak this pool exists to
-        // stop.
+        // stop. The same lock keeps the count exact: it moves only here, after the lane is stored, so a builder that
+        // throws spends no place and two endpoints that arrive together cannot both take the last one.
         lock (_gate)
         {
             if (Volatile.Read(ref _disposed) != 0)
@@ -152,11 +183,72 @@ internal sealed class ChatTelemetryLanes : IDisposable
                 return existing;
             }
 
+            if (key.NamesEndpoint && _admitted >= _maxIdentities)
+            {
+                return OverflowLane(key, metadata);
+            }
+
             var lane = _createLane(key, metadata);
             _lanes[key] = lane;
 
+            if (key.NamesEndpoint)
+            {
+                Volatile.Write(ref _admitted, _admitted + 1);
+            }
+
             return lane;
         }
+    }
+
+    /// <summary>
+    /// Gives an endpoint the pool has no place for the lane of its provider. That lane is built for a client that names the
+    /// provider and nothing else, and it is the lane a pipeline whose client names no endpoint uses already: the places
+    /// are for endpoints, and this lane takes none.
+    /// </summary>
+    private ChatTelemetryLane? OverflowLane(ChatTelemetryKey key, ChatClientMetadata? metadata)
+    {
+        Interlocked.Increment(ref _overflowed);
+        WarnOnce();
+
+        var shared = key.WithoutEndpoint();
+
+        if (_lanes.TryGetValue(shared, out var existing))
+        {
+            return existing;
+        }
+
+        lock (_gate)
+        {
+            if (Volatile.Read(ref _disposed) != 0)
+            {
+                return null;
+            }
+
+            if (_lanes.TryGetValue(shared, out existing))
+            {
+                return existing;
+            }
+
+            var lane = _createLane(shared, new ChatClientMetadata(metadata?.ProviderName, providerUri: null, defaultModelId: null));
+            _lanes[shared] = lane;
+
+            return lane;
+        }
+    }
+
+    private void WarnOnce()
+    {
+        if (Interlocked.Exchange(ref _overflowWarned, 1) != 0 || _logger is null || !_logger.IsEnabled(LogLevel.Warning))
+        {
+            return;
+        }
+
+        // 🚨 The text names neither a host nor a port: the endpoint is the tenant's own setting, and a log is not where a
+        // tenant's resource name belongs.
+        _logger.LogWarning(
+            "Model call telemetry keeps lanes for {Limit} provider endpoints, and every further endpoint is written without its address and port. " +
+            "Raise Tracon:Observability:MaxTelemetryLaneCardinality if the host expects more endpoints.",
+            _maxIdentities);
     }
 }
 
@@ -204,6 +296,13 @@ internal readonly record struct ChatTelemetryKey(string? Provider, string? Serve
     /// <returns>Its key.</returns>
     internal static ChatTelemetryKey Of(ChatClientMetadata? metadata)
         => new(metadata?.ProviderName, metadata?.ProviderUri?.Host, metadata?.ProviderUri?.Port ?? 0);
+
+    /// <summary>Gets a value that says whether the key names an endpoint, which is what the pool counts.</summary>
+    internal bool NamesEndpoint => ServerAddress is not null || ServerPort != 0;
+
+    /// <summary>Gets the key of the lane that serves every endpoint of this provider the pool has no place for.</summary>
+    /// <returns>The key without its host and port.</returns>
+    internal ChatTelemetryKey WithoutEndpoint() => new(Provider, ServerAddress: null, ServerPort: 0);
 }
 
 /// <summary>

@@ -22,6 +22,31 @@ public static class CapacityEnvironment
     /// <summary>The variable that turns the tenant tag on the run, cost and job metrics on.</summary>
     public const string TenantTagVariable = "TRACON_CAPACITY_TENANT_TAG";
 
+    /// <summary>The variable that makes the model provider report an endpoint of its own for each tenant (<c>1</c>).</summary>
+    public const string TenantEndpointsVariable = "TRACON_CAPACITY_TENANT_ENDPOINTS";
+
+    /// <summary>The variable that sets how many provider endpoints and models get telemetry of their own; unset keeps the product's value.</summary>
+    public const string TelemetryLaneLimitVariable = "TRACON_CAPACITY_TELEMETRY_LANE_LIMIT";
+
+    /// <summary>
+    /// Whether the model provider reports a provider endpoint that differs for each tenant, the way a model client bound
+    /// to a tenant's own endpoint does. Off, it reports none, which is why a ramp that sends every tenant through one
+    /// provider cannot show how many telemetry lanes the endpoints a tenant chooses make. The addresses end in
+    /// <c>.invalid</c>: nothing is ever called, only the metadata is read.
+    /// </summary>
+    public static bool TenantEndpoints
+        => string.Equals(Environment.GetEnvironmentVariable(TenantEndpointsVariable), "1", StringComparison.Ordinal);
+
+    /// <summary>The limit the profile sets on telemetry identities, or <see langword="null"/> to leave the product's value alone.</summary>
+    public static int? TelemetryLaneLimit
+        => int.TryParse(
+            Environment.GetEnvironmentVariable(TelemetryLaneLimitVariable),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var value)
+            ? value
+            : null;
+
     /// <summary>The variable that turns Tracon's own spans and metrics off (<c>off</c>); anything else leaves them on, as the product ships.</summary>
     public const string ObservabilityVariable = "TRACON_CAPACITY_OBSERVABILITY";
 

@@ -50,6 +50,9 @@ internal sealed class OpenTelemetryAgentDecorator : IAgentDecorator, IDisposable
     /// <summary>Gets the number of telemetry lanes the decorator holds, which is zero before the first decorated call and after the decorator is disposed.</summary>
     internal int LaneCount => Volatile.Read(ref _pool)?.LaneCount ?? 0;
 
+    /// <summary>Gets the number of identities that carry a model or an endpoint and were given lanes of their own, which is zero before the first decorated call.</summary>
+    internal int AdmittedIdentities => Volatile.Read(ref _pool)?.AdmittedIdentities ?? 0;
+
     /// <inheritdoc />
     public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor)
     {
@@ -62,7 +65,7 @@ internal sealed class OpenTelemetryAgentDecorator : IAgentDecorator, IDisposable
             return agent;
         }
 
-        var pool = Volatile.Read(ref _pool) ?? CreatePool(settings.RecordSensitiveData);
+        var pool = Volatile.Read(ref _pool) ?? CreatePool(settings.RecordSensitiveData, settings.MaxTelemetryLaneCardinality);
 
         return new PooledOpenTelemetryAgent(agent, pool);
     }
@@ -70,9 +73,13 @@ internal sealed class OpenTelemetryAgentDecorator : IAgentDecorator, IDisposable
     /// <inheritdoc />
     public void Dispose() => _pool?.Dispose();
 
-    private TelemetryLanePool CreatePool(bool recordSensitiveData)
+    private TelemetryLanePool CreatePool(bool recordSensitiveData, int maxIdentities)
     {
-        var created = new TelemetryLanePool(TraconDiagnostics.ActivitySourceName, recordSensitiveData, _logger);
+        var created = new TelemetryLanePool(
+            TraconDiagnostics.ActivitySourceName,
+            recordSensitiveData,
+            _logger,
+            maxIdentities: maxIdentities);
         var existing = Interlocked.CompareExchange(ref _pool, created, null);
 
         if (existing is null)

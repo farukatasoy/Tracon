@@ -809,6 +809,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   recently are dropped, down to a tenth below it, and an entry that was not used for the lifetime is dropped by a check that runs while the cache is in use. A hit takes no lock and allocates nothing.
   Both values are checked when the host starts: zero, a negative value, more than 1,000,000 entries or more than 30 days is refused. New public type `TraconAgentCacheOptions` and property
   `TraconOptions.AgentCache`; the cache stays registered with `TryAdd`, so a registration of your own wins. The two keys are in the `AgentCache` rows of the configuration reference.
+- **`Tracon:Observability:MaxTelemetryLaneCardinality` (1024) bounds the provider endpoints and models that get telemetry of their own.** The telemetry of the model calls is kept for each provider, host and port, and the
+  telemetry of the agents for each provider, default model, host and port. A tenant administrator who binds a provider endpoint of their own writes the host and the port, and an agent definition names the model, and the
+  meters behind them are never disposed (disposing one splits its series): every new value left a set that stayed until the host stopped. Measured live, with a metrics and a trace provider listening (Release, .NET 10): about 9.4 KB for a
+  model-call set and about 10.8 KB for an agent set, so 1024 of each is about 20 MiB where the cache of 4096 agents holds about 33 MiB. The model calls and the agents each accept that many distinct endpoints and models. One that comes after
+  the limit **keeps its `chat` and `invoke_agent` spans and its metrics and loses its labels**: they name the provider and carry no `server.address` and no `server.port`, the `invoke_agent` span carries no default model (the `chat` span still names the
+  model of the call), and every such endpoint is summed into one series for its provider. One `Warning` for each kind names the setting and the limit and never the host, the port or the model. An endpoint that earned its set keeps it for the life of the
+  process, so which endpoints carry their labels is decided by which came first and can differ from one start to the next. Everything under the limit is as it was: the span shapes, the attributes and the metrics are unchanged. New public property
+  `TraconObservabilityOptions.MaxTelemetryLaneCardinality`; the value is read when the host starts, `0` is valid and labels none, and a negative value or one above 1,000,000 is refused at start.
+  What to do: a host whose tenants bind more than 1024 distinct endpoints, or more than 1024 distinct provider, model and endpoint combinations across its agents (one Azure OpenAI resource for each tenant is the likely case), raises the limit; the `Warning` is the sign.
+  The limit is separate from `Tracon:AgentCache:MaxEntries`, which bounds compiled agents and not the endpoints they report. A dashboard that groups by `server.address` sees the endpoints over the limit as one series without that label.
 
 - **`Tracon:Idempotency:ReservationTimeout`: a key whose process died is taken over after an hour.** A request reserves its `Idempotency-Key`, runs, and then
   stores its response. A process that died in between left a reservation nobody finished, and every later request with the key answered `409` until
@@ -1207,7 +1217,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     still answers with the source the spans go to.
   - **The instruments now grow with the provider endpoints the host talks to, not with the compiles.** There is one set for each provider and each distinct host and port. A tenant administrator who writes its own
     endpoint into a provider binding chooses how many: every new host name or port opens a set that stays until the process ends (about 3 KB, about 7 KiB while an OpenTelemetry SDK listens). The endpoint check requires an
-    absolute address and refuses a literal address the egress policy forbids; it does not limit the number of endpoints, and there is no ceiling yet.
+    absolute address and refuses a literal address the egress policy forbids; it does not limit the number of endpoints, `Tracon:Observability:MaxTelemetryLaneCardinality` does (below).
 - **A provider key that ends in a line break works, and one that holds a character an HTTP header cannot carry stops the host at start.** A key read from a file or a mounted secret usually ends in a
   newline. The Anthropic client refused its own `Authorization` header for such a key with a sentence that quoted the whole key, and a key set up at start has no per-call credential to mask in that text,
   so the key reached the error text of the run, the run record, the logs and the status of the chat span, and the database when trace content is recorded; the OpenAI, Azure OpenAI and Google clients wrote
