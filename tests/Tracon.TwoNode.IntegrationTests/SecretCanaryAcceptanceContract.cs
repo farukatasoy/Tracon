@@ -41,6 +41,10 @@ public abstract class SecretCanaryAcceptanceContract
 
     private const string SetupAgent = "setup-key-agent";
     private const string TenantAgent = "tenant-key-agent";
+    private const string SetupToolAgent = "setup-tool-agent";
+    private const string TenantToolAgent = "tenant-tool-agent";
+    private const string ToolName = "canary_tool";
+    private const string ToolStem = "canary-db-tool-text";
     private const string Tenant = "tenant-a";
     private const string TenantProvider = "canary-provider";
     private const string TenantKeyName = "Tracon:ProviderKeys:tenant-a:Canary";
@@ -128,6 +132,229 @@ public abstract class SecretCanaryAcceptanceContract
         };
 
         SecretHits.Find(outputs, Secrets()).ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// The paths that write a failure's text to a table of their own are driven on the server databases too: a tool that
+    /// throws, a run a front end starts through the AG-UI endpoint, and the jobs a cron schedule opens for the queued-run
+    /// and batch handlers. Each runs with the startup key and a tenant's key, while the provider accepts and while it
+    /// refuses and quotes the key.
+    /// </summary>
+    [Fact]
+    public async Task The_secrets_are_in_no_value_of_the_database_after_a_failing_tool_an_AGUI_run_and_scheduled_jobs()
+    {
+        var database = await NewDatabaseAsync(PasswordStem + "-8c1e5d70");
+        using var probe = new LeakProbe();
+        var structured = new StructuredLogProbe();
+        // The database decides when a job is ready (its own clock, so a host whose clock is skewed cannot lease early or late):
+        // the test's clock starts in the past and stays there, so every job its schedules open is already due for the server.
+        var clock = new ManualTimeProvider(DateTimeOffset.UtcNow.AddHours(-1));
+
+        await using var wire = await CanaryWireServer.StartAsync();
+        await using var host = await StartAsync(
+            database.Use,
+            wire,
+            structured,
+            extend: builder => builder
+                .UseScheduling(static options =>
+                {
+                    options.PollInterval = TimeSpan.FromMilliseconds(20);
+                    options.MaxAttempts = 1;
+                })
+                .AddTool(
+                    (Func<string>)(() => throw new InvalidOperationException($"Server=db.internal;Password={ToolStem}-0e5a1b")),
+                    name: ToolName,
+                    description: "Looks an order up.")
+                .AddAgent(new AgentDefinition
+                {
+                    Name = SetupToolAgent,
+                    Instructions = "Answer briefly.",
+                    Model = new ModelBinding { Provider = "openai", Model = "canary-model" },
+                    ToolNames = [ToolName],
+                    Origin = AgentDefinitionOrigin.Code,
+                })
+                .AddAgent(new AgentDefinition
+                {
+                    Name = TenantToolAgent,
+                    Instructions = "Answer briefly.",
+                    Model = new ModelBinding { Provider = TenantProvider, Model = "canary-model" },
+                    ToolNames = [ToolName],
+                    Origin = AgentDefinitionOrigin.Code,
+                }),
+            extendServices: services => services.AddSingleton<TimeProvider>(clock),
+            afterMap: static app => app.MapTraconAGUI("/tracon/agui"));
+
+        var setup = new CanaryDrive(host);
+        var tenant = new CanaryDrive(host, Tenant);
+
+        (await tenant.SendAsync(
+            HttpMethod.Put,
+            $"/tracon/api/tenants/{Tenant}/providers/{TenantProvider}",
+            new { apiKeyConfigurationName = TenantKeyName, endpoint = wire.BaseAddress.ToString() })).ShouldBe(HttpStatusCode.OK);
+
+        // The tool: the provider asks for it, it throws, and the turn after it is accepted, then refused (quoting the key).
+        // The AG-UI endpoint: the same two answers, through a front end's request.
+        wire.ToolCall = ToolName;
+
+        foreach (var mode in (CanaryWireServer.Behavior[])[CanaryWireServer.Behavior.Accept, CanaryWireServer.Behavior.RefuseAndQuote])
+        {
+            wire.Mode = mode;
+
+            await setup.RunTheSixWaysAsync(SetupToolAgent);
+            await tenant.RunTheSixWaysAsync(TenantToolAgent);
+
+            foreach (var (drive, agent) in ((CanaryDrive, string)[])[(setup, SetupToolAgent), (tenant, TenantToolAgent)])
+            {
+                await drive.SendAsync(
+                    HttpMethod.Post,
+                    $"/tracon/agui/{agent}",
+                    new
+                    {
+                        threadId = $"thread-{agent}-{mode}",
+                        runId = $"run-{agent}-{mode}",
+                        state = new { },
+                        messages = new[] { new { id = "u1", role = "user", content = "hello" } },
+                        tools = Array.Empty<object>(),
+                        context = Array.Empty<object>(),
+                        forwardedProps = new { },
+                    });
+            }
+        }
+
+        wire.ToolCall = null;
+
+        // The jobs: a cron schedule per handler and per key, due after the clock moves; accepted first, then refused.
+        var jobStatuses = new List<string>();
+
+        foreach (var (phase, mode) in ((string, CanaryWireServer.Behavior)[])[("accepted", CanaryWireServer.Behavior.Accept), ("refused", CanaryWireServer.Behavior.RefuseAndQuote)])
+        {
+            wire.Mode = mode;
+            var schedules = new List<(CanaryDrive Drive, string Name, object Body)>();
+
+            foreach (var (drive, agent, label) in ((CanaryDrive, string, string)[])[(setup, SetupAgent, "setup"), (tenant, TenantAgent, "tenant")])
+            {
+                schedules.Add((drive, $"{phase}-{label}-run", new
+                {
+                    handlerKey = "tracon.agent-run",
+                    targetName = agent,
+                    cron = "* * * * *",
+                    timeZone = "UTC",
+                    enabled = true,
+                    payload = new { runId = Guid.NewGuid(), message = "hello" },
+                }));
+                schedules.Add((drive, $"{phase}-{label}-batch", new
+                {
+                    handlerKey = "tracon.agent-batch",
+                    targetName = agent,
+                    cron = "* * * * *",
+                    timeZone = "UTC",
+                    enabled = true,
+                    payload = new[] { "first", "second" },
+                }));
+            }
+
+            foreach (var (drive, name, body) in schedules)
+            {
+                (await drive.SendAsync(HttpMethod.Put, $"/tracon/api/schedules/{name}", body)).ShouldBe(HttpStatusCode.OK);
+            }
+
+            clock.Advance(TimeSpan.FromMinutes(2));
+
+            var ended = false;
+            var waitUntil = DateTimeOffset.UtcNow.AddSeconds(60);
+
+            while (DateTimeOffset.UtcNow < waitUntil && !ended)
+            {
+                var now = (await JobStatusesAsync(host, null)).Concat(await JobStatusesAsync(host, Tenant)).ToList();
+
+                ended = now.Count(static status => status is "Completed" or "Failed" or "Cancelled") >= jobStatuses.Count + schedules.Count
+                    && !now.Any(static status => status is "Pending" or "Leased" or "Running");
+
+                if (!ended)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken); // delay: polling
+                }
+            }
+
+            if (!ended)
+            {
+                var detail = new StringBuilder();
+
+                foreach (var t in (string?[])[null, Tenant])
+                {
+                    using var diagnostic = new HttpRequestMessage(HttpMethod.Get, new Uri("/tracon/api/jobs?limit=200", UriKind.Relative));
+
+                    if (t is not null)
+                    {
+                        diagnostic.Headers.Add("X-Tracon-Tenant", t);
+                    }
+
+                    using var listed = await host.Client.SendAsync(diagnostic, TestContext.Current.CancellationToken);
+                    detail.AppendLine("tenant " + (t ?? "(none)") + ": " + await listed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+                }
+
+                throw new InvalidOperationException($"the {phase} jobs did not end in time: " + detail);
+            }
+
+            jobStatuses.Clear();
+            jobStatuses.AddRange((await JobStatusesAsync(host, null)).Concat(await JobStatusesAsync(host, Tenant)));
+
+            foreach (var (drive, name, body) in schedules)
+            {
+                var off = System.Text.Json.JsonSerializer.SerializeToNode(body)!.AsObject();
+                off["enabled"] = false;
+
+                (await drive.SendAsync(HttpMethod.Put, $"/tracon/api/schedules/{name}", off)).ShouldBe(HttpStatusCode.OK);
+            }
+        }
+
+        var answered = 0;
+
+        foreach (var drive in (CanaryDrive[])[setup, tenant])
+        {
+            await drive.SendAsync(HttpMethod.Get, "/tracon/api/jobs?limit=200");
+            await drive.SendAsync(HttpMethod.Get, "/tracon/api/schedules");
+            answered += await drive.ReadEverythingAsync();
+        }
+
+        answered.ShouldBeGreaterThan(80, "the read sweeps reached too few operations for an empty search to mean anything");
+        wire.Requests.ShouldBeGreaterThanOrEqualTo(60, "the paths have to have reached the provider, or an empty search proves nothing");
+        wire.Credentials.ShouldContain(credential => credential.Contains(SetupStem, StringComparison.Ordinal), "the provider was never sent the setup key");
+        wire.Credentials.ShouldContain(credential => credential.Contains(TenantStem, StringComparison.Ordinal), "the provider was never sent the tenant's key");
+        jobStatuses.Count(static status => status is "Failed").ShouldBeGreaterThanOrEqualTo(4, "the refused jobs did not fail, so no job wrote an error text");
+        jobStatuses.Count(static status => status is "Completed").ShouldBeGreaterThanOrEqualTo(4, "the accepted jobs did not complete");
+
+        var dump = await database.DumpTextAsync();
+
+        dump.ShouldContain("refused-setup-run", Case.Sensitive, "the schedules are not in the database, so the dump reads the wrong place");
+        dump.ShouldContain(SetupToolAgent, Case.Sensitive, "the runs are not in the database");
+
+        var outputs = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["responses and records"] = setup.Seen + "\n" + tenant.Seen,
+            ["log lines"] = string.Join('\n', host.Logs.Entries),
+            ["log records (state, scopes, exception parts)"] = structured.Text,
+            ["span names, tags, baggage and events"] = probe.Spans,
+            ["metric tags"] = probe.Measurements,
+            ["every text, JSON and binary value of the database"] = dump,
+        };
+
+        SecretHits.Find(outputs, Secrets()).ShouldBeEmpty();
+    }
+
+    private static async Task<List<string>> JobStatusesAsync(TraconTestHost host, string? tenant)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/tracon/api/jobs?limit=200", UriKind.Relative));
+
+        if (tenant is not null)
+        {
+            request.Headers.Add("X-Tracon-Tenant", tenant);
+        }
+
+        using var reply = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+        var jobs = await TraconTestHost.ReadJsonAsync(reply);
+
+        return [.. jobs.EnumerateArray().Select(static job => job.GetProperty("status").GetString()!)];
     }
 
     /// <summary>
@@ -238,7 +465,13 @@ public abstract class SecretCanaryAcceptanceContract
             new("unreachable server's password", UnreachableStem),
         ];
 
-    private static Task<TraconTestHost> StartAsync(Action<ITraconBuilder> useDatabase, CanaryWireServer wire, StructuredLogProbe structured)
+    private static Task<TraconTestHost> StartAsync(
+        Action<ITraconBuilder> useDatabase,
+        CanaryWireServer wire,
+        StructuredLogProbe structured,
+        Action<ITraconBuilder>? extend = null,
+        Action<IServiceCollection>? extendServices = null,
+        Action<Microsoft.AspNetCore.Builder.WebApplication>? afterMap = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -266,7 +499,10 @@ public abstract class SecretCanaryAcceptanceContract
                         Model = new ModelBinding { Provider = TenantProvider, Model = "canary-model" },
                         Origin = AgentDefinitionOrigin.Code,
                     });
+
+                extend?.Invoke(builder);
             },
+            configureAfterMap: afterMap,
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true,
             configureServices: services =>
             {
@@ -281,5 +517,7 @@ public abstract class SecretCanaryAcceptanceContract
                     options.Observability.SuccessSampleRatio = 1;
                     options.CircuitBreaker.FailureThreshold = 1000;
                 });
+
+                extendServices?.Invoke(services);
             });
 }

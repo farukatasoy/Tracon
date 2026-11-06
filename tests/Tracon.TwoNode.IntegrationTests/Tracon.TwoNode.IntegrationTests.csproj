@@ -19,6 +19,8 @@
     <!-- The secret canary registers model providers by their key. -->
     <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
+    <!-- The secret canary drives the AG-UI endpoint on the two server databases. -->
+    <ProjectReference Include="../../src/Tracon.AGUI/Tracon.AGUI.csproj" />
     <!-- Fake model provider (FakeModelProvider). -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
   </ItemGroup>
