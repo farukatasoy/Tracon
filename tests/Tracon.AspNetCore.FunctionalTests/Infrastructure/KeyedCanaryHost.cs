@@ -34,7 +34,7 @@ internal sealed class KeyedCanaryHost : IAsyncDisposable
     /// <summary>The tool the agent owns; the wire asks for it by this name.</summary>
     public const string ToolName = "canary_tool";
 
-    private const string Tenant = "tenant-a";
+    private const string TenantName = "tenant-a";
     private const string TenantProvider = "canary-provider";
     private const string TenantKeyName = "Tracon:ProviderKeys:tenant-a:Canary";
 
@@ -49,7 +49,7 @@ internal sealed class KeyedCanaryHost : IAsyncDisposable
         Structured = structured;
         Database = database;
         Probe = new LeakProbe();
-        Drive = new CanaryDrive(host, kind is CanaryKeyKind.Tenant ? Tenant : null);
+        Drive = new CanaryDrive(host, kind is CanaryKeyKind.Tenant ? TenantName : null);
     }
 
     /// <summary>Gets the scenario name the keys are built from.</summary>
@@ -75,7 +75,10 @@ internal sealed class KeyedCanaryHost : IAsyncDisposable
 
     /// <summary>Creates a second drive for the same tenant, whose record is kept apart from <see cref="Drive"/>'s.</summary>
     /// <returns>The drive.</returns>
-    public CanaryDrive NewDrive() => new(Host, _kind is CanaryKeyKind.Tenant ? Tenant : null);
+    public CanaryDrive NewDrive() => new(Host, _kind is CanaryKeyKind.Tenant ? TenantName : null);
+
+    /// <summary>Gets the tenant the host's requests are sent as, or <see langword="null"/> for the startup key.</summary>
+    public string? Tenant => _kind is CanaryKeyKind.Tenant ? TenantName : null;
 
     /// <summary>Gets the part of the key that identifies it.</summary>
     public string Stem => StemOf(_kind, Scenario);
@@ -87,6 +90,7 @@ internal sealed class KeyedCanaryHost : IAsyncDisposable
     /// <param name="configure">Adds to the host (tools, extra agents) after the provider is registered.</param>
     /// <param name="configureServices">Adds to the host's services.</param>
     /// <param name="recordSensitiveData">Whether the host records the content of prompts, results and failures in its traces.</param>
+    /// <param name="withTool">Whether the agent lists <see cref="ToolName"/>; the caller then registers the tool in <paramref name="configure"/>.</param>
     /// <returns>The running host, with the tenant's binding already written for <see cref="CanaryKeyKind.Tenant"/>.</returns>
     public static async Task<KeyedCanaryHost> StartAsync(
         CanaryKeyKind kind,
@@ -94,7 +98,8 @@ internal sealed class KeyedCanaryHost : IAsyncDisposable
         TempSqliteDatabase database,
         Action<ITraconBuilder>? configure = null,
         Action<IServiceCollection>? configureServices = null,
-        bool recordSensitiveData = true)
+        bool recordSensitiveData = true,
+        bool withTool = true)
     {
         var wire = await CanaryWireServer.StartAsync();
         var structured = new StructuredLogProbe();
@@ -126,7 +131,7 @@ internal sealed class KeyedCanaryHost : IAsyncDisposable
                     Name = AgentName,
                     Instructions = "Answer briefly.",
                     Model = new ModelBinding { Provider = provider, Model = "canary-model" },
-                    ToolNames = [ToolName],
+                    ToolNames = withTool ? [ToolName] : [],
                     Origin = AgentDefinitionOrigin.Code,
                 });
 
@@ -158,7 +163,7 @@ internal sealed class KeyedCanaryHost : IAsyncDisposable
         {
             (await started.Drive.SendAsync(
                 HttpMethod.Put,
-                $"/tracon/api/tenants/{Tenant}/providers/{TenantProvider}",
+                $"/tracon/api/tenants/{TenantName}/providers/{TenantProvider}",
                 new { apiKeyConfigurationName = TenantKeyName, endpoint = wire.BaseAddress.ToString() })).ShouldBe(HttpStatusCode.OK);
         }
 
