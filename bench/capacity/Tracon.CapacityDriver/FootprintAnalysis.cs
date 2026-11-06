@@ -66,23 +66,35 @@ public static class FootprintCatalog
     ];
 
     /// <summary>
-    /// The instruments that get a series for every tenant when the host adds the tenant to their tags: the run, cost,
-    /// judge, response-cache, job, audit-write-failure and run-recording-failure metrics. Matched on the instrument name,
-    /// whatever the meter is called.
+    /// The eight instruments that get a series for every tenant when the host adds the tenant to their tags: the run
+    /// counter, the cost counters, the judge score, the response-cache lookups, the job counter and the two failure counters.
+    /// The run and job duration histograms do not carry the tag, so their series do not follow the tenants and stay judged as
+    /// a count. Matched on the instrument name, whatever the meter is called.
     /// </summary>
     private static readonly string[] TenantTaggedInstruments =
     [
-        "tracon.runs", "tracon.run.duration", "tracon.run.cost", "tracon.judge.cost", "tracon.judge.score",
-        "tracon.model.cache", "tracon.job.executions", "tracon.job.duration", "tracon.audit.write_failures",
+        "tracon.runs", "tracon.run.cost", "tracon.judge.cost", "tracon.judge.score",
+        "tracon.model.cache", "tracon.job.executions", "tracon.audit.write_failures",
         "tracon.run.recording_failures",
     ];
 
-    /// <summary>Reports whether a reading counts the series of an instrument that has one per tenant when tenant tagging is on.</summary>
+    /// <summary>The reading that counts the series of every instrument together, the tagged ones among them.</summary>
+    public const string TotalSeriesName = "host.meterSeries";
+
+    /// <summary>
+    /// Reports whether a reading counts the series of an instrument that has one per tenant when tenant tagging is on, or
+    /// the total of every instrument's series, which then includes them.
+    /// </summary>
     /// <param name="name">The reading's name.</param>
-    /// <returns><see langword="true"/> for the series count of a tenant-tagged instrument.</returns>
+    /// <returns><see langword="true"/> for the series count of a tenant-tagged instrument and for the total.</returns>
     public static bool IsTenantTaggedSeries(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
+
+        if (string.Equals(name, TotalSeriesName, StringComparison.Ordinal))
+        {
+            return true;
+        }
 
         if (!name.StartsWith(SeriesPrefix, StringComparison.Ordinal))
         {
@@ -177,10 +189,11 @@ public sealed record FootprintAnalysisOptions
     /// breathes wider than this raises it for that run.
     /// </summary>
     /// <remarks>
-    /// 8, from the six <c>tenant-ramp</c> cells recorded in November 2026 (28 plateaus): the median of a plateau sat between 9
-    /// and 15 connections at 2 to 10 000 tenants with no relation to the tenants, and the largest rise from one plateau to the
-    /// next was 5 (7 when the end of the plateau is read instead of the whole). Inside one plateau the pool was flat to within a
-    /// connection, so the first plateau alone says almost nothing about how far it moves between two.
+    /// 8, chosen just above what six <c>tenant-ramp</c> cells recorded in November 2026 showed (26 plateaus): the median of a
+    /// plateau sat between 9 and 15 connections at 2 to 10 000 tenants with no relation to the tenants, the largest rise from
+    /// one plateau to the next was 5 (7 when the end of the plateau is read instead of the whole), and the readings inside a
+    /// plateau spread by at most 7 (95th less 5th percentile; 2 or less in the first plateaus, which is why the first plateau
+    /// alone cannot set the band). It is a value above the largest one seen, not a measured property of the pool.
     /// </remarks>
     public double PooledBreath { get; init; } = 8;
 
@@ -225,6 +238,13 @@ public static class FootprintVerdict
     /// Surfaced in the report, never red.
     /// </summary>
     public const string Jump = "jump";
+
+    /// <summary>
+    /// The metric rose inside a plateau and the setting that is on explains it: with the tenant in the tags, an instrument
+    /// holds a series for every tenant that has had an event, and a series appears when its tenant is first exercised, which
+    /// can be inside a plateau. Surfaced in the report, never red; the cost per tenant between plateaus is still judged.
+    /// </summary>
+    public const string Expected = "expected";
 }
 
 /// <summary>How one metric moved inside one plateau.</summary>
@@ -449,12 +469,14 @@ public static class FootprintAnalysis
             // With the tenant in the tags, these instruments hold a series for every tenant: by design, and documented as a
             // cost of the setting. It is judged as the cost it is: steady per tenant is accepted, a cost per tenant that
             // climbs from one step to the next is super-linear, and a rise inside a plateau follows runs, not tenants.
-            if (ramp.TenantTagged && FootprintCatalog.IsTenantTaggedSeries(name))
+            var followsTenants = ramp.TenantTagged && FootprintCatalog.IsTenantTaggedSeries(name);
+
+            if (followsTenants)
             {
                 metric = metric with { Label = metric.Label + " (one per tenant by design)", Kind = MetricKind.Objects };
             }
 
-            result.Metrics.Add(AnalyseMetric(metric, points, holds, idle, ramp, samples, options));
+            result.Metrics.Add(AnalyseMetric(metric, points, holds, idle, ramp, samples, options, followsTenants));
         }
 
         result.Verdict = result.Metrics.Any(static m => string.Equals(m.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))
@@ -520,7 +542,8 @@ public static class FootprintAnalysis
         StageMark? idle,
         RampRecord ramp,
         IReadOnlyList<FootprintSample> samples,
-        FootprintAnalysisOptions options)
+        FootprintAnalysisOptions options,
+        bool followsTenants)
     {
         var analysis = new MetricAnalysis
         {
@@ -551,6 +574,12 @@ public static class FootprintAnalysis
             var inWindow = points.Where(p => p.Time >= window.Start && p.Time <= window.End).ToList();
 
             var trend = Trend(hold, window, inWindow, metric.Kind, options, RequestsPerSecond(hold), analysis.Breath ?? 0);
+
+            if (followsTenants && string.Equals(trend.Verdict, FootprintVerdict.Red, StringComparison.Ordinal))
+            {
+                trend.Verdict = FootprintVerdict.Expected;
+            }
+
             analysis.Trends.Add(trend);
 
             if (metric.Kind == MetricKind.Pooled)
@@ -594,6 +623,10 @@ public static class FootprintAnalysis
             {
                 analysis.Notes.Add(line + "; the rise is one jump, level before and after, not a slope in both halves of the plateau, so it is set aside");
             }
+            else if (string.Equals(trend.Verdict, FootprintVerdict.Expected, StringComparison.Ordinal))
+            {
+                analysis.Notes.Add(line + "; a series appears when its tenant first has an event, which can fall inside a plateau, so it is set aside while the cost per tenant between plateaus is judged");
+            }
         }
 
         for (var index = 1; index < holds.Count; index++)
@@ -635,7 +668,9 @@ public static class FootprintAnalysis
                 {
                     var added = holds[^1].Tenants - holds[0].Tenants;
 
-                    if (added > 0)
+                    // A pooled count is read over the whole window at a plateau and from the end of the idle stretch, which
+                    // are two different estimates: the difference says nothing about what is held per tenant.
+                    if (added > 0 && metric.Kind != MetricKind.Pooled)
                     {
                         analysis.RetainedPerTenant = (settled - first) / added;
                     }
@@ -715,7 +750,7 @@ public static class FootprintAnalysis
     }
 
     private static string PerRequest(MetricKind kind, StageTrend trend)
-        => kind != MetricKind.Count && trend.GrowthPerRequest is { } perRequest
+        => kind is not (MetricKind.Count or MetricKind.Pooled) && trend.GrowthPerRequest is { } perRequest
             ? string.Create(CultureInfo.InvariantCulture, $" ({Format(kind, perRequest)} per request)")
             : "";
 

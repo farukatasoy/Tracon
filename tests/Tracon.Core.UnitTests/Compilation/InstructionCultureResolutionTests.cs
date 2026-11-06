@@ -95,8 +95,9 @@ public sealed class InstructionCultureResolutionTests
         };
 
         var random = new Random(306);
-        var alphabet = "trTRenzhxa- _İı\t".ToCharArray();
-        var cultures = new List<string?> { null, string.Empty, " ", "\t", "-", "--", "tr-", " -x", "\t-tr", "tr tr", "tür-TR", "ı-x", "İ" };
+        // \u0130 and \u0131 are the dotted capital I and the dotless small i; \u00fc is u with a diaeresis.
+        var alphabet = "trTRenzhxa- _\u0130\u0131\t".ToCharArray();
+        var cultures = new List<string?> { null, string.Empty, " ", "\t", "-", "--", "tr-", " -x", "\t-tr", "tr tr", "t\u00fcr-TR", "\u0131-x", "\u0130" };
         cultures.Add(new string('a', 10_000));
         cultures.Add("tr-" + new string('x', 10_000));
         cultures.Add(new string('-', 10_000));

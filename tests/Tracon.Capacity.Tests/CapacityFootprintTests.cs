@@ -561,6 +561,27 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
+    public void Only_the_eight_instruments_the_product_tags_are_judged_as_one_series_per_tenant()
+    {
+        string[] tagged =
+        [
+            "tracon.runs", "tracon.run.cost", "tracon.judge.cost", "tracon.judge.score", "tracon.model.cache",
+            "tracon.job.executions", "tracon.audit.write_failures", "tracon.run.recording_failures",
+        ];
+
+        foreach (var instrument in tagged)
+        {
+            FootprintCatalog.IsTenantTaggedSeries("series:Tracon/" + instrument).ShouldBeTrue(instrument);
+        }
+
+        // The duration histograms are not tagged with the tenant: a series count that follows the tenants there is a leak.
+        FootprintCatalog.IsTenantTaggedSeries("series:Tracon/tracon.run.duration").ShouldBeFalse();
+        FootprintCatalog.IsTenantTaggedSeries("series:Tracon/tracon.job.duration").ShouldBeFalse();
+        FootprintCatalog.IsTenantTaggedSeries("host.osThreads").ShouldBeFalse();
+        FootprintCatalog.IsTenantTaggedSeries("series:Tracon/gen_ai.client.token.usage").ShouldBeFalse();
+    }
+
+    [Fact]
     public void A_series_for_every_tenant_whose_cost_per_tenant_climbs_is_red_even_when_the_tag_is_on()
     {
         // Three series each for the first tenants and more for each tenant after: super-linear in the tenants.
@@ -579,18 +600,56 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
-    public void A_series_for_every_tenant_that_grows_inside_a_plateau_is_red_even_when_the_tag_is_on()
+    public void A_series_that_appears_when_its_tenant_is_first_exercised_is_set_aside_inside_a_plateau_when_the_tag_is_on()
     {
-        // One more series every few seconds with the tenants fixed: a series made per run, which the tag does not explain.
-        var run = Fixture.Build((_, _, _, _) => null);
-        run.Ramp.TenantTagged = true;
-        run.Samples.ForEach(sample => sample.InstrumentSeries = new Dictionary<string, long>(StringComparer.Ordinal)
-        {
-            ["Tracon/tracon.runs"] = 12 + (3L * sample.Tenants) + (long)(sample.OffsetSeconds / 2),
-        });
+        // The tenants are fixed and the series count still climbs through the plateau, because a tenant's series appears
+        // when it first has an event: the tag explains that. The same climb with the tag off is a series made per run.
+        static void Climb(FootprintSample sample)
+            => sample.InstrumentSeries = new Dictionary<string, long>(StringComparer.Ordinal)
+            {
+                ["Tracon/tracon.runs"] = 12 + (3L * sample.Tenants) + (long)(sample.OffsetSeconds / 2),
+            };
 
-        FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options)
+        var tagged = Fixture.Build((_, _, _, _) => null);
+        tagged.Ramp.TenantTagged = true;
+        tagged.Samples.ForEach(Climb);
+
+        var runs = FootprintAnalysis.Analyse("cell", tagged.Samples, tagged.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "series:Tracon/tracon.runs", StringComparison.Ordinal));
+
+        runs.Trends.ShouldContain(static trend => string.Equals(trend.Verdict, FootprintVerdict.Expected, StringComparison.Ordinal));
+        runs.Trends.ShouldNotContain(static trend => string.Equals(trend.Verdict, FootprintVerdict.Red, StringComparison.Ordinal));
+        runs.Notes.ShouldContain(static note => note.Contains("first has an event", StringComparison.Ordinal));
+        string.Equals(runs.Verdict, FootprintVerdict.Red, StringComparison.Ordinal).ShouldBeFalse(string.Join("; ", runs.Reasons));
+
+        var untagged = Fixture.Build((_, _, _, _) => null);
+        untagged.Samples.ForEach(Climb);
+
+        FootprintAnalysis.Analyse("cell", untagged.Samples, untagged.Ramp, Options)
             .Metrics.Single(static m => string.Equals(m.Name, "series:Tracon/tracon.runs", StringComparison.Ordinal))
+            .Verdict.ShouldBe(FootprintVerdict.Red);
+    }
+
+    [Fact]
+    public void The_total_of_every_series_follows_the_tenants_when_the_tag_is_on_and_is_a_leak_when_it_is_off()
+    {
+        static void Total(FootprintSample sample) => sample.Values["host.meterSeries"] = 110 + (2.0 * sample.Tenants);
+
+        var tagged = Fixture.Build((_, _, _, _) => null);
+        tagged.Ramp.TenantTagged = true;
+        tagged.Samples.ForEach(Total);
+
+        var total = FootprintAnalysis.Analyse("cell", tagged.Samples, tagged.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "host.meterSeries", StringComparison.Ordinal));
+
+        total.Kind.ShouldBe(MetricKind.Objects);
+        total.Verdict.ShouldBe(FootprintVerdict.Green, string.Join("; ", total.Reasons));
+
+        var untagged = Fixture.Build((_, _, _, _) => null);
+        untagged.Samples.ForEach(Total);
+
+        FootprintAnalysis.Analyse("cell", untagged.Samples, untagged.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "host.meterSeries", StringComparison.Ordinal))
             .Verdict.ShouldBe(FootprintVerdict.Red);
     }
 

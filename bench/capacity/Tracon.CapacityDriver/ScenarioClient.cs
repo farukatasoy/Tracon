@@ -80,21 +80,22 @@ public sealed class ScenarioClient
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(_spec.RequestTimeoutSeconds));
 
-        // The rule is the tenant's setup, not part of the request: it is written before the clock of the request starts.
-        var setupFailure = WriteQuotaForNewTenants ? await EnsureQuotaAsync(tenant, timeout.Token).ConfigureAwait(false) : null;
-
-        if (setupFailure is not null)
-        {
-            sample.Outcome = RequestOutcome.Failed;
-            sample.Error = setupFailure;
-            sample.TotalMilliseconds = 0;
-            return sample;
-        }
-
         var started = Stopwatch.GetTimestamp();
 
         try
         {
+            // The rule is the tenant's setup, not part of the request: it is written before the clock of the request
+            // starts. It is inside the try so that a timeout or a cancelled cell ends the request as it would anywhere else.
+            if (WriteQuotaForNewTenants && await EnsureQuotaAsync(tenant, timeout.Token).ConfigureAwait(false) is { } setupFailure)
+            {
+                sample.Outcome = RequestOutcome.Failed;
+                sample.Error = setupFailure;
+                sample.TotalMilliseconds = 0;
+                return sample;
+            }
+
+            started = Stopwatch.GetTimestamp();
+
             switch (scenario)
             {
                 case CapacityScenario.Buffered:

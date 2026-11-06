@@ -179,12 +179,13 @@ idle stretch. The two kinds of growth are read apart on purpose:
   red only if that cost per tenant climbs from one step to the next. A rise in a *count* of threads, timers or descriptors
   is red at any size: none of them should follow the number of tenants.
 - **The connection pool is the exception to that rule**, because a database client's pool opens and closes connections
-  with the load and is never flat: in six recorded cells the median of a plateau sat between 9 and 15 connections at
-  2 to 10 000 tenants with no relation to the tenants, and the largest rise from one plateau to the next was 5 (7 when the
-  end of the plateau is read instead of the whole). It is judged as a *pooled* count:
+  with the load and is never flat: in six recorded cells (26 plateaus) the median of a plateau sat between 9 and 15
+  connections at 2 to 10 000 tenants with no relation to the tenants, the largest rise from one plateau to the next was 5
+  (7 when the end of the plateau is read instead of the whole), and the readings inside a plateau spread by at most 7. It is
+  judged as a *pooled* count:
   the level of a plateau is the median of the whole plateau, not of its last third; a rise from one plateau to the next
-  counts only if it is larger than the pool's own breathing (8 connections, or the spread of the first plateau when that
-  is wider) **and** the plateau's lowest window rose too, because a connection held for a tenant does not go back down when
+  counts only if it is larger than the pool's own breathing (8 connections, a value just above the largest seen, or the
+  spread of the first plateau when that is wider) **and** the plateau's lowest window rose too, because a connection held for a tenant does not go back down when
   the load eases and one the pool opened for the load does; and a plateau whose median reaches the pool's limit (the
   host reports it, and it is written to `ramp.json`) is red at any size. A leak smaller than the breathing is below what
   this rule can see, and the floor on each step says so.
@@ -210,7 +211,7 @@ value when unset); the host reads this variable and not a `Tracon__…` setting.
 jump, level before and after, is written as a note and is never red.
 
 Three more features can be switched on for a ramp, each through a variable the host reports on `/capacity/settings` so
-the driver and the manifest read it from the running process:
+the driver reads it from the running process and the manifest records the same variable:
 
 - `TRACON_CAPACITY_QUOTA=1`: before a tenant's first request the driver writes a quota rule for it (`PUT /api/quotas`, a
   daily limit of a billion runs). Nothing is ever refused; what is measured is what a rule and its counters keep. The rule

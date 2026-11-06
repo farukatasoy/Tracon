@@ -183,7 +183,7 @@ public static class FootprintReport
         text.AppendLine();
         text.AppendLine("## Level at each plateau, and what the tenants cost");
         text.AppendLine();
-        text.AppendLine("Level is the median of the last third of the plateau's window. Cost per tenant is the step between two levels divided by the tenants added in between; it includes whatever the runs of that stage cost, so read it together with the drift table. Retained is the idle level less the first plateau's, per tenant added since: what the process still holds once nothing is using it.");
+        text.AppendLine("Level is the median of the last third of the plateau's window (of the whole window for a pooled count such as the connection pool). Cost per tenant is the step between two levels divided by the tenants added in between; it includes whatever the runs of that stage cost, so read it together with the drift table. Retained is the idle level less the first plateau's, per tenant added since: what the process still holds once nothing is using it.");
         text.AppendLine();
 
         var header = new StringBuilder("| Metric |");
