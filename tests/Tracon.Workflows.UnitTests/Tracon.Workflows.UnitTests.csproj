@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
+    <!-- The cancellation sweep runs the workflow runner over the real SQLite stores a host gets from UseSqlite(). -->
+    <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
   </ItemGroup>
 
   <!-- The due-time clock of the timeout tests, shared with the job worker's tests: linked, not copied. -->
