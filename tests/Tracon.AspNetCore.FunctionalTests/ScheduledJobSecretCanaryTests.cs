@@ -17,8 +17,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// error text, the job item, the run and the log. The clock is the test's own: the schedules are due after it moves.
 /// </para>
 /// <para>
-/// A search that finds nothing proves nothing unless the jobs ran, so the test asks for jobs that completed in the first
-/// phase and jobs that failed in the second, for the number of model calls that reached the provider, and for the key the
+/// A search that finds nothing proves nothing unless the jobs ran, so the test asks for jobs that completed in the accepted
+/// round and jobs that failed in the refused one, for the number of model calls that reached the provider, and for the key the
 /// provider was sent. Each schedule is switched off once its job has ended, so it fires once.
 /// </para>
 /// </remarks>
@@ -59,7 +59,7 @@ public sealed class ScheduledJobSecretCanaryTests
             $"/tracon/api/workflows/{Workflow}",
             new { description = "One step.", kind = "Sequential", agentNames = new[] { KeyedCanaryHost.AgentName } })).ShouldBe(HttpStatusCode.OK);
 
-        var phases = new List<(string Name, CanaryWireServer.Behavior Mode, string[] Outcome)>
+        var rounds = new List<(string Name, CanaryWireServer.Behavior Mode, string[] Outcome)>
         {
             ("accepted", CanaryWireServer.Behavior.Accept, ["Completed"]),
             ("refused", CanaryWireServer.Behavior.RefuseAndQuote, ["Failed", "Completed"]),
@@ -69,7 +69,7 @@ public sealed class ScheduledJobSecretCanaryTests
         var reached = 0;
         var jobsSeen = 0;
 
-        foreach (var (name, mode, _) in phases)
+        foreach (var (name, mode, _) in rounds)
         {
             wire.Mode = mode;
             var before = wire.Requests;
