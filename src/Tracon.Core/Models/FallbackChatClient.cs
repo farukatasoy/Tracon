@@ -55,6 +55,12 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     private readonly IProviderRetryClassifier? _retryClassifier;
     private readonly ILoggerFactory? _loggerFactory;
     private readonly IChatClient?[] _fallbackClients;
+
+    // Never disposed, on purpose. The gate is a binary lock whose wait handle is never read, so it holds
+    // nothing to release. A run that is inside the build when the client is disposed still has to leave the
+    // gate in its finally; a gate the dispose had closed would turn that Release into an
+    // ObjectDisposedException and the run would lose the client it had just built. Disposing a
+    // SemaphoreSlim does not wake its waiters either, so closing it would only add a second way to hang.
     private readonly SemaphoreSlim _buildGate = new(1, 1);
 
     /// <summary>Creates a new fallback client.</summary>
@@ -457,17 +463,6 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         }
 
         return linkOptions;
-    }
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _buildGate.Dispose();
-        }
-
-        base.Dispose(disposing);
     }
 
     /// <summary>Gets the client of a fallback link, building it the first time a run reaches it.</summary>

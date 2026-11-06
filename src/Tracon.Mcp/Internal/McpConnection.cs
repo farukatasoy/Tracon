@@ -437,8 +437,10 @@ internal sealed class McpConnection : IAsyncDisposable
 
         _subscriptions.Clear();
         _subscribedUris.Clear();
-        _resourceGate.Dispose();
 
+        // _resourceGate is not disposed: a read that is inside the gate when the connection is closed still
+        // releases it in its finally, and a closed gate would turn that Release into an ObjectDisposedException
+        // that replaces the read's own status. It is a binary lock with no wait handle, so it holds nothing.
         await _client.DisposeAsync().ConfigureAwait(false);
     }
 

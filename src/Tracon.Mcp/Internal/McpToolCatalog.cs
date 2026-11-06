@@ -271,8 +271,10 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             await connection.DisposeAsync().ConfigureAwait(false);
         }
 
+        // _refreshGate is not disposed: a refresh that is inside the gate when the catalog is disposed still
+        // releases it in its finally, and a closed gate would turn that Release into an ObjectDisposedException
+        // that replaces the refresh's own outcome. It is a binary lock with no wait handle, so it holds nothing.
         _connections.Clear();
-        _refreshGate.Dispose();
     }
 
     /// <summary>

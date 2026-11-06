@@ -499,6 +499,43 @@ public sealed class FallbackChatClientTests
         builds.ShouldBe(2);
     }
 
+    [Fact]
+    public async Task A_fallback_build_in_flight_when_the_client_is_disposed_still_returns()
+    {
+        // A host that stops while a run is building its fallback link disposes the
+        // client under that run. The run holds the build gate; releasing a gate the
+        // dispose already closed threw from the same finally that ends the run, and the
+        // run failed with ObjectDisposedException instead of the answer it had built.
+        var buildStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishBuild = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var primaryClient = new FakeChatClient(
+            _ => throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" });
+        var fallbackClient = new ConcurrentSafeChatClient("fallback answer");
+
+        async ValueTask<IChatClient> BuildAsync(ModelBinding binding, CancellationToken cancellationToken)
+        {
+            buildStarted.SetResult();
+            await finishBuild.Task.WaitAsync(cancellationToken);
+            return fallbackClient;
+        }
+
+        var chatClient = new FallbackChatClient(
+            Binding(primary: "primary", fallbackProvider: "fallback", fallbackModel: "fallback-model"),
+            primaryClient,
+            BuildAsync);
+
+        var call = chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken);
+
+        await buildStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        chatClient.Dispose();
+        finishBuild.SetResult();
+
+        var response = await call;
+
+        response.Text.ShouldBe("fallback answer");
+    }
+
     private static IChatClient RegistryWithFallback(FakeChatClient primaryClient, FakeChatClient fallbackClient)
     {
         var primary = new FakeModelProvider(primaryClient, name: "primary");
