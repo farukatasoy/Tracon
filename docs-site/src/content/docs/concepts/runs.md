@@ -177,8 +177,13 @@ streamed answer of `POST /api/agents/{name}/run` is not resumable and does not s
 
 ### Behind a reverse proxy
 
-Every stream carries `X-Accel-Buffering: no` and `Cache-Control: no-cache, no-store,
-no-transform`. A proxy that honours them passes each frame on as it arrives. A proxy
+Every stream Tracon writes itself carries `X-Accel-Buffering: no` and `Cache-Control: no-cache,
+no-store, no-transform`: the run event stream, the streamed answer of `POST /api/agents/{name}/run`,
+AG-UI, `stream: true` on Chat Completions and Responses, and the MCP endpoint. The A2A streaming
+answer (`SendStreamingMessage`) is written by the A2A library and carries neither `X-Accel-Buffering`
+nor a keep-alive: measured against a silent model, it sent no byte, headers included, until the agent
+answered, so turn buffering off for the A2A location (the configuration below) and give it an idle timeout
+longer than your slowest agent. A proxy that honours the headers passes each frame on as it arrives. A proxy
 that ignores the header and buffers the response holds the first events of a quiet run
 until its buffer is full. Measured with nginx 1.27 in front of the sample host, on a run
 that stayed silent:

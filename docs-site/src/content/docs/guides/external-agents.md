@@ -237,7 +237,10 @@ tell ASP.NET Core about it: run `UseForwardedHeaders` with `XForwardedHost` and 
 `AllowedHosts` so the card cannot name a host you do not serve. Tracon reads no forwarding header
 itself: a header the host does not honour changes nothing. The response is marked `Vary` on the
 headers the address depends on, and `Cache-Control: private, max-age=300` keeps a cache shared between
-callers from holding one caller's address.
+callers from holding one caller's address. Measured with nginx 1.27 `proxy_cache`: a default cache honours
+`private` and stores nothing; one told to ignore `Cache-Control` still keeps a separate entry for each
+`Host` and `X-Forwarded-Host`, because it honours `Vary`; only a cache told to ignore both headers and
+keyed without the `Host` hands one caller's address to another.
 
 A2A names are frozen during service registration because the underlying hosting API
 registers one server per name. The agent implementation is still resolved from the
