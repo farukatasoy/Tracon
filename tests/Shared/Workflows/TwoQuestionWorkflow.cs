@@ -1,7 +1,7 @@
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 
-namespace Tracon.Workflows.UnitTests.Fakes;
+namespace Tracon.Tests.Workflows;
 
 /// <summary>
 /// A workflow that waits on two human requests at once: the start step sends its message to two

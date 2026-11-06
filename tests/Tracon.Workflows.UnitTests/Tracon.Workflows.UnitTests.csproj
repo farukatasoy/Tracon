@@ -11,6 +11,15 @@
     <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
   </ItemGroup>
 
+  <!--
+    The cancellation sweep of the workflow runner and what it runs: the driver, the graphs it sweeps, the agents and the
+    two-question code workflow. Linked, not copied: the two-node acceptance set runs the same sweep on PostgreSQL and
+    SQL Server.
+  -->
+  <ItemGroup>
+    <Compile Include="../Shared/Workflows/*.cs" LinkBase="Shared/Workflows" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Real Microsoft Agent Framework Workflows output, captured from a genuine run. See Fixtures/README.md. -->
     <None Include="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
