@@ -29,7 +29,7 @@ public sealed class ToolFailureResponsesEndpointTests
             "toolfail-responses",
             database,
             configure: builder => builder.AddTool(
-                (Func<string>)(() => throw new InvalidOperationException($"Server=db.internal;Password={Text}")),
+                (Func<string>)(() => throw new InvalidOperationException($"Server=db.internal;Password={Text}")), // SYNTHETIC-CREDENTIAL: the text a tool's exception carries, searched for in every output
                 name: KeyedCanaryHost.ToolName,
                 description: "Looks an order up."));
 

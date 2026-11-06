@@ -162,7 +162,7 @@ public abstract class SecretCanaryAcceptanceContract
                     options.MaxAttempts = 1;
                 })
                 .AddTool(
-                    (Func<string>)(() => throw new InvalidOperationException($"Server=db.internal;Password={ToolStem}-0e5a1b")),
+                    (Func<string>)(() => throw new InvalidOperationException($"Server=db.internal;Password={ToolStem}-0e5a1b")), // SYNTHETIC-CREDENTIAL: the text a tool's exception carries, searched for in every output
                     name: ToolName,
                     description: "Looks an order up.")
                 .AddAgent(new AgentDefinition

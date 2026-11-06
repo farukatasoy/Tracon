@@ -50,7 +50,7 @@ public sealed class ToolFailureCanaryTests
 
                     throw explained
                         ? new TraconException($"The order system refused the call: {toolText}-0e5a1b.")
-                        : new InvalidOperationException($"Server=db.internal;Password={toolText}-0e5a1b");
+                        : new InvalidOperationException($"Server=db.internal;Password={toolText}-0e5a1b"); // SYNTHETIC-CREDENTIAL: the text a tool's exception carries, searched for in every output
                 }),
                 name: KeyedCanaryHost.ToolName,
                 description: "Looks an order up."),

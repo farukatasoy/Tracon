@@ -73,15 +73,17 @@ jobs:
             legs: '--leg scopes:each --gate-only'
             examples: 6
             timeout: 45
-          # The store legs: the admin role against each persistence provider.
+          # The store legs: SQLite and PostgreSQL run every demonstration role (four legs, 50 examples: 363 s and 381 s on a
+          # laptop including the build and the virtual environment, no gating finding in any role); SQL Server runs the admin
+          # role only until its operator leg is clean.
           - name: sqlite
             store: sqlite
-            legs: '--leg role:admin'
+            legs: '--leg roles:all'
             examples: 50
             timeout: 45
           - name: postgres
             store: postgres
-            legs: '--leg role:admin'
+            legs: '--leg roles:all'
             examples: 50
             timeout: 60
           - name: sqlserver
