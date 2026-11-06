@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
@@ -22,6 +23,7 @@ public sealed class ScenarioClient
     private readonly HttpClient _client;
     private readonly CellSpec _spec;
     private readonly string[] _bases;
+    private readonly ConcurrentDictionary<string, byte> _tenantsWithQuota = new(StringComparer.Ordinal);
     private int _next = -1;
 
     /// <summary>Creates a client bound to one cell's host and workload.</summary>
@@ -42,6 +44,12 @@ public sealed class ScenarioClient
     /// <returns>The host's base address.</returns>
     public string NextBase()
         => _bases.Length == 1 ? _bases[0] : _bases[(uint)Interlocked.Increment(ref _next) % (uint)_bases.Length];
+
+    /// <summary>
+    /// Whether a tenant gets a quota rule before its first request. The rule has a limit no request reaches: what is
+    /// measured is the state a rule and its counters keep for the tenant, not a refusal.
+    /// </summary>
+    public bool WriteQuotaForNewTenants { get; init; }
 
     private Uri RunUri => new($"{NextBase()}/api/agents/{_spec.Agent}/run", UriKind.Absolute);
 
@@ -71,6 +79,17 @@ public sealed class ScenarioClient
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(_spec.RequestTimeoutSeconds));
+
+        // The rule is the tenant's setup, not part of the request: it is written before the clock of the request starts.
+        var setupFailure = WriteQuotaForNewTenants ? await EnsureQuotaAsync(tenant, timeout.Token).ConfigureAwait(false) : null;
+
+        if (setupFailure is not null)
+        {
+            sample.Outcome = RequestOutcome.Failed;
+            sample.Error = setupFailure;
+            sample.TotalMilliseconds = 0;
+            return sample;
+        }
 
         var started = Stopwatch.GetTimestamp();
 
@@ -122,6 +141,42 @@ public sealed class ScenarioClient
 
         sample.TotalMilliseconds ??= Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         return sample;
+    }
+
+    // Writes the tenant's rule once. A tenant whose write failed is tried again by its next request, so one lost write is
+    // not a tenant without a rule for the rest of the cell. Returns the reason, or null when the rule is in place.
+    private async Task<string?> EnsureQuotaAsync(string tenant, CancellationToken cancellationToken)
+    {
+        if (_tenantsWithQuota.ContainsKey(tenant))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, new Uri($"{NextBase()}/api/quotas", UriKind.Absolute))
+            {
+                Content = new StringContent(
+                    """{"period":"Daily","maxRuns":1000000000,"maxTokens":1000000000000}""",
+                    Encoding.UTF8,
+                    "application/json"),
+            };
+            request.Headers.TryAddWithoutValidation(CapacityContract.TenantHeader, tenant);
+
+            using var response = await _client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return $"quota rule not written: HTTP {(int)response.StatusCode}";
+            }
+
+            _tenantsWithQuota.TryAdd(tenant, 0);
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            return "quota rule not written: " + Redactor.Scrub(ex.Message);
+        }
     }
 
     private HttpRequestMessage CreateRunRequest(string tenant, string correlation)

@@ -65,6 +65,35 @@ public static class FootprintCatalog
         new("pg.idleInTransaction", "PostgreSQL idle in transaction", MetricKind.Count),
     ];
 
+    /// <summary>
+    /// The instruments that get a series for every tenant when the host adds the tenant to their tags: the run, cost,
+    /// judge, response-cache, job, audit-write-failure and run-recording-failure metrics. Matched on the instrument name,
+    /// whatever the meter is called.
+    /// </summary>
+    private static readonly string[] TenantTaggedInstruments =
+    [
+        "tracon.runs", "tracon.run.duration", "tracon.run.cost", "tracon.judge.cost", "tracon.judge.score",
+        "tracon.model.cache", "tracon.job.executions", "tracon.job.duration", "tracon.audit.write_failures",
+        "tracon.run.recording_failures",
+    ];
+
+    /// <summary>Reports whether a reading counts the series of an instrument that has one per tenant when tenant tagging is on.</summary>
+    /// <param name="name">The reading's name.</param>
+    /// <returns><see langword="true"/> for the series count of a tenant-tagged instrument.</returns>
+    public static bool IsTenantTaggedSeries(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        if (!name.StartsWith(SeriesPrefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var instrument = name[(name.LastIndexOf('/') + 1)..];
+
+        return TenantTaggedInstruments.Contains(instrument, StringComparer.Ordinal);
+    }
+
     /// <summary>Finds how a reading should be judged.</summary>
     /// <param name="name">The reading's name.</param>
     /// <returns>The metric, or <see langword="null"/> when the analysis does not judge it.</returns>
@@ -415,6 +444,14 @@ public static class FootprintAnalysis
             if (FootprintCatalog.Find(name) is not { } metric)
             {
                 continue;
+            }
+
+            // With the tenant in the tags, these instruments hold a series for every tenant: by design, and documented as a
+            // cost of the setting. It is judged as the cost it is: steady per tenant is accepted, a cost per tenant that
+            // climbs from one step to the next is super-linear, and a rise inside a plateau follows runs, not tenants.
+            if (ramp.TenantTagged && FootprintCatalog.IsTenantTaggedSeries(name))
+            {
+                metric = metric with { Label = metric.Label + " (one per tenant by design)", Kind = MetricKind.Objects };
             }
 
             result.Metrics.Add(AnalyseMetric(metric, points, holds, idle, ramp, samples, options));

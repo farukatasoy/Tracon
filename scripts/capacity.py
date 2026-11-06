@@ -191,6 +191,15 @@ def validate_tenant_ramp(ramp: Any) -> list[str]:
     return problems
 
 
+def tenant_tag_requested(ramp: dict[str, Any] | None) -> bool:
+    """Host'un kiracıyı metrik etiketlerine yazıp yazmayacağı: profilin `tenantTag` alanı ya da
+    `TRACON_CAPACITY_TENANT_TAG=1` ortam değişkeni. Değişken yalnız bir rampa koşusunda anlamlıdır."""
+    if ramp is None:
+        return False
+
+    return bool(ramp.get("tenantTag", False)) or os.environ.get("TRACON_CAPACITY_TENANT_TAG", "0") == "1"
+
+
 def driver_ramp(ramp: dict[str, Any] | None) -> dict[str, Any] | None:
     """Profildeki rampayı sürücünün `TenantRampSpec`'ine çevirir; host'a ait anahtarlar (`tenantTag`) sürücüye gitmez."""
     if ramp is None:
@@ -824,7 +833,7 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
                 max_jobs=profile.get("maxConcurrentJobs", 8),
                 pool=profile.get("maxPoolSize", 100),
                 open_tenants=ramp is not None,
-                tenant_tag=bool((ramp or {}).get("tenantTag", False)),
+                tenant_tag=tenant_tag_requested(ramp),
             ),
             "CAPACITY-HOST-READY",
             "host",
@@ -1025,7 +1034,7 @@ def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any]
             "maxPoolSize": str(profile.get("maxPoolSize", 100)),
             "pollIntervalSeconds": "0.1",
             "leaseDurationSeconds": "120",
-            "responseCacheEnabled": "false",
+            "responseCacheEnabled": str(os.environ.get("TRACON_CAPACITY_RESPONSE_CACHE", "0") == "1").lower(),
             "recordingEnabled": "true",
             "retentionEnabled": "false",
             "rateLimitEnabled": str(os.environ.get("TRACON_CAPACITY_RATE_LIMIT", "off").lower() == "instance").lower(),
@@ -1034,9 +1043,10 @@ def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any]
             "tenantEndpoints": str(os.environ.get("TRACON_CAPACITY_TENANT_ENDPOINTS", "0") == "1").lower(),
             "telemetryLaneLimit": os.environ.get("TRACON_CAPACITY_TELEMETRY_LANE_LIMIT", "product default"),
             "openTenancy": str(profile.get("tenantRamp") is not None).lower(),
-            "tenantTag": str(bool((profile.get("tenantRamp") or {}).get("tenantTag", False))).lower(),
+            "tenantTag": str(tenant_tag_requested(profile.get("tenantRamp"))).lower(),
             "tenantRamp": json.dumps(profile.get("tenantRamp")) if profile.get("tenantRamp") else "none",
-            "quotaEnabled": "false",
+            "quotaEnabled": str(os.environ.get("TRACON_CAPACITY_QUOTA", "0") == "1").lower(),
+            "onlineEvalEnabled": str(os.environ.get("TRACON_CAPACITY_ONLINE_EVAL", "0") == "1").lower(),
             "telemetryExporters": "none",
             "warmupSeconds": str(profile.get("warmupSeconds", 0)),
             "measureSeconds": str(profile.get("measureSeconds", 0)),

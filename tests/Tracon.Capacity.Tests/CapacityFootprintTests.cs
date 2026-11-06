@@ -524,6 +524,77 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
+    public void A_series_for_every_tenant_is_a_cost_when_the_tenant_tag_is_on_and_a_leak_when_it_is_off()
+    {
+        // The run counter gets three series for each tenant: what the tag is documented to do. A series of an instrument
+        // the tag does not touch, rising the same way, is not by design.
+        static void Series(FootprintSample sample, Func<int, long> follow)
+            => sample.InstrumentSeries = new Dictionary<string, long>(StringComparer.Ordinal)
+            {
+                ["Tracon/tracon.runs"] = 12 + follow(sample.Tenants),
+                ["Tracon/tracon.agent.source_failures"] = 12 + follow(sample.Tenants),
+            };
+
+        var tagged = Fixture.Build((_, _, _, _) => null);
+        tagged.Ramp.TenantTagged = true;
+        tagged.Samples.ForEach(sample => Series(sample, tenants => 3L * tenants));
+
+        var analysis = FootprintAnalysis.Analyse("cell", tagged.Samples, tagged.Ramp, Options);
+        var runs = analysis.Metrics.Single(static m => string.Equals(m.Name, "series:Tracon/tracon.runs", StringComparison.Ordinal));
+        var other = analysis.Metrics.Single(static m => string.Equals(m.Name, "series:Tracon/tracon.agent.source_failures", StringComparison.Ordinal));
+
+        runs.Kind.ShouldBe(MetricKind.Objects);
+        runs.Label.ShouldContain("one per tenant by design");
+        runs.Verdict.ShouldBe(FootprintVerdict.Green, string.Join("; ", runs.Reasons));
+        runs.Steps.Last().PerTenant.ShouldBe(3.0, 0.05);
+
+        other.Kind.ShouldBe(MetricKind.Count);
+        other.Verdict.ShouldBe(FootprintVerdict.Red);
+
+        // The same readings from a host that did not add the tag are what the rule for a count was written for.
+        var untagged = Fixture.Build((_, _, _, _) => null);
+        untagged.Samples.ForEach(sample => Series(sample, tenants => 3L * tenants));
+
+        FootprintAnalysis.Analyse("cell", untagged.Samples, untagged.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "series:Tracon/tracon.runs", StringComparison.Ordinal))
+            .Verdict.ShouldBe(FootprintVerdict.Red);
+    }
+
+    [Fact]
+    public void A_series_for_every_tenant_whose_cost_per_tenant_climbs_is_red_even_when_the_tag_is_on()
+    {
+        // Three series each for the first tenants and more for each tenant after: super-linear in the tenants.
+        var run = Fixture.Build((_, _, _, _) => null);
+        run.Ramp.TenantTagged = true;
+        run.Samples.ForEach(sample => sample.InstrumentSeries = new Dictionary<string, long>(StringComparer.Ordinal)
+        {
+            ["Tracon/tracon.runs"] = 12 + (3L * sample.Tenants) + ((long)sample.Tenants * sample.Tenants / 10),
+        });
+
+        var runs = FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "series:Tracon/tracon.runs", StringComparison.Ordinal));
+
+        runs.Verdict.ShouldBe(FootprintVerdict.Red);
+        runs.Reasons.ShouldContain(r => r.Contains("super-linear", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_series_for_every_tenant_that_grows_inside_a_plateau_is_red_even_when_the_tag_is_on()
+    {
+        // One more series every few seconds with the tenants fixed: a series made per run, which the tag does not explain.
+        var run = Fixture.Build((_, _, _, _) => null);
+        run.Ramp.TenantTagged = true;
+        run.Samples.ForEach(sample => sample.InstrumentSeries = new Dictionary<string, long>(StringComparer.Ordinal)
+        {
+            ["Tracon/tracon.runs"] = 12 + (3L * sample.Tenants) + (long)(sample.OffsetSeconds / 2),
+        });
+
+        FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "series:Tracon/tracon.runs", StringComparison.Ordinal))
+            .Verdict.ShouldBe(FootprintVerdict.Red);
+    }
+
+    [Fact]
     public void Only_the_connection_count_is_judged_as_a_pool_and_the_ones_in_a_transaction_stay_plain()
     {
         FootprintCatalog.Find("pg.connections").ShouldNotBeNull().Kind.ShouldBe(MetricKind.Pooled);

@@ -108,6 +108,26 @@ if (CapacityEnvironment.ObservabilityOff)
     builder.Services.Configure<TraconOptions>(options => options.Observability.Enabled = false);
 }
 
+// Off in the product. On, every completed run is sampled and queues a judge job, and the sampler and the score window keep
+// a window for each tenant; the judge scores at once and calls no model. The budget per tenant and hour is set so high that
+// nothing is refused: the question is what evaluation keeps, not what it declines.
+if (CapacityEnvironment.OnlineEval)
+{
+    builder.Services.Configure<OnlineEvaluationOptions>(options =>
+    {
+        options.Enabled = true;
+        options.SampleRate = 1.0;
+        options.MaxScoresPerHour = 1_000_000;
+    });
+}
+
+// Off in the product (a model agent that asks for it stops compiling without a cache registered). On, the fixture agent
+// caches its responses in memory; the key is the tenant and the prompt, and every prompt carries a value of its own.
+if (CapacityEnvironment.ResponseCache)
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
 // The tenant a client is built for comes from the request that triggered the compile, which is where the product's own
 // tenant context reads it. Only the tenant-endpoint knob reads it; with the knob off the provider ignores it.
 var requests = new HttpContextAccessor();
@@ -131,6 +151,7 @@ tracon
         {
             Provider = CapacityContract.ProviderName,
             Model = CapacityContract.ModelName,
+            ResponseCache = CapacityEnvironment.ResponseCache ? new ResponseCacheSettings { Enabled = true } : null,
         },
         ToolNames = [CapacityPayload.ToolName],
         Origin = AgentDefinitionOrigin.Code,
@@ -145,6 +166,11 @@ tracon
         // measures, and every worker process would race for the same lock.
         options.AutoApplyMigrations = false;
     });
+
+if (CapacityEnvironment.OnlineEval)
+{
+    tracon.AddRunJudge(new CapacityRunJudge());
+}
 
 // 🚨 The tenant header is resolved ONLY here, at the loopback fixture
 // boundary. This is not a production authentication shape and the report says

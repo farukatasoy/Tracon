@@ -209,6 +209,23 @@ visible, and `TRACON_CAPACITY_TELEMETRY_LANE_LIMIT=<n>` sets how many of them ge
 value when unset); the host reads this variable and not a `Tracon__…` setting. A rise that is one
 jump, level before and after, is written as a note and is never red.
 
+Three more features can be switched on for a ramp, each through a variable the host reports on `/capacity/settings` so
+the driver and the manifest read it from the running process:
+
+- `TRACON_CAPACITY_QUOTA=1`: before a tenant's first request the driver writes a quota rule for it (`PUT /api/quotas`, a
+  daily limit of a billion runs). Nothing is ever refused; what is measured is what a rule and its counters keep. The rule
+  write is an administrative call and leaves an audit entry of its own, so rows of the audit trail grow with the tenants.
+- `TRACON_CAPACITY_RESPONSE_CACHE=1`: the fixture agent caches its model responses in the framework's memory cache. Every
+  request carries a value of its own, so every lookup misses and every call stores an entry; the cache's own size limit
+  and the ten-minute lifetime are the product's defaults.
+- `TRACON_CAPACITY_ONLINE_EVAL=1`: every completed run is sampled and queues a judge job; the judge scores at once and
+  calls no model, so what is measured is the sampler's and the score window's state for each tenant and the job churn.
+
+`TRACON_CAPACITY_TENANT_TAG=1` is also read for a ramp whose profile does not say `tenantTag`. With the tag on, the run,
+cost, judge, cache and job metrics hold a series for every tenant by design: the analysis then judges the series counts of
+those instruments as a cost per tenant (steady is accepted, a cost per tenant that climbs is red) and not as a resource
+that should not follow the tenants.
+
 Two conveniences help while developing the apparatus (neither is read by anything shipped):
 
 - `TRACON_CAPACITY_MSBUILD_ARGS` adds MSBuild arguments to the pack and the consumer build, for example

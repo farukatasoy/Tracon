@@ -8,10 +8,12 @@ saatler sürer ve sonunda yorumlanamayan bir rapor verir.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 import tempfile
 import unittest
+import unittest.mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
@@ -122,6 +124,17 @@ class TenantRampValidationTests(unittest.TestCase):
         self.assertNotIn("tenantTag", sent)
         self.assertIn("stages", sent)
         self.assertIsNone(capacity.driver_ramp(None))
+
+    def test_the_tenant_tag_comes_from_the_profile_or_the_environment_and_only_on_a_ramp(self):
+        with unittest.mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("TRACON_CAPACITY_TENANT_TAG", None)
+            self.assertFalse(capacity.tenant_tag_requested(ramp(tenantTag=False)))
+            self.assertTrue(capacity.tenant_tag_requested(ramp(tenantTag=True)))
+            self.assertFalse(capacity.tenant_tag_requested(None))
+
+            os.environ["TRACON_CAPACITY_TENANT_TAG"] = "1"
+            self.assertTrue(capacity.tenant_tag_requested(ramp(tenantTag=False)))
+            self.assertFalse(capacity.tenant_tag_requested(None))
 
 
 class ReusableFeedTests(unittest.TestCase):

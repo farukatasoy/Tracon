@@ -189,6 +189,13 @@ public sealed class RampRecord
     /// cell did not record it. A pooled count that reaches it has used the pool up.
     /// </summary>
     public int? MaxPoolSize { get; set; }
+
+    /// <summary>
+    /// Whether the host adds the tenant to the tags of its run, cost, judge, cache and job metrics, as the host reported it.
+    /// Those metrics then have a series for every tenant by design, and the series counts of their instruments are judged as
+    /// a cost per tenant, not as a resource that should not follow the tenants.
+    /// </summary>
+    public bool TenantTagged { get; set; }
 }
 
 /// <summary>The tenant and place of one request the schedule hands out.</summary>

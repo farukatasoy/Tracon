@@ -158,7 +158,7 @@ public sealed class CellRunner
             }
         }
 
-        var client = new ScenarioClient(_client, _spec);
+        var client = new ScenarioClient(_client, _spec) { WriteQuotaForNewTenants = settings.QuotaEnabled };
         var samples = new ConcurrentBag<RequestSample>();
 
         // Warm-up. Its samples are written to the raw file (so the reader can
@@ -242,7 +242,7 @@ public sealed class CellRunner
 
         if (ramp is not null && footprint is not null)
         {
-            await SettleAsync(ramp, footprint, result, settings.MaxPoolSize, cancellationToken).ConfigureAwait(false);
+            await SettleAsync(ramp, footprint, result, settings, cancellationToken).ConfigureAwait(false);
         }
 
         var processSummaries = await sampler.StopAsync().ConfigureAwait(false);
@@ -334,7 +334,7 @@ public sealed class CellRunner
         TenantRampSchedule ramp,
         FootprintSampler footprint,
         CellResult result,
-        int maxPoolSize,
+        HostSettings settings,
         CancellationToken cancellationToken)
     {
         var spec = _spec.TenantRamp!;
@@ -359,7 +359,8 @@ public sealed class CellRunner
             Spec = spec,
             Marks = ramp.Marks(),
             BaselineTenants = _spec.Tenants.Count,
-            MaxPoolSize = maxPoolSize > 0 ? maxPoolSize : null,
+            MaxPoolSize = settings.MaxPoolSize > 0 ? settings.MaxPoolSize : null,
+            TenantTagged = settings.TenantTag,
         };
 
         await File.WriteAllTextAsync(

@@ -47,6 +47,37 @@ public static class CapacityEnvironment
             ? value
             : null;
 
+    /// <summary>The variable that has the driver write a quota rule no run reaches for every tenant that takes part (<c>1</c>).</summary>
+    public const string QuotaVariable = "TRACON_CAPACITY_QUOTA";
+
+    /// <summary>The variable that turns the response cache on for the fixture agent (<c>1</c>).</summary>
+    public const string ResponseCacheVariable = "TRACON_CAPACITY_RESPONSE_CACHE";
+
+    /// <summary>The variable that turns online evaluation on, with every completed run sampled (<c>1</c>).</summary>
+    public const string OnlineEvalVariable = "TRACON_CAPACITY_ONLINE_EVAL";
+
+    /// <summary>
+    /// Whether the driver is to write a quota rule for each tenant. The host enforces quotas whenever a rule exists, so
+    /// the host itself does nothing: the knob is reported on the settings route and the driver reads it from there.
+    /// What is measured is the state a rule and its counters keep for each tenant, not a refusal.
+    /// </summary>
+    public static bool Quota
+        => string.Equals(Environment.GetEnvironmentVariable(QuotaVariable), "1", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Whether the fixture agent caches its model responses in a memory cache. Every request carries a value of its
+    /// own, so every lookup is a miss and every call stores an entry: what is measured is what the cache keeps.
+    /// </summary>
+    public static bool ResponseCache
+        => string.Equals(Environment.GetEnvironmentVariable(ResponseCacheVariable), "1", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Whether online evaluation is on and samples every completed run, so the sampler's hourly budget and the score
+    /// window keep a window for each tenant and each run queues a judge job.
+    /// </summary>
+    public static bool OnlineEval
+        => string.Equals(Environment.GetEnvironmentVariable(OnlineEvalVariable), "1", StringComparison.Ordinal);
+
     /// <summary>The variable that turns Tracon's own spans and metrics off (<c>off</c>); anything else leaves them on, as the product ships.</summary>
     public const string ObservabilityVariable = "TRACON_CAPACITY_OBSERVABILITY";
 

@@ -19,6 +19,9 @@ public sealed record HostSettings(
     int MaxPoolSize,
     bool RetentionEnabled,
     bool ResponseCacheEnabled,
+    bool QuotaEnabled,
+    bool OnlineEvalEnabled,
+    bool TenantTag,
     bool RecordingEnabled,
     string Schema,
     string ProcessName,
@@ -74,6 +77,9 @@ public sealed class HostProbe
             root.GetProperty("maxPoolSize").GetInt32(),
             root.GetProperty("retentionEnabled").GetBoolean(),
             root.GetProperty("responseCacheEnabled").GetBoolean(),
+            Flag(root, "quotaEnabled"),
+            Flag(root, "onlineEvalEnabled"),
+            Flag(root, "tenantTag"),
             root.GetProperty("recordingEnabled").GetBoolean(),
             root.GetProperty("schema").GetString() ?? "",
             root.GetProperty("processName").GetString() ?? "",
@@ -81,6 +87,11 @@ public sealed class HostProbe
             root.GetProperty("traconVersion").GetString() ?? "",
             root.GetProperty("runtimeVersion").GetString() ?? "");
     }
+
+    // A setting an older host does not report is off: the packed host and the driver come from one tree, and a flag that
+    // is missing must not turn a cell invalid.
+    private static bool Flag(JsonElement root, string name)
+        => root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;
 
     /// <summary>Reads the host's counters.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
