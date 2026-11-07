@@ -59,6 +59,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Core/Scheduling/QueuedTurn.cs"] = "constant 5 s ceiling (RetryMaxDelay), cut to the lease window left",
         ["src/Tracon.Core/Tools/TimeoutAIFunction.cs"] = "per-tool timeout — constructor guard (TimerPeriod.IsValid)",
         ["src/Tracon.Core/Voice/LiveVoiceSessionRegistry.cs"] = "constant 5 s sweep",
+        ["src/Tracon.Workflows/Internal/StalledStreamGuard.cs"] = "constant 2 s grace (StalledStreamGuard.Grace) that nothing configures — StalledStreamGuardTests",
         ["src/Tracon.Workflows/Internal/WorkflowNodeRetry.cs"] = "WorkflowNodeRetryPolicy.InitialDelay — Wrap guard; the doubling is capped at TimerPeriod.MaxMilliseconds",
         ["src/Tracon.Workflows/Internal/WorkflowNodeTimeout.cs"] = "WorkflowFunctionOptions.Timeout — Wrap guard (TimerPeriod.IsValid)",
     };

@@ -1554,15 +1554,21 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // WatchStreamAsync enumerator being consumed at that moment has
             // already decided to finish; only a new enumerator sees the
             // continuing super-steps.
+            var reopened = false;
+
             while (true)
             {
                 var responded = false;
 
                 // Whether this enumerator read any event AFTER the last answer it delivered. See the reopen decision below.
                 var readSinceResponse = false;
+
+                // The enumerator's own token: cancelled by the run's, and by StalledStreamGuard when a reopened stream
+                // has nothing left to wait for.
+                using var streamSource = CancellationTokenSource.CreateLinkedTokenSource(linked.Token);
                 var enumerator = run
-                    .WatchStreamAsync(blockOnPendingRequest: false, linked.Token)
-                    .GetAsyncEnumerator(linked.Token);
+                    .WatchStreamAsync(blockOnPendingRequest: false, streamSource.Token)
+                    .GetAsyncEnumerator(streamSource.Token);
 
                 try
                 {
@@ -1601,7 +1607,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             // only outside the loop is not enough.
                             TraconRunContext.SetCurrent(scope);
 
-                            if (await enumerator.MoveNextAsync().ConfigureAwait(false))
+                            // The step is asked for here, in this body, as before; only the wait for it is guarded.
+                            var moving = enumerator.MoveNextAsync().AsTask();
+
+                            if (reopened
+                                ? await StalledStreamGuard.MoveNextAsync(
+                                    moving,
+                                    () => run.GetStatusAsync(CancellationToken.None),
+                                    streamSource,
+                                    StalledStreamGuard.Grace,
+                                    _timeProvider,
+                                    linked.Token).ConfigureAwait(false)
+                                : await moving.ConfigureAwait(false))
                             {
                                 workflowEvent = enumerator.Current;
                             }
@@ -1624,6 +1641,17 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                         if (workflowEvent is null)
                         {
+                            // A reopened stream the guard ended: the framework's run loop was waiting for input and the
+                            // stream for a halt signal it had already given to the first stream (see StalledStreamGuard).
+                            if (reopened && streamSource.IsCancellationRequested && !linked.IsCancellationRequested
+                                && _logger.IsEnabled(LogLevel.Debug))
+                            {
+                                _logger.LogDebug(
+                                    "Workflow run {RunId}: a reopened event stream stayed silent for {Grace} while the run was halted; the wait was ended.",
+                                    execution.RunId,
+                                    StalledStreamGuard.Grace);
+                            }
+
                             break;
                         }
 
@@ -1791,6 +1819,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 {
                     break;
                 }
+
+                reopened = true;
             }
 
             // When a request is still pending, execution is not half-done, it
