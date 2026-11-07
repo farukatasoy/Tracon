@@ -3061,6 +3061,34 @@ services.Configure<TraconOptions>(options =>
 With it off, a reasoning model still streams its thinking to the caller in real time —
 this setting only controls whether it is **recorded**.
 
+### Streamed text is written behind the stream
+
+A streamed reply is recorded as `MessageDelta` events, one for each chunk the model sends, and the run row carries
+no copy of the text: these events are where the reply lives. Tracon does not make the stream wait for the store once
+for each chunk. A chunk is numbered and handed to every sink at once, and its store write is queued; a task of the
+run writes the chunks that queued while the previous write was on its way as one group, in one
+[`IRunStore.AppendEventsAsync`](/guides/write-your-own-store/#write-events-in-a-group) call. There is no timer and no
+batch size to tune: a slow store gets larger groups and a fast one smaller, and a store with a network in front of
+it pays one round trip for a group and not one for each chunk. Reasoning chunks (`ReasoningDelta`) go the same way.
+
+The order does not change. Every other event (a tool call, an approval, a custom event, the end of the run) waits
+until the queue is empty and is then written before its own call returns, so the store holds the events in the
+order of their sequence numbers. The end of the run writes the queue whether the run completes, fails or is
+cancelled, and whether the caller read the stream to its end or walked away. That write takes no cancellation from
+the caller, and it gives up on a store that does not answer within five seconds, as the closing write of the run does.
+At most 1,024 chunks (or 256 K characters) are waiting for the store at a time, the group being written included; past that the stream waits for the store, as it waited for
+every chunk before.
+
+**What it costs.** A process that dies while chunks are queued loses them: the group on its way to the store and
+what queued behind it, about one round trip of text. What the store holds afterwards is the start of the reply, with
+no gap in the sequence numbers, and the run is left for [reconciliation](/guides/reliability/) to close. A group
+the store refuses is lost whole and turns recording off for that run, as a refused write always did: it is counted
+at the `event` stage of `tracon.run.recording_failures` once, and the log entry says how many chunks were lost.
+
+Set `RunRecording:WriteDeltasBehind` to `false` to write each chunk before the stream continues, when the record of a
+reply must be as complete as the reply the caller saw and one store call for each chunk is acceptable. The setting
+changes nothing when `RecordMessageDeltas` is off.
+
 ### Tool calls are recorded where they happen
 
 A tool call that goes through the tool chain is noted in memory when it starts and when it
@@ -3257,6 +3285,11 @@ queue and return), and a sink must not append an event to the run it is observin
 directly, or by running work inline that writes into that run. Such an append would
 wait for the event the sink is still handling, so it throws
 `InvalidOperationException` instead, and the sink is disabled for the run.
+
+One event is not stored at that step: a [streamed text chunk](#streamed-text-is-written-behind-the-stream) is
+numbered and handed to the sinks at once and its store write is queued. A sink can therefore see a chunk before the
+store holds it, so a sink that reads the run back from the store must not expect to find the chunk it was just
+given. Every other event is in the store when its sink call is made.
 
 ## Who ran it, and for what
 
@@ -16008,7 +16041,9 @@ goes through on its second try adds none.
 
 - `start` — the run record was never opened. Nothing about this run is queryable.
 - `event` — the run exists but its event stream stops partway. Replay and the run
-  timeline are incomplete.
+  timeline are incomplete. When streamed text is
+  [written behind the stream](/concepts/runs/#streamed-text-is-written-behind-the-stream),
+  the loss is a group of chunks and the log entry names how many; the store keeps the start of the reply.
 - `tool_invocation` — a tool's measurement was lost. The run and its events survive;
   tool analytics under-report.
 - `non_token_usage` — an item a workflow function node reported with `ReportUsageAsync`
@@ -16299,6 +16334,7 @@ run inspection:
     "RunRecording": {
       "Enabled": true,
       "RecordMessageDeltas": true,
+      "WriteDeltasBehind": true,
       "RecordToolPayloads": true,
       "RecordCitationUrls": false,
       "RecordReasoningDeltas": false,
@@ -16313,6 +16349,7 @@ run inspection:
 |---|---:|---|
 | `RunRecording.Enabled` | `true` | When false, no run event is written |
 | `RecordMessageDeltas` | `true` | Turning it off reduces write volume for streaming runs |
+| `WriteDeltasBehind` | `true` | The stream does not wait for the store once for each chunk: chunks queue and are written in groups. A process that dies loses the chunks still queued (about one round trip of text, at most 1,024 chunks), and the store keeps the start of the reply. `false` writes each chunk before the stream continues. See [Streamed text is written behind the stream](/concepts/runs/#streamed-text-is-written-behind-the-stream) |
 | `RecordToolPayloads` | `true` | Tool arguments and results can contain personal or secret data |
 | `RecordCitationUrls` | `false` | A citation event writes the scheme and host of its source; `true` writes the whole address, which can hold a signed credential. User information is never written |
 | `RecordReasoningDeltas` | `false` | Off unlike the other flags: reasoning output can run far longer than the answer and can restate input the answer never shows |
@@ -21691,9 +21728,33 @@ cannot:
 | Cancellation requests | `RequestCancellationAsync` writes the request on a `Running` or `Queued` row of the expected tenant and returns `true`; for a run that does not exist, belongs to another tenant or has ended it writes nothing and returns `false`. A second call keeps the **first** time (`RunRecord.CancelRequestedAt`) and still returns `true`. `TouchHeartbeatAsync` returns, in the same call that writes the heartbeat, a `RunCancellationRequest` for every id you were given whose row is still `Running` or `Queued` and carries a request, with the run's own tenant; the owner cancels the run, so return the same request on every call until the run ends. A second `StartRunAsync` must not clear the request |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
 | Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `TraconException`, do not silently accept or silently drop it |
+| Groups of events | `AppendEventsAsync` has a default implementation, so your store works without it; override it to write a group in one call (see below). The rules of `AppendEventAsync` hold for every event of the group |
 
 The full text lives on `IRunStore`'s own XML documentation — see [the API
 reference](/api/tracon.irunstore/) for the exact wording each method carries.
+
+### Write events in a group
+
+Tracon writes a streamed reply [behind the stream](/concepts/runs/#streamed-text-is-written-behind-the-stream): the
+text chunks of a run queue while the previous write is on its way and go to the store together. They arrive in one call
+of `AppendEventsAsync`, a default interface method that calls `AppendEventAsync` for each event, in order, and stops at
+the first failure. Your store needs nothing for that to work, and loses nothing: it pays one call for each chunk, as it
+did before.
+
+Override it when each call costs you a round trip or a connection. The contract:
+
+- The events belong to **one run**, carry **one tenant**, and come in ascending `Sequence` order. The list is reused by
+  the caller after the call returns, so read it during the call and do not keep it.
+- Every rule of `AppendEventAsync` holds for each event: the expected tenant, the sequence number the caller assigned,
+  `TraconException` for an unknown run, another tenant's run or a sequence number that is already written.
+- Write the group **whole or not at all** if you can (one statement, one transaction). The default is not atomic: when
+  it fails, the events before the failing one are written. Tracon treats a failed group as lost either way, turns
+  recording off for the run and counts one loss, so a half-written group is a shorter stream and not a corrupt one.
+- An empty list writes nothing and is not an error.
+
+`RunStoreContract` checks all of it. A store that writes groups atomically says so by overriding
+`AppendsEventGroupsAtomically` to return `true`, which turns on the scenarios that look for a half-written group; the
+default is `false` so that a store that relies on the default implementation still passes.
 
 ## Prove it with the contract suite
 

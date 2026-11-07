@@ -25,6 +25,17 @@ namespace Tracon;
 /// disabled for the run.
 /// </para>
 /// <para>
+/// <strong>Streamed text is written behind the stream.</strong> A message or reasoning
+/// delta is numbered and handed to the sinks under that same step, but its store write is
+/// queued and made by a task of its own (<see cref="TraconRunRecordingOptions.WriteDeltasBehind"/>):
+/// the stream does not wait for the store once per chunk, and the chunks that queue while a
+/// group is being written go out together in one <see cref="IRunStore.AppendEventsAsync"/> call.
+/// Any other event first waits until the queue is empty and is then written as before, so the store
+/// holds the events in the order of their sequence numbers; the end of the run does the same, with no
+/// cancellation and within <see cref="CompletionBudget"/>. What a process that dies leaves is a prefix of
+/// the stream.
+/// </para>
+/// <para>
 /// <strong>Store failures do not interrupt the run.</strong> Observability
 /// must not break functionality. Every write failure is logged and
 /// swallowed; once the writer hits a failure, it moves into the
@@ -82,6 +93,31 @@ public sealed class RunEventWriter
     // kernel handle is ever created (AvailableWaitHandle is not read), so the
     // semaphore needs no disposal.
     private readonly SemaphoreSlim _appendGate = new(1, 1);
+
+    /// <summary>The most streamed events that are numbered and not yet in the store - queued, or in the group being written - before the stream waits for the store.</summary>
+    internal const int MaxQueuedEvents = 1024;
+
+    /// <summary>The most characters of text those events hold; an event that arrives while none is waiting is accepted whatever its size.</summary>
+    internal const int MaxQueuedCharacters = 256 * 1024;
+
+    // The queue of deltas that are numbered but not yet in the store. Every member below is guarded by
+    // _queueLock, which is held for a few instructions and never across an await. Events enter under
+    // _appendGate (so they enter in sequence order) and leave through the one drain, which takes the whole
+    // queue by swapping two lists: nothing is allocated per group once the lists have grown.
+    private readonly Lock _queueLock = new();
+    private List<RunEvent>? _queued;
+    private List<RunEvent>? _inFlight;
+    private int _queuedCount;
+    private int _queuedCharacters;
+    private int _inFlightCount;
+    private int _inFlightCharacters;
+    private TaskCompletionSource? _idle;
+    private DrainWorkItem? _drainWork;
+
+    // True from the moment the first event is queued until the drain has found the queue empty. Written under
+    // _queueLock; read without it, only as a hint (a stale false is impossible for a reader that holds
+    // _appendGate: the flag is set under that gate, and only the drain clears it).
+    private volatile bool _draining;
 
     // The writer whose sinks are being called on this flow. A sink that appends to
     // the run it is handling - directly, or by running an agent inline that writes
@@ -353,12 +389,59 @@ public sealed class RunEventWriter
 
         try
         {
+            if (toStore && !IsDisabled && IsStreamedDelta(draft.Type) && _options.WriteDeltasBehind)
+            {
+                return await AppendBehindAsync(draft, allowReserved, cancellationToken).ConfigureAwait(false);
+            }
+
+            // 🚨 Every other event waits for the deltas queued before it, and only then goes to the store itself.
+            // Written ahead of them it would put event 6 in the store before event 5, and a process that died in
+            // between would leave a hole in the sequence numbers instead of the shorter stream it leaves now. The
+            // gate is held, so nothing queues behind this wait: the queue can only shrink. A writer that is off writes
+            // nothing to the store, so there is no order left to keep, and a drain stuck in a store that never answers
+            // (the writer gave up on it at the end of the run) must not hold the events that need no store.
+            if (_draining && !IsDisabled)
+            {
+                await WaitForQueueAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             return await AppendInOrderAsync(draft, allowReserved, toStore, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             _appendGate.Release();
         }
+    }
+
+    /// <summary>The events a model streams token by token: the only ones whose store write is made behind the stream.</summary>
+    private static bool IsStreamedDelta(RunEventType type)
+        => type is RunEventType.MessageDelta or RunEventType.ReasoningDelta;
+
+    /// <summary>Numbers a streamed delta, queues its store write and hands it to the sinks; runs under the append gate only.</summary>
+    private async ValueTask<RunEvent> AppendBehindAsync(RunEventDraft draft, bool allowReserved, CancellationToken cancellationToken)
+    {
+        // A full queue is the stream outrunning the store. Waiting for it to empty is what every chunk did before
+        // the queue existed, and it is what keeps the memory of a run, and what a dying process can lose, bounded.
+        if (QueueIsFull())
+        {
+            await WaitForQueueAsync(cancellationToken).ConfigureAwait(false);
+
+            // The group that was in the way failed: the writer is off, and a queue nobody writes would only grow.
+            if (IsDisabled)
+            {
+                return await AppendInOrderAsync(draft, allowReserved, toStore: true, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        var runEvent = BuildEvent(draft, allowReserved);
+
+        Enqueue(runEvent);
+
+        // The sinks see the event under the same gate and in the same order as before; they now see it possibly before
+        // the store does, which the contract of IRunEventSink says. The store write is already on its way.
+        await DispatchToSinksAsync(runEvent, cancellationToken).ConfigureAwait(false);
+
+        return runEvent;
     }
 
     /// <summary>Numbers, stores and dispatches one event; runs under the append gate only.</summary>
@@ -368,7 +451,250 @@ public sealed class RunEventWriter
     /// </remarks>
     private async ValueTask<RunEvent> AppendInOrderAsync(RunEventDraft draft, bool allowReserved, bool toStore, CancellationToken cancellationToken)
     {
-        var runEvent = new RunEvent
+        var runEvent = BuildEvent(draft, allowReserved);
+
+        if (toStore && !IsDisabled)
+        {
+            try
+            {
+                await _store.AppendEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+            {
+                Disable(ex, RunRecordingStages.Event);
+            }
+        }
+
+        // Sink dispatch is INDEPENDENT of the store: a sink failure never
+        // disables the store, and a store failure never skips the sinks —
+        // observability targets do not share a single point of failure.
+        await DispatchToSinksAsync(runEvent, cancellationToken).ConfigureAwait(false);
+
+        return runEvent;
+    }
+
+    /// <summary>Whether the events that are not yet in the store - queued, and in the group being written - are at either bound.</summary>
+    /// <remarks>
+    /// The group the drain has taken counts until it is written: it is as much lost to a process that dies as the queue is,
+    /// and as much memory. Read without the lock, which only the producer under the append gate and the drain write: the
+    /// producer sees its own additions, and a count the drain has just emptied that is read late only makes the producer
+    /// wait for a drain that is about to end.
+    /// </remarks>
+    private bool QueueIsFull()
+    {
+        var count = Volatile.Read(ref _queuedCount) + Volatile.Read(ref _inFlightCount);
+
+        return count > 0
+            && (count >= MaxQueuedEvents
+                || Volatile.Read(ref _queuedCharacters) + Volatile.Read(ref _inFlightCharacters) >= MaxQueuedCharacters);
+    }
+
+    /// <summary>Puts a numbered delta on the queue and makes sure a drain is on its way; runs under the append gate only.</summary>
+    private void Enqueue(RunEvent runEvent)
+    {
+        var startDrain = false;
+
+        lock (_queueLock)
+        {
+            (_queued ??= new List<RunEvent>(16)).Add(runEvent);
+            Volatile.Write(ref _queuedCount, _queuedCount + 1);
+            Volatile.Write(ref _queuedCharacters, _queuedCharacters + (runEvent.Text?.Length ?? 0) + (runEvent.Payload?.Length ?? 0));
+
+            if (!_draining)
+            {
+                _draining = true;
+                startDrain = true;
+            }
+        }
+
+        if (startDrain)
+        {
+            // Not Task.Run: that would carry the caller's execution context into the drain - the span that happens to be
+            // current, the ambient tenant, a transaction a store lent to the caller - and keep it for as long as the drain
+            // lives. The drain belongs to the run and to no caller. This overload also queues no delegate, and the work
+            // item is created once per writer, so a delta that finds the drain already running pays nothing for it.
+            ThreadPool.UnsafeQueueUserWorkItem(_drainWork ??= new DrainWorkItem(this), preferLocal: false);
+        }
+    }
+
+    /// <summary>A task that completes when the queue of deltas has been written; already complete when nothing is queued.</summary>
+    /// <param name="cancellationToken">Stops the waiting, not the writing.</param>
+    private Task WaitForQueueAsync(CancellationToken cancellationToken)
+    {
+        Task idle;
+
+        lock (_queueLock)
+        {
+            if (!_draining)
+            {
+                return Task.CompletedTask;
+            }
+
+            idle = (_idle ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+        }
+
+        return idle.WaitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes whatever is queued before the run closes: with no cancellation, and for no longer than
+    /// <see cref="CompletionBudget"/>.
+    /// </summary>
+    /// <remarks>
+    /// The caller's token is left out on purpose. A run that is cancelled, or a caller that walks away from the stream,
+    /// still owns the text the model had produced by then, and that text is the answer: the run row carries no output
+    /// of its own. A store that does not answer within the budget is given up on like any store that failed: the
+    /// writer is disabled and the loss is counted, and the queue that is left is dropped by the drain.
+    /// </remarks>
+    private async ValueTask FlushQueuedAsync()
+    {
+        // A writer that is off sends nothing, so the queue it leaves is dropped and there is nothing to wait for.
+        if (!_draining || IsDisabled)
+        {
+            return;
+        }
+
+        // The budget is a source of this method's own, disposed before it returns. A timeout handed to Task.WaitAsync
+        // completes the wait first and takes its timer down a moment after, so a caller that looks at the clock the instant
+        // the run is over could still find that timer armed; the closing write keeps its budget the same way.
+        using var budget = new CancellationTokenSource(CompletionBudget, _timeProvider);
+
+        try
+        {
+            await WaitForQueueAsync(budget.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex) when (budget.IsCancellationRequested)
+        {
+            // The budget ran out: the store did not take the queued events in time, and the writer gives up on it.
+            Disable(ex, RunRecordingStages.Event);
+        }
+    }
+
+    /// <summary>Takes the queue group by group to the store until nothing is left; the one drain of this writer.</summary>
+    /// <remarks>
+    /// <para>
+    /// Never throws: it is started with nobody waiting on its result, so everything a store can do is caught here.
+    /// A group that fails is lost whole and turns the writer off (<see cref="Disable"/>), like an event that failed on
+    /// the way it was written before; what is queued after that is dropped without being sent.
+    /// </para>
+    /// <para>
+    /// No token: a cancelled run still has its text to write. The drain ends when the queue is empty, so it lives only
+    /// as long as there is something to write.
+    /// </para>
+    /// </remarks>
+    private async Task DrainAsync()
+    {
+        try
+        {
+            while (TryTakeGroup() is { } group)
+            {
+                if (!IsDisabled)
+                {
+                    try
+                    {
+                        await _store.AppendEventsAsync(group, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (OperationCancellation.IsFailure(ex, CancellationToken.None))
+                    {
+                        LogLostGroup(group);
+                        Disable(ex, RunRecordingStages.Event);
+                    }
+                }
+
+                group.Clear();
+                Volatile.Write(ref _inFlightCount, 0);
+                Volatile.Write(ref _inFlightCharacters, 0);
+            }
+        }
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, CancellationToken.None))
+        {
+            AbandonDrain();
+        }
+    }
+
+    /// <summary>
+    /// Ends a drain that died of something the loop is not meant to throw (a logger that throws while the lost group is
+    /// being reported) so that it cannot hold the writer for ever.
+    /// </summary>
+    /// <remarks>
+    /// A drain that ended with its flag still set would make every later event of the run wait for a queue nobody empties.
+    /// The writer is turned off, which is what a refused group does too, and whoever waits for the queue is let go.
+    /// </remarks>
+    private void AbandonDrain()
+    {
+        TaskCompletionSource? idle;
+
+        Interlocked.Exchange(ref _disabled, 1);
+
+        lock (_queueLock)
+        {
+            _queued?.Clear();
+            _inFlight?.Clear();
+            Volatile.Write(ref _queuedCount, 0);
+            Volatile.Write(ref _queuedCharacters, 0);
+            Volatile.Write(ref _inFlightCount, 0);
+            Volatile.Write(ref _inFlightCharacters, 0);
+            _draining = false;
+            idle = _idle;
+            _idle = null;
+        }
+
+        idle?.TrySetResult();
+    }
+
+    /// <summary>
+    /// Takes everything that is queued as one group, or - when nothing is - ends the drain and wakes whoever waits for the
+    /// queue to be empty.
+    /// </summary>
+    /// <returns>The group; <see langword="null"/> when the drain is over.</returns>
+    private List<RunEvent>? TryTakeGroup()
+    {
+        TaskCompletionSource? idle;
+
+        lock (_queueLock)
+        {
+            if (_queued is { Count: > 0 } queued)
+            {
+                // Two lists trade places: the one the producers filled is the group, and the one the last group was
+                // written from (empty by now) is what they fill next.
+                _queued = _inFlight ?? new List<RunEvent>(queued.Capacity);
+                _inFlight = queued;
+                Volatile.Write(ref _inFlightCount, _queuedCount);
+                Volatile.Write(ref _inFlightCharacters, _queuedCharacters);
+                Volatile.Write(ref _queuedCount, 0);
+                Volatile.Write(ref _queuedCharacters, 0);
+
+                return queued;
+            }
+
+            _draining = false;
+            idle = _idle;
+            _idle = null;
+        }
+
+        idle?.TrySetResult();
+
+        return null;
+    }
+
+    private void LogLostGroup(List<RunEvent> group)
+        => _logger.LogWarning(
+            "Run {RunId} lost {Count} streamed events (sequence {First} to {Last}) that were queued for the store; " +
+            "the stream the store holds ends before them.",
+            RunId,
+            group.Count,
+            group[0].Sequence,
+            group[^1].Sequence);
+
+    /// <summary>The thread pool entry of the drain: one instance per writer, no allocation per start.</summary>
+    private sealed class DrainWorkItem(RunEventWriter writer) : IThreadPoolWorkItem
+    {
+        public void Execute() => _ = writer.DrainAsync();
+    }
+
+    /// <summary>Gives a draft its sequence number and timestamp; runs under the append gate only.</summary>
+    private RunEvent BuildEvent(RunEventDraft draft, bool allowReserved)
+        => new()
         {
             RunId = RunId,
             Sequence = Interlocked.Increment(ref _sequence) - 1,
@@ -419,26 +745,6 @@ public sealed class RunEventWriter
             // Expected tenant stamp.
             TenantId = TenantId,
         };
-
-        if (toStore && !IsDisabled)
-        {
-            try
-            {
-                await _store.AppendEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
-            {
-                Disable(ex, RunRecordingStages.Event);
-            }
-        }
-
-        // Sink dispatch is INDEPENDENT of the store: a sink failure never
-        // disables the store, and a store failure never skips the sinks —
-        // observability targets do not share a single point of failure.
-        await DispatchToSinksAsync(runEvent, cancellationToken).ConfigureAwait(false);
-
-        return runEvent;
-    }
 
     /// <summary>
     /// The reserved <c>Custom</c> types whose payload is written with
@@ -713,6 +1019,9 @@ public sealed class RunEventWriter
         // dispatches the closing event to every registered sink even when the
         // store already failed earlier in this run — a sink must never miss
         // the terminal event just because the store did.
+        // The text of the reply goes first, whatever the token says: see FlushQueuedAsync.
+        await FlushQueuedAsync().ConfigureAwait(false);
+
         var closingEvent = status switch
         {
             RunStatus.Completed => new RunEventDraft(RunEventType.RunCompleted),

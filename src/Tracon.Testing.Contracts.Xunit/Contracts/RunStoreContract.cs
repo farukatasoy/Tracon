@@ -78,6 +78,18 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     protected virtual ValueTask<IRunScoreStore?> CreateScoreStoreAsync()
         => ValueTask.FromResult<IRunScoreStore?>(null);
 
+    /// <summary>
+    /// Gets whether the store under test writes a group of events whole or not at all.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IRunStore.AppendEventsAsync"/> only promises that a failed group is reported; its default
+    /// implementation writes the events before the failing one. A store that overrides the method and writes the
+    /// group in one statement returns <see langword="true"/> here, and the scenarios that look for a half-written
+    /// group then run. Virtual and <see langword="false"/> by default for the same reason as
+    /// <see cref="CreateScoreStoreAsync"/>: a store that already derives from this contract keeps passing.
+    /// </remarks>
+    protected virtual bool AppendsEventGroupsAtomically => false;
+
     [Fact]
     public async Task A_completed_run_stays_completed_while_its_cost_is_being_updated()
     {
@@ -271,6 +283,272 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         }
 
         sequences.ShouldBe([0]);
+    }
+
+    // --- AppendEventsAsync: a group of events in one call ---
+
+    private async Task<List<RunEvent>> ReadEventsOfAsync(Guid runId)
+    {
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in Store.ReadEventsAsync(runId))
+        {
+            events.Add(runEvent);
+        }
+
+        return events;
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_writes_every_event_of_the_group_and_keeps_its_fields()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        // Microseconds are the finest precision every store keeps; the offset is not UTC on purpose: the instant
+        // is what the store keeps, not the offset the caller wrote it with.
+        var at = new DateTimeOffset(2026, 11, 7, 13, 30, 15, 123, TimeSpan.FromHours(3)).AddTicks(4560);
+
+        await Store.AppendEventsAsync(
+        [
+            new RunEvent { RunId = runId, Sequence = 0, Type = RunEventType.MessageDelta, Timestamp = at, Text = "first" },
+            new RunEvent
+            {
+                RunId = runId,
+                Sequence = 1,
+                Type = RunEventType.ToolInvoking,
+                Timestamp = at.AddSeconds(1),
+                Text = "calling",
+                ToolName = "get_order_status",
+                ToolCallId = "call-1",
+                Payload = """{"orderId":42}""",
+            },
+            new RunEvent
+            {
+                RunId = runId,
+                Sequence = 2,
+                Type = RunEventType.Custom,
+                Timestamp = at.AddSeconds(2),
+                CustomType = "contoso.preview-ready",
+            },
+            new RunEvent { RunId = runId, Sequence = 3, Type = RunEventType.RunCompleted, Timestamp = at.AddSeconds(3) },
+        ]);
+
+        var events = await ReadEventsOfAsync(runId);
+
+        events.Select(static runEvent => runEvent.Sequence).ShouldBe([0, 1, 2, 3]);
+        events.Select(static runEvent => runEvent.Type).ShouldBe(
+            [RunEventType.MessageDelta, RunEventType.ToolInvoking, RunEventType.Custom, RunEventType.RunCompleted]);
+
+        events[0].Text.ShouldBe("first");
+        events[0].ToolName.ShouldBeNull();
+        events[0].Payload.ShouldBeNull();
+        events[0].CustomType.ShouldBeNull();
+
+        events[1].Text.ShouldBe("calling");
+        events[1].ToolName.ShouldBe("get_order_status");
+        events[1].ToolCallId.ShouldBe("call-1");
+        events[1].Payload.ShouldBe("""{"orderId":42}""");
+        events[1].CustomType.ShouldBeNull();
+
+        events[2].CustomType.ShouldBe("contoso.preview-ready");
+        events[2].Text.ShouldBeNull();
+
+        events[3].Text.ShouldBeNull();
+
+        for (var i = 0; i < events.Count; i++)
+        {
+            events[i].RunId.ShouldBe(runId);
+            events[i].Timestamp.UtcDateTime.ShouldBe(at.AddSeconds(i).UtcDateTime, TimeSpan.FromMilliseconds(1));
+        }
+
+        (await Store.GetLastEventSequenceAsync(runId)).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_keeps_text_that_looks_like_the_wire_format()
+    {
+        // The SQL stores hand a group over as one JSON document. A text that is itself JSON, or that holds a quote, a
+        // backslash, a control character, a line separator or a character outside the basic plane, must come back
+        // exactly as it went in.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        string[] texts =
+        [
+            """{"seq":99,"type":7,"text":"x"}""",
+            "quote \" backslash \\ slash / tab \t newline \n carriage \r",
+            "control \u0001\u001f separator \u2028\u2029 naïve café 日本語 😀",
+            "]},{\"seq\":100",
+            new string('x', 8 * 1024),
+            " ",
+        ];
+
+        await Store.AppendEventsAsync(
+            [.. texts.Select((text, index) => TestData.Event(runId, index) with { Text = text, Payload = text })]);
+
+        var events = await ReadEventsOfAsync(runId);
+
+        events.Count.ShouldBe(texts.Length);
+
+        for (var i = 0; i < texts.Length; i++)
+        {
+            events[i].Text.ShouldBe(texts[i]);
+            events[i].Payload.ShouldBe(texts[i]);
+        }
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_accepts_a_group_far_larger_than_any_statement_parameter_limit()
+    {
+        // A store that turned each event into its own statement parameters would meet a limit (SQL Server stops
+        // at 2 100) long before this group ends.
+        const int Count = 500;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventsAsync([.. Enumerable.Range(0, Count).Select(index => TestData.Event(runId, index))]);
+
+        var events = await ReadEventsOfAsync(runId);
+
+        events.Count.ShouldBe(Count);
+        events.Select(static runEvent => runEvent.Sequence).ShouldBe(Enumerable.Range(0, Count).Select(static index => (long)index));
+        events[Count - 1].Text.ShouldBe($"chunk {Count - 1}");
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_continues_where_an_earlier_group_and_a_single_event_left_off()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventsAsync([TestData.Event(runId, 0), TestData.Event(runId, 1)]);
+        await Store.AppendEventAsync(TestData.Event(runId, 2));
+        await Store.AppendEventsAsync([TestData.Event(runId, 3), TestData.Event(runId, 4)]);
+
+        (await ReadEventsOfAsync(runId)).Select(static runEvent => runEvent.Sequence).ShouldBe([0, 1, 2, 3, 4]);
+        (await Store.GetLastEventSequenceAsync(runId)).ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_with_no_event_writes_nothing_and_is_not_an_error()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventsAsync([]);
+
+        (await ReadEventsOfAsync(runId)).ShouldBeEmpty();
+        (await Store.GetLastEventSequenceAsync(runId)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_cannot_append_to_a_nonexistent_run()
+    {
+        var unknown = TraconId.NewId();
+
+        await Should.ThrowAsync<TraconException>(
+            async () => await Store.AppendEventsAsync([TestData.Event(unknown, 0), TestData.Event(unknown, 1)]));
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_rejects_a_duplicate_sequence()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+        await Store.AppendEventAsync(TestData.Event(runId, 0) with { Text = "original" });
+
+        // The same rule as for a single event: a sequence number that is taken is a caller error, and it is reported.
+        await Should.ThrowAsync<TraconException>(
+            async () => await Store.AppendEventsAsync([TestData.Event(runId, 1), TestData.Event(runId, 0)]));
+
+        // Whatever else happened, the event that was there is untouched.
+        var original = (await ReadEventsOfAsync(runId)).Single(static runEvent => runEvent.Sequence == 0);
+        original.Text.ShouldBe("original");
+
+        if (AppendsEventGroupsAtomically)
+        {
+            (await ReadEventsOfAsync(runId)).Select(static runEvent => runEvent.Sequence).ShouldBe([0]);
+        }
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_rejects_a_sequence_repeated_inside_the_group()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Should.ThrowAsync<TraconException>(
+            async () => await Store.AppendEventsAsync([TestData.Event(runId, 0), TestData.Event(runId, 1), TestData.Event(runId, 1)]));
+
+        if (AppendsEventGroupsAtomically)
+        {
+            (await ReadEventsOfAsync(runId)).ShouldBeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_stores_a_NUL_character_in_a_text_or_fails_in_neither_direction()
+    {
+        // The single-event contract says a NUL is kept or replaced and never refused; a group holds to it.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventsAsync(
+        [
+            TestData.Event(runId, 0) with { Text = "before\0after" },
+            TestData.Event(runId, 1) with { Text = "plain", Payload = "pay\0load" },
+        ]);
+
+        var events = await ReadEventsOfAsync(runId);
+
+        events.Count.ShouldBe(2);
+        events[0].Text.ShouldBeOneOf("before\0after", "before�after");
+        events[1].Text.ShouldBe("plain");
+        events[1].Payload.ShouldBeOneOf("pay\0load", "pay�load");
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_does_not_write_with_the_wrong_expected_tenant()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        // A group carries the tenant of its events, exactly as a single event does: another tenant's group writes no
+        // row at all, not even the first.
+        await Should.ThrowAsync<TraconException>(async () =>
+            await Store.AppendEventsAsync(
+            [
+                TestData.Event(runId, 0) with { TenantId = TenantB },
+                TestData.Event(runId, 1) with { TenantId = TenantB },
+            ]));
+
+        (await ReadEventsOfAsync(runId)).ShouldBeEmpty();
+
+        // The correct tenant succeeds; the condition is not too narrow.
+        await Store.AppendEventsAsync(
+        [
+            TestData.Event(runId, 0) with { TenantId = TenantA },
+            TestData.Event(runId, 1) with { TenantId = TenantA },
+        ]);
+
+        (await ReadEventsOfAsync(runId)).Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task AppendEventsAsync_without_an_expected_tenant_performs_no_tenant_check()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventsAsync([TestData.Event(runId, 0), TestData.Event(runId, 1)]);
+
+        (await ReadEventsOfAsync(runId)).Count.ShouldBe(2);
     }
 
     [Fact]

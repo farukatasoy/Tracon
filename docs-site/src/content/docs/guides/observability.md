@@ -242,7 +242,9 @@ goes through on its second try adds none.
 
 - `start` — the run record was never opened. Nothing about this run is queryable.
 - `event` — the run exists but its event stream stops partway. Replay and the run
-  timeline are incomplete.
+  timeline are incomplete. When streamed text is
+  [written behind the stream](/concepts/runs/#streamed-text-is-written-behind-the-stream),
+  the loss is a group of chunks and the log entry names how many; the store keeps the start of the reply.
 - `tool_invocation` — a tool's measurement was lost. The run and its events survive;
   tool analytics under-report.
 - `non_token_usage` — an item a workflow function node reported with `ReportUsageAsync`
@@ -533,6 +535,7 @@ run inspection:
     "RunRecording": {
       "Enabled": true,
       "RecordMessageDeltas": true,
+      "WriteDeltasBehind": true,
       "RecordToolPayloads": true,
       "RecordCitationUrls": false,
       "RecordReasoningDeltas": false,
@@ -547,6 +550,7 @@ run inspection:
 |---|---:|---|
 | `RunRecording.Enabled` | `true` | When false, no run event is written |
 | `RecordMessageDeltas` | `true` | Turning it off reduces write volume for streaming runs |
+| `WriteDeltasBehind` | `true` | The stream does not wait for the store once for each chunk: chunks queue and are written in groups. A process that dies loses the chunks still queued (about one round trip of text, at most 1,024 chunks), and the store keeps the start of the reply. `false` writes each chunk before the stream continues. See [Streamed text is written behind the stream](/concepts/runs/#streamed-text-is-written-behind-the-stream) |
 | `RecordToolPayloads` | `true` | Tool arguments and results can contain personal or secret data |
 | `RecordCitationUrls` | `false` | A citation event writes the scheme and host of its source; `true` writes the whole address, which can hold a signed credential. User information is never written |
 | `RecordReasoningDeltas` | `false` | Off unlike the other flags: reasoning output can run far longer than the answer and can restate input the answer never shows |

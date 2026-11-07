@@ -70,9 +70,33 @@ cannot:
 | Cancellation requests | `RequestCancellationAsync` writes the request on a `Running` or `Queued` row of the expected tenant and returns `true`; for a run that does not exist, belongs to another tenant or has ended it writes nothing and returns `false`. A second call keeps the **first** time (`RunRecord.CancelRequestedAt`) and still returns `true`. `TouchHeartbeatAsync` returns, in the same call that writes the heartbeat, a `RunCancellationRequest` for every id you were given whose row is still `Running` or `Queued` and carries a request, with the run's own tenant; the owner cancels the run, so return the same request on every call until the run ends. A second `StartRunAsync` must not clear the request |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
 | Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `TraconException`, do not silently accept or silently drop it |
+| Groups of events | `AppendEventsAsync` has a default implementation, so your store works without it; override it to write a group in one call (see below). The rules of `AppendEventAsync` hold for every event of the group |
 
 The full text lives on `IRunStore`'s own XML documentation — see [the API
 reference](/api/tracon.irunstore/) for the exact wording each method carries.
+
+### Write events in a group
+
+Tracon writes a streamed reply [behind the stream](/concepts/runs/#streamed-text-is-written-behind-the-stream): the
+text chunks of a run queue while the previous write is on its way and go to the store together. They arrive in one call
+of `AppendEventsAsync`, a default interface method that calls `AppendEventAsync` for each event, in order, and stops at
+the first failure. Your store needs nothing for that to work, and loses nothing: it pays one call for each chunk, as it
+did before.
+
+Override it when each call costs you a round trip or a connection. The contract:
+
+- The events belong to **one run**, carry **one tenant**, and come in ascending `Sequence` order. The list is reused by
+  the caller after the call returns, so read it during the call and do not keep it.
+- Every rule of `AppendEventAsync` holds for each event: the expected tenant, the sequence number the caller assigned,
+  `TraconException` for an unknown run, another tenant's run or a sequence number that is already written.
+- Write the group **whole or not at all** if you can (one statement, one transaction). The default is not atomic: when
+  it fails, the events before the failing one are written. Tracon treats a failed group as lost either way, turns
+  recording off for the run and counts one loss, so a half-written group is a shorter stream and not a corrupt one.
+- An empty list writes nothing and is not an error.
+
+`RunStoreContract` checks all of it. A store that writes groups atomically says so by overriding
+`AppendsEventGroupsAtomically` to return `true`, which turns on the scenarios that look for a half-written group; the
+default is `false` so that a store that relies on the default implementation still passes.
 
 ## Prove it with the contract suite
 

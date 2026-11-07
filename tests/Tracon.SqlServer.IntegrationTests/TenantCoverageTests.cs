@@ -86,10 +86,14 @@ public sealed class TenantCoverageTests
         // expected-tenant guard: RunStoreContract asserts that a request for
         // another tenant's run writes nothing and that the ambient tenant is
         // not consulted.
+        // AppendEventsAsync (a group of events in one statement) carries the same
+        // expected-tenant guard as AppendEventAsync: RunStoreContract asserts that
+        // another tenant's group writes no row, not even the first, and that the
+        // right tenant's group is written.
         ["SqlRunStore"] =
             ["StartRunAsync", "GetRunAsync", "QueryRunsAsync", "ReadEventsAsync", "ListToolInvocationsAsync",
              "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync",
-             "AppendEventAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync",
+             "AppendEventAsync", "AppendEventsAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync",
              "CompleteLateToolInvocationAsync", "RecordNonTokenUsageAsync", "ListNonTokenUsageAsync",
              "RequestCancellationAsync"],
         ["SqlSessionStore"] =

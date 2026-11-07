@@ -75,6 +75,7 @@ public sealed class TenantPredicateTests
     private static readonly Dictionary<string, string> NullTenantQueries = new(StringComparer.Ordinal)
     {
         ["InsertRunEvent"] = RunWriter,
+        ["InsertRunEvents"] = RunWriter,
         ["InsertToolInvocation"] = RunWriter,
         ["InsertNonTokenUsage"] = RunWriter,
         ["UpdateLateToolInvocation"] = RunWriter,

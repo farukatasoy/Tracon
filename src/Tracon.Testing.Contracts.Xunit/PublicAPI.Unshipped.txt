@@ -1306,3 +1306,15 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_return_value_car
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_takes_only_a_threshold_inside_the_range() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.Owners_that_differ_only_in_letter_case_are_two_owners() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SessionStoreContract.A_read_by_identifier_answers_with_the_identifier_the_store_holds() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_writes_every_event_of_the_group_and_keeps_its_fields() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_keeps_text_that_looks_like_the_wire_format() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_accepts_a_group_far_larger_than_any_statement_parameter_limit() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_continues_where_an_earlier_group_and_a_single_event_left_off() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_with_no_event_writes_nothing_and_is_not_an_error() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_cannot_append_to_a_nonexistent_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_rejects_a_duplicate_sequence() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_rejects_a_sequence_repeated_inside_the_group() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_stores_a_NUL_character_in_a_text_or_fails_in_neither_direction() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_does_not_write_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_without_an_expected_tenant_performs_no_tenant_check() -> System.Threading.Tasks.Task!
+virtual Tracon.Testing.Contracts.Storage.RunStoreContract.AppendsEventGroupsAtomically.get -> bool

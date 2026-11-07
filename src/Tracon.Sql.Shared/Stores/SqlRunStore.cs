@@ -247,6 +247,78 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// One statement for the whole group (<see cref="SqlQueriesBase.InsertRunEvents"/>), so the group is written whole or
+    /// not at all, a deadlock victim is sent again as a whole (<see cref="SqlStoreContext.ExecuteStatementAsync"/>), and the
+    /// group meets neither a parameter limit nor a connection per event. The events must belong to one run and carry one
+    /// tenant: the run and the tenant are parameters of the statement, not columns of the array.
+    /// </remarks>
+    public async ValueTask AppendEventsAsync(IReadOnlyList<RunEvent> events, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+
+        if (events.Count == 0)
+        {
+            return;
+        }
+
+        var runId = events[0].RunId;
+        var tenantId = events[0].TenantId;
+
+        for (var i = 1; i < events.Count; i++)
+        {
+            if (events[i].RunId != runId
+                || !string.Equals(
+                    AmbientTenantScope.NormalizeOrNull(events[i].TenantId),
+                    AmbientTenantScope.NormalizeOrNull(tenantId),
+                    StringComparison.Ordinal))
+            {
+                throw new ArgumentException("The events of one group must all belong to the same run and carry the same tenant.", nameof(events));
+            }
+        }
+
+        var json = RunEventBatchJson.Write(_context, events);
+        int affected;
+
+        try
+        {
+            affected = await _context.ExecuteStatementAsync(
+                _sql.InsertRunEvents,
+                command =>
+                {
+                    DbHelpers.Add(command, "run_id", runId);
+                    Dialect.AddJsonb(command, "events", json);
+                    // 🚨 EXPECTED tenant, NOT the ambient tenant: see AppendEventAsync. NULL means no check.
+                    AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(tenantId));
+                },
+                DbHelpers.ExecuteAsync,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
+        {
+            throw new TraconException(
+                $"Run with id '{runId}' was not found. " +
+                "StartRunAsync must be called before adding an event.",
+                ex);
+        }
+        catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
+        {
+            // The statement is one unit: the events before the repeated sequence number were not written either.
+            throw new TraconException(
+                $"Run '{runId}' already has an event with one of the sequence numbers " +
+                $"'{events[0].Sequence}' to '{events[^1].Sequence}', or the group repeats one. None of the events was written.",
+                ex);
+        }
+
+        if (affected == 0)
+        {
+            throw new TraconException(
+                $"Run with id '{runId}' was not found or does not belong to the expected " +
+                $"tenant ('{tenantId}'). None of the events was written.");
+        }
+    }
+
+    /// <inheritdoc />
     public async ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);

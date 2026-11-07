@@ -357,6 +357,27 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
             """;
 
+        // A group of events travels as one JSON array. json_each opens it in the order it was written (key is the
+        // 0-based index); json_extract returns a JSON string as text, a number as an integer and null as NULL, which are
+        // the column types. created_at is already in the stored text form (see SqliteDialect.AddTimestamp).
+        InsertRunEvents = $"""
+            INSERT INTO {Schema}run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, custom_type, created_at)
+            SELECT @run_id,
+                   json_extract(e.value, '$.seq'),
+                   json_extract(e.value, '$.type'),
+                   json_extract(e.value, '$.text'),
+                   json_extract(e.value, '$.tool_name'),
+                   json_extract(e.value, '$.tool_call_id'),
+                   json_extract(e.value, '$.payload'),
+                   json_extract(e.value, '$.custom_type'),
+                   json_extract(e.value, '$.created_at')
+            FROM json_each(@events) AS e
+            WHERE EXISTS (
+                SELECT 1 FROM {Schema}runs r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id))
+            ORDER BY e.key;
+            """;
+
         UpdateRunCompletion = $"""
             UPDATE {Schema}runs
             SET status         = @status,

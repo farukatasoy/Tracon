@@ -962,6 +962,41 @@ public sealed class TraconRunRecordingOptions
     /// </summary>
     public bool RecordMessageDeltas { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets whether the text chunks of a streamed reply are written to the store behind the stream instead of
+    /// before it continues. Default: <see langword="true"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A streamed chunk (a reasoning chunk too, when <see cref="RecordReasoningDeltas"/> is on) is numbered and
+    /// handed to every <see cref="IRunEventSink"/> at once, but its store write is queued. The chunks that queue while
+    /// the previous group is being written go out together, in one <see cref="IRunStore.AppendEventsAsync"/> call.
+    /// The stream no longer waits for the store once for each chunk, and a store with a network in front of it pays one
+    /// round trip for a group and not one for each chunk. There is no timer and nothing to tune: a slow store gets
+    /// larger groups, a fast one smaller. At most 1 024 chunks (or 256 K characters) are waiting for the store at a time, the group being written included; past that the stream
+    /// waits for the store, as it did for every chunk before.
+    /// </para>
+    /// <para>
+    /// Every other event (a tool call, an approval, a custom event, the end of the run) is still written before the
+    /// call that records it returns, and first writes whatever is queued, so the store holds the events in the order of
+    /// their sequence numbers. The end of the run writes the queue too, whether the run completes, fails or is
+    /// cancelled and whether or not the caller read the stream to its end.
+    /// </para>
+    /// <para>
+    /// <strong>What it costs.</strong> The text of a reply is recorded in these chunks and nowhere else, and a
+    /// process that dies while chunks are queued loses them: the group being written and what queued behind it, about
+    /// one round trip of text. What the store holds afterwards is the start of the reply, with no gap in the
+    /// sequence numbers, and the run is left for the orphan reconciliation to close. A store that is slow or fails loses its group and turns
+    /// recording off for the run, as a failed write always did. Set this to <see langword="false"/> to write every chunk
+    /// before the stream continues, when the record of a reply must be as complete as the reply the caller saw and the
+    /// cost of one store call for each chunk is acceptable. It changes nothing when <see cref="RecordMessageDeltas"/> is off.
+    /// </para>
+    /// <para>
+    /// A sink can see a chunk before the store holds it; see <see cref="IRunEventSink"/>.
+    /// </para>
+    /// </remarks>
+    public bool WriteDeltasBehind { get; set; } = true;
+
     /// <summary>Gets or sets whether tool arguments and results are recorded.</summary>
     /// <remarks>
     /// Tool arguments can contain personal data. A data-retention policy can

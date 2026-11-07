@@ -17,6 +17,18 @@
       "allocatedBytes": 112,
       "meanNanoseconds": 84.78026840516499
     },
+    "Tracon.Benchmarks.RunEventWriterStoreBenchmarks.AllChunksAsOneGroup": {
+      "allocatedBytes": 267808,
+      "meanNanoseconds": 1682712.195825442
+    },
+    "Tracon.Benchmarks.RunEventWriterStoreBenchmarks.BuildOnly": {
+      "allocatedBytes": 40960,
+      "meanNanoseconds": 273207.6583340045
+    },
+    "Tracon.Benchmarks.RunEventWriterStoreBenchmarks.EachChunkOnItsOwn": {
+      "allocatedBytes": 1480960,
+      "meanNanoseconds": 16185817.149193548
+    },
     "Tracon.Benchmarks.RunStoreQueryBenchmarks.QueryRuns": {
       "allocatedBytes": 84880,
       "meanNanoseconds": 1138254.8828125

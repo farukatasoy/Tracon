@@ -258,6 +258,34 @@ services.Configure<TraconOptions>(options =>
 With it off, a reasoning model still streams its thinking to the caller in real time —
 this setting only controls whether it is **recorded**.
 
+### Streamed text is written behind the stream
+
+A streamed reply is recorded as `MessageDelta` events, one for each chunk the model sends, and the run row carries
+no copy of the text: these events are where the reply lives. Tracon does not make the stream wait for the store once
+for each chunk. A chunk is numbered and handed to every sink at once, and its store write is queued; a task of the
+run writes the chunks that queued while the previous write was on its way as one group, in one
+[`IRunStore.AppendEventsAsync`](/guides/write-your-own-store/#write-events-in-a-group) call. There is no timer and no
+batch size to tune: a slow store gets larger groups and a fast one smaller, and a store with a network in front of
+it pays one round trip for a group and not one for each chunk. Reasoning chunks (`ReasoningDelta`) go the same way.
+
+The order does not change. Every other event (a tool call, an approval, a custom event, the end of the run) waits
+until the queue is empty and is then written before its own call returns, so the store holds the events in the
+order of their sequence numbers. The end of the run writes the queue whether the run completes, fails or is
+cancelled, and whether the caller read the stream to its end or walked away. That write takes no cancellation from
+the caller, and it gives up on a store that does not answer within five seconds, as the closing write of the run does.
+At most 1,024 chunks (or 256 K characters) are waiting for the store at a time, the group being written included; past that the stream waits for the store, as it waited for
+every chunk before.
+
+**What it costs.** A process that dies while chunks are queued loses them: the group on its way to the store and
+what queued behind it, about one round trip of text. What the store holds afterwards is the start of the reply, with
+no gap in the sequence numbers, and the run is left for [reconciliation](/guides/reliability/) to close. A group
+the store refuses is lost whole and turns recording off for that run, as a refused write always did: it is counted
+at the `event` stage of `tracon.run.recording_failures` once, and the log entry says how many chunks were lost.
+
+Set `RunRecording:WriteDeltasBehind` to `false` to write each chunk before the stream continues, when the record of a
+reply must be as complete as the reply the caller saw and one store call for each chunk is acceptable. The setting
+changes nothing when `RecordMessageDeltas` is off.
+
 ### Tool calls are recorded where they happen
 
 A tool call that goes through the tool chain is noted in memory when it starts and when it
@@ -454,6 +482,11 @@ queue and return), and a sink must not append an event to the run it is observin
 directly, or by running work inline that writes into that run. Such an append would
 wait for the event the sink is still handling, so it throws
 `InvalidOperationException` instead, and the sink is disabled for the run.
+
+One event is not stored at that step: a [streamed text chunk](#streamed-text-is-written-behind-the-stream) is
+numbered and handed to the sinks at once and its store write is queued. A sink can therefore see a chunk before the
+store holds it, so a sink that reads the run back from the store must not expect to find the chunk it was just
+given. Every other event is in the store when its sink call is made.
 
 ## Who ran it, and for what
 

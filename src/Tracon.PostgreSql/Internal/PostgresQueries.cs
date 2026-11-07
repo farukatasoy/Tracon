@@ -298,6 +298,19 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
             """;
 
+        // A group of events travels as one jsonb array, opened by jsonb_to_recordset with the column types of
+        // run_events, so the text-to-timestamptz conversion of created_at is the database's own.
+        InsertRunEvents = $"""
+            INSERT INTO {Schema}.run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, custom_type, created_at)
+            SELECT @run_id, e.seq, e.type, e.text, e.tool_name, e.tool_call_id, e.payload, e.custom_type, e.created_at
+            FROM jsonb_to_recordset(@events) AS e(seq bigint, type smallint, text text, tool_name text, tool_call_id text,
+                                                  payload text, custom_type text, created_at timestamptz)
+            WHERE EXISTS (
+                SELECT 1 FROM {Schema}.runs r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id))
+            ORDER BY e.seq;
+            """;
+
         UpdateRunCompletion = $"""
             UPDATE {Schema}.runs
             SET status         = @status,

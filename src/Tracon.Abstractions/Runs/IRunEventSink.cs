@@ -35,7 +35,17 @@ namespace Tracon;
 /// at once (concurrent tool calls, a child run, a workflow's steps); Tracon numbers
 /// an event, stores it and hands it to every sink as one step, and the run's next
 /// event waits for it. A slow sink therefore holds up that run, which is one more
-/// reason to queue and return. A sink must not append to the run whose event it is
+/// reason to queue and return.
+/// </para>
+/// <para>
+/// <strong>A sink can see an event before the store holds it.</strong> A streamed text
+/// chunk is numbered and handed to the sinks at once, and its store write is queued and made a
+/// moment later (see <c>TraconRunRecordingOptions.WriteDeltasBehind</c>). Every other event has
+/// been written to the store by the time its sink call is made. A sink that reads the run back
+/// from the store therefore must not expect to find the chunk it was just given.
+/// </para>
+/// <para>
+/// A sink must not append to the run whose event it is
 /// handling — directly through <c>TraconRunContext.Current</c> or by starting work
 /// inline that writes into that run, such as running an agent: the append would
 /// wait for the event the sink is still handling, so Tracon throws

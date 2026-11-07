@@ -66,6 +66,9 @@ public sealed class PostgresRunStoreContractTests(PostgresSchemaFixture schema)
     : RunStoreContract, IClassFixture<PostgresSchemaFixture>
 {
     /// <inheritdoc />
+    protected override bool AppendsEventGroupsAtomically => true;
+
+    /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
         UseAmbientTenant(schema.Tenant);

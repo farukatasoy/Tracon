@@ -426,6 +426,28 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     CASE WHEN @status = @status_running THEN {LeaseNow} END);
             """;
 
+        // A group of events travels as one JSON array, opened by OPENJSON. The text columns are read as nvarchar(max)
+        // and narrowed by the INSERT, so a value that does not fit its column fails the way a single event does
+        // instead of being cut. created_at is an ISO 8601 instant in UTC.
+        InsertRunEvents = $"""
+            INSERT INTO {Schema}.run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, custom_type, created_at)
+            SELECT @run_id, e.seq, e.[type], e.[text], e.tool_name, e.tool_call_id, e.payload, e.custom_type, e.created_at
+            FROM OPENJSON(@events) WITH (
+                seq          bigint            '$.seq',
+                [type]       smallint          '$.type',
+                [text]       nvarchar(max)     '$.text',
+                tool_name    nvarchar(max)     '$.tool_name',
+                tool_call_id nvarchar(max)     '$.tool_call_id',
+                payload      nvarchar(max)     '$.payload',
+                custom_type  nvarchar(max)     '$.custom_type',
+                created_at   datetimeoffset(7) '$.created_at'
+            ) AS e
+            WHERE EXISTS (
+                SELECT 1 FROM {Schema}.runs r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id))
+            ORDER BY e.seq;
+            """;
+
         UpdateRunCompletion = $"""
             UPDATE {Schema}.runs
                SET status         = @status,

@@ -256,6 +256,36 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
         loaded.Payload.ShouldBe("{\"raw\":\"secret-payload\"}");
     }
 
+    /// <summary>
+    /// A group of events is protected the way a single event is: the text and the payload of every event in it are
+    /// encrypted before they reach the one JSON document the group travels in, and read back as plaintext.
+    /// </summary>
+    [Fact]
+    public async Task Run_event_text_and_payload_are_encrypted_at_rest_when_written_as_a_group()
+    {
+        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.RunEventText, ProtectedColumn.RunEventPayload });
+        var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);
+        var runId = Guid.NewGuid();
+
+        await runs.StartRunAsync(TestData.Run(runId));
+        await runs.AppendEventsAsync(
+        [
+            new RunEvent { RunId = runId, Sequence = 0, Type = RunEventType.MessageDelta, Text = "first with secret-token", Timestamp = DateTimeOffset.UtcNow },
+            new RunEvent { RunId = runId, Sequence = 1, Type = RunEventType.MessageDelta, Text = "second with secret-token", Payload = "{\"raw\":\"secret-payload\"}", Timestamp = DateTimeOffset.UtcNow },
+        ]);
+
+        var rawTexts = await baseContext.ScalarAsync<int>($"SELECT COUNT(*) FROM {baseContext.SchemaName}.run_events WHERE run_id = '{runId}' AND text LIKE '%$apEnc%' AND text NOT LIKE '%secret-token%';");
+        var rawPayloads = await baseContext.ScalarAsync<int>($"SELECT COUNT(*) FROM {baseContext.SchemaName}.run_events WHERE run_id = '{runId}' AND payload LIKE '%$apEnc%' AND payload NOT LIKE '%secret-payload%';");
+
+        rawTexts.ShouldBe(2, "both texts are stored as envelopes that do not hold the plaintext");
+        rawPayloads.ShouldBe(1, "the payload that was written is stored as an envelope that does not hold the plaintext");
+
+        var events = await runs.ReadEventsAsync(runId).ToListAsync();
+        events.Select(static e => e.Text).ShouldBe(["first with secret-token", "second with secret-token"], StringComparer.Ordinal);
+        events[1].Payload.ShouldBe("{\"raw\":\"secret-payload\"}");
+    }
+
     [Fact]
     public async Task Tool_arguments_and_result_are_encrypted_at_rest()
     {

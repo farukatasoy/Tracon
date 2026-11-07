@@ -269,6 +269,7 @@ Tracon:RunRecording:RecordReasoningDeltas
 Tracon:RunRecording:RecordRunInput
 Tracon:RunRecording:RecordToolPayloads
 Tracon:RunRecording:SinkTimeout
+Tracon:RunRecording:WriteDeltasBehind
 Tracon:Scheduling:Enabled
 Tracon:Scheduling:HttpSchedulableHandlerKeys:*
 Tracon:Scheduling:LaneByHandlerKey:*

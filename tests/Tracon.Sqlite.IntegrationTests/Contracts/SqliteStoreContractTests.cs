@@ -70,6 +70,9 @@ public sealed class SqliteRunStoreContractTests(SqliteSchemaFixture schema)
     : RunStoreContract, IClassFixture<SqliteSchemaFixture>
 {
     /// <inheritdoc />
+    protected override bool AppendsEventGroupsAtomically => true;
+
+    /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
         UseAmbientTenant(schema.Tenant);

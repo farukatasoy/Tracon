@@ -48,6 +48,7 @@ public sealed class StoreFailureMatrixTests
             // The run only records to these: it goes on and the caller gets the answer.
             ["IRunStore.StartRunAsync"] = HttpStatusCode.OK,
             ["IRunStore.AppendEventAsync"] = HttpStatusCode.OK,
+            ["IRunStore.AppendEventsAsync"] = HttpStatusCode.OK,
             ["IRunStore.CompleteRunAsync"] = HttpStatusCode.OK,
             ["IRunStore.GetLastEventSequenceAsync"] = HttpStatusCode.OK,
             ["IRunInputStore.SaveAsync"] = HttpStatusCode.OK,
@@ -180,6 +181,7 @@ public sealed class StoreFailureMatrixTests
     /// </summary>
     [Theory]
     [InlineData("IRunStore.AppendEventAsync")]
+    [InlineData("IRunStore.AppendEventsAsync")]
     [InlineData("IRunStore.CompleteRunAsync")]
     public async Task A_run_whose_record_write_failed_once_still_ends_in_a_terminal_state(string member)
     {

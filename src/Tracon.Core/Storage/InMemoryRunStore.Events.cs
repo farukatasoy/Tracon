@@ -48,6 +48,65 @@ internal sealed partial class InMemoryRunStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The group is checked as a whole before the first event is added, under the run's lock, so it is written whole or
+    /// not at all - the same as the SQL stores, which write it in one statement.
+    /// </remarks>
+    public ValueTask AppendEventsAsync(IReadOnlyList<RunEvent> events, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (events.Count == 0)
+        {
+            return default;
+        }
+
+        var runId = events[0].RunId;
+        var tenantId = events[0].TenantId;
+
+        for (var i = 1; i < events.Count; i++)
+        {
+            if (events[i].RunId != runId || !string.Equals(events[i].TenantId, tenantId, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("The events of one group must all belong to the same run and carry the same tenant.", nameof(events));
+            }
+        }
+
+        if (!_events.TryGetValue(runId, out var log))
+        {
+            throw new TraconException(
+                $"No run with id '{runId}' was found. StartRunAsync must be called before adding an event.");
+        }
+
+        EnsureExpectedTenant(runId, tenantId, "The events were not written.");
+
+        lock (log)
+        {
+            var taken = new HashSet<long>(log.Count + events.Count);
+
+            foreach (var existing in log)
+            {
+                taken.Add(existing.Sequence);
+            }
+
+            foreach (var runEvent in events)
+            {
+                if (!taken.Add(runEvent.Sequence))
+                {
+                    throw new TraconException(
+                        $"Run '{runId}' already has an event with sequence '{runEvent.Sequence}'. " +
+                        "None of the events was written.");
+                }
+            }
+
+            log.AddRange(events);
+        }
+
+        return default;
+    }
+
+    /// <inheritdoc />
     public ValueTask<long?> GetLastEventSequenceAsync(
         Guid runId,
         CancellationToken cancellationToken = default)

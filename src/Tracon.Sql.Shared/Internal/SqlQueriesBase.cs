@@ -824,6 +824,19 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that inserts a run event.</summary>
     public string InsertRunEvent { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the query that inserts a group of events of one run in a single statement: <c>@run_id</c>,
+    /// <c>@tenant_id</c> (<see langword="null"/> for no check) and <c>@events</c>, a JSON array of objects with the keys
+    /// <c>seq</c>, <c>type</c>, <c>text</c>, <c>tool_name</c>, <c>tool_call_id</c>, <c>payload</c>, <c>custom_type</c> and
+    /// <c>created_at</c> (an ISO 8601 instant in UTC).
+    /// </summary>
+    /// <remarks>
+    /// One statement text for every group size: the group travels as a single parameter, so the number of events meets no
+    /// parameter limit and the plan is the same whatever the size. A single statement is also all or nothing, and carries
+    /// the same tenant guard as <see cref="InsertRunEvent"/>: a run of another tenant writes no row at all.
+    /// </remarks>
+    public string InsertRunEvents { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that reads the run events by sequence number.</summary>
     public string SelectRunEvents { get; protected set; } = string.Empty;
 

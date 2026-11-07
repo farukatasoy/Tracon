@@ -66,6 +66,9 @@ public sealed class SqlServerRunStoreContractTests(SqlServerSchemaFixture schema
     : RunStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
     /// <inheritdoc />
+    protected override bool AppendsEventGroupsAtomically => true;
+
+    /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
         UseAmbientTenant(schema.Tenant);

@@ -547,6 +547,8 @@ Tracon.TraconRunRecordingOptions.RecordToolPayloads.set -> void
 Tracon.TraconRunRecordingOptions.SinkTimeout.get -> System.TimeSpan
 Tracon.TraconRunRecordingOptions.SinkTimeout.set -> void
 Tracon.TraconRunRecordingOptions.TraconRunRecordingOptions() -> void
+Tracon.TraconRunRecordingOptions.WriteDeltasBehind.get -> bool
+Tracon.TraconRunRecordingOptions.WriteDeltasBehind.set -> void
 Tracon.TraconBuilderExtensions
 Tracon.TraconServiceCollectionExtensions
 Tracon.TraconSkillOptions

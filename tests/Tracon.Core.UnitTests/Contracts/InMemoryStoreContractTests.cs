@@ -22,6 +22,9 @@ public sealed class InMemoryAgentDefinitionStoreContractTests : AgentDefinitionS
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
 public sealed class InMemoryRunStoreContractTests : RunStoreContract
 {
+    /// <inheritdoc />
+    protected override bool AppendsEventGroupsAtomically => true;
+
     // The run store reads scores through this instance; the contract writes
     // them through the same one, so both point at one backend.
     private readonly InMemoryRunScoreStore _scores = new();

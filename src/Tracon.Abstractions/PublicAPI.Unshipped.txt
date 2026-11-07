@@ -1179,6 +1179,7 @@ Tracon.IRunScoreStore.SummarizeAsync(Tracon.RunScoreQuery! query, System.Threadi
 Tracon.IRunScoreStore.UpsertAsync(Tracon.RunScore! score, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunScore!>
 Tracon.IRunStore
 Tracon.IRunStore.AppendEventAsync(Tracon.RunEvent! runEvent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IRunStore.AppendEventsAsync(System.Collections.Generic.IReadOnlyList<Tracon.RunEvent!>! events, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRunStore.ClaimOrphanedRunsAsync(System.TimeSpan staleAfter, int max, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RunRecord!>!>
 Tracon.IRunStore.CompleteLateToolInvocationAsync(Tracon.LateToolCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IRunStore.CompleteRunAsync(Tracon.RunCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask

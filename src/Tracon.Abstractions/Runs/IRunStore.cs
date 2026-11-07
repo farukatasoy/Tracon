@@ -167,6 +167,39 @@ public interface IRunStore
     /// </remarks>
     ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default);
 
+    /// <summary>Appends several events of one run to the stream, in one call.</summary>
+    /// <param name="events">
+    /// The events to append, in ascending <see cref="RunEvent.Sequence"/> order. They all belong to the same run and
+    /// carry the same <see cref="RunEvent.TenantId"/>. The list is only read during the call: an implementation must
+    /// not keep it, because the caller reuses it afterwards.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the events are written.</returns>
+    /// <remarks>
+    /// <para>
+    /// Tracon writes a streamed reply this way: the text chunks of a run are queued while the previous group is on its
+    /// way to the store and go out together, so a store that has a network between it and Tracon pays one round trip
+    /// for a group and not one for each chunk. The rules of <see cref="AppendEventAsync"/> hold for every event of the
+    /// group: the expected tenant, the sequence number the caller assigned, <see cref="TraconException"/> for an
+    /// unknown run, a run of another tenant or a sequence number that is already written.
+    /// </para>
+    /// <para>
+    /// <strong>The default implementation calls <see cref="AppendEventAsync"/> for each event, in order, and stops at
+    /// the first failure.</strong> It is not atomic: when it fails, the events before the failing one are written. A
+    /// store that can write the group in one statement should override it and write the group whole or not at all;
+    /// Tracon treats a failed group as lost either way. An empty list writes nothing and is not an error.
+    /// </para>
+    /// </remarks>
+    async ValueTask AppendEventsAsync(IReadOnlyList<RunEvent> events, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+
+        for (var i = 0; i < events.Count; i++)
+        {
+            await AppendEventAsync(events[i], cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>
     /// Gets the highest <see cref="RunEvent.Sequence"/> written for a run.
     /// </summary>

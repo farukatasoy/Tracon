@@ -27,11 +27,13 @@ public sealed partial class RunRecordingStagePolicyTests
     /// <summary>Files allowed to publish a stage value, and how many call sites each has.</summary>
     /// <remarks>
     /// The numbers are asserted so that a new call site has to be reviewed rather than
-    /// silently absorbed. <c>RunEventWriter</c>'s eight are: SIX <c>Disable</c> calls
+    /// silently absorbed. <c>RunEventWriter</c>'s ten are: EIGHT <c>Disable</c> calls
     /// (one per store stage, plus the late tool-completion write, which reuses the
     /// <c>ToolInvocation</c> stage because it writes to the same row through the same
-    /// store), the sink site that records directly, and <c>Disable</c>'s own forward of
-    /// the value to the counter. The input stage is recorded where it happens, outside
+    /// store, plus the two that belong to the queue of streamed deltas: the drain whose
+    /// group the store refused, and the closing flush whose store did not answer within
+    /// the budget - both lose events at the <c>Event</c> stage), the sink site that
+    /// records directly, and <c>Disable</c>'s own forward of the value to the counter. The input stage is recorded where it happens, outside
     /// the writer: by the agent recorder, and by the workflow runner, which records a
     /// parameterized run's final values through the same store. The agent recorder's
     /// second site is the <c>catch</c> of the step that writes the tool calls from the
@@ -42,7 +44,7 @@ public sealed partial class RunRecordingStagePolicyTests
     /// </remarks>
     private static readonly (string File, int CallSites)[] AllowedCallSites =
     [
-        ("src/Tracon.Core/Recording/RunEventWriter.cs", 8),
+        ("src/Tracon.Core/Recording/RunEventWriter.cs", 10),
         ("src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs", 2),
         ("src/Tracon.Workflows/Internal/WorkflowRunner.cs", 1),
     ];
