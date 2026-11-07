@@ -753,6 +753,14 @@ message-delta recording, trace cardinality, attachment storage, and provider rat
 limits. A healthy HTTP process can still overload a provider if worker count is
 scaled without a matching quota.
 
+The response cache needs memory too. `AddDistributedMemoryCache` keeps its entries on
+the heap of the process, up to the framework's `SizeLimit` of 200 MiB, and every tenant
+shares that one budget: with 4 000 tenants asking questions that never repeat, the live
+heap of the capacity test host rose from 16 to 207 MiB, and one tenant's entries can push
+another's out. A multi-tenant host registers a real distributed cache (Redis, SQL
+Server) and sets its eviction there, or lowers the cap with
+`AddDistributedMemoryCache(options => options.SizeLimit = …)`.
+
 ## Deployment checklist
 
 - [ ] Pin one tested Tracon version and one SQL provider.

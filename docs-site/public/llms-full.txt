@@ -2984,10 +2984,10 @@ Every stream Tracon writes itself (the run event stream, the streamed answer of
 `POST /api/agents/{name}/run`, AG-UI, and `stream: true` on Chat Completions and Responses)
 carries `X-Accel-Buffering: no` and `Cache-Control: no-cache, no-store, no-transform`. The MCP
 endpoint's stream is written by the MCP library and carries `X-Accel-Buffering: no`. The A2A
-streaming answer (`SendStreamingMessage`) is written by the A2A library and carries neither
-`X-Accel-Buffering` nor a keep-alive: measured against a silent model, it sent no byte, headers
-included, until the agent answered, so turn buffering off for the A2A location (the configuration
-below) and give it an idle timeout longer than your slowest agent. A proxy that honours the headers passes each frame on as it arrives. A proxy
+streaming answer (`SendStreamingMessage`) is written by the A2A library; Tracon adds
+`X-Accel-Buffering: no` to it, but the library sends no keep-alive: measured against a silent model,
+it sent no byte, headers included, until the agent answered, so give the A2A location an idle
+timeout longer than your slowest agent. A proxy that honours the headers passes each frame on as it arrives. A proxy
 that ignores the header and buffers the response holds the first events of a quiet run
 until its buffer is full. Measured with nginx 1.27 in front of the sample host, on a run
 that stayed silent:
@@ -13193,9 +13193,12 @@ curl -sS -X PUT \
     "targetName": "support",
     "signingSecretConfigurationName": "Tracon:TriggerSecrets:Slack",
     "payloadMode": "path",
-    "payloadPath": "event.text"
+    "payloadPath": "event.text",
+    "enabled": true
   }'
 ```
+
+A trigger saved without `enabled` is saved paused and accepts nothing until you save it with `true`.
 
 `signingSecretConfigurationName` carries only the configuration **key's
 name** — never the secret value. Tracon reads the value from
@@ -16372,6 +16375,8 @@ no key to hide keeps the real inner exception. If your code catches a Tracon exc
 Incorrect API key provided: Bearer [redacted]. Find your key at the provider's console.
 ```
 
+An image call is covered the same way: the key set up for OpenAI, Azure OpenAI or Google is replaced in the log and in the span of a failed image generation. The speech clients of OpenAI and Gemini report a failure that never carries the service's text.
+
 What this does **not** cover:
 
 | Not replaced | Why | What to do |
@@ -16380,7 +16385,7 @@ What this does **not** cover:
 | A token a provider fetches while it runs, such as the Entra token of Azure OpenAI `CredentialFactory` | It is short-lived, it is not a configured key, and `SetupApiKeys` names static keys. | Nothing: the token expires. |
 | A part of the key that the provider quotes itself | The match is exact. It is not a pattern of keys. At the time of writing, OpenAI quotes the first eight and the last four characters of a refused key, and the Anthropic and Google answers quote no part of it. | Nothing: the provider chose to show that part. |
 | A key shorter than eight characters | A value that short is also ordinary text. | Use the key the provider issued. |
-| The error of a speech or live voice provider, and of image generation | These calls do not pass through the model pipeline, and this replacement was not measured on them. | Treat the log line of a failed speech, live voice or image call as readable by anyone who reads the log. |
+| The error of a live voice provider | This call does not pass through the model pipeline, and this replacement was not measured on it. | Treat the log line of a failed live voice call as readable by anyone who reads the log. |
 
 If a log reader must never see what a provider quoted (the partial key above, for example), filter all
 five loggers. The first two carry nothing but the provider's detail. The other three also carry the run
@@ -16860,7 +16865,7 @@ your architecture permits.
 | `401` | Bearer token or API key is missing, invalid, revoked, or expired |
 | `403` | Role, scope, loopback, or tenant rule refused the call |
 | `404 model_not_found` | The selected Tracon agent does not resolve |
-| `422` | A Tracon content guard or idempotency contract rejected the request |
+| `422` | A Tracon content guard, the run budget (`run_budget_exceeded`) or the idempotency contract rejected the request |
 | `429` | A rate or quota boundary was reached |
 | `502` | The configured upstream provider failed |
 
@@ -17827,6 +17832,14 @@ Capacity planning must include model concurrency, SQL event volume, job polling,
 message-delta recording, trace cardinality, attachment storage, and provider rate
 limits. A healthy HTTP process can still overload a provider if worker count is
 scaled without a matching quota.
+
+The response cache needs memory too. `AddDistributedMemoryCache` keeps its entries on
+the heap of the process, up to the framework's `SizeLimit` of 200 MiB, and every tenant
+shares that one budget: with 4 000 tenants asking questions that never repeat, the live
+heap of the capacity test host rose from 16 to 207 MiB, and one tenant's entries can push
+another's out. A multi-tenant host registers a real distributed cache (Redis, SQL
+Server) and sets its eviction there, or lowers the cap with
+`AddDistributedMemoryCache(options => options.SizeLimit = …)`.
 
 ## Deployment checklist
 
