@@ -1164,6 +1164,12 @@ public sealed class JsonFileRunStore : IRunStore
                  cursor += step)
             {
                 buckets[cursor] = default;
+
+                // The last bucket of the last year ends where the type does: stepping past it would throw.
+                if (DateTimeOffset.MaxValue - cursor < step)
+                {
+                    break;
+                }
             }
 
             var effectiveTenantId = AmbientTenantScope.NormalizeOrNull(query.TenantId) ?? _tenantContext.TenantId;
