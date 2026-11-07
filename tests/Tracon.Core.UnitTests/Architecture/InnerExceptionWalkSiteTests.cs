@@ -32,7 +32,7 @@ public sealed partial class InnerExceptionWalkSiteTests
         ["src/Tracon.AspNetCore/Voice/LiveVoiceEndpoints.cs"] = "reads the verdict of a live voice session, which is not a model pipeline call",
         ["src/Tracon.Workflows/Internal/WorkflowFunctionRegistry.cs"] = "wraps the exception of a function the host registered",
         ["src/Tracon.Workflows/Internal/WorkflowFunctionSettings.cs"] = "judges a settings binding exception of a workflow function",
-        ["src/Tracon.Workflows/Internal/WorkflowRunner.cs"] = "unwraps the reflection exception around a function the host registered",
+        ["src/Tracon.Workflows/Internal/WorkflowRunErrors.cs"] = "unwraps the reflection exception around a function the host registered",
     };
 
     [Fact]

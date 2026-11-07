@@ -46,7 +46,7 @@ public sealed partial class RunRecordingStagePolicyTests
     [
         ("src/Tracon.Core/Recording/RunEventWriter.cs", 10),
         ("src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs", 2),
-        ("src/Tracon.Workflows/Internal/WorkflowRunner.cs", 1),
+        ("src/Tracon.Workflows/Internal/WorkflowParameterBinder.cs", 1),
     ];
 
     /// <summary>

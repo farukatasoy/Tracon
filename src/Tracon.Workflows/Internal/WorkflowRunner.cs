@@ -43,13 +43,16 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
     private readonly WorkflowCatalog _catalog;
     private readonly RunRecordingServices _services;
+    private readonly WorkflowRunErrors _errors;
+    private readonly WorkflowRequestReader _reader;
+    private readonly WorkflowResumePlanner _planner;
+    private readonly WorkflowParameterBinder _binder;
     private readonly IWorkflowCheckpointStore _checkpointStore;
     private readonly IOptions<TraconWorkflowOptions> _options;
     private readonly IOptions<TraconOptions> _traconOptions;
     private readonly ILogger<WorkflowRunner> _logger;
     private readonly SlotPool _concurrency;
     private readonly TenantSlotLimiter? _tenantSlots;
-    private readonly ParameterizedAgentFactory? _parameterFactory;
     private readonly IWorkflowResponseStore? _responses;
     private readonly IWorkflowRequestStore? _requests;
     private readonly WorkflowAgentCache? _agentCache;
@@ -112,9 +115,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _options = options;
         _traconOptions = traconOptions;
         _logger = logger;
+        _errors = new WorkflowRunErrors(logger, services.ErrorClassifier);
+        _reader = new WorkflowRequestReader(services.RunStore, services.TenantContext, requestStore, logger);
+        _binder = new WorkflowParameterBinder(parameterFactory, services, traconOptions, logger);
+        _planner = new WorkflowResumePlanner(_reader, catalog, checkpointStore, services.RunInputStore, services.TenantContext);
         _concurrency = new SlotPool(Math.Max(options.Value.MaxConcurrentRuns, 1));
         _tenantSlots = options.Value.MaxConcurrentRunsPerTenant is { } perTenant ? new TenantSlotLimiter(perTenant) : null;
-        _parameterFactory = parameterFactory;
         _responses = responseStore;
         _requests = requestStore;
         _agentCache = agentCache;
@@ -139,175 +145,16 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     }
 
     /// <inheritdoc />
-    public async ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListPendingRequestsAsync(
+    public ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListPendingRequestsAsync(
         Guid runId,
         CancellationToken cancellationToken = default)
-    {
-        var record = await RequireWorkflowRunAsync(runId, cancellationToken).ConfigureAwait(false);
-
-        // A run that was answered STAYS in AwaitingInput (status history is not
-        // rewritten afterwards) and still lists its request; the
-        // continuing work lives on a new run row. Answering it again opens a
-        // branch, on purpose.
-        if (record.Status != RunStatus.AwaitingInput)
-        {
-            return [];
-        }
-
-        var events = await ReadRequestEventsAsync(runId, cancellationToken).ConfigureAwait(false);
-        var rows = await TryReadRowsAsync(runId, cancellationToken).ConfigureAwait(false);
-        var requests = new List<WorkflowPendingRequest>(events.Count);
-
-        foreach (var (request, _) in events)
-        {
-            var row = rows.FirstOrDefault(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal));
-
-            requests.Add(Enrich(request, record.WorkflowName, record.SessionId, row));
-        }
-
-        return requests;
-    }
+        => _reader.ListPendingRequestsAsync(runId, cancellationToken);
 
     /// <inheritdoc />
-    public async ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListRequestsAsync(
+    public ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListRequestsAsync(
         WorkflowRequestQuery query,
         CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-
-        if (_requests is null)
-        {
-            return [];
-        }
-
-        var rows = await _requests.ListAsync(query, cancellationToken).ConfigureAwait(false);
-        var items = new List<WorkflowPendingRequest>(rows.Count);
-
-        foreach (var row in rows)
-        {
-            items.Add(await ReadRequestOfRowAsync(row, cancellationToken).ConfigureAwait(false));
-        }
-
-        return items;
-    }
-
-    /// <summary>
-    /// Reads the request a row names from its run's event, so the prompt and the form are the
-    /// ones the event holds and never a copy.
-    /// </summary>
-    /// <param name="row">The inbox row.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>
-    /// The request. When the event is gone or is not the request the row names, a request with
-    /// the row's own facts only: it can still be answered, and the card of its run shows it.
-    /// </returns>
-    /// <remarks>
-    /// The run closes right after it publishes its requests, so the events from the request's
-    /// sequence on are few; reading stops at the first.
-    /// </remarks>
-    private async ValueTask<WorkflowPendingRequest> ReadRequestOfRowAsync(
-        WorkflowRequestRecord row,
-        CancellationToken cancellationToken)
-    {
-        await foreach (var runEvent in _services.RunStore
-                           .ReadEventsAsync(row.RunId, row.EventSequence, cancellationToken)
-                           .ConfigureAwait(false))
-        {
-            if (runEvent.Sequence == row.EventSequence &&
-                runEvent.Type == RunEventType.WorkflowRequest &&
-                WorkflowRequestDescriptor.Parse(runEvent) is { } parsed &&
-                string.Equals(parsed.RequestId, row.RequestId, StringComparison.Ordinal))
-            {
-                return Enrich(parsed, row.WorkflowName, row.SessionId, row);
-            }
-
-            break;
-        }
-
-        return Enrich(
-            new WorkflowPendingRequest
-            {
-                RunId = row.RunId,
-                RequestId = row.RequestId,
-                PortId = row.PortId,
-                Form = WorkflowRequestForm.Json,
-                RequestedAt = row.RequestedAt,
-            },
-            row.WorkflowName,
-            row.SessionId,
-            row);
-    }
-
-    /// <summary>Adds what the run and the inbox row know to a request read from the event.</summary>
-    private static WorkflowPendingRequest Enrich(
-        WorkflowPendingRequest request,
-        string? workflowName,
-        string? sessionId,
-        WorkflowRequestRecord? row)
-        => request with
-        {
-            WorkflowName = workflowName,
-            SessionId = sessionId,
-            ExpiresAt = row?.ExpiresAt,
-            Answered = row?.AnsweredAt is not null,
-            LastResponseRunId = row?.LastResponseRunId,
-        };
-
-    /// <summary>
-    /// Reads the run's <see cref="RunEventType.WorkflowRequest"/> events as requests, with the
-    /// sequence of the event each came from.
-    /// </summary>
-    private async ValueTask<IReadOnlyList<(WorkflowPendingRequest Request, long Sequence)>> ReadRequestEventsAsync(
-        Guid runId,
-        CancellationToken cancellationToken)
-    {
-        var requests = new List<(WorkflowPendingRequest, long)>();
-
-        await foreach (var runEvent in _services.RunStore
-                           .ReadEventsAsync(runId, 0, cancellationToken)
-                           .ConfigureAwait(false))
-        {
-            if (runEvent.Type != RunEventType.WorkflowRequest)
-            {
-                continue;
-            }
-
-            if (WorkflowRequestDescriptor.Parse(runEvent) is { } request)
-            {
-                requests.Add((request, runEvent.Sequence));
-            }
-        }
-
-        return requests;
-    }
-
-    /// <summary>
-    /// Reads a run's inbox rows for the facts a request carries beyond its event. A failure is
-    /// logged and answered with no rows: answering a request must not depend on the inbox.
-    /// </summary>
-    private async ValueTask<IReadOnlyList<WorkflowRequestRecord>> TryReadRowsAsync(
-        Guid runId,
-        CancellationToken cancellationToken)
-    {
-        if (_requests is null)
-        {
-            return [];
-        }
-
-        try
-        {
-            return await _requests.ListByRunAsync(runId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
-        {
-            _logger.LogWarning(
-                exception,
-                "The inbox rows of workflow run {RunId} could not be read; its requests are listed without an expiry or an answer mark.",
-                runId);
-
-            return [];
-        }
-    }
+        => _reader.ListRequestsAsync(query, cancellationToken);
 
     /// <inheritdoc />
     public async IAsyncEnumerable<RunEvent> RespondStreamingAsync(
@@ -316,7 +163,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var execution = await PrepareResponseAsync(request, cancellationToken).ConfigureAwait(false);
+        var execution = await _planner.PrepareResponseAsync(request, cancellationToken).ConfigureAwait(false);
 
         await foreach (var runEvent in ExecuteAsync(execution, cancellationToken).ConfigureAwait(false))
         {
@@ -418,7 +265,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var execution = await PrepareResumeAsync(request, cancellationToken).ConfigureAwait(false);
+        var execution = await _planner.PrepareResumeAsync(request, cancellationToken).ConfigureAwait(false);
 
         await foreach (var runEvent in ExecuteAsync(execution, cancellationToken).ConfigureAwait(false))
         {
@@ -433,249 +280,6 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// run, and the run was left at <c>Running</c>.
     /// </remarks>
     public void Dispose() => _concurrency.Dispose();
-
-    /// <summary>
-    /// Turns a resume request into a runnable execution recipe.
-    /// </summary>
-    /// <exception cref="TraconException">
-    /// The run does not exist, is not a workflow run, belongs to another tenant,
-    /// or the requested checkpoint cannot be found.
-    /// </exception>
-    private async ValueTask<WorkflowExecution> PrepareResumeAsync(
-        WorkflowResumeRequest request,
-        CancellationToken cancellationToken)
-    {
-        var record = await RequireWorkflowRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
-
-        // The run resumes with the definition it recorded, not the one the workflow has now;
-        // an operator names another version to carry it over a fix.
-        var definitionVersion = request.DefinitionVersion ?? record.AgentVersion;
-
-        return new WorkflowExecution
-        {
-            WorkflowName = record.WorkflowName!,
-            RunId = request.NewRunId ?? TraconId.NewId(),
-            SessionId = record.SessionId!,
-            Message = null,
-            ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
-                .ConfigureAwait(false),
-            Parameters = await ReadRecordedParametersAsync(record, "resumed", definitionVersion, cancellationToken)
-                .ConfigureAwait(false),
-            DefinitionVersion = definitionVersion,
-            SourceRunId = record.Id,
-            RecordsContinuation = true,
-            RowMayBeOpen = request.NewRunId is not null,
-        };
-    }
-
-    /// <summary>
-    /// Turns a response request into an execution recipe that resumes from a checkpoint.
-    /// </summary>
-    /// <exception cref="TraconException">
-    /// The run cannot be found, does not wait for human input, or the given
-    /// request id does not exist on that run.
-    /// </exception>
-    private async ValueTask<WorkflowExecution> PrepareResponseAsync(
-        WorkflowRespondRequest request,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.RequestId, nameof(request));
-
-        var record = await RequireWorkflowRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
-
-        if (record.Status != RunStatus.AwaitingInput)
-        {
-            throw new TraconException(
-                $"Run '{request.RunId}' is not awaiting human input " +
-                $"(status: {record.Status}). Only a run in 'AwaitingInput' status " +
-                "can be responded to.");
-        }
-
-        // The request id IS VALIDATED. A resume with an unknown id would tell the
-        // user "answered" while the execution ended still waiting - a silence
-        // that is hard to debug.
-        var pending = await ListPendingRequestsAsync(request.RunId, cancellationToken).ConfigureAwait(false);
-
-        if (!pending.Any(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal)))
-        {
-            throw new TraconException(
-                $"There is no pending request with id '{request.RequestId}' on run '{request.RunId}'. " +
-                "Refresh the request list with GET /api/workflows/runs/{runId}/requests.");
-        }
-
-        var definitionVersion = request.DefinitionVersion ?? record.AgentVersion;
-
-        return new WorkflowExecution
-        {
-            WorkflowName = record.WorkflowName!,
-            RunId = request.NewRunId ?? TraconId.NewId(),
-            SessionId = record.SessionId!,
-            Message = null,
-            ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
-                .ConfigureAwait(false),
-            Answers = [new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json, request.Remember)],
-            AnsweredRequest = new AnsweredRequest(request.RunId, request.RequestId),
-            Parameters = await ReadRecordedParametersAsync(record, "answered", definitionVersion, cancellationToken)
-                .ConfigureAwait(false),
-            DefinitionVersion = definitionVersion,
-
-            // The answer names the run it answers in its own history (WorkflowResponseApplied), and the
-            // budget is read back along that link. The row does not name it as a continuation.
-            SourceRunId = record.Id,
-            RowMayBeOpen = request.NewRunId is not null,
-        };
-    }
-
-    /// <summary>
-    /// Reads the parameter values a run was started with, for the run that
-    /// continues it (a resume or a response).
-    /// </summary>
-    /// <param name="source">The run being continued.</param>
-    /// <param name="verb">"resumed" or "answered", for the refusal text.</param>
-    /// <param name="definitionVersion">
-    /// The definition version the continuing run will be compiled from; its schema is the one
-    /// the values are read against. <see langword="null"/> reads the current one.
-    /// </param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>
-    /// The recorded values that the schema of that definition still declares;
-    /// <see langword="null"/> when it takes no parameters.
-    /// </returns>
-    /// <exception cref="TraconException">
-    /// The workflow declares parameters now but the source run recorded none, or
-    /// the schema gained a required parameter the recorded values lack, or the workflow has
-    /// no such version.
-    /// </exception>
-    /// <remarks>
-    /// <para>
-    /// <strong>Fail closed.</strong> A continued run that found no recorded values
-    /// and ran on the defaults would change the instructions its agents were
-    /// given halfway through the work. NULL ("nothing was recorded") is
-    /// therefore refused whenever the workflow declares parameters now; a
-    /// workflow that declares none keeps working exactly as before.
-    /// </para>
-    /// <para>
-    /// A name the schema no longer declares is dropped rather than refused:
-    /// removing a parameter is the operator's change to make, and a value no
-    /// instruction can reach is harmless. A required name the recorded values
-    /// lack is refused, because the run would otherwise start with an unbound
-    /// placeholder.
-    /// </para>
-    /// </remarks>
-    private async ValueTask<IReadOnlyDictionary<string, string>?> ReadRecordedParametersAsync(
-        RunRecord source,
-        string verb,
-        int? definitionVersion,
-        CancellationToken cancellationToken)
-    {
-        // The schema comes from the version the run continues with, never from a newer one: a
-        // parameter added since the run started is not a parameter the run was given.
-        var descriptor = await _catalog.GetAsync(source.WorkflowName!, definitionVersion, cancellationToken)
-            .ConfigureAwait(false);
-        var schema = descriptor?.Parameters ?? [];
-
-        if (schema.Count == 0)
-        {
-            return null;
-        }
-
-        var recorded = _services.RunInputStore is null
-            ? null
-            : (await _services.RunInputStore.GetAsync(_services.TenantContext.TenantId, source.Id, cancellationToken).ConfigureAwait(false))
-                ?.Parameters;
-
-        var values = ParameterValueSet.Intersect(
-            schema,
-            recorded ?? throw new TraconException(
-                $"Run '{source.Id}' cannot be {verb}: workflow '{source.WorkflowName}' declares parameters, and " +
-                "this run did not record the values it started with. A run records them when it starts, " +
-                "unless 'Tracon:RunRecording:RecordRunInput' is off, the run predates parameter recording, " +
-                "or the run input store failed while saving them (the host log names the run); " +
-                "continuing it on the defaults would change the instructions its agents were given."));
-        var check = AgentParameterValidator.ValidateValues(schema, values);
-
-        if (!check.IsValid)
-        {
-            throw new TraconException(
-                $"Run '{source.Id}' cannot be {verb}: workflow '{source.WorkflowName}' changed its parameters " +
-                $"after the run started. {ParameterValueSet.Describe(check)}");
-        }
-
-        return values;
-    }
-
-    /// <summary>Finds the run and validates that it is a resumable workflow row.</summary>
-    /// <exception cref="TraconException">
-    /// The run does not exist, belongs to another tenant, is not a workflow row,
-    /// or carries no execution session.
-    /// </exception>
-    private async ValueTask<RunRecord> RequireWorkflowRunAsync(Guid runId, CancellationToken cancellationToken)
-    {
-        var record = await _services.RunStore.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
-
-        // When the tenant does not match, the answer is "not found". Not even the
-        // knowledge that another tenant's run exists is leaked.
-        if (record is null ||
-            !string.Equals(record.TenantId, _services.TenantContext.TenantId, StringComparison.Ordinal))
-        {
-            throw new TraconException($"There is no run with id '{runId}'.");
-        }
-
-        if (record.Kind != RunKind.Workflow || record.WorkflowName is not { Length: > 0 })
-        {
-            throw new TraconException(
-                $"Run '{runId}' is not a workflow run; it cannot be resumed.");
-        }
-
-        if (record.SessionId is not { Length: > 0 })
-        {
-            throw new TraconException(
-                $"Run '{runId}' has no execution session; it cannot be resumed.");
-        }
-
-        return record;
-    }
-
-    /// <summary>Selects the checkpoint to resume from.</summary>
-    /// <exception cref="TraconException">The run has no checkpoint at all.</exception>
-    private async ValueTask<string> RequireCheckpointAsync(
-        Guid runId,
-        string? checkpointId,
-        CancellationToken cancellationToken)
-    {
-        if (checkpointId is { Length: > 0 } explicitId)
-        {
-            return explicitId;
-        }
-
-        var checkpoints = await _checkpointStore
-            .ListByRunAsync(_services.TenantContext.TenantId, runId, cancellationToken)
-            .ConfigureAwait(false);
-
-        return checkpoints.Count > 0
-            ? checkpoints[^1].CheckpointId
-            : throw new TraconException(
-                $"Run '{runId}' has no checkpoint. " +
-                "A run started while checkpoint writing was disabled cannot be resumed.");
-    }
-
-    /// <summary>
-    /// Looks up a single checkpoint's metadata (state omitted) for the
-    /// diagnostic message built when resuming from it fails. Used only on
-    /// the failure path — a successful resume never pays for this lookup.
-    /// </summary>
-    private async ValueTask<WorkflowCheckpointRecord?> FindCheckpointMetadataAsync(
-        string sessionId,
-        string checkpointId,
-        CancellationToken cancellationToken)
-    {
-        var checkpoints = await _checkpointStore
-            .ListAsync(_services.TenantContext.TenantId, sessionId, cancellationToken)
-            .ConfigureAwait(false);
-
-        return checkpoints.FirstOrDefault(
-            candidate => string.Equals(candidate.CheckpointId, checkpointId, StringComparison.Ordinal));
-    }
 
     /// <summary>
     /// Reads what the runs this execution continues already spent, and the run its row must name as the one it continues.
@@ -1029,7 +633,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 // definition the graph was built from, before any model
                 // call. A failure here closes the run like a graph-setup
                 // failure: the caller can fix it and nothing was spent.
-                scope = await BindParametersAsync(execution, resolved, scope, linked.Token)
+                scope = await _binder.BindAsync(execution, resolved, scope, linked.Token)
                     .ConfigureAwait(false);
 
                 workflow = graph;
@@ -1042,7 +646,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, linked.Token))
             {
                 status = RunStatus.Failed;
-                error = ToRunError(exception, execution.RunId);
+                error = _errors.ToRunError(exception, execution.RunId);
             }
 
             // The wait for a concurrency slot belongs to the run: the deadline
@@ -1179,211 +783,6 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     }
 
     /// <summary>
-    /// Checks the run's parameter values against the workflow's schema, proves
-    /// every participant can be bound, records the final values and returns the
-    /// scope the graph runs under.
-    /// </summary>
-    /// <param name="execution">What is being run.</param>
-    /// <param name="found">The workflow the graph came from: a stored definition, or a registration in code.</param>
-    /// <param name="scope">The run's scope so far.</param>
-    /// <param name="cancellationToken">The run's token.</param>
-    /// <returns>
-    /// <paramref name="scope"/>, carrying the final values when the workflow
-    /// declares parameters.
-    /// </returns>
-    /// <exception cref="TraconException">
-    /// A required value is missing, a name is not declared, a value is too long,
-    /// or a participant needs a required parameter nobody supplies.
-    /// </exception>
-    private async ValueTask<AgentRunScope> BindParametersAsync(
-        WorkflowExecution execution,
-        WorkflowCatalog.FoundWorkflow found,
-        AgentRunScope scope,
-        CancellationToken cancellationToken)
-    {
-        // A stored workflow declares its schema in its definition, a workflow defined in code in its
-        // registration: the same schema, checked by the same code below.
-        var definition = found.Definition;
-        var schema = definition?.Parameters ?? found.Code?.Parameters ?? [];
-
-        // The runner is the authority (the HTTP endpoint only answers 400
-        // early): a consumer can call IWorkflowRunner directly and skip HTTP.
-        var validation = _parameterFactory is { } factory
-            ? factory.Validate(schema, execution.Parameters)
-            : AgentParameterValidator.ValidateValues(
-                schema,
-                execution.Parameters,
-                _traconOptions.Value.MaxParameterValueLength);
-
-        if (!validation.IsValid)
-        {
-            throw new TraconException(
-                $"The run's parameters are invalid for workflow '{execution.WorkflowName}'. " +
-                ParameterValueSet.Describe(validation));
-        }
-
-        if (schema.Count == 0)
-        {
-            return scope;
-        }
-
-        var final = ParameterValueSet.Resolve(schema, execution.Parameters);
-
-        // The participants of a stored workflow are named by its definition. A graph built in code has
-        // no definition to read them from, so its agent steps are checked when they run (the step
-        // validates the values it receives and fails by name).
-        if (definition is not null)
-        {
-            await RequireParticipantCoverageAsync(execution.WorkflowName, definition, final, cancellationToken)
-                .ConfigureAwait(false);
-        }
-
-        await SaveRunInputAsync(execution, scope, final, cancellationToken).ConfigureAwait(false);
-
-        return scope with
-        {
-            ParameterValues = final,
-            ParameterNames = schema.Select(static parameter => parameter.Name).ToHashSet(StringComparer.Ordinal),
-        };
-    }
-
-    /// <summary>
-    /// Proves, before the first model call, that every required parameter of
-    /// every participant has a value or a default.
-    /// </summary>
-    /// <remarks>
-    /// Participants resolve lazily, one step at a time. Without this check the
-    /// third step's missing parameter surfaced only after the first two steps had
-    /// spent their tokens. The definitions are read here in the order code first,
-    /// then the store (the same lookup <c>/run</c> uses); this check is
-    /// skipped for a workflow that declares no parameters, which is the common
-    /// case and pays nothing.
-    /// </remarks>
-    private async ValueTask RequireParticipantCoverageAsync(
-        string workflowName,
-        WorkflowDefinition definition,
-        IReadOnlyDictionary<string, string> final,
-        CancellationToken cancellationToken)
-    {
-        if (_parameterFactory is not { } factory)
-        {
-            return;
-        }
-
-        foreach (var (participant, pinnedVersion) in ParticipantNames(definition))
-        {
-            // A pinned step is covered against ITS version's schema: that is the definition it runs.
-            var (agentDefinition, _) = await factory.FindAsync(participant, pinnedVersion, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (agentDefinition is not { Parameters.Count: > 0 })
-            {
-                continue;
-            }
-
-            var stepValues = ParameterValueSet.Intersect(agentDefinition.Parameters, final);
-            var check = factory.Validate(agentDefinition.Parameters, stepValues);
-
-            if (check.IsValid)
-            {
-                continue;
-            }
-
-            var missing = string.Join(
-                ", ",
-                check.Errors
-                    .Where(static error => string.Equals(error.Code, AgentParameterValidator.MissingParameterCode, StringComparison.Ordinal))
-                    .Select(static error => $"'{error.ParameterName}'"));
-
-            throw new TraconException(
-                $"Workflow '{workflowName}' cannot start: agent '{participant}' requires parameter(s) " +
-                $"{(missing.Length > 0 ? missing : "it cannot be given")} with no default, and the workflow " +
-                "does not supply them. Declare the parameter in the workflow's parameters, or give it a " +
-                "default value in the agent.");
-        }
-    }
-
-    /// <summary>Lists every agent the definition's graph can call, with the version a step pins.</summary>
-    private static IEnumerable<(string Name, int? PinnedVersion)> ParticipantNames(WorkflowDefinition definition)
-    {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var name in definition.AgentNames)
-        {
-            if (seen.Add(name))
-            {
-                yield return (name, null);
-            }
-        }
-
-        foreach (var node in definition.Nodes)
-        {
-            if (node.Kind == WorkflowNodeKind.Agent && seen.Add(node.Name))
-            {
-                yield return (node.Name, node.AgentVersion);
-            }
-        }
-
-        if (definition.ManagerAgentName is { Length: > 0 } manager && seen.Add(manager))
-        {
-            yield return (manager, null);
-        }
-    }
-
-    /// <summary>
-    /// Records the run's final parameter values beside its row.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The workflow row stores NO messages: the agent path masks its input
-    /// through the content guard before it records it, and this
-    /// path never sees a guarded copy. Nothing reads a workflow's message back;
-    /// a workflow resumes from its checkpoints, and only the values it was
-    /// started with are needed.
-    /// </para>
-    /// <para>
-    /// A failure is logged and counted, never thrown: the same contract
-    /// <c>IRunInputStore</c> has for the agent path. The consequence is stated
-    /// where it bites - a later resume or response finds no values and refuses.
-    /// </para>
-    /// </remarks>
-    private async ValueTask SaveRunInputAsync(
-        WorkflowExecution execution,
-        AgentRunScope scope,
-        IReadOnlyDictionary<string, string> final,
-        CancellationToken cancellationToken)
-    {
-        if (_services.RunInputStore is null || !_traconOptions.Value.RunRecording.RecordRunInput)
-        {
-            return;
-        }
-
-        try
-        {
-            await _services.RunInputStore.SaveAsync(
-                new RunInputRecord
-                {
-                    RunId = execution.RunId,
-                    TenantId = scope.TenantId ?? _services.TenantContext.TenantId,
-                    Messages = [],
-                    Parameters = final,
-                    CreatedAt = _services.TimeProvider.GetUtcNow(),
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
-        {
-            _services.Metrics?.RecordRunRecordingFailure(scope.TenantId, RunRecordingStages.Input);
-
-            _logger.LogWarning(
-                exception,
-                "Failed to save the parameter values of workflow run {RunId}. The run continues, but it " +
-                "cannot be resumed or answered, because the values it started with were not recorded.",
-                execution.RunId);
-        }
-    }
-
-    /// <summary>
     /// Runs the graph and streams its events. Errors are returned inside a
     /// <see cref="PumpedEvent"/>, not thrown as exceptions.
     /// </summary>
@@ -1441,7 +840,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
         catch (Exception exception)
         {
-            startupFailure = PumpedEvent.FromFailure(ToRunError(exception, execution.RunId));
+            startupFailure = PumpedEvent.FromFailure(_errors.ToRunError(exception, execution.RunId));
         }
 
         // 🚨 `yield return` cannot appear inside a `catch` block (CS1631).
@@ -1557,7 +956,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         }
                         catch (Exception exception)
                         {
-                            stepFailure = PumpedEvent.FromFailure(ToRunError(exception, execution.RunId, loggedFailure));
+                            stepFailure = PumpedEvent.FromFailure(_errors.ToRunError(exception, execution.RunId, loggedFailure));
                         }
 
                         if (stepFailure is { } failed)
@@ -1627,9 +1026,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                         string? failureText = null;
 
-                        if (FailureOf(workflowEvent) is { } reported)
+                        if (WorkflowRunErrors.FailureOf(workflowEvent) is { } reported)
                         {
-                            loggedFailure = LogFailure(reported, execution.RunId, workflowEvent, loggedFailure);
+                            loggedFailure = _errors.LogFailure(reported, execution.RunId, workflowEvent, loggedFailure);
                             failureText = SafeErrorText.ForPersistence(loggedFailure.Value.Exception, loggedFailure.Value.CorrelationId);
                         }
 
@@ -1697,7 +1096,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         // looked green in the list but had no result.
                         if (workflowEvent is WorkflowErrorEvent graphError)
                         {
-                            yield return PumpedEvent.FromFailure(ToRunError(graphError, execution.RunId, loggedFailure));
+                            yield return PumpedEvent.FromFailure(_errors.ToRunError(graphError, execution.RunId, loggedFailure));
                         }
                     }
                 }
@@ -1915,7 +1314,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // (if resume still fails for another reason) needs the same
             // record - fetching it twice would waste a query on the common,
             // successful path AND on the failure path.
-            var recorded = await FindCheckpointMetadataAsync(execution.SessionId, checkpointId, cancellationToken)
+            var recorded = await _planner.FindCheckpointMetadataAsync(execution.SessionId, checkpointId, cancellationToken)
                 .ConfigureAwait(false);
 
             if (recorded?.StateSchemaVersion > TraconCheckpointStore.CurrentStateSchemaVersion)
@@ -2040,7 +1439,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // while its own participant's row carried the class.
         if (error is not null)
         {
-            error = Classify(error);
+            error = _errors.Classify(error);
         }
 
         // A workflow row has no model of its own: only the agent
@@ -2132,7 +1531,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         try
         {
-            return await ReadRequestEventsAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
+            return await _reader.ReadRequestEventsAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
         {
@@ -2565,300 +1964,5 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         await deadline.RearmAsync(limit, _services.TimeProvider, byRegistration: found.Code is not null).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Converts an exception into a run error; strips reflection/handler-invocation
-    /// wrappers.
-    /// </summary>
-    /// <remarks>
-    /// MAF's internal execution pipeline (for example a Magentic turn-token /
-    /// external-response handler) can throw an exception wrapped in a
-    /// <see cref="TargetInvocationException"/> or a single-element
-    /// <see cref="AggregateException"/>. The wrapped message carries only a
-    /// meaningless text like "Error invoking handler for ..."; the real cause
-    /// stays in <c>InnerException</c>, and if written unwrapped the operator
-    /// never sees the actual fault at all.
-    /// Only SINGLE-layer, single-inner-exception wrappers are stripped — a
-    /// direct code error (for example a genuine `AggregateException` with
-    /// multiple inner exceptions) is left as is.
-    /// </remarks>
-    private RunError ToRunError(Exception exception, Guid runId, (Exception Exception, string CorrelationId)? logged = null)
-    {
-        var unwrapped = UnwrapInvocation(exception);
-        string correlationId;
-
-        if (logged is { } previous && ReferenceEquals(previous.Exception, unwrapped))
-        {
-            // Already logged with its detail when its event was written; the
-            // row names the same entry instead of logging it again.
-            correlationId = previous.CorrelationId;
-        }
-        else
-        {
-            correlationId = SafeErrorText.NewCorrelationId();
-            _logger.LogError(unwrapped, "Workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
-        }
-
-        // 🚨 The SAME stable identity the agent run path writes: a
-        // TraconException's ErrorType, not its CLR name. The class is added
-        // where the row closes (CompleteAsync), for every error, not only this one.
-        return new RunError
-        {
-            Type = unwrapped is TraconException traconException
-                ? traconException.ErrorType
-                : unwrapped.GetType().FullName ?? unwrapped.GetType().Name,
-            Message = SafeErrorText.ForPersistence(unwrapped, correlationId),
-        };
-    }
-
-    /// <summary>
-    /// Fills <see cref="RunError.Class"/> and <see cref="RunError.Fingerprint"/>,
-    /// falling back to the built-in classifier when a consumer's throws.
-    /// </summary>
-    private RunError Classify(RunError error)
-    {
-        if (_services.ErrorClassifier is null)
-        {
-            return error;
-        }
-
-        RunErrorClassification classification;
-
-        try
-        {
-            classification = _services.ErrorClassifier.Classify(error);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(
-                exception,
-                "The registered IRunErrorClassifier threw while classifying a workflow run error; falling back to the built-in classifier.");
-
-            classification = new DefaultRunErrorClassifier().Classify(error);
-        }
-
-        return error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
-    }
-
-    /// <summary>Strips one reflection/handler-invocation wrapper (the rule <c>ToRunError</c> describes).</summary>
-    private static Exception UnwrapInvocation(Exception exception)
-        => exception switch
-        {
-            TargetInvocationException { InnerException: { } inner } => inner,
-            AggregateException { InnerExceptions.Count: 1 } aggregate => aggregate.InnerExceptions[0],
-            _ => exception,
-        };
-
-    /// <summary>The exception a failure event reports, or <see langword="null"/> for any other event.</summary>
-    private static Exception? FailureOf(WorkflowEvent workflowEvent)
-        => workflowEvent switch
-        {
-            ExecutorFailedEvent failed => failed.Data,
-            WorkflowErrorEvent error => error.Exception,
-            _ => null,
-        };
-
-    /// <summary>
-    /// Logs a failure event's exception with its full detail, once, and returns
-    /// the exception and the ref its display-safe text carries.
-    /// </summary>
-    /// <remarks>
-    /// The event table, the stream and every run event sink get only
-    /// <see cref="SafeErrorText.ForPersistence"/>; the detail lives in the log
-    /// under the ref. An exception already logged keeps its ref.
-    /// </remarks>
-    private (Exception Exception, string CorrelationId) LogFailure(
-        Exception failure,
-        Guid runId,
-        WorkflowEvent workflowEvent,
-        (Exception Exception, string CorrelationId)? previous)
-    {
-        var unwrapped = UnwrapInvocation(failure);
-
-        if (previous is { } logged && ReferenceEquals(logged.Exception, unwrapped))
-        {
-            return logged;
-        }
-
-        var correlationId = SafeErrorText.NewCorrelationId();
-
-        _logger.LogError(
-            unwrapped,
-            "Workflow run {RunId} node {ExecutorId} failed. (ref: {CorrelationId})",
-            runId,
-            (workflowEvent as ExecutorFailedEvent)?.ExecutorId,
-            correlationId);
-
-        return (unwrapped, correlationId);
-    }
-
-    /// <summary>Converts a graph-level error into a run error.</summary>
-    private RunError ToRunError(WorkflowErrorEvent failure, Guid runId, (Exception Exception, string CorrelationId)? logged = null)
-        => failure.Exception is { } exception
-            ? ToRunError(exception, runId, logged)
-            : new RunError
-            {
-                Type = nameof(WorkflowErrorEvent),
-                Message = "Workflow execution stopped with an error.",
-            };
-
-    /// <summary>The recipe for a single run.</summary>
-    private sealed record WorkflowExecution
-    {
-        public required string WorkflowName { get; init; }
-
-        public required Guid RunId { get; init; }
-
-        public required string SessionId { get; init; }
-
-        public required string? Message { get; init; }
-
-        /// <summary>The checkpoint to resume from. <see langword="null"/> for a new run.</summary>
-        public required string? ResumeFrom { get; init; }
-
-        /// <summary>
-        /// The answers to give to pending requests. Only populated on the <c>/respond</c> path.
-        /// </summary>
-        public IReadOnlyList<WorkflowAnswer> Answers { get; init; } = [];
-
-        /// <summary>The run and the request this execution answers; <see langword="null"/> for a run or a resume.</summary>
-        public AnsweredRequest? AnsweredRequest { get; init; }
-
-        /// <summary>
-        /// The parameter values: what the caller supplied to a new run, or the
-        /// source run's recorded values on a resume or a response.
-        /// <see langword="null"/> means none.
-        /// </summary>
-        public IReadOnlyDictionary<string, string>? Parameters { get; init; }
-
-        /// <summary>
-        /// The stored definition version the run is compiled from. <see langword="null"/>
-        /// runs the current definition (a new run, or a source that recorded no version).
-        /// </summary>
-        public int? DefinitionVersion { get; init; }
-
-        /// <summary>
-        /// The run this execution continues from its checkpoint: the one a resume or a response names.
-        /// <see langword="null"/> for a new run.
-        /// </summary>
-        public Guid? SourceRunId { get; init; }
-
-        /// <summary>
-        /// Whether the row of this execution records <see cref="SourceRunId"/> as the run it continues
-        /// (<see cref="RunRecord.ContinuedFromRunId"/>): a resume does, a response does not.
-        /// </summary>
-        public bool RecordsContinuation { get; init; }
-
-        /// <summary>
-        /// Whether the caller chose the run's id, so a row may already be open under it: a queued run's, or
-        /// the continuation a recovery opened. That row may name the run it continues already.
-        /// </summary>
-        public bool RowMayBeOpen { get; init; }
-    }
-
-    /// <summary>
-    /// The run's deadline: the source the runner cancels at the run timeout, when it
-    /// was armed, and which setting set the value it carries.
-    /// </summary>
-    /// <param name="source">The source; owned by the caller.</param>
-    /// <param name="armedAt">The monotonic timestamp taken when the run started.</param>
-    /// <param name="installation">The installation's run timeout, the value the source was armed with.</param>
-    /// <param name="callerToken">The token the run was started with.</param>
-    private sealed class RunDeadline(CancellationTokenSource source, long armedAt, TimeSpan installation, CancellationToken callerToken)
-    {
-        private TimeSpan _limit = installation;
-        private bool _setByDefinition;
-        private bool _setByRegistration;
-
-        /// <summary>Gets whether the deadline has passed.</summary>
-        public bool Fired => source.IsCancellationRequested;
-
-        /// <summary>Gets whether the run's caller cancelled the token the run was started with.</summary>
-        public bool CallerStopped => callerToken.IsCancellationRequested;
-
-        /// <summary>
-        /// Moves the deadline to <paramref name="limit"/> after the start of the run; a
-        /// limit that has already passed cancels at once.
-        /// </summary>
-        /// <param name="limit">The run timeout the workflow sets.</param>
-        /// <param name="clock">The runner's time source.</param>
-        /// <param name="byRegistration">Whether a registration in code, not a stored definition, sets it.</param>
-        /// <returns>A task that completes when the source is re-armed.</returns>
-        public async ValueTask RearmAsync(TimeSpan limit, TimeProvider clock, bool byRegistration)
-        {
-            _limit = limit;
-            _setByDefinition = true;
-            _setByRegistration = byRegistration;
-
-            if (source.IsCancellationRequested)
-            {
-                return;
-            }
-
-            var remaining = limit - clock.GetElapsedTime(armedAt);
-
-            // The source was created with the runner's TimeProvider, so CancelAfter
-            // moves that provider's timer: a test clock still decides when it fires.
-            if (remaining > TimeSpan.Zero)
-            {
-                source.CancelAfter(remaining);
-            }
-            else
-            {
-                await source.CancelAsync().ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>The reason a run that reached this deadline carries.</summary>
-        /// <returns>The run error, naming the setting that set the value.</returns>
-        public RunError ToRunError()
-            => new()
-            {
-                Type = nameof(TimeoutException),
-                Message = _setByRegistration
-                    ? $"Workflow timed out and was stopped after {_limit}, the run timeout its registration sets. " +
-                      "Raise WorkflowRegistrationOptions.RunTimeout (up to 'Tracon:Workflows:MaxRunTimeout'), or shorten the graph."
-                    : _setByDefinition
-                    ? $"Workflow timed out and was stopped after {_limit}, the run timeout its definition sets. " +
-                      "Raise the workflow's 'runTimeout' (up to 'Tracon:Workflows:MaxRunTimeout'), or shorten the graph."
-                    : "Workflow timed out and was stopped. " +
-                      "Raise the 'Tracon:Workflows:RunTimeout' value, or " +
-                      "shorten the graph.",
-            };
-    }
-
-    /// <summary>The result of one attempt to send a response.</summary>
-    /// <param name="Delivered">Whether the response was sent to execution.</param>
-    /// <param name="Failure">The error, if the response could not be converted.</param>
-    private readonly record struct ResponseDelivery(bool Delivered, RunError? Failure);
-
-    /// <summary>The request a run answers, and the run that waited for it.</summary>
-    /// <param name="SourceRunId">The run that waited.</param>
-    /// <param name="RequestId">The request.</param>
-    private readonly record struct AnsweredRequest(Guid SourceRunId, string RequestId);
-
-    /// <summary>A single result coming out of the pump: an event, an error, a cancellation, or a wait.</summary>
-    private readonly record struct PumpedEvent(RunEvent? Event, RunError? Failure, bool Canceled, bool Awaiting)
-    {
-        public static PumpedEvent FromEvent(RunEvent runEvent) => new(runEvent, null, false, false);
-
-        public static PumpedEvent FromFailure(RunError error) => new(null, error, false, false);
-
-        /// <summary>Execution is waiting for a human answer.</summary>
-        public static PumpedEvent FromAwaiting() => new(null, null, false, true);
-
-        /// <summary>Execution stopped because a token was cancelled.</summary>
-        /// <remarks>
-        /// The reason is deliberately not built here. A deadline can end a
-        /// run through three separate doors - startup, a super-step boundary,
-        /// a cancelled MoveNextAsync - and MAF can also end its stream quietly,
-        /// through no door at all. While each door built its own reason, the
-        /// quiet path had none: the runner produced a RunError naming the
-        /// setting and then dropped it, and the operator saw a bare
-        /// cancellation at full cost. The reason is attached once now, where
-        /// the run is closed, so no path can be added that forgets it.
-        /// </remarks>
-        public static PumpedEvent FromCancellation() => new(null, null, true, false);
     }
 }
