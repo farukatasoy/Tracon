@@ -88,9 +88,10 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
             // A reservation nobody finished (the process died between the reservation and the response) is taken over by the
             // first request that finds it old enough. The row does the choosing: of several requests that race for it, one
             // changes it and the others find it newer than their cutoff.
-            if (request.ReservationTimeout is { } timeout
-                && TryGetCutoff(request.CreatedAt, timeout, out var cutoff)
-                && await TakeOverAsync(request, cutoff, cancellationToken).ConfigureAwait(false))
+            var cutoff = default(DateTimeOffset);
+            var canTakeOver = request.ReservationTimeout is { } timeout && TryGetCutoff(request.CreatedAt, timeout, out cutoff);
+
+            if (canTakeOver && await TakeOverAsync(request, cutoff, cancellationToken).ConfigureAwait(false))
             {
                 return new IdempotencyReservation { State = IdempotencyState.Reserved };
             }
@@ -105,7 +106,13 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
 
             if (existing.State != IdempotencyState.Completed)
             {
-                return new IdempotencyReservation { State = IdempotencyState.InProgress };
+                // 🚨 InProgress says a reservation that is still young stands in the way. The row read here can be another row than
+                // the one the takeover missed: the key was released and reserved again between the two statements. When it is
+                // old enough for the takeover, starting over takes it over (or finds a young one); answering InProgress would
+                // describe a moment in which no young reservation existed, which no serial order of the requests allows.
+                return canTakeOver && existing.CreatedAt <= cutoff
+                    ? null
+                    : new IdempotencyReservation { State = IdempotencyState.InProgress };
             }
 
             return string.Equals(existing.Fingerprint, request.Fingerprint, StringComparison.Ordinal)
@@ -218,10 +225,11 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
     {
         var state = (IdempotencyState)reader.GetInt16(0);
         var fingerprint = reader.GetString(1);
+        var createdAt = DbHelpers.GetTimestamp(reader, 7);
 
         if (state != IdempotencyState.Completed)
         {
-            return new StoredEntry(state, fingerprint, null);
+            return new StoredEntry(state, fingerprint, null, createdAt);
         }
 
         var response = new IdempotencyResponse
@@ -233,7 +241,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
             Headers = DeserializeHeaders(DbHelpers.GetNullableString(reader, 6)),
         };
 
-        return new StoredEntry(state, fingerprint, response);
+        return new StoredEntry(state, fingerprint, response, createdAt);
     }
 
     // 🚨 Source-generated context: reflection-based serialization is not used,
@@ -265,5 +273,5 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
             : new Dictionary<string, string>(parsed, StringComparer.OrdinalIgnoreCase);
     }
 
-    private sealed record StoredEntry(IdempotencyState State, string Fingerprint, IdempotencyResponse? Response);
+    private sealed record StoredEntry(IdempotencyState State, string Fingerprint, IdempotencyResponse? Response, DateTimeOffset CreatedAt);
 }

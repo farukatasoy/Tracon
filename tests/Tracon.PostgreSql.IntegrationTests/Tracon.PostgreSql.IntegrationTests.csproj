@@ -46,6 +46,8 @@
     <Compile Include="../Shared/Infrastructure/SqlLeaseTimeContract.cs" Link="Infrastructure/Shared/SqlLeaseTimeContract.cs" />
     <!-- A run that keeps its heartbeat is not closed as orphaned by a node whose clock runs ahead. -->
     <Compile Include="../Shared/Infrastructure/RunHeartbeatUnderClockSkewContract.cs" Link="Infrastructure/Shared/RunHeartbeatUnderClockSkewContract.cs" />
+    <!-- A takeover that races a release and a new reservation is never told a young reservation stands in its way. -->
+    <Compile Include="../Shared/Infrastructure/SqlIdempotencyTakeoverRaceContract.cs" Link="Infrastructure/Shared/SqlIdempotencyTakeoverRaceContract.cs" />
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Infrastructure/Shared/ManualClock.cs" />
   </ItemGroup>
 

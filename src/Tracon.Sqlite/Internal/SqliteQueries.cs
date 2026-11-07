@@ -1794,7 +1794,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         SelectIdempotencyKey = $"""
-            SELECT state, fingerprint, status_code, content_type, body, run_id, headers
+            SELECT state, fingerprint, status_code, content_type, body, run_id, headers, created_at
               FROM {Schema}idempotency_keys
              WHERE tenant_id = @tenant_id AND "key" = @key;
             """;

@@ -684,3 +684,17 @@ public sealed class PostgresWorkflowRequestStoreContractTests(PostgresSchemaFixt
         return true;
     }
 }
+
+/// <summary>The takeover race of the idempotency store, on PostgreSQL.</summary>
+/// <param name="schema">The schema shared by the tests of this class.</param>
+public sealed class PostgresIdempotencyTakeoverRaceTests(PostgresSchemaFixture schema)
+    : SqlIdempotencyTakeoverRaceContract, IClassFixture<PostgresSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IIdempotencyStore> OpenAsync()
+    {
+        await schema.ResetAsync();
+
+        return schema.Context.IdempotencyKeys;
+    }
+}

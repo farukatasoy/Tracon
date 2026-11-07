@@ -684,3 +684,17 @@ public sealed class SqlServerWorkflowRequestStoreContractTests(SqlServerSchemaFi
         return true;
     }
 }
+
+/// <summary>The takeover race of the idempotency store, on SQL Server.</summary>
+/// <param name="schema">The schema shared by the tests of this class.</param>
+public sealed class SqlServerIdempotencyTakeoverRaceTests(SqlServerSchemaFixture schema)
+    : SqlIdempotencyTakeoverRaceContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IIdempotencyStore> OpenAsync()
+    {
+        await schema.ResetAsync();
+
+        return schema.Context.IdempotencyKeys;
+    }
+}

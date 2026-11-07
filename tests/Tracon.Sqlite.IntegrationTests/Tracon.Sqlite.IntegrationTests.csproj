@@ -33,6 +33,8 @@
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
     <!-- What a lease store that reads the application's clock does when the wall clock steps, written once. -->
     <Compile Include="../Shared/Infrastructure/LeaseWallStepContract.cs" Link="Infrastructure/Shared/LeaseWallStepContract.cs" />
+    <!-- A takeover that races a release and a new reservation is never told a young reservation stands in its way. -->
+    <Compile Include="../Shared/Infrastructure/SqlIdempotencyTakeoverRaceContract.cs" Link="Infrastructure/Shared/SqlIdempotencyTakeoverRaceContract.cs" />
   </ItemGroup>
 
   <!--
