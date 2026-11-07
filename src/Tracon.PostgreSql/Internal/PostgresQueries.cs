@@ -1362,7 +1362,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             UPDATE {Schema}.jobs
                SET done_items   = done_items   + (SELECT COUNT(*) FROM updated WHERE status = 1),
                    failed_items = failed_items + (SELECT COUNT(*) FROM updated WHERE status = 2)
-             WHERE id = @job_id;
+             -- 🚨 Only a report that finished an item writes the job's row. `FOR UPDATE SKIP LOCKED` of the lease passes over
+             -- a row another statement holds, so a report that added nothing and still held the row made a lease at that
+             -- moment take the next job instead of the earliest one.
+             WHERE id = @job_id AND EXISTS (SELECT 1 FROM updated WHERE status IN (1, 2));
             """;
 
         // --- Evaluation / eval ---

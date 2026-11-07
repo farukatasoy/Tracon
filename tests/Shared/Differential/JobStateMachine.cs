@@ -434,6 +434,46 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
     }
 
     /// <inheritdoc />
+    public bool MayPassOverHeldRow(JobStep step) => step is LeaseJobStep;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A lease finds work with <c>FOR UPDATE SKIP LOCKED</c> (PostgreSQL) or <c>READPAST</c> (SQL Server): it does not wait
+    /// for a row another statement holds, it takes the next one. The rows that can be held at that moment are the ones the
+    /// other racing steps write: a lease holder's renew, start, completion and release, a cancel, an item report. A lease
+    /// that passes over none of them is the serial model; this passes over all of them, which is the widest the store can
+    /// do. It is not a license to skip a job nothing else touches.
+    /// </remarks>
+    public Observation ApplyPassingOver(JobStep step, IReadOnlyList<JobStep> concurrent)
+    {
+        if (step is not LeaseJobStep lease)
+        {
+            return Apply(step);
+        }
+
+        var held = concurrent
+            .Select(static other => other switch
+            {
+                LeaseHolderStep holder => (int?)holder.Slot,
+                CancelJobStep cancel => cancel.Slot,
+                ReportItemStep report => report.Slot,
+                _ => null,
+            })
+            .Where(static slot => slot is not null)
+            .Select(static slot => slot!.Value)
+            .ToHashSet();
+
+        try
+        {
+            return Lease(lease, held);
+        }
+        catch (ArgumentException)
+        {
+            return Observation.Rejected();
+        }
+    }
+
+    /// <inheritdoc />
     public Observation Apply(JobStep step)
     {
         try
@@ -566,7 +606,7 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
         return Holder(s, job => { job.LeaseUntil = Stamp(_now + (s.DurationMs * TimeSpan.TicksPerMillisecond)); }, requireLeased: false);
     }
 
-    private Observation Lease(LeaseJobStep s)
+    private Observation Lease(LeaseJobStep s, HashSet<int>? passedOver = null)
     {
         RequireLeaseRange(s.DurationMs);
 
@@ -598,9 +638,11 @@ internal sealed class JobModel(JobUniverse universe, ProviderTraits traits) : IS
         var capKeys = s.Cap?.Handlers.Select(Handler).ToHashSet(StringComparer.Ordinal);
         Job? best = null;
 
-        foreach (var job in _jobs)
+        for (var slot = 0; slot < _jobs.Length; slot++)
         {
-            if (job is null || job.ScheduledFor > now)
+            var job = _jobs[slot];
+
+            if (job is null || job.ScheduledFor > now || (passedOver is not null && passedOver.Contains(slot)))
             {
                 continue;
             }

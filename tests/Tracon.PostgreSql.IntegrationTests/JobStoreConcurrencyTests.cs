@@ -142,6 +142,44 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
         }
     }
 
+    /// <summary>
+    /// A report that changes no count does not touch the job's row, so it does not wait for whoever holds it and does
+    /// not make a lease skip the job.
+    /// </summary>
+    /// <remarks>
+    /// <c>FOR UPDATE SKIP LOCKED</c> passes over a row that another statement holds. The report statement used to write
+    /// the job's counters even when the item did not finish (they are added to by zero), so a report of a pending item
+    /// held the row for the length of the statement and a lease that came at that moment took the next job. Measured with
+    /// the differential suite: the lease did not get the earliest job, which no serial order of the two allows.
+    /// </remarks>
+    [Fact]
+    public async Task A_report_that_finishes_no_item_does_not_wait_for_the_row_of_its_job()
+    {
+        var schemaName = PostgresTestContext.NewSchemaName();
+
+        await using var context = PostgresTestContext.Create(fixture, schemaName);
+        await context.Migrations.ApplyAsync();
+
+        var job = await context.Jobs.EnqueueAsync(TestData.Job(), ["input"]);
+
+        await using var connection = await context.DataSource.OpenConnectionAsync(TestContext.Current.CancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+        await using (var hold = new Npgsql.NpgsqlCommand($"SELECT id FROM \"{schemaName}\".jobs WHERE id = @id FOR UPDATE", connection, transaction))
+        {
+            hold.Parameters.AddWithValue("id", job.Id);
+            await hold.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        var report = context.Jobs
+            .ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 0, Status = JobItemStatus.Pending }, TestContext.Current.CancellationToken)
+            .AsTask();
+
+        await report.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+    }
+
     private static async Task LeaseUnderCapAsync(SqlJobStore store, string owner, JobTenantCap cap, ConcurrentBag<JobRecord> leased)
     {
         while (true)

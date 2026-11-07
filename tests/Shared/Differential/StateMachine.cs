@@ -21,6 +21,22 @@ internal interface IStepModel<TStep>
     /// <param name="step">The concrete step.</param>
     /// <returns>What a correct store returns.</returns>
     Observation Apply(TStep step);
+
+    /// <summary>
+    /// Tells whether a store may serve this step differently when other steps run at the same moment: by passing over a row
+    /// one of them holds (<c>FOR UPDATE SKIP LOCKED</c> and <c>READPAST</c> are how a lease finds work without waiting).
+    /// </summary>
+    /// <param name="step">The concrete step.</param>
+    /// <returns><see langword="true"/> when <see cref="ApplyPassingOver"/> differs from <see cref="Apply"/> for some concurrent steps.</returns>
+    bool MayPassOverHeldRow(TStep step) => false;
+
+    /// <summary>
+    /// Applies the step as a store that passed over every row the concurrent steps could be holding.
+    /// </summary>
+    /// <param name="step">The concrete step.</param>
+    /// <param name="concurrent">The steps that run at the same moment (all the racing steps, this one included).</param>
+    /// <returns>What a correct store that passed over those rows returns.</returns>
+    Observation ApplyPassingOver(TStep step, IReadOnlyList<TStep> concurrent) => Apply(step);
 }
 
 /// <summary>Applies steps to one store implementation.</summary>

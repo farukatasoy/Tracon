@@ -1562,6 +1562,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT inserted.status INTO @updated
              WHERE job_id = @job_id AND seq = @seq AND status = 0;
 
+            -- Only a report that finished an item writes the job's row: a lease with READPAST passes over a row another
+            -- statement holds (see the PostgreSQL text). A predicate on the UPDATE is not enough here, because the
+            -- statement reads the row (and waits for its lock) before it evaluates it; the IF decides before the statement.
+            IF EXISTS (SELECT 1 FROM @updated WHERE status IN (1, 2))
             UPDATE {Schema}.jobs
                SET done_items   = done_items   + (SELECT COUNT(*) FROM @updated WHERE status = 1),
                    failed_items = failed_items + (SELECT COUNT(*) FROM @updated WHERE status = 2)

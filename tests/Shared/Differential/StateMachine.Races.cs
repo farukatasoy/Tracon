@@ -211,39 +211,54 @@ internal abstract partial class StateMachine<TPlan, TStep>
             snapshotObserved.Add(await ApplyCatchingAsync(driver, step));
         }
 
+        // A step the store may serve by passing over a row another racing step holds is tried both ways: as the serial
+        // model applies it, and as a store that passed over those rows. Which one happened is not observable, so each
+        // combination is one more candidate explanation.
+        var passers = Enumerable.Range(0, concreteRacing.Count)
+            .Where(index => NewModel(plan, stores.Traits).MayPassOverHeldRow(concreteRacing[index]))
+            .ToList();
+
         // Every order of the steps that keeps each task's own order.
         foreach (var order in Interleavings([.. lanes.Select(static lane => lane.Count)]))
         {
-            var candidate = NewModel(plan, stores.Traits);
-            var matches = true;
-
-            foreach (var step in concreteSetup)
+            for (var passing = 0; passing < (1 << passers.Count); passing++)
             {
-                candidate.Apply(step);
-            }
+                var candidate = NewModel(plan, stores.Traits);
+                var matches = true;
 
-            var lanePositions = new int[lanes.Count];
-
-            foreach (var lane in order)
-            {
-                var index = lanes[lane][lanePositions[lane]++];
-
-                if (Observation.Compare(candidate.Apply(concreteRacing[index]), observed[index]).Length > 0)
+                foreach (var step in concreteSetup)
                 {
-                    matches = false;
-
-                    break;
+                    candidate.Apply(step);
                 }
-            }
 
-            for (var index = 0; matches && index < snapshot.Count; index++)
-            {
-                matches = Observation.Compare(candidate.Apply(snapshot[index]), snapshotObserved[index]).Length == 0;
-            }
+                var lanePositions = new int[lanes.Count];
 
-            if (matches)
-            {
-                return;
+                foreach (var lane in order)
+                {
+                    var index = lanes[lane][lanePositions[lane]++];
+                    var position = passers.IndexOf(index);
+                    var passesOver = position >= 0 && (passing & (1 << position)) != 0;
+                    var expected = passesOver
+                        ? candidate.ApplyPassingOver(concreteRacing[index], concreteRacing)
+                        : candidate.Apply(concreteRacing[index]);
+
+                    if (Observation.Compare(expected, observed[index]).Length > 0)
+                    {
+                        matches = false;
+
+                        break;
+                    }
+                }
+
+                for (var index = 0; matches && index < snapshot.Count; index++)
+                {
+                    matches = Observation.Compare(candidate.Apply(snapshot[index]), snapshotObserved[index]).Length == 0;
+                }
+
+                if (matches)
+                {
+                    return;
+                }
             }
         }
 
