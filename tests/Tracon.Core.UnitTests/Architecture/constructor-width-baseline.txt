@@ -1,0 +1,30 @@
+# Checked by ConstructorWidthBaselineTests (Class_constructors_over_the_limit_match_the_checked_in_baseline).
+# One line per CLASS whose widest constructor (a primary constructor included) takes more than ten
+# parameters. A record, a struct and an interface are out of scope.
+#   <package>:<full type name> | <widest constructor, in parameters> | <reason that says who builds the type, at least 40 characters>
+# A new line is added BY HAND. A wide constructor takes its dependencies through a context object or a
+# smaller collaborator instead. The refresh
+#   TRACON_CTOR_WIDTH_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release
+# only lowers a width and removes a line whose class is gone or no longer over the limit, so this file
+# can only shrink through it.
+Tracon.AspNetCore:Tracon.DefinitionImportPlanner | 14 | The definition transfer endpoint builds one planner for each import request from the services it resolves.
+Tracon.Core:Tracon.AgentDefinitionCompiler | 24 | The container builds it with a factory registration; a test or a host builds it by hand with only the optional services it needs.
+Tracon.Core:Tracon.AgentRunJobHandler | 11 | The container builds it as the built-in agent run job handler, registered under its job key.
+Tracon.Core:Tracon.ApprovalResumeJobHandler | 12 | The container builds it as the built-in approval resume job handler, registered under its job key.
+Tracon.Core:Tracon.ChildAgentInvoker | 15 | The agent compiler and the workflow agent cache build one for each child agent they expose as a tool.
+Tracon.Core:Tracon.EvalJobHandler | 14 | The container builds it as the built-in evaluation job handler, registered under its job key.
+Tracon.Core:Tracon.JobWorkerBackgroundService | 12 | The container builds it as the hosted service that leases and runs jobs; a test builds it with a manual clock.
+Tracon.Core:Tracon.LiveVoiceSessionHost | 12 | The live voice session launcher builds one host for each live voice session it opens.
+Tracon.Core:Tracon.LiveVoiceSessionLauncher | 15 | The container builds it with a factory registration when live voice is added to the builder.
+Tracon.Core:Tracon.ModelProviderRegistry | 16 | The container builds it with a factory registration; a test builds it with a list of providers.
+Tracon.Core:Tracon.ModelRunJudge | 13 | The container builds it as the built-in model judge when online evaluation is added to the builder.
+Tracon.Core:Tracon.QueuedTurn | 11 | The job handlers that run an agent turn from a queued job build one for each job they execute.
+Tracon.Core:Tracon.RunContinuationJobHandler | 13 | The container builds it as the built-in run continuation job handler, registered under its job key.
+Tracon.Core:Tracon.RunReconciliationService | 11 | The container builds it as the hosted service that closes runs a stopped process left open.
+Tracon.Core:Tracon.RunRecordingAgent | 25 | The recording agent decorator and the model judge build one around the agent they record; tests build it by hand.
+Tracon.Core:Tracon.RunRecordingAgentDecorator | 18 | The container builds it with a factory registration as the outermost agent decorator.
+Tracon.Core:Tracon.TraconDiagnosticsCollector | 17 | The container builds it with a factory registration for the diagnostics endpoint and the startup report.
+Tracon.Core:Tracon.VoiceConversationDriver | 12 | The container builds it with a factory registration when the voice conversation is added to the builder.
+Tracon.Mcp:Tracon.McpOAuthAuthorizationCoordinator | 11 | The container builds it as the MCP OAuth coordinator when MCP is added to the builder.
+Tracon.Mcp:Tracon.McpToolCatalog | 14 | The container builds it as a singleton when MCP is added to the builder; tests build it with a fake transport factory.
+Tracon.Workflows:Tracon.WorkflowRunner | 23 | The container builds it by type as the workflow runner; tests build it by hand with the optional stores they need.
