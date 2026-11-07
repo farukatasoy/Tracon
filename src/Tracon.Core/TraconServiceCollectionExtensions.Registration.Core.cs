@@ -399,7 +399,7 @@ public static partial class TraconServiceCollectionExtensions
                 // The loop stop criteria a host added with
                 // AddLoopEvaluator. Empty when none was added, and a definition
                 // that names an unknown kind then fails to compile.
-                LoopEvaluators = provider.GetServices<TraconLoopEvaluatorRegistration>(),
+                LoopCriteria = provider.GetServices<TraconLoopEvaluatorRegistration>(),
 
                 // The judge binding an aiJudge loop criterion calls. Unconfigured
                 // unless AddModelRunJudge was called, in which case that criterion

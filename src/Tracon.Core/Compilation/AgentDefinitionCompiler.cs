@@ -120,7 +120,7 @@ public sealed partial class AgentDefinitionCompiler
         // The registry stores the factories registered in code and calls none of
         // them here: this constructor runs inside the catalog's own construction
         // chain, and a criterion that needs the catalog would close the cycle.
-        _loopEvaluators = new LoopEvaluatorRegistry(context.LoopEvaluators ?? [], models, context.JudgeOptions, context.LoggerFactory, context.Provider);
+        _loopEvaluators = new LoopEvaluatorRegistry(context.LoopCriteria ?? [], models, context.JudgeOptions, context.LoggerFactory, context.Provider);
         _tenantEgressPolicies = context.TenantEgressPolicies;
         _agentExtensions = context.AgentExtensions is null ? AgentExtensionRegistry.Empty : new AgentExtensionRegistry(context.AgentExtensions);
         _hostedTools = context.HostedTools ?? HostedToolRegistry.Empty;

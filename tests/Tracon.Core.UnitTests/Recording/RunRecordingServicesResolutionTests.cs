@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -11,29 +12,45 @@ namespace Tracon.Core.UnitTests.Recording;
 /// </summary>
 public sealed class RunRecordingServicesResolutionTests
 {
+    // Off by configuration, not by a missing registration: no currency is set unless the host sets one.
+    private static readonly string[] OffByConfiguration = [nameof(RunRecordingServices.PricingCurrency)];
+
     [Fact]
-    public void The_container_builds_every_member_the_run_path_needs()
+    public void The_container_fills_every_member_of_the_services()
     {
         using var provider = BuildProvider();
 
         var services = provider.GetRequiredService<RunRecordingServices>();
 
-        services.RunStore.ShouldNotBeNull();
-        services.TenantContext.ShouldNotBeNull();
-        services.Recording.ShouldNotBeNull();
-        services.Metrics.ShouldNotBeNull();
-        services.TraceCollector.ShouldNotBeNull();
-        services.PricingResolver.ShouldNotBeNull();
-        services.QuotaEnforcer.ShouldNotBeNull();
-        services.WebhookPublisher.ShouldNotBeNull();
-        services.CancellationRegistry.ShouldNotBeNull();
-        services.ErrorClassifier.ShouldNotBeNull();
-        services.RunInputStore.ShouldNotBeNull();
-        services.RunSampler.ShouldNotBeNull();
-        services.ContentGuardPipeline.ShouldNotBeNull();
-        services.AttributionContext.ShouldNotBeNull();
-        services.ApprovalPresenterRunner.ShouldNotBeNull();
-        services.Reconciliation.ShouldNotBeNull();
+        // Walks the members instead of listing them: a member added to the services later and left out of Create
+        // is null here, so it fails this test instead of switching its feature off in silence.
+        var unset = typeof(RunRecordingServices)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(static property => !property.PropertyType.IsValueType)
+            .Where(static property => !OffByConfiguration.Contains(property.Name, StringComparer.Ordinal))
+            .Where(property => property.GetValue(services) is null)
+            .Select(static property => property.Name)
+            .ToList();
+
+        unset.ShouldBeEmpty("The container left these members of the run services null; their features are off.");
+    }
+
+    [Fact]
+    public void A_registered_clock_reaches_the_services_and_the_system_clock_is_the_default()
+    {
+        var clock = new ManualClock();
+        var registered = new ServiceCollection();
+        registered.AddTracon();
+        registered.AddSingleton<TimeProvider>(clock);
+
+        using (var withClock = registered.BuildServiceProvider())
+        {
+            withClock.GetRequiredService<RunRecordingServices>().TimeProvider.ShouldBeSameAs(clock);
+        }
+
+        using var withoutClock = BuildProvider();
+
+        withoutClock.GetRequiredService<RunRecordingServices>().TimeProvider.ShouldBeSameAs(TimeProvider.System);
     }
 
     [Fact]

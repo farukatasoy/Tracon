@@ -96,7 +96,7 @@ public sealed class LoopCompilationTests
             TestData.Registry(),
             new AgentCompilationServices
             {
-                LoopEvaluators = registrations,
+                LoopCriteria = registrations,
             });
 }
 #pragma warning restore MAAI001

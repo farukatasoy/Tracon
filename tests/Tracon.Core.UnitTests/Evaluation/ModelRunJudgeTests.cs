@@ -171,6 +171,55 @@ public sealed class ModelRunJudgeTests
         (await judge.JudgeAsync(Context())).Scores.ShouldHaveSingleItem().Value.ShouldBe(80);
     }
 
+    [Fact]
+    public async Task The_judges_own_run_is_recorded_but_not_counted_published_observed_or_cancellable()
+    {
+        // The judge is a control-plane cost: its run row exists, but it must not use the user's quota, publish a
+        // run.completed event, reach the event observers, register for cancellation from outside, or read the
+        // caller's attribution. Every one of those is a member the container fills, so a judge built from the full
+        // services instead of the control-plane ones would do all of them while every other test stays green.
+        var tenant = new FixedTenantContext(Tenant);
+        var runs = new InMemoryRunStore(tenantContext: tenant);
+        var quotaStore = new InMemoryQuotaStore();
+        var publisher = new SpyWebhookPublisher();
+        var sink = new SpyRunEventSink();
+        var registry = new SpyCancellationRegistry();
+        var attribution = new SpyAttributionContext();
+
+        var services = TestRunRecording.Services(
+            runs,
+            tenant,
+            new TraconRunRecordingOptions(),
+            quotaEnforcer: new QuotaEnforcer(quotaStore, new StaticOptionsMonitor<TraconQuotaOptions>(new TraconQuotaOptions())),
+            webhookPublisher: publisher,
+            cancellationRegistry: registry,
+            attributionContext: attribution,
+            sinks: [sink],
+            includeAgentVersionTag: true,
+            pricingCurrency: "EUR");
+
+        var options = new ModelRunJudgeOptions { Model = new ModelBinding { Provider = "test", Model = "cheap-model" } };
+        options.Criteria.Add("Is the answer correct?");
+
+        var judge = new ModelRunJudge(
+            new FixedModelProviderRegistry(new FakeChatClient(_ => Response("""{"score":90,"reason":"ok"}""")), declared: null),
+            new StaticOptionsMonitor<ModelRunJudgeOptions>(options),
+            services,
+            NullLoggerFactory.Instance);
+
+        (await judge.JudgeAsync(Context())).Scores.ShouldHaveSingleItem().Value.ShouldBe(90);
+
+        var row = (await runs.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        row.Kind.ShouldBe(RunKind.Eval);
+        row.Status.ShouldBe(RunStatus.Completed);
+
+        (await quotaStore.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant })).ShouldBeEmpty();
+        publisher.Published.ShouldBe(0);
+        sink.Events.ShouldBe(0);
+        registry.Registrations.ShouldBe(0);
+        attribution.Reads.ShouldBe(0);
+    }
+
     private static (ModelRunJudge Judge, InMemoryRunStore Runs) Build(FakeChatClient chatClient)
         => Build(chatClient, new ModelBinding { Provider = "test", Model = "cheap-model" }, declared: null);
 
@@ -194,6 +243,84 @@ public sealed class ModelRunJudgeTests
             NullLoggerFactory.Instance);
 
         return (judge, runs);
+    }
+
+    private sealed class SpyWebhookPublisher : IWebhookPublisher
+    {
+        public int Published { get; private set; }
+
+        public ValueTask<int> PublishAsync(
+            string tenantId,
+            string eventType,
+            WebhookEventPayload payload,
+            CancellationToken cancellationToken = default)
+        {
+            Published++;
+
+            return new ValueTask<int>(1);
+        }
+    }
+
+    private sealed class SpyRunEventSink : IRunEventSink
+    {
+        public int Events { get; private set; }
+
+        public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+        {
+            Events++;
+
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class SpyCancellationRegistry : IRunCancellationRegistry
+    {
+        public int Registrations { get; private set; }
+
+        public IDisposable Register(Guid runId, Guid rootRunId, string? tenantId, CancellationTokenSource source)
+        {
+            Registrations++;
+
+            return new NoopRegistration();
+        }
+
+        public bool TryCancel(Guid runId, string? tenantId) => false;
+
+        public int ActiveCount => 0;
+
+        public IReadOnlyCollection<Guid> ActiveRunIds => [];
+
+        private sealed class NoopRegistration : IDisposable
+        {
+            public void Dispose()
+            {
+            }
+        }
+    }
+
+    private sealed class SpyAttributionContext : IRunAttributionContext
+    {
+        public int Reads { get; private set; }
+
+        public string? UserId
+        {
+            get
+            {
+                Reads++;
+
+                return "user-1";
+            }
+        }
+
+        public IReadOnlyDictionary<string, string>? Labels
+        {
+            get
+            {
+                Reads++;
+
+                return null;
+            }
+        }
     }
 
     private sealed class FixedTenantContext(string tenantId) : ITenantContext

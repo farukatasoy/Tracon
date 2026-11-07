@@ -111,7 +111,7 @@ internal sealed class AgentCompilationServices
     /// Gets the loop stop criteria registered in code. A definition that names a kind that is neither built in nor
     /// registered here gets a compilation error.
     /// </summary>
-    public IEnumerable<TraconLoopEvaluatorRegistration>? LoopEvaluators { get; init; }
+    public IEnumerable<TraconLoopEvaluatorRegistration>? LoopCriteria { get; init; }
 
     /// <summary>
     /// Gets the judge binding an <c>aiJudge</c> loop criterion calls. When <see langword="null"/> or unconfigured,

@@ -117,6 +117,18 @@ public sealed class ConstructorWidthBaselineTests
     }
 
     [Fact]
+    public void A_generic_class_and_a_plain_class_of_the_same_name_are_two_types()
+    {
+        var widths = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        Scan("namespace Demo; public class Box { public Box(int a) { } }", string.Empty, widths, out _);
+        Scan("namespace Demo; public class Box<T> { public Box(int a, int b, int c) { } }", string.Empty, widths, out _);
+
+        widths["Demo.Box"].ShouldBe(1);
+        widths["Demo.Box`1"].ShouldBe(3);
+    }
+
+    [Fact]
     public void A_baseline_that_is_too_low_too_high_stale_or_unexplained_is_reported()
     {
         var measured = new SortedDictionary<string, int>(StringComparer.Ordinal)
@@ -219,7 +231,11 @@ public sealed class ConstructorWidthBaselineTests
             switch (node)
             {
                 case TypeDeclarationSyntax declaration:
-                    names.Push(declaration.Identifier.ValueText);
+                    // A generic class keeps its arity (Foo`1), so Foo and Foo<T> are two keys, as they are two types.
+                    names.Push(
+                        declaration.TypeParameterList is { Parameters.Count: > 0 } typeParameters
+                            ? declaration.Identifier.ValueText + "`" + typeParameters.Parameters.Count.ToString(CultureInfo.InvariantCulture)
+                            : declaration.Identifier.ValueText);
                     break;
                 case BaseNamespaceDeclarationSyntax @namespace:
                     names.Push(@namespace.Name.ToString());

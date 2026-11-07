@@ -8,8 +8,8 @@ namespace Tracon;
 
 /// <summary>
 /// Run completion: usage/cost merging, error mapping, and the terminal store
-/// write. <see cref="CompleteAsync"/> fans out to the root-only notifications
-/// in <c>RunRecordingAgent.Notifications.cs</c>, but owns the outcome itself.
+/// write. <see cref="CompleteAsync"/> fans out to the side effects of a finished
+/// run (quota, webhook, sampling), but owns the outcome itself.
 /// </summary>
 public sealed partial class RunRecordingAgent
 {
