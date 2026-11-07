@@ -20,8 +20,8 @@ namespace Tracon;
 /// (<see cref="TraconException"/>) and a cancellation pass through as they are.
 /// </para>
 /// <para>
-/// Only a provider Tracon knows (an <see cref="IModelProvider"/> of that name) is wrapped: its setup keys are what the mask
-/// replaces. A generator a consumer registers under a name of its own is left alone. The speech clients need no wrapper: the
+/// Only a provider Tracon knows (one the model provider registry holds under that name) is wrapped: its setup keys are what
+/// the mask replaces, and the registry is the one place that reads them. A generator a consumer registers under a name of its own is left alone. The speech clients need no wrapper: the
 /// OpenAI transport and the Gemini synthesizer both throw a <see cref="TraconException"/> that keeps the service's text out.
 /// </para>
 /// </remarks>
@@ -30,7 +30,7 @@ internal static class ProviderFailureMasking
 {
     /// <summary>Wraps an image generator.</summary>
     /// <param name="inner">The provider's generator.</param>
-    /// <param name="services">The container that holds the model providers.</param>
+    /// <param name="services">The container that holds the model provider registry.</param>
     /// <param name="providerName">The provider the generator belongs to.</param>
     /// <returns>The wrapper, or <paramref name="inner"/> when no provider of that name is registered.</returns>
     internal static IImageGenerator Wrap(IImageGenerator inner, IServiceProvider services, string? providerName)
@@ -38,31 +38,14 @@ internal static class ProviderFailureMasking
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(services);
 
-        if (string.IsNullOrWhiteSpace(providerName))
+        if (string.IsNullOrWhiteSpace(providerName)
+            || services.GetService<IModelProviderRegistry>() is not ModelProviderRegistry registry
+            || !registry.TrySetupKeyMask(providerName, out var canonicalName, out var mask))
         {
             return inner;
         }
 
-        var provider = services.GetServices<IModelProvider>()
-            .FirstOrDefault(candidate => string.Equals(candidate.Name, providerName, StringComparison.OrdinalIgnoreCase));
-
-        return provider is null
-            ? inner
-            : new MaskingImageGenerator(inner, provider.Name, MaskOf(provider));
-    }
-
-    // The mask is built while the generator is wired up, outside any handler of a failure, so a provider whose getter throws
-    // must not break the wiring: the call goes on without a replacement, as it does in the chat pipeline.
-    private static ProviderSecretMask MaskOf(IModelProvider provider)
-    {
-        try
-        {
-            return ProviderSecretMask.ForValues(provider.SetupApiKeys);
-        }
-        catch (Exception)
-        {
-            return ProviderSecretMask.Empty;
-        }
+        return new MaskingImageGenerator(inner, canonicalName, mask);
     }
 
     private sealed class MaskingImageGenerator(IImageGenerator inner, string provider, ProviderSecretMask mask) : DelegatingImageGenerator(inner)

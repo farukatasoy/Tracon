@@ -438,9 +438,36 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         return toolLoop;
     }
 
+    /// <summary>
+    /// Builds the mask of the keys the named provider was set up with, for a client that does not go through
+    /// <see cref="BuildPipeline"/>: an image generator.
+    /// </summary>
+    /// <param name="providerName">The provider's name, as the configuration names it.</param>
+    /// <param name="canonicalName">The name the provider registered under.</param>
+    /// <param name="mask">The mask; empty when the provider reports no key or fails to report.</param>
+    /// <returns><see langword="true"/> when a provider of that name is registered.</returns>
+    /// <remarks>The registry is the one place that reads the keys (<c>SetupApiKeysReaderTests</c>).</remarks>
+    internal bool TrySetupKeyMask(string providerName, out string canonicalName, out ProviderSecretMask mask)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
+
+        if (_providers.TryGetValue(providerName, out var provider))
+        {
+            canonicalName = provider.Name;
+            mask = SetupKeyMask(provider, providerName);
+
+            return true;
+        }
+
+        canonicalName = providerName;
+        mask = ProviderSecretMask.Empty;
+
+        return false;
+    }
+
     /// <summary>Builds the mask of the keys a provider was set up with.</summary>
     /// <param name="provider">The provider the client is built for.</param>
-    /// <param name="binding">The model binding of the call; its provider name is written when the provider fails to report.</param>
+    /// <param name="providerName">The provider name of the call; it is written when the provider fails to report.</param>
     /// <returns>The mask; empty when the provider reports no key or fails to report.</returns>
     /// <remarks>
     /// The provider is consumer code and the mask is built while a client is built, outside any handler of a provider
@@ -448,7 +475,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// names the provider and the exception TYPE, never the exception's text, which the provider wrote and may hold the
     /// very value it failed to report.
     /// </remarks>
-    private ProviderSecretMask SetupKeyMask(IModelProvider provider, ModelBinding binding)
+    private ProviderSecretMask SetupKeyMask(IModelProvider provider, string providerName)
     {
         try
         {
@@ -461,7 +488,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 .LogWarning(
                     "Model provider {Provider} failed to report the keys it was set up with ({ExceptionType}); " +
                     "the text of its failures is not searched for them.",
-                    binding.Provider,
+                    providerName,
                     exception.GetType().FullName);
 
             return ProviderSecretMask.Empty;
@@ -480,7 +507,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // with the key set up at start is masked from the values its provider reports (IModelProvider.SetupApiKeys).
         // The two never mix: a tenant call does not send the setup key, so a setup value is not looked for in its text.
         var secretMask = credential is null
-            ? SetupKeyMask(provider, binding)
+            ? SetupKeyMask(provider, binding.Provider)
             : ProviderSecretMask.For(credential);
 
         // The provider returns the RAW client; the entire pipeline is assembled here.
