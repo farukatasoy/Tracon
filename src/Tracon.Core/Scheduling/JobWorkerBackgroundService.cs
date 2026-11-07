@@ -516,7 +516,7 @@ internal sealed class JobWorkerBackgroundService(
         {
             // Not closed: the job was cancelled in the meantime, or its lease went to
             // another worker, which counts and publishes the outcome itself.
-            if (await IsCancelledAfterRefusalAsync(job, "fail it", stoppingToken).ConfigureAwait(false))
+            if (await IsCancelledAfterRefusalAsync(job, "fail it", Timeout.InfiniteTimeSpan, stoppingToken).ConfigureAwait(false))
             {
                 RecordJobMetric(job, JobStatus.Cancelled, startedAt, handlerKeyTag);
             }
@@ -602,7 +602,7 @@ internal sealed class JobWorkerBackgroundService(
         // Awaited below, never left behind: it cancels a source this method
         // disposes.
         using var watchStop = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        var watch = WatchForCancellationAsync(job, options.PollInterval, cancelled, watchStop.Token);
+        var watch = WatchForCancellationAsync(job, options.PollInterval, CallBudgetOf(options.LeaseDuration), cancelled, watchStop.Token);
 
         // 🚨 Opened in THIS method's body, around the handler call: an AsyncLocal
         // written in a helper does not flow back to its caller. A workflow run the
@@ -734,6 +734,7 @@ internal sealed class JobWorkerBackgroundService(
     /// </summary>
     /// <param name="job">The running job.</param>
     /// <param name="interval">The worker's poll interval.</param>
+    /// <param name="budget">How long one read may take; see <see cref="CallWithinAsync{T}"/>.</param>
     /// <param name="cancelled">The source behind the handler's token that a cancel cancels.</param>
     /// <param name="token">Cancelled when the handler has returned, or the worker stops.</param>
     /// <returns>A task that completes when the watch ends; it never throws.</returns>
@@ -747,12 +748,16 @@ internal sealed class JobWorkerBackgroundService(
     /// </para>
     /// <para>
     /// A store error is caught PER TICK, as the renewal does: one failed read
-    /// must not end the watch, and must not touch the handler either.
+    /// must not end the watch, and must not touch the handler either. A read that does not
+    /// answer within <paramref name="budget"/> is such an error. The handler's return waits for
+    /// the watch, so a read that hung held the attempt, the worker's slot and the lease renewal
+    /// for ever; the handler's return also ends a read still waiting.
     /// </para>
     /// </remarks>
     private async Task WatchForCancellationAsync(
         JobRecord job,
         TimeSpan interval,
+        TimeSpan budget,
         CancellationTokenSource cancelled,
         CancellationToken token)
     {
@@ -764,7 +769,7 @@ internal sealed class JobWorkerBackgroundService(
             {
                 try
                 {
-                    var current = await jobStore.GetAsync(job.TenantId, job.Id, token).ConfigureAwait(false);
+                    var current = await CallWithinAsync(job, "cancel watch", ct => jobStore.GetAsync(job.TenantId, job.Id, ct), budget, token).ConfigureAwait(false);
 
                     if (current is null || current.Status == JobStatus.Cancelled)
                     {
@@ -857,7 +862,7 @@ internal sealed class JobWorkerBackgroundService(
             // refuses the write on a terminal job. Cancelled IS terminal, so the
             // attempt is still counted. A refusal for any other reason is a lost
             // lease: the job is another worker's, and that worker counts it.
-            if (!await IsCancelledAfterRefusalAsync(job, "complete it", stoppingToken).ConfigureAwait(false))
+            if (!await IsCancelledAfterRefusalAsync(job, "complete it", window.CallBudget, stoppingToken).ConfigureAwait(false))
             {
                 return;
             }
@@ -960,7 +965,7 @@ internal sealed class JobWorkerBackgroundService(
         // last attempt it became Failed. The store refuses both writes on a
         // terminal job too; this read is what keeps the metric honest, so a
         // read that fails does not hold back the write below.
-        if (await TryReadStatusAsync(job, stoppingToken).ConfigureAwait(false) == JobStatus.Cancelled)
+        if (await TryReadStatusAsync(job, window.CallBudget, stoppingToken).ConfigureAwait(false) == JobStatus.Cancelled)
         {
             RecordJobMetric(job, JobStatus.Cancelled, startedAt);
 
@@ -994,7 +999,7 @@ internal sealed class JobWorkerBackgroundService(
                 await PublishJobOutcomeAsync(job, JobStatus.Failed, safeMessage, stoppingToken).ConfigureAwait(false);
             }
             else if (failed == FinalizationResult.Refused
-                && await IsCancelledAfterRefusalAsync(job, "fail it", stoppingToken).ConfigureAwait(false))
+                && await IsCancelledAfterRefusalAsync(job, "fail it", window.CallBudget, stoppingToken).ConfigureAwait(false))
             {
                 // Cancelled between the read above and this write.
                 RecordJobMetric(job, JobStatus.Cancelled, startedAt);
@@ -1035,7 +1040,7 @@ internal sealed class JobWorkerBackgroundService(
             window.Settled();
         }
         else if (released == FinalizationResult.Refused
-            && await IsCancelledAfterRefusalAsync(job, "release it for another attempt", stoppingToken).ConfigureAwait(false))
+            && await IsCancelledAfterRefusalAsync(job, "release it for another attempt", window.CallBudget, stoppingToken).ConfigureAwait(false))
         {
             // Cancelled between the read above and this write.
             RecordJobMetric(job, JobStatus.Cancelled, startedAt);
@@ -1090,6 +1095,12 @@ internal sealed class JobWorkerBackgroundService(
     /// closes at once when the renewal reports the lease lost. Shutdown ends the tries
     /// too; its cancellation propagates like that of any other store call.
     /// </para>
+    /// <para>
+    /// A call that neither answers nor throws is a failed try after one lease duration
+    /// (<see cref="FinalizationWindow.CallBudget"/>); see <see cref="CallWithinAsync{T}"/>.
+    /// The window cannot end such a call, so without the limit a store that hung held the
+    /// attempt, the worker's slot and the lease renewal for ever.
+    /// </para>
     /// </remarks>
     private async Task<FinalizationResult> RetryFinalizationAsync(
         JobRecord job,
@@ -1111,7 +1122,7 @@ internal sealed class JobWorkerBackgroundService(
 
             try
             {
-                if (await call(stoppingToken).ConfigureAwait(false))
+                if (await CallWithinAsync(job, step, call, window.CallBudget, stoppingToken).ConfigureAwait(false))
                 {
                     return FinalizationResult.Written;
                 }
@@ -1122,7 +1133,7 @@ internal sealed class JobWorkerBackgroundService(
                 // lease is gone, which a write that applied also clears.
                 return failedBefore
                     && appliedStatus is { } expected
-                    && await AppliedByThisAttemptAsync(job, expected, stoppingToken).ConfigureAwait(false)
+                    && await AppliedByThisAttemptAsync(job, expected, window.CallBudget, stoppingToken).ConfigureAwait(false)
                         ? FinalizationResult.Written
                         : FinalizationResult.Refused;
             }
@@ -1166,11 +1177,86 @@ internal sealed class JobWorkerBackgroundService(
         }
     }
 
+    /// <summary>The longest a store call made under a lease may take: one lease duration, cut to the longest wait a timer takes.</summary>
+    /// <param name="leaseDuration">How long one lease lasts.</param>
+    /// <returns>The call budget. A lease duration the options validator lets through can be longer than a timer waits.</returns>
+    private static TimeSpan CallBudgetOf(TimeSpan leaseDuration)
+        => TimeSpan.FromMilliseconds(Math.Min(leaseDuration.TotalMilliseconds, TimerPeriod.MaxMilliseconds));
+
+    /// <summary>Sends one store call made while the attempt's lease is still renewed, and waits for the answer no longer than <paramref name="budget"/>.</summary>
+    /// <typeparam name="T">What the call answers.</typeparam>
+    /// <param name="job">The leased job.</param>
+    /// <param name="what">Which call it is, for the log.</param>
+    /// <param name="call">The store call, given the token it must honor.</param>
+    /// <param name="budget">How long the answer may take: <see cref="FinalizationWindow.CallBudget"/>, or <see cref="Timeout.InfiniteTimeSpan"/> where no renewal runs.</param>
+    /// <param name="stoppingToken">The worker's shutdown token.</param>
+    /// <returns>What the store answered.</returns>
+    /// <exception cref="TimeoutException">The store did not answer in time; the callers count it as any other store error.</exception>
+    /// <remarks>
+    /// <para>
+    /// The same shape as <see cref="RenewWithinAsync"/>: <see cref="Task.WaitAsync(TimeSpan, TimeProvider, CancellationToken)"/>
+    /// ends the wait but not the call, so the call gets its own token to be cancelled (a store that honors it stops) and is
+    /// looked at until it ends.
+    /// </para>
+    /// <para>
+    /// Every store call of the finalization goes through here, the reads too: the renewal runs until the outcome is
+    /// written, so a call that hangs keeps the lease alive and the job Running for ever, however the window is cut.
+    /// </para>
+    /// <para>
+    /// A write let go of may still apply later. That is safe for the reason a repeated call is: the store fences both writes
+    /// by the lease and the attempt, and the retry reads the job back (<see cref="AppliedByThisAttemptAsync"/>) before it
+    /// takes a refusal for a lost lease.
+    /// </para>
+    /// </remarks>
+    private async Task<T> CallWithinAsync<T>(
+        JobRecord job,
+        string what,
+        Func<CancellationToken, ValueTask<T>> call,
+        TimeSpan budget,
+        CancellationToken stoppingToken)
+    {
+        var callSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        Task<T> started;
+
+        try
+        {
+            started = call(callSource.Token).AsTask();
+        }
+        catch
+        {
+            callSource.Dispose();
+
+            throw;
+        }
+
+        try
+        {
+            return await started.WaitAsync(budget, _clock, stoppingToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException exception) when (!started.IsCompleted)
+        {
+            // A store that throws a TimeoutException of its own has completed the call: that one passes through as it is.
+            throw new TimeoutException($"The store did not answer within {budget}, the time one lease lasts.", exception);
+        }
+        finally
+        {
+            if (started.IsCompleted)
+            {
+                callSource.Dispose();
+            }
+            else
+            {
+                _ = AbandonCallAsync(job, what, started, callSource);
+            }
+        }
+    }
+
     /// <summary>
     /// Reads a job's current status to label its metric. A store error is
     /// logged and answers <see langword="null"/>.
     /// </summary>
     /// <param name="job">The job to read.</param>
+    /// <param name="budget">How long the read may take; see <see cref="CallWithinAsync{T}"/>.</param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
     /// <returns>The job's status, or <see langword="null"/> when the read failed or found no job.</returns>
     /// <remarks>
@@ -1179,11 +1265,11 @@ internal sealed class JobWorkerBackgroundService(
     /// must not break functionality, so a failed read never holds back the
     /// write that finalizes the job.
     /// </remarks>
-    private async Task<JobStatus?> TryReadStatusAsync(JobRecord job, CancellationToken stoppingToken)
+    private async Task<JobStatus?> TryReadStatusAsync(JobRecord job, TimeSpan budget, CancellationToken stoppingToken)
     {
         try
         {
-            var current = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false);
+            var current = await CallWithinAsync(job, "status read", ct => jobStore.GetAsync(job.TenantId, job.Id, ct), budget, stoppingToken).ConfigureAwait(false);
 
             return current?.Status;
         }
@@ -1203,6 +1289,7 @@ internal sealed class JobWorkerBackgroundService(
     /// </summary>
     /// <param name="job">The leased job.</param>
     /// <param name="expected">The status the write leaves the job in.</param>
+    /// <param name="budget">How long the read may take; see <see cref="CallWithinAsync{T}"/>.</param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
     /// <returns>
     /// <see langword="true"/> when the job carries this attempt's number and that status; <see langword="false"/> when
@@ -1214,11 +1301,11 @@ internal sealed class JobWorkerBackgroundService(
     /// terminal status (or back in the queue) with this attempt's number. A cancelled job reads
     /// <see cref="JobStatus.Cancelled"/> and never matches.
     /// </remarks>
-    private async Task<bool> AppliedByThisAttemptAsync(JobRecord job, JobStatus expected, CancellationToken stoppingToken)
+    private async Task<bool> AppliedByThisAttemptAsync(JobRecord job, JobStatus expected, TimeSpan budget, CancellationToken stoppingToken)
     {
         try
         {
-            var current = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false);
+            var current = await CallWithinAsync(job, "status read", ct => jobStore.GetAsync(job.TenantId, job.Id, ct), budget, stoppingToken).ConfigureAwait(false);
 
             return current is not null && current.Attempt == job.Attempt && current.Status == expected;
         }
@@ -1239,6 +1326,7 @@ internal sealed class JobWorkerBackgroundService(
     /// </summary>
     /// <param name="job">The leased job.</param>
     /// <param name="step">What the refused write did, for the log.</param>
+    /// <param name="budget">How long the read may take; see <see cref="CallWithinAsync{T}"/>.</param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
     /// <returns>
     /// <see langword="true"/> when the job is cancelled, which is counted like any cancelled
@@ -1251,9 +1339,9 @@ internal sealed class JobWorkerBackgroundService(
     /// answers "lost": the write did not apply either way, and the worker must not count a
     /// job it cannot show it still owns.
     /// </remarks>
-    private async Task<bool> IsCancelledAfterRefusalAsync(JobRecord job, string step, CancellationToken stoppingToken)
+    private async Task<bool> IsCancelledAfterRefusalAsync(JobRecord job, string step, TimeSpan budget, CancellationToken stoppingToken)
     {
-        if (await TryReadStatusAsync(job, stoppingToken).ConfigureAwait(false) == JobStatus.Cancelled)
+        if (await TryReadStatusAsync(job, budget, stoppingToken).ConfigureAwait(false) == JobStatus.Cancelled)
         {
             return true;
         }
@@ -1654,19 +1742,20 @@ internal sealed class JobWorkerBackgroundService(
             }
             else
             {
-                _ = AbandonRenewalAsync(job, call, callSource);
+                _ = AbandonCallAsync(job, "renewal", call, callSource);
             }
         }
     }
 
     /// <summary>
-    /// Cancels a renewal call the loop will not wait for any longer, and looks at how it ends.
+    /// Cancels a store call the worker will not wait for any longer, and looks at how it ends.
     /// </summary>
     /// <param name="job">The leased job.</param>
+    /// <param name="what">Which call it was, for the log.</param>
     /// <param name="call">The call that has not ended.</param>
     /// <param name="callSource">The call's token source; disposed once the call has ended, not before, because the call may still read its token.</param>
     /// <returns>A task that ends with the call and never faults.</returns>
-    private async Task AbandonRenewalAsync(JobRecord job, Task<bool> call, CancellationTokenSource callSource)
+    private async Task AbandonCallAsync(JobRecord job, string what, Task call, CancellationTokenSource callSource)
     {
         // The token that governs the call, read while the source is alive.
         var callToken = callSource.Token;
@@ -1680,7 +1769,7 @@ internal sealed class JobWorkerBackgroundService(
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, callToken))
             {
                 // A callback the store put on the token threw. The loop has nothing to do with it.
-                LogAbandonedRenewal(job, exception);
+                LogAbandonedCall(job, what, exception);
             }
 
             await call.ConfigureAwait(false);
@@ -1693,7 +1782,7 @@ internal sealed class JobWorkerBackgroundService(
         {
             // Nobody is waiting for the answer any more; looking at the failure keeps it from surfacing later as an
             // unobserved one.
-            LogAbandonedRenewal(job, exception);
+            LogAbandonedCall(job, what, exception);
         }
         finally
         {
@@ -1701,11 +1790,11 @@ internal sealed class JobWorkerBackgroundService(
         }
     }
 
-    private void LogAbandonedRenewal(JobRecord job, Exception exception)
+    private void LogAbandonedCall(JobRecord job, string what, Exception exception)
     {
         if (logger is not null && logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug(exception, "The renewal call of job {JobId} that the worker gave up on ended with an error.", job.Id);
+            logger.LogDebug(exception, "The {Call} call of job {JobId} that the worker gave up on ended with an error.", what, job.Id);
         }
     }
 
@@ -1772,7 +1861,6 @@ internal sealed class JobWorkerBackgroundService(
     private sealed class LeaseRenewal : IDisposable
     {
         private readonly TimeProvider _clock;
-        private readonly TimeSpan _duration;
         private readonly TimeSpan _margin;
         private readonly CancellationTokenSource _cts;
         private readonly CancellationTokenSource _lost = new();
@@ -1787,7 +1875,7 @@ internal sealed class JobWorkerBackgroundService(
             CancellationToken stoppingToken)
         {
             _clock = clock;
-            _duration = duration;
+            Duration = duration;
             _margin = margin;
             _confirmedAt = leaseRequestedAt;
             _cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
@@ -1802,12 +1890,15 @@ internal sealed class JobWorkerBackgroundService(
         /// <summary>Gets whether the lease was lost: the store refused a renewal, or none could be proven in time.</summary>
         public bool IsLost => Volatile.Read(ref _isLost) != 0;
 
+        /// <summary>Gets how long one lease lasts.</summary>
+        public TimeSpan Duration { get; }
+
         /// <summary>
         /// The time left on the lease this worker can prove, less the margin.
         /// Zero or negative once the margin is reached.
         /// </summary>
         public TimeSpan ProvableRemaining
-            => _duration - _margin - _clock.GetElapsedTime(Volatile.Read(ref _confirmedAt));
+            => Duration - _margin - _clock.GetElapsedTime(Volatile.Read(ref _confirmedAt));
 
         /// <summary>
         /// How long a renewal sent now may go unanswered before the lease is given up: the time left on the proven lease,
@@ -1835,7 +1926,7 @@ internal sealed class JobWorkerBackgroundService(
             // A renewal sent after the proven lease ran out proves nothing: the job
             // may have changed hands in between, and an answer that only says the
             // lease was extended says nothing about who holds it now.
-            if (_clock.GetElapsedTime(Volatile.Read(ref _confirmedAt), requestedAt) < _duration)
+            if (_clock.GetElapsedTime(Volatile.Read(ref _confirmedAt), requestedAt) < Duration)
             {
                 Volatile.Write(ref _confirmedAt, requestedAt);
             }
@@ -1911,6 +2002,12 @@ internal sealed class JobWorkerBackgroundService(
 
         /// <summary>Gets whether the lease was lost: nothing is written for this attempt.</summary>
         public bool LeaseLost => renewal.IsLost;
+
+        /// <summary>
+        /// Gets how long one store call of the finalization may take: one lease duration. A call that takes longer has
+        /// outlived any lease it was made under, and the window cannot end it.
+        /// </summary>
+        public TimeSpan CallBudget => CallBudgetOf(renewal.Duration);
 
         /// <summary>The time left; zero or negative once the window has closed.</summary>
         public TimeSpan Left => renewal.IsLost ? TimeSpan.Zero : Length - clock.GetElapsedTime(_openedAt);
