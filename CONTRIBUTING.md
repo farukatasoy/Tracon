@@ -11,7 +11,7 @@ member needs XML documentation.
 
 ## What you need
 
-- **.NET SDK 10.0.402** (pinned in `global.json`; a later 10.0.4xx patch also
+- **.NET SDK 10.0.403** (pinned in `global.json`; a later 10.0.4xx patch also
   works). Every test project runs on `net10.0`, the one framework the packages
   ship; `tests/Directory.Build.props` holds the framework list, and the gate
   runner stops early if a runtime it needs is missing.
