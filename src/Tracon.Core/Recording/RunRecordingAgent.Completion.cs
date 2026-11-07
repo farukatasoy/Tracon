@@ -57,7 +57,7 @@ public sealed partial class RunRecordingAgent
     /// <summary>Resolves a presentation for every pending request, or an empty result when no presenter is registered.</summary>
     private async ValueTask<IReadOnlyDictionary<string, ToolApprovalPresentation?>> ResolvePresentationsAsync(
         IReadOnlyList<ToolApprovalRequestContent> requests,
-        RunScope scope,
+        RunRecordingScope scope,
         CancellationToken cancellationToken)
         => _services.ApprovalPresenterRunner is null
             ? EmptyPresentations
@@ -159,7 +159,7 @@ public sealed partial class RunRecordingAgent
             TraconCoreJsonContext.Default.IReadOnlyListPendingToolInputEventItem);
 
     private async ValueTask CompleteAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         RunStatus status,
         RunUsage? usage,
         RunError? error,
@@ -247,15 +247,15 @@ public sealed partial class RunRecordingAgent
         // under the root's tenant and name. The root used to write the whole tree
         // once, from the run store, while its own row closed; a background child
         // that had not ended by then had no usage on its row and was never counted.
-        var own = OwnConsumption(usage, cost, nonTokenCost);
+        var own = RunCompletionNotifier.OwnConsumption(usage, cost, nonTokenCost);
 
-        await RecordQuotaAsync(scope, own, cost, nonTokenCost, cancellationToken).ConfigureAwait(false);
+        await _notifier.RecordQuotaAsync(scope, own, cost, nonTokenCost, cancellationToken).ConfigureAwait(false);
 
         // The run.* webhook is the other reader of the call tree: a root
         // publishes the tree as it stands when the root closes. Read once here,
         // before the root's row closes.
         var treeConsumption = scope.Depth == 0
-            ? await ReadTreeConsumptionAsync(scope, own, cancellationToken).ConfigureAwait(false)
+            ? await _notifier.ReadTreeConsumptionAsync(scope, own, cancellationToken).ConfigureAwait(false)
             : default;
 
         await scope.Writer.CompleteAsync(
@@ -287,8 +287,8 @@ public sealed partial class RunRecordingAgent
         // user request; a separate run.completed event would be emitted for every node.
         if (scope.Depth == 0)
         {
-            await PublishRunEventAsync(scope, status, treeConsumption, error, elapsed, modelId, cancellationToken).ConfigureAwait(false);
-            await SampleForOnlineEvalAsync(scope, status, cancellationToken).ConfigureAwait(false);
+            await _notifier.PublishRunEventAsync(scope, status, treeConsumption, error, elapsed, modelId, cancellationToken).ConfigureAwait(false);
+            await _notifier.SampleForOnlineEvalAsync(scope, status, cancellationToken).ConfigureAwait(false);
         }
 
         _services.Metrics?.RecordRun(

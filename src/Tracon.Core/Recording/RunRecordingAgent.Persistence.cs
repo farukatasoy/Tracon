@@ -206,7 +206,7 @@ public sealed partial class RunRecordingAgent
     }
 
     private async ValueTask WriteContentsAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         IEnumerable<AIContent> contents,
         CitationTally citations,
         string? messageId,
@@ -279,7 +279,7 @@ public sealed partial class RunRecordingAgent
     /// one is observability's failure: it is logged and the run goes on. A cancellation is not swallowed.
     /// </remarks>
     private async ValueTask WriteCitationsAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         AIContent content,
         CitationTally citations,
         string? messageId,
@@ -333,7 +333,7 @@ public sealed partial class RunRecordingAgent
     /// </para>
     /// </remarks>
     private async ValueTask WriteHostedOrUnrecognizedContentAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         AIContent content,
         CancellationToken cancellationToken)
     {
@@ -362,7 +362,7 @@ public sealed partial class RunRecordingAgent
     }
 
     private async ValueTask WriteHostedToolCallAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         string toolName,
         string callId,
         CancellationToken cancellationToken)
@@ -392,7 +392,7 @@ public sealed partial class RunRecordingAgent
     /// functionality). A cancellation is not swallowed.
     /// </remarks>
     private async ValueTask WriteUnrecognizedContentAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         AIContent content,
         CancellationToken cancellationToken)
     {
@@ -420,7 +420,7 @@ public sealed partial class RunRecordingAgent
     // `at` is the time the call really started, for a call written from the tool-call ledger after the run;
     // null for a call a message reports, which is stamped as it is written.
     private static async ValueTask WriteToolCallAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         FunctionCallContent call,
         DateTimeOffset? at,
         CancellationToken cancellationToken)
@@ -443,7 +443,7 @@ public sealed partial class RunRecordingAgent
     // `at` is the time the call really ended, for a call written from the tool-call ledger after the run;
     // null for a call a message reports, which is stamped as it is written.
     private async ValueTask WriteToolResultAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         FunctionResultContent result,
         DateTimeOffset? at,
         CancellationToken cancellationToken)
@@ -499,7 +499,7 @@ public sealed partial class RunRecordingAgent
     /// not swallowed.
     /// </para>
     /// </remarks>
-    private async ValueTask WriteLedgerCallsAsync(RunScope scope, CancellationToken cancellationToken)
+    private async ValueTask WriteLedgerCallsAsync(RunRecordingScope scope, CancellationToken cancellationToken)
     {
         if (scope.ToolCalls is not { } ledger)
         {

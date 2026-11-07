@@ -4,31 +4,50 @@ using Microsoft.Extensions.Logging;
 namespace Tracon;
 
 /// <summary>
+/// What a run consumed: its own usage and cost, or — in the webhook of a root
+/// run — those of the root's whole call tree as it stands when the root closes.
+/// </summary>
+/// <param name="Usage">The tokens; <see langword="null"/> when no run reported any.</param>
+/// <param name="Cost">
+/// The spend: the token cost and the amount reported beyond tokens, added by
+/// <see cref="RunSpend"/>. <see langword="null"/> when no run was priced.
+/// </param>
+/// <param name="Currency">The currency of <paramref name="Cost"/>.</param>
+/// <param name="NonTokenCost">
+/// The part of <paramref name="Cost"/> that was reported beyond tokens;
+/// <see langword="null"/> when no run reported an amount.
+/// </param>
+internal readonly record struct TreeConsumption(RunUsage? Usage, decimal? Cost, string? Currency, decimal? NonTokenCost);
+
+/// <summary>
 /// Side effects of a completed run: quota accounting (every run in a tree), the
 /// <c>run.*</c> webhook and the online evaluation sampling decision (root runs
 /// only). None of these can affect the run itself — the same "observability does
 /// not break functionality" contract as the store and the sinks.
 /// </summary>
-public sealed partial class RunRecordingAgent
+/// <remarks>
+/// The recorder that owns the run builds this with its own logger, so the log entries keep the recorder's category.
+/// It opens no span and writes no ambient scope.
+/// </remarks>
+internal sealed class RunCompletionNotifier
 {
-    /// <summary>
-    /// What a run consumed: its own usage and cost, or — in the webhook of a root
-    /// run — those of the root's whole call tree as it stands when the root closes.
-    /// </summary>
-    /// <param name="Usage">The tokens; <see langword="null"/> when no run reported any.</param>
-    /// <param name="Cost">
-    /// The spend: the token cost and the amount reported beyond tokens, added by
-    /// <see cref="RunSpend"/>. <see langword="null"/> when no run was priced.
-    /// </param>
-    /// <param name="Currency">The currency of <paramref name="Cost"/>.</param>
-    /// <param name="NonTokenCost">
-    /// The part of <paramref name="Cost"/> that was reported beyond tokens;
-    /// <see langword="null"/> when no run reported an amount.
-    /// </param>
-    private readonly record struct TreeConsumption(RunUsage? Usage, decimal? Cost, string? Currency, decimal? NonTokenCost);
+    private readonly RunRecordingServices _services;
+    private readonly ILogger _logger;
+
+    /// <summary>Creates the notifier.</summary>
+    /// <param name="services">The services of the run path: the store, the clock, the webhook publisher, the sampler and the pricing currency.</param>
+    /// <param name="logger">The logger of the recorder that owns the run.</param>
+    public RunCompletionNotifier(RunRecordingServices services, ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        _services = services;
+        _logger = logger;
+    }
 
     /// <summary>What this run alone consumed, from the figures it holds in memory as it closes.</summary>
-    private static TreeConsumption OwnConsumption(RunUsage? usage, RunCost? cost, RunNonTokenCost? nonTokenCost)
+    internal static TreeConsumption OwnConsumption(RunUsage? usage, RunCost? cost, RunNonTokenCost? nonTokenCost)
     {
         var pricedCost = cost is { Source: not PricingSource.Unknown } ? cost : null;
 
@@ -68,8 +87,8 @@ public sealed partial class RunRecordingAgent
     /// different currencies are not added; the root's own cost is kept.
     /// </para>
     /// </remarks>
-    private async ValueTask<TreeConsumption> ReadTreeConsumptionAsync(
-        RunScope scope,
+    internal async ValueTask<TreeConsumption> ReadTreeConsumptionAsync(
+        RunRecordingScope scope,
         TreeConsumption own,
         CancellationToken cancellationToken)
     {
@@ -211,8 +230,8 @@ public sealed partial class RunRecordingAgent
     /// child's stream, which is still open, and not to a root that has long closed.
     /// </para>
     /// </remarks>
-    private async ValueTask RecordQuotaAsync(
-        RunScope scope,
+    internal async ValueTask RecordQuotaAsync(
+        RunRecordingScope scope,
         TreeConsumption own,
         RunCost? cost,
         RunNonTokenCost? nonTokenCost,
@@ -252,7 +271,7 @@ public sealed partial class RunRecordingAgent
     /// currency counts its tokens and the amounts it reported beyond tokens, both of which
     /// are in the pricing currency by construction.
     /// </remarks>
-    private decimal? QuotaAmount(RunScope scope, decimal? ownSpend, RunCost? cost, RunNonTokenCost? nonTokenCost)
+    private decimal? QuotaAmount(RunRecordingScope scope, decimal? ownSpend, RunCost? cost, RunNonTokenCost? nonTokenCost)
     {
         // One rule for money across currencies; the counter holds no currency.
         var amount = QuotaAmount(scope.Depth == 0, ownSpend, cost, nonTokenCost, _services.PricingCurrency, out var tokenCostLeftOut);
@@ -268,7 +287,7 @@ public sealed partial class RunRecordingAgent
         return amount;
     }
 
-    /// <summary>The pure rule behind <see cref="QuotaAmount(RunScope, decimal?, RunCost?, RunNonTokenCost?)"/>.</summary>
+    /// <summary>The pure rule behind <see cref="QuotaAmount(RunRecordingScope, decimal?, RunCost?, RunNonTokenCost?)"/>.</summary>
     internal static decimal? QuotaAmount(
         bool isRoot,
         decimal? ownSpend,
@@ -298,7 +317,7 @@ public sealed partial class RunRecordingAgent
     /// origin without inspecting who is calling.
     /// </remarks>
     private static async ValueTask WriteQuotaThresholdNoticeAsync(
-        RunScope scope,
+        RunRecordingScope scope,
         TreeAccount account,
         QuotaThresholdCrossing crossing,
         CancellationToken cancellationToken)
@@ -340,7 +359,7 @@ public sealed partial class RunRecordingAgent
     /// documentation); the <c>try/catch</c> here is a second layer of defense — sampling
     /// must NEVER AFFECT the run (the rule that observability does not break functionality).
     /// </remarks>
-    private async ValueTask SampleForOnlineEvalAsync(RunScope scope, RunStatus status, CancellationToken cancellationToken)
+    internal async ValueTask SampleForOnlineEvalAsync(RunRecordingScope scope, RunStatus status, CancellationToken cancellationToken)
     {
         if (_services.RunSampler is null)
         {
@@ -375,8 +394,8 @@ public sealed partial class RunRecordingAgent
     /// the model response do not go in here. A receiver that wants the content calls
     /// <c>/api/runs/{id}</c>.
     /// </remarks>
-    private async ValueTask PublishRunEventAsync(
-        RunScope scope,
+    internal async ValueTask PublishRunEventAsync(
+        RunRecordingScope scope,
         RunStatus status,
         TreeConsumption consumption,
         RunError? error,

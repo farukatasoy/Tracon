@@ -38,6 +38,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
     private readonly RunRecordingServices _services;
     private readonly RecordedAgentIdentity _identity;
+    private readonly RunCompletionNotifier _notifier;
     private readonly ILogger<RunRecordingAgent> _logger;
 
     /// <summary>Creates a new recording wrapper.</summary>
@@ -67,6 +68,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         _services = services;
         _identity = identity;
         _logger = logger;
+        _notifier = new RunCompletionNotifier(services, logger);
     }
 
     /// <summary>

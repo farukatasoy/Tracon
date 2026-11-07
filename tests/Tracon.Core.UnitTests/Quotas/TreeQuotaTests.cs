@@ -161,7 +161,7 @@ public sealed class TreeQuotaTests
         var reported = new RunNonTokenCost { Amount = 0.25m, Currency = pricingCurrency };
         var ownSpend = RunSpend.Total(cost, reported);
 
-        var amount = RunRecordingAgent.QuotaAmount(isRoot: false, ownSpend, cost, reported, pricingCurrency, out var leftOut);
+        var amount = RunCompletionNotifier.QuotaAmount(isRoot: false, ownSpend, cost, reported, pricingCurrency, out var leftOut);
 
         leftOut.ShouldBe(tokenCostLeftOut);
         amount.ShouldBe(tokenCostLeftOut ? 0.25m : ownSpend);
@@ -177,7 +177,7 @@ public sealed class TreeQuotaTests
     {
         var cost = new RunCost { InputCost = 0.01m, OutputCost = 0.02m, Currency = "EUR", Source = PricingSource.Catalog };
 
-        RunRecordingAgent.QuotaAmount(isRoot: false, cost.Total(), cost, nonTokenCost: null, "USD", out var leftOut).ShouldBeNull();
+        RunCompletionNotifier.QuotaAmount(isRoot: false, cost.Total(), cost, nonTokenCost: null, "USD", out var leftOut).ShouldBeNull();
 
         leftOut.ShouldBeTrue();
     }
@@ -188,8 +188,8 @@ public sealed class TreeQuotaTests
         var cost = new RunCost { InputCost = 0.01m, OutputCost = 0.02m, Currency = "EUR", Source = PricingSource.Catalog };
         var unpriced = new RunCost { Currency = "EUR", Source = PricingSource.Unknown };
 
-        RunRecordingAgent.QuotaAmount(isRoot: true, 0.03m, cost, null, "USD", out var rootLeftOut).ShouldBe(0.03m);
-        RunRecordingAgent.QuotaAmount(isRoot: false, null, unpriced, null, "USD", out var unpricedLeftOut).ShouldBeNull();
+        RunCompletionNotifier.QuotaAmount(isRoot: true, 0.03m, cost, null, "USD", out var rootLeftOut).ShouldBe(0.03m);
+        RunCompletionNotifier.QuotaAmount(isRoot: false, null, unpriced, null, "USD", out var unpricedLeftOut).ShouldBeNull();
 
         rootLeftOut.ShouldBeFalse();
         unpricedLeftOut.ShouldBeFalse();

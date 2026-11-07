@@ -252,10 +252,10 @@ public sealed partial class RunRecordingAgent
     /// Running forever (note that the RunReconciliationOptions default is off as well, so
     /// there is no self-healing). The scope is now created BEFORE the I/O, INSIDE the
     /// try/finally of the caller; this way the safety net can call
-    /// <see cref="CompleteAsync"/> with a complete <see cref="RunScope"/> even when
+    /// <see cref="CompleteAsync"/> with a complete <see cref="RunRecordingScope"/> even when
     /// <see cref="WriteRunStartAsync"/> is canceled.
     /// </remarks>
-    private RunScope CreateScope(RunStart start)
+    private RunRecordingScope CreateScope(RunStart start)
         => new(
             start.Writer,
             start.Activity,
@@ -322,27 +322,4 @@ public sealed partial class RunRecordingAgent
         string? UserId,
         IReadOnlyDictionary<string, string>? Labels,
         IReadOnlyDictionary<string, string>? ParameterValues);
-
-    /// <summary>The recording state of a single run.</summary>
-    private sealed record RunScope(
-        RunEventWriter Writer,
-        Activity? Activity,
-        ToolInvocationTracker Tools,
-        string AgentName,
-        string TenantId,
-        long StartedAt,
-        AgentRunBudget? Budget,
-        SideChannelUsageAccumulator? ExtraUsage,
-        bool OwnsTrace,
-        int? AgentVersion,
-        Guid RunId,
-        Guid RootRunId,
-        int Depth,
-        string? SessionId,
-        RunKind Kind,
-        FallbackModelAttribution? FallbackAttribution,
-        string? UserId,
-        NonTokenCostAccumulator? NonTokenCost,
-        HostedCallLedger? HostedCalls = null,
-        ToolCallLedger? ToolCalls = null);
 }
