@@ -81,6 +81,10 @@ public sealed class SqliteDecimalFunctionsTests
             var failure = await Should.ThrowAsync<SqliteException>(() => ScalarAsync(connection, sql));
 
             failure.Message.ShouldNotContain("no such function", Case.Insensitive, sql);
+
+            // The text of the error is the function's own. The framework's text for a failed parse holds the value that
+            // failed, and a value in a cost column does not belong in an error that travels to a log or a response.
+            failure.Message.ShouldNotContain("abc", Case.Insensitive, sql);
         }
     }
 
@@ -163,6 +167,84 @@ public sealed class SqliteDecimalFunctionsTests
                 File.Delete(file);
             }
         }
+    }
+
+    [Fact]
+    public async Task The_functions_live_as_long_as_the_native_connection_so_a_pooled_open_has_nothing_to_register()
+    {
+        // A function the driver registers (CreateFunction) is taken off again when the connection closes, and the next open
+        // has to pay for the registration again: about 1.9 KB on every open, which every store call makes. A function
+        // registered on the native connection stays there while the pool keeps it. The proof is a connection the DRIVER opens
+        // from the same pool, with the data source out of the way: it must find the functions already there.
+        var path = Path.Combine(Path.GetTempPath(), "tracon-decimal-native-" + Guid.NewGuid().ToString("N") + ".db");
+        var connectionString = $"Data Source={path};Pooling=True";
+
+        try
+        {
+            var dataSource = new SqliteDataSource(connectionString);
+
+            await using (await dataSource.OpenConnectionAsync())
+            {
+            }
+
+            await using (var plain = new SqliteConnection(connectionString))
+            {
+                await plain.OpenAsync();
+
+                (await ScalarAsync(plain, "SELECT tracon_decimal_add('0.1', '0.2')")).ShouldBe("0.3", "the pooled native connection kept the scalar");
+                (await ScalarAsync(plain, "SELECT tracon_decimal_sum(v) FROM (SELECT '1' AS v UNION ALL SELECT '2')")).ShouldBe("3", "and the aggregate");
+            }
+
+            // A native connection the pool let go is a new one with nothing registered: the data source gives it the
+            // functions again, whatever it knew about the one before.
+            SqliteConnection.ClearAllPools();
+
+            await using var again = await dataSource.OpenConnectionAsync();
+
+            (await ScalarAsync(again, "SELECT tracon_decimal_add('0.1', '0.2')")).ShouldBe("0.3");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+
+            foreach (var file in Directory.GetFiles(Path.GetTempPath(), Path.GetFileName(path) + "*"))
+            {
+                File.Delete(file);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Two_sums_in_one_statement_and_one_sum_per_group_keep_their_own_totals()
+    {
+        // The aggregate keeps its running total per call of the function, not per function: a statement that names it twice,
+        // or once per group, must not mix the totals.
+        await using var connection = await OpenAsync();
+
+        const string rows = "(SELECT 1 AS g, '0.1' AS a, '10' AS b UNION ALL SELECT 1, '0.2', '20' UNION ALL SELECT 2, '0.4', '40')";
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT tracon_decimal_sum(a), tracon_decimal_sum(b) FROM {rows}";
+
+        await using (var reader = await command.ExecuteReaderAsync())
+        {
+            (await reader.ReadAsync()).ShouldBeTrue();
+            (reader.GetString(0), reader.GetString(1)).ShouldBe(("0.7", "70"));
+        }
+
+        command.CommandText = $"SELECT g, tracon_decimal_sum(a), tracon_decimal_sum(b), (SELECT tracon_decimal_sum(x.a) FROM {rows} x WHERE x.g = t.g) FROM {rows} t GROUP BY g ORDER BY g";
+
+        var groups = new List<(long Group, string A, string B, string Inner)>();
+
+        await using (var reader = await command.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                groups.Add((reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)));
+            }
+        }
+
+        groups.ShouldBe([(1L, "0.3", "30", "0.3"), (2L, "0.4", "40", "0.4")]);
     }
 
     [Fact]

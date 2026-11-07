@@ -79,47 +79,9 @@ public static class TraconA2AExtensions
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
 
-        // The approval guard no longer lives here: `A2AApprovalGuardHostedService`
-        // (see `UseA2A`) performs the same check after the schema is ready.
-        // Endpoint mapping (this method) runs BEFORE `app.Run()`, so migrations
-        // may not have finished yet — a catalog query could blow up with
-        // "no such table" against an empty database. The only remaining use
-        // here is to DECORATE the agent card (Description/Version); since
-        // there is no SECURITY check, falling back to agentName on failure is
-        // SAFE. A broad catch is DELIBERATE because the type/message of the
-        // "no such table" error differs across providers.
-        //
-        // 🚨 The catch is not enough on its own, and the gate below is why.
-        // Swallowing the exception here happens one layer too late:
-        // `CompositeAgentCatalog.ListAsync` has ALREADY logged it at Error
-        // level with a full stack trace by the time it returns. So a correct,
-        // expected, handled path printed "Agent source 'database' failed
-        // during list" with a provider stack trace on the 7th line of EVERY
-        // first startup against an empty schema — before the migration runner
-        // has even created the schema — and that is a consumer's first
-        // impression of this library. Asking the gate first means the question
-        // is never put to the store while the answer can only be an error.
-        // The gate opens on its own when no SQL provider is registered, so an
-        // in-memory installation still gets its decorated card.
-        Dictionary<string, AgentDescriptor> descriptorsByName;
-
-        if (!services.GetRequiredService<SchemaReadyGate>().IsReady)
-        {
-            descriptorsByName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
-        }
-        else
-        {
-            try
-            {
-                var descriptors = catalog.ListAsync().AsTask().GetAwaiter().GetResult();
-                descriptorsByName = descriptors.ToDictionary(static d => d.Name, StringComparer.Ordinal);
-            }
-            catch (Exception)
-            {
-                descriptorsByName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
-            }
-        }
-
+        // Nothing here reads the catalog: this method runs BEFORE `app.Run()`, so on a host that stores agents in SQL
+        // the migrations have not run yet and a read finds no table. The approval guard waits for the schema and
+        // checks the exposed agents (A2AApprovalGuardFilter), and each card reads the catalog when it is asked for.
         var approvalGuardFilter = new A2AApprovalGuardFilter(
             services.GetRequiredService<SchemaReadyGate>(),
             catalog,
@@ -154,7 +116,6 @@ public static class TraconA2AExtensions
             proxy.AttachServices(services);
 
             var handler = services.GetRequiredKeyedService<A2AServer>(agentName);
-            descriptorsByName.TryGetValue(agentName, out var descriptor);
 
             var agentPath = $"/{Uri.EscapeDataString(agentName)}";
             var agentGroup = group.MapGroup(agentPath);
@@ -178,14 +139,21 @@ public static class TraconA2AExtensions
                 .AddEndpointFilter(KeepStreamUnbufferedAsync);
 
             // The card is answered here and not by the SDK's MapWellKnownAgentCard: that one serves a card built once, and
-            // the address in it has to be the one this request arrived on (A2AAgentCardResponse).
+            // the card has two parts that change. The address has to be the one this request arrived on
+            // (A2AAgentCardResponse), and the description and version are the catalog entry's as of now: an edit of the
+            // agent reaches the next card. The request has passed the approval guard, so the schema is ready.
             agentGroup.MapGet(
                     "/.well-known/agent-card.json",
-                    (HttpContext httpContext) => A2AAgentCardResponse.Create(
-                        httpContext,
-                        interfacePath,
-                        address => BuildAgentCard(agentName, descriptor, address),
-                        cardLastModified))
+                    async (HttpContext httpContext, CancellationToken cancellationToken) =>
+                    {
+                        var descriptor = await FindDescriptorAsync(catalog, agentName, cancellationToken).ConfigureAwait(false);
+
+                        return A2AAgentCardResponse.Create(
+                            httpContext,
+                            interfacePath,
+                            address => BuildAgentCard(agentName, descriptor, address),
+                            cardLastModified);
+                    })
                 .WithName($"TraconA2AAgentCard_{agentName}")
                 .WithSummary($"Returns the A2A agent card describing the '{agentName}' agent.")
                 .WithDescription(
@@ -218,6 +186,30 @@ public static class TraconA2AExtensions
         context.HttpContext.Response.Headers["X-Accel-Buffering"] = "no";
 
         return await next(context).ConfigureAwait(false);
+    }
+
+    /// <summary>Finds the catalog entry of an exposed agent as the catalog holds it now.</summary>
+    /// <param name="catalog">The agent catalog.</param>
+    /// <param name="agentName">The agent name.</param>
+    /// <param name="cancellationToken">The cancellation token of the request.</param>
+    /// <returns>The entry, or <see langword="null"/> when no source holds the agent (the allow list is fixed at registration).</returns>
+    /// <remarks>
+    /// A source that fails is logged and left out by the catalog itself, so an agent whose source is down gets the card
+    /// of an agent the catalog does not hold: its name for the description, version 1.
+    /// </remarks>
+    private static async ValueTask<AgentDescriptor?> FindDescriptorAsync(IAgentCatalog catalog, string agentName, CancellationToken cancellationToken)
+    {
+        var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var descriptor in descriptors)
+        {
+            if (string.Equals(descriptor.Name, agentName, StringComparison.Ordinal))
+            {
+                return descriptor;
+            }
+        }
+
+        return null;
     }
 
     private static AgentCard BuildAgentCard(string agentName, AgentDescriptor? descriptor, string interfaceUrl)

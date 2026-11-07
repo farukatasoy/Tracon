@@ -1,21 +1,21 @@
 {
-  "measuredAt": "2026-11-06T15:29:28Z",
+  "measuredAt": "2026-11-07T15:28:38Z",
   "benchmarks": {
     "Tracon.Benchmarks.ChatTelemetryRingBenchmarks.ModelCall": {
       "allocatedBytes": 264,
-      "meanNanoseconds": 46.446831962891984
+      "meanNanoseconds": 61.111587347128456
     },
     "Tracon.Benchmarks.CompiledAgentCacheBenchmarks.CacheHit": {
       "allocatedBytes": 0,
-      "meanNanoseconds": 39.85489787505223
+      "meanNanoseconds": 58.824647981590694
     },
     "Tracon.Benchmarks.CompiledAgentCacheBenchmarks.EvictOnMiss": {
       "allocatedBytes": 124464,
-      "meanNanoseconds": 3773563.771183894
+      "meanNanoseconds": 5547632.365026596
     },
     "Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent": {
       "allocatedBytes": 112,
-      "meanNanoseconds": 84.78026840516499
+      "meanNanoseconds": 693.6857783717494
     },
     "Tracon.Benchmarks.RunEventWriterStoreBenchmarks.AllChunksAsOneGroup": {
       "allocatedBytes": 267808,
@@ -30,8 +30,12 @@
       "meanNanoseconds": 16185817.149193548
     },
     "Tracon.Benchmarks.RunStoreQueryBenchmarks.QueryRuns": {
-      "allocatedBytes": 84880,
-      "meanNanoseconds": 1138254.8828125
+      "allocatedBytes": 60624,
+      "meanNanoseconds": 1494499.8951056986
+    },
+    "Tracon.Benchmarks.SqliteConnectionOpenBenchmarks.PooledOpen": {
+      "allocatedBytes": 1504,
+      "meanNanoseconds": 3947.702952889835
     }
   }
 }

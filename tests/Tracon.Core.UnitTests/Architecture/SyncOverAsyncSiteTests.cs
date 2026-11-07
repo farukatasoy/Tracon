@@ -31,8 +31,6 @@ public sealed class SyncOverAsyncSiteTests
 
     private static readonly Dictionary<string, string> KnownSites = new(StringComparer.Ordinal)
     {
-        ["src/Tracon.AspNetCore/A2A/TraconA2AExtensions.cs"] =
-            "reads the agent catalog once while the endpoints are mapped, before the host takes a request",
         ["src/Tracon.AspNetCore/Security/TraconRolePolicies.cs"] =
             "resolves the role policy names once while the endpoints are mapped; the default provider answers from a dictionary",
     };

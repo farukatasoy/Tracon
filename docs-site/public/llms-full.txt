@@ -12563,7 +12563,9 @@ app.MapTraconA2A();
 ```
 
 The invocation path is `/tracon/a2a/support`; its card is under
-`/tracon/a2a/support/.well-known/agent-card.json`. The card gives the interface as an
+`/tracon/a2a/support/.well-known/agent-card.json`. The card's `description` and `version` are the
+agent's catalog entry as of the request, so editing a stored agent changes the next card; an agent the
+catalog does not hold gets its name as the description and version `1`. The card gives the interface as an
 absolute URL (`supportedInterfaces[].url`), because a client outside the host, such as the
 official A2A JavaScript SDK, builds its transport from that value as written. The URL is the
 scheme, host and path base the request arrived on, so a host behind a reverse proxy has to

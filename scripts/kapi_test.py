@@ -1290,6 +1290,8 @@ class KapiTestleri(unittest.TestCase):
         self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Compilation/CompiledAgentCache.cs"]))
         self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Diagnostics/ChatTelemetryLanes.cs"]))
         self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Sql.Shared/Stores/SqlRunStore.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Sqlite/Internal/SqliteDataSource.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Sqlite/Internal/SqliteDecimalFunctions.cs"]))
         self.assertTrue(kapi.performance_gate_triggered(["bench/Tracon.Benchmarks/Program.cs"]))
         self.assertFalse(kapi.performance_gate_triggered(["src/Tracon.Core/TraconOptions.cs"]))
         self.assertFalse(kapi.performance_gate_triggered([]))

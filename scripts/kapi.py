@@ -690,6 +690,9 @@ PERFORMANCE_HOT_PATHS = (
     "src/Tracon.Core/Compilation/CompiledAgentCache.cs",
     "src/Tracon.Core/Diagnostics/ChatTelemetryLanes.cs",
     "src/Tracon.Sql.Shared/Stores/SqlRunStore.cs",
+    # Every SQLite store call opens a connection: the open is a hot path of its own.
+    "src/Tracon.Sqlite/Internal/SqliteDataSource.cs",
+    "src/Tracon.Sqlite/Internal/SqliteDecimalFunctions.cs",
     "bench/",
 )
 
