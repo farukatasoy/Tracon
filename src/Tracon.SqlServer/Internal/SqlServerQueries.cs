@@ -372,8 +372,26 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // when the worker actually runs the job it is called a second time
         // with the SAME id, and the row is updated in place (no new row is
         // OPENED).
+        //
+        // 🚨 XLOCK, not UPDLOCK as in the other upserts. The second write sets
+        // started_at, which is the key of the clustered index, so the row moves
+        // and the entry of runs_pk (whose row locator is that key) is rewritten.
+        // An event append (the check of its foreign key) and a read of the run
+        // take the shared lock of runs_pk first and the one of the clustered row
+        // second. With UPDLOCK this statement held an update lock on both and
+        // made them exclusive in the other order, the clustered row first: the
+        // reader that held runs_pk waited for the row, this statement waited for
+        // the reader, and the server picked a victim (191 of them in 3 000
+        // rounds of one start against six appends and six reads). XLOCK takes
+        // the exclusive lock on the runs_pk entry at the seek, before the
+        // clustered row is touched, so a reader has either finished or waits for
+        // the entry while it holds nothing. Moving the row would be avoided by
+        // keying the clustered index on a column no write changes, but the list
+        // queries order by started_at and the clustered scan is what serves
+        // them: a new key made the first page of a run list read 100 times more
+        // pages and needed a second, wide index to come back to 5 times.
         InsertRun = $"""
-            UPDATE {Schema}.runs WITH (UPDLOCK, SERIALIZABLE)
+            UPDATE {Schema}.runs WITH (XLOCK, SERIALIZABLE)
                SET tenant_id     = @tenant_id,
                    agent_name    = @agent_name,
                    session_id    = @session_id,

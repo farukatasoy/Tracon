@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.UpgradeGate;
 
 namespace Tracon.SqlServer.IntegrationTests.Infrastructure;
 
@@ -389,9 +390,11 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// default isolation takes shared locks on the metadata that those migrations are changing, and the two deadlock:
     /// the read is the victim, now and then, and the test fails for a reason that has nothing to do with it. The schema
     /// a test reads is its own and stands still, so reading uncommitted metadata cannot show it a half-done change.
+    /// The level is scoped to the read (<see cref="UpgradeHarness.ReadUncommitted"/>): left on the connection, it would
+    /// follow the connection back into the pool that every test class shares.
     /// </remarks>
     public ValueTask<T?> CatalogScalarAsync<T>(string sql)
-        => ScalarAsync<T>("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; " + sql);
+        => ScalarAsync<T>(UpgradeHarness.ReadUncommitted(sql));
 
     /// <summary>Drops the test schema and everything in it.</summary>
     /// <returns>The completion task.</returns>

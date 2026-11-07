@@ -43,6 +43,8 @@
     <!-- A takeover that races a release and a new reservation is never told a young reservation stands in its way. -->
     <Compile Include="../Shared/Infrastructure/SqlIdempotencyTakeoverRaceContract.cs" Link="Infrastructure/Shared/SqlIdempotencyTakeoverRaceContract.cs" />
     <Compile Include="../Shared/Infrastructure/SqlUpsertSameNewKeyRaceContract.cs" Link="Infrastructure/Shared/SqlUpsertSameNewKeyRaceContract.cs" />
+    <!-- A second start of a queued run overlapped by appends and reads of the same run. -->
+    <Compile Include="../Shared/Infrastructure/RunStartRace.cs" Link="Infrastructure/Shared/RunStartRace.cs" />
     <!-- A stream over a connection with a round trip: written one chunk at a time, and in groups. -->
     <Compile Include="../Shared/Infrastructure/DeltaStreamOverLatency.cs" Link="Infrastructure/Shared/DeltaStreamOverLatency.cs" />
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Infrastructure/Shared/ManualClock.cs" />

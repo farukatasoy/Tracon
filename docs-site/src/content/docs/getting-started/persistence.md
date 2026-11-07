@@ -256,6 +256,13 @@ deadlock victim is sent again, up to five attempts in all, as a transaction has 
 deadlock reaches your code unchanged. Before this the call threw `SqlException` 1205, and a run lost the events
 that followed the failed append.
 
+The second write of a queued run, which the worker that runs it makes and which sets the time the run started,
+used to be the cause of most of these victims: it moved the row in the clustered index of `runs`, and an event
+append or a read of the same run took its locks in the other order. The write now takes its exclusive lock on the
+run's primary-key entry first, so the two orders cannot cross. Measured on SQL Server 2022 in an emulated container
+on Apple Silicon, with one second write against six appends and six reads over 3,000 rounds: 191 victims before,
+none after. Nothing changes in the schema, so there is no migration to apply.
+
 The `decimal_columns_as_text` migration (`0058`, SQLite only) rewrites `runs`. Seven columns were
 declared `NUMERIC` (`cached_input_cost`, `non_token_cost` and the five unit prices), and SQLite turned
 the text of a cost into a double and kept 15 digits of it: `999999999.999999` read back as
