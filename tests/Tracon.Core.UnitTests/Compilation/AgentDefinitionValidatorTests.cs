@@ -414,7 +414,7 @@ public sealed class AgentDefinitionValidatorTests
         });
         var tenantContext = new SingleTenantContext(options);
         var skills = new AgentSkillCatalog([], new InMemoryAgentSkillStore(), tenantContext, options);
-        var compiler = new AgentDefinitionCompiler(models, tools, skills: skills, callableAgents: new CallableAgentResolver(catalog), tenantContext: tenantContext);
+        var compiler = new AgentDefinitionCompiler(models, tools, new AgentCompilationServices { Skills = skills, CallableAgents = new CallableAgentResolver(catalog), TenantContext = tenantContext });
 
         var validator = new AgentDefinitionValidator(models, tools, skills, catalog, compiler, options, mcpRefresher, definitions);
 

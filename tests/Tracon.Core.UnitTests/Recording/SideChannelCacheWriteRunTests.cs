@@ -146,7 +146,7 @@ public sealed class SideChannelCacheWriteRunTests
         var definition = TestData.Definition() with { Model = new ModelBinding { Provider = Provider, Model = AgentModel } };
         var resolver = new RunPricingResolver(new ModelProviderRegistry([provider]), Options.Create(new TraconOptions()));
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             FixedTenantContext.Default,

@@ -174,7 +174,7 @@ public sealed class AmbientAttributionStreamingTests
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry());
 
-        return new RunRecordingAgent(
+        return TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             store,
             FixedTenantContext.Default,

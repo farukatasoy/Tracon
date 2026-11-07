@@ -105,7 +105,7 @@ public sealed class AgentValidationWarningTests
         var catalog = new FakeAgentCatalog([]);
         var options = Options.Create(new TraconOptions());
         var skills = new AgentSkillCatalog([], new InMemoryAgentSkillStore(), new SingleTenantContext(options), options);
-        var compiler = new AgentDefinitionCompiler(models, tools, skills: skills, callableAgents: new CallableAgentResolver(catalog));
+        var compiler = new AgentDefinitionCompiler(models, tools, new AgentCompilationServices { Skills = skills, CallableAgents = new CallableAgentResolver(catalog) });
         var validator = new AgentDefinitionValidator(models, tools, skills, catalog, compiler, options);
 
         return await validator.ValidateAsync(TestData.Definition() with { Model = binding }, TestContext.Current.CancellationToken);

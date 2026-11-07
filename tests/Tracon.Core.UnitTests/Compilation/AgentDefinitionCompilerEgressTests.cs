@@ -26,7 +26,10 @@ public sealed class AgentDefinitionCompilerEgressTests
         var compiler = new AgentDefinitionCompiler(
             registry,
             TestData.Registry(),
-            tenantContext: tenantContext);
+            new AgentCompilationServices
+            {
+                TenantContext = tenantContext,
+            });
 
         var definition = TestData.Definition() with { Model = TestData.Binding(provider: "openai") };
 
@@ -52,7 +55,10 @@ public sealed class AgentDefinitionCompilerEgressTests
         var compiler = new AgentDefinitionCompiler(
             registry,
             TestData.Registry(),
-            tenantContext: tenantContext);
+            new AgentCompilationServices
+            {
+                TenantContext = tenantContext,
+            });
 
         var definition = TestData.Definition() with { Model = TestData.Binding(provider: "openai") };
 

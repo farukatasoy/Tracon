@@ -67,8 +67,8 @@ public sealed partial class AgentDefinitionCompiler
     /// </exception>
     private ConversationMemoryScopeProvider CreateConversationMemoryProvider(AgentDefinition definition, MemorySettings memory)
     {
-        var settings = _services?.GetService(typeof(Microsoft.Extensions.Options.IOptions<TraconConversationMemoryOptions>))
-            is Microsoft.Extensions.Options.IOptions<TraconConversationMemoryOptions> { Value: { VectorDimensions: > 0 } configured }
+        var settings = _context.ConversationMemoryOptions
+            is { Value: { VectorDimensions: > 0 } configured }
             ? configured
             : throw new TraconCompilationException(
                 $"Agent '{definition.Name}' wants conversation memory, but it is not set up: call " +
@@ -77,7 +77,7 @@ public sealed partial class AgentDefinitionCompiler
                 AgentName = definition.Name,
             };
 
-        var store = _services?.GetService(typeof(Microsoft.Extensions.VectorData.VectorStore)) as Microsoft.Extensions.VectorData.VectorStore
+        var store = _context.VectorStore
             ?? throw new TraconCompilationException(
                 $"Agent '{definition.Name}' wants conversation memory, but no Microsoft.Extensions.VectorData.VectorStore " +
                 "is registered in the service collection.")
@@ -213,7 +213,7 @@ public sealed partial class AgentDefinitionCompiler
         // The registered check carries the policy and binding stores; a
         // compiler built without a container still applies the policy it was given
         // (it cannot build the tool without a container, though: see below).
-        var access = _services?.GetService(typeof(EmbeddingProviderAccess)) as EmbeddingProviderAccess
+        var access = _context.EmbeddingAccess
             ?? new EmbeddingProviderAccess(
                 Microsoft.Extensions.Options.Options.Create(new TraconKnowledgeOptions()),
                 _embeddingGenerator,
@@ -240,7 +240,7 @@ public sealed partial class AgentDefinitionCompiler
     /// chain is not added without it: the chain is the rule that tools follow.
     /// </exception>
     private BuiltInToolGovernance RequireBuiltInToolGovernance(AgentDefinition definition, string feature)
-        => _services?.GetService(typeof(BuiltInToolGovernance)) as BuiltInToolGovernance
+        => _context.BuiltInToolGovernance
             ?? throw new TraconCompilationException(
                 $"Agent '{definition.Name}' wants {feature}, but the services its tool needs are not registered. " +
                 "Register Tracon with AddTracon.")

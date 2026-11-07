@@ -188,7 +188,7 @@ public sealed class FallbackRecordingTests
             },
         };
 
-        return new RunRecordingAgent(
+        return TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             new FixedTenantContext(),

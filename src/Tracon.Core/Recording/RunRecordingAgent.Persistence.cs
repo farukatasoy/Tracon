@@ -50,12 +50,12 @@ public sealed partial class RunRecordingAgent
         // publish exactly the content the guard exists to hold back.
         System.Runtime.ExceptionServices.ExceptionDispatchInfo? guardFailure = null;
 
-        if (_contentGuardPipeline is { HasGuards: true } guardPipeline && guardPipeline.Options.InspectInput)
+        if (_services.ContentGuardPipeline is { HasGuards: true } guardPipeline && guardPipeline.Options.InspectInput)
         {
             try
             {
                 input = await ContentGuardMessageMasker
-                    .PreviewAsync(guardPipeline, ContentGuardDirection.Input, input, _modelId, cancellationToken)
+                    .PreviewAsync(guardPipeline, ContentGuardDirection.Input, input, _identity.ModelId, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
@@ -74,13 +74,13 @@ public sealed partial class RunRecordingAgent
                 RunId = start.Scope.RunId,
                 AgentName = start.Scope.AgentName!,
                 Kind = start.Kind,
-                StartedAt = _timeProvider.GetUtcNow(),
+                StartedAt = _services.TimeProvider.GetUtcNow(),
                 TenantId = start.Scope.TenantId,
                 UserId = start.UserId,
                 Labels = start.Labels,
                 SessionId = start.SessionId,
-                ModelId = _modelId,
-                ModelProvider = _modelProvider,
+                ModelId = _identity.ModelId,
+                ModelProvider = _identity.ModelProvider,
                 IsStreaming = start.IsStreaming,
                 ParentRunId = start.ParentRunId,
 
@@ -170,8 +170,8 @@ public sealed partial class RunRecordingAgent
         // A run with values and no message still records its values: a workflow
         // starts from an empty message list in a resume, and its values must
         // survive the chain.
-        if (_runInputStore is null ||
-            !_options.RecordRunInput ||
+        if (_services.RunInputStore is null ||
+            !_services.Recording.RecordRunInput ||
             (messages.Count == 0 && start.ParameterValues is null))
         {
             return;
@@ -179,14 +179,14 @@ public sealed partial class RunRecordingAgent
 
         try
         {
-            await _runInputStore.SaveAsync(
+            await _services.RunInputStore.SaveAsync(
                 new RunInputRecord
                 {
                     RunId = start.Scope.RunId,
                     TenantId = start.Scope.TenantId!,
                     Messages = messages,
                     Parameters = start.ParameterValues,
-                    CreatedAt = _timeProvider.GetUtcNow(),
+                    CreatedAt = _services.TimeProvider.GetUtcNow(),
                 },
                 cancellationToken).ConfigureAwait(false);
         }
@@ -195,7 +195,7 @@ public sealed partial class RunRecordingAgent
             // Same signal as every other lost write, on the same counter: the run
             // survived but its evidence did not. This one is outside RunEventWriter,
             // so it is counted here rather than through Disable.
-            _metrics?.RecordRunRecordingFailure(start.Scope.TenantId, RunRecordingStages.Input);
+            _services.Metrics?.RecordRunRecordingFailure(start.Scope.TenantId, RunRecordingStages.Input);
 
             _logger.LogWarning(
                 ex,
@@ -222,7 +222,7 @@ public sealed partial class RunRecordingAgent
                 // and `default` records what Tracon does not recognize. Text with the
                 // option off is recognized and deliberately not recorded.
                 case TextContent text:
-                    if (_options.RecordMessageDeltas && !string.IsNullOrEmpty(text.Text))
+                    if (_services.Recording.RecordMessageDeltas && !string.IsNullOrEmpty(text.Text))
                     {
                         await scope.Writer.AppendAsync(
                             new RunEventDraft(RunEventType.MessageDelta) { Text = text.Text },
@@ -233,7 +233,7 @@ public sealed partial class RunRecordingAgent
 
                 // Separate event type — never merged into MessageDelta.
                 case TextReasoningContent reasoning:
-                    if (_options.RecordReasoningDeltas && !string.IsNullOrEmpty(reasoning.Text))
+                    if (_services.Recording.RecordReasoningDeltas && !string.IsNullOrEmpty(reasoning.Text))
                     {
                         await scope.Writer.AppendAsync(
                             new RunEventDraft(RunEventType.ReasoningDelta) { Text = reasoning.Text },
@@ -302,7 +302,7 @@ public sealed partial class RunRecordingAgent
 
             try
             {
-                draft = CitationEventPayload.Describe(citation, _options.RecordCitationUrls, _options.MaxPayloadLength);
+                draft = CitationEventPayload.Describe(citation, _services.Recording.RecordCitationUrls, _services.Recording.MaxPayloadLength);
             }
             catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
             {
@@ -379,7 +379,7 @@ public sealed partial class RunRecordingAgent
 
         await scope.Writer.RecordToolInvocationAsync(record, cancellationToken).ConfigureAwait(false);
 
-        _metrics?.RecordToolInvocation(toolName, record.Succeeded, record.Duration);
+        _services.Metrics?.RecordToolInvocation(toolName, record.Succeeded, record.Duration);
     }
 
     /// <summary>
@@ -400,7 +400,7 @@ public sealed partial class RunRecordingAgent
 
         try
         {
-            draft = ContentEventPayload.Describe(content, _options.MaxPayloadLength);
+            draft = ContentEventPayload.Describe(content, _services.Recording.MaxPayloadLength);
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
@@ -466,7 +466,7 @@ public sealed partial class RunRecordingAgent
 
         await scope.Writer.RecordToolInvocationAsync(record, cancellationToken).ConfigureAwait(false);
 
-        _metrics?.RecordToolInvocation(record.ToolName, record.Succeeded, record.Duration);
+        _services.Metrics?.RecordToolInvocation(record.ToolName, record.Succeeded, record.Duration);
     }
 
     /// <summary>
@@ -536,7 +536,7 @@ public sealed partial class RunRecordingAgent
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
-            _metrics?.RecordRunRecordingFailure(scope.TenantId, RunRecordingStages.ToolInvocation);
+            _services.Metrics?.RecordRunRecordingFailure(scope.TenantId, RunRecordingStages.ToolInvocation);
 
             _logger.LogWarning(
                 ex,

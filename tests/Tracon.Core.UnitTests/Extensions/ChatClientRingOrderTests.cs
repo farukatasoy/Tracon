@@ -78,11 +78,13 @@ public sealed class ChatClientRingOrderTests
                 new FakeModelProvider(new UnavailableChatClient(), name: "primary"),
                 new FakeModelProvider(name: "fallback")),
             TestData.Registry(),
-            agentExtensions:
-            [
+            new AgentCompilationServices
+            {
+                AgentExtensions = [
                 new DelegateAgentExtension("ring", context => context.UseChatClient(ChatClientSlot.ModelCall, inner =>
                     new TagRing(inner, $"ring-{Interlocked.Increment(ref built)}", entries)), null),
-            ]);
+            ],
+            });
 
         var agent = compiler.Compile(Named("ring") with
         {
@@ -154,7 +156,7 @@ public sealed class ChatClientRingOrderTests
         => TestData.Definition() with { ExtensionNames = extensionNames };
 
     private static AgentDefinitionCompiler Compiler(params IAgentExtension[] extensions)
-        => new(TestData.Providers(new FakeModelProvider()), TestData.Registry(), agentExtensions: extensions);
+        => new(TestData.Providers(new FakeModelProvider()), TestData.Registry(), new AgentCompilationServices { AgentExtensions = extensions });
 
     /// <summary>A provider client that fails as an unavailable upstream does, so the fallback chain moves on.</summary>
     private sealed class UnavailableChatClient : IChatClient

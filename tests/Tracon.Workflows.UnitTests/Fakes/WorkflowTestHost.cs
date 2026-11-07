@@ -42,7 +42,7 @@ internal sealed class WorkflowTestHost
         {
             // Every agent is wrapped in the run-recording wrapper: the real
             // catalog does the same, and child run rows only get created this way.
-            _agents[name] = new RunRecordingAgent(
+            _agents[name] = TestRunRecording.Agent(
                 new EchoAgent(name),
                 RunStore,
                 TenantContext,
@@ -228,7 +228,7 @@ internal sealed class WorkflowTestHost
 
         var catalog = new WorkflowCatalog(codeWorkflows, store, Compiler, TenantContext, EmptyServices.Instance);
 
-        return new WorkflowRunner(
+        return TestWorkflowRunner.Create(
             catalog,
             RunStore,
             CheckpointStore,
@@ -253,7 +253,7 @@ internal sealed class WorkflowTestHost
 
         var catalog = new WorkflowCatalog(codeWorkflows, DefinitionStore, Compiler, TenantContext, EmptyServices.Instance);
 
-        return new WorkflowRunner(
+        return TestWorkflowRunner.Create(
             catalog,
             RunStore,
             CheckpointStore,
@@ -279,7 +279,7 @@ internal sealed class WorkflowTestHost
 
         var catalog = new WorkflowCatalog(codeWorkflows, DefinitionStore, Compiler, TenantContext, EmptyServices.Instance);
 
-        return new WorkflowRunner(
+        return TestWorkflowRunner.Create(
             catalog,
             RunStore,
             CheckpointStore,
@@ -300,7 +300,7 @@ internal sealed class WorkflowTestHost
 
         var catalog = new WorkflowCatalog([], DefinitionStore, Compiler, TenantContext, EmptyServices.Instance);
 
-        return new WorkflowRunner(
+        return TestWorkflowRunner.Create(
             catalog,
             RunStore,
             CheckpointStore,
@@ -358,7 +358,7 @@ internal sealed class WorkflowTestHost
             TenantContext,
             services ?? EmptyServices.Instance);
 
-        return new WorkflowRunner(
+        return TestWorkflowRunner.Create(
             catalog,
             runStore ?? RunStore,
             CheckpointStore,
@@ -400,7 +400,7 @@ internal sealed class WorkflowTestHost
             TenantContext,
             EmptyServices.Instance);
 
-        return new WorkflowRunner(
+        return TestWorkflowRunner.Create(
             catalog,
             runStore,
             CheckpointStore,
@@ -430,7 +430,7 @@ internal sealed class WorkflowTestHost
     {
         ArgumentNullException.ThrowIfNull(agent);
 
-        _agents[name] = new RunRecordingAgent(
+        _agents[name] = TestRunRecording.Agent(
             agent,
             RunStore,
             TenantContext,
@@ -498,7 +498,7 @@ internal sealed class WorkflowTestHost
     {
         ArgumentNullException.ThrowIfNull(agent);
 
-        _versionedAgents[(name, version)] = new RunRecordingAgent(
+        _versionedAgents[(name, version)] = TestRunRecording.Agent(
             agent,
             RunStore,
             TenantContext,

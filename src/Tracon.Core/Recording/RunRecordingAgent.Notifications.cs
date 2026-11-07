@@ -77,7 +77,7 @@ public sealed partial class RunRecordingAgent
 
         // Nothing reads the tree when no webhook is registered, and a run without a
         // child reservation has no tree to read.
-        if (_webhookPublisher is null || scope.Budget is not { StartedRuns: > 0 })
+        if (_services.WebhookPublisher is null || scope.Budget is not { StartedRuns: > 0 })
         {
             return own;
         }
@@ -88,7 +88,7 @@ public sealed partial class RunRecordingAgent
         {
             // Not the caller's token: a cancellation landing here would end the
             // completion before the terminal write.
-            record = await _runStore.GetRunAsync(scope.RunId, CancellationToken.None).ConfigureAwait(false);
+            record = await _services.RunStore.GetRunAsync(scope.RunId, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
         {
@@ -231,7 +231,7 @@ public sealed partial class RunRecordingAgent
             runs: scope.Depth == 0 ? 1 : 0,
             tokens: own.Usage?.TotalTokens ?? 0,
             amount: QuotaAmount(scope, own.Cost, cost, nonTokenCost),
-            _timeProvider.GetUtcNow(),
+            _services.TimeProvider.GetUtcNow(),
             cancellationToken).ConfigureAwait(false);
 
         // Empty unless TraconQuotaOptions.PublishThresholdToRunStream is
@@ -255,7 +255,7 @@ public sealed partial class RunRecordingAgent
     private decimal? QuotaAmount(RunScope scope, decimal? ownSpend, RunCost? cost, RunNonTokenCost? nonTokenCost)
     {
         // One rule for money across currencies; the counter holds no currency.
-        var amount = QuotaAmount(scope.Depth == 0, ownSpend, cost, nonTokenCost, _pricingCurrency, out var tokenCostLeftOut);
+        var amount = QuotaAmount(scope.Depth == 0, ownSpend, cost, nonTokenCost, _services.PricingCurrency, out var tokenCostLeftOut);
 
         if (tokenCostLeftOut)
         {
@@ -342,14 +342,14 @@ public sealed partial class RunRecordingAgent
     /// </remarks>
     private async ValueTask SampleForOnlineEvalAsync(RunScope scope, RunStatus status, CancellationToken cancellationToken)
     {
-        if (_runSampler is null)
+        if (_services.RunSampler is null)
         {
             return;
         }
 
         try
         {
-            await _runSampler.SampleAsync(
+            await _services.RunSampler.SampleAsync(
                 new RunSampleRequest
                 {
                     RunId = scope.RunId,
@@ -384,7 +384,7 @@ public sealed partial class RunRecordingAgent
         string? modelId,
         CancellationToken cancellationToken)
     {
-        if (_webhookPublisher is null)
+        if (_services.WebhookPublisher is null)
         {
             return;
         }
@@ -402,12 +402,12 @@ public sealed partial class RunRecordingAgent
             return;
         }
 
-        await _webhookPublisher.PublishAsync(
+        await _services.WebhookPublisher.PublishAsync(
             scope.TenantId,
             eventType,
             new WebhookEventPayload
             {
-                OccurredAt = _timeProvider.GetUtcNow(),
+                OccurredAt = _services.TimeProvider.GetUtcNow(),
                 Run = new WebhookRunSummary
                 {
                     RunId = scope.RunId.ToString(),

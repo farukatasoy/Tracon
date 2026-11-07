@@ -136,5 +136,8 @@ public sealed class SubAgentSettingsResolutionTests
         => new(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            agentGraph: graph);
+            new AgentCompilationServices
+            {
+                AgentGraph = graph,
+            });
 }

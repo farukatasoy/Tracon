@@ -122,7 +122,7 @@ public sealed class RunCancellationSweepTests
         var model = FaultProxy<IChatClient>.Create(new ScriptedChatClient(), plan);
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(model)), TestData.Registry(tool));
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(TestData.Definition(toolNames: ["lookup"])),
             FaultProxy<IRunStore>.Create(store, plan),
             FixedTenantContext.Default,

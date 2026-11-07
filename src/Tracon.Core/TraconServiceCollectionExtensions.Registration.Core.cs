@@ -357,56 +357,70 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddSingleton(static provider => new AgentDefinitionCompiler(
             provider.GetRequiredService<IModelProviderRegistry>(),
             provider.GetRequiredService<IToolRegistry>(),
-            provider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>(),
-            provider,
-            // When not registered, MAF's in-memory default is used.
-            // Tracon.PostgreSql fills this in with PostgresChatHistoryProvider.
-            provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>(),
-            provider.GetRequiredService<AgentSkillCatalog>(),
-            // When not registered, there is no script support: no script can run.
-            provider.GetService<SkillScriptSupport>(),
-            provider.GetRequiredService<CallableAgentResolver>(),
-            provider.GetRequiredService<ITenantContext>(),
-            provider.GetRequiredService<IOptions<TraconOptions>>().Value.UtilityModel,
-            provider.GetRequiredService<Microsoft.Agents.AI.AgentFileStore>(),
-            // When not registered, a definition using McpResourceUris gets a
-            // compilation error. Tracon.Mcp's UseMcp() call registers this.
-            provider.GetService<IMcpResourceContextProviderFactory>(),
-            // When not registered, a definition requesting
-            // EnableVectorSearch gets a compilation error.
-            // Tracon.PostgreSql's UsePostgreSql() call registers this.
-            provider.GetService<IVectorSearchStore>(),
-            // The consumer registers their own IEmbeddingGenerator; the compiler takes it
-            // inside the OpenTelemetry ring.
-            provider.GetRequiredService<InstrumentedEmbeddings>().Generator,
-            provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>().Value.MaxResults,
-            // Resolves SharedInstructionsName. Registered unconditionally a few
-            // lines below (the in-memory store by default), so this is never null
-            // in practice - GetService, not GetRequiredService, only to avoid a
-            // hard dependency order requirement between the two registrations.
-            provider.GetService<IAgentDefinitionStore>(),
-            provider.GetRequiredService<IOptions<TraconOptions>>().Value.AgentGraph,
-            provider.GetService<TimeProvider>(),
-            // The loop stop criteria a host added with
-            // AddLoopEvaluator. Empty when none was added, and a definition
-            // that names an unknown kind then fails to compile.
-            provider.GetServices<TraconLoopEvaluatorRegistration>(),
-            // The judge binding an aiJudge loop criterion calls. Unconfigured
-            // unless AddModelRunJudge was called, in which case that criterion
-            // fails to compile instead of borrowing the agent's own model.
-            provider.GetService<IOptions<ModelRunJudgeOptions>>()?.Value,
-            // The SAME store the registry checks: its policy enters the
-            // compiled-agent cache key, so a policy saved after an agent was
-            // cached reaches the next resolve.
-            provider.GetService<ITenantEgressPolicyStore>(),
-            // The agent extensions a host added with AddAgentExtension.
-            // Empty when none was added, and a definition that names one then
-            // fails to compile.
-            provider.GetServices<IAgentExtension>(),
-            // The hosted tools a host added with AddHostedTool. Empty when none was
-            // added, and a definition that selects a name then fails to compile as an unknown tool.
-            provider.GetRequiredService<HostedToolRegistry>(),
-            provider.GetRequiredService<IOptions<TraconOptions>>().Value.Tools.MaxToolsPerAgent));
+            new AgentCompilationServices
+            {
+                LoggerFactory = provider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>(),
+                Provider = provider,
+
+                // When not registered, MAF's in-memory default is used.
+                // Tracon.PostgreSql fills this in with PostgresChatHistoryProvider.
+                ChatHistoryProvider = provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>(),
+                Skills = provider.GetRequiredService<AgentSkillCatalog>(),
+
+                // When not registered, there is no script support: no script can run.
+                Scripts = provider.GetService<SkillScriptSupport>(),
+                CallableAgents = provider.GetRequiredService<CallableAgentResolver>(),
+                TenantContext = provider.GetRequiredService<ITenantContext>(),
+                UtilityModel = provider.GetRequiredService<IOptions<TraconOptions>>().Value.UtilityModel,
+                FileStore = provider.GetRequiredService<Microsoft.Agents.AI.AgentFileStore>(),
+
+                // When not registered, a definition using McpResourceUris gets a
+                // compilation error. Tracon.Mcp's UseMcp() call registers this.
+                McpResources = provider.GetService<IMcpResourceContextProviderFactory>(),
+
+                // When not registered, a definition requesting
+                // EnableVectorSearch gets a compilation error.
+                // Tracon.PostgreSql's UsePostgreSql() call registers this.
+                VectorSearchStore = provider.GetService<IVectorSearchStore>(),
+
+                // The consumer registers their own IEmbeddingGenerator; the compiler takes it
+                // inside the OpenTelemetry ring.
+                EmbeddingGenerator = provider.GetRequiredService<InstrumentedEmbeddings>().Generator,
+                KnowledgeMaxResults = provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>().Value.MaxResults,
+
+                // Resolves SharedInstructionsName. Registered unconditionally a few
+                // lines below (the in-memory store by default), so this is never null
+                // in practice - GetService, not GetRequiredService, only to avoid a
+                // hard dependency order requirement between the two registrations.
+                DefinitionStore = provider.GetService<IAgentDefinitionStore>(),
+                AgentGraph = provider.GetRequiredService<IOptions<TraconOptions>>().Value.AgentGraph,
+                TimeProvider = provider.GetService<TimeProvider>(),
+
+                // The loop stop criteria a host added with
+                // AddLoopEvaluator. Empty when none was added, and a definition
+                // that names an unknown kind then fails to compile.
+                LoopEvaluators = provider.GetServices<TraconLoopEvaluatorRegistration>(),
+
+                // The judge binding an aiJudge loop criterion calls. Unconfigured
+                // unless AddModelRunJudge was called, in which case that criterion
+                // fails to compile instead of borrowing the agent's own model.
+                JudgeOptions = provider.GetService<IOptions<ModelRunJudgeOptions>>()?.Value,
+
+                // The SAME store the registry checks: its policy enters the
+                // compiled-agent cache key, so a policy saved after an agent was
+                // cached reaches the next resolve.
+                TenantEgressPolicies = provider.GetService<ITenantEgressPolicyStore>(),
+
+                // The agent extensions a host added with AddAgentExtension.
+                // Empty when none was added, and a definition that names one then
+                // fails to compile.
+                AgentExtensions = provider.GetServices<IAgentExtension>(),
+
+                // The hosted tools a host added with AddHostedTool. Empty when none was
+                // added, and a definition that selects a name then fails to compile as an unknown tool.
+                HostedTools = provider.GetRequiredService<HostedToolRegistry>(),
+                MaxToolsPerAgent = provider.GetRequiredService<IOptions<TraconOptions>>().Value.Tools.MaxToolsPerAgent,
+            }));
 #pragma warning restore MAAI001
 
         // Knowledge base management surface: document upload,
@@ -607,12 +621,17 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetRequiredService<IOptions<TraconRetentionOptions>>(),
                 provider.GetRequiredService<ILogger<SilentGapWarningService>>())));
 
+        // What every recorder of a run shares: the agent recorder, the workflow runner and the model judge.
+        // One registration, so a dependency of the run path is added in one place. The container-built
+        // type resolves every member with GetRequiredService (see RunRecordingServices.Create): a member
+        // left null here switches its feature off while the build and the tests stay green.
+        services.TryAddSingleton(static provider => RunRecordingServices.Create(provider));
+
         // Wrappers. Application order is determined by Order:
         // run recording (0) → telemetry (10) → tool approval (20) → agent.
         //
-        // The recording decorator is set up with an explicit factory: the
-        // built-in DI container does not fill in constructor parameters that
-        // carry a default value, and TimeProvider may not be registered.
+        // The recording decorator is set up with an explicit factory: it is built from the shared
+        // services above, and its constructor is internal.
         //
         // The two-type-argument overload is REQUIRED: with the single-argument
         // form, the factory's return type becomes IAgentDecorator and
@@ -620,40 +639,8 @@ public static partial class TraconServiceCollectionExtensions
         // an "indistinguishable from other services" error.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, RunRecordingAgentDecorator>(
             static provider => new RunRecordingAgentDecorator(
-                provider.GetRequiredService<IRunStore>(),
-                provider.GetRequiredService<ITenantContext>(),
-                provider.GetRequiredService<IOptions<TraconOptions>>(),
-                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RunRecordingAgent>>(),
-                provider.GetRequiredService<TraconMetrics>(),
-                provider.GetRequiredService<RunTraceCollector>(),
-                provider.GetService<TimeProvider>(),
-                provider.GetRequiredService<IRunPricingResolver>(),
-                // 🚨 Without these two lines, the constructor parameters stay
-                // null and the quota counter never increases, no run.* event is
-                // published - the build and tests would look green
-                provider.GetRequiredService<QuotaEnforcer>(),
-                provider.GetRequiredService<IWebhookPublisher>(),
-                provider.GetRequiredService<IRunCancellationRegistry>(),
-                provider.GetRequiredService<IRunErrorClassifier>(),
-                provider.GetRequiredService<IRunInputStore>(),
-                // Being registered alone samples nothing, see the
-                // RunSampler/OnlineEvaluationOptions class documentation.
-                provider.GetRequiredService<RunSampler>(),
-                // Without this line, the input written to the
-                // RunStarted event and IRunInputStore never passes through the guards.
-                provider.GetRequiredService<ContentGuardPipeline>(),
-                // And the SAME trap the comment above describes:
-                // without this line every run records a NULL user and NULL
-                // labels while the build and the tests stay green.
-                provider.GetRequiredService<IRunAttributionContext>(),
-                // GetServices resolves lazily and never throws when
-                // no IRunEventSink is registered — an empty sequence.
-                provider.GetServices<IRunEventSink>(),
-                // Without this line no ToolApprovalPresentation is
-                // ever resolved, even when a consumer registered its own
-                // IToolApprovalPresenter — the exact trap the comments above
-                // describe, for one more parameter.
-                provider.GetRequiredService<ToolApprovalPresenterRunner>())));
+                provider.GetRequiredService<RunRecordingServices>(),
+                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RunRecordingAgent>>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());

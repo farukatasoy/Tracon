@@ -109,8 +109,11 @@ public sealed class SubAgentToolModeCompilationTests
         return new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(TestData.Tool("support_agent")),
-            callableAgents: new CallableAgentResolver(catalog),
-            tenantContext: new SingleTenantContext(options),
-            agentExtensions: extensions);
+            new AgentCompilationServices
+            {
+                CallableAgents = new CallableAgentResolver(catalog),
+                TenantContext = new SingleTenantContext(options),
+                AgentExtensions = extensions,
+            });
     }
 }

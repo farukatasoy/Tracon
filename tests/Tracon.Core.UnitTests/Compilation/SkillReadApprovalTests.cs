@@ -67,7 +67,10 @@ public sealed class SkillReadApprovalTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry(),
-            skills: new AgentSkillCatalog([], store, new SingleTenantContext(options), options));
+            new AgentCompilationServices
+            {
+                Skills = new AgentSkillCatalog([], store, new SingleTenantContext(options), options),
+            });
 
         var definition = TestData.Definition(harness: harness ? new HarnessSettings() : null) with
         {

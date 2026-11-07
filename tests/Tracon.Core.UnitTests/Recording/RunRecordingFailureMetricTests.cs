@@ -375,7 +375,7 @@ public sealed class RunRecordingFailureMetricTests
         var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")));
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(client)), TestData.Registry());
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             new FailingRunStore(FailAt.StartRun),
             new FixedTenantContext("tenant-a"),
@@ -404,7 +404,7 @@ public sealed class RunRecordingFailureMetricTests
         var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")));
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(client)), TestData.Registry());
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             store,
             new FixedTenantContext("tenant-a"),

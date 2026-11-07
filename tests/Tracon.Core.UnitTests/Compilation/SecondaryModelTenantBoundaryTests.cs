@@ -207,9 +207,12 @@ public sealed class SecondaryModelTenantBoundaryTests
             var compiler = new AgentDefinitionCompiler(
                 registry,
                 TestData.Registry(),
-                tenantContext: tenantContext,
-                utilityModel: utilityModel,
-                judgeOptions: judgeModel is null ? null : new ModelRunJudgeOptions { Model = judgeModel });
+                new AgentCompilationServices
+                {
+                    TenantContext = tenantContext,
+                    UtilityModel = utilityModel,
+                    JudgeOptions = judgeModel is null ? null : new ModelRunJudgeOptions { Model = judgeModel },
+                });
 
             return new Host(compiler, anthropic, tenantContext);
         }

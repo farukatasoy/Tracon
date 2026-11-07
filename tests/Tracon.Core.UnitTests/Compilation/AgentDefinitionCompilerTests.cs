@@ -368,7 +368,10 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(agentModelProvider, utilityProvider),
             TestData.Registry(),
-            utilityModel: new ModelBinding { Provider = "utility", Model = "m" });
+            new AgentCompilationServices
+            {
+                UtilityModel = new ModelBinding { Provider = "utility", Model = "m" },
+            });
 
         var definition = TestData.Definition() with
         {
@@ -422,7 +425,10 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            fileStore: new Microsoft.Agents.AI.InMemoryAgentFileStore());
+            new AgentCompilationServices
+            {
+                FileStore = new Microsoft.Agents.AI.InMemoryAgentFileStore(),
+            });
 #pragma warning restore MAAI001
 
         var definition = TestData.Definition() with
@@ -460,7 +466,10 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            mcpResources: factory);
+            new AgentCompilationServices
+            {
+                McpResources = factory,
+            });
 
         var definition = TestData.Definition(mcpResourceUris: ["github:https://example.com/readme"]) with
         {
@@ -500,7 +509,10 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            vectorSearchStore: new FakeVectorSearchStore());
+            new AgentCompilationServices
+            {
+                VectorSearchStore = new FakeVectorSearchStore(),
+            });
 
         var definition = TestData.Definition() with
         {
@@ -518,10 +530,13 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            services: new ServiceCollection().AddSingleton(BuiltInToolGovernanceTestSupport.Create()).BuildServiceProvider(),
-            tenantContext: FixedTenantContext.Default,
-            vectorSearchStore: new FakeVectorSearchStore(),
-            embeddingGenerator: new FakeEmbeddingGenerator());
+            new AgentCompilationServices
+            {
+                Provider = new ServiceCollection().AddSingleton(BuiltInToolGovernanceTestSupport.Create()).BuildServiceProvider(),
+                TenantContext = FixedTenantContext.Default,
+                VectorSearchStore = new FakeVectorSearchStore(),
+                EmbeddingGenerator = new FakeEmbeddingGenerator(),
+            });
 
         var definition = TestData.Definition() with
         {
@@ -544,9 +559,12 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            tenantContext: FixedTenantContext.Default,
-            vectorSearchStore: new FakeVectorSearchStore(),
-            embeddingGenerator: new FakeEmbeddingGenerator());
+            new AgentCompilationServices
+            {
+                TenantContext = FixedTenantContext.Default,
+                VectorSearchStore = new FakeVectorSearchStore(),
+                EmbeddingGenerator = new FakeEmbeddingGenerator(),
+            });
 
         var definition = TestData.Definition() with
         {
@@ -567,8 +585,11 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            vectorSearchStore: new FakeVectorSearchStore(),
-            embeddingGenerator: new FakeEmbeddingGenerator());
+            new AgentCompilationServices
+            {
+                VectorSearchStore = new FakeVectorSearchStore(),
+                EmbeddingGenerator = new FakeEmbeddingGenerator(),
+            });
 
         var definition = TestData.Definition() with
         {

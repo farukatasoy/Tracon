@@ -99,8 +99,11 @@ public sealed class DefinitionStoreAgentSourceEgressPolicyTests
         var compiler = new AgentDefinitionCompiler(
             registry,
             TestData.Registry(),
-            tenantContext: tenantContext,
-            tenantEgressPolicies: egress);
+            new AgentCompilationServices
+            {
+                TenantContext = tenantContext,
+                TenantEgressPolicies = egress,
+            });
 
         var cache = new CompiledAgentCache();
 

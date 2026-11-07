@@ -241,7 +241,7 @@ public sealed class ChildAgentInvokerQuotaTests
             var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "research result")));
             var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(client)), TestData.Registry());
 
-            var inner = new RunRecordingAgent(
+            var inner = TestRunRecording.Agent(
                 compiler.Compile(TestData.Definition(name: "researcher")),
                 runStore,
                 tenant,

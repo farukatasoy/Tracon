@@ -42,68 +42,31 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private static readonly ActivitySource ActivitySource = new(TraconDiagnostics.ActivitySourceName);
 
     private readonly WorkflowCatalog _catalog;
-    private readonly IRunStore _runStore;
+    private readonly RunRecordingServices _services;
     private readonly IWorkflowCheckpointStore _checkpointStore;
-    private readonly ITenantContext _tenantContext;
     private readonly IOptions<TraconWorkflowOptions> _options;
     private readonly IOptions<TraconOptions> _traconOptions;
     private readonly ILogger<WorkflowRunner> _logger;
-    private readonly TraconMetrics? _metrics;
-    private readonly RunTraceCollector? _traceCollector;
-    private readonly TimeProvider _timeProvider;
     private readonly SlotPool _concurrency;
     private readonly TenantSlotLimiter? _tenantSlots;
-    private readonly IOptions<RunReconciliationOptions>? _reconciliation;
-    private readonly IRunCancellationRegistry? _cancellationRegistry;
-    private readonly QuotaEnforcer? _quotaEnforcer;
-    private readonly IRunErrorClassifier? _errorClassifier;
-    private readonly IWebhookPublisher? _webhookPublisher;
-    private readonly IRunAttributionContext? _attributionContext;
-    private readonly IReadOnlyList<IRunEventSink> _sinks;
-    private readonly IRunInputStore? _runInputs;
     private readonly ParameterizedAgentFactory? _parameterFactory;
     private readonly IWorkflowResponseStore? _responses;
     private readonly IWorkflowRequestStore? _requests;
-    private readonly ToolApprovalPresenterRunner? _approvalPresenter;
     private readonly WorkflowAgentCache? _agentCache;
 
     /// <summary>Creates a new runner.</summary>
     /// <param name="catalog">The workflow catalog.</param>
-    /// <param name="runStore">The run record store.</param>
     /// <param name="checkpointStore">The checkpoint store.</param>
-    /// <param name="tenantContext">The tenant context.</param>
     /// <param name="options">The workflow settings.</param>
     /// <param name="traconOptions">The general Tracon settings.</param>
     /// <param name="logger">The logger.</param>
-    /// <param name="metrics">The metric instruments.</param>
-    /// <param name="traceCollector">The span collector.</param>
-    /// <param name="timeProvider">The time source.</param>
-    /// <param name="cancellationRegistry">
-    /// The cancellation registry. When <see langword="null"/>, a workflow run cannot be canceled from outside.
-    /// </param>
-    /// <param name="quotaEnforcer">
-    /// The quota enforcer. When <see langword="null"/>, workflow consumption is not written to the quota
-    /// counters (the SAME behaviour as the agent run path, see <c>RunRecordingAgent</c>).
-    /// </param>
-    /// <param name="attributionContext">
-    /// The attribution context. When <see langword="null"/>, the workflow's run row records
-    /// no user and no labels.
-    /// </param>
-    /// <param name="sinks">
-    /// The run event observers. Empty when none is registered — the identical
-    /// hot path as before this extension point existed.
-    /// </param>
-    /// <param name="errorClassifier">
-    /// The error classifier. When <see langword="null"/>, a failed workflow row
-    /// carries no class — the same rule the agent run path follows.
-    /// </param>
-    /// <param name="webhookPublisher">
-    /// The webhook publisher. When <see langword="null"/>, the workflow root
-    /// publishes no <c>run.*</c> and no <c>workflow.request.pending</c> event.
-    /// </param>
-    /// <param name="runInputStore">
-    /// Where a parameterized run's final values are recorded. When <see langword="null"/>
-    /// nothing is recorded, so a run with parameters cannot be resumed or answered.
+    /// <param name="services">
+    /// The services and settings every recorder of a run shares: the run store, the tenant context, the time
+    /// source, the metrics and the span collector, the quota counter, the cancellation registry, the attribution
+    /// context, the event observers, the error classifier, the webhook publisher, the input store, the tool
+    /// approval presenter and the reconciliation settings. A member that is <see langword="null"/> switches its
+    /// feature off, the same rule the agent run path follows (<see cref="RunRecordingServices"/>). A runner built
+    /// with no reconciliation settings writes the first heartbeat of a run that waits for a slot at once.
     /// </param>
     /// <param name="parameterFactory">
     /// Looks up the participants' definitions for the start-of-run coverage check
@@ -119,77 +82,42 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// The inbox of the requests a run waits on. When <see langword="null"/> a run that waits writes no
     /// row: the tenant-wide list stays empty, no request expires, and a request carries no expiry.
     /// </param>
-    /// <param name="approvalPresenter">
-    /// Asks the registered <see cref="IToolApprovalPresenter"/> how to show a tool approval request. When
-    /// <see langword="null"/> a request names its tool and nothing more.
-    /// </param>
     /// <param name="agentCache">
     /// The agent wrappers of the workflows, which name the agent behind an executor id. When <see langword="null"/> a
     /// tool approval request does not name the agent that asked, and an approval of it cannot be remembered.
     /// </param>
-    /// <param name="reconciliationOptions">
-    /// The run reconciliation settings. A run that waits for a concurrency slot writes its first heartbeat at once only when
-    /// reconciliation is on; when <see langword="null"/> it does.
-    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
-        IRunStore runStore,
         IWorkflowCheckpointStore checkpointStore,
-        ITenantContext tenantContext,
         IOptions<TraconWorkflowOptions> options,
         IOptions<TraconOptions> traconOptions,
         ILogger<WorkflowRunner> logger,
-        TraconMetrics? metrics = null,
-        RunTraceCollector? traceCollector = null,
-        TimeProvider? timeProvider = null,
-        IRunCancellationRegistry? cancellationRegistry = null,
-        QuotaEnforcer? quotaEnforcer = null,
-        IRunAttributionContext? attributionContext = null,
-        IEnumerable<IRunEventSink>? sinks = null,
-        IRunErrorClassifier? errorClassifier = null,
-        IWebhookPublisher? webhookPublisher = null,
-        IRunInputStore? runInputStore = null,
+        RunRecordingServices services,
         ParameterizedAgentFactory? parameterFactory = null,
         IWorkflowResponseStore? responseStore = null,
         IWorkflowRequestStore? requestStore = null,
-        ToolApprovalPresenterRunner? approvalPresenter = null,
-        WorkflowAgentCache? agentCache = null,
-        IOptions<RunReconciliationOptions>? reconciliationOptions = null)
+        WorkflowAgentCache? agentCache = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
-        ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(checkpointStore);
-        ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(traconOptions);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(services);
 
         _catalog = catalog;
-        _runStore = runStore;
+        _services = services;
         _checkpointStore = checkpointStore;
-        _tenantContext = tenantContext;
         _options = options;
         _traconOptions = traconOptions;
         _logger = logger;
-        _metrics = metrics;
-        _traceCollector = traceCollector;
-        _timeProvider = timeProvider ?? TimeProvider.System;
         _concurrency = new SlotPool(Math.Max(options.Value.MaxConcurrentRuns, 1));
         _tenantSlots = options.Value.MaxConcurrentRunsPerTenant is { } perTenant ? new TenantSlotLimiter(perTenant) : null;
-        _cancellationRegistry = cancellationRegistry;
-        _quotaEnforcer = quotaEnforcer;
-        _attributionContext = attributionContext;
-        _sinks = sinks?.ToArray() ?? [];
-        _errorClassifier = errorClassifier;
-        _webhookPublisher = webhookPublisher;
-        _runInputs = runInputStore;
         _parameterFactory = parameterFactory;
         _responses = responseStore;
         _requests = requestStore;
-        _approvalPresenter = approvalPresenter;
         _agentCache = agentCache;
-        _reconciliation = reconciliationOptions;
     }
 
     /// <inheritdoc />
@@ -281,7 +209,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         WorkflowRequestRecord row,
         CancellationToken cancellationToken)
     {
-        await foreach (var runEvent in _runStore
+        await foreach (var runEvent in _services.RunStore
                            .ReadEventsAsync(row.RunId, row.EventSequence, cancellationToken)
                            .ConfigureAwait(false))
         {
@@ -335,7 +263,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         var requests = new List<(WorkflowPendingRequest, long)>();
 
-        await foreach (var runEvent in _runStore
+        await foreach (var runEvent in _services.RunStore
                            .ReadEventsAsync(runId, 0, cancellationToken)
                            .ConfigureAwait(false))
         {
@@ -414,19 +342,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             return null;
         }
 
-        var record = await _runStore.GetRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
+        var record = await _services.RunStore.GetRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
 
         // Missing, another tenant's, not a workflow, not waiting: RespondStreamingAsync
         // answers each with the message it always gave. There is no request to judge.
         if (record is null ||
-            !string.Equals(record.TenantId, _tenantContext.TenantId, StringComparison.Ordinal) ||
+            !string.Equals(record.TenantId, _services.TenantContext.TenantId, StringComparison.Ordinal) ||
             record.Kind != RunKind.Workflow ||
             record.Status != RunStatus.AwaitingInput)
         {
             return null;
         }
 
-        await foreach (var runEvent in _runStore
+        await foreach (var runEvent in _services.RunStore
                            .ReadEventsAsync(request.RunId, 0, cancellationToken)
                            .ConfigureAwait(false))
         {
@@ -651,9 +579,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             return null;
         }
 
-        var recorded = _runInputs is null
+        var recorded = _services.RunInputStore is null
             ? null
-            : (await _runInputs.GetAsync(_tenantContext.TenantId, source.Id, cancellationToken).ConfigureAwait(false))
+            : (await _services.RunInputStore.GetAsync(_services.TenantContext.TenantId, source.Id, cancellationToken).ConfigureAwait(false))
                 ?.Parameters;
 
         var values = ParameterValueSet.Intersect(
@@ -683,12 +611,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// </exception>
     private async ValueTask<RunRecord> RequireWorkflowRunAsync(Guid runId, CancellationToken cancellationToken)
     {
-        var record = await _runStore.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
+        var record = await _services.RunStore.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
         // When the tenant does not match, the answer is "not found". Not even the
         // knowledge that another tenant's run exists is leaked.
         if (record is null ||
-            !string.Equals(record.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
+            !string.Equals(record.TenantId, _services.TenantContext.TenantId, StringComparison.Ordinal))
         {
             throw new TraconException($"There is no run with id '{runId}'.");
         }
@@ -721,7 +649,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         var checkpoints = await _checkpointStore
-            .ListByRunAsync(_tenantContext.TenantId, runId, cancellationToken)
+            .ListByRunAsync(_services.TenantContext.TenantId, runId, cancellationToken)
             .ConfigureAwait(false);
 
         return checkpoints.Count > 0
@@ -742,7 +670,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         CancellationToken cancellationToken)
     {
         var checkpoints = await _checkpointStore
-            .ListAsync(_tenantContext.TenantId, sessionId, cancellationToken)
+            .ListAsync(_services.TenantContext.TenantId, sessionId, cancellationToken)
             .ConfigureAwait(false);
 
         return checkpoints.FirstOrDefault(
@@ -779,7 +707,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         var opened = execution.RowMayBeOpen
-            ? await _runStore.GetRunAsync(execution.RunId, cancellationToken).ConfigureAwait(false)
+            ? await _services.RunStore.GetRunAsync(execution.RunId, cancellationToken).ConfigureAwait(false)
             : null;
 
         var continuesFrom = opened?.ContinuedFromRunId ?? execution.SourceRunId;
@@ -791,7 +719,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         var carryOver = await BudgetLineage
-            .ReadAsync(_runStore, source, _tenantContext.TenantId, _traconOptions.Value.Pricing.Currency, _timeProvider, _logger, cancellationToken)
+            .ReadAsync(_services.RunStore, source, _services.TenantContext.TenantId, _traconOptions.Value.Pricing.Currency, _services.TimeProvider, _logger, cancellationToken)
             .ConfigureAwait(false);
 
         return (carryOver, records);
@@ -814,17 +742,17 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // Armed with the installation's value now, when the run starts; a definition
         // that sets its own re-arms the same source from this moment once it
         // is read, so the deadline still counts from the start of the run.
-        using var timeout = new CancellationTokenSource(settings.RunTimeout, _timeProvider);
-        var deadline = new RunDeadline(timeout, _timeProvider.GetTimestamp(), settings.RunTimeout, cancellationToken);
+        using var timeout = new CancellationTokenSource(settings.RunTimeout, _services.TimeProvider);
+        var deadline = new RunDeadline(timeout, _services.TimeProvider.GetTimestamp(), settings.RunTimeout, cancellationToken);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
 
         // The workflow row is the root of its own tree (RunId == RootRunId): an
         // external cancellation (POST /api/runs/{id}/cancel) triggers this source,
         // and the agent runs below the same RootRunId are canceled too.
-        using var cancellationRegistration = _cancellationRegistry?.Register(
+        using var cancellationRegistration = _services.CancellationRegistry?.Register(
             execution.RunId,
             execution.RunId,
-            _tenantContext.TenantId,
+            _services.TenantContext.TenantId,
             linked);
 
         // 🚨 The concurrency slot is taken INSIDE RunGuardedAsync, after the run
@@ -845,8 +773,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         RunDeadline deadline,
         CancellationTokenSource linked)
     {
-        var recording = _traconOptions.Value.RunRecording;
-        var writer = new RunEventWriter(_runStore, recording, _logger, execution.RunId, _metrics, _sinks, _timeProvider);
+        var writer = _services.CreateWriter(execution.RunId, _logger);
 
         // 🚨 The root span is started IN THE BODY OF THIS METHOD. Activity.Current
         // is an AsyncLocal, and an assignment made inside a helper method does not
@@ -859,7 +786,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // and every node and tool of the root reads them from it; built first,
         // it carried neither. The read writes no AsyncLocal.
         var attribution = RunAttributionReader.Read(
-            _attributionContext,
+            _services.AttributionContext,
             (message, exception) => _logger.LogWarning(
                 exception,
                 "{Message} Workflow run {RunId} continues and is recorded with no user and no labels.",
@@ -911,12 +838,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // Stopped before the row opened: the run opens, then closes Canceled in the setup block below.
         }
 
-        var budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider, carryOver);
+        var budget = _traconOptions.Value.AgentGraph.CreateBudget(_services.TimeProvider, carryOver);
 
         // The workflow names the counter its steps add to. An agent step is a child
         // run of this root and writes its own tokens and cost when it ends, even one that a
         // step left running in the background past the workflow's last event.
-        budget.Account = new TreeAccount(_tenantContext.TenantId, execution.WorkflowName, attribution.UserId, _quotaEnforcer);
+        budget.Account = new TreeAccount(_services.TenantContext.TenantId, execution.WorkflowName, attribution.UserId, _services.QuotaEnforcer);
 
         var scope = new AgentRunScope
         {
@@ -924,7 +851,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             RootRunId = execution.RunId,
             Depth = 0,
             AgentName = execution.WorkflowName,
-            TenantId = _tenantContext.TenantId,
+            TenantId = _services.TenantContext.TenantId,
             SessionId = execution.SessionId,
 
             // A workflow's session id never gets a sessions record; everything below inherits that.
@@ -954,7 +881,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             activity.SetTag(TraconDiagnostics.Tags.TenantId, scope.TenantId);
             activity.SetTag(TraconDiagnostics.Tags.SessionId, execution.SessionId);
             activity.SetTag(TraconDiagnostics.Tags.Streaming, true);
-            _traceCollector?.BeginRun(activity.TraceId.ToString(), activity.SpanId.ToString());
+            _services.TraceCollector?.BeginRun(activity.TraceId.ToString(), activity.SpanId.ToString());
         }
 
         TraconRunContext.SetCurrent(scope);
@@ -965,7 +892,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         //
         // The tenant is read ONCE, here: the ambient tenant is an AsyncLocal, and this iterator resumes on
         // whatever flow its consumer moves it with, so a later read could name another tenant's slot.
-        var tenantId = _tenantContext.TenantId;
+        var tenantId = _services.TenantContext.TenantId;
         var opensQueued = _concurrency.IsFull || _tenantSlots?.IsFull(tenantId) == true;
 
         var startInfo = new RunStartInfo
@@ -974,7 +901,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             AgentName = execution.WorkflowName,
             Kind = RunKind.Workflow,
             WorkflowName = execution.WorkflowName,
-            StartedAt = _timeProvider.GetUtcNow(),
+            StartedAt = _services.TimeProvider.GetUtcNow(),
             TenantId = scope.TenantId,
 
             // A workflow is ONE run for quota purposes, so it is one
@@ -1006,7 +933,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Status = opensQueued ? RunStatus.Queued : RunStatus.Running,
         };
 
-        var startedAt = _timeProvider.GetTimestamp();
+        var startedAt = _services.TimeProvider.GetTimestamp();
         var status = RunStatus.Completed;
         RunError? error = null;
 
@@ -1051,7 +978,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // Only while run reconciliation is on: with it off nothing writes a heartbeat and nothing reads one, and a
             // host that turned it off does not get a write it never asked for. A runner built with no options (by hand)
             // writes it.
-            if (opensQueued && (_reconciliation?.Value.Enabled ?? true))
+            if (opensQueued && (_services.Reconciliation?.Enabled ?? true))
             {
                 await writer.TouchHeartbeatAsync(CancellationToken.None).ConfigureAwait(false);
             }
@@ -1160,7 +1087,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                                        settings,
                                        scope,
                                        writer,
-                                       recording,
+                                       _services.Recording,
                                        linked,
                                        activity)
                                    .ConfigureAwait(false))
@@ -1426,27 +1353,27 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         IReadOnlyDictionary<string, string> final,
         CancellationToken cancellationToken)
     {
-        if (_runInputs is null || !_traconOptions.Value.RunRecording.RecordRunInput)
+        if (_services.RunInputStore is null || !_traconOptions.Value.RunRecording.RecordRunInput)
         {
             return;
         }
 
         try
         {
-            await _runInputs.SaveAsync(
+            await _services.RunInputStore.SaveAsync(
                 new RunInputRecord
                 {
                     RunId = execution.RunId,
-                    TenantId = scope.TenantId ?? _tenantContext.TenantId,
+                    TenantId = scope.TenantId ?? _services.TenantContext.TenantId,
                     Messages = [],
                     Parameters = final,
-                    CreatedAt = _timeProvider.GetUtcNow(),
+                    CreatedAt = _services.TimeProvider.GetUtcNow(),
                 },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
-            _metrics?.RecordRunRecordingFailure(scope.TenantId, RunRecordingStages.Input);
+            _services.Metrics?.RecordRunRecordingFailure(scope.TenantId, RunRecordingStages.Input);
 
             _logger.LogWarning(
                 exception,
@@ -1616,7 +1543,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                                     () => run.GetStatusAsync(CancellationToken.None),
                                     streamSource,
                                     StalledStreamGuard.Grace,
-                                    _timeProvider,
+                                    _services.TimeProvider,
                                     linked.Token).ConfigureAwait(false)
                                 : await moving.ConfigureAwait(false))
                             {
@@ -1870,13 +1797,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             ? _agentCache?.NameOf(identity)
             : null;
 
-        if (_approvalPresenter is null)
+        if (_services.ApprovalPresenterRunner is null)
         {
             return (agentName, null);
         }
 
-        var presentations = await _approvalPresenter
-            .ResolveAllAsync([approval], _tenantContext.TenantId, agentName, cancellationToken)
+        var presentations = await _services.ApprovalPresenterRunner
+            .ResolveAllAsync([approval], _services.TenantContext.TenantId, agentName, cancellationToken)
             .ConfigureAwait(false);
 
         return (agentName, presentations.GetValueOrDefault(approval.RequestId));
@@ -1970,7 +1897,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         CancellationToken cancellationToken)
     {
         var checkpointManager = _options.Value.EnableCheckpointing
-            ? CheckpointManager.CreateJson(new TraconCheckpointStore(_checkpointStore, _tenantContext), null)
+            ? CheckpointManager.CreateJson(new TraconCheckpointStore(_checkpointStore, _services.TenantContext), null)
             : null;
 
         StreamingRun run;
@@ -2154,12 +2081,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             await DiscardCheckpointsAsync(execution).ConfigureAwait(false);
         }
 
-        var elapsed = _timeProvider.GetElapsedTime(startedAt);
+        var elapsed = _services.TimeProvider.GetElapsedTime(startedAt);
 
-        _metrics?.RecordRun(
+        _services.Metrics?.RecordRun(
             execution.WorkflowName,
             status,
-            scope.TenantId ?? _tenantContext.TenantId,
+            scope.TenantId ?? _services.TenantContext.TenantId,
             modelId: null,
             elapsed,
             usage: null);
@@ -2181,13 +2108,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // enters the buffer.
         activity.Stop();
 
-        if (_traceCollector is not null)
+        if (_services.TraceCollector is not null)
         {
-            await _traceCollector.CompleteRunAsync(
+            await _services.TraceCollector.CompleteRunAsync(
                 activity.TraceId.ToString(),
                 activity.SpanId.ToString(),
                 execution.RunId,
-                scope.TenantId ?? _tenantContext.TenantId,
+                scope.TenantId ?? _services.TenantContext.TenantId,
                 status,
                 CancellationToken.None).ConfigureAwait(false);
         }
@@ -2245,7 +2172,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             return;
         }
 
-        var tenantId = scope.TenantId ?? _tenantContext.TenantId;
+        var tenantId = scope.TenantId ?? _services.TenantContext.TenantId;
 
         try
         {
@@ -2309,12 +2236,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         RunNonTokenCost? nonTokenCost,
         IReadOnlyList<(WorkflowPendingRequest Request, long Sequence)> awaiting)
     {
-        if (_webhookPublisher is null)
+        if (_services.WebhookPublisher is null)
         {
             return;
         }
 
-        var tenantId = scope.TenantId ?? _tenantContext.TenantId;
+        var tenantId = scope.TenantId ?? _services.TenantContext.TenantId;
 
         try
         {
@@ -2322,12 +2249,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             {
                 foreach (var (request, _) in awaiting)
                 {
-                    await _webhookPublisher.PublishAsync(
+                    await _services.WebhookPublisher.PublishAsync(
                         tenantId,
                         WebhookEvents.WorkflowRequestPending,
                         new WebhookEventPayload
                         {
-                            OccurredAt = _timeProvider.GetUtcNow(),
+                            OccurredAt = _services.TimeProvider.GetUtcNow(),
                             Approval = new WebhookApprovalSummary
                             {
                                 RequestId = request.RequestId,
@@ -2346,18 +2273,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 return;
             }
 
-            var record = await _runStore.GetRunAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
+            var record = await _services.RunStore.GetRunAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
 
-            await _webhookPublisher.PublishAsync(
+            await _services.WebhookPublisher.PublishAsync(
                 tenantId,
                 eventType,
                 WorkflowRunWebhooks.RunPayload(
-                    _timeProvider.GetUtcNow(),
+                    _services.TimeProvider.GetUtcNow(),
                     execution.RunId,
                     execution.SessionId,
                     execution.WorkflowName,
                     status,
-                    _timeProvider.GetElapsedTime(startedAt),
+                    _services.TimeProvider.GetElapsedTime(startedAt),
                     record,
                     nonTokenCost,
                     error?.Message),
@@ -2404,7 +2331,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             runs: 1,
             tokens: 0,
             amount: RunSpend.Total((RunCost?)null, nonTokenCost),
-            _timeProvider.GetUtcNow(),
+            _services.TimeProvider.GetUtcNow(),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -2459,11 +2386,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             foreach (var open in SessionOpenStatuses)
             {
-                var runs = await _runStore
+                var runs = await _services.RunStore
                     .QueryRunsAsync(
                         new RunQuery
                         {
-                            TenantId = _tenantContext.TenantId,
+                            TenantId = _services.TenantContext.TenantId,
                             SessionId = execution.SessionId,
                             Status = open,
                             Take = 2,
@@ -2496,7 +2423,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         try
         {
             await _checkpointStore
-                .DeleteAsync(_tenantContext.TenantId, execution.SessionId, CancellationToken.None)
+                .DeleteAsync(_services.TenantContext.TenantId, execution.SessionId, CancellationToken.None)
                 .ConfigureAwait(false);
         }
         catch (Exception exception)
@@ -2535,7 +2462,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             RunId = execution.RunId,
             Sequence = 0,
             Type = RunEventType.RunStarted,
-            Timestamp = _timeProvider.GetUtcNow(),
+            Timestamp = _services.TimeProvider.GetUtcNow(),
             Text = execution.WorkflowName,
             Payload = execution.SessionId,
         };
@@ -2555,7 +2482,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 RunStatus.AwaitingInput => RunEventType.RunAwaitingInput,
                 _ => RunEventType.RunFailed,
             },
-            Timestamp = _timeProvider.GetUtcNow(),
+            Timestamp = _services.TimeProvider.GetUtcNow(),
             Text = error?.Message,
         };
 
@@ -2637,7 +2564,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             limit = ceiling;
         }
 
-        await deadline.RearmAsync(limit, _timeProvider, byRegistration: found.Code is not null).ConfigureAwait(false);
+        await deadline.RearmAsync(limit, _services.TimeProvider, byRegistration: found.Code is not null).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2691,7 +2618,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// </summary>
     private RunError Classify(RunError error)
     {
-        if (_errorClassifier is null)
+        if (_services.ErrorClassifier is null)
         {
             return error;
         }
@@ -2700,7 +2627,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         try
         {
-            classification = _errorClassifier.Classify(error);
+            classification = _services.ErrorClassifier.Classify(error);
         }
         catch (Exception exception)
         {

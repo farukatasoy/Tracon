@@ -113,7 +113,7 @@ public sealed class DefinitionStoreAgentSourceTenantCredentialTests
         store.SaveAsync(TestData.Definition("support") with { Model = TestData.Binding(provider: "openai") })
             .AsTask().GetAwaiter().GetResult();
 
-        var compiler = new AgentDefinitionCompiler(registry, tools, tenantContext: tenantContext);
+        var compiler = new AgentDefinitionCompiler(registry, tools, new AgentCompilationServices { TenantContext = tenantContext });
         var cache = new CompiledAgentCache();
         var source = new DefinitionStoreAgentSource(store, compiler, cache, tenantContext);
 

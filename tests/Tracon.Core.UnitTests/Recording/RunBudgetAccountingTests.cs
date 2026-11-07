@@ -415,7 +415,7 @@ public sealed class RunBudgetAccountingTests
 
         var definition = TestData.Definition(toolNames: [ToolName]);
 
-        return new RunRecordingAgent(
+        return TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             FixedTenantContext.Default,
@@ -431,7 +431,7 @@ public sealed class RunBudgetAccountingTests
     {
         var definition = TestData.Definition(toolNames: [ToolName]);
 
-        return new RunRecordingAgent(
+        return TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             FixedTenantContext.Default,

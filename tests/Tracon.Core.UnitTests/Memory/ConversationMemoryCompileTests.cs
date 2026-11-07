@@ -183,7 +183,10 @@ public sealed class ConversationMemoryCompileTests
         => new(
             TestData.Providers(new FakeModelProvider()),
             registry ?? TestData.Registry(),
-            services: services,
-            tenantContext: new FixedTenantContext("tenant-a"),
-            agentExtensions: extension is null ? null : [extension]);
+            new AgentCompilationServices
+            {
+                Provider = services,
+                TenantContext = new FixedTenantContext("tenant-a"),
+                AgentExtensions = extension is null ? null : [extension],
+            });
 }

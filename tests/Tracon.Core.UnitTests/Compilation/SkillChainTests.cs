@@ -64,7 +64,10 @@ public sealed class SkillChainTests
         => new(
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry(),
-            skills: new AgentSkillCatalog([], store, tenant, Options.Create(new TraconOptions())));
+            new AgentCompilationServices
+            {
+                Skills = new AgentSkillCatalog([], store, tenant, Options.Create(new TraconOptions())),
+            });
 
     private static AgentDefinition Definition(bool harness)
         => TestData.Definition(harness: harness ? new HarnessSettings() : null) with { SkillNames = [SkillName] };

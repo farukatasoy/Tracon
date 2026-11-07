@@ -94,6 +94,9 @@ public sealed class LoopCompilationTests
         => new(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            loopEvaluators: registrations);
+            new AgentCompilationServices
+            {
+                LoopEvaluators = registrations,
+            });
 }
 #pragma warning restore MAAI001

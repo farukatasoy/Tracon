@@ -225,7 +225,7 @@ public sealed class CitationRecordingTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider(new CitedThenSilentChatClient(Notes()))),
             TestData.Registry());
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             store,
             new FixedTenantContext(),
@@ -335,7 +335,7 @@ public sealed class CitationRecordingTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry());
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             store,
             new FixedTenantContext(),

@@ -1,6 +1,5 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -13,109 +12,23 @@ namespace Tracon;
 /// </remarks>
 internal sealed class RunRecordingAgentDecorator : IAgentDecorator
 {
-    private readonly IRunStore _runStore;
-    private readonly ITenantContext _tenantContext;
-    private readonly IOptions<TraconOptions> _options;
+    private readonly RunRecordingServices _services;
     private readonly ILogger<RunRecordingAgent> _logger;
-    private readonly TraconMetrics? _metrics;
-    private readonly RunTraceCollector? _traceCollector;
-    private readonly TimeProvider? _timeProvider;
-    private readonly IRunPricingResolver? _pricingResolver;
-    private readonly QuotaEnforcer? _quotaEnforcer;
-    private readonly IWebhookPublisher? _webhookPublisher;
-    private readonly IRunCancellationRegistry? _cancellationRegistry;
-    private readonly IRunErrorClassifier? _errorClassifier;
-    private readonly IRunInputStore? _runInputStore;
-    private readonly RunSampler? _runSampler;
-    private readonly ContentGuardPipeline? _contentGuardPipeline;
-    private readonly IRunAttributionContext? _attributionContext;
-    private readonly IReadOnlyList<IRunEventSink> _sinks;
-    private readonly ToolApprovalPresenterRunner? _approvalPresenterRunner;
 
     /// <summary>Creates a new recording decorator.</summary>
-    /// <param name="runStore">The store the events are written to.</param>
-    /// <param name="tenantContext">The tenant context.</param>
-    /// <param name="options">The Tracon settings.</param>
+    /// <param name="services">
+    /// The services and settings every recorder of a run shares. The container builds all of them
+    /// (<see cref="RunRecordingServices.Create"/>); a member left out of a hand-built instance switches its feature off.
+    /// </param>
     /// <param name="logger">The logger.</param>
-    /// <param name="metrics">The metric instruments.</param>
-    /// <param name="traceCollector">The span collector.</param>
-    /// <param name="timeProvider">The time source.</param>
-    /// <param name="pricingResolver">The cost resolver. If <see langword="null"/>, cost is not computed.</param>
-    /// <param name="quotaEnforcer">The quota accountant. If <see langword="null"/>, consumption is not counted.</param>
-    /// <param name="webhookPublisher">The event publisher. If <see langword="null"/>, no events are published.</param>
-    /// <param name="cancellationRegistry">
-    /// The cancellation registry. If <see langword="null"/>, the run cannot be canceled
-    /// from outside.
-    /// </param>
-    /// <param name="errorClassifier">
-    /// The error classifier. If <see langword="null"/>, no error class/fingerprint is
-    /// computed.
-    /// </param>
-    /// <param name="runInputStore">
-    /// The input store. If <see langword="null"/>, input is not recorded and replay
-    /// does not work.
-    /// </param>
-    /// <param name="runSampler">The online evaluation sampler. If <see langword="null"/>, no run is sampled.</param>
-    /// <param name="contentGuardPipeline">
-    /// The content guard pipeline. If <see langword="null"/>, recorded
-    /// input is written without inspection. See the note in the <see cref="RunRecordingAgent"/> constructor.
-    /// </param>
-    /// <param name="attributionContext">
-    /// The attribution context. If <see langword="null"/>, the run records no user and no labels.
-    /// </param>
-    /// <param name="sinks">
-    /// The run event observers. If <see langword="null"/> or empty, every event
-    /// goes to <paramref name="runStore"/> only.
-    /// </param>
-    /// <param name="approvalPresenterRunner">
-    /// Resolves the <see cref="ToolApprovalPresentation"/> of a pending tool call. If
-    /// <see langword="null"/>, no presentation is resolved and behavior is identical to
-    /// before <see cref="IToolApprovalPresenter"/> existed.
-    /// </param>
-    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
-    public RunRecordingAgentDecorator(
-        IRunStore runStore,
-        ITenantContext tenantContext,
-        IOptions<TraconOptions> options,
-        ILogger<RunRecordingAgent> logger,
-        TraconMetrics? metrics = null,
-        RunTraceCollector? traceCollector = null,
-        TimeProvider? timeProvider = null,
-        IRunPricingResolver? pricingResolver = null,
-        QuotaEnforcer? quotaEnforcer = null,
-        IWebhookPublisher? webhookPublisher = null,
-        IRunCancellationRegistry? cancellationRegistry = null,
-        IRunErrorClassifier? errorClassifier = null,
-        IRunInputStore? runInputStore = null,
-        RunSampler? runSampler = null,
-        ContentGuardPipeline? contentGuardPipeline = null,
-        IRunAttributionContext? attributionContext = null,
-        IEnumerable<IRunEventSink>? sinks = null,
-        ToolApprovalPresenterRunner? approvalPresenterRunner = null)
+    /// <exception cref="ArgumentNullException">One of the arguments is <see langword="null"/>.</exception>
+    public RunRecordingAgentDecorator(RunRecordingServices services, ILogger<RunRecordingAgent> logger)
     {
-        ArgumentNullException.ThrowIfNull(runStore);
-        ArgumentNullException.ThrowIfNull(tenantContext);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(logger);
 
-        _runStore = runStore;
-        _tenantContext = tenantContext;
-        _options = options;
+        _services = services;
         _logger = logger;
-        _metrics = metrics;
-        _traceCollector = traceCollector;
-        _timeProvider = timeProvider;
-        _pricingResolver = pricingResolver;
-        _quotaEnforcer = quotaEnforcer;
-        _webhookPublisher = webhookPublisher;
-        _cancellationRegistry = cancellationRegistry;
-        _errorClassifier = errorClassifier;
-        _runInputStore = runInputStore;
-        _runSampler = runSampler;
-        _contentGuardPipeline = contentGuardPipeline;
-        _attributionContext = attributionContext;
-        _sinks = sinks?.ToArray() ?? [];
-        _approvalPresenterRunner = approvalPresenterRunner;
     }
 
     /// <inheritdoc />
@@ -128,34 +41,17 @@ internal sealed class RunRecordingAgentDecorator : IAgentDecorator
 
         return new RunRecordingAgent(
             agent,
-            _runStore,
-            _tenantContext,
-            _options.Value.RunRecording,
-            _logger,
-            _metrics,
-            _traceCollector,
-            // The model name comes from the catalog descriptor. It may be
-            // unknown for code-defined agents; in that case the run record
-            // carries no model and is excluded from the model breakdown.
-            descriptor?.Model?.Model,
-            // The provider is used only for cost resolution and is not
-            // persisted.
-            descriptor?.Model?.Provider,
-            _timeProvider,
-            _options.Value.AgentGraph,
-            descriptor?.Version,
-            _options.Value.Observability.IncludeAgentVersionTag,
-            _pricingResolver,
-            _quotaEnforcer,
-            _webhookPublisher,
-            _cancellationRegistry,
-            _errorClassifier,
-            _runInputStore,
-            _runSampler,
-            _contentGuardPipeline,
-            _attributionContext,
-            _sinks,
-            _approvalPresenterRunner,
-            _options.Value.Pricing.Currency);
+            _services,
+            new RecordedAgentIdentity(
+                // The model name comes from the catalog descriptor. It may be
+                // unknown for code-defined agents; in that case the run record
+                // carries no model and is excluded from the model breakdown.
+                descriptor?.Model?.Model,
+
+                // The provider is used only for cost resolution and is not
+                // persisted.
+                descriptor?.Model?.Provider,
+                descriptor?.Version),
+            _logger);
     }
 }

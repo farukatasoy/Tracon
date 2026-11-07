@@ -158,8 +158,11 @@ public sealed class CallableAgentPinCompilationTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            callableAgents: new CallableAgentResolver(catalog),
-            tenantContext: tenantContext);
+            new AgentCompilationServices
+            {
+                CallableAgents = new CallableAgentResolver(catalog),
+                TenantContext = tenantContext,
+            });
 
         return new Rig(compiler, store);
     }

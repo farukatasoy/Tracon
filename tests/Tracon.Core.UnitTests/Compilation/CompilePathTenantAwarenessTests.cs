@@ -52,8 +52,11 @@ public sealed class CompilePathTenantAwarenessTests
         var compiler = new AgentDefinitionCompiler(
             registry,
             TestData.Registry(),
-            utilityModel: TestData.Binding(model: "utility-model"),
-            judgeOptions: new ModelRunJudgeOptions { Model = TestData.Binding(model: "judge-model") });
+            new AgentCompilationServices
+            {
+                UtilityModel = TestData.Binding(model: "utility-model"),
+                JudgeOptions = new ModelRunJudgeOptions { Model = TestData.Binding(model: "judge-model") },
+            });
 
         var agent = await compiler.CompileAsync(ProbeDefinition(probe), CancellationToken.None);
 

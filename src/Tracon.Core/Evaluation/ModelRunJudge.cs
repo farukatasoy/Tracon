@@ -17,9 +17,10 @@ namespace Tracon;
 /// and is recorded as <see cref="RunKind.Eval"/>, like every case run from
 /// <c>EvalJobHandler</c>. This computes cost automatically and excludes the row
 /// from <c>RunStatistics</c>, so the evaluated agent's cost does not grow and no
-/// new column is needed. The recording decorator deliberately disables quota
-/// enforcement with <c>quotaEnforcer: null</c> and event publishing with
-/// <c>webhookPublisher: null</c>. A judge is a control-plane cost, does not use
+/// new column is needed. The recorder is built from
+/// <see cref="RunRecordingServices.ForControlPlaneRun"/>, which leaves out quota
+/// enforcement and event publishing (and the sampler, the sinks and the
+/// guard). A judge is a control-plane cost, does not use
 /// the user's quota, and does not publish its own <c>run.completed</c> noise.
 /// </para>
 /// <para>
@@ -32,19 +33,14 @@ namespace Tracon;
 internal sealed class ModelRunJudge(
     IModelProviderRegistry modelProviders,
     IOptionsMonitor<ModelRunJudgeOptions> optionsMonitor,
-    IRunStore runStore,
-    ITenantContext tenantContext,
-    IOptions<TraconOptions> traconOptions,
+    RunRecordingServices recording,
     ILoggerFactory loggerFactory,
-    TraconMetrics? metrics = null,
-    RunTraceCollector? traceCollector = null,
-    TimeProvider? timeProvider = null,
-    IRunPricingResolver? pricingResolver = null,
-    IRunErrorClassifier? errorClassifier = null,
-    IRunInputStore? runInputStore = null,
     IServiceProvider? services = null) : IRunJudge
 {
     private static readonly JsonElement JudgmentSchema = BuildSchema();
+
+    // The judge's own run is not the user's: no quota, no webhook, no cancellation from outside, no sampling.
+    private readonly RunRecordingServices _recording = recording.ForControlPlaneRun();
 
     /// <inheritdoc />
     public string Name => "model";
@@ -117,25 +113,10 @@ internal sealed class ModelRunJudge(
         // This wrapper records the judge's own run. Quota enforcement and webhook
         // publishing are deliberately not supplied; see the class documentation.
         var recordingAgent = new RunRecordingAgent(
-            innerAgent: innerAgent,
-            runStore: runStore,
-            tenantContext: tenantContext,
-            options: traconOptions.Value.RunRecording,
-            logger: loggerFactory.CreateLogger<RunRecordingAgent>(),
-            metrics: metrics,
-            traceCollector: traceCollector,
-            modelId: options.Model.Model,
-            modelProvider: options.Model.Provider,
-            timeProvider: timeProvider,
-            graphOptions: traconOptions.Value.AgentGraph,
-            agentVersion: null,
-            includeAgentVersionTag: false,
-            pricingResolver: pricingResolver,
-            quotaEnforcer: null,
-            webhookPublisher: null,
-            cancellationRegistry: null,
-            errorClassifier: errorClassifier,
-            runInputStore: runInputStore);
+            innerAgent,
+            _recording,
+            new RecordedAgentIdentity(options.Model.Model, options.Model.Provider, Version: null),
+            loggerFactory.CreateLogger<RunRecordingAgent>());
 
         var response = await recordingAgent
             .RunAsync(
@@ -155,14 +136,14 @@ internal sealed class ModelRunJudge(
         // written it to the general `tracon.run.cost` counter for the judge's
         // own row. Resolving it again through the same inexpensive in-memory lookup
         // does not inflate the evaluated agent's summary; it adds a judge-specific metric.
-        var judgeCost = usage is not null ? pricingResolver?.Resolve(options.Model.Provider, options.Model.Model, usage) : null;
+        var judgeCost = usage is not null ? _recording.PricingResolver?.Resolve(options.Model.Provider, options.Model.Model, usage) : null;
 
         if (judgeCost is { Source: not PricingSource.Unknown } cost)
         {
-            metrics?.RecordJudgeCost(
+            _recording.Metrics?.RecordJudgeCost(
                 Name,
                 options.Model.Model,
-                tenantContext.TenantId,
+                _recording.TenantContext.TenantId,
                 cost.Total() ?? 0m,
                 cost.Currency ?? "unknown");
         }

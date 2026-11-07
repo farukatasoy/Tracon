@@ -120,7 +120,7 @@ internal sealed class SweepWorld
         // The run store's own calls are counted; the rows the agents write (their wrapper writes them straight to
         // the store) are not, as in the sweep of the agent path.
         void AddAgent(string name, AIAgent agent)
-            => agents[name] = new RunRecordingAgent(agent, stores.Runs, tenant, new TraconRunRecordingOptions(), NullLogger<RunRecordingAgent>.Instance);
+            => agents[name] = TestRunRecording.Agent(agent, stores.Runs, tenant, new TraconRunRecordingOptions(), NullLogger<RunRecordingAgent>.Instance);
 
         var workflowName = ChainName;
 
@@ -240,7 +240,7 @@ internal sealed class SweepWorld
     /// <param name="registry">The registry the runner lists its active runs in.</param>
     /// <returns>The runner.</returns>
     public WorkflowRunner CreateRunner(FaultPlan plan, TimeProvider clock, RunCancellationRegistry registry)
-        => new(
+        => TestWorkflowRunner.Create(
             _catalog,
             FaultProxy<IRunStore>.Create(_stores.Runs, plan),
             FaultProxy<IWorkflowCheckpointStore>.Create(_stores.Checkpoints, plan),

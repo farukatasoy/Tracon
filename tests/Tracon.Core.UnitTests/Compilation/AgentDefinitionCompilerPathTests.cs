@@ -71,8 +71,11 @@ public sealed class AgentDefinitionCompilerPathTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            callableAgents: new CallableAgentResolver(catalog),
-            tenantContext: tenantContext);
+            new AgentCompilationServices
+            {
+                CallableAgents = new CallableAgentResolver(catalog),
+                TenantContext = tenantContext,
+            });
         var definition = TestData.Definition() with { CallableAgents = ["sub"] };
         var callableAgents = await compiler.ResolveCallableAgentsAsync(definition, CancellationToken.None);
 
@@ -99,8 +102,11 @@ public sealed class AgentDefinitionCompilerPathTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            callableAgents: new CallableAgentResolver(catalog),
-            tenantContext: tenantContext);
+            new AgentCompilationServices
+            {
+                CallableAgents = new CallableAgentResolver(catalog),
+                TenantContext = tenantContext,
+            });
         var definition = TestData.Definition() with { CallableAgents = ["sub"] };
         var callableAgents = await compiler.ResolveCallableAgentsAsync(definition, CancellationToken.None);
 
@@ -146,7 +152,10 @@ public sealed class AgentDefinitionCompilerPathTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            definitionStore: store);
+            new AgentCompilationServices
+            {
+                DefinitionStore = store,
+            });
 
         var definition = TestData.Definition() with { SharedInstructionsName = "shared-block" };
 
@@ -170,8 +179,11 @@ public sealed class AgentDefinitionCompilerPathTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            callableAgents: new CallableAgentResolver(catalog),
-            tenantContext: tenantContext);
+            new AgentCompilationServices
+            {
+                CallableAgents = new CallableAgentResolver(catalog),
+                TenantContext = tenantContext,
+            });
         var definition = TestData.Definition() with { CallableAgents = ["sub"] };
 
         var agent = await compiler.CompileParameterizedAsync(definition, culture: null, values: null, CancellationToken.None);
@@ -193,7 +205,7 @@ public sealed class AgentDefinitionCompilerPathTests
             [new FakeModelProvider(name: "openai")],
             tenantContext: tenantContext,
             tenantEgressPolicies: egress);
-        var compiler = new AgentDefinitionCompiler(registry, TestData.Registry(), tenantContext: tenantContext);
+        var compiler = new AgentDefinitionCompiler(registry, TestData.Registry(), new AgentCompilationServices { TenantContext = tenantContext });
 
         var definition = TestData.Definition() with { Model = TestData.Binding(provider: "openai") };
 

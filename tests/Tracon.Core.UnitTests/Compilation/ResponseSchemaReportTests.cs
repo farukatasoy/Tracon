@@ -312,7 +312,7 @@ public sealed class ResponseSchemaReportTests
         var catalog = new FakeAgentCatalog([]);
         var options = Options.Create(new TraconOptions());
         var skills = new AgentSkillCatalog([], new InMemoryAgentSkillStore(), new SingleTenantContext(options), options);
-        var compiler = new AgentDefinitionCompiler(models, tools, skills: skills, callableAgents: new CallableAgentResolver(catalog));
+        var compiler = new AgentDefinitionCompiler(models, tools, new AgentCompilationServices { Skills = skills, CallableAgents = new CallableAgentResolver(catalog) });
 
         return await new AgentDefinitionValidator(models, tools, skills, catalog, compiler, options)
             .ValidateAsync(definition, TestContext.Current.CancellationToken);

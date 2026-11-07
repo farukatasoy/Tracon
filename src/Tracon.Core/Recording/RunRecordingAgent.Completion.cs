@@ -59,9 +59,9 @@ public sealed partial class RunRecordingAgent
         IReadOnlyList<ToolApprovalRequestContent> requests,
         RunScope scope,
         CancellationToken cancellationToken)
-        => _approvalPresenterRunner is null
+        => _services.ApprovalPresenterRunner is null
             ? EmptyPresentations
-            : await _approvalPresenterRunner
+            : await _services.ApprovalPresenterRunner
                 .ResolveAllAsync(requests, scope.TenantId, scope.AgentName, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -168,7 +168,7 @@ public sealed partial class RunRecordingAgent
     {
         // 🚨 The classifier is called ONLY when there is an error: on a successful run
         // (error is null) it never fires on the hot path.
-        if (error is not null && _errorClassifier is not null)
+        if (error is not null && _services.ErrorClassifier is not null)
         {
             var classification = ClassifyOrFallback(error);
             error = error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
@@ -189,7 +189,7 @@ public sealed partial class RunRecordingAgent
         foreach (var unfinished in scope.Tools.DrainUnfinished("The run ended before the tool result arrived."))
         {
             await scope.Writer.RecordToolInvocationAsync(unfinished, cancellationToken).ConfigureAwait(false);
-            _metrics?.RecordToolInvocation(unfinished.ToolName, succeeded: false, unfinished.Duration);
+            _services.Metrics?.RecordToolInvocation(unfinished.ToolName, succeeded: false, unfinished.Duration);
         }
 
         // What the run's tools measured beyond tokens is read ONCE, here, after the
@@ -218,22 +218,22 @@ public sealed partial class RunRecordingAgent
         // FallbackChatClient through the ambient TraconRunContext, the
         // same pattern AgentRunScope.ToolUsage uses — the model
         // that actually ran is not known until the call already happened,
-        // long after this instance's own _modelId/_modelProvider were fixed
+        // long after this instance's own _identity.ModelId/_identity.ModelProvider were fixed
         // at agent-compile time. Every downstream consumer of "the model"
         // below uses this override so cost, metrics, and runs.model_id all
         // agree with what really ran, not with the primary binding.
         var fallbackUsed = scope.FallbackAttribution?.Current;
-        var modelProvider = fallbackUsed?.Provider ?? _modelProvider;
-        var modelId = fallbackUsed?.Model ?? _modelId;
+        var modelProvider = fallbackUsed?.Provider ?? _identity.ModelProvider;
+        var modelId = fallbackUsed?.Model ?? _identity.ModelId;
 
         // The cost is calculated HERE, once, when the run ends — the price is a
         // snapshot: if the price
         // list changes later, the cost of this run does not change. Each model's
         // share is priced at that model; with no other model it is exactly the
         // resolver's answer for the agent's model (RunCostCombiner).
-        var cost = _pricingResolver is null
+        var cost = _services.PricingResolver is null
             ? null
-            : RunCostCombiner.Resolve(_pricingResolver, modelProvider, modelId, agentUsage, otherModels);
+            : RunCostCombiner.Resolve(_services.PricingResolver, modelProvider, modelId, agentUsage, otherModels);
 
         // 🚨 Quota accounting runs BEFORE the terminal write:
         // consumption is real the moment it is spent — the tokens
@@ -281,7 +281,7 @@ public sealed partial class RunRecordingAgent
         // them is built through the same ModelProviderRegistry pipeline that ring
         // sits in. Recording the merged total here a second time would double
         // every tree's spend.
-        var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
+        var elapsed = _services.TimeProvider.GetElapsedTime(scope.StartedAt);
 
         // 🚨 Event publication runs ONLY on a root run. A child run is part of the same
         // user request; a separate run.completed event would be emitted for every node.
@@ -291,14 +291,14 @@ public sealed partial class RunRecordingAgent
             await SampleForOnlineEvalAsync(scope, status, cancellationToken).ConfigureAwait(false);
         }
 
-        _metrics?.RecordRun(
+        _services.Metrics?.RecordRun(
             scope.AgentName,
             status,
             scope.TenantId,
             modelId,
             elapsed,
             usage,
-            agentVersion: _includeAgentVersionTag ? scope.AgentVersion : null);
+            agentVersion: _services.IncludeAgentVersionTag ? scope.AgentVersion : null);
 
         // When the price is undefined (Source == Unknown), nothing is emitted: emitting an
         // unknown cost as zero would make the real spend look smaller. The cost is emitted
@@ -306,7 +306,7 @@ public sealed partial class RunRecordingAgent
         // consumed tokens is already spent.
         if (cost is { Source: not PricingSource.Unknown } knownCost)
         {
-            _metrics?.RecordCost(
+            _services.Metrics?.RecordCost(
                 scope.AgentName,
                 modelId,
                 scope.TenantId,
@@ -345,9 +345,9 @@ public sealed partial class RunRecordingAgent
         // FIRST -- the spans of the whole tree would attach to the child run and the root
         // run would stay empty. Measured: on a real call the /trace endpoint of
         // the root returned 404 while the one of the child run was full.
-        if (_traceCollector is not null && scope.OwnsTrace)
+        if (_services.TraceCollector is not null && scope.OwnsTrace)
         {
-            await _traceCollector.CompleteRunAsync(
+            await _services.TraceCollector.CompleteRunAsync(
                 scope.Activity.TraceId.ToString(),
                 scope.Activity.SpanId.ToString(),
                 scope.Writer.RunId,
@@ -360,7 +360,7 @@ public sealed partial class RunRecordingAgent
     }
 
     /// <summary>
-    /// Calls <see cref="_errorClassifier"/>, falling back to Tracon's
+    /// Calls the error classifier of the services, falling back to Tracon's
     /// built-in classification if it throws.
     /// </summary>
     /// <remarks>
@@ -377,7 +377,7 @@ public sealed partial class RunRecordingAgent
     {
         try
         {
-            return _errorClassifier!.Classify(error);
+            return _services.ErrorClassifier!.Classify(error);
         }
         catch (Exception exception)
         {

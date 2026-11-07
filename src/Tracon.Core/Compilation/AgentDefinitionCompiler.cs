@@ -47,6 +47,7 @@ public sealed partial class AgentDefinitionCompiler
 {
     private readonly IModelProviderRegistry _models;
     private readonly IToolRegistry _tools;
+    private readonly AgentCompilationServices _context;
     private readonly ILoggerFactory? _loggerFactory;
     private readonly IServiceProvider? _services;
     private readonly ChatHistoryProvider? _chatHistoryProvider;
@@ -78,157 +79,52 @@ public sealed partial class AgentDefinitionCompiler
     /// <summary>Creates a new compiler.</summary>
     /// <param name="models">Model provider registry.</param>
     /// <param name="tools">Tool registry.</param>
-    /// <param name="loggerFactory">Logger factory passed to the produced agents.</param>
-    /// <param name="services">Service provider passed to the produced agents.</param>
-    /// <param name="chatHistoryProvider">
-    /// Chat history provider attached to the produced agents. When <see langword="null"/>,
-    /// Microsoft Agent Framework's in-memory default is used and history is
-    /// carried inside the session state.
-    /// </param>
-    /// <param name="skills">Catalog that resolves skill sources.</param>
-    /// <param name="scripts">
-    /// Skill script support. When <see langword="null"/>, no script can run;
-    /// the feature is turned on with <c>UseSkillScripts</c>.
-    /// </param>
-    /// <param name="callableAgents">
-    /// Resolver for callable sub-agents. When <see langword="null"/>, no agent
-    /// can call another agent.
-    /// </param>
-    /// <param name="tenantContext">
-    /// Tenant context. Used to verify that sub-calls do not change tenant.
-    /// </param>
-    /// <param name="utilityModel">
-    /// Default model for summarization in context compaction. Used when an
-    /// agent does not supply its own <c>CompactionSettings.SummarizationModel</c>;
-    /// when <see langword="null"/>, falls back to the agent's own model.
-    /// </param>
-    /// <param name="fileStore">
-    /// File store used by memory providers. When <see langword="null"/>, a
-    /// definition requesting <c>MemorySettings.EnableFileMemory</c>/<c>EnableTextSearch</c>
-    /// gets a compilation error.
-    /// </param>
-    /// <param name="mcpResources">
-    /// Factory that builds the context provider for
-    /// <see cref="AgentDefinition.McpResourceUris"/> (Mode A). When <see langword="null"/>,
-    /// a definition requesting an MCP resource gets a compilation error.
-    /// </param>
-    /// <param name="vectorSearchStore">
-    /// Semantic search store. When <see langword="null"/>, a
-    /// definition requesting <c>MemorySettings.EnableVectorSearch</c> gets a
-    /// compilation error.
-    /// </param>
-    /// <param name="embeddingGenerator">
-    /// Embedding generator. When <see langword="null"/>, a
-    /// definition requesting <c>MemorySettings.EnableVectorSearch</c> gets a
-    /// compilation error.
-    /// </param>
-    /// <param name="knowledgeMaxResults">
-    /// Maximum number of results the <c>search_knowledge</c> tool returns.
-    /// </param>
-    /// <param name="definitionStore">
-    /// The definition store, used to resolve <see cref="AgentDefinition.SharedInstructionsName"/>.
-    /// When <see langword="null"/>, a definition that references a shared
-    /// instructions block gets a compilation error.
-    /// </param>
-    /// <param name="agentGraph">
-    /// Tree-wide defaults, including the sub-agent wait limits
-    /// (<see cref="TraconAgentGraphOptions.ChildDeadline"/>/<see cref="TraconAgentGraphOptions.WaitTimeout"/>)
-    /// a definition's own <see cref="AgentDefinition.SubAgents"/> may override.
-    /// When <see langword="null"/>, the type's own defaults apply.
-    /// </param>
-    /// <param name="timeProvider">
-    /// Time source for the sub-agent wait race. Defaults to <see cref="TimeProvider.System"/>.
-    /// </param>
-    /// <param name="loopEvaluators">
-    /// The loop stop criteria registered in code with
-    /// <c>ITraconBuilder.AddLoopEvaluator</c>. A definition whose
-    /// <see cref="LoopSettings.Criteria"/> names a kind that is neither built in
-    /// nor registered here gets a compilation error.
-    /// </param>
-    /// <param name="judgeOptions">
-    /// The judge binding configured with <c>AddModelRunJudge</c>. It is the model
-    /// an <c>aiJudge</c> loop criterion calls. When <see langword="null"/> or
-    /// unconfigured, that criterion gets a compilation error rather than
-    /// borrowing the agent's own model.
-    /// </param>
-    /// <param name="tenantEgressPolicies">
-    /// The tenant egress policy store. Its policy for the current tenant enters
-    /// the compiled-agent cache key, so a policy saved after an agent was cached
-    /// reaches the next resolve. When <see langword="null"/>, the key carries no
-    /// policy.
-    /// </param>
-    /// <param name="agentExtensions">
-    /// The agent extensions registered in code with <c>ITraconBuilder.AddAgentExtension</c>.
-    /// A definition whose <see cref="AgentDefinition.ExtensionNames"/> names one that is
-    /// not registered here gets a compilation error. No extension runs until an agent that
-    /// names it is compiled.
-    /// </param>
-    /// <param name="hostedTools">
-    /// The hosted tools registered in code with <c>ITraconBuilder.AddHostedTool</c>. A definition that
-    /// selects one gets the tool its factory builds for the tenant; the factory runs only when such an
-    /// agent is compiled. When <see langword="null"/>, no hosted tool is registered.
-    /// </param>
-    /// <param name="maxToolsPerAgent">
-    /// The most tools one agent may carry (<see cref="TraconToolOptions.MaxToolsPerAgent"/>); an agent over it does not compile.
+    /// <param name="context">
+    /// The optional services and settings the compiler works with. When <see langword="null"/>, none is set: no skill
+    /// script runs, no agent calls another agent, and a definition that asks for memory, an MCP resource or a shared
+    /// instructions block gets a compilation error that names what is missing. See <see cref="AgentCompilationServices"/>.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     internal AgentDefinitionCompiler(
         IModelProviderRegistry models,
         IToolRegistry tools,
-        ILoggerFactory? loggerFactory = null,
-        IServiceProvider? services = null,
-        ChatHistoryProvider? chatHistoryProvider = null,
-        AgentSkillCatalog? skills = null,
-        SkillScriptSupport? scripts = null,
-        CallableAgentResolver? callableAgents = null,
-        ITenantContext? tenantContext = null,
-        ModelBinding? utilityModel = null,
-        AgentFileStore? fileStore = null,
-        IMcpResourceContextProviderFactory? mcpResources = null,
-        IVectorSearchStore? vectorSearchStore = null,
-        IEmbeddingGenerator<string, Embedding<float>>? embeddingGenerator = null,
-        int knowledgeMaxResults = 5,
-        IAgentDefinitionStore? definitionStore = null,
-        TraconAgentGraphOptions? agentGraph = null,
-        TimeProvider? timeProvider = null,
-        IEnumerable<TraconLoopEvaluatorRegistration>? loopEvaluators = null,
-        ModelRunJudgeOptions? judgeOptions = null,
-        ITenantEgressPolicyStore? tenantEgressPolicies = null,
-        IEnumerable<IAgentExtension>? agentExtensions = null,
-        HostedToolRegistry? hostedTools = null,
-        int maxToolsPerAgent = TraconToolOptions.DefaultMaxToolsPerAgent)
+        AgentCompilationServices? context = null)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
         ArgumentNullException.ThrowIfNull(tools);
 
+        context ??= AgentCompilationServices.Empty;
+
         _models = models;
         _tools = tools;
-        _loggerFactory = loggerFactory;
-        _services = services;
-        _chatHistoryProvider = chatHistoryProvider;
-        _skills = skills;
-        _scripts = scripts;
-        _callableAgents = callableAgents;
-        _tenantContext = tenantContext;
-        _utilityModel = utilityModel;
-        _fileStore = fileStore;
-        _mcpResources = mcpResources;
-        _vectorSearchStore = vectorSearchStore;
-        _embeddingGenerator = embeddingGenerator;
-        _knowledgeMaxResults = knowledgeMaxResults;
-        _definitionStore = definitionStore;
-        _agentGraph = agentGraph ?? new TraconAgentGraphOptions();
-        _timeProvider = timeProvider;
+        _context = context;
+        _loggerFactory = context.LoggerFactory;
+        _services = context.Provider;
+        _chatHistoryProvider = context.ChatHistoryProvider;
+        _skills = context.Skills;
+        _scripts = context.Scripts;
+        _callableAgents = context.CallableAgents;
+        _tenantContext = context.TenantContext;
+        _utilityModel = context.UtilityModel;
+        _fileStore = context.FileStore;
+        _mcpResources = context.McpResources;
+        _vectorSearchStore = context.VectorSearchStore;
+        _embeddingGenerator = context.EmbeddingGenerator;
+        _knowledgeMaxResults = context.KnowledgeMaxResults;
+        _definitionStore = context.DefinitionStore;
+        _agentGraph = context.AgentGraph;
+        _timeProvider = context.TimeProvider;
+
         // The registry stores the factories registered in code and calls none of
         // them here: this constructor runs inside the catalog's own construction
         // chain, and a criterion that needs the catalog would close the cycle.
-        _loopEvaluators = new LoopEvaluatorRegistry(loopEvaluators ?? [], models, judgeOptions, loggerFactory, services);
-        _tenantEgressPolicies = tenantEgressPolicies;
-        _agentExtensions = agentExtensions is null ? AgentExtensionRegistry.Empty : new AgentExtensionRegistry(agentExtensions);
-        _hostedTools = hostedTools ?? HostedToolRegistry.Empty;
-        _maxToolsPerAgent = maxToolsPerAgent;
+        _loopEvaluators = new LoopEvaluatorRegistry(context.LoopEvaluators ?? [], models, context.JudgeOptions, context.LoggerFactory, context.Provider);
+        _tenantEgressPolicies = context.TenantEgressPolicies;
+        _agentExtensions = context.AgentExtensions is null ? AgentExtensionRegistry.Empty : new AgentExtensionRegistry(context.AgentExtensions);
+        _hostedTools = context.HostedTools ?? HostedToolRegistry.Empty;
+        _maxToolsPerAgent = context.MaxToolsPerAgent;
     }
 
     /// <summary>

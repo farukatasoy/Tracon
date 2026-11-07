@@ -76,7 +76,7 @@ public sealed class AgentToolLimitTests
         var registry = TestData.Registry([.. names.Select(static name => AIFunctionFactory.Create(() => name, name, "A tool."))]);
         var providers = TestData.Providers(new FakeModelProvider());
         var compiler = limit is { } value
-            ? new AgentDefinitionCompiler(providers, registry, maxToolsPerAgent: value)
+            ? new AgentDefinitionCompiler(providers, registry, new AgentCompilationServices { MaxToolsPerAgent = value })
             : new AgentDefinitionCompiler(providers, registry);
 
         return (compiler, TestData.Definition("many", names));

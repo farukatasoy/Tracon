@@ -190,9 +190,7 @@ public sealed class ModelRunJudgeTests
         var judge = new ModelRunJudge(
             new FixedModelProviderRegistry(chatClient, declared),
             new StaticOptionsMonitor<ModelRunJudgeOptions>(options),
-            runs,
-            new FixedTenantContext(Tenant),
-            Options.Create(new TraconOptions()),
+            TestRunRecording.Services(runs, new FixedTenantContext(Tenant), new TraconRunRecordingOptions()),
             NullLoggerFactory.Instance);
 
         return (judge, runs);
@@ -238,9 +236,7 @@ public sealed class ModelRunJudgeContractTests : RunJudgeContract
         IRunJudge judge = new ModelRunJudge(
             new ContractModelProviderRegistry(chatClient),
             new StaticOptionsMonitor<ModelRunJudgeOptions>(options),
-            new InMemoryRunStore(tenantContext: tenantContext),
-            tenantContext,
-            Options.Create(new TraconOptions()),
+            TestRunRecording.Services(new InMemoryRunStore(tenantContext: tenantContext), tenantContext, new TraconRunRecordingOptions()),
             NullLoggerFactory.Instance);
 
         return ValueTask.FromResult(judge);

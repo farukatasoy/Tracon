@@ -151,7 +151,7 @@ public sealed class CompileCachedAsyncTests
         var skillStore = new InMemoryAgentSkillStore();
         await skillStore.SaveAsync(Skill("billing"));
         var skills = new AgentSkillCatalog([], skillStore, tenantContext, Options.Create(new TraconOptions()));
-        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry(), skills: skills);
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry(), new AgentCompilationServices { Skills = skills });
         var cache = new CompiledAgentCache();
         var definition = TestData.Definition() with { SkillNames = ["billing"] };
 
@@ -174,8 +174,11 @@ public sealed class CompileCachedAsyncTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            callableAgents: callableAgents,
-            tenantContext: new FixedTenantContext(TenantId));
+            new AgentCompilationServices
+            {
+                CallableAgents = callableAgents,
+                TenantContext = new FixedTenantContext(TenantId),
+            });
         var cache = new CompiledAgentCache();
         var definition = TestData.Definition() with { CallableAgents = ["sub"] };
 
@@ -196,7 +199,7 @@ public sealed class CompileCachedAsyncTests
         var tenantContext = new FixedTenantContext(TenantId);
         var store = new InMemoryAgentDefinitionStore(tenantContext);
         await store.SaveAsync(TestData.Definition("shared-block") with { Instructions = "v1" });
-        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry(), definitionStore: store);
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry(), new AgentCompilationServices { DefinitionStore = store });
         var cache = new CompiledAgentCache();
         var definition = TestData.Definition() with { SharedInstructionsName = "shared-block" };
 

@@ -11,17 +11,6 @@ namespace Tracon;
 public sealed partial class RunRecordingAgent
 {
     /// <summary>
-    /// Resolves the identifier of the run and opens the root span.
-    /// </summary>
-    /// <remarks>
-    /// <strong>This method is synchronous and must stay synchronous.</strong>
-    /// <see cref="Activity.Current"/> is an <c>AsyncLocal</c>: an assignment made inside
-    /// an async method does not flow back to the caller when that method returns. If the
-    /// span is opened here but is not held in the body of the calling method, the spans of
-    /// the inner wrappers and of the model calls become <em>siblings</em> of the root span
-    /// instead of <em>children</em>, and the waterfall view draws a wrong hierarchy.
-    /// </remarks>
-    /// <summary>
     /// Returns the options to hand to the inner agent.
     /// </summary>
     /// <param name="options">The options the caller passed to this agent.</param>
@@ -81,6 +70,17 @@ public sealed partial class RunRecordingAgent
         return inner;
     }
 
+    /// <summary>
+    /// Resolves the identifier of the run and opens the root span.
+    /// </summary>
+    /// <remarks>
+    /// <strong>This method is synchronous and must stay synchronous.</strong>
+    /// <see cref="Activity.Current"/> is an <c>AsyncLocal</c>: an assignment made inside
+    /// an async method does not flow back to the caller when that method returns. If the
+    /// span is opened here but is not held in the body of the calling method, the spans of
+    /// the inner wrappers and of the model calls become <em>siblings</em> of the root span
+    /// instead of <em>children</em>, and the waterfall view draws a wrong hierarchy.
+    /// </remarks>
     private RunStart PrepareRun(AgentSession? session, AgentRunOptions? options, bool isStreaming)
     {
         // When the caller supplies the identifier, that one is used. A streaming endpoint
@@ -89,7 +89,7 @@ public sealed partial class RunRecordingAgent
         var runOptions = options as TraconRunOptions;
         var runId = runOptions?.RunId ?? TraconId.NewId();
         var agentName = Name ?? InnerAgent.Id;
-        var tenantId = _tenantContext.TenantId;
+        var tenantId = _services.TenantContext.TenantId;
 
         // 🚨 Attribution is resolved HERE, in a SYNCHRONOUS body, for the same
         // reason the span and the run scope are: AmbientRunAttributionScope is an
@@ -114,12 +114,12 @@ public sealed partial class RunRecordingAgent
                 activity.SetTag(TraconDiagnostics.Tags.SessionId, sessionId);
             }
 
-            if (_modelId is not null)
+            if (_identity.ModelId is not null)
             {
-                activity.SetTag(TraconDiagnostics.Tags.ModelId, _modelId);
+                activity.SetTag(TraconDiagnostics.Tags.ModelId, _identity.ModelId);
             }
 
-            if (agentVersion is { } version && _includeAgentVersionTag)
+            if (agentVersion is { } version && _services.IncludeAgentVersionTag)
             {
                 activity.SetTag(TraconDiagnostics.Tags.AgentVersion, version);
             }
@@ -135,7 +135,7 @@ public sealed partial class RunRecordingAgent
             // root span naturally.
             if (depth == 0)
             {
-                _traceCollector?.BeginRun(activity.TraceId.ToString(), activity.SpanId.ToString());
+                _services.TraceCollector?.BeginRun(activity.TraceId.ToString(), activity.SpanId.ToString());
             }
         }
 
@@ -144,9 +144,9 @@ public sealed partial class RunRecordingAgent
         // does not flow back to the caller; if the writer were created there, a child call
         // could not see the writer in the scope and could not write its summary events into
         // the root stream.
-        var writer = new RunEventWriter(_runStore, _options, _logger, runId, _metrics, _sinks, _timeProvider);
+        var writer = _services.CreateWriter(runId, _logger);
 
-        var budget = runOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null);
+        var budget = runOptions?.Budget ?? (depth == 0 ? _services.AgentGraph.CreateBudget(_services.TimeProvider) : null);
 
         // The root names the counter its whole tree adds to, once, on the budget every
         // run in the tree shares. A child that ends after the root, in a task that carries
@@ -154,7 +154,7 @@ public sealed partial class RunRecordingAgent
         // Assigned afresh by every root, so a reused budget never keeps an earlier root's tenant.
         if (depth == 0 && budget is not null)
         {
-            budget.Account = new TreeAccount(tenantId, agentName, attribution.UserId, _quotaEnforcer);
+            budget.Account = new TreeAccount(tenantId, agentName, attribution.UserId, _services.QuotaEnforcer);
         }
 
         var scope = new AgentRunScope
@@ -187,13 +187,13 @@ public sealed partial class RunRecordingAgent
 
             // What the tools of this run measure beyond tokens adds up here and
             // reaches the tree's budget the moment it does.
-            NonTokenCost = new NonTokenCostAccumulator(_pricingCurrency, budget),
+            NonTokenCost = new NonTokenCostAccumulator(_services.PricingCurrency, budget),
             ToolAuthorization = new ToolAuthorizationAccumulator(),
             ToolExplainedFailures = new ToolExplainedFailureAccumulator(),
 
             // Made here with the rest of the scope, never by the tool chain: a layer that opened a scope in an
             // async helper would leave this ledger empty for the recorder that reads it.
-            ToolCalls = new ToolCallLedger(_timeProvider),
+            ToolCalls = new ToolCallLedger(_services.TimeProvider),
             FallbackAttribution = new FallbackModelAttribution(),
             AgentVersion = agentVersion,
             ExperimentId = runOptions?.ExperimentId,
@@ -262,7 +262,7 @@ public sealed partial class RunRecordingAgent
             new ToolInvocationTracker(
                 start.Scope.RunId,
                 start.IsStreaming,
-                _timeProvider,
+                _services.TimeProvider,
                 start.Scope.ToolUsage,
                 start.Scope.TenantId,
                 start.Scope.ToolAuthorization,
@@ -270,7 +270,7 @@ public sealed partial class RunRecordingAgent
                 start.Scope.ToolCalls),
             start.Scope.AgentName!,
             start.Scope.TenantId!,
-            _timeProvider.GetTimestamp(),
+            _services.TimeProvider.GetTimestamp(),
             start.Scope.Budget,
             start.Scope.ExtraUsage,
             OwnsTrace: start.Scope.Depth == 0,
@@ -298,7 +298,7 @@ public sealed partial class RunRecordingAgent
     /// </remarks>
     private (string? UserId, IReadOnlyDictionary<string, string>? Labels) ResolveAttribution(Guid runId)
         => RunAttributionReader.Read(
-            _attributionContext,
+            _services.AttributionContext,
             (message, exception) => _logger.LogWarning(
                 exception,
                 "{Message} Run {RunId} continues and is recorded with no user and no labels.",

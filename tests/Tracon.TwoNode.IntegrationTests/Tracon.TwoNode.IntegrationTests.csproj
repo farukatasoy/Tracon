@@ -79,6 +79,7 @@
       the plan that numbers the awaited calls of a run. Here it runs where a cancel meets a real server.
     -->
     <Compile Include="../Shared/Workflows/*.cs" LinkBase="Shared/Workflows" />
+    <Compile Include="../Shared/Recording/TestRunRecording.cs" Link="Shared/Recording/TestRunRecording.cs" />
     <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
   </ItemGroup>
 

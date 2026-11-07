@@ -327,6 +327,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.ToolRegistrationValidationService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Factory",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Factory",
+        "Tracon.RunRecordingServices | Singleton | Factory",
         "Tracon.IAgentDecorator | Singleton | Factory",
         "Tracon.IAgentDecorator | Singleton | Tracon.OpenTelemetryAgentDecorator",
         "Tracon.IAgentDecorator | Singleton | Tracon.ToolApprovalAgentDecorator",

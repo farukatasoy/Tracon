@@ -51,8 +51,11 @@ public sealed class SessionWorkspaceCompileTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            tenantContext: new FixedTenantContext("tenant-a"),
-            agentExtensions: [new DelegateAgentExtension("probe", context => providers = context.ChatAgentOptions!.AIContextProviders, null)]);
+            new AgentCompilationServices
+            {
+                TenantContext = new FixedTenantContext("tenant-a"),
+                AgentExtensions = [new DelegateAgentExtension("probe", context => providers = context.ChatAgentOptions!.AIContextProviders, null)],
+            });
 
         _ = compiler.Compile(Definition() with
         {
@@ -69,8 +72,11 @@ public sealed class SessionWorkspaceCompileTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            services: WorkspaceTestSupport.Services(),
-            tenantContext: new FixedTenantContext("tenant-a"));
+            new AgentCompilationServices
+            {
+                Provider = WorkspaceTestSupport.Services(),
+                TenantContext = new FixedTenantContext("tenant-a"),
+            });
 
         var failure = Should.Throw<TraconCompilationException>(() => compiler.Compile(Definition() with { Workspace = On }));
 
@@ -84,9 +90,12 @@ public sealed class SessionWorkspaceCompileTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            services: null,
-            tenantContext: new FixedTenantContext("tenant-a"),
-            fileStore: new InMemoryAgentFileStore());
+            new AgentCompilationServices
+            {
+                Provider = null,
+                TenantContext = new FixedTenantContext("tenant-a"),
+                FileStore = new InMemoryAgentFileStore(),
+            });
 
         Should.Throw<TraconCompilationException>(() => compiler.Compile(Definition() with { Workspace = On }))
             .Message.ShouldContain("AddTracon");
@@ -160,9 +169,12 @@ public sealed class SessionWorkspaceCompileTests
         => new(
             TestData.Providers(new FakeModelProvider()),
             registry ?? TestData.Registry(),
-            services: WorkspaceTestSupport.Services(),
-            tenantContext: new FixedTenantContext("tenant-a"),
-            fileStore: new InMemoryAgentFileStore(),
-            agentExtensions: extension is null ? null : [extension]);
+            new AgentCompilationServices
+            {
+                Provider = WorkspaceTestSupport.Services(),
+                TenantContext = new FixedTenantContext("tenant-a"),
+                FileStore = new InMemoryAgentFileStore(),
+                AgentExtensions = extension is null ? null : [extension],
+            });
 }
 #pragma warning restore MAAI001

@@ -537,7 +537,7 @@ public sealed class ChildAgentInvokerTests
             TestData.Providers(new FakeModelProvider(chatClient)),
             TestData.Registry(tools));
 
-        var inner = new RunRecordingAgent(
+        var inner = TestRunRecording.Agent(
             compiler.Compile(TestData.Definition(
                 name: "researcher",
                 toolNames: [.. tools.Select(static tool => tool.Name)])),

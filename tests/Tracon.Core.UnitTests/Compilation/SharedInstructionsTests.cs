@@ -122,7 +122,10 @@ public sealed class SharedInstructionsTests
         => new(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            definitionStore: definitionStore);
+            new AgentCompilationServices
+            {
+                DefinitionStore = definitionStore,
+            });
 
     private sealed class MutableTenantContext(string tenantId) : ITenantContext
     {

@@ -486,7 +486,7 @@ public sealed class RunRecordingAgentTests
             new ModelProviderRegistry([mainProvider, summarizerProvider]),
             Options.Create(new TraconOptions()));
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             new FixedTenantContext(),
@@ -545,7 +545,7 @@ public sealed class RunRecordingAgentTests
             new ModelProviderRegistry([pricedProvider]),
             Options.Create(new TraconOptions()));
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             new FixedTenantContext(),
@@ -580,7 +580,7 @@ public sealed class RunRecordingAgentTests
 
         var resolver = new RunPricingResolver(new ModelProviderRegistry([provider]), Options.Create(new TraconOptions()));
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             new FixedTenantContext(),
@@ -621,7 +621,7 @@ public sealed class RunRecordingAgentTests
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry());
 
-        return new RunRecordingAgent(
+        return TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             store,
             new FixedTenantContext(),
@@ -635,7 +635,7 @@ public sealed class RunRecordingAgentTests
         AgentDefinitionCompiler compiler,
         AgentDefinition definition,
         TraconRunRecordingOptions? options = null)
-        => new(
+        => TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             new FixedTenantContext(),

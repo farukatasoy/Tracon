@@ -119,7 +119,7 @@ public sealed class RunStartGuardFailureTests
             TestData.Providers(pipeline, new FakeModelProvider(new FakeChatClient())),
             TestData.Registry());
 
-        return new RunRecordingAgent(
+        return TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             store,
             new FixedTenantContext(),

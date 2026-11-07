@@ -207,7 +207,10 @@ public sealed class HostedToolSupportTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry(TestData.Tool("lookup")),
-            hostedTools: new HostedToolRegistry(Registrations));
+            new AgentCompilationServices
+            {
+                HostedTools = new HostedToolRegistry(Registrations),
+            });
 
         var agent = compiler.Compile(Definition(["web", "lookup", "docs"]));
         await agent.RunAsync("hi", cancellationToken: TestContext.Current.CancellationToken);
@@ -228,8 +231,10 @@ public sealed class HostedToolSupportTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry(),
-            tenantContext: new FixedTenantContext("tenant-9"),
-            hostedTools: new HostedToolRegistry(
+            new AgentCompilationServices
+            {
+                TenantContext = new FixedTenantContext("tenant-9"),
+                HostedTools = new HostedToolRegistry(
             [
                 new HostedToolRegistration(
                     "web",
@@ -241,7 +246,8 @@ public sealed class HostedToolSupportTests
                         return new HostedWebSearchTool();
                     },
                     null),
-            ]));
+            ]),
+            });
 
         compiler.Compile(Definition(["web"])).ShouldNotBeNull();
 
@@ -256,14 +262,17 @@ public sealed class HostedToolSupportTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            hostedTools: new HostedToolRegistry(
+            new AgentCompilationServices
+            {
+                HostedTools = new HostedToolRegistry(
             [
                 new HostedToolRegistration(
                     "docs",
                     HostedToolKind.FileSearch,
                     _ => new HostedFileSearchTool { Inputs = [new HostedVectorStoreContent(store)] },
                     null),
-            ]));
+            ]),
+            });
         var definition = Definition(["docs"]);
 
         var before = await compiler.ResolveDependenciesAsync(definition, TestContext.Current.CancellationToken);
@@ -284,14 +293,17 @@ public sealed class HostedToolSupportTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            hostedTools: new HostedToolRegistry(
+            new AgentCompilationServices
+            {
+                HostedTools = new HostedToolRegistry(
             [
                 new HostedToolRegistration(
                     "web",
                     HostedToolKind.WebSearch,
                     _ => new HostedWebSearchTool(new Dictionary<string, object?>(StringComparer.Ordinal) { ["Filters"] = new object() }),
                     null),
-            ]));
+            ]),
+            });
 
         var dependencies = await compiler.ResolveDependenciesAsync(Definition(["web"]), TestContext.Current.CancellationToken);
 
@@ -302,7 +314,7 @@ public sealed class HostedToolSupportTests
         => TestData.Definition(toolNames: toolNames) with { Model = TestData.Binding(provider) };
 
     private static AgentDefinitionCompiler Compiler(params IModelProvider[] providers)
-        => new(TestData.Providers(providers), TestData.Registry(TestData.Tool("lookup")), hostedTools: new HostedToolRegistry(Registrations));
+        => new(TestData.Providers(providers), TestData.Registry(TestData.Tool("lookup")), new AgentCompilationServices { HostedTools = new HostedToolRegistry(Registrations) });
 
     private static AgentDefinitionValidator Validator(params IModelProvider[] providers)
     {
@@ -314,9 +326,12 @@ public sealed class HostedToolSupportTests
         var compiler = new AgentDefinitionCompiler(
             models,
             tools,
-            skills: skills,
-            callableAgents: new CallableAgentResolver(catalog),
-            hostedTools: new HostedToolRegistry([.. Registrations, new HostedToolRegistration("news", HostedToolKind.WebSearch, _ => new HostedWebSearchTool(), null)]));
+            new AgentCompilationServices
+            {
+                Skills = skills,
+                CallableAgents = new CallableAgentResolver(catalog),
+                HostedTools = new HostedToolRegistry([.. Registrations, new HostedToolRegistration("news", HostedToolKind.WebSearch, _ => new HostedWebSearchTool(), null)]),
+            });
 
         return new AgentDefinitionValidator(models, tools, skills, catalog, compiler, options);
     }

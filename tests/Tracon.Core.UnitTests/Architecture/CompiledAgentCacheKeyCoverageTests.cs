@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Every dependency of the agent compiler and of the model provider registry
+/// Every dependency of the agent compiler (the members of its context object) and of the model provider registry
 /// is classified by how its state reaches the compiled-agent cache.
 /// </summary>
 /// <remarks>
@@ -83,10 +83,19 @@ public sealed class CompiledAgentCacheKeyCoverageTests
     [Fact]
     public void Every_dependency_of_the_compiler_and_the_registry_is_classified()
     {
+        // The compiler takes its optional services through one context object, so the dependencies it holds are the
+        // settable members of that object, not the parameters of its constructor.
+        var contextMembers = typeof(AgentCompilationServices)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(static property => property.SetMethod is not null)
+            .Select(static property => property.PropertyType);
+
         var actual = new[] { typeof(AgentDefinitionCompiler), typeof(ModelProviderRegistry) }
             .SelectMany(static type => type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
             .SelectMany(static constructor => constructor.GetParameters())
             .Select(static parameter => parameter.ParameterType)
+            .Where(static type => type != typeof(AgentCompilationServices))
+            .Concat(contextMembers)
             .ToHashSet();
 
         var unknown = actual
@@ -106,6 +115,6 @@ public sealed class CompiledAgentCacheKeyCoverageTests
             "state reaches the compiled-agent cache: in the key (CompiledAgentCache.CombineFingerprints in " +
             "ResolveDependenciesAsync), by bypassing the cache, or not at all because it is read only at run " +
             "time. Prove the choice with a test, then classify the type here.");
-        gone.ShouldBeEmpty("A classified dependency is no longer a constructor parameter; remove it from the list.");
+        gone.ShouldBeEmpty("A classified dependency is no longer a constructor parameter or a member of the compiler's context; remove it from the list.");
     }
 }

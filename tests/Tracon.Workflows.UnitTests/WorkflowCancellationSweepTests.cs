@@ -100,7 +100,7 @@ public sealed class WorkflowCancellationSweepTests
             host.TenantContext,
             new ServiceCollection().BuildServiceProvider());
 
-        var runner = new WorkflowRunner(
+        var runner = TestWorkflowRunner.Create(
             catalog,
             host.RunStore,
             host.CheckpointStore,

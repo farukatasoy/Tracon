@@ -79,7 +79,7 @@ public sealed class AgentRunJobHandlerTests
             TestData.DefaultOptionsMonitor(),
             NullLogger<ToolApprovalPresenterRunner>.Instance);
 
-        var recordingAgent = new RunRecordingAgent(
+        var recordingAgent = TestRunRecording.Agent(
             new ApprovalRequestingAgent(),
             runs,
             FixedTenantContext.Default,
@@ -298,7 +298,7 @@ public sealed class AgentRunJobHandlerTests
         var approvals = new InMemoryPendingApprovalStore();
         var store = new FlakySessionStore(failures: int.MaxValue, () => new TimeoutException("The store did not answer in time."));
 
-        var recordingAgent = new RunRecordingAgent(
+        var recordingAgent = TestRunRecording.Agent(
             new ApprovalRequestingAgent(),
             runs,
             FixedTenantContext.Default,

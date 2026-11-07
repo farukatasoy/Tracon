@@ -203,7 +203,7 @@ public sealed class RunRecordingAgentLedgerTests
     {
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(client)), TestData.Registry(tool));
 
-        return new RunRecordingAgent(
+        return TestRunRecording.Agent(
             compiler.Compile(TestData.Definition(toolNames: [ToolName])),
             store,
             FixedTenantContext.Default,

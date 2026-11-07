@@ -188,7 +188,7 @@ public sealed class ObservabilityTests
         // was set up correctly, this span must be its child.
         var inner = new ActivityStartingAgent(new FakeChatClient());
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             inner,
             runStore,
             new FixedTenantContext(),

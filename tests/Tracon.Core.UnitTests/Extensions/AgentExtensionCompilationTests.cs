@@ -125,8 +125,11 @@ public sealed class AgentExtensionCompilationTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            tenantContext: new FixedTenantContext("tenant-eu"),
-            agentExtensions: [new DelegateAgentExtension("probe", context => tenant = context.TenantId, null)]);
+            new AgentCompilationServices
+            {
+                TenantContext = new FixedTenantContext("tenant-eu"),
+                AgentExtensions = [new DelegateAgentExtension("probe", context => tenant = context.TenantId, null)],
+            });
 
         _ = compiler.Compile(Named("probe"));
 
@@ -353,7 +356,7 @@ public sealed class AgentExtensionCompilationTests
         => Compiler(TestData.Registry(), extensions);
 
     private static AgentDefinitionCompiler Compiler(ToolRegistry registry, params IAgentExtension[] extensions)
-        => new(TestData.Providers(new FakeModelProvider()), registry, agentExtensions: extensions);
+        => new(TestData.Providers(new FakeModelProvider()), registry, new AgentCompilationServices { AgentExtensions = extensions });
 
     private sealed class MarkerProvider : AIContextProvider
     {

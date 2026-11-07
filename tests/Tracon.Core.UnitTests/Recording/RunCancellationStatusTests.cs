@@ -115,7 +115,7 @@ public sealed class RunCancellationStatusTests
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry());
 
-        return new RunRecordingAgent(
+        return TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             store,
             new FixedTenantContext(),

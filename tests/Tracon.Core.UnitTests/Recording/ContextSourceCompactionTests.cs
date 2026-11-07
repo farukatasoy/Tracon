@@ -27,7 +27,7 @@ public sealed class ContextSourceCompactionTests
                 new FakeModelProvider(summarizerClient, name: "summarizer")),
             TestData.Registry());
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(TestData.Definition() with
             {
                 Compaction = new CompactionSettings

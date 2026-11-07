@@ -36,170 +36,37 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 {
     private static readonly ActivitySource ActivitySource = new(TraconDiagnostics.ActivitySourceName);
 
-    private readonly IRunStore _runStore;
-    private readonly ITenantContext _tenantContext;
-    private readonly TraconRunRecordingOptions _options;
+    private readonly RunRecordingServices _services;
+    private readonly RecordedAgentIdentity _identity;
     private readonly ILogger<RunRecordingAgent> _logger;
-    private readonly TraconMetrics? _metrics;
-    private readonly RunTraceCollector? _traceCollector;
-    private readonly TimeProvider _timeProvider;
-    private readonly string? _modelId;
-    private readonly string? _modelProvider;
-    private readonly TraconAgentGraphOptions _graphOptions;
-    private readonly bool _includeAgentVersionTag;
-    private readonly IRunPricingResolver? _pricingResolver;
-    private readonly string? _pricingCurrency;
-    private readonly QuotaEnforcer? _quotaEnforcer;
-    private readonly IWebhookPublisher? _webhookPublisher;
-    private readonly IRunCancellationRegistry? _cancellationRegistry;
-    private readonly IRunErrorClassifier? _errorClassifier;
-    private readonly IRunInputStore? _runInputStore;
-    private readonly RunSampler? _runSampler;
-    private readonly ContentGuardPipeline? _contentGuardPipeline;
-    private readonly IRunAttributionContext? _attributionContext;
-    private readonly IReadOnlyList<IRunEventSink> _sinks;
-    private readonly ToolApprovalPresenterRunner? _approvalPresenterRunner;
 
     /// <summary>Creates a new recording wrapper.</summary>
     /// <param name="innerAgent">The wrapped agent.</param>
-    /// <param name="runStore">The store that the events are written to.</param>
-    /// <param name="tenantContext">The tenant context.</param>
-    /// <param name="options">The recording detail settings.</param>
+    /// <param name="services">
+    /// The services and settings every recorder of a run shares. A member of it that is <see langword="null"/>
+    /// switches its feature off: no quota counting, no webhook, no cancellation from outside, no
+    /// online evaluation sampling, and so on. See <see cref="RunRecordingServices"/>.
+    /// </param>
+    /// <param name="identity">
+    /// The model and the definition version the catalog knows for the agent.
+    /// <see cref="RecordedAgentIdentity.Unknown"/> when none is known.
+    /// </param>
     /// <param name="logger">The logger.</param>
-    /// <param name="metrics">The metric instruments. When <see langword="null"/>, no metric is emitted.</param>
-    /// <param name="traceCollector">The span collector. When <see langword="null"/>, no span is written.</param>
-    /// <param name="modelId">The model that the agent is bound to. <see langword="null"/> when unknown.</param>
-    /// <param name="modelProvider">
-    /// The model provider that the agent is bound to. It is used only for cost
-    /// resolution and is not persisted.
-    /// </param>
-    /// <param name="timeProvider">The time source. When <see langword="null"/>, the system clock is used.</param>
-    /// <param name="graphOptions">
-    /// The call tree limits. When <see langword="null"/>, the defaults are used.
-    /// </param>
-    /// <param name="agentVersion">
-    /// The current definition version that comes from the catalog summary of the agent.
-    /// <see langword="null"/> when it is unknown (for example a code agent). On a run that
-    /// an A/B experiment resolves, <see cref="TraconRunOptions.AgentVersion"/> overrides it.
-    /// </param>
-    /// <param name="includeAgentVersionTag">
-    /// Whether the <see cref="TraconDiagnostics.Tags.AgentVersion"/> tag is added to the
-    /// span and to the metrics. See <see cref="TraconObservabilityOptions.IncludeAgentVersionTag"/>.
-    /// </param>
-    /// <param name="pricingResolver">
-    /// The cost resolver. When <see langword="null"/>, no cost is calculated.
-    /// </param>
-    /// <param name="quotaEnforcer">
-    /// The quota accountant. When <see langword="null"/>, consumption is not counted. Only
-    /// <strong>root</strong> runs are counted; child runs are part of the same
-    /// request and must not be counted twice.
-    /// </param>
-    /// <param name="webhookPublisher">
-    /// The event publisher. When <see langword="null"/>, no <c>run.*</c> event is emitted.
-    /// </param>
-    /// <param name="cancellationRegistry">
-    /// The cancellation registry. When <see langword="null"/>, the run cannot be canceled
-    /// from outside (<c>POST /api/runs/{id}/cancel</c>).
-    /// </param>
-    /// <param name="errorClassifier">
-    /// The error classifier. When <see langword="null"/>, the error class and the grouping
-    /// fingerprint are not calculated (<see cref="RunError.Class"/>/<see cref="RunError.Fingerprint"/>
-    /// stay empty).
-    /// </param>
-    /// <param name="runInputStore">
-    /// The input store. When <see langword="null"/>, or when
-    /// <see cref="TraconRunRecordingOptions.RecordRunInput"/> is off, the input is
-    /// not written and the run cannot be replayed.
-    /// </param>
-    /// <param name="runSampler">
-    /// The online evaluation sampler. When <see langword="null"/>,
-    /// no run is sampled.
-    /// </param>
-    /// <param name="contentGuardPipeline">
-    /// The content guard pipeline. When <see langword="null"/>, or when
-    /// <see cref="ContentGuardPipeline.HasGuards"/> is <see langword="false"/>, the input is
-    /// recorded raw. When it is supplied, the input written to the <c>RunStarted</c> event and
-    /// to <see cref="IRunInputStore"/> passes through the SAME inspection as the text that
-    /// <see cref="ContentGuardingChatClient"/> sends to the model — if the two diverge, masked
-    /// or blocked content stays raw in the durable store.
-    /// </param>
-    /// <param name="attributionContext">
-    /// The attribution context. When <see langword="null"/>, the run records no
-    /// user and no labels — the same outcome as the built-in
-    /// <see cref="DefaultRunAttributionContext"/> with no ambient scope open.
-    /// </param>
-    /// <param name="sinks">
-    /// The run event observers. When <see langword="null"/> or empty, every
-    /// event goes to <paramref name="runStore"/> only — the identical hot path as before
-    /// this extension point existed.
-    /// </param>
-    /// <param name="approvalPresenterRunner">
-    /// Resolves the <see cref="ToolApprovalPresentation"/> of a pending tool call. When
-    /// <see langword="null"/>, no presentation is resolved — identical behavior to before
-    /// <see cref="IToolApprovalPresenter"/> existed.
-    /// </param>
-    /// <param name="pricingCurrency">
-    /// <c>Tracon:Pricing:Currency</c>: the currency the amounts a tool or a function node
-    /// reports add up in. <see langword="null"/> when none is configured.
-    /// </param>
-    /// <exception cref="ArgumentNullException">When one of the required dependencies is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">When one of the arguments is <see langword="null"/>.</exception>
     internal RunRecordingAgent(
         AIAgent innerAgent,
-        IRunStore runStore,
-        ITenantContext tenantContext,
-        TraconRunRecordingOptions options,
-        ILogger<RunRecordingAgent> logger,
-        TraconMetrics? metrics = null,
-        RunTraceCollector? traceCollector = null,
-        string? modelId = null,
-        string? modelProvider = null,
-        TimeProvider? timeProvider = null,
-        TraconAgentGraphOptions? graphOptions = null,
-        int? agentVersion = null,
-        bool includeAgentVersionTag = true,
-        IRunPricingResolver? pricingResolver = null,
-        QuotaEnforcer? quotaEnforcer = null,
-        IWebhookPublisher? webhookPublisher = null,
-        IRunCancellationRegistry? cancellationRegistry = null,
-        IRunErrorClassifier? errorClassifier = null,
-        IRunInputStore? runInputStore = null,
-        RunSampler? runSampler = null,
-        ContentGuardPipeline? contentGuardPipeline = null,
-        IRunAttributionContext? attributionContext = null,
-        IReadOnlyList<IRunEventSink>? sinks = null,
-        ToolApprovalPresenterRunner? approvalPresenterRunner = null,
-        string? pricingCurrency = null)
+        RunRecordingServices services,
+        RecordedAgentIdentity identity,
+        ILogger<RunRecordingAgent> logger)
         : base(innerAgent)
     {
-        ArgumentNullException.ThrowIfNull(runStore);
-        ArgumentNullException.ThrowIfNull(tenantContext);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(identity);
         ArgumentNullException.ThrowIfNull(logger);
 
-        _runStore = runStore;
-        _tenantContext = tenantContext;
-        _options = options;
+        _services = services;
+        _identity = identity;
         _logger = logger;
-        _metrics = metrics;
-        _traceCollector = traceCollector;
-        _modelId = modelId;
-        _modelProvider = modelProvider;
-        _timeProvider = timeProvider ?? TimeProvider.System;
-        _graphOptions = graphOptions ?? new TraconAgentGraphOptions();
-        AgentVersion = agentVersion;
-        _includeAgentVersionTag = includeAgentVersionTag;
-        _pricingResolver = pricingResolver;
-        _quotaEnforcer = quotaEnforcer;
-        _webhookPublisher = webhookPublisher;
-        _cancellationRegistry = cancellationRegistry;
-        _errorClassifier = errorClassifier;
-        _runInputStore = runInputStore;
-        _runSampler = runSampler;
-        _contentGuardPipeline = contentGuardPipeline;
-        _attributionContext = attributionContext;
-        _sinks = sinks is { Count: > 0 } ? sinks : [];
-        _approvalPresenterRunner = approvalPresenterRunner;
-        _pricingCurrency = pricingCurrency;
     }
 
     /// <summary>
@@ -207,7 +74,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     /// <see cref="TraconRunOptions.AgentVersion"/> overrides it. <see langword="null"/> when unknown.
     /// </summary>
     /// <remarks>The loop's reviewer trail reads it, so it names the version the reviewer's run recorded.</remarks>
-    internal int? AgentVersion { get; }
+    internal int? AgentVersion => _identity.Version;
 
     /// <inheritdoc />
     protected override async Task<AgentResponse> RunCoreAsync(
@@ -220,7 +87,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // caller's mistake, not a failed run.
         RunChatOptionsRule.Check(options);
 
-        if (!_options.Enabled)
+        if (!_services.Recording.Enabled)
         {
             return await base.RunCoreAsync(messages, session, ForInnerAgent(options), cancellationToken).ConfigureAwait(false);
         }
@@ -240,7 +107,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // of the client) stays separate: the run is canceled if either one drops, but the
         // registry holds ONLY ITS OWN source.
         using var cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        using var cancellationRegistration = _cancellationRegistry?.Register(
+        using var cancellationRegistration = _services.CancellationRegistry?.Register(
             start.Scope.RunId,
             start.Scope.RootRunId,
             start.Scope.TenantId,
@@ -388,7 +255,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // The same check as RunCoreAsync; it throws on the first MoveNextAsync.
         RunChatOptionsRule.Check(options);
 
-        if (!_options.Enabled)
+        if (!_services.Recording.Enabled)
         {
             await foreach (var passthrough in base.RunCoreStreamingAsync(messages, session, ForInnerAgent(options), cancellationToken).ConfigureAwait(false))
             {
@@ -406,7 +273,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // For the reason see the note inside RunCoreAsync: this is the source that the
         // TryCancel of the registry triggers, and it is separate from the token of the caller.
         using var cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        using var cancellationRegistration = _cancellationRegistry?.Register(
+        using var cancellationRegistration = _services.CancellationRegistry?.Register(
             start.Scope.RunId,
             start.Scope.RootRunId,
             start.Scope.TenantId,

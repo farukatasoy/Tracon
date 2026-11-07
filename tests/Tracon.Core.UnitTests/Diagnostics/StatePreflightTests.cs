@@ -191,7 +191,10 @@ public sealed class StatePreflightTests
         var agent = new AgentDefinitionCompiler(
                 TestData.Providers(new FakeModelProvider(new FakeChatClient())),
                 TestData.Registry(TestData.Tool("lookup")),
-                chatHistoryProvider: new InMemoryChatHistoryProvider(new InMemoryChatHistoryProviderOptions()))
+                new AgentCompilationServices
+                {
+                    ChatHistoryProvider = new InMemoryChatHistoryProvider(new InMemoryChatHistoryProviderOptions()),
+                })
             .Compile(TestData.Definition(toolNames: ["lookup"]));
 
         var session = await manager.GetOrCreateSessionAsync(agent, "real");

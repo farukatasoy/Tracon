@@ -67,7 +67,7 @@ public sealed class RunEventSequenceResumeTests
             TestData.Providers(new FakeModelProvider(new FakeChatClient())),
             TestData.Registry());
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(TestData.Definition()),
             store,
             new FixedTenantContext(),

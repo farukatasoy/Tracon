@@ -109,7 +109,10 @@ public sealed class AgentExtensionRegistrationTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
-            agentExtensions: [new DelegateAgentExtension("probe", _ => calls++, null)]);
+            new AgentCompilationServices
+            {
+                AgentExtensions = [new DelegateAgentExtension("probe", _ => calls++, null)],
+            });
 
         _ = compiler.Compile(TestData.Definition());
 

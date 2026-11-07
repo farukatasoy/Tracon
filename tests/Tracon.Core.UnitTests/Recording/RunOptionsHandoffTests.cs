@@ -107,7 +107,7 @@ public sealed class RunOptionsHandoffTests
     {
         var inner = new OptionsCapturingAgent();
         var tenant = new FixedTenantContext();
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             inner,
             new InMemoryRunStore(tenantContext: tenant),
             tenant,

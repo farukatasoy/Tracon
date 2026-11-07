@@ -25,6 +25,7 @@
   -->
   <ItemGroup>
     <Compile Include="../Shared/Workflows/*.cs" LinkBase="Shared/Workflows" />
+    <Compile Include="../Shared/Recording/TestRunRecording.cs" Link="Shared/Recording/TestRunRecording.cs" />
   </ItemGroup>
 
   <ItemGroup>

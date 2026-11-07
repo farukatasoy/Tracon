@@ -170,7 +170,10 @@ public sealed class ModelRequestFieldsTests
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             registry,
-            agentExtensions: [new DelegateAgentExtension("probe", context => seen = context.ChatAgentOptions!.ChatOptions, null)]);
+            new AgentCompilationServices
+            {
+                AgentExtensions = [new DelegateAgentExtension("probe", context => seen = context.ChatAgentOptions!.ChatOptions, null)],
+            });
 
         _ = compiler.Compile(TestData.Definition() with
         {

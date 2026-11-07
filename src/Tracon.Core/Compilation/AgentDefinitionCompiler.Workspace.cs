@@ -50,8 +50,8 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
-        if (_services?.GetService(typeof(BuiltInToolGovernance)) is not BuiltInToolGovernance governance
-            || _services.GetService(typeof(IOptionsMonitor<TraconWorkspaceOptions>)) is not IOptionsMonitor<TraconWorkspaceOptions> limits)
+        if (_context.BuiltInToolGovernance is not { } governance
+            || _context.WorkspaceLimits is not { } limits)
         {
             throw new TraconCompilationException(
                 $"Agent '{definition.Name}' wants a session workspace, but the services it needs are not registered. " +

@@ -143,7 +143,7 @@ public sealed class TelemetryTagTests
         var compiler = new AgentDefinitionCompiler(TestData.Providers(provider), TestData.Registry());
         var definition = TestData.Definition() with { Model = new ModelBinding { Provider = "fake", Model = "priced-model" } };
 
-        var agent = new RunRecordingAgent(
+        var agent = TestRunRecording.Agent(
             compiler.Compile(definition),
             store,
             FixedTenantContext.Default,
