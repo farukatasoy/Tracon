@@ -454,6 +454,36 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
+    public void A_timer_count_that_breathes_with_the_load_and_not_with_the_tenants_is_not_a_leak()
+    {
+        // The timers of the work in flight rise and fall with the load: in five soaks the same configuration was red in
+        // one and green in the next. The same wave under a plain count's name is the control.
+        var run = Fixture.Build((metric, time, _, stage) => metric is "host.activeTimers" or "host.osThreads" ? PoolWave(time, stage) : null);
+
+        var analysis = FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options);
+        var timers = analysis.Metrics.Single(static m => string.Equals(m.Name, "host.activeTimers", StringComparison.Ordinal));
+        var plain = analysis.Metrics.Single(static m => string.Equals(m.Name, "host.osThreads", StringComparison.Ordinal));
+
+        plain.Verdict.ShouldBe(FootprintVerdict.Red, "the control: a plain count reads the breathing as growth");
+
+        timers.Kind.ShouldBe(MetricKind.Pooled);
+        timers.Verdict.ShouldBe(FootprintVerdict.Green, string.Join("; ", timers.Reasons));
+    }
+
+    [Fact]
+    public void A_timer_count_has_no_ceiling_to_fill_up()
+    {
+        // 18, 19 and 20 timers against a ramp that records a pool of 20: the connection pool's maximum says nothing about timers.
+        var run = Fixture.Build((metric, _, _, stage) => string.Equals(metric, "host.activeTimers", StringComparison.Ordinal) ? 18 + stage : null);
+        run.Ramp.MaxPoolSize = 20;
+
+        var timers = FootprintAnalysis.Analyse("cell", run.Samples, run.Ramp, Options)
+            .Metrics.Single(static m => string.Equals(m.Name, "host.activeTimers", StringComparison.Ordinal));
+
+        timers.Verdict.ShouldBe(FootprintVerdict.Green, string.Join("; ", timers.Reasons));
+    }
+
+    [Fact]
     public void A_connection_pool_whose_lowest_reading_climbs_with_the_tenants_is_red()
     {
         // The same breathing with one more connection for every ten tenants: 0.2, 2 and 20 on top of it.
@@ -654,9 +684,12 @@ public sealed class CapacityFootprintTests
     }
 
     [Fact]
-    public void Only_the_connection_count_is_judged_as_a_pool_and_the_ones_in_a_transaction_stay_plain()
+    public void Only_the_connection_count_and_the_timers_are_judged_as_a_pool_and_the_ones_in_a_transaction_stay_plain()
     {
         FootprintCatalog.Find("pg.connections").ShouldNotBeNull().Kind.ShouldBe(MetricKind.Pooled);
+        FootprintCatalog.Find("pg.connections").ShouldNotBeNull().HasPoolCeiling.ShouldBeTrue();
+        FootprintCatalog.Find("host.activeTimers").ShouldNotBeNull().Kind.ShouldBe(MetricKind.Pooled);
+        FootprintCatalog.Find("host.activeTimers").ShouldNotBeNull().HasPoolCeiling.ShouldBeFalse();
         FootprintCatalog.Find("pg.idleInTransaction").ShouldNotBeNull().Kind.ShouldBe(MetricKind.Count);
     }
 

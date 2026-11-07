@@ -22,10 +22,10 @@ public enum MetricKind
     Objects,
 
     /// <summary>
-    /// A count a pool keeps between a minimum and a ceiling and moves by itself with the load: the database client's
-    /// connections. It is never flat, so the rule for <see cref="Count"/> reads its breathing as growth. Judged by where
-    /// the plateau as a whole sits, and a rise counts only when it is larger than the pool's own breathing and the pool's
-    /// lowest reading rose too; a pool that fills up is red at any size.
+    /// A count that breathes with the load instead of sitting flat: the database client's connections, and the timers of
+    /// work in flight. The rule for <see cref="Count"/> reads its breathing as growth. Judged by where the plateau as a
+    /// whole sits, and a rise counts only when it is larger than the breathing and the lowest reading rose too. A metric
+    /// that also has a ceiling (<see cref="FootprintMetric.HasPoolCeiling"/>) is red when it fills up, at any size.
     /// </summary>
     Pooled,
 }
@@ -34,7 +34,8 @@ public enum MetricKind
 /// <param name="Name">The reading's name in <see cref="FootprintSample.Values"/>.</param>
 /// <param name="Label">What a person calls it.</param>
 /// <param name="Kind">How its noise is judged.</param>
-public sealed record FootprintMetric(string Name, string Label, MetricKind Kind);
+/// <param name="HasPoolCeiling">Whether the reading is a pool with a configured maximum, which the ramp records, so that a plateau at the maximum is red.</param>
+public sealed record FootprintMetric(string Name, string Label, MetricKind Kind, bool HasPoolCeiling = false);
 
 /// <summary>The readings the analysis knows how to judge.</summary>
 public static class FootprintCatalog
@@ -53,7 +54,7 @@ public static class FootprintCatalog
         new("host.gcFragmentedBytes", "GC fragmented", MetricKind.Bytes),
         new("host.osThreads", "OS threads", MetricKind.Count),
         new("host.threadPoolThreads", "Thread pool threads", MetricKind.Count),
-        new("host.activeTimers", "Active timers", MetricKind.Count),
+        new("host.activeTimers", "Active timers", MetricKind.Pooled),
         new("host.openDescriptors", "Open file descriptors", MetricKind.Count),
         new("host.handleCount", "Handles", MetricKind.Count),
         new("host.ledgerInFlight", "Runs in flight (host ledger)", MetricKind.Count),
@@ -61,7 +62,7 @@ public static class FootprintCatalog
         new("host.meterInstruments", "Metric instruments that published", MetricKind.Count),
         new("host.meterPublications", "Instrument announcements (a meter made again counts again)", MetricKind.Objects),
         new("host.loadedAssemblies", "Loaded assemblies", MetricKind.Count),
-        new("pg.connections", "PostgreSQL client connections", MetricKind.Pooled),
+        new("pg.connections", "PostgreSQL client connections", MetricKind.Pooled, HasPoolCeiling: true),
         new("pg.idleInTransaction", "PostgreSQL idle in transaction", MetricKind.Count),
     ];
 
@@ -602,7 +603,7 @@ public static class FootprintAnalysis
 
         ConfirmDrift(analysis);
 
-        var exhausted = metric.Kind == MetricKind.Pooled && ramp.MaxPoolSize is > 0 ? ExhaustedPlateaus(analysis, holds, ramp.MaxPoolSize.Value) : [];
+        var exhausted = metric is { Kind: MetricKind.Pooled, HasPoolCeiling: true } && ramp.MaxPoolSize is > 0 ? ExhaustedPlateaus(analysis, holds, ramp.MaxPoolSize.Value) : [];
         analysis.Reasons.AddRange(exhausted);
 
         foreach (var trend in analysis.Trends)
