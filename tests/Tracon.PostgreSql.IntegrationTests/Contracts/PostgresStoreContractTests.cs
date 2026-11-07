@@ -698,3 +698,17 @@ public sealed class PostgresIdempotencyTakeoverRaceTests(PostgresSchemaFixture s
         return schema.Context.IdempotencyKeys;
     }
 }
+
+/// <summary>The race of writers that save one new record with one identifier, on PostgreSql.</summary>
+/// <param name="schema">The schema shared by the tests of this class.</param>
+public sealed class PostgresUpsertSameNewKeyRaceTests(PostgresSchemaFixture schema)
+    : SqlUpsertSameNewKeyRaceContract, IClassFixture<PostgresSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IWebhookStore> OpenAsync()
+    {
+        await schema.ResetAsync();
+
+        return schema.Context.Webhooks;
+    }
+}

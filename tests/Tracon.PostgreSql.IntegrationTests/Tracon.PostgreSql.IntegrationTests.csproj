@@ -48,6 +48,7 @@
     <Compile Include="../Shared/Infrastructure/RunHeartbeatUnderClockSkewContract.cs" Link="Infrastructure/Shared/RunHeartbeatUnderClockSkewContract.cs" />
     <!-- A takeover that races a release and a new reservation is never told a young reservation stands in its way. -->
     <Compile Include="../Shared/Infrastructure/SqlIdempotencyTakeoverRaceContract.cs" Link="Infrastructure/Shared/SqlIdempotencyTakeoverRaceContract.cs" />
+    <Compile Include="../Shared/Infrastructure/SqlUpsertSameNewKeyRaceContract.cs" Link="Infrastructure/Shared/SqlUpsertSameNewKeyRaceContract.cs" />
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Infrastructure/Shared/ManualClock.cs" />
   </ItemGroup>
 

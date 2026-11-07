@@ -698,3 +698,17 @@ public sealed class SqlServerIdempotencyTakeoverRaceTests(SqlServerSchemaFixture
         return schema.Context.IdempotencyKeys;
     }
 }
+
+/// <summary>The race of writers that save one new record with one identifier, on SqlServer.</summary>
+/// <param name="schema">The schema shared by the tests of this class.</param>
+public sealed class SqlServerUpsertSameNewKeyRaceTests(SqlServerSchemaFixture schema)
+    : SqlUpsertSameNewKeyRaceContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IWebhookStore> OpenAsync()
+    {
+        await schema.ResetAsync();
+
+        return schema.Context.Webhooks;
+    }
+}

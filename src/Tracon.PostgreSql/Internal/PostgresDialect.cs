@@ -137,6 +137,9 @@ internal sealed class PostgresDialect : SqlDialect
             : null;
 
     /// <inheritdoc />
+    public override bool RetriesUpsertUniqueViolation => true;
+
+    /// <inheritdoc />
     public override bool IsUniqueViolation(Exception exception)
         => exception is PostgresException { SqlState: UniqueViolation };
 

@@ -706,3 +706,17 @@ public sealed class SqliteIdempotencyTakeoverRaceTests(SqliteSchemaFixture schem
         return schema.Context.IdempotencyKeys;
     }
 }
+
+/// <summary>The race of writers that save one new record with one identifier, on Sqlite.</summary>
+/// <param name="schema">The schema shared by the tests of this class.</param>
+public sealed class SqliteUpsertSameNewKeyRaceTests(SqliteSchemaFixture schema)
+    : SqlUpsertSameNewKeyRaceContract, IClassFixture<SqliteSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IWebhookStore> OpenAsync()
+    {
+        await schema.ResetAsync();
+
+        return schema.Context.Webhooks;
+    }
+}

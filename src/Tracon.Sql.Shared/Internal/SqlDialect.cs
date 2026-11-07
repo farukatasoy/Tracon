@@ -274,6 +274,26 @@ internal abstract class SqlDialect
     public virtual bool RetriesStatementDeadlocks => false;
 
     /// <summary>
+    /// Gets a value indicating whether an upsert that fails with a unique violation is sent again, once.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// PostgreSQL's <c>INSERT … ON CONFLICT (a, b)</c> arbitrates on one index. Two statements that insert the same new
+    /// record (the same identifier and the same name) can both pass the check of that index before either has written to
+    /// it; the second then fails on the primary key (<c>23505</c>) when the first commits. The statement was never in
+    /// conflict with a row it could have updated, it lost a race. Sent again, it finds the committed row through the
+    /// arbiter and updates it, the answer of either serial order.
+    /// </para>
+    /// <para>
+    /// A violation of a constraint the upsert does not arbitrate on (a second unique index) fails the same way the second
+    /// time, and the second failure is the one the caller sees: the cost of that case is one more round trip.
+    /// <see langword="true"/> for PostgreSQL; SQL Server serializes the update and the insert in one transaction, and SQLite
+    /// has one writer at a time.
+    /// </para>
+    /// </remarks>
+    public virtual bool RetriesUpsertUniqueViolation => false;
+
+    /// <summary>
     /// Gets the predicate that keeps the rows of one tenant, for a retention sweep that names a tenant.
     /// </summary>
     /// <param name="column">The tenant column, with its table alias when the predicate runs in a subquery.</param>

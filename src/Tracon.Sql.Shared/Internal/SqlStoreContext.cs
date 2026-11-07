@@ -282,6 +282,11 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
     /// whole (see <see cref="ExecuteInTransactionAsync{T}"/>). <paramref name="bind"/>
     /// and <paramref name="execute"/> run once per attempt, on a new command.
     /// </para>
+    /// <para>
+    /// Where the provider asks for it (<see cref="SqlDialect.RetriesUpsertUniqueViolation"/>), an upsert that fails with
+    /// a unique violation is sent once more: the violation can be the primary key losing a race with a writer of the
+    /// same new record, which the second attempt answers by updating the row that writer committed.
+    /// </para>
     /// </remarks>
     public ValueTask<T> ExecuteUpsertAsync<T>(
         string sql,
@@ -299,7 +304,10 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
             // whole, so sending it again is the same safe boundary as a transaction.
             // An upsert has always been sent again here, whatever the provider says
             // about the plain statements.
-            return ExecuteAutocommitAsync(sql, bind, execute, retryDeadlockVictim: true, cancellationToken);
+            return Dialect.RetriesUpsertUniqueViolation
+                ? RetryUniqueViolationOnceAsync(
+                    () => ExecuteAutocommitAsync(sql, bind, execute, retryDeadlockVictim: true, cancellationToken))
+                : ExecuteAutocommitAsync(sql, bind, execute, retryDeadlockVictim: true, cancellationToken);
         }
 
         return ExecuteInTransactionAsync(
@@ -315,6 +323,22 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
                 return result;
             },
             cancellationToken);
+    }
+
+    /// <summary>Runs an upsert statement, and sends it once more when it fails with a unique violation (see <see cref="SqlDialect.RetriesUpsertUniqueViolation"/>).</summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="attempt">Sends the statement on a new command.</param>
+    /// <returns>The value the attempt that finished returned; the second attempt's failure propagates unchanged.</returns>
+    private async ValueTask<T> RetryUniqueViolationOnceAsync<T>(Func<ValueTask<T>> attempt)
+    {
+        try
+        {
+            return await attempt().ConfigureAwait(false);
+        }
+        catch (Exception exception) when (Dialect.IsUniqueViolation(exception))
+        {
+            return await attempt().ConfigureAwait(false);
+        }
     }
 
     /// <summary>
