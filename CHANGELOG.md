@@ -1535,7 +1535,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`GET /api/stats/timeseries` answers for every instant a date can hold, on every store.** `to=0441-05-05T00:00:00Z` answered `503 Persistence store unavailable` on
   SQL Server (its legacy `datetime` type starts in 1753, and the bucket arithmetic converted to it), as did a range that ends in the last hour of the year 9999 (a bucket
   added past the end of `datetime2`). On PostgreSQL the first and the last instant of `DateTimeOffset` reach the server as `-infinity` and `infinity`, and the series
-  generated between them never ended: the request ran until the command timeout and answered `503` after 30 s. The in-memory store walked past the last bucket of the year 9999
+  generated between them never ended: the request ran until the command timeout and answered `503` after 30 s. On SQLite 3.44, the oldest version supported, a range that ends in the
+  last second of the year 9999 answered its first bucket only: the query read the end of the range through `datetime()`, which rounds the fraction past the last instant the date
+  functions hold and answers `NULL`. The in-memory store walked past the last bucket of the year 9999
   and threw; so did every store when `to` was in the first 24 hours of year 1 and `from` was left out (`500`). The range now starts at the first instant of year 1 in that case.
   The weekly bucket of the score summary also started on the following Monday for a score dated before 1900 on SQL Server, and a score before 1753 failed the summary.
   Custom `IRunStore` and `IRunScoreStore` implementations are held to the same: new contract tests `RunStoreContract.Time_series_answers_a_range_anywhere_in_the_years_a_date_can_hold`,

@@ -970,6 +970,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // strftime/datetime work directly (SqliteDialect.AddTimestamp). Empty
         // buckets are also returned: otherwise a gap in the chart would look
         // like "zero" instead of "no data".
+        // The recursion stops on the TEXT of the next bucket, the same comparison the final WHERE makes.
+        // Reading @to_ts through datetime() instead rounds its fraction to a millisecond, and the last
+        // instant of the year 9999 (…59.9999999) rounds past the end of the range the date functions
+        // hold: SQLite 3.44 answers NULL for it, the comparison never holds, and the series stops after
+        // its first bucket. A next bucket past 9999 is NULL as well and ends the walk the same way.
         // One filter for the buckets and for the series' currency count: a copy
         // that drifted would count the currencies of other runs than the ones it adds.
         var timeSeriesFilter = """
@@ -992,8 +997,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                             ELSE strftime('%Y-%m-%dT00:00:00.0000000Z', datetime(bucket, '+1 day'))
                        END
                 FROM buckets
-                WHERE (CASE WHEN @bucket_unit = 'hour' THEN datetime(bucket, '+1 hour') ELSE datetime(bucket, '+1 day') END)
-                      < datetime(@to_ts)
+                WHERE (CASE WHEN @bucket_unit = 'hour'
+                            THEN strftime('%Y-%m-%dT%H:00:00.0000000Z', datetime(bucket, '+1 hour'))
+                            ELSE strftime('%Y-%m-%dT00:00:00.0000000Z', datetime(bucket, '+1 day'))
+                       END) < @to_ts
             ),
             matched AS (
                 SELECT (CASE WHEN @bucket_unit = 'hour'
