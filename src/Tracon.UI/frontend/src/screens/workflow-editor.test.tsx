@@ -304,11 +304,14 @@ describe('WorkflowEditorScreen - the pattern', () => {
 
     const kind = await screen.findByRole('combobox', { name: /^Kind/ });
 
-    expect(kind).toHaveProperty('disabled', true);
+    // The select is on the screen before the workflow has loaded, and it is released until the chain that holds a function
+    // arrives. Finding it is not the moment to read it: on a slow machine the first read came before the load and found it
+    // released.
+    await waitFor(() => expect(kind).toHaveProperty('disabled', true));
 
     await user.click(screen.getByRole('button', { name: 'Remove function word-count' }));
 
-    expect(kind).toHaveProperty('disabled', false);
+    await waitFor(() => expect(kind).toHaveProperty('disabled', false));
   });
 
   it('does not offer a function that is already in the chain', async () => {
