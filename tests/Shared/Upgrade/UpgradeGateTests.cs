@@ -43,9 +43,19 @@ public abstract class UpgradeGateTests
 
         var releaseLast = UpgradeBaseline.Load().Providers[providerDirectory].Max(static migration => migration.Id);
 
-        return head.Take(head.Count - 1)
+        var boundaries = head.Take(head.Count - 1)
             .Select(static migration => migration.Id)
-            .Where(id => all || id >= releaseLast);
+            .Where(id => all || id >= releaseLast)
+            .ToList();
+
+        // Right after a cut the last migration of the release is the last of the tree, and no boundary is left before it. A
+        // theory with no case fails, and the database at the head is the one the next release starts from: it is the boundary.
+        if (boundaries.Count == 0)
+        {
+            boundaries.Add(head[^1].Id);
+        }
+
+        return boundaries;
     }
 
     /// <summary>Every table the seed fills is read back by some probe, so a table no store reads cannot pass the gate unnoticed.</summary>
@@ -178,7 +188,12 @@ public abstract class UpgradeGateTests
 
         await UpgradeHarness.ApplyAsync(database, prefix, migration => released.Single(file => file.Id == migration.Id).Checksum);
 
-        if (baseline.ChecksumsMayDrift)
+        // Right after a cut the baseline is the tree: no file of the release differs from its file in the tree, and there is
+        // no drift to refuse. The start is then untouched on every line.
+        var drifted = prefix.Any(migration => !string.Equals(
+            released.Single(file => file.Id == migration.Id).Checksum, migration.Checksum, StringComparison.Ordinal));
+
+        if (baseline.ChecksumsMayDrift && drifted)
         {
             // The preview line has no upgrade path for stored data between previews: the start is refused and says why.
             var refusal = await Should.ThrowAsync<TraconException>(async () => await database.Migrations.ApplyAsync());
@@ -187,7 +202,8 @@ public abstract class UpgradeGateTests
         }
         else
         {
-            // From the first release candidate on, the database of a release starts under the next one untouched.
+            // From the first release candidate on, the database of a release starts under the next one untouched; so does a
+            // preview database whose release files are the files of the tree.
             (await database.Migrations.ApplyAsync()).ShouldBe(head.Count - prefix.Count);
         }
     }
@@ -225,7 +241,10 @@ public abstract class UpgradeGateTests
         var prefix = head.Where(migration => migration.Id <= lastApplied).ToList();
 
         prefix.ShouldNotBeEmpty();
-        prefix.Count.ShouldBeLessThan(head.Count, "a boundary leaves at least one migration to apply");
+
+        // The last migration of the release is a boundary, and right after a cut it is also the last migration of the tree: the
+        // database is then at the head and the start applies nothing, which is what the line below counts.
+        prefix.Count.ShouldBeLessThanOrEqualTo(head.Count);
 
         await UpgradeHarness.ApplyAsync(database, prefix, static migration => migration.Checksum);
 
