@@ -178,4 +178,46 @@ public sealed class QuotaPeriodCalculatorTests
 
         QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Daily, zone).ShouldBe(scan);
     }
+
+    /// <summary>
+    /// Windows writes a rule that moves the clock at midnight as 23:59:59.999 of the day before (Egypt, Chile, Paraguay),
+    /// and the zone then moves the clock at that millisecond. The first instant of the new date is a millisecond before
+    /// the whole minute a walk in minutes stops at.
+    /// </summary>
+    [Fact]
+    public void A_clock_that_moves_a_millisecond_before_midnight_ends_the_period_at_that_instant()
+    {
+        var zone = ZoneThatMovesForwardAtTheLastMillisecondOfTheDay();
+        var instant = new DateTimeOffset(2023, 4, 27, 9, 0, 0, TimeSpan.Zero);
+        var firstInstantOfTheNextDate = new DateTimeOffset(2023, 4, 27, 21, 59, 59, 999, TimeSpan.Zero);
+
+        var end = QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Daily, zone);
+
+        end.ShouldBe(firstInstantOfTheNextDate);
+        QuotaPeriodCalculator.GetPeriodStart(end, QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(2023, 4, 28));
+        QuotaPeriodCalculator.GetPeriodStart(end - TimeSpan.FromTicks(1), QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(2023, 4, 27));
+    }
+
+    [Fact]
+    public void The_first_instant_of_a_date_in_such_a_zone_is_on_that_date()
+    {
+        var zone = ZoneThatMovesForwardAtTheLastMillisecondOfTheDay();
+
+        var first = QuotaPeriodCalculator.ToUtcInstant(new DateOnly(2023, 4, 28), zone);
+
+        QuotaPeriodCalculator.GetPeriodStart(first, QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(2023, 4, 28));
+        QuotaPeriodCalculator.GetPeriodStart(first - TimeSpan.FromTicks(1), QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(2023, 4, 27));
+    }
+
+    private static TimeZoneInfo ZoneThatMovesForwardAtTheLastMillisecondOfTheDay()
+    {
+        var rule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(
+            new DateTime(2023, 1, 1),
+            new DateTime(2023, 12, 31),
+            TimeSpan.FromHours(1),
+            TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, 23, 59, 59, 999), 4, 27),
+            TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, 23, 59, 59, 999), 10, 26));
+
+        return TimeZoneInfo.CreateCustomTimeZone("Moves-at-the-last-millisecond", TimeSpan.FromHours(2), "test", "test", "test", [rule]);
+    }
 }

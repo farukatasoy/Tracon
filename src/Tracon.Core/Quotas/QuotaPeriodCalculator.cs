@@ -124,7 +124,45 @@ internal static class QuotaPeriodCalculator
             instant = instant.AddMinutes(-1);
         }
 
-        return instant;
+        return FirstTickOnTheDate(instant, date, timeZone);
+    }
+
+    /// <summary>
+    /// Narrows an instant that is on <paramref name="date"/> and whose minute before is not, to the first tick that is.
+    /// </summary>
+    /// <remarks>
+    /// A rule that moves the clock at midnight is written by Windows as 23:59:59.999 of the day before, and the zone then
+    /// moves the clock at that millisecond: the first instant of the new date is a millisecond before the whole minute the
+    /// walk above stops at, and a tick before the period end the old period would already be over. Inside one minute the
+    /// date changes once, so a bisection at tick resolution finds the instant.
+    /// </remarks>
+    private static DateTimeOffset FirstTickOnTheDate(DateTimeOffset instant, DateOnly date, TimeZoneInfo timeZone)
+    {
+        var before = instant.AddMinutes(-1);
+
+        if (DateOf(instant, timeZone) < date || DateOf(before, timeZone) >= date)
+        {
+            return instant;
+        }
+
+        var low = before.UtcTicks;
+        var high = instant.UtcTicks;
+
+        while (high - low > 1)
+        {
+            var middle = low + ((high - low) / 2);
+
+            if (DateOf(new DateTimeOffset(middle, TimeSpan.Zero), timeZone) >= date)
+            {
+                high = middle;
+            }
+            else
+            {
+                low = middle;
+            }
+        }
+
+        return new DateTimeOffset(high, TimeSpan.Zero);
     }
 
     /// <summary>The longest, in minutes, the first instant of a date can be before the offset-based estimate.</summary>
