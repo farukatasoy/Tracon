@@ -976,14 +976,20 @@ public sealed class ProductionProfileStartupTests
     {
         // The provider is the real one: a shared in-memory database is a supported setup and dies with the process,
         // so a restart leaves no run Running and there is nothing to decide.
+        var connectionString = $"Data Source=file:profile-restart-{Guid.NewGuid():N}?mode=memory&cache=shared";
+
+        // A shared in-memory database lives only while a connection to it is open, and other tests of this assembly clear
+        // every pooled SQLite connection of the process (TempSqliteDatabase does, as this class's file test does). A host that
+        // starts at that moment lost its database and stopped with "no such table"; measured: with a clear every millisecond
+        // all of 15 starts failed, with this connection held none did. The connection is not pooled, so a clear cannot reach it.
+        await using var keeper = new Microsoft.Data.Sqlite.SqliteConnection($"{connectionString};Pooling=False");
+        await keeper.OpenAsync(TestContext.Current.CancellationToken);
+
         await using var host = await TraconTestHost.StartAsync(
-            configureTracon: static builder =>
+            configureTracon: builder =>
             {
                 AnswerAllExcept(builder, null);
-                builder.UseSqlite(static options =>
-                {
-                    options.ConnectionString = $"Data Source=file:profile-restart-{Guid.NewGuid():N}?mode=memory&cache=shared";
-                });
+                builder.UseSqlite(options => options.ConnectionString = connectionString);
                 builder.RequireProductionProfile();
             });
 

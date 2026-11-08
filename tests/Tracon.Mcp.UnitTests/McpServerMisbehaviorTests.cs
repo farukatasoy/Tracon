@@ -78,8 +78,12 @@ public sealed class McpServerMisbehaviorTests
                 "{\"tools\":[{\"name\":\"tool_" + page + "\",\"description\":\"d\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}],\"nextCursor\":\"page-" + page + "\"}");
         });
 
-        var (outcome, elapsed, tools) = await RefreshAsync(broken);
-        var limit = new TraconMcpOptions().MaxToolsPerServer;
+        // The pages are read one after the other, so reaching the limit costs one round trip for each tool kept. A small limit
+        // keeps that inside the connection timeout on a machine whose round trips are slow (a CI runner, a container: the
+        // default limit of 100 needs 101 of them in two seconds); what the test pins is that the reading STOPS there.
+        const int limit = 10;
+
+        var (outcome, elapsed, tools) = await RefreshAsync(broken, limit);
 
         // The server is reachable and keeps its first tools: a list that does not end is cut like a list that is too long.
         outcome.HadUnreachableServers.ShouldBeFalse("the limit was reached, so the list was not waited for");
@@ -271,9 +275,9 @@ public sealed class McpServerMisbehaviorTests
     private static string Tools(params string[] tools) => "{\"tools\":[" + string.Join(',', tools) + "]}";
 
     /// <summary>Registers the scripted server and a healthy one for one tenant, refreshes, and lists the tool names.</summary>
-    private static async Task<(McpRefreshOutcome Outcome, TimeSpan Elapsed, List<string> Tools)> RefreshAsync(ScriptedMcpServer broken)
+    private static async Task<(McpRefreshOutcome Outcome, TimeSpan Elapsed, List<string> Tools)> RefreshAsync(ScriptedMcpServer broken, int? maxToolsPerServer = null)
     {
-        await using var rig = await Rig.StartAsync(broken);
+        await using var rig = await Rig.StartAsync(broken, maxToolsPerServer);
 
         var clock = Stopwatch.StartNew();
         var outcome = await rig.Catalog.RefreshAsync(TestContext.Current.CancellationToken);
@@ -282,6 +286,18 @@ public sealed class McpServerMisbehaviorTests
         var tools = rig.Catalog.ForTenant("default").Descriptors.Select(static tool => tool.Name).ToList();
 
         return (outcome, clock.Elapsed, tools);
+    }
+
+    private static TraconMcpOptions MisbehaviorOptions(int? maxToolsPerServer)
+    {
+        var options = new TraconMcpOptions { ConnectionTimeout = ConnectionTimeout };
+
+        if (maxToolsPerServer is { } limit)
+        {
+            options.MaxToolsPerServer = limit;
+        }
+
+        return options;
     }
 
     /// <summary>The scripted server and a healthy one, registered for one tenant, with the catalog that lists them.</summary>
@@ -297,7 +313,7 @@ public sealed class McpServerMisbehaviorTests
 
         public McpToolCatalog Catalog { get; }
 
-        public static async Task<Rig> StartAsync(ScriptedMcpServer broken)
+        public static async Task<Rig> StartAsync(ScriptedMcpServer broken, int? maxToolsPerServer = null)
         {
             var healthy = ScriptedMcpServer.Start((method, _, _, _) => Task.FromResult<string?>(
                 string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(GoodTool) : "{}"));
@@ -322,7 +338,7 @@ public sealed class McpServerMisbehaviorTests
                 new InMemoryTenantStore(),
                 new EmptyMcpConfiguration(),
                 Options.Create(new TraconOptions()),
-                Options.Create(new TraconMcpOptions { ConnectionTimeout = ConnectionTimeout }),
+                Options.Create(MisbehaviorOptions(maxToolsPerServer)),
                 NullLoggerFactory.Instance,
                 new McpOAuthTokenCacheRegistry(),
                 new AllowAllToolAuthorizationHandler(),
