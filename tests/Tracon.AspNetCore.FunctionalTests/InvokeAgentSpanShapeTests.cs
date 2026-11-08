@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -167,9 +166,12 @@ public sealed class InvokeAgentSpanShapeTests
             configureServices: static services => services.Configure<TraconOptions>(static options => options.Observability.SuccessSampleRatio = 1));
     }
 
-    private static void Verify(string scenario, RunTrace trace, [CallerFilePath] string sourceFile = "")
+    private static void Verify(string scenario, RunTrace trace)
     {
-        var path = Path.Combine(Path.GetDirectoryName(sourceFile)!, "Golden", $"invoke-agent-{scenario}.txt");
+        // The golden files are found from the checkout root, which is walked up from the test assembly. A path baked in at
+        // compile time (CallerFilePath) is rewritten to start with /_ by a continuous integration build, and the file is
+        // then "missing" on CI while it is present in every local run.
+        var path = Path.Combine(RepoRoot.Path, "tests", "Tracon.AspNetCore.FunctionalTests", "Golden", $"invoke-agent-{scenario}.txt");
         var actual = Render(trace);
 
         if (string.Equals(Environment.GetEnvironmentVariable(UpdateVariable), "1", StringComparison.Ordinal))
