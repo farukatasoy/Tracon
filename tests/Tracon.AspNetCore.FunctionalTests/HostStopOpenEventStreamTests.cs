@@ -96,6 +96,7 @@ public sealed class HostStopOpenEventStreamTests
 
                 // The stream is live: at least one byte of the run's history has arrived.
                 (await stream.ReadAsync(first, TestContext.Current.CancellationToken)).ShouldBeGreaterThan(0);
+                origin.EventStreamsInFlight.ShouldBe(1);
 
                 reading = Task.Run(
                     async () =>
@@ -130,7 +131,7 @@ public sealed class HostStopOpenEventStreamTests
             // The run's own request may outlive the stop (its model ignores the token); a connection to the event stream
             // must not: its handler ends when the host aborts the connection.
             await WaitUntil.TrueAsync(
-                () => Task.FromResult(origin.InFlight <= 1),
+                () => Task.FromResult(origin.EventStreamsInFlight == 0),
                 "the event stream's request to end after the host stopped",
                 TimeSpan.FromSeconds(10));
 
@@ -148,6 +149,10 @@ public sealed class HostStopOpenEventStreamTests
             stopTime.ShouldBeLessThan(TightStopBound, "the stop took as long as the drain wait, so it is tied to it");
             disposeTime.ShouldBeLessThan(StopBound);
 
+            // What the host owes ended above, on its own side of the socket. When the client's read learns of the reset is
+            // the runtime's and the operating system's: on a loaded machine the connection was gone from the TCP table and
+            // the read still had not returned 23 seconds later. The test ends its own read instead of waiting for it.
+            await eventsGone.CancelAsync();
             await reading.WaitAsync(StopBound, TestContext.Current.CancellationToken);
         }
         finally

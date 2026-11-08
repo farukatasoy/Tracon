@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import fnmatch
+import gzip
 import hashlib
 import json
 import os
@@ -66,9 +67,9 @@ GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # timeout uretiyordu). Sabit beklemeler kosul-beklemeye donunce
 # olculdu, ayni makine, ayni kod (d0cdd2c2): 1 modul 863 ve 879 sn,
 # 2 modul 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
-# ci.yml 1'de KALIR: runner donanimi olculmedi. Kaynak cekismesi imzali bir
-# kapanis kirmizisi (izole tekrar kosumda gecen) gorulurse 1'e don ve
-# nedenini buraya yaz.
+# ci.yml 1'de KALIR: runner donanimi olculmedi. Izole kosumda gecen bir
+# kapanis kirmizisi sayiyi dusurmek icin sebep degildir: o test bir kaynak
+# ya da zaman varsayimi tasir ya da urun yarisini gosterir; duzeltilen odur.
 #
 # `dotnet test` MTP kipindedir (global.json `test.runner`). Eski
 # `-maxcpucount:N` bu kipte HIC TEST KOSTURMADAN cikis kodu 5 verir; esdegeri
@@ -81,6 +82,8 @@ TEST_MAX_CPU_COUNT = 2
 # "Test et" adimlari ve "Test sonuclarini yukle" adimi AYNI yolu tasir
 # (`kapi_test.py` ikisini birlikte denetler).
 TEST_RESULTS_DIRECTORY = "artifacts/test-results"
+TEST_DURATIONS_DIRECTORY = "artifacts/test-sureleri"
+TEST_DURATIONS_KEEP = 20
 
 # A root that does not exist is skipped, so the public tree (where `docs` holds two
 # contract directories) and the development repository run the same list.
@@ -251,6 +254,8 @@ def run_commands(
             exit_code = require_executed_tests(wall_started)
 
         _record_measurement(stage, command, started, exit_code, measurement_path)
+        if reports_trx(command):
+            record_test_durations(wall_started)
         elapsed = time.monotonic() - started
         if exit_code:
             print(f"❌ Çıkış {exit_code} ({elapsed:.2f} s): {command.display}")
@@ -1392,6 +1397,52 @@ def executed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> tuple[in
     return tests, modules
 
 
+def _trx_duration_ms(value: str | None) -> int | None:
+    """`SS:DD:ss.fffffff` biciminde bir TRX suresi; cozulemezse `None`."""
+    match = re.fullmatch(r"(\d+):(\d\d):(\d\d(?:\.\d+)?)", value or "")
+    if match is None:
+        return None
+    hours, minutes, seconds = match.groups()
+    return round((int(hours) * 3600 + int(minutes) * 60 + float(seconds)) * 1000)
+
+
+def record_test_durations(since: float, root: pathlib.Path = ROOT) -> pathlib.Path | None:
+    """`since`'ten sonra yazilmis TRX'lerden test basina sureyi kaydeder.
+
+    Testlerin suresi iterasyonlar arasinda degismemeli; bunu olcmek icin her
+    tam kosumun test basina suresi gerekir. TRX bir sonraki kosumda ezilir, bu
+    kayit ezilmez: `artifacts/test-sureleri/<utc>.json.gz`, son 20 kosum.
+
+    Yalniz rapordur: CIKIS KODUNU DEGISTIRMEZ. Yazilamazsa uyarir. Ayni adli
+    iki sonuc (ayni gorunen ada sahip `[Theory]` satirlari) en uzunuyla kalir."""
+    results = root / TEST_RESULTS_DIRECTORY
+    modules: dict[str, dict[str, int]] = {}
+    for _, trx, tree in _recent_trx_reports(since, root):
+        tests = modules.setdefault(trx.parent.relative_to(results).as_posix(), {})
+        for result in tree.getroot().iter(TRX_NS + "UnitTestResult"):
+            name = result.get("testName")
+            duration = _trx_duration_ms(result.get("duration"))
+            if name and duration is not None:
+                tests[name] = max(duration, tests.get(name, 0))
+    if not modules:
+        return None
+
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    directory = root / TEST_DURATIONS_DIRECTORY
+    path = directory / f"{stamp}.json.gz"
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        with gzip.open(path, "wt", encoding="utf-8") as file:
+            json.dump({"utc": stamp, "modules": modules}, file, ensure_ascii=False, separators=(",", ":"))
+        for old in sorted(directory.glob("*.json.gz"))[:-TEST_DURATIONS_KEEP]:
+            old.unlink()
+    except OSError as exception:
+        print(f"⚠️ Test süre kaydı yazılamadı: {exception}")
+        return None
+    print(f"⏱️  Test süreleri: {path.relative_to(root).as_posix()}")
+    return path
+
+
 def isolate_failed_tests(
     failures: Sequence[FailedTest],
     *,
@@ -1436,9 +1487,10 @@ def isolate_failed_tests(
     for label, name, passed in verdicts:
         print(f"   {'✅ izole GEÇTİ' if passed else '❌ izole de DÜŞTÜ'}  {label} · {name}")
     if all(passed for _, _, passed in verdicts):
-        print("   → Hepsi izole geçti: tam koşum kaynak çekişmesi sınıfı"
-              ". Tam paketi TEKRAR koş;"
-              " ikinci koşumda da düşerse gerçek kusurdur.")
+        print("   → Hepsi izole geçti: test bir zaman, sıra ya da paylaşılan kaynak"
+              " varsayımı taşıyor ya da yalnız yük altında görünen bir ürün yarışı var.")
+        print("   → DUR: paketi yeniden koşturma, yeşil beklemek çözüm değildir."
+              " Hangisi olduğunu bul ve kök sebebi düzelt.")
     else:
         print("   → İzole de düşen test GERÇEK regresyondur;"
               " Kök sebebi araştır.")
@@ -1478,7 +1530,7 @@ def generation_commands(extension: Extension = PUBLIC) -> list[Command]:
 def closing_commands(
     base: str, *, site: bool = True, performance: bool = True, extension: Extension = PUBLIC,
 ) -> list[Command]:
-    # Cheapest first; the full test run (~9-12 min) is the most expensive step
+    # Cheapest first; the full test run (about 20 min, November 2026) is the most expensive step
     # and runs LAST. Measured (October 2026): 11 of 42 red closing runs failed
     # in a step that used to run AFTER the tests - docs-site check 6,
     # `performans` 4, format 1 - about 144 minutes of test time thrown away.

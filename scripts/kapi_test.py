@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import gzip
 import importlib.util
 import io
 import json
@@ -999,7 +1000,116 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("--filter-method", runner.call_args.args[0])
         self.assertIn("*Dusen*", runner.call_args.args[0])
         self.assertIn("izole GEÇTİ", output.getvalue())
-        self.assertIn("TEKRAR koş", output.getvalue())
+        self.assertIn("yeniden koşturma", output.getvalue())
+        self.assertIn("kök sebebi", output.getvalue())
+        self.assertIn("ürün yarışı", output.getvalue())
+        self.assertNotIn("TEKRAR koş", output.getvalue())
+
+    def _sureli_trx(self, kok: pathlib.Path, proje: str, sonuclar: list[tuple[str, str]]) -> None:
+        dizin = kok / kapi.TEST_RESULTS_DIRECTORY / proje / "net10.0_arm64"
+        dizin.mkdir(parents=True)
+        satirlar = "".join(
+            f'<UnitTestResult testName="{ad}" duration="{sure}" outcome="Passed" />' for ad, sure in sonuclar)
+        (dizin / "sonuc.trx").write_text(
+            '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
+            f"<Results>{satirlar}</Results></TestRun>",
+            encoding="utf-8")
+
+    def test_sure_kaydi_test_basina_milisaniye_yazar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._sureli_trx(kok, "P", [("N.S.A", "00:00:01.5000000"), ("N.S.B", "00:01:00.0100000")])
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                yol = kapi.record_test_durations(0.0, root=kok)
+
+            with gzip.open(yol, "rt", encoding="utf-8") as dosya:
+                kayit = json.load(dosya)
+
+        self.assertEqual(kayit["modules"], {"P/net10.0_arm64": {"N.S.A": 1500, "N.S.B": 60010}})
+
+    def test_sure_kaydi_ayni_adli_testin_en_uzununu_tutar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.1000000"), ("N.S.A", "00:00:00.3000000")])
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                yol = kapi.record_test_durations(0.0, root=kok)
+
+            with gzip.open(yol, "rt", encoding="utf-8") as dosya:
+                kayit = json.load(dosya)
+
+        self.assertEqual(kayit["modules"]["P/net10.0_arm64"], {"N.S.A": 300})
+
+    def test_sure_kaydi_trx_yoksa_dosya_yazmaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+
+            self.assertIsNone(kapi.record_test_durations(0.0, root=kok))
+            self.assertFalse((kok / kapi.TEST_DURATIONS_DIRECTORY).exists())
+
+    def test_sure_kaydi_cozulemeyen_sureyi_atlar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._sureli_trx(kok, "P", [("N.S.A", "bozuk"), ("N.S.B", "00:00:00.0020000")])
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                yol = kapi.record_test_durations(0.0, root=kok)
+
+            with gzip.open(yol, "rt", encoding="utf-8") as dosya:
+                kayit = json.load(dosya)
+
+        self.assertEqual(kayit["modules"]["P/net10.0_arm64"], {"N.S.B": 2})
+
+    def test_sure_kaydi_bozuk_trx_ile_kapiyi_kirmaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            dizin = kok / kapi.TEST_RESULTS_DIRECTORY / "P" / "net10.0_arm64"
+            dizin.mkdir(parents=True)
+            (dizin / "sonuc.trx").write_text("<TestRun", encoding="utf-8")
+
+            self.assertIsNone(kapi.record_test_durations(0.0, root=kok))
+
+    def test_sure_kaydi_bos_trx_ile_kapiyi_kirmaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._sureli_trx(kok, "P", [])
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                yol = kapi.record_test_durations(0.0, root=kok)
+
+            with gzip.open(yol, "rt", encoding="utf-8") as dosya:
+                kayit = json.load(dosya)
+
+        self.assertEqual(kayit["modules"], {"P/net10.0_arm64": {}})
+
+    def test_sure_kaydi_yazilamazsa_uyarir_ve_kapiyi_kirmaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.0010000")])
+
+            with mock.patch.object(kapi.gzip, "open", side_effect=OSError("disk dolu")), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertIsNone(kapi.record_test_durations(0.0, root=kok))
+
+        self.assertIn("yazılamadı", output.getvalue())
+
+    def test_sure_kaydi_eski_dosyalari_siler(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.0010000")])
+            kayitlar = kok / kapi.TEST_DURATIONS_DIRECTORY
+            kayitlar.mkdir(parents=True)
+            for sira in range(kapi.TEST_DURATIONS_KEEP + 3):
+                (kayitlar / f"20000101T0000{sira:02d}Z.json.gz").write_bytes(b"")
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                kapi.record_test_durations(0.0, root=kok)
+
+            kalan = sorted(path.name for path in kayitlar.glob("*.json.gz"))
+
+        self.assertEqual(len(kalan), kapi.TEST_DURATIONS_KEEP)
+        self.assertNotIn("20000101T000000Z.json.gz", kalan)
 
     def test_izole_kosum_dusen_bacagin_ikilisini_kosar(self):
         with tempfile.TemporaryDirectory() as directory:

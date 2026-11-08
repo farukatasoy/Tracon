@@ -86,6 +86,15 @@ confidence. And for every new code path, answer five questions — cancellation,
 concurrency, empty or oversized input, another tenant's record, and a subsystem
 failure — then write the ones that apply.
 
+### Tests do not wait
+
+A test finishes as fast as it can and gives the same result in the same time on
+every run. Simulated time is advanced with `ManualClock` (`tests/Shared/Time/`),
+a state is awaited with `WaitUntil` (`tests/Shared/Waiting/`), and no test
+asserts on a measured duration. A failing test stops the work: do not run it
+again hoping for green, find the cause and fix it. `TestTimeRatchetTests` counts
+what is left of real time per file, and that count can only fall.
+
 ## Public API changes
 
 Public API tracking is on. When you add, remove, or change a public member, the

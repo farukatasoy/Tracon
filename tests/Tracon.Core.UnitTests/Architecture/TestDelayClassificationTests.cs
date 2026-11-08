@@ -39,7 +39,10 @@ public sealed class TestDelayClassificationTests
 
     /// <summary>This class's own source names the pattern in its samples.</summary>
     private static readonly string[] SkippedFiles =
-        ["tests/Tracon.Core.UnitTests/Architecture/TestDelayClassificationTests.cs"];
+    [
+        "tests/Tracon.Core.UnitTests/Architecture/TestDelayClassificationTests.cs",
+        "tests/Tracon.Core.UnitTests/Architecture/TestTimeRatchetTests.cs",
+    ];
 
     private static readonly Regex Tag = new(
         @"//\s*delay:\s*(?<class>[a-z]+)\s*$",

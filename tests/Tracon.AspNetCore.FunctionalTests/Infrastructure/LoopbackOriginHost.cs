@@ -24,14 +24,21 @@ internal sealed class LoopbackOriginHost : IAsyncDisposable
     private readonly WebApplication _app;
     private readonly GatedModelProvider _gated;
     private readonly InFlightCounter _inFlight;
+    private readonly InFlightCounter _eventStreams;
     private readonly HttpClient _client = new();
 
-    private LoopbackOriginHost(WebApplication app, Uri address, GatedModelProvider gated, InFlightCounter inFlight)
+    private LoopbackOriginHost(
+        WebApplication app,
+        Uri address,
+        GatedModelProvider gated,
+        InFlightCounter inFlight,
+        InFlightCounter eventStreams)
     {
         _app = app;
         Address = address;
         _gated = gated;
         _inFlight = inFlight;
+        _eventStreams = eventStreams;
     }
 
     /// <summary>The address the host listens on.</summary>
@@ -42,6 +49,9 @@ internal sealed class LoopbackOriginHost : IAsyncDisposable
 
     /// <summary>The number of requests the host is serving right now.</summary>
     public int InFlight => _inFlight.Count;
+
+    /// <summary>The number of event stream requests (<c>GET .../events</c>) the host is serving right now.</summary>
+    public int EventStreamsInFlight => _eventStreams.Count;
 
     /// <summary>The services of the host.</summary>
     public IServiceProvider Services => _app.Services;
@@ -57,6 +67,7 @@ internal sealed class LoopbackOriginHost : IAsyncDisposable
         Action<IServiceCollection>? configureServices = null)
     {
         var inFlight = new InFlightCounter();
+        var eventStreams = new InFlightCounter();
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.ConfigureKestrel(static options => options.Listen(IPAddress.Loopback, 0));
         builder.Logging.ClearProviders();
@@ -71,7 +82,14 @@ internal sealed class LoopbackOriginHost : IAsyncDisposable
         app.Use(
             async (context, next) =>
             {
+                var isEventStream = context.Request.Path.Value?.EndsWith("/events", StringComparison.Ordinal) == true;
+
                 inFlight.Enter();
+
+                if (isEventStream)
+                {
+                    eventStreams.Enter();
+                }
 
                 try
                 {
@@ -80,6 +98,11 @@ internal sealed class LoopbackOriginHost : IAsyncDisposable
                 finally
                 {
                     inFlight.Leave();
+
+                    if (isEventStream)
+                    {
+                        eventStreams.Leave();
+                    }
                 }
             });
 
@@ -95,7 +118,7 @@ internal sealed class LoopbackOriginHost : IAsyncDisposable
 
         await app.StartAsync();
 
-        return new LoopbackOriginHost(app, new Uri(app.Urls.First()), gated, inFlight);
+        return new LoopbackOriginHost(app, new Uri(app.Urls.First()), gated, inFlight, eventStreams);
     }
 
     /// <summary>Starts a run that the model holds, and returns its id once it is recorded.</summary>
