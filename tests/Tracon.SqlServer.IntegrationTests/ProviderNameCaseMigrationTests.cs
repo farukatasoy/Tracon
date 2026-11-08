@@ -3,20 +3,24 @@ using Tracon.SqlServer.IntegrationTests.Infrastructure;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// The migration that folds a tenant's provider names to lower case does so with the ASCII rules, whatever collation the
-/// database has.
+/// The migration that folds a tenant's provider names to lower case is a released file and folds with the rules of the
+/// collation of the database it runs in.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Rows are written under the schema before the migration and read back after it. Under a Turkish collation
 /// (<c>TRACON_TEST_SQLSERVER_COLLATION=Turkish_CI_AS</c> with <c>TRACON_TEST_SQLSERVER_LCID=1055</c>) <c>LOWER(N'OpenAI')</c>
-/// ends in a dotless i (U+0131) instead of the i of <c>openai</c>, a name no agent definition names and no egress policy allows. Under any other collation this test
-/// passes before and after the fix, which is why the migration text is guarded separately by
-/// <c>MigrationCaseFoldingTests</c>.
+/// ends in a dotless i (U+0131) instead of the i of <c>openai</c>. The file is published and its bytes never change, so the
+/// test states what each kind of database does instead of asking for one answer: ASCII folding where the collation is not
+/// Turkish, the dotless i where it is. On a supported install the file runs on a table that holds no row, so the difference
+/// reaches only a Turkish database that applied the file with a checksum patched by hand; the compatibility page names that
+/// limit.
 /// </para>
 /// <para>
-/// The primary key of the table follows the collation of the database, so two spellings of one provider cannot both be
-/// written here (they can on PostgreSQL); the duplicate path of the migration is covered on that side.
+/// Which of the two the database does is read from the database (<c>LOWER(N'I')</c>), not from the environment variable, so
+/// the test cannot disagree with the server it runs against. The primary key of the table follows the collation of the
+/// database, so two spellings of one provider cannot both be written here; a case-sensitive database that can hold both is
+/// not tested, because which of the two rows stays is decided by its sort order and no one answer holds in every collation.
 /// </para>
 /// </remarks>
 public sealed class ProviderNameCaseMigrationTests(SqlServerFixture fixture)
@@ -24,11 +28,16 @@ public sealed class ProviderNameCaseMigrationTests(SqlServerFixture fixture)
     private const int MigrationId = 25;
 
     [Fact]
-    public async Task Mixed_case_provider_names_are_folded_to_ascii_lower_case()
+    public async Task Mixed_case_provider_names_are_folded_by_the_rules_of_the_collation()
     {
         var schemaName = SqlServerTestContext.NewSchemaName();
         await using var context = SqlServerTestContext.Create(fixture, schemaName);
         var prefix = $"{schemaName}.";
+
+        // The capital I is the only letter in these names whose lower case depends on the collation.
+        var turkish = await context.ScalarAsync<int>("SELECT CASE WHEN LOWER(N'I') COLLATE Latin1_General_BIN2 = NCHAR(305) THEN 1 ELSE 0 END;") == 1;
+        var openai = turkish ? "opena\u0131" : "openai";
+        var azure = turkish ? "azureopena\u0131" : "azureopenai";
 
         await context.ExecuteAsync($"IF SCHEMA_ID(N'{schemaName}') IS NULL EXEC(N'CREATE SCHEMA {schemaName}');");
 
@@ -47,10 +56,10 @@ public sealed class ProviderNameCaseMigrationTests(SqlServerFixture fixture)
         // Compared by their characters (BIN2), so a collation that folds case or letters in its own way cannot hide a wrong name.
         foreach (var (tenant, name, key) in new[]
         {
-            ("default", "openai", "key-openai"),
-            ("default", "azureopenai", "key-azure"),
+            ("default", openai, "key-openai"),
+            ("default", azure, "key-azure"),
             ("default", "anthropic", "key-anthropic"),
-            ("acme", "openai", "key-acme"),
+            ("acme", openai, "key-acme"),
         })
         {
             (await CountAsync(context, prefix, $"tenant_id = N'{tenant}' AND provider_name COLLATE Latin1_General_BIN2 = N'{name}' AND api_key_configuration_name = N'{key}'"))
@@ -58,74 +67,7 @@ public sealed class ProviderNameCaseMigrationTests(SqlServerFixture fixture)
         }
 
         (await CountAsync(context, prefix, "provider_name COLLATE Latin1_General_BIN2 LIKE N'%' + NCHAR(305) + N'%'"))
-            .ShouldBe(0, "no name may contain the dotless i a Turkish LOWER() writes");
-    }
-
-    /// <summary>
-    /// In a case-sensitive database two spellings of one provider can both be stored, and the migration keeps the row of one of
-    /// them: the same one PostgreSQL keeps.
-    /// </summary>
-    /// <returns>The completion task.</returns>
-    /// <remarks>
-    /// The two rows are saved at one instant, so the tie is broken by the name. PostgreSQL breaks it with <c>COLLATE "C"</c>, the
-    /// code points, which puts <c>openai</c> after <c>OpenAI</c> and keeps the lower-case row. A case-sensitive SQL Server
-    /// collation orders a lower-case letter before its capital, so a tie-break left to the collation keeps the other row, with
-    /// the other credential. The database has a collation of its own in the same server.
-    /// </remarks>
-    [Fact]
-    public async Task Two_spellings_of_one_provider_keep_the_row_PostgreSQL_keeps_in_a_case_sensitive_database()
-    {
-        var database = "cs_" + Guid.NewGuid().ToString("N")[..12];
-
-        await using (var admin = new Microsoft.Data.SqlClient.SqlConnection(fixture.ConnectionString))
-        {
-            await admin.OpenAsync(TestContext.Current.CancellationToken);
-
-            await using var create = admin.CreateCommand();
-            create.CommandText = $"CREATE DATABASE [{database}] COLLATE SQL_Latin1_General_CP1_CS_AS;";
-            await create.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-        }
-
-        var connectionString = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.ConnectionString) { InitialCatalog = database, Pooling = false }.ConnectionString;
-
-        try
-        {
-            var schemaName = SqlServerTestContext.NewSchemaName();
-            await using var context = SqlServerTestContext.Create(connectionString, schemaName);
-            var prefix = $"{schemaName}.";
-
-            (await context.ScalarAsync<int>("SELECT CASE WHEN N'a' = N'A' THEN 1 ELSE 0 END;")).ShouldBe(0, "the database is not case-sensitive");
-
-            await context.ExecuteAsync($"IF SCHEMA_ID(N'{schemaName}') IS NULL EXEC(N'CREATE SCHEMA {schemaName}');");
-
-            await ApplyThroughAsync(context, prefix, MigrationId - 1);
-
-            foreach (var (provider, key) in new[] { ("OpenAI", "key-upper"), ("openai", "key-lower") })
-            {
-                await context.ExecuteRetryingDeadlockAsync(
-                    $"INSERT INTO {prefix}tenant_provider_bindings (tenant_id, provider_name, api_key_configuration_name, updated_at) " +
-                    $"VALUES (N'default', N'{provider}', N'{key}', '2026-11-04T09:00:00+00:00');");
-            }
-
-            (await CountAsync(context, prefix, "tenant_id = N'default'")).ShouldBe(2, "both spellings are stored before the migration");
-
-            (await context.Migrations.ApplyAsync()).ShouldBeGreaterThan(0);
-
-            (await CountAsync(context, prefix, "tenant_id = N'default'")).ShouldBe(1);
-            (await CountAsync(context, prefix, "provider_name COLLATE Latin1_General_BIN2 = N'openai' AND api_key_configuration_name = N'key-lower'"))
-                .ShouldBe(1, "the row that PostgreSQL keeps (the one whose name sorts last by its code points) survives");
-        }
-        finally
-        {
-            Microsoft.Data.SqlClient.SqlConnection.ClearAllPools();
-
-            await using var admin = new Microsoft.Data.SqlClient.SqlConnection(fixture.ConnectionString);
-            await admin.OpenAsync(CancellationToken.None);
-
-            await using var drop = admin.CreateCommand();
-            drop.CommandText = $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}];";
-            await drop.ExecuteNonQueryAsync(CancellationToken.None);
-        }
+            .ShouldBe(turkish ? 3 : 0, "a Turkish LOWER() writes the dotless i into the three names that held a capital I, and no other collation does");
     }
 
     private static async Task<int> CountAsync(SqlServerTestContext context, string prefix, string predicate)

@@ -1063,30 +1063,5 @@
    ]
   }
  },
- "exemptions": [
-  {
-   "provider": "postgresql",
-   "name": "0038_provider_name_case",
-   "statements": "711554289d071ea1756cffd3f270f741fe8160e2ba248a1f57844a94fe711adc",
-   "reason": "lower() followed the locale of the database; the call names the ordinal collation now, so a Turkish database folds OpenAI to openai"
-  },
-  {
-   "provider": "postgresql",
-   "name": "0062_remove_authorization_configuration_key",
-   "statements": "374e20e2b2e4dda5041820bf9e15d5d2038295eb76cbbbc0ba4867b1ac0a079e",
-   "reason": "lower() followed the locale of the database; the call names the ordinal collation now, so a Turkish database finds AUTHORIZATION"
-  },
-  {
-   "provider": "sqlserver",
-   "name": "0025_provider_name_case",
-   "statements": "49a9129a2083a5471dd8e805287bf4ce2ae7325c83facd6eeb312a1b03a096fd",
-   "reason": "lower() followed the locale of the database; the call names the ordinal collation now, so a Turkish database folds OpenAI to openai. The tie-break between two spellings saved at one instant names it too, so a case-sensitive database keeps the row PostgreSQL keeps"
-  },
-  {
-   "provider": "sqlserver",
-   "name": "0050_remove_authorization_configuration_key",
-   "statements": "6fdcf1b7e41e118e21b6bf1659bf7855ef403eab1e2c13fa980cff9ed944b91b",
-   "reason": "lower() names the ordinal collation inside the dynamic statement as well; the result on a database that is not Turkish is the same"
-  }
- ]
+ "exemptions": []
 }
