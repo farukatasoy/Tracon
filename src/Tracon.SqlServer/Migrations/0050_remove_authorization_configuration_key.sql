@@ -9,8 +9,7 @@
 -- UPDATE would not compile any more.
 --
 -- JSON_MODIFY takes the new value as a plain string and escapes it. OPENJSON's `key` column
--- has a binary collation, so the case-insensitive match lowers it first; the collation is named inside
--- LOWER as well, so that no database setting can change what the match means (see 0025).
+-- has a binary collation, so the case-insensitive match lowers it first.
 
 IF COL_LENGTH(N'{schema}.mcp_servers', N'authorization_configuration_key') IS NOT NULL
 BEGIN
@@ -23,7 +22,7 @@ BEGIN
        AND NOT EXISTS (
             SELECT 1
               FROM OPENJSON(header_configuration_keys) AS existing_key
-             WHERE LOWER(existing_key.[key] COLLATE Latin1_General_BIN2) = N''authorization'');');
+             WHERE LOWER(existing_key.[key]) = N''authorization'');');
 
     EXEC(N'ALTER TABLE {schema}.mcp_servers DROP COLUMN authorization_configuration_key;');
 END

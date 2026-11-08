@@ -68,10 +68,6 @@ CREATE INDEX attachments_session_idx ON {schema}.attachments (tenant_id, session
 
 ALTER TABLE {schema}.pending_approvals ALTER COLUMN session_id nvarchar(200) COLLATE Latin1_General_BIN2 NOT NULL;
 
--- The id of the approval request is the one the run, the stream and the answer name. No index holds it, but a
--- comparison of it with another request id would otherwise stop with the collation conflict.
-ALTER TABLE {schema}.pending_approvals ALTER COLUMN request_id nvarchar(200) COLLATE Latin1_General_BIN2 NOT NULL;
-
 ALTER TABLE {schema}.responses ALTER COLUMN session_id nvarchar(200) COLLATE Latin1_General_BIN2 NULL;
 
 ALTER TABLE {schema}.voice_sessions ALTER COLUMN session_id nvarchar(200) COLLATE Latin1_General_BIN2 NOT NULL;
@@ -89,9 +85,6 @@ ALTER TABLE {schema}.workflow_checkpoints DROP CONSTRAINT workflow_checkpoints_u
 ALTER TABLE {schema}.workflow_checkpoints ALTER COLUMN session_id nvarchar(200) COLLATE Latin1_General_BIN2 NOT NULL;
 
 ALTER TABLE {schema}.workflow_checkpoints ALTER COLUMN checkpoint_id nvarchar(200) COLLATE Latin1_General_BIN2 NOT NULL;
-
--- A checkpoint id by another name: the parent of a checkpoint is the checkpoint_id of an earlier row.
-ALTER TABLE {schema}.workflow_checkpoints ALTER COLUMN parent_id nvarchar(200) COLLATE Latin1_General_BIN2 NULL;
 
 IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = N'workflow_checkpoints_uq' AND parent_object_id = OBJECT_ID(N'{schema}.workflow_checkpoints'))
 ALTER TABLE {schema}.workflow_checkpoints ADD CONSTRAINT workflow_checkpoints_uq UNIQUE (tenant_id, session_id, checkpoint_id);
