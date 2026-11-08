@@ -150,8 +150,11 @@ public sealed class TelemetryNameSnapshotTests
 
         using var provider = services.BuildServiceProvider();
 
-        // The gauges are created by hosted services; resolving them builds the instruments without starting any loop.
+        // The gauges are created by their refreshers, which the host builds through a gate only when the gauge is on;
+        // resolving them builds the instruments without starting any loop.
         _ = provider.GetServices<IHostedService>().ToList();
+        _ = provider.GetRequiredService<QuotaUsageObserver>();
+        _ = provider.GetRequiredService<JobQueueDepthObserver>();
 
         var published = new Dictionary<string, Published>(StringComparer.Ordinal);
 

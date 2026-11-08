@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Tracon;
 
@@ -43,8 +42,11 @@ internal sealed record RequiredBindingRegistration(Type Contract);
 internal sealed class RequiredBindingValidator(
     IEnumerable<RequiredBindingRegistration> registrations,
     TraconDefaultRegistrations defaults,
-    IServiceScopeFactory scopeFactory) : IHostedService
+    IServiceScopeFactory scopeFactory) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Gate;
+
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -114,9 +116,6 @@ internal sealed class RequiredBindingValidator(
 
         return Task.CompletedTask;
     }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     private List<Type> DistinctContracts()
     {

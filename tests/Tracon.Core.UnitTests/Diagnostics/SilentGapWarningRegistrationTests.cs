@@ -22,9 +22,11 @@ public sealed class SilentGapWarningRegistrationTests
 
         using var provider = services.BuildServiceProvider();
 
+        // Enumerating the hosted services builds the start-up check service and, through it, every check.
         var hosted = provider.GetServices<IHostedService>().ToList();
 
-        hosted.ShouldContain(service => service is SilentGapWarningService);
+        hosted.ShouldContain(service => service is TraconStartupChecks);
+        provider.GetServices<ITraconStartupCheck>().ShouldContain(check => check is SilentGapWarningService);
     }
 
     [Fact]
@@ -41,14 +43,13 @@ public sealed class SilentGapWarningRegistrationTests
 
         using var provider = services.BuildServiceProvider();
 
-        var service = provider.GetServices<IHostedService>()
+        var service = provider.GetServices<ITraconStartupCheck>()
             .OfType<SilentGapWarningService>()
             .Single();
 
         // No content guard is registered and retention is disabled by default,
         // so the only thing keeping the service quiet is the unknown environment.
         await service.StartAsync(CancellationToken.None);
-        await service.StopAsync(CancellationToken.None);
 
         logs.Entries.ShouldBeEmpty();
     }

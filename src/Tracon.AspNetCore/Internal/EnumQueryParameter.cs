@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -6,15 +7,18 @@ using Microsoft.AspNetCore.Mvc;
 namespace Tracon;
 
 /// <summary>
-/// Refuses a number that names no member of an enum parameter, for every endpoint of the group it is added to.
+/// Refuses a value that names no member of an enum parameter, for every endpoint of the group it is added to: a number
+/// the binder accepted, and a text the binder rejected.
 /// </summary>
 /// <remarks>
 /// <para>
 /// The binder parses an enum parameter with <c>Enum.TryParse</c>, which accepts any integer, so <c>?status=99</c> binds
-/// to a value that is in no member. Text that names no member never reaches a handler (the binder rejects it and the
-/// parameter middleware answers 400); the number is the same mistake spelled differently. A handler whose value feeds a
-/// <c>switch</c> that throws on the unknown member ended in a 500, and one that filters on it answered 200 with an
-/// empty page.
+/// to a value that is in no member. Text that names no member never reaches a handler: the binder rejects it and the
+/// request delegate marks the request 400 before the filters run. A nullable parameter is rejected without a word (the
+/// request delegate generator neither logs nor throws for it, so no exception reaches the parameter middleware), which
+/// left a bare 400 in every environment. The filter names the parameter and the members, as it does for a number, which
+/// is the same mistake spelled differently. A handler whose value feeds a <c>switch</c> that throws on the unknown
+/// member ended in a 500, and one that filters on it answered 200 with an empty page.
 /// </para>
 /// <para>
 /// The check is one endpoint filter factory on the group, so an endpoint added tomorrow is covered without its author
@@ -62,8 +66,18 @@ internal static class EnumQueryParameter
 
         return invocationContext =>
         {
+            var httpContext = invocationContext.HttpContext;
+            var bindingFailed = httpContext.Response.StatusCode == StatusCodes.Status400BadRequest && !httpContext.Response.HasStarted;
+
             foreach (var (index, type, name) in checks)
             {
+                if (bindingFailed
+                    && RawText(httpContext, name) is { Length: > 0 } text
+                    && !Enum.TryParse(type, text, ignoreCase: false, out _))
+                {
+                    return ValueTask.FromResult<object?>(Problem(name, type));
+                }
+
                 if (invocationContext.Arguments[index] is { } value && !IsMember(type, value))
                 {
                     return ValueTask.FromResult<object?>(Problem(name, type));
@@ -72,6 +86,18 @@ internal static class EnumQueryParameter
 
             return next(invocationContext);
         };
+    }
+
+    private static string? RawText(HttpContext httpContext, string name)
+    {
+        if (httpContext.Request.Query.TryGetValue(name, out var query) && query.Count > 0)
+        {
+            return query[0];
+        }
+
+        return httpContext.Request.RouteValues.TryGetValue(name, out var route)
+            ? Convert.ToString(route, CultureInfo.InvariantCulture)
+            : null;
     }
 
     private static bool IsMember(Type type, object value)

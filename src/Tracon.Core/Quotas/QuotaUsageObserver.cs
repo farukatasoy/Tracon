@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -32,7 +33,7 @@ namespace Tracon;
 /// endpoint, which this gauge deliberately avoids.
 /// </para>
 /// </remarks>
-internal sealed class QuotaUsageObserver : CachedGaugeSource<QuotaUsageObserver.QuotaGaugeSample>
+internal sealed class QuotaUsageObserver : CachedGaugeSource<QuotaUsageObserver.QuotaGaugeSample>, ISwitchedLoop
 {
     private readonly IQuotaStore _quotaStore;
     private readonly ITenantStore _tenantStore;
@@ -112,9 +113,17 @@ internal sealed class QuotaUsageObserver : CachedGaugeSource<QuotaUsageObserver.
         base.Dispose();
     }
 
+    /// <summary>Reads, from the application services, whether this loop runs.</summary>
+    /// <param name="services">The application services.</param>
+    /// <returns><see langword="true"/> when the loop runs.</returns>
+    public static bool IsEnabled(IServiceProvider services) => IsSwitchedOn(services.GetRequiredService<IOptionsMonitor<TraconOptions>>().CurrentValue.Observability);
+
+    /// <summary>The rule both the gate and the loop itself read.</summary>
+    internal static bool IsSwitchedOn(TraconObservabilityOptions options) => options.EnableQuotaUsageGauge;
+
     /// <inheritdoc />
     protected override bool IsEnabled(TraconObservabilityOptions options)
-        => options.EnableQuotaUsageGauge;
+        => IsSwitchedOn(options);
 
     /// <inheritdoc />
     protected override TimeSpan GetRefreshInterval(TraconObservabilityOptions options)

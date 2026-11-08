@@ -61,6 +61,10 @@ public static partial class TraconServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        // One hosted service runs every start-up check, and it is the first one Tracon registers: every gate has
+        // passed before the first of Tracon's loops starts, so a refused start leaves no loop running.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, TraconStartupChecks>());
+
         RegisterOptions(services, configurationSection);
         RegisterAuditChain(services, configurationSection);
         RegisterCoreInfrastructure(services);

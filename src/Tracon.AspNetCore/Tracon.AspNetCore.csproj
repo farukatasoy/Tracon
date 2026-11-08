@@ -5,6 +5,12 @@
     <PackageTags>$(CommonPackageTags);aspnetcore;api;openai-compatible;responses</PackageTags>
     <!-- Minimal API delegate routing uses reflection; AOT cannot be promised. -->
     <TraconAotCompatible>false</TraconAotCompatible>
+    <!--
+      The request delegates of the endpoints are generated at build time. Built by reflection, the first request after
+      a start built all of them (measured: ~430 ms and ~16 MB on the first request, even one that answers 404); generated,
+      that work is done by the compiler. The package grows by about a megabyte of generated code.
+    -->
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
   </PropertyGroup>
 
   <ItemGroup>

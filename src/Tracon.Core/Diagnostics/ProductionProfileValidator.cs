@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Tracon;
@@ -45,8 +44,11 @@ internal sealed class ProductionProfileValidator(
     IEnumerable<ProductionProfileRegistration> registrations,
     IServiceScopeFactory scopeFactory,
     LateProductionProfileChecks lateChecks,
-    ILogger<ProductionProfileValidator> logger) : IHostedService
+    ILogger<ProductionProfileValidator> logger) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Gate;
+
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -159,9 +161,6 @@ internal sealed class ProductionProfileValidator(
 
         return Task.CompletedTask;
     }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     /// <summary>
     /// Takes the STRICTEST answer among every check that carries

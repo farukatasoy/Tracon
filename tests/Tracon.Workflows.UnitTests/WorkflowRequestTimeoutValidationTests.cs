@@ -63,7 +63,7 @@ public sealed class WorkflowRequestTimeoutValidationTests
         options.RequestExpirationScanInterval.ShouldBe(TimeSpan.FromMinutes(1));
         options.MaxRequestExpirationsPerScan.ShouldBe(100);
 
-        provider.GetServices<IHostedService>().ShouldContain(static service => service is WorkflowRequestExpirationService);
+        provider.GetServices<IHostedService>().ShouldContain(static service => service is GatedLoop<WorkflowRequestExpirationService>);
     }
 
     [Theory]

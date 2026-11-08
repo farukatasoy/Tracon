@@ -22,7 +22,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IOptions<TraconOptions>>().Value.Audit.ChainKeyId,
             configurationSection?.GetSection(AuditChainKeyRing.KeysSectionName)));
 
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AuditChainKeyStartupValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, AuditChainKeyStartupValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, AuditChainKeyProfileCheck>());
     }
 }

@@ -38,8 +38,11 @@ internal sealed class SilentGapWarningService(
     IHostEnvironment? environment,
     IEnumerable<IContentGuard> contentGuards,
     IOptions<TraconRetentionOptions> retentionOptions,
-    ILogger<SilentGapWarningService> logger) : IHostedService
+    ILogger<SilentGapWarningService> logger) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Advisory;
+
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -53,13 +56,6 @@ internal sealed class SilentGapWarningService(
         WarnIfNoContentGuard();
         WarnIfRetentionDisabled();
 
-        return Task.CompletedTask;
-    }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _ = cancellationToken;
         return Task.CompletedTask;
     }
 

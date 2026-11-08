@@ -36,7 +36,7 @@ internal sealed class JobWorkerBackgroundService(
     ILogger<JobWorkerBackgroundService>? logger = null,
     TraconMetrics? metrics = null,
     IWebhookPublisher? webhookPublisher = null,
-    IJobTenantCapSource? tenantCapSource = null) : BackgroundService
+    IJobTenantCapSource? tenantCapSource = null) : BackgroundService, ISwitchedLoop
 {
     /// <summary>
     /// The handler-key metric tag published for a job whose key no handler is
@@ -56,12 +56,21 @@ internal sealed class JobWorkerBackgroundService(
     private readonly TickOptions<TraconSchedulingOptions> _tickOptions = new(optionsMonitor, logger, "job worker");
     private readonly ConcurrentDictionary<Guid, Task> _runningJobs = new();
 
+    /// <summary>Reads, from the application services, whether this loop runs.</summary>
+    /// <param name="services">The application services.</param>
+    /// <returns><see langword="true"/> when the loop runs.</returns>
+    public static bool IsEnabled(IServiceProvider services)
+        => IsSwitchedOn(services.GetRequiredService<IOptionsMonitor<TraconSchedulingOptions>>().CurrentValue);
+
+    /// <summary>The rule both the gate and the loop itself read.</summary>
+    internal static bool IsSwitchedOn(TraconSchedulingOptions options) => options.Enabled && options.RunWorker && options.PollInterval > TimeSpan.Zero;
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var options = optionsMonitor.CurrentValue;
 
-        if (!options.Enabled || !options.RunWorker || options.PollInterval <= TimeSpan.Zero)
+        if (!IsSwitchedOn(options))
         {
             return;
         }

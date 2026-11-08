@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -41,14 +42,23 @@ internal sealed class CanaryEvaluationService(
     IOptionsMonitor<SingletonExecutionOptions> singletonOptionsMonitor,
     SchemaReadyGate schemaReadyGate,
     TimeProvider? timeProvider = null,
-    ILogger<CanaryEvaluationService>? logger = null) : BackgroundService
+    ILogger<CanaryEvaluationService>? logger = null) : BackgroundService, ISwitchedLoop
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+
+    /// <summary>Reads, from the application services, whether this loop runs.</summary>
+    /// <param name="services">The application services.</param>
+    /// <returns><see langword="true"/> when the loop runs.</returns>
+    public static bool IsEnabled(IServiceProvider services)
+        => IsSwitchedOn(services.GetRequiredService<IOptionsMonitor<CanaryOptions>>().CurrentValue);
+
+    /// <summary>The rule both the gate and the loop itself read.</summary>
+    internal static bool IsSwitchedOn(CanaryOptions options) => options.AutoRollbackEnabled;
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!optionsMonitor.CurrentValue.AutoRollbackEnabled)
+        if (!IsSwitchedOn(optionsMonitor.CurrentValue))
         {
             return;
         }

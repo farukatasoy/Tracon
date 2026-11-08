@@ -125,12 +125,12 @@ public sealed class JobMetricEndToEndTests
             new { });
 
         // An empty scrape alone proves nothing: an ENABLED gauge is also empty
-        // until its first refresh. What proves "opt-in" is the refresher
-        // itself: it returned at start without a timer and never read the store.
-        var observer = host.Services.GetServices<IHostedService>().OfType<JobQueueDepthObserver>().Single();
+        // until its first refresh. What proves "opt-in" is the gate in front of
+        // the refresher: it never built one, so nothing can have read the store.
+        var gate = host.Services.GetServices<IHostedService>().OfType<GatedLoop<JobQueueDepthObserver>>().Single();
 
-        await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
-        observer.CompletedRefreshes.ShouldBe(0);
+        await gate.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        gate.Loop.ShouldBeNull();
 
         // The job is sitting in the queue, yet the gauge stays silent.
         collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName).ShouldBeEmpty();

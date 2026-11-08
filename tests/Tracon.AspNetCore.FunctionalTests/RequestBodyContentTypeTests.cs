@@ -81,6 +81,41 @@ public sealed class RequestBodyContentTypeTests
         operations.ShouldBeGreaterThan(40, "the document lists too few operations with a body for the probe to mean anything");
     }
 
+    [Fact]
+    public async Task The_attachment_upload_refuses_a_request_with_no_body_with_415_and_a_problem_document()
+    {
+        // The request the generated request delegate used to let through to a 500: it reads a form only when the request
+        // can carry a body, and a request with no body has no content type for the framework's own match to refuse.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/tracon/api/attachments", UriKind.Relative));
+        using var reply = await host.Client.SendAsync(request);
+
+        reply.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+        reply.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
+
+        var problem = await TraconTestHost.ReadJsonAsync(reply);
+        (problem.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("multipart/form-data");
+    }
+
+    [Theory]
+    [InlineData("text/plain")]
+    [InlineData("application/json")]
+    public async Task The_attachment_upload_refuses_a_body_that_is_not_a_form_with_415(string contentType)
+    {
+        // Answered by the routing layer's own content type match, before any Tracon middleware: a bare 415, as before.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/tracon/api/attachments", UriKind.Relative))
+        {
+            Content = new StringContent("not a form", Encoding.UTF8, contentType),
+        };
+
+        using var reply = await host.Client.SendAsync(request);
+
+        reply.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+    }
+
     [Theory]
     [InlineData("POST", "/tracon/api/agents")]
     [InlineData("PUT", "/tracon/api/workflows/probe")]

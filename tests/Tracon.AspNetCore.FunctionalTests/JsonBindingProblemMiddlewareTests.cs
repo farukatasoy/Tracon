@@ -36,7 +36,7 @@ public sealed class JsonBindingProblemMiddlewareTests
             new { name = "invalid", scopes = new[] { "runs:all" } });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
 
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("title").GetString().ShouldBe("Invalid request body");
@@ -64,7 +64,7 @@ public sealed class JsonBindingProblemMiddlewareTests
             new { endpoint = "stdio://some-command", transport = "Stdio" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
 
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("title").GetString().ShouldBe("Invalid request body");
@@ -91,7 +91,7 @@ public sealed class JsonBindingProblemMiddlewareTests
             content);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
 
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("title").GetString().ShouldBe("Invalid request body");
@@ -117,7 +117,38 @@ public sealed class JsonBindingProblemMiddlewareTests
             content);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
+    }
+
+    /// <summary>
+    /// A text that names no member of an enum query parameter is answered with a problem document that names the
+    /// parameter and lists the members, in every environment.
+    /// </summary>
+    /// <remarks>
+    /// Production is the default environment of the test host. There the framework does not throw for a binding
+    /// failure, and the request delegate generator does not throw for a nullable parameter in any environment, so
+    /// nothing reaches the parameter middleware: the answer is the enum filter's. Three endpoints on purpose: they bind a
+    /// nullable enum query parameter of three different types.
+    /// </remarks>
+    [Theory]
+    [InlineData("/tracon/api/stats/timeseries?bucket=day")]
+    [InlineData("/tracon/api/evaluation/scores/summary?bucket=day")]
+    [InlineData("/tracon/api/runs?kind=agent")]
+    [InlineData("/tracon/api/runs?status=completed")]
+    public async Task Miscased_enum_query_parameter_names_the_parameter_and_the_members_in_every_environment(string path)
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.GetAsync(new Uri(path, UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
+
+        var json = await TraconTestHost.ReadJsonAsync(response);
+        json.GetProperty("title").GetString().ShouldBe("Invalid request parameter");
+
+        var parameter = path[(path.IndexOf('?', StringComparison.Ordinal) + 1)..path.IndexOf('=', StringComparison.Ordinal)];
+        (json.GetProperty("detail").GetString() ?? string.Empty).ShouldContain($"'{parameter}' must be one of");
     }
 
     /// <summary>
@@ -167,7 +198,7 @@ public sealed class JsonBindingProblemMiddlewareTests
         using var response = await host.Client.GetAsync(new Uri(path, UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
 
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("title").GetString().ShouldBe("Invalid request parameter");

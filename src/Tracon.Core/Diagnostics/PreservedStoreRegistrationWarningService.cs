@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Tracon;
@@ -28,8 +27,11 @@ namespace Tracon;
 /// <param name="logger">The logger the warnings are written to.</param>
 internal sealed partial class PreservedStoreRegistrationWarningService(
     TraconDefaultRegistrations defaults,
-    ILogger<PreservedStoreRegistrationWarningService> logger) : IHostedService
+    ILogger<PreservedStoreRegistrationWarningService> logger) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Advisory;
+
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -42,9 +44,6 @@ internal sealed partial class PreservedStoreRegistrationWarningService(
 
         return Task.CompletedTask;
     }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     [LoggerMessage(
         EventId = 1,

@@ -124,9 +124,9 @@ public static class TraconWorkflowsBuilderExtensions
         services.TryAddSingleton<IJobTenantCapSource, WorkflowJobTenantCapSource>();
 
         // Closes the runs whose human request expired, so retention can release
-        // what a waiting run keeps. Scans nothing while no workflow sets a limit.
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, WorkflowRequestExpirationService>());
+        // what a waiting run keeps. While workflow execution is on, every scan
+        // interval asks the store to close the requests whose time has come.
+        services.TryAddGatedLoop<WorkflowRequestExpirationService>();
 
         return builder;
     }

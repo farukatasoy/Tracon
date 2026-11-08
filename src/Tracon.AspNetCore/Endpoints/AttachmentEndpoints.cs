@@ -39,7 +39,8 @@ internal static class AttachmentEndpoints
             // application does not call UseAntiforgery(); unless explicitly
             // disabled, every request returns 500 with "middleware not found".
             // Measured.
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .WithMetadata(FormBodyMetadata.Instance);
 
         builder.MapGet("/api/attachments/{id:guid}", DownloadAsync)
             .RequireRole(roles.Reader)

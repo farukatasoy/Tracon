@@ -180,7 +180,7 @@ public static class TraconMcpBuilderExtensions
         services.TryAddSingleton<IMcpResourceClient, McpResourceClient>();
         services.TryAddSingleton<IMcpOAuthCoordinator, McpOAuthAuthorizationCoordinator>();
 
-        services.AddHostedService<McpDiscoveryService>();
+        services.TryAddGatedLoop<McpDiscoveryService>();
 
         return builder;
     }

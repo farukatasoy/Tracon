@@ -27,7 +27,6 @@ public sealed class SilentGapWarningTests
         // Neither check throws, and NullLogger discards the output silently -
         // this proves both branches run to completion in one pass.
         await service.StartAsync(CancellationToken.None);
-        await service.StopAsync(CancellationToken.None);
     }
 
     [Fact]

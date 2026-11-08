@@ -18,11 +18,12 @@ public static partial class TraconServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<TraconOptions>, TraconOptionsValidator>());
 
         // Refuses to start a host whose Tracon assemblies come from more than one
-        // release. A lifecycle service: its StartingAsync runs before every
-        // StartAsync, including those registered ahead of AddTracon() and the
-        // storage providers' migrations. Always on; the check has no opt-out.
+        // release. A Starting-stage check: the start-up check service runs it in
+        // StartingAsync, before every StartAsync, including those registered ahead
+        // of AddTracon() and the storage providers' migrations. Always on; the
+        // check has no opt-out.
         services.TryAddSingleton<LoadedPackageFamily>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, PackageFamilyAlignmentService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, PackageFamilyAlignmentService>());
 
         // Tenant context. In a multi-tenant setup, the consumer registers
         // their own implementation before this call.
@@ -57,34 +58,34 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddSingleton<IRunAuthorizationHandler, AllowAllRunAuthorizationHandler>();
 
         // Composition gate for the seven embedding points.
-        // Registered here, ahead of every IHostedService Tracon itself
-        // registers, so a host whose module order left a required binding on the
-        // built-in default fails before Tracon's own background work starts.
+        // A start-up check: every check runs before Tracon's own loops start,
+        // so a host whose module order left a required binding on the built-in
+        // default fails before Tracon's own background work starts.
         // A host that registers its own hosted service before AddTracon()
         // still starts that one first; that order is the host's to choose. The
         // gate resolves nothing unless the application declared a contract
         // through RequireCustomBinding.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RequiredBindingValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, RequiredBindingValidator>());
 
         // Reports store contracts a storage provider declined to overwrite
         // because the application registered its own. The overwrite used to be
         // silent and that silence is what made the problem expensive to find.
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, PreservedStoreRegistrationWarningService>());
+            ServiceDescriptor.Singleton<ITraconStartupCheck, PreservedStoreRegistrationWarningService>());
 
         // Reports catalog models with no price. The cost mechanism was already
         // honest about an unknown price; what it never did was SAY so, and an
         // installation could record thousands of runs with empty cost columns
         // before anyone read the pricing_source enum to find out why.
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, UnpricedModelWarningService>());
+            ServiceDescriptor.Singleton<ITraconStartupCheck, UnpricedModelWarningService>());
 
         // Composition gate for the production decisions.
         // Its sibling above covers the BINDING half of the same argument; this
         // one covers the OPTIONS half. Registered here for the same reason and
         // with the same guarantee: it resolves nothing at all unless the
         // application declared a profile through RequireProductionProfile.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ProductionProfileValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, ProductionProfileValidator>());
 
         // The checks the gate reads. Registered unconditionally and EXPLICITLY:
         // Abstractions, Core and OpenAI stay AOT compatible, and scanning types
@@ -280,8 +281,7 @@ public static partial class TraconServiceCollectionExtensions
         {
             Logger = provider.GetService<ILogger<ModelProviderHealthCache>>(),
         });
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, ModelProviderHealthBackgroundService>());
+        services.TryAddGatedLoop<ModelProviderHealthBackgroundService>();
 
         // Schema-ready gate. Background services that touch SQL wait for this
         // BEFORE their first query; this way, registration order (.UseMcp()
@@ -588,8 +588,8 @@ public static partial class TraconServiceCollectionExtensions
         // Catalog sources. TryAddEnumerable prevents the same type from being added twice.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, CodeAgentSource>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, DefinitionStoreAgentSource>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AgentSourceValidationService>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ToolRegistrationValidationService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, AgentSourceValidationService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, ToolRegistrationValidationService>());
 
         // Reports non-persistent storage in the Production environment. It reads
         // no database, so it is independent of migration order; it only looks at
@@ -599,9 +599,9 @@ public static partial class TraconServiceCollectionExtensions
         // is registered by the host, and AddTracon() is also valid on a bare
         // service collection with no host behind it. With constructor resolution
         // the container treats the missing dependency as an error even though the
-        // parameter is nullable, and enumerating IHostedService then throws for
-        // every consumer - measured.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, NonPersistentStorageWarningService>(
+        // parameter is nullable, and enumerating the start-up checks then throws
+        // for every consumer - measured.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, NonPersistentStorageWarningService>(
             static provider => new NonPersistentStorageWarningService(
                 provider.GetService<IHostEnvironment>(),
                 provider.GetRequiredService<IAgentDefinitionStore>(),
@@ -614,7 +614,7 @@ public static partial class TraconServiceCollectionExtensions
         // configuration (rows accumulate indefinitely unless a database policy
         // exists). Same explicit-factory rationale as the warning above -
         // IHostEnvironment is host-provided and optional here.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, SilentGapWarningService>(
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, SilentGapWarningService>(
             static provider => new SilentGapWarningService(
                 provider.GetService<IHostEnvironment>(),
                 provider.GetServices<IContentGuard>(),

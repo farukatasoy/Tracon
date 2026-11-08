@@ -38,7 +38,7 @@ public sealed class RunReconciliationClockRegistrationTests(SqliteSchemaFixture 
         var clock = new ManualClock();
         await using var provider = Build(clock);
         var runs = provider.GetRequiredService<IRunStore>();
-        var writer = provider.GetServices<IHostedService>().OfType<RunHeartbeatWriter>().Single();
+        var writer = provider.GetRequiredService<RunHeartbeatWriter>();
         var runId = await StartRunAsync(runs, clock.GetUtcNow(), Tenant);
 
         using var cancellation = new CancellationTokenSource();
@@ -80,7 +80,7 @@ public sealed class RunReconciliationClockRegistrationTests(SqliteSchemaFixture 
         var clock = new ManualClock();
         await using var provider = Build(clock);
         var runs = provider.GetRequiredService<IRunStore>();
-        var scan = provider.GetServices<IHostedService>().OfType<RunReconciliationService>().Single();
+        var scan = provider.GetRequiredService<RunReconciliationService>();
         var start = clock.GetUtcNow();
         var old = await StartRunAsync(runs, start - TimeSpan.FromMinutes(10), tenant: null);
         var fresh = await StartRunAsync(runs, start, tenant: null);

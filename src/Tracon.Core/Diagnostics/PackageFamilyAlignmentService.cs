@@ -10,12 +10,12 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// It runs in <see cref="IHostedLifecycleService.StartingAsync"/>, which the host
-/// calls for every lifecycle service before it calls ANY
-/// <see cref="IHostedService.StartAsync"/>. An application's own hosted service
-/// may be registered ahead of <c>AddTracon()</c>, and a storage provider's
-/// migration service starts in registration order; neither runs on a mixed
-/// graph, because the host stops at the first exception a
+/// It runs at <see cref="StartupCheckStage.Starting"/>: in
+/// <see cref="IHostedLifecycleService.StartingAsync"/>, which the host calls for
+/// every lifecycle service before it calls ANY <see cref="IHostedService.StartAsync"/>.
+/// An application's own hosted service may be registered ahead of <c>AddTracon()</c>,
+/// and a storage provider's migration service starts in registration order; neither
+/// runs on a mixed graph, because the host stops at the first exception a
 /// <c>StartingAsync</c> throws.
 /// </para>
 /// <para>
@@ -25,10 +25,16 @@ namespace Tracon;
 /// never starts a host (a bare <c>BuildServiceProvider()</c>) never runs it.
 /// </para>
 /// </remarks>
-internal sealed class PackageFamilyAlignmentService(LoadedPackageFamily family) : IHostedLifecycleService
+internal sealed class PackageFamilyAlignmentService(LoadedPackageFamily family) : ITraconStartupCheck
 {
     /// <inheritdoc />
-    public Task StartingAsync(CancellationToken cancellationToken)
+    public StartupCheckKind Kind => StartupCheckKind.Gate;
+
+    /// <inheritdoc />
+    public StartupCheckStage Stage => StartupCheckStage.Starting;
+
+    /// <inheritdoc />
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         // The check is synchronous and in memory; the token is not observed so
         // that a cancelled start never reports a mixed graph it did not see.
@@ -38,21 +44,6 @@ internal sealed class PackageFamilyAlignmentService(LoadedPackageFamily family) 
 
         return mismatch is null ? Task.CompletedTask : throw new TraconException(mismatch);
     }
-
-    /// <inheritdoc />
-    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-    /// <inheritdoc />
-    public Task StartedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-    /// <inheritdoc />
-    public Task StoppingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-    /// <inheritdoc />
-    public Task StoppedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 /// <summary>The Tracon package assemblies loaded into this process, as the alignment check reads them.</summary>

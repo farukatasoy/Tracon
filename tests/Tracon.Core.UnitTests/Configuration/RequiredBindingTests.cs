@@ -203,9 +203,13 @@ public sealed class RequiredBindingTests
     }
 
     [Fact]
-    public async Task Stopping_does_nothing()
-        => await new RequiredBindingValidator([], NoDefaults, new ThrowingScopeFactory())
-            .StopAsync(TestContext.Current.CancellationToken);
+    public void It_is_a_gate_that_runs_at_the_start()
+    {
+        ITraconStartupCheck validator = new RequiredBindingValidator([], NoDefaults, new ThrowingScopeFactory());
+
+        validator.Kind.ShouldBe(StartupCheckKind.Gate);
+        validator.Stage.ShouldBe(StartupCheckStage.Start);
+    }
 
     private static async Task ValidateAsync(Action<IServiceCollection> configure, Type contract)
     {

@@ -315,6 +315,14 @@ internal static class RequestBodyBinding
             detail: "The body must be JSON ('Content-Type: application/json').",
             statusCode: StatusCodes.Status415UnsupportedMediaType);
 
+    /// <summary>The <c>415</c> a request gets whose content type is missing or is not a form.</summary>
+    /// <returns>The problem to return.</returns>
+    internal static ProblemHttpResult NotForm()
+        => TypedResults.Problem(
+            title: "Unsupported media type",
+            detail: "The body must be a form ('Content-Type: multipart/form-data').",
+            statusCode: StatusCodes.Status415UnsupportedMediaType);
+
     private static ProblemHttpResult NullElement(string detail)
         => TypedResults.Problem(
             title: ProblemTitle,

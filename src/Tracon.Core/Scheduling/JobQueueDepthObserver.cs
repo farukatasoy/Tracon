@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -36,7 +37,7 @@ namespace Tracon;
 /// under its own name while the other reported it as <c>other</c>.
 /// </para>
 /// </remarks>
-internal sealed class JobQueueDepthObserver : CachedGaugeSource<JobQueueDepth>
+internal sealed class JobQueueDepthObserver : CachedGaugeSource<JobQueueDepth>, ISwitchedLoop
 {
     private readonly IJobStore _jobStore;
     private readonly TraconMetrics? _metrics;
@@ -111,9 +112,17 @@ internal sealed class JobQueueDepthObserver : CachedGaugeSource<JobQueueDepth>
         base.Dispose();
     }
 
+    /// <summary>Reads, from the application services, whether this loop runs.</summary>
+    /// <param name="services">The application services.</param>
+    /// <returns><see langword="true"/> when the loop runs.</returns>
+    public static bool IsEnabled(IServiceProvider services) => IsSwitchedOn(services.GetRequiredService<IOptionsMonitor<TraconOptions>>().CurrentValue.Observability);
+
+    /// <summary>The rule both the gate and the loop itself read.</summary>
+    internal static bool IsSwitchedOn(TraconObservabilityOptions options) => options.EnableJobQueueDepthGauge;
+
     /// <inheritdoc />
     protected override bool IsEnabled(TraconObservabilityOptions options)
-        => options.EnableJobQueueDepthGauge;
+        => IsSwitchedOn(options);
 
     /// <inheritdoc />
     protected override TimeSpan GetRefreshInterval(TraconObservabilityOptions options)

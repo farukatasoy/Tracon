@@ -28,7 +28,7 @@ public sealed class JobMetricsRegistrationTests
 
         using var provider = services.BuildServiceProvider();
 
-        var worker = provider.GetServices<IHostedService>().OfType<JobWorkerBackgroundService>().Single();
+        var worker = provider.GetRequiredService<JobWorkerBackgroundService>();
 
         // The primary-constructor parameter is captured in a compiler-generated
         // field; find it by TYPE rather than by name, since that name is not
@@ -44,16 +44,17 @@ public sealed class JobMetricsRegistrationTests
     }
 
     [Fact]
-    public void The_queue_depth_observer_is_registered_as_a_hosted_service()
+    public void The_queue_depth_observer_is_registered_behind_its_gate()
     {
         var services = new ServiceCollection();
         services.AddTracon();
 
         using var provider = services.BuildServiceProvider();
 
-        // Registered as IHostedService for one reason only: so the container
-        // builds it EARLY and its ObservableGauge exists to be scraped.
-        provider.GetServices<IHostedService>().OfType<JobQueueDepthObserver>().ShouldHaveSingleItem();
+        // The host starts the gate; the gate builds the observer, and with it the
+        // ObservableGauge, only when the gauge is on.
+        provider.GetServices<IHostedService>().OfType<GatedLoop<JobQueueDepthObserver>>().ShouldHaveSingleItem();
+        provider.GetService<JobQueueDepthObserver>().ShouldNotBeNull();
     }
 
     [Fact]

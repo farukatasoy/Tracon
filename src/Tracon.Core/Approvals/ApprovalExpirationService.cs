@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -31,15 +32,24 @@ internal sealed class ApprovalExpirationService(
     IOptionsMonitor<SingletonExecutionOptions> singletonOptionsMonitor,
     SchemaReadyGate schemaReadyGate,
     TimeProvider? timeProvider = null,
-    ILogger<ApprovalExpirationService>? logger = null) : BackgroundService
+    ILogger<ApprovalExpirationService>? logger = null) : BackgroundService, ISwitchedLoop
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly TickOptions<TraconApprovalOptions> _tickOptions = new(optionsMonitor, logger, "approval expiration scan");
 
+    /// <summary>Reads, from the application services, whether this loop runs.</summary>
+    /// <param name="services">The application services.</param>
+    /// <returns><see langword="true"/> when the loop runs.</returns>
+    public static bool IsEnabled(IServiceProvider services)
+        => IsSwitchedOn(services.GetRequiredService<IOptionsMonitor<TraconApprovalOptions>>().CurrentValue);
+
+    /// <summary>The rule both the gate and the loop itself read.</summary>
+    internal static bool IsSwitchedOn(TraconApprovalOptions options) => options.ExpirationEnabled;
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!optionsMonitor.CurrentValue.ExpirationEnabled)
+        if (!IsSwitchedOn(optionsMonitor.CurrentValue))
         {
             return;
         }

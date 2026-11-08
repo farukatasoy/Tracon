@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Hosting;
-
 namespace Tracon;
 
 /// <summary>
@@ -10,11 +8,13 @@ namespace Tracon;
 /// configuration mistake must break the host's start, not the worker's first
 /// tick — a worker error is logged and swallowed (background errors must not
 /// break functionality), so without this the mistake would surface as jobs
-/// quietly running the wrong handler, or as one log line nobody reads. There
-/// is nothing to stop, so <see cref="StopAsync"/> does nothing.
+/// quietly running the wrong handler, or as one log line nobody reads.
 /// </remarks>
-internal sealed class JobHandlerRegistryValidator(JobHandlerRegistry registry) : IHostedService
+internal sealed class JobHandlerRegistryValidator(JobHandlerRegistry registry) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Gate;
+
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -24,7 +24,4 @@ internal sealed class JobHandlerRegistryValidator(JobHandlerRegistry registry) :
 
         return Task.CompletedTask;
     }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

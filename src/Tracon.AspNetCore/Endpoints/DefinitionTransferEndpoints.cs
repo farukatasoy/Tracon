@@ -110,9 +110,6 @@ internal static class DefinitionTransferEndpoints
 
     private static async Task<Results<Ok<DefinitionBundle>, ProblemHttpResult>> ExportAsync(
         HttpContext httpContext,
-        [FromQuery(Name = "agent")] string[]? agent,
-        [FromQuery(Name = "workflow")] string[]? workflow,
-        string? types,
         [FromServices] IAgentDefinitionStore agents,
         [FromServices] IWorkflowDefinitionStore workflows,
         [FromServices] IAgentSkillStore skills,
@@ -123,7 +120,14 @@ internal static class DefinitionTransferEndpoints
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] TraconMetrics metrics,
         [FromServices] ILoggerFactory loggerFactory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+
+        // A query array is optional only when it carries a default: the request delegate generator reads a nullable
+        // annotation on an array as required, and the OpenAPI document then marks the parameter required. Optional
+        // parameters come last, so the three query parameters sit together, in the order the document lists them.
+        [FromQuery(Name = "agent")] string[]? agent = null,
+        [FromQuery(Name = "workflow")] string[]? workflow = null,
+        string? types = null)
     {
         var agentNames = Names(agent);
         var workflowNames = Names(workflow);

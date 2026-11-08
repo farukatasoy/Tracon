@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -30,7 +31,7 @@ namespace Tracon;
 /// small.
 /// </para>
 /// </remarks>
-internal sealed class McpDiscoveryService : BackgroundService
+internal sealed class McpDiscoveryService : BackgroundService, ISwitchedLoop
 {
     private readonly McpToolCatalog _catalog;
     private readonly IOptionsMonitor<TraconMcpOptions> _options;
@@ -57,14 +58,32 @@ internal sealed class McpDiscoveryService : BackgroundService
         _clock = timeProvider ?? TimeProvider.System;
     }
 
+    /// <summary>Reads, from the application services, whether this loop runs; says so in the log when it does not.</summary>
+    /// <param name="services">The application services.</param>
+    /// <returns><see langword="true"/> when the loop runs.</returns>
+    public static bool IsEnabled(IServiceProvider services)
+    {
+        if (IsSwitchedOn(services.GetRequiredService<IOptionsMonitor<TraconMcpOptions>>().CurrentValue))
+        {
+            return true;
+        }
+
+        LogDisabled(services.GetRequiredService<ILogger<McpDiscoveryService>>());
+
+        return false;
+    }
+
+    /// <summary>The rule both the gate and the loop itself read.</summary>
+    internal static bool IsSwitchedOn(TraconMcpOptions options) => options.Enabled;
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var current = _options.CurrentValue;
 
-        if (!current.Enabled)
+        if (!IsSwitchedOn(current))
         {
-            _logger.LogInformation("MCP tool discovery is disabled (Tracon:Mcp:Enabled = false).");
+            LogDisabled(_logger);
             return;
         }
 
@@ -143,4 +162,7 @@ internal sealed class McpDiscoveryService : BackgroundService
             return current;
         }
     }
+
+    private static void LogDisabled(ILogger logger)
+        => logger.LogInformation("MCP tool discovery is disabled (Tracon:Mcp:Enabled = false).");
 }

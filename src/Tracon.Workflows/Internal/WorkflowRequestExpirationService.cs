@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -65,7 +66,7 @@ internal sealed class WorkflowRequestExpirationService(
     TimeProvider? timeProvider = null,
     ILogger<WorkflowRequestExpirationService>? logger = null,
     IRunErrorClassifier? errorClassifier = null,
-    IWebhookPublisher? webhookPublisher = null) : BackgroundService
+    IWebhookPublisher? webhookPublisher = null) : BackgroundService, ISwitchedLoop
 {
     /// <summary>How many scans try to close a run before the service gives up on it.</summary>
     private const int MaxCloseAttempts = 10;
@@ -81,10 +82,19 @@ internal sealed class WorkflowRequestExpirationService(
     // the lease. Set by the scan; cleared by the loop whenever the lease is not held.
     private bool _recovered;
 
+    /// <summary>Reads, from the application services, whether this loop runs.</summary>
+    /// <param name="services">The application services.</param>
+    /// <returns><see langword="true"/> when the loop runs.</returns>
+    public static bool IsEnabled(IServiceProvider services)
+        => IsSwitchedOn(services.GetRequiredService<IOptionsMonitor<TraconWorkflowOptions>>().CurrentValue);
+
+    /// <summary>The rule both the gate and the loop itself read.</summary>
+    internal static bool IsSwitchedOn(TraconWorkflowOptions options) => options.Enabled;
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!optionsMonitor.CurrentValue.Enabled)
+        if (!IsSwitchedOn(optionsMonitor.CurrentValue))
         {
             return;
         }

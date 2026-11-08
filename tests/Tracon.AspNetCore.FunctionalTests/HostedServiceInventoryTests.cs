@@ -1,11 +1,12 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Hosting;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Every hosted service the packages ship is named here and has a kind. A new one fails this test until
-/// somebody decides which kind it is, and a tick loop also names the test file that drives it.
+/// Every hosted service and every start-up check the packages ship is named here and has a kind. A new one fails
+/// this test until somebody decides which kind it is, and a tick loop also names the test file that drives it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -22,6 +23,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <item><description><c>StartupGate</c> - checks the configuration at start and refuses to start on purpose.</description></item>
 /// <item><description><c>StartupAdvisory</c> - writes a log line at start. It must never stop the host.</description></item>
 /// </list>
+/// <para>
+/// A start-up check of the core package is not a hosted service of its own: one hosted service runs them all and
+/// gives a gate and an advisory the behaviour their kind promises (a gate's exception stops the start, an advisory's is
+/// logged). The kind a check declares therefore has to be the kind named here.
+/// </para>
 /// <para>
 /// The scan reads the package assemblies from the test output folder, so a service in a package this project
 /// does not reference by code is still found. The list is closed in both directions: a service that disappears
@@ -42,10 +48,12 @@ public sealed class HostedServiceInventoryTests
         ["Tracon.QuotaUsageObserver"] = (Kind.TickLoop, "HostedTickLoopTests.cs"),
         ["Tracon.WorkflowRequestExpirationService"] = (Kind.TickLoop, "WorkflowRequestExpirationLoopTests.cs"),
         ["Tracon.McpDiscoveryService"] = (Kind.TickLoop, "McpDiscoveryLoopTests.cs"),
+        ["Tracon.GatedLoop`1"] = (Kind.TickLoop, "GatedLoopHostTests.cs"),
 
         ["Tracon.TraconDrainService"] = (Kind.Lifecycle, "TraconDrainServiceTests.cs"),
         ["Tracon.LiveVoiceShutdownService"] = (Kind.Lifecycle, "LiveVoiceShutdownFaultTests.cs"),
 
+        ["Tracon.TraconStartupChecks"] = (Kind.StartupGate, null),
         ["Tracon.ToolRegistrationValidationService"] = (Kind.StartupGate, null),
         ["Tracon.JobHandlerRegistryValidator"] = (Kind.StartupGate, null),
         ["Tracon.AgentSourceValidationService"] = (Kind.StartupGate, null),
@@ -108,6 +116,12 @@ public sealed class HostedServiceInventoryTests
             }
 
             var typeName = name[(name.LastIndexOf('.') + 1)..];
+
+            // A generic type is named with its arity (GatedLoop`1); its test file names it without.
+            if (typeName.IndexOf('`', StringComparison.Ordinal) is var arity and >= 0)
+            {
+                typeName = typeName[..arity];
+            }
             var match = testFiles.Where(path => string.Equals(Path.GetFileName(path), loopTest, StringComparison.Ordinal)).ToList();
 
             if (match.Count != 1)
@@ -126,9 +140,43 @@ public sealed class HostedServiceInventoryTests
         problems.ShouldBeEmpty();
     }
 
-    private static List<string> FindHostedServices()
+    [Fact]
+    public void Every_start_up_check_declares_the_kind_the_list_names_and_is_not_a_hosted_service_of_its_own()
     {
-        var services = new HashSet<string>(StringComparer.Ordinal);
+        var checks = FindTypes(static type => typeof(ITraconStartupCheck).IsAssignableFrom(type));
+
+        checks.Count.ShouldBeGreaterThan(10, "the start-up checks of the core package must have been found");
+
+        var problems = new List<string>();
+
+        foreach (var type in checks)
+        {
+            if (typeof(IHostedService).IsAssignableFrom(type))
+            {
+                problems.Add($"{type.FullName} is a start-up check and a hosted service: the host would run it twice");
+            }
+
+            // The kind is a constant of the type; reading it needs no dependency, so the object is not constructed.
+            var declared = ((ITraconStartupCheck)RuntimeHelpers.GetUninitializedObject(type)).Kind;
+            var expected = declared == StartupCheckKind.Gate ? Kind.StartupGate : Kind.StartupAdvisory;
+
+            if (!Known.TryGetValue(type.FullName!, out var entry) || entry.Kind != expected)
+            {
+                problems.Add($"{type.FullName} declares {declared}; the list says {(Known.TryGetValue(type.FullName!, out var listed) ? listed.Kind : "nothing")}");
+            }
+        }
+
+        problems.ShouldBeEmpty();
+    }
+
+    private static List<string> FindHostedServices()
+        => [.. FindTypes(static type => typeof(IHostedService).IsAssignableFrom(type) || typeof(ITraconStartupCheck).IsAssignableFrom(type))
+            .Select(static type => type.FullName!)
+            .Distinct(StringComparer.Ordinal)];
+
+    private static List<Type> FindTypes(Func<Type, bool> match)
+    {
+        var types = new List<Type>();
 
         foreach (var path in Directory.EnumerateFiles(AppContext.BaseDirectory, "Tracon.*.dll"))
         {
@@ -152,14 +200,14 @@ public sealed class HostedServiceInventoryTests
 
             foreach (var type in TypesOf(assembly))
             {
-                if (type is { IsAbstract: false, IsInterface: false } && typeof(IHostedService).IsAssignableFrom(type))
+                if (type is { IsAbstract: false, IsInterface: false } && match(type))
                 {
-                    services.Add(type.FullName!);
+                    types.Add(type);
                 }
             }
         }
 
-        return [.. services];
+        return types;
     }
 
     private static IEnumerable<Type> TypesOf(Assembly assembly)

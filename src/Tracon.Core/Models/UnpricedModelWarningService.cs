@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -38,8 +37,11 @@ namespace Tracon;
 internal sealed partial class UnpricedModelWarningService(
     IEnumerable<IModelProvider> providers,
     IOptions<TraconOptions> options,
-    ILogger<UnpricedModelWarningService> logger) : IHostedService
+    ILogger<UnpricedModelWarningService> logger) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Advisory;
+
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -61,9 +63,6 @@ internal sealed partial class UnpricedModelWarningService(
 
         return Task.CompletedTask;
     }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     [LoggerMessage(
         EventId = 1,

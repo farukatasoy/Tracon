@@ -63,7 +63,7 @@ public sealed class PackageFamilyAlignmentHostTests
             });
 
         recorder.Started.ShouldBeTrue();
-        host.Services.GetServices<IHostedService>().OfType<PackageFamilyAlignmentService>().Count().ShouldBe(1);
+        host.Services.GetServices<ITraconStartupCheck>().OfType<PackageFamilyAlignmentService>().Count().ShouldBe(1);
         host.Services.GetRequiredService<LoadedPackageFamily>().GetType().ShouldBe(typeof(LoadedPackageFamily));
     }
 

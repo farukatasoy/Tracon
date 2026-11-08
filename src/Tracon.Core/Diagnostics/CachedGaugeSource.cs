@@ -25,12 +25,13 @@ namespace Tracon;
 /// bound a refresh; there is no separate timeout.
 /// </para>
 /// <para>
-/// When the gauge is off at start (the default), <see cref="ExecuteAsync"/>
-/// returns at once: no timer exists and the store is never queried. The
-/// service is registered either way, so the instruments exist and the gauge can
-/// be turned on without a change to the consumer's telemetry configuration.
-/// Turning it on takes effect at the next host start. Turning it off while the
-/// host runs stops the publication at once and the queries at the next tick.
+/// When the gauge is off at start (the default), the gate in front of it
+/// (<see cref="GatedLoop{TLoop}"/>) does not build it: no instrument exists, no
+/// timer runs and the store is never queried; built by hand, the service returns
+/// from <see cref="ExecuteAsync"/> at once. Turning it on takes effect at the next
+/// host start, with no change to the consumer's telemetry configuration: the
+/// meter is the same. Turning it off while the host runs stops the publication at
+/// once and the queries at the next tick.
 /// </para>
 /// <para>
 /// The first query waits until the SQL schema is ready, whatever the order in

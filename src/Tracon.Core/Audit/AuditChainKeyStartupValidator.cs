@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Tracon;
 
@@ -13,12 +12,14 @@ namespace Tracon;
 /// watching: the start. The failure names the configuration key and never carries a value.
 /// </para>
 /// <para>
-/// A lifecycle service registered ahead of the host's own, like the package family check. It resolves
-/// nothing but the ring.
+/// A start-up gate, the first one <c>AddTracon()</c> registers. It resolves nothing but the ring.
 /// </para>
 /// </remarks>
-internal sealed class AuditChainKeyStartupValidator(IServiceProvider services) : IHostedService
+internal sealed class AuditChainKeyStartupValidator(IServiceProvider services) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Gate;
+
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -28,7 +29,4 @@ internal sealed class AuditChainKeyStartupValidator(IServiceProvider services) :
 
         return Task.CompletedTask;
     }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -36,7 +37,7 @@ internal sealed class RunHeartbeatWriter(
     IOptionsMonitor<RunReconciliationOptions> optionsMonitor,
     SchemaReadyGate schemaReadyGate,
     TimeProvider? timeProvider = null,
-    ILogger<RunHeartbeatWriter>? logger = null) : BackgroundService
+    ILogger<RunHeartbeatWriter>? logger = null) : BackgroundService, ISwitchedLoop
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -44,12 +45,21 @@ internal sealed class RunHeartbeatWriter(
     // touches it, and an entry leaves when its run leaves the registry.
     private readonly HashSet<Guid> _loggedCancellations = [];
 
+    /// <summary>Reads, from the application services, whether this loop runs.</summary>
+    /// <param name="services">The application services.</param>
+    /// <returns><see langword="true"/> when the loop runs.</returns>
+    public static bool IsEnabled(IServiceProvider services)
+        => IsSwitchedOn(services.GetRequiredService<IOptionsMonitor<RunReconciliationOptions>>().CurrentValue);
+
+    /// <summary>The rule both the gate and the loop itself read.</summary>
+    internal static bool IsSwitchedOn(RunReconciliationOptions options) => options.Enabled;
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var options = optionsMonitor.CurrentValue;
 
-        if (!options.Enabled)
+        if (!IsSwitchedOn(options))
         {
             return;
         }

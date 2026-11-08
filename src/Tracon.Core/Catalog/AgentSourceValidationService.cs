@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Tracon;
@@ -6,8 +5,11 @@ namespace Tracon;
 /// <summary>Validates the structural agent-source contract while the host starts.</summary>
 internal sealed class AgentSourceValidationService(
     IEnumerable<IAgentSource> sources,
-    ILogger<AgentSourceValidationService> logger) : IHostedService
+    ILogger<AgentSourceValidationService> logger) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Gate;
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _ = cancellationToken;
@@ -42,12 +44,6 @@ internal sealed class AgentSourceValidationService(
             }
         }
 
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _ = cancellationToken;
         return Task.CompletedTask;
     }
 }

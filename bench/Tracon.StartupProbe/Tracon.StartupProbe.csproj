@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    A measurement console run by hand, not a gate: start-up time, first-request cost and idle wake-ups depend on the
+    machine, so they are written down with the machine they were measured on and never compared by a script.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.Core/Tracon.Core.csproj" />
+    <ProjectReference Include="../../src/Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
+    <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
+    <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -28,11 +28,16 @@ namespace Tracon;
 /// The management API group and the AG-UI group each get a filter, and each filter keeps its
 /// own counter: an AG-UI request does not spend the management API's window.
 /// </para>
+/// <para>
+/// The local limiter is built at the first request that reaches it, not when the endpoints are mapped.
+/// A <see cref="PartitionedRateLimiter"/> runs its own timer from the moment it exists; built at mapping
+/// time, it woke a host whose limit is off (the default) about ten times a second, for nothing.
+/// </para>
 /// </remarks>
 internal sealed class TraconRateLimitFilter : IEndpointFilter, IDisposable
 {
     private readonly string _group;
-    private readonly PartitionedRateLimiter<HttpContext> _limiter;
+    private readonly Lazy<PartitionedRateLimiter<HttpContext>> _limiter;
     private readonly IOptionsMonitor<TraconRateLimitOptions> _optionsMonitor;
     private readonly DeploymentRateLimiter _deployment;
 
@@ -54,14 +59,19 @@ internal sealed class TraconRateLimitFilter : IEndpointFilter, IDisposable
         _optionsMonitor = optionsMonitor;
         _deployment = deployment;
 
-        _limiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-        {
-            var options = optionsMonitor.CurrentValue;
-            var key = ResolveLocalPartitionKey(context, options);
+        _limiter = new Lazy<PartitionedRateLimiter<HttpContext>>(
+            () => PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            {
+                var options = optionsMonitor.CurrentValue;
+                var key = ResolveLocalPartitionKey(context, options);
 
-            return RateLimitPartitionExtensions.CreateFixedWindow(key, options);
-        });
+                return RateLimitPartitionExtensions.CreateFixedWindow(key, options);
+            }),
+            LazyThreadSafetyMode.ExecutionAndPublication);
     }
+
+    /// <summary>Whether the local limiter, and the timer it runs, has been built.</summary>
+    internal bool HasLocalLimiter => _limiter.IsValueCreated;
 
     /// <summary>
     /// Creates the filter of the management API group (<c>MapTracon</c>).
@@ -114,7 +124,7 @@ internal sealed class TraconRateLimitFilter : IEndpointFilter, IDisposable
             }
         }
 
-        using var lease = await _limiter.AcquireAsync(httpContext, permitCount: 1, httpContext.RequestAborted)
+        using var lease = await _limiter.Value.AcquireAsync(httpContext, permitCount: 1, httpContext.RequestAborted)
             .ConfigureAwait(false);
 
         if (lease.IsAcquired)
@@ -132,7 +142,13 @@ internal sealed class TraconRateLimitFilter : IEndpointFilter, IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose() => _limiter.Dispose();
+    public void Dispose()
+    {
+        if (_limiter.IsValueCreated)
+        {
+            _limiter.Value.Dispose();
+        }
+    }
 
     private static TraconRateLimitFilter? Create(IServiceProvider services, string group)
     {

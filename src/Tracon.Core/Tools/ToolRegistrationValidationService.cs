@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -10,8 +9,11 @@ internal sealed class ToolRegistrationValidationService(
     IEnumerable<TraconToolRegistration> registrations,
     IOptions<TraconOptions> options,
     ILogger<ToolRegistrationValidationService> logger,
-    HostedToolRegistry? hostedTools = null) : IHostedService
+    HostedToolRegistry? hostedTools = null) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Gate;
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _ = cancellationToken;
@@ -50,12 +52,6 @@ internal sealed class ToolRegistrationValidationService(
             }
         }
 
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _ = cancellationToken;
         return Task.CompletedTask;
     }
 }

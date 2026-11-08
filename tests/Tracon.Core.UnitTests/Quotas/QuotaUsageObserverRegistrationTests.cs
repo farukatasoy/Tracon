@@ -43,7 +43,7 @@ public sealed class QuotaUsageObserverRegistrationTests
 
         await using var provider = services.BuildServiceProvider();
 
-        var observer = provider.GetServices<IHostedService>().OfType<QuotaUsageObserver>().Single();
+        var observer = provider.GetRequiredService<QuotaUsageObserver>();
 
         await observer.StartAsync(TestContext.Current.CancellationToken);
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 1);
@@ -58,7 +58,7 @@ public sealed class QuotaUsageObserverRegistrationTests
 
         await using var provider = services.BuildServiceProvider();
 
-        var observer = provider.GetServices<IHostedService>().OfType<QuotaUsageObserver>().Single();
+        var observer = provider.GetRequiredService<QuotaUsageObserver>();
 
         await observer.StartAsync(TestContext.Current.CancellationToken);
         await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);

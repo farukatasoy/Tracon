@@ -28,9 +28,11 @@ public sealed class NonPersistentStorageWarningRegistrationTests
 
         using var provider = services.BuildServiceProvider();
 
+        // Enumerating the hosted services builds the start-up check service and, through it, every check.
         var hosted = provider.GetServices<IHostedService>().ToList();
 
-        hosted.ShouldContain(service => service is NonPersistentStorageWarningService);
+        hosted.ShouldContain(service => service is TraconStartupChecks);
+        provider.GetServices<ITraconStartupCheck>().ShouldContain(check => check is NonPersistentStorageWarningService);
     }
 
     [Fact]
@@ -47,14 +49,13 @@ public sealed class NonPersistentStorageWarningRegistrationTests
 
         using var provider = services.BuildServiceProvider();
 
-        var service = provider.GetServices<IHostedService>()
+        var service = provider.GetServices<ITraconStartupCheck>()
             .OfType<NonPersistentStorageWarningService>()
             .Single();
 
         // The stores here are all in memory, so the only thing keeping the
         // service quiet is the unknown environment.
         await service.StartAsync(CancellationToken.None);
-        await service.StopAsync(CancellationToken.None);
 
         logs.Entries.ShouldBeEmpty();
     }

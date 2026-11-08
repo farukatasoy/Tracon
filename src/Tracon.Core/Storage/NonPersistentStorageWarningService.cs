@@ -44,8 +44,11 @@ internal sealed class NonPersistentStorageWarningService(
     IAgentDefinitionStore definitions,
     IRunStore runs,
     ISessionStore sessions,
-    ILogger<NonPersistentStorageWarningService> logger) : IHostedService
+    ILogger<NonPersistentStorageWarningService> logger) : ITraconStartupCheck
 {
+    /// <inheritdoc />
+    public StartupCheckKind Kind => StartupCheckKind.Advisory;
+
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -89,13 +92,6 @@ internal sealed class NonPersistentStorageWarningService(
             "environment, it does not report a broken setup.",
             string.Join(", ", nonPersistent));
 
-        return Task.CompletedTask;
-    }
-
-    /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _ = cancellationToken;
         return Task.CompletedTask;
     }
 }

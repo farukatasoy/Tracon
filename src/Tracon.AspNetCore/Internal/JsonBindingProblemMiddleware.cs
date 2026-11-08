@@ -65,6 +65,16 @@ internal static class JsonBindingProblemMiddleware
 
     public static async Task InvokeAsync(HttpContext httpContext, RequestDelegate next)
     {
+        // A request that has no form never reaches the endpoint's own form check: see FormBodyMetadata.
+        if (!httpContext.Request.HasFormContentType
+            && IsTraconEndpoint(httpContext)
+            && httpContext.GetEndpoint()?.Metadata.GetMetadata<FormBodyMetadata>() is not null)
+        {
+            await RequestBodyBinding.NotForm().ExecuteAsync(httpContext).ConfigureAwait(false);
+
+            return;
+        }
+
         try
         {
             await next(httpContext).ConfigureAwait(false);

@@ -184,8 +184,10 @@ public sealed class PackageFamilyAlignmentTests
         services.AddTracon();
         services.AddTracon();
 
-        services.Count(descriptor => descriptor.ServiceType == typeof(IHostedService)
+        services.Count(descriptor => descriptor.ServiceType == typeof(ITraconStartupCheck)
             && descriptor.ImplementationType == typeof(PackageFamilyAlignmentService)).ShouldBe(1);
+        services.Count(descriptor => descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType == typeof(TraconStartupChecks)).ShouldBe(1);
         services.Count(descriptor => descriptor.ServiceType == typeof(LoadedPackageFamily)).ShouldBe(1);
     }
 
@@ -196,7 +198,7 @@ public sealed class PackageFamilyAlignmentTests
             new("Tracon.Core", Current),
             new("Tracon.AspNetCore", Previous)));
 
-        var exception = await Should.ThrowAsync<TraconException>(() => service.StartingAsync(CancellationToken.None));
+        var exception = await Should.ThrowAsync<TraconException>(() => service.StartAsync(CancellationToken.None));
 
         Lines(exception.Message).ShouldBe([$"Tracon.AspNetCore {Previous}", $"Tracon.Core {Current}"]);
     }
@@ -210,12 +212,11 @@ public sealed class PackageFamilyAlignmentTests
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
 
-        await service.StartingAsync(cancelled.Token);
         await service.StartAsync(cancelled.Token);
-        await service.StartedAsync(cancelled.Token);
-        await service.StoppingAsync(cancelled.Token);
-        await service.StopAsync(cancelled.Token);
-        await service.StoppedAsync(cancelled.Token);
+
+        // It must run before any hosted service starts, the ones registered ahead of AddTracon() included.
+        service.Stage.ShouldBe(StartupCheckStage.Starting);
+        service.Kind.ShouldBe(StartupCheckKind.Gate);
     }
 
     private static readonly Regex AssemblyLine = new(

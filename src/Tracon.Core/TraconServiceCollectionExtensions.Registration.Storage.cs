@@ -287,7 +287,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<Microsoft.Extensions.Logging.ILogger<RunSampler>>()));
         services.TryAddSingleton<OnlineEvalSummaryService>();
         services.TryAddSingleton<RunJudgeSet>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RunJudgeValidationService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, RunJudgeValidationService>());
 
         // The POST /api/runs/{id}/judge endpoint requests OnlineEvalJobHandler
         // by its OWN type to call JudgeRunAsync directly. Since then a
@@ -337,12 +337,12 @@ public static partial class TraconServiceCollectionExtensions
 
         // Quota gauge. A BackgroundService: the gauge callback reads
         // only the cached snapshot and this service refreshes it on a timer.
-        // Registered unconditionally, because the on/off flag is not known
-        // here - the consumer may configure TraconOptions after AddTracon
-        // Hosting it also makes the container build the object EARLY,
-        // so the ObservableGauges exist. While EnableQuotaUsageGauge is off
-        // (the default) ExecuteAsync returns at once: no timer, no query.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, QuotaUsageObserver>(
+        // Behind a gate, because the on/off flag is not known here - the
+        // consumer may configure TraconOptions after AddTracon. The gate reads
+        // the flag when the host starts; while EnableQuotaUsageGauge is off
+        // (the default) the observer is not built: no instrument, no timer,
+        // no query. Turned on, it is built at start and its gauges exist.
+        services.TryAddGatedLoop(
             static provider => new QuotaUsageObserver(
                 provider.GetRequiredService<IQuotaStore>(),
                 provider.GetRequiredService<ITenantStore>(),
@@ -351,7 +351,7 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetRequiredService<SchemaReadyGate>(),
                 provider.GetService<System.Diagnostics.Metrics.IMeterFactory>(),
                 provider.GetService<TimeProvider>(),
-                provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaUsageObserver>>())));
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaUsageObserver>>()));
 
         // The delivery handler uses the SAME queue.
         services.AddBuiltInJobHandler(
@@ -424,7 +424,7 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddSingleton(static provider => JobHandlerRegistry.Create(
             provider.GetServices<JobHandlerRegistration>()));
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, JobHandlerRegistryValidator>());
+            ServiceDescriptor.Singleton<ITraconStartupCheck, JobHandlerRegistryValidator>());
 
         // The supported way for consumer code to queue work: it fills in the
         // persistence fields IJobStore.EnqueueAsync demands, and refuses a
@@ -436,15 +436,15 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<IRunAttributionContext>()));
 
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
+        // Behind a gate: a host that serves requests and leaves the jobs to a
+        // worker process (RunWorker = false) does not build the worker at all.
+        services.TryAddGatedLoop<JobWorkerBackgroundService>();
 
         // Queue-depth gauge. The same shape and the same reasons as
         // QuotaUsageObserver above: a background refresh behind a cache-only
-        // callback, registered unconditionally. While
-        // EnableJobQueueDepthGauge is off (the default) ExecuteAsync returns
-        // at once and the store is never queried.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, JobQueueDepthObserver>(
+        // callback, behind a gate. While EnableJobQueueDepthGauge is off (the
+        // default) the observer is not built and the store is never queried.
+        services.TryAddGatedLoop(
             static provider => new JobQueueDepthObserver(
                 provider.GetRequiredService<IJobStore>(),
                 provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
@@ -452,28 +452,24 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetService<System.Diagnostics.Metrics.IMeterFactory>(),
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<JobQueueDepthObserver>>(),
-                provider.GetRequiredService<TraconMetrics>())));
+                provider.GetRequiredService<TraconMetrics>()));
 
-        // Orphaned run reconciliation. Both return immediately and
-        // issue no query to the store while RunReconciliationOptions.Enabled is
-        // off (the default).
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, RunHeartbeatWriter>());
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, RunReconciliationService>());
+        // Orphaned run reconciliation. Neither is built, and the store sees no
+        // query, while RunReconciliationOptions.Enabled is off (the default).
+        services.TryAddGatedLoop<RunHeartbeatWriter>();
+        services.TryAddGatedLoop<RunReconciliationService>();
 
         // Approval expiration scan. TraconApprovalOptions.ExpirationEnabled
-        // defaults to ON (a safety requirement unlike RunReconciliationOptions),
-        // but when SQL is not registered, SchemaReadyGate opens immediately and
-        // no new query is issued after the first tick.
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, ApprovalExpirationService>());
+        // defaults to ON (a safety requirement unlike RunReconciliationOptions):
+        // every ScanInterval the store expires the approvals past their deadline.
+        // In memory that is a scan of this process's own pending list; on SQL it
+        // is one statement per interval, on the instance that holds the lease.
+        services.TryAddGatedLoop<ApprovalExpirationService>();
 
         // Canary evaluation and automatic rollback.
-        // CanaryOptions.AutoRollbackEnabled defaults to DISABLED; no
-        // experiment is scanned unless turned on.
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IHostedService, CanaryEvaluationService>());
+        // CanaryOptions.AutoRollbackEnabled defaults to DISABLED; the service is
+        // not built and no experiment is scanned unless turned on.
+        services.TryAddGatedLoop<CanaryEvaluationService>();
     }
 
     /// <summary>

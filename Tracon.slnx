@@ -62,6 +62,7 @@
 
   <Folder Name="/bench/">
     <Project Path="bench/Tracon.Benchmarks/Tracon.Benchmarks.csproj" />
+    <Project Path="bench/Tracon.StartupProbe/Tracon.StartupProbe.csproj" />
     <!--
       bench/capacity/* is DELIBERATELY absent: the capacity host needs a packed
       feed no ordinary build has, and the acceptance suite needs a database.
