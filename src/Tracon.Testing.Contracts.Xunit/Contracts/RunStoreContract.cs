@@ -106,6 +106,9 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
             var stop = false;
 
+            // The pause between two updates lets the completion take the write lock of a store whose lock has no queue (SQLite
+            // on Windows kept it waiting for a minute behind a loop that updated without a pause). The updates still run beside
+            // the completion, a few hundred of them in each round.
             var updating = Task.Run(async () =>
             {
                 while (!Volatile.Read(ref stop))
@@ -114,20 +117,27 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
                         runId,
                         new RunCost { InputCost = 1m, Currency = "USD", Source = PricingSource.Configuration },
                         AmbientTenant.TenantId);
+                    await Task.Delay(1);
                 }
             });
 
-            await Task.Delay(round % 5);
-
-            await Store.CompleteRunAsync(new RunCompletion
+            try
             {
-                RunId = runId,
-                Status = RunStatus.Completed,
-                CompletedAt = DateTimeOffset.UtcNow,
-            });
+                await Task.Delay(round % 5);
 
-            Volatile.Write(ref stop, true);
-            await updating;
+                await Store.CompleteRunAsync(new RunCompletion
+                {
+                    RunId = runId,
+                    Status = RunStatus.Completed,
+                    CompletedAt = DateTimeOffset.UtcNow,
+                });
+            }
+            finally
+            {
+                // Also when the completion threw: a loop that outlives the test holds the database against the next one.
+                Volatile.Write(ref stop, true);
+                await updating;
+            }
 
             if ((await Store.GetRunAsync(runId))!.Status != RunStatus.Completed)
             {

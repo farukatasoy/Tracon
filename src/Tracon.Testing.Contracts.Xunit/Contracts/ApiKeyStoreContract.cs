@@ -133,20 +133,30 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
             var id = created.Record.Id;
             var stop = false;
 
+            // The pause between two stamps lets the revocation take the write lock of a store whose lock has no queue: SQLite
+            // on Windows kept it waiting for a minute behind a loop that stamped without a pause and failed with "database is
+            // locked". The stamps still run beside the revocation, a few hundred of them in each round.
             var touching = Task.Run(async () =>
             {
                 while (!Volatile.Read(ref stop))
                 {
                     await Store.TouchLastUsedAsync(id, DateTimeOffset.UtcNow);
+                    await Task.Delay(1);
                 }
             });
 
-            await Task.Delay(round % 7);
+            try
+            {
+                await Task.Delay(round % 7);
 
-            (await Store.RevokeAsync(Tenant, id)).ShouldBeTrue();
-
-            Volatile.Write(ref stop, true);
-            await touching;
+                (await Store.RevokeAsync(Tenant, id)).ShouldBeTrue();
+            }
+            finally
+            {
+                // Also when the revocation threw: a loop that outlives the test holds the database against the next one.
+                Volatile.Write(ref stop, true);
+                await touching;
+            }
 
             var record = (await Store.ListAsync(Tenant)).Single(key => key.Id == id);
 
