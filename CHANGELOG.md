@@ -6,7 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-preview.7] - 2026-11-08
+
+This release hardens the run store and the leases that several nodes share, prices a prompt-cache write as the fourth term of a run's cost, and gives a deployment
+more controls before the surface freezes: an audit chain that can be signed, a rate limit that holds for the whole deployment, a tool policy for each tenant, bounded
+caches, and MCP OAuth on two instances. On SQL Server the identifiers a client chooses, the name of a definition and the name of a lease owner are compared by their
+characters, as they already were on PostgreSQL and SQLite. A host answers its first request faster, and a streamed reply is written to the store in groups. Every
+package now targets `net10.0` only. The release adds migrations to every SQL provider and breaks source in several places, and a database that applied any earlier
+preview migration refuses to start: read Upgrading from 1.0.0-preview.6 first.
+
 ### Upgrading from 1.0.0-preview.6
+
+- **Migrations.** PostgreSQL `0066`–`0070`, SQL Server `0054`–`0063` and SQLite `0053`–`0058`, and a second migration (a third on SQLite) for the optional read views.
+  With `AutoApplyMigrations` (the default) they run at startup. The SQL Server migrations from `0059` on change the collation of the columns that hold an identifier a client
+  chooses and close their tables to reads and writes while they run; the entries below say what each migration touches and how long it took.
+- **A database that applied any earlier preview migration refuses to start.** The checksum of 177 migration files changed; only comments did. A preview line has no upgrade
+  path for stored data between previews: recreate the database (see the entry below).
+- **Every package targets `net10.0` only.** A project on `net8.0` or `net9.0` cannot restore this release; `1.0.0-preview.6` is the last one that carries them.
 
 - **A host answers its first request faster, and a host with the rate limit off no longer wakes up ten times a second.** Measured on a bare host (Apple M1 Pro, Release): the first HTTP request after a start fell from about 430 ms and 16 MB to about 146 ms and 2.8 MB. The request delegates of the endpoints are now generated when the package is built, where each used to be built by reflection on that first request (a request that answered 404 paid the same cost). A web host with `MapTracon` and the rate limit off, which is the default, also woke the thread pool about 14 times a second while idle; it now wakes about once a second, as a host without Tracon does, because the limiter is built when the first request needs it. `AddTracon()` registers 10 hosted services instead of 21: the start-up checks run in one service, and a background loop that is switched off is not built.
   What to do:
@@ -1591,7 +1607,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A SQL idempotency reservation that races a release is no longer answered `InProgress` when the row in its way is old enough to take over.** A request with a `ReservationTimeout` that meets an unfinished reservation older than the timeout takes it over. When another request released the key and reserved it again between the takeover and the read of the row (a failed request releases its key), the second read found a fresh row and the request was answered `InProgress`, which is `409 Conflict` on the HTTP surface, although the row was old enough to take over: no order in which the two requests could have run explains it. The reservation now starts again in that case (at most five attempts, as for a row that was gone). It happened on PostgreSQL, SQL Server and SQLite and needed two requests for one key within a few milliseconds; the in-memory store was not affected.
   What to do: nothing. A custom `IIdempotencyStore` over a database should read the row it decides on in the statement that decides, or start over when the row it reads is not the row it tried to take over.
 
-- **The published HTTP document writes down the defaults the server always applied, and declares its free-form maps as open.** Against 1.0.0-preview.6, 20 members of `docs/openapi/tracon.json` changed, and so did `Tracon.Client` and `@tracon/client`, which are generated from it. Three kinds:
+- **The published HTTP document writes down the defaults the server always applied, and declares its free-form maps as open.** Against 1.0.0-preview.6, 20 members of the published HTTP document changed, and so did `Tracon.Client` and `@tracon/client`, which are generated from it. Three kinds:
   - *A default the server already applied is now in the document*, so a generated client starts with it and a body that leaves the member out means what it always meant: `ResponseCacheSettings.lifetime` (10 minutes), `CanaryPolicy.minSampleSize` (20), `CanaryPolicy.rampInterval` (1 hour), `AgentSkillResourceDefinition.mediaType` (`text/plain`), `McpServerRequest.enabled` (`true`), `McpServerRequest.requiresApproval` (`true`), `QuotaSaveRequest.enabled` (`true`), `JobScheduleSaveRequest.timeZone` (`UTC`) and `AgentSkillRequest.enabled` (`true`). Nothing about the server's behavior changed.
   - *A default that changed*: `RetentionPolicySaveRequest.enabled`, `JobScheduleSaveRequest.enabled`, `InboundTriggerSaveRequest.enabled` and `WebhookSaveRequest.enabled` are `false` now (see the entries on paused saves above).
   - *A free-form map says what it accepts*: `ModelBinding.providerSettings`, `AgentDefinition.metadata`, `AgentDefinitionRequest.metadata`, `AgentSkillDefinition.metadata`, `AgentSkillRequest.metadata`, `EvalExpectedToolCall.arguments` and `ToolInputResponse.content` carry `additionalProperties` (any value). In `Tracon.Client` the C# type of these members changed from `object` to `IDictionary<string, object>` (nullable where the member is optional), so code that assigned another kind of object to one of them no longer compiles; reading one as before works. A body already sent was a JSON object and is unchanged.

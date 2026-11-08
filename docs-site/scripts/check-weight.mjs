@@ -104,7 +104,18 @@ const CEILING = 59_500;
 // shares). That release is closed: its section cannot grow, so the exception is a ceiling for that
 // one page, 80 000 B, about 5% headroom, and not a pattern. A later release that crosses CEILING is
 // split or measured the same way.
-const PAGE_CEILINGS_RELEASE = [['reference/releases/1.0.0-preview.4/index.html', 80_000]];
+//
+// 1.0.0-preview.7 crosses CEILING too, and by more: measured 2026-11-08 at 129 070 B gzip locally (its section is
+// 256 786 B of Markdown with 249 entries, 111 of them under Fixed, on top of the 23 925 B every page shares). The
+// cut is the moment it becomes a closed release, so the same rule applies: a ceiling for that one page, 135 000 B,
+// about 4.6% over the measured page, which also covers the roughly 60 B by which a CI build differs from a local
+// one. It was not split at the cut because the page is the unit each package's release-notes link lands on, and a
+// split changes that link of every package of the release; the next release that crosses CEILING is split, and the
+// generator is the place to do it (one page per section of a version).
+const PAGE_CEILINGS_RELEASE = [
+  ['reference/releases/1.0.0-preview.4/index.html', 80_000],
+  ['reference/releases/1.0.0-preview.7/index.html', 135_000],
+];
 
 // The generated API page of TraconBuilderExtensions is the second page that grows with the product and
 // not with what a reader needs from one visit: DocFX writes one page per type, and every capability of the
