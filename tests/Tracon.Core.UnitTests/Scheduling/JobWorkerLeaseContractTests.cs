@@ -1340,7 +1340,9 @@ public sealed class JobWorkerLeaseContractTests
 
         await GiveUpOnTheCompletionAsync(jobs);
 
-        jobs.WriteTokenCancelled.ShouldBeTrue("the abandoned call was not cancelled");
+        // The worker cancels the call it gave up with CancelAsync, which runs the callbacks of the token on a pool thread: the
+        // flag is set a moment after the worker returns, and a runner that is slow to schedule that thread read it too early.
+        await WaitUntil.TrueAsync(() => jobs.WriteTokenCancelled, "the abandoned call to be cancelled");
 
         jobs.FailWrite(new InvalidOperationException("the completion broke after the worker gave it up"));
 

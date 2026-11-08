@@ -147,7 +147,17 @@ public sealed class QuotaPeriodCalculatorTests
             scan = scan.AddMinutes(1);
         }
 
-        QuotaPeriodCalculator.ToUtcInstant(date, zone).ShouldBe(scan);
+        // Windows writes a rule that moves the clock at midnight as 23:59:59.999 of the day before, so the first instant of the
+        // date can be some milliseconds before the whole minute the scan stops at. The scan goes on, a millisecond at a time,
+        // from the minute before; the IANA rules move a clock on a whole minute and the second scan finds nothing earlier.
+        var fine = scan.AddMinutes(-1);
+
+        while (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(fine, zone).DateTime) < date)
+        {
+            fine = fine.AddMilliseconds(1);
+        }
+
+        QuotaPeriodCalculator.ToUtcInstant(date, zone).ShouldBe(fine);
     }
 
     /// <summary>
