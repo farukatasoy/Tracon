@@ -12,10 +12,16 @@ namespace Tracon.Generators.UnitTests.SiteExamples;
 /// document; neither is read here. What is left is prose a person wrote, and a snippet in prose is the only code a
 /// consumer copies without a compiler between the page and their editor.
 /// </para>
+/// <para>
+/// The changelog page and the page of each release are generated from <c>CHANGELOG.md</c> by the build and are not
+/// tracked, so they are not read either. A page that exists only after a build step has run would make the set of
+/// blocks, and with it the list of exceptions, depend on which job runs the test and on which pages an earlier
+/// build left in the working tree.
+/// </para>
 /// </remarks>
 internal static class SiteBlockExtractor
 {
-    private static readonly string[] GeneratedRoots = ["api/", "http-api/"];
+    private static readonly string[] GeneratedRoots = ["api/", "http-api/", "reference/changelog.md", "reference/releases/"];
 
     private static readonly Regex FenceOpening = new(
         @"^(?<indent>\s*)```(?:csharp|cs)\b",

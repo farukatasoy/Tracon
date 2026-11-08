@@ -117,7 +117,13 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
         // The measured claim, stated as a LOWER bound so a fast machine cannot
         // make it pass by accident: the sink's latency is paid per event, on
         // the recording path. It is not absorbed anywhere.
-        stopwatch.Elapsed.ShouldBeGreaterThanOrEqualTo(SinkDelay * EventCount);
+        //
+        // The bound is nine tenths of the sum, not the sum. Task.Delay counts its
+        // milliseconds on a timer of its own, not on the stopwatch, and a delay can
+        // end a fraction of a millisecond early: five delays of 120 ms were read as
+        // 599.5 ms. A sink that was dispatched off the recording path would add
+        // next to nothing, far below any share of the sum.
+        stopwatch.Elapsed.ShouldBeGreaterThanOrEqualTo(SinkDelay * EventCount * 0.9);
 
         await writer.CompleteAsync(RunStatus.Completed);
 

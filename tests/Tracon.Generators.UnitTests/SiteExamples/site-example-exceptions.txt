@@ -125,5 +125,3 @@ guides/write-your-own-tool.md#41a8663d | CS0103: The name 'MyOrderTool' does not
 http-api.md#60f9addf | CS1061: 'IServiceCollection' does not contain a definition for 'AddOpenApi' and no accessible extension method 'AddOpenApi' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
 http-api.md#c2c3b851 | CS1061: 'IServiceCollection' does not contain a definition for 'AddSwaggerGen' and no accessible extension method 'AddSwaggerGen' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
 reference/read-views.md#ce85abcd | CS0103: The name 'modelBuilder' does not exist in the current context
-reference/releases/1.0.0-preview.3.md#3e94165a | CS1002: ; expected
-reference/releases/1.0.0-preview.3.md#5ffe411b | CS0103: The name 'fn' does not exist in the current context
