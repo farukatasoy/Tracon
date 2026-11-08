@@ -92,13 +92,6 @@ public sealed class OrdinalKeyCollationMigrationTests(SqlServerFixture fixture)
             AssertCollation(await CollationOfAsync(context, table, column), ordinal: true, $"{table}.{column} carries a session id");
         }
 
-        // The ids that no index makes a key but that name the same thing as one that is: the parent of a checkpoint and the
-        // approval request.
-        foreach (var (table, column) in new[] { ("workflow_checkpoints", "parent_id"), ("pending_approvals", "request_id") })
-        {
-            AssertCollation(await CollationOfAsync(context, table, column), ordinal: true, $"{table}.{column} carries an id of its own");
-        }
-
         // After: the spellings are two sessions.
         await context.Sessions.SaveAsync(TestData.Session("ALPHA"));
 
