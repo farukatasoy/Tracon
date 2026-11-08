@@ -1196,6 +1196,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **On Windows, the end of a quota period in a time zone that moves its clock at midnight (Egypt, Chile) was one millisecond late.** Windows writes such a rule as 23:59:59.999 of the day before and the zone moves the clock at that millisecond, so a tick before the end the old period was already over, and the `Retry-After` of a quota rejection named an instant just after the new period had begun. The end is now the first tick of the next date. Linux and macOS read the same zones from the IANA rules and were not affected.
+
 - **The A2A agent card now carries the agent's description and version.** The card took them from the agent catalog once, while the endpoints were being mapped, which is before the host takes a request. The read was skipped there on every host (a host with SQL has not run its migrations yet; a host without SQL had not opened its schema gate), so every card gave the agent's name as its description and `1` as its version, and an edit of a stored agent never reached it. The card is now built when it is requested, from the catalog entry as it is then; the response stays `private, max-age=300` on the caller's side, so a caller asks again at most every five minutes. An agent the catalog does not hold still gets its name and `1`.
   What to do: nothing; a caller that read the name as the description now reads the description.
 
