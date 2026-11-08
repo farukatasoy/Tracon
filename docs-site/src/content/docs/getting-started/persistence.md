@@ -251,6 +251,14 @@ over a million, because the statement changes the comparison and not the stored 
 the two tables, so apply it before you start the new nodes: a worker that leases a job waits for it. SQL Server
 still ignores trailing blanks in an owner name (`w` and `w ` are one owner).
 
+The `ordinal_request_and_parent_ids` migration (`0063`, SQL Server only) keeps every value and changes how SQL Server
+compares two ids that no key holds: `pending_approvals.request_id` and `workflow_checkpoints.parent_id` take
+`Latin1_General_BIN2`, as the ids they name already do (the parent of a checkpoint is the `checkpoint_id` of an earlier
+row), so a comparison of the two never stops with "Cannot resolve the collation conflict". No row is merged, removed or
+rewritten. Measured in an emulated container on Apple Silicon over a million checkpoints and half a million pending
+approvals (2.3 GB): 10 ms, because the statement changes the comparison and not the stored text. It takes a schema lock on
+the two tables, so apply it before you start the new nodes.
+
 On SQL Server a store call that is one statement (an event append, a read, a delete) that the server picks as a
 deadlock victim is sent again, up to five attempts in all, as a transaction has been; an error that is not a
 deadlock reaches your code unchanged. Before this the call threw `SqlException` 1205, and a run lost the events

@@ -159,8 +159,8 @@ the page describes.
 
 ### PostgreSQL
 
-`Tracon.PostgreSql.IntegrationTests` applies every migration and runs every store contract, 1 594 tests, one of which is
-skipped by design. The test image is `pgvector/pgvector`; the knowledge store needs the `vector` extension and every run
+`Tracon.PostgreSql.IntegrationTests` applies every migration and runs every store contract, 1 808 tests, one of which is
+skipped by design (the rows dated 2026-11-04 ran the 1 594 tests of that day). The test image is `pgvector/pgvector`; the knowledge store needs the `vector` extension and every run
 turns it on.
 
 | Server | Result | Run |
@@ -172,7 +172,16 @@ turns it on.
 | 16.15 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `16` · 2026-11-04 |
 | 17.11 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `17` · 2026-11-04 |
 | 18.4, locale of the image | Verified: the default image of every run of the project | `build` · cell `ubuntu-latest` · the previous full-solution run on a development machine was 2026-11-03 |
-| 18.4, ICU locale `tr-TR` | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `18, ICU tr-TR` · 2026-11-04 |
+| 18.4, ICU locale `tr-TR` | Verified: 1 593 passed, 1 skipped in the matrix on 2026-11-04; 1 807 passed, 1 skipped on the development machine on 2026-11-08 (the whole project, the default image started with ICU `tr-TR`) | `postgres-matrix` · cell `18, ICU tr-TR` · 2026-11-04 |
+
+**A Turkish-locale database that holds rows when it applies one of four released migrations is recreated, not upgraded.** `lower()` follows the locale of
+the database, and in a Turkish one `lower('OpenAI')` ends in a dotless i (U+0131). PostgreSQL `0038` and `0062` and SQL Server `0025` and `0050`
+fold with it, and a released migration never changes. On a new database they run on empty tables, and a database of the last release does not
+run them again, so nothing changes there. A Turkish-locale database that holds rows when it applies one of them would store `openaı` as the provider
+name of a tenant binding (the tenant's own key then goes unused, without an error), and `0062` would not find a header written as `AUTHORIZATION`,
+so the key of the removed column is added beside it and the reader takes that one. The two test rows of the Turkish cells above
+(`ProviderNameCaseMigrationTests`, `RemoveAuthorizationConfigurationKeyMigrationTests`) state this outcome for each kind of database. Every later migration names
+an ordinal collation, and a test refuses one that does not.
 
 pgvector 0.8 and later need PostgreSQL 13 or newer; on 12 the vector extension is the 0.7 series, the last that supports it.
 Every migration and every query the store contracts reach ran on 12.
@@ -183,14 +192,14 @@ runs and tests these versions; whether an engine without upstream security fixes
 
 ### SQL Server
 
-`Tracon.SqlServer.IntegrationTests`, 1 558 tests. The servers run in an emulated amd64 container on this machine, which is
+`Tracon.SqlServer.IntegrationTests`, 1 805 tests (the rows dated 2026-11-04 ran the 1 558 tests of that day). The servers run in an emulated amd64 container on this machine, which is
 slower than a native one and changes no result.
 
 | Server | Collation | Result | Run |
 |---|---|---|---|
 | 2019 | server default | Verified: 1 557 of 1 557. One case timed out in the first full run (a migration took longer than its 30-second command timeout on the emulated server under load) and passed when run alone | `sqlserver-matrix` · cell `2019` · 2026-11-04 |
 | 2022 | server default | Verified: the default image of every run of the project | `build` · cell `ubuntu-latest` · the previous full-solution run on a development machine was 2026-11-03 |
-| 2022 | `Turkish_CI_AS`, language 1055 | Verified: 1 558 of 1 558, once the test fixture waits for the server to finish applying the collation (the image applies it after the server first accepts connections; without the wait 1 518 of 1 557 cases failed on 2026-11-04) | `sqlserver-matrix` · cell `2022, Turkish_CI_AS` · 2026-11-04 |
+| 2022 | `Turkish_CI_AS`, language 1055 | Verified: 1 558 of 1 558 in the matrix on 2026-11-04 and 1 805 of 1 805 on the development machine on 2026-11-08 (the whole project, in 6 min 44 s), once the test fixture waits for the server to finish applying the collation (the image applies it after the server first accepts connections; without the wait 1 518 of 1 557 cases failed on 2026-11-04) | `sqlserver-matrix` · cell `2022, Turkish_CI_AS` · 2026-11-04 |
 
 The two settings of the Turkish cell are given together: a server started with only the collation keeps English as its language, and a pooled connection fails when it is reset. The image also applies the collation after the server first accepts connections, by rebuilding the system databases and dropping every connection; a run waits until the server reports the collation before it starts.
 `TenantAlphabetCollationTests` also asks each server which of the tenant identifiers over the allowed alphabet it

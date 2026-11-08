@@ -313,23 +313,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     configuration value no longer wins over the call.
   - **The `UnencryptedContentAtRest` answer now reads `call AddContentProtection(options => ...) with an active key id, or set Tracon:ContentProtection:Enabled to true together with an active key id`.**
 
-- **Four migrations changed in place, and a database that applied one of them before must be recreated.** `lower()` follows the locale
+- **Four migrations fold a name with the rules of the database's locale, and a database in a Turkish locale that applies them over existing rows is recreated.** `lower()` follows the locale
   of the database, and in a Turkish one `lower('OpenAI')` ends in a dotless i (U+0131) instead of the i of `openai`. PostgreSQL `0038` and `0062` and SQL Server `0025`
-  and `0050` folded names with it: on such a database `0038` and `0025` rewrote a tenant's provider binding to a name no agent
-  definition says (the tenant's own key then went unused without an error) and `0062` did not find a header written as `AUTHORIZATION`.
-  They now fold with the ASCII rules (`COLLATE "C"`, `COLLATE Latin1_General_BIN2`), whatever the database. A migration changes the
-  checksum the database recorded, so a database that applied one before fails the check at start. This is a release candidate
-  cost taken before `1.0.0-rc.1`, as `0059` was; a database created by this release is not affected. A new test reads every
-  migration and refuses a `lower()` or `upper()` without an ordinal collation. SQL Server `0025` changed once more: the tie-break between two spellings of one
-  provider saved at the same instant now names the ordinal collation too, so a case-sensitive database keeps the row PostgreSQL keeps (the one whose name sorts last by its code points).
+  and `0050` fold with it: `0038` and `0025` would rewrite a tenant's provider binding to a name no agent definition says (the tenant's own key
+  then goes unused without an error), and `0062` would not find a header written as `AUTHORIZATION`, so the key of the column is added beside it and the reader takes that one.
+  The four files carry the statements of `1.0.0-preview.6` and their bytes do not change after the release. On a new database they run on empty tables, and a database
+  of the last release does not run them again, so nothing changes there. The limit reaches a Turkish-locale database that holds rows when it applies one of them: a preview database
+  older than the last release, kept alive by hand-patching the checksums it recorded. Recreate such a database. Every
+  other migration is held to the rule by a test that reads each file and refuses a `lower()` or `upper()` without an ordinal collation (`COLLATE "C"` on PostgreSQL,
+  `COLLATE Latin1_General_BIN2` on SQL Server); the four files are named in it as released files and the list does not grow.
 
 - **On SQL Server, the identifiers a client chooses are compared by their characters, letter case included. `Session-A` and `session-a` are two sessions,
   as they already were on PostgreSQL and SQLite.** SQL Server compared them by the collation of the database, and its default ignores
   case, so a second spelling replaced the first one's row without a sign (an upsert) and a read by either spelling returned the
   other's content. Migration `0059_ordinal_key_collation` gives `Latin1_General_BIN2` to the session id (`sessions.id` and the
   `session_id` of runs, attachments, pending approvals, responses, voice sessions and workflow checkpoints, requests and responses),
-  the idempotency key, the agent file path, the workflow checkpoint (its `checkpoint_id` and `parent_id`), request and claim ids
-  (including the request id of a pending approval), a run score's author, message id and name, and the rate-limit partition key. No value
+  the idempotency key, the agent file path, the workflow checkpoint (its `checkpoint_id`), request and claim ids
+  of workflow requests and responses, a run score's author, message id and name, and the rate-limit partition key. Migration `0063_ordinal_request_and_parent_ids`
+  gives the same collation to the two ids that no key holds but that name the same thing as one that is: the request id of a pending approval and the
+  `parent_id` of a workflow checkpoint (the `checkpoint_id` of an earlier row), so that comparing them never stops with a collation conflict. It takes 10 ms over a
+  million checkpoints and half a million pending approvals (emulated container, so slower than native), because the stored text does not change. No value
   changes and no row is merged: ids that were distinct stay distinct. SQL Server still ignores trailing spaces in every collation, so
   `abc` and `abc ` remain one key there while the other stores keep them apart; to make the stores agree on the ids that open a session, the
   run endpoint, `/v1/responses`, the AG-UI endpoint and the branch endpoint (`newSessionId`) answer `400` to an id that starts or ends with
@@ -337,8 +340,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   What to do:
   - **Plan the upgrade window.** The migration is one command in one transaction that rebuilds the keys of 13 tables. While it
     runs those tables are closed to reads and writes, and they stay closed until the whole migration commits. Measured in an emulated
-    amd64 container on Apple Silicon, so slower than native (before `workflow_checkpoints.parent_id` and `pending_approvals.request_id` joined the
-    migration; both tables hold small rows and were not measured again): 14 s over 2.5 million rows (1.2 GB), 32 s over a database of 150 000
+    amd64 container on Apple Silicon, so slower than native: 14 s over 2.5 million rows (1.2 GB), 32 s over a database of 150 000
     sessions with 8 KB of state each and a million runs (2 GB). `CommandTimeoutSeconds` defaults to 30 and bounds that one command: a
     timeout rolls the migration back, and every start repeats it. Raise `Tracon:SqlServer:CommandTimeoutSeconds` (`0` is unlimited)
     for the run that applies it, or apply it in your own deployment step (`AutoApplyMigrations = false`), and do it in a quiet hour.
