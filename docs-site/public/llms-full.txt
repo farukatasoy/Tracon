@@ -6375,7 +6375,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.7`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.8`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -6396,7 +6396,7 @@ comes from the provider's own documentation. The template writes it to
 `appsettings.json`; you do not edit any code.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.7
+dotnet new install Tracon.Templates@1.0.0-preview.8
 dotnet new tracon-api -n MyAgents --model gpt-5.4-mini
 cd MyAgents
 ```
@@ -6550,7 +6550,7 @@ persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
 :::note[Preview release]
-Packages and templates are published as `1.0.0-preview.7`. The
+Packages and templates are published as `1.0.0-preview.8`. The
 [first-agent guide](/getting-started/first-agent/) starts with the public template;
 pin the exact package version when reproducibility matters.
 :::
@@ -10225,7 +10225,7 @@ pointer file, set `TraconWriteLocalReference` to `false`.
 Source: https://tracon.dev/guides/cli/
 
 :::note[Preview package]
-The CLI is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+The CLI is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for a reproducible tool manifest.
 :::
 
@@ -10665,7 +10665,7 @@ credential meant for exactly this.
 Source: https://tracon.dev/guides/coding-agents/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19373,7 +19373,7 @@ and still reject a fenced payload at the application boundary.
 Source: https://tracon.dev/guides/testing/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19648,7 +19648,7 @@ mistake instead of hiding it.
 Source: https://tracon.dev/guides/typescript-client/
 
 :::note[Preview package]
-`@tracon/client` is published as `1.0.0-preview.7`. Install the `next` tag or pin
+`@tracon/client` is published as `1.0.0-preview.8`. Install the `next` tag or pin
 the exact version; do not use a floating range in production.
 :::
 
@@ -19882,7 +19882,7 @@ sync.
 Source: https://tracon.dev/guides/voice/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21092,7 +21092,7 @@ and `429`) is never retried, whatever class you return.
 Source: https://tracon.dev/guides/write-your-own-job-handler/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21332,7 +21332,7 @@ handler actually receives a queued job.
 Source: https://tracon.dev/guides/write-your-own-judge/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21477,7 +21477,7 @@ timeouts, persistence, or HTTP responses.
 Source: https://tracon.dev/guides/write-your-own-script-executor/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21679,7 +21679,7 @@ a new contract in a later package version does not go untested.
 Source: https://tracon.dev/guides/write-your-own-store/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21807,7 +21807,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.7` is extracted into your
+by package id and version, so once `1.0.0-preview.8` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.
@@ -22845,7 +22845,7 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.7`. The command below selects it from
+The current release is `1.0.0-preview.8`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 
@@ -23106,9 +23106,9 @@ assume.
 
 ## Releases
 
-<a id="v1.0.0-preview.7"></a>
+<a id="v1.0.0-preview.8"></a>
 
-### 1.0.0-preview.7 — 2026-11-08
+### 1.0.0-preview.8 — 2026-11-08
 
 This release hardens the run store and the leases that several nodes share, prices a prompt-cache write as the fourth term of a run's cost, and gives a deployment
 more controls before the surface freezes: an audit chain that can be signed, a rate limit that holds for the whole deployment, a tool policy for each tenant, bounded
@@ -23117,7 +23117,7 @@ characters, as they already were on PostgreSQL and SQLite. A host answers its fi
 package now targets `net10.0` only. The release adds migrations to every SQL provider and breaks source in several places, and a database that applied any earlier
 preview migration refuses to start: read Upgrading from 1.0.0-preview.6 first.
 
-[Read the 1.0.0-preview.7 entry](/reference/releases/1.0.0-preview.7/)
+[Read the 1.0.0-preview.8 entry](/reference/releases/1.0.0-preview.8/)
 
 <a id="v1.0.0-preview.6"></a>
 
@@ -23214,7 +23214,7 @@ package, and the surface may still be reduced before 1.0.
 Source: https://tracon.dev/reference/compatibility/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -28741,12 +28741,12 @@ source in several places: read Upgrading from 1.0.0-preview.5 first.
 
 ---
 
-# Tracon 1.0.0-preview.7 release notes
+# Tracon 1.0.0-preview.8 release notes
 
-Source: https://tracon.dev/reference/releases/1.0.0-preview.7/
+Source: https://tracon.dev/reference/releases/1.0.0-preview.8/
 
 Released on 2026-11-08. This entry covers every NuGet package of the family and the npm client
-at version 1.0.0-preview.7. [Release notes](/reference/changelog/) lists every version.
+at version 1.0.0-preview.8. [Release notes](/reference/changelog/) lists every version.
 
 This release hardens the run store and the leases that several nodes share, prices a prompt-cache write as the fourth term of a run's cost, and gives a deployment
 more controls before the surface freezes: an audit chain that can be signed, a rate limit that holds for the whole deployment, a tool policy for each tenant, bounded
@@ -29791,7 +29791,7 @@ preview migration refuses to start: read Upgrading from 1.0.0-preview.6 first.
 - **A tool can take its dependency at setup: `AddTool(provider => tool)`.** The factory gets the host's service provider
   when Tracon builds its tool registry at start; `AddTool(provider => tool, options => …)` sets the approval, effect,
   permission and the other policy. A tool gets an empty provider at call time, so the way to give it a dependency used to
-  be `services.AddSingleton(provider => new TraconToolRegistration(…))`. A factory that asks for `IToolRegistry`, or for a
+  be a service registration whose factory returned a `TraconToolRegistration`. A factory that asks for `IToolRegistry`, or for a
   service that needs it, stops the host with an error that names the cause; without that check the host start did not
   finish. A factory that returns `null`, or a tool with an invalid name, stops it as well.
 - **A guide for a team that built agents with `AddAIAgent`: [Move an agent from AddAIAgent to
@@ -29896,7 +29896,7 @@ preview migration refuses to start: read Upgrading from 1.0.0-preview.6 first.
   production warning about non-persistent storage and the warning about a session workspace on the in-memory file store
   name the package of each `Use*` call they suggest.
 - **Every example reads the provider key from `Tracon:Providers:*`.** The XML examples, the package READMEs and the
-  guides showed `Configuration["OpenAI:ApiKey"]`, a key nothing binds. They now use the section overload
+  guides read the key as `OpenAI:ApiKey` straight from the configuration, a key nothing binds. They now use the section overload
   (`GetSection(OpenAIProviderOptions.SectionName)`) or the key `Tracon:Providers:OpenAI:ApiKey`. Pages that call
   `UsePostgreSql` now name the `Tracon.PostgreSql` package, and the root README no longer says "two lines".
 - **Dependencies move to the newest releases of the runtime stack.** Microsoft Agent Framework `1.25.0` to `1.26.0`
@@ -30639,7 +30639,7 @@ required](/guides/embedding/#make-a-production-decision-required).
 Source: https://tracon.dev/reference/versioning/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -31169,11 +31169,11 @@ Only a preview exists. Select it explicitly:
 dotnet add package Tracon --prerelease
 ```
 
-Pin `1.0.0-preview.7` for reproducible builds. Install the template by exact
+Pin `1.0.0-preview.8` for reproducible builds. Install the template by exact
 version too:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.7
+dotnet new install Tracon.Templates@1.0.0-preview.8
 ```
 
 ### The generated project rejects a template option

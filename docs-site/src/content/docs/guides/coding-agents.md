@@ -5,7 +5,7 @@ slug: guides/coding-agents
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.7`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 

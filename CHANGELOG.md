@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.0.0-preview.7] - 2026-11-08
+## [1.0.0-preview.8] - 2026-11-08
 
 This release hardens the run store and the leases that several nodes share, prices a prompt-cache write as the fourth term of a run's cost, and gives a deployment
 more controls before the surface freezes: an audit chain that can be signed, a rate limit that holds for the whole deployment, a tool policy for each tenant, bounded
@@ -1051,7 +1051,7 @@ preview migration refuses to start: read Upgrading from 1.0.0-preview.6 first.
 - **A tool can take its dependency at setup: `AddTool(provider => tool)`.** The factory gets the host's service provider
   when Tracon builds its tool registry at start; `AddTool(provider => tool, options => …)` sets the approval, effect,
   permission and the other policy. A tool gets an empty provider at call time, so the way to give it a dependency used to
-  be `services.AddSingleton(provider => new TraconToolRegistration(…))`. A factory that asks for `IToolRegistry`, or for a
+  be a service registration whose factory returned a `TraconToolRegistration`. A factory that asks for `IToolRegistry`, or for a
   service that needs it, stops the host with an error that names the cause; without that check the host start did not
   finish. A factory that returns `null`, or a tool with an invalid name, stops it as well.
 - **A guide for a team that built agents with `AddAIAgent`: [Move an agent from AddAIAgent to
@@ -1156,7 +1156,7 @@ preview migration refuses to start: read Upgrading from 1.0.0-preview.6 first.
   production warning about non-persistent storage and the warning about a session workspace on the in-memory file store
   name the package of each `Use*` call they suggest.
 - **Every example reads the provider key from `Tracon:Providers:*`.** The XML examples, the package READMEs and the
-  guides showed `Configuration["OpenAI:ApiKey"]`, a key nothing binds. They now use the section overload
+  guides read the key as `OpenAI:ApiKey` straight from the configuration, a key nothing binds. They now use the section overload
   (`GetSection(OpenAIProviderOptions.SectionName)`) or the key `Tracon:Providers:OpenAI:ApiKey`. Pages that call
   `UsePostgreSql` now name the `Tracon.PostgreSql` package, and the root README no longer says "two lines".
 - **Dependencies move to the newest releases of the runtime stack.** Microsoft Agent Framework `1.25.0` to `1.26.0`
