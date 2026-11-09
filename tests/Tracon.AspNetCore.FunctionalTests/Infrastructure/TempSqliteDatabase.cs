@@ -102,16 +102,58 @@ internal sealed class TempSqliteDatabase : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        // Windows refuses to delete a file that a handle is open on. A closed SQLite connection can stay open as a
+        // "zombie" until the last prepared statement of it is finalized, and that happens on the finalizer thread, so a
+        // delete straight after the pools are cleared can meet it (a delete failed this way after the host was
+        // disposed, windows-latest CI, 2026-11-09; not reproduced elsewhere). The first try is plain. After a refusal
+        // each try also runs the finalizers, and the wait ends the moment the files can be deleted: the bound only
+        // limits a failure.
+        var firstTry = true;
+        string lastRefusal = string.Empty;
 
-        // A glob, not a fixed suffix list: the migration lock file is named
-        // after the table prefix, so the suffix varies per test.
-        var directory = System.IO.Path.GetDirectoryName(Path)!;
-        var fileName = System.IO.Path.GetFileName(Path);
-
-        foreach (var path in Directory.EnumerateFiles(directory, fileName + "*"))
+        bool TryDeleteAll()
         {
-            File.Delete(path);
+            SqliteConnection.ClearAllPools();
+
+            if (!firstTry)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+
+            firstTry = false;
+
+            // A glob, not a fixed suffix list: the migration lock file is named
+            // after the table prefix, so the suffix varies per test.
+            var directory = System.IO.Path.GetDirectoryName(Path)!;
+            var fileName = System.IO.Path.GetFileName(Path);
+
+            foreach (var path in Directory.EnumerateFiles(directory, fileName + "*"))
+            {
+                try
+                {
+                    File.Delete(path);
+                }
+                catch (IOException exception)
+                {
+                    lastRefusal = exception.Message;
+
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        try
+        {
+            WaitUntil.TrueAsync(TryDeleteAll, "the SQLite database files to be deletable", timeout: TimeSpan.FromSeconds(10), cancellationToken: CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch (TimeoutException exception)
+        {
+            throw new IOException($"The SQLite database '{Path}' could not be deleted within 10 s, even after the finalizers ran: {lastRefusal}", exception);
         }
     }
 }
