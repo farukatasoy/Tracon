@@ -13,7 +13,9 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+import types
 import unittest
 import xml.etree.ElementTree as ElementTree
 import zipfile
@@ -1298,10 +1300,10 @@ class KapiTestleri(unittest.TestCase):
         rendered = [command.display for command in commands]
 
         self.assertIn("dotnet build Tracon.slnx -c Release", rendered)
-        self.assertIn(
-            "dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 2"
-            " --report-trx --results-directory artifacts/test-results --results-directory-layout per-module",
-            rendered)
+        # Tam test koşumu tek `--solution Tracon.slnx` komutu değil, aşamalıdır (AsamaliTestKosumuTestleri).
+        for asama in kapi.staged_test_commands():
+            self.assertIn(asama.display, rendered)
+        self.assertNotIn(kapi.full_solution_test_command().display, rendered)
         # TraconSkipCleanWorkingTreeCheck: this pack validates the
         # packaging CONTRACT during iteration, not a release candidate - it must
         # not be blocked by the new dirty-tree gate the way `kapi.py yayin` is.
@@ -1317,9 +1319,11 @@ class KapiTestleri(unittest.TestCase):
         uretim = [c.display for c in kapi.generation_commands()]
 
         self.assertEqual(rendered[:len(uretim)], uretim)
-        self.assertTrue(rendered[-1].startswith("dotnet test --solution Tracon.slnx"), rendered[-1])
-        self.assertEqual(sum(1 for c in rendered if c.startswith("dotnet test")), 1)
-        test_sirasi = len(rendered) - 1
+        # Testler en sonda ve bitişik: aşamalı koşumun her komutu `dotnet test`, başka hiçbir adım değil.
+        testler = [c.display for c in kapi.staged_test_commands()]
+        self.assertEqual(rendered[-len(testler):], testler)
+        self.assertEqual(sum(1 for c in rendered if c.startswith("dotnet test")), len(testler))
+        test_sirasi = len(rendered) - len(testler)
         for ucuz in (
             "dotnet format Tracon.slnx --verify-no-changes",
             "dotnet pack Tracon.slnx -c Release --no-build -p:TraconSkipCleanWorkingTreeCheck=true",
@@ -1515,13 +1519,18 @@ class KapiTestleri(unittest.TestCase):
         self.assertFalse(kapi.performance_gate_triggered([]))
 
     def test_tam_test_kosumu_kaynak_cekismesini_sinirlar(self):
-        commands = kapi.closing_commands("abc123", site=False)
-        rendered = [command.display for command in commands]
+        # Aynı anda en çok TEST_MAX_CPU_COUNT test modülü: hafif aşamalar o kadar modülü bir komutta koşar,
+        # ağır modüller o kadar hatta ve hat başına tek modül koşar.
+        asamalar = kapi.staged_test_commands()
+        hafif = [komut for komut in asamalar if komut.group is None]
+        agir = [komut for komut in asamalar if komut.group is not None]
 
-        self.assertIn(
-            "dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 2"
-            " --report-trx --results-directory artifacts/test-results --results-directory-layout per-module",
-            rendered)
+        for komut in hafif:
+            self.assertEqual(
+                komut.args[komut.args.index("--max-parallel-test-modules") + 1], str(kapi.TEST_MAX_CPU_COUNT))
+        for komut in agir:
+            self.assertEqual(komut.args[komut.args.index("--max-parallel-test-modules") + 1], "1")
+        self.assertEqual(len({komut.lane for komut in agir}), kapi.TEST_MAX_CPU_COUNT)
 
     def test_dry_run_komut_calistirmaz(self):
         runner = mock.Mock()
@@ -1630,6 +1639,513 @@ class KapiTestleri(unittest.TestCase):
 
                 self.assertEqual(len(violations), 1)
                 self.assertIn(relative, violations[0])
+
+
+def _slnx_test_modulleri(kok: pathlib.Path = ROOT) -> list[str]:
+    """Tracon.slnx'in tuttuğu test modullerinin proje adları.
+
+    Kural: `tests/` altındaki her proje bir test modülüdür, `tests/Directory.Build.props`'un xunit/MTP
+    bağını `IsTestHarnessProject=true` ile reddedenler hariç (`Tracon.WorkerHarness`: iki süreçli
+    kanıtın öznesi; test ana makinesi değildir ve `dotnet test` onu koşamaz)."""
+    moduller = []
+    for proje in ElementTree.parse(kok / "Tracon.slnx").getroot().iter("Project"):
+        yol = pathlib.PurePosixPath(proje.get("Path", ""))
+        if yol.parts[:1] != ("tests",):
+            continue
+        csproj = (kok / yol).read_text(encoding="utf-8")
+        if re.search(r"<IsTestHarnessProject>\s*true\s*</IsTestHarnessProject>", csproj):
+            continue
+        moduller.append(yol.stem)
+    return sorted(moduller)
+
+
+def _slnf_projeleri(yol: pathlib.Path) -> list[str]:
+    return list(json.loads(yol.read_text(encoding="utf-8"))["solution"]["projects"])
+
+
+def _bolum_sorunlari(
+    moduller: list[str], core: str, hafif: list[str], agir: dict[str, tuple[str, ...]],
+) -> list[str]:
+    """Her test modülü Core, hafif süzgeç ve ağır hatlar arasında TAM BİR yerde mi? Sorun listesi; boşsa tamam."""
+    yerler: dict[str, list[str]] = {core: ["core"]}
+    for ad in hafif:
+        yerler.setdefault(ad, []).append("hafif süzgeç")
+    for hat, adlar in agir.items():
+        for ad in adlar:
+            yerler.setdefault(ad, []).append(f"ağır hat {hat}")
+    sorunlar = [f"{ad}: hiçbir aşamada yok" for ad in moduller if ad not in yerler]
+    sorunlar += [f"{ad}: birden çok yerde ({', '.join(y)})" for ad, y in sorted(yerler.items()) if len(y) > 1]
+    sorunlar += [f"{ad}: Tracon.slnx'te test modülü değil" for ad in sorted(yerler) if ad not in moduller]
+    return sorunlar
+
+
+class GrupKosucuTestleri(unittest.TestCase):
+    """`Command.group` / `Command.lane`: bağımsız adımlar aynı anda koşar; çıktı, ölçüm ve karar liste sırasında kalır."""
+
+    @staticmethod
+    def _kos(komutlar, davranis, *, olcum_yamasi=None):
+        """`davranis(ad)` -> (çıkış kodu, çıktı). Dönüş: (sonuç, ekran, başlama sırası, ölçüm satırları)."""
+        basladi: list[str] = []
+        kilit = threading.Lock()
+
+        def runner(args, **kwargs):
+            with kilit:
+                basladi.append(args[0])
+            kod, cikti = davranis(args[0])
+            return mock.Mock(returncode=kod, stdout=cikti)
+
+        with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()) as ekran:
+            yol = pathlib.Path(dizin) / "m.jsonl"
+            if olcum_yamasi is None:
+                sonuc = kapi.run_commands("test", komutlar, runner=runner, measurement_path=yol)
+            else:
+                with mock.patch.object(kapi, "_record_measurement", side_effect=olcum_yamasi):
+                    sonuc = kapi.run_commands("test", komutlar, runner=runner, measurement_path=yol)
+            satirlar = [json.loads(s) for s in yol.read_text(encoding="utf-8").splitlines()] if yol.exists() else []
+        return sonuc, ekran.getvalue(), basladi, satirlar
+
+    @staticmethod
+    def _grup(*adlar, grup="g"):
+        return [kapi.Command((ad,), group=grup) for ad in adlar]
+
+    def test_cikti_liste_sirasiyla_basilir_bitis_sirasiyla_degil(self):
+        bitti = {ad: threading.Event() for ad in ("c1", "c2")}
+        bitis_sirasi: list[str] = []
+
+        def davranis(ad):
+            if ad == "c0":
+                for olay in bitti.values():
+                    olay.wait(5)
+            else:
+                bitti[ad].set()
+            bitis_sirasi.append(ad)
+            return 0, f"CIKTI-{ad}\n"
+
+        sonuc, ekran, _, _ = self._kos(self._grup("c0", "c1", "c2"), davranis)
+
+        self.assertEqual(sonuc, 0)
+        self.assertEqual(bitis_sirasi[-1], "c0", "c0 öbürlerini beklemedi: komutlar aynı anda koşmuyor")
+        self.assertLess(ekran.index("CIKTI-c0"), ekran.index("CIKTI-c1"))
+        self.assertLess(ekran.index("CIKTI-c1"), ekran.index("CIKTI-c2"))
+
+    def test_gruptaki_komutlar_gercekten_ayri_thread_lerde_kosar(self):
+        thread_ler: set[int] = set()
+
+        def davranis(ad):
+            thread_ler.add(threading.get_ident())
+            return 0, ""
+
+        self._kos(self._grup("c0", "c1", "c2"), davranis)
+
+        self.assertNotIn(threading.get_ident(), thread_ler)
+
+    def test_liste_sirasindaki_ilk_kirmizi_karar_verir_once_biten_degil(self):
+        c1_bitti = threading.Event()
+
+        def davranis(ad):
+            if ad == "c0":
+                c1_bitti.wait(5)
+                return 3, ""
+            if ad == "c1":
+                c1_bitti.set()
+                return 5, ""
+            return 0, ""
+
+        sonuc, ekran, _, satirlar = self._kos(self._grup("c0", "c1", "c2"), davranis)
+
+        self.assertEqual(sonuc, 3)
+        self.assertEqual([(s["command"], s["exit_code"]) for s in satirlar], [("c0", 3), ("c1", 5), ("c2", 0)])
+        self.assertIn("Çıkış 5", ekran)  # kardeşin kırmızısı da görünür, kararı değiştirmez
+
+    def test_kirmizi_adim_kardeslerini_yetim_birakmaz(self):
+        serbest = threading.Event()
+        bitenler: list[str] = []
+        threading.Timer(0.3, serbest.set).start()
+
+        def davranis(ad):
+            if ad == "c0":
+                return 1, ""
+            serbest.wait(10)
+            bitenler.append(ad)
+            return 0, ""
+
+        sonuc, _, basladi, satirlar = self._kos(self._grup("c0", "c1", "c2"), davranis)
+
+        self.assertEqual(sonuc, 1)
+        self.assertCountEqual(basladi, ["c0", "c1", "c2"])
+        self.assertCountEqual(bitenler, ["c1", "c2"], "kırmızı adımdan sonra dönüldü ama kardeşler bitmemişti")
+        self.assertEqual(len(satirlar), 3)
+
+    def test_olcum_satirlari_ana_thread_ten_ve_liste_sirasiyla_yazilir(self):
+        yazanlar: list[tuple[str, bool]] = []
+
+        def kaydet(stage, command, started, exit_code, path, *, finished=None):
+            yazanlar.append((command.args[0], threading.current_thread() is threading.main_thread()))
+
+        def davranis(ad):
+            time.sleep({"c0": 0.2, "c1": 0.0, "c2": 0.1}[ad])
+            return 0, ""
+
+        self._kos(self._grup("c0", "c1", "c2"), davranis, olcum_yamasi=kaydet)
+
+        self.assertEqual(yazanlar, [("c0", True), ("c1", True), ("c2", True)])
+
+    def test_olcum_satiri_komutun_kendi_suresini_tasir_siranin_bekleyisini_degil(self):
+        def davranis(ad):
+            time.sleep(0.4 if ad == "c0" else 0.0)
+            return 0, ""
+
+        _, _, _, satirlar = self._kos(self._grup("c0", "c1"), davranis)
+
+        sureler = {s["command"]: s["duration_seconds"] for s in satirlar}
+        self.assertGreaterEqual(sureler["c0"], 0.3)
+        self.assertLess(sureler["c1"], 0.2)  # c1 c0'ın ardından basıldı ama kendi süresini yazar
+
+    def test_hat_icindeki_komutlar_sirayla_hatlar_ayni_anda_kosar(self):
+        kilit = threading.Lock()
+        gunluk: list[str] = []
+        b1_basladi = threading.Event()
+
+        def davranis(ad):
+            with kilit:
+                gunluk.append(f"basla {ad}")
+            if ad == "a1":
+                b1_basladi.wait(5)  # a1 ancak b1 başlayınca biter: hatlar aynı anda koşuyor
+            if ad == "b1":
+                b1_basladi.set()
+            with kilit:
+                gunluk.append(f"bitti {ad}")
+            return 0, ""
+
+        komutlar = [
+            kapi.Command(("a1",), group="g", lane="a"), kapi.Command(("a2",), group="g", lane="a"),
+            kapi.Command(("b1",), group="g", lane="b"), kapi.Command(("b2",), group="g", lane="b"),
+        ]
+        sonuc, _, _, _ = self._kos(komutlar, davranis)
+
+        self.assertEqual(sonuc, 0)
+        self.assertLess(gunluk.index("basla b1"), gunluk.index("bitti a1"))
+        self.assertLess(gunluk.index("bitti a1"), gunluk.index("basla a2"))
+        self.assertLess(gunluk.index("bitti b1"), gunluk.index("basla b2"))
+
+    def test_kirmizi_hat_sonraki_komutlari_baslatmaz_ama_her_hattin_ilki_baslar(self):
+        a1_kaydedildi = threading.Event()
+
+        def kaydet(stage, command, started, exit_code, path, *, finished=None):
+            if command.args[0] == "a1":
+                a1_kaydedildi.set()
+
+        def davranis(ad):
+            if ad == "a1":
+                return 4, ""
+            if ad == "b1":
+                a1_kaydedildi.wait(5)  # a1 kırmızı sayıldıktan sonra biter
+            return 0, ""
+
+        komutlar = [
+            kapi.Command(("a1",), group="g", lane="a"), kapi.Command(("b1",), group="g", lane="b"),
+            kapi.Command(("b2",), group="g", lane="b"), kapi.Command(("a2",), group="g", lane="a"),
+        ]
+        sonuc, ekran, basladi, satirlar = self._kos(komutlar, davranis, olcum_yamasi=kaydet)
+
+        self.assertEqual(sonuc, 4)
+        self.assertCountEqual(basladi, ["a1", "b1"])
+        self.assertEqual(ekran.count("atlandı"), 2)
+        self.assertEqual(satirlar, [])  # yama satır yazmaz; ölçümün kendisi ayrı sınanır
+
+    def test_uzun_suren_grup_sessiz_kalmaz_hangi_komutlar_surdugunu_yazar(self):
+        def davranis(ad):
+            time.sleep(0.4 if ad == "yavas" else 0.0)
+            return 0, ""
+
+        with mock.patch.object(kapi, "GROUP_HEARTBEAT_SECONDS", 0.05):
+            sonuc, ekran, _, _ = self._kos(self._grup("yavas", "hizli"), davranis)
+
+        self.assertEqual(sonuc, 0)
+        self.assertRegex(ekran, r"… sürüyor \(\d+ s\): yavas")
+
+    def test_komut_bulunamazsa_grupta_127_olur_ve_kimse_beklemede_kalmaz(self):
+        def runner(args, **kwargs):
+            if args[0] == "c1":
+                raise FileNotFoundError(2, "No such file or directory", "c1")
+            return mock.Mock(returncode=0, stdout="")
+
+        with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()):
+            sonuc = kapi.run_commands(
+                "test", self._grup("c0", "c1"), runner=runner, measurement_path=pathlib.Path(dizin) / "m.jsonl")
+
+        self.assertEqual(sonuc, 127)
+
+    def test_kosucu_cokerse_grup_asili_kalmaz(self):
+        def runner(args, **kwargs):
+            if args[0] == "c1":
+                raise ValueError("beklenmeyen")
+            return mock.Mock(returncode=0, stdout="")
+
+        with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()) as ekran:
+            sonuc = kapi.run_commands(
+                "test", self._grup("c0", "c1"), runner=runner, measurement_path=pathlib.Path(dizin) / "m.jsonl")
+
+        self.assertEqual(sonuc, kapi.INTERNAL_ERROR_EXIT_CODE)
+        self.assertIn("beklenmeyen", ekran.getvalue())
+
+    def test_grup_komutun_gorunumunu_degistirmez(self):
+        self.assertEqual(kapi.Command(("x", "y"), group="g", lane="a").display, kapi.Command(("x", "y")).display)
+
+    def test_ayni_grup_adi_ancak_bitisikse_tek_blok_olur(self):
+        komutlar = [
+            *self._grup("g1", "g2"), kapi.Command(("duz",)), *self._grup("g3", "g4"),
+            kapi.Command(("tek",), group="baska"),
+        ]
+
+        self.assertEqual(
+            [[komut.args[0] for komut in blok] for blok in kapi._blocks(komutlar)],
+            [["g1", "g2"], ["duz"], ["g3", "g4"], ["tek"]])
+
+    def test_gruplanmamis_komutlar_eskisi_gibi_sirayla_ve_ilk_kirmizida_durur(self):
+        sonuc, _, basladi, _ = self._kos(
+            [kapi.Command((ad,)) for ad in ("s0", "s1", "s2")], lambda ad: (7 if ad == "s1" else 0, ""))
+
+        self.assertEqual(sonuc, 7)
+        self.assertEqual(basladi, ["s0", "s1"])
+
+    def test_kuru_listede_grup_ve_hat_isaretleri_yorum_satiridir(self):
+        komutlar = [
+            kapi.Command(("once",)),
+            kapi.Command(("a1",), group="g", lane="a"), kapi.Command(("b1",), group="g", lane="b"),
+            kapi.Command(("a2",), group="g", lane="a"),
+            kapi.Command(("sonra",)),
+        ]
+        runner = mock.Mock()
+        with contextlib.redirect_stdout(io.StringIO()) as ekran:
+            sonuc = kapi.run_commands("test", komutlar, runner=runner, dry_run=True)
+
+        satirlar = ekran.getvalue().splitlines()
+        self.assertEqual(sonuc, 0)
+        runner.assert_not_called()
+        self.assertEqual(
+            [satir[2:] for satir in satirlar if satir.startswith("$ ")],
+            [komut.display for komut in komutlar])
+        self.assertTrue(any(satir.startswith("# paralel grup") for satir in satirlar))
+        self.assertTrue(any(satir.startswith("# grup sonu") for satir in satirlar))
+        # Hat işareti, listede hat değiştiği yerde yazılır (a1, b1, a2 -> a, b, a).
+        self.assertEqual(
+            [satir for satir in satirlar if satir.startswith("# hat ")], ["# hat a", "# hat b", "# hat a"])
+
+
+class AsamaliTestKosumuTestleri(unittest.TestCase):
+    """Kapanışın test koşumu: Core tek başına, hafif süzgeç, iki ağır hat; tek TRX denetimi; ilk kırmızıda durma."""
+
+    def _kos(self, komutlar, kod_veren=lambda args: 0, *, sifir_test=0, sinir_kodu=0):
+        cagrilar: list[tuple[tuple[str, ...], float]] = []
+        kilit = threading.Lock()
+
+        def runner(args, **kwargs):
+            with kilit:
+                cagrilar.append((tuple(args), time.time()))
+            return mock.Mock(returncode=kod_veren(tuple(args)), stdout="")
+
+        with mock.patch.object(kapi, "require_executed_tests", return_value=sifir_test) as zorunlu, \
+                mock.patch.object(kapi, "enforce_module_time_limits", return_value=sinir_kodu) as sinir, \
+                mock.patch.object(kapi, "record_test_durations") as sure, \
+                mock.patch.object(kapi, "isolate_failed_tests", return_value=[]) as izole, \
+                mock.patch.object(kapi, "failed_tests_from_trx", return_value=[]) as dusenler, \
+                tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()):
+            yol = pathlib.Path(dizin) / "m.jsonl"
+            sonuc = kapi.run_commands("test", komutlar, runner=runner, measurement_path=yol)
+            satirlar = [json.loads(s) for s in yol.read_text(encoding="utf-8").splitlines()] if yol.exists() else []
+        return types.SimpleNamespace(
+            sonuc=sonuc, cagrilar=cagrilar, satirlar=satirlar, zorunlu=zorunlu, sinir=sinir, sure=sure,
+            izole=izole, dusenler=dusenler)
+
+    @staticmethod
+    def _ad_iceren(*parcalar):
+        return lambda args: 2 if any(parca in " ".join(args) for parca in parcalar) else 0
+
+    # --- sıra ve yapı -------------------------------------------------------------
+
+    def test_core_tek_basina_ilk_komuttur_sonra_hafif_sonra_agir(self):
+        komutlar = kapi.staged_test_commands()
+
+        self.assertEqual(
+            komutlar[0].args[:4],
+            ("dotnet", "test", "--project", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))
+        self.assertEqual(komutlar[1].args[:4], ("dotnet", "test", "--solution", "Tracon.fast.slnf"))
+        self.assertIsNone(komutlar[0].group)
+        self.assertIsNone(komutlar[1].group)
+        self.assertTrue(all(komut.group == kapi.HEAVY_TEST_GROUP for komut in komutlar[2:]))
+        self.assertEqual(len(komutlar), 2 + sum(len(adlar) for adlar in kapi.HEAVY_TEST_LANES.values()))
+
+    def test_docker_modulleri_en_sonda_agir_hatlarda_kosar(self):
+        komutlar = kapi.staged_test_commands()
+        for modul in ("TwoNode", "SqlServer", "PostgreSql"):
+            with self.subTest(modul=modul):
+                yer = [i for i, komut in enumerate(komutlar) if f"Tracon.{modul}.IntegrationTests" in komut.display]
+                self.assertEqual(len(yer), 1)
+                self.assertGreaterEqual(yer[0], 2)
+        self.assertNotIn("Tracon.fast.slnf", " ".join(" ".join(k.args) for k in komutlar[2:]))
+
+    def test_sql_server_ve_two_node_ayni_hattadir_boylece_asla_ayni_anda_kosmaz(self):
+        hat_of = {
+            ad: hat for hat, adlar in kapi.HEAVY_TEST_LANES.items() for ad in adlar}
+
+        self.assertEqual(hat_of["Tracon.SqlServer.IntegrationTests"], hat_of["Tracon.TwoNode.IntegrationTests"])
+        komutlar = {k.display: k for k in kapi.staged_test_commands() if k.group}
+        for komut in komutlar.values():
+            proje = pathlib.PurePath(kapi._test_target(komut.args)).stem
+            self.assertEqual(komut.lane, hat_of[proje], proje)
+
+    def test_hat_sayisi_ayni_anda_kosan_modul_sayisidir(self):
+        self.assertEqual(len(kapi.HEAVY_TEST_LANES), kapi.TEST_MAX_CPU_COUNT)
+
+    def test_her_asama_trx_bayraklarini_tasir(self):
+        for komut in kapi.staged_test_commands():
+            with self.subTest(komut=komut.display):
+                args = komut.args
+                self.assertTrue(kapi.reports_trx(komut))
+                self.assertNotIn("--", args)
+                self.assertEqual(args[args.index("-c") + 1], "Release")
+                self.assertIn("--no-build", args)
+                self.assertEqual(args[args.index("--results-directory") + 1], kapi.TEST_RESULTS_DIRECTORY)
+                self.assertEqual(args[args.index("--results-directory-layout") + 1], "per-module")
+
+    def test_ic_dongu_tam_kosum_komutu_tek_cozum_komutu_olarak_kalir(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            komutlar = kapi.inner_loop_commands(["src/Unknown.Package/Thing.cs"])[1:]
+
+        self.assertEqual([k.display for k in komutlar], [kapi.full_solution_test_command().display])
+
+    def test_kapanis_testleri_listenin_sonunda_bitisiktir_ve_oncesinde_testsiz_adimlar_vardir(self):
+        komutlar = kapi.closing_commands("abc123", site=True, performance=True)
+        testler = kapi.staged_test_commands()
+
+        self.assertEqual(komutlar[-len(testler):], testler)
+        self.assertFalse(any(k.display.startswith("dotnet test") for k in komutlar[:-len(testler)]))
+
+    # --- bölüm koruması -------------------------------------------------------------
+
+    def test_slnf_ve_agir_liste_ve_core_her_test_modulunu_tam_bir_kez_kapsar(self):
+        hafif = _slnf_projeleri(ROOT / kapi.FAST_TEST_SOLUTION_FILTER)
+
+        self.assertTrue(all(yol.startswith("tests/") for yol in hafif), "hafif süzgeç yalnız test projesi tutar")
+        for yol in hafif:
+            self.assertTrue((ROOT / yol).is_file(), yol)
+        self.assertEqual(
+            json.loads((ROOT / kapi.FAST_TEST_SOLUTION_FILTER).read_text(encoding="utf-8"))["solution"]["path"],
+            "Tracon.slnx")
+        self.assertEqual(
+            _bolum_sorunlari(
+                _slnx_test_modulleri(), kapi.CORE_TEST_PROJECT,
+                [pathlib.PurePosixPath(yol).stem for yol in hafif], kapi.HEAVY_TEST_LANES),
+            [])
+
+    def test_bolum_korumasi_hicbir_yerde_listelenmeyen_yeni_modulde_kirmizi_olur(self):
+        moduller = ["Tracon.A.Tests", "Tracon.B.Tests", "Tracon.Yeni.Tests"]
+
+        sorunlar = _bolum_sorunlari(moduller, "Tracon.A.Tests", ["Tracon.B.Tests"], {"a": ()})
+
+        self.assertEqual(sorunlar, ["Tracon.Yeni.Tests: hiçbir aşamada yok"])
+
+    def test_bolum_korumasi_iki_yerde_listelenen_ve_bilinmeyen_modulu_yakalar(self):
+        moduller = ["Tracon.A.Tests", "Tracon.B.Tests"]
+
+        sorunlar = _bolum_sorunlari(
+            moduller, "Tracon.A.Tests", ["Tracon.B.Tests", "Tracon.Yazim.Tests"], {"a": ("Tracon.B.Tests",)})
+
+        self.assertEqual(
+            sorunlar,
+            ["Tracon.B.Tests: birden çok yerde (hafif süzgeç, ağır hat a)",
+             "Tracon.Yazim.Tests: Tracon.slnx'te test modülü değil"])
+
+    def test_yardimci_proje_test_modulu_sayilmaz(self):
+        moduller = _slnx_test_modulleri()
+
+        self.assertNotIn("Tracon.WorkerHarness", moduller)
+        self.assertIn(kapi.CORE_TEST_PROJECT, moduller)
+
+    # --- koşum: tek TRX denetimi, ilk kırmızıda durma ------------------------------------
+
+    def test_yesil_kosumda_trx_kancalari_bir_kez_ve_ilk_komuttan_once_baslayan_zamanla_calisir(self):
+        sonuc = self._kos(kapi.staged_test_commands())
+
+        self.assertEqual(sonuc.sonuc, 0)
+        self.assertEqual(len(sonuc.cagrilar), len(kapi.staged_test_commands()))
+        for kanca in (sonuc.zorunlu, sonuc.sinir, sonuc.sure):
+            kanca.assert_called_once()
+        since = sonuc.sure.call_args.args[0]
+        self.assertEqual(sonuc.zorunlu.call_args.args[0], since)
+        self.assertEqual(sonuc.sinir.call_args.args[0], since)
+        self.assertLessEqual(since, min(zaman for _, zaman in sonuc.cagrilar))
+        sonuc.izole.assert_not_called()
+        self.assertEqual([s["exit_code"] for s in sonuc.satirlar], [0] * len(kapi.staged_test_commands()))
+
+    def test_kirmizi_core_sonraki_asamalari_baslatmaz_ama_teshis_kancalari_calisir(self):
+        sonuc = self._kos(kapi.staged_test_commands(), self._ad_iceren("Tracon.Core.UnitTests"))
+
+        self.assertEqual(sonuc.sonuc, 2)
+        self.assertEqual(len(sonuc.cagrilar), 1)
+        self.assertIn("Tracon.Core.UnitTests", " ".join(sonuc.cagrilar[0][0]))
+        sonuc.zorunlu.assert_not_called()
+        sonuc.sinir.assert_not_called()
+        sonuc.sure.assert_called_once()
+        sonuc.izole.assert_called_once()
+        # Ölçüm: yalnız Core satırı, kendi çıkış koduyla; ağır aşama için satır yok.
+        self.assertEqual(len(sonuc.satirlar), 1)
+        self.assertEqual(sonuc.satirlar[0]["exit_code"], 2)
+        self.assertIn("Tracon.Core.UnitTests", sonuc.satirlar[0]["command"])
+
+    def test_kirmizi_hafif_asama_agir_hatlari_baslatmaz(self):
+        sonuc = self._kos(kapi.staged_test_commands(), self._ad_iceren("Tracon.fast.slnf"))
+
+        self.assertEqual(sonuc.sonuc, 2)
+        self.assertEqual(len(sonuc.cagrilar), 2)
+        sonuc.sure.assert_called_once()
+        sonuc.izole.assert_called_once()
+
+    def test_kirmizi_agir_modul_hatti_durdurur_cikis_kodunu_korur_ve_sure_sinirini_ezmez(self):
+        sonuc = self._kos(
+            kapi.staged_test_commands(), self._ad_iceren("Tracon.SqlServer.IntegrationTests"), sinir_kodu=90)
+
+        calisan = [" ".join(args) for args, _ in sonuc.cagrilar]
+        self.assertEqual(sonuc.sonuc, 2)
+        self.assertFalse(any("Tracon.Ui.E2ETests" in satir for satir in calisan), "kırmızı hattın sonraki komutu başladı")
+        sonuc.sinir.assert_not_called()
+        sonuc.sure.assert_called_once()
+        sonuc.izole.assert_called_once()
+
+    def test_asamalar_yesilken_modul_sure_siniri_cikis_kodu_verir_ve_tek_satir_yazar(self):
+        sonuc = self._kos(kapi.staged_test_commands(), sinir_kodu=kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+
+        self.assertEqual(sonuc.sonuc, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        sonuc.sinir.assert_called_once()
+        sonuc.sure.assert_called_once()
+        kontrol = [s for s in sonuc.satirlar if s["command"] == kapi.TRX_CHECK.display]
+        self.assertEqual([s["exit_code"] for s in kontrol], [kapi.MODULE_TIME_LIMIT_EXIT_CODE])
+        self.assertEqual(
+            [s["exit_code"] for s in sonuc.satirlar if s["command"] != kapi.TRX_CHECK.display],
+            [0] * len(kapi.staged_test_commands()))
+
+    def test_sifir_test_kosan_yesil_asamalar_kirmizi_sayilir(self):
+        sonuc = self._kos(kapi.staged_test_commands(), sifir_test=kapi.ZERO_TESTS_EXIT_CODE)
+
+        self.assertEqual(sonuc.sonuc, kapi.ZERO_TESTS_EXIT_CODE)
+        sonuc.zorunlu.assert_called_once()
+        sonuc.sinir.assert_not_called()
+
+    def test_testsiz_adim_iki_test_kosumunu_ayirir_ve_her_kosum_kendi_kancalarini_calistirir(self):
+        trx = kapi.full_solution_test_command()
+        sonuc = self._kos([trx, kapi.Command(("dotnet", "build", "Tracon.slnx")), trx])
+
+        self.assertEqual(sonuc.sonuc, 0)
+        self.assertEqual(sonuc.zorunlu.call_count, 2)
+        self.assertEqual(sonuc.sure.call_count, 2)
+
+    def test_trx_istemeyen_grup_test_kancalarini_calistirmaz(self):
+        sonuc = self._kos([kapi.Command((ad,), group="g") for ad in ("c0", "c1")])
+
+        self.assertEqual(sonuc.sonuc, 0)
+        sonuc.zorunlu.assert_not_called()
+        sonuc.sure.assert_not_called()
 
 
 class PerformansKapisiTestleri(unittest.TestCase):

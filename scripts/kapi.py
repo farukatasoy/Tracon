@@ -8,6 +8,7 @@ not grow subtly different copies of the same gate.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import dataclasses
 import datetime
 import fnmatch
@@ -17,12 +18,14 @@ import json
 import os
 import pathlib
 import platform
+import queue
 import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import zipfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -76,6 +79,10 @@ GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # `-maxcpucount:N` bu kipte HIC TEST KOSTURMADAN cikis kodu 5 verir; esdegeri
 # `--max-parallel-test-modules N`'dir. Sayi ayni kalir: bir "modul" bir test
 # ikilisidir (cok hedefli projede her TFM bacagi ayri modul).
+#
+# The closing test run keeps the same limit in two forms: a run of several light modules (the solution
+# filter) gets it as `--max-parallel-test-modules`, and the heavy modules run in exactly this many
+# lanes (`HEAVY_TEST_LANES`), one module per lane at a time. At most this many modules run at once.
 TEST_MAX_CPU_COUNT = 2
 
 # MTP 2 TRX'i test ikilisinin yanina degil `--results-directory`'ye
@@ -179,6 +186,14 @@ class Command:
 
     args: tuple[str, ...]
     cwd: pathlib.Path = ROOT
+    group: str | None = None
+    """Commands that carry the same group name and follow each other form one block that runs concurrently.
+
+    The group does not change what a command is: `display` and the measurement row stay the same."""
+    lane: str | None = None
+    """Inside a group, commands of one lane run one after another; every lane runs beside the others.
+
+    A command without a lane is a lane of its own."""
 
     @property
     def display(self) -> str:
@@ -225,17 +240,260 @@ def _record_measurement(
     started: float,
     exit_code: int,
     measurement_path: pathlib.Path,
+    *,
+    finished: float | None = None,
 ) -> None:
+    """Append one row. `finished` is the monotonic end of a command that ran on another thread."""
     measurement_path.parent.mkdir(parents=True, exist_ok=True)
     row = {
         "utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "stage": stage,
         "command": command.display,
-        "duration_seconds": round(time.monotonic() - started, 3),
+        "duration_seconds": round((time.monotonic() if finished is None else finished) - started, 3),
         "exit_code": exit_code,
     }
     with measurement_path.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+@dataclasses.dataclass(frozen=True)
+class _Outcome:
+    """What one executed command left behind. The main thread reports it; a worker never prints."""
+
+    command: Command
+    exit_code: int
+    started: float
+    finished: float
+    output: str = ""
+    notice: str = ""
+
+    @property
+    def seconds(self) -> float:
+        return self.finished - self.started
+
+
+INTERNAL_ERROR_EXIT_CODE = 70  # the runner itself failed on a worker thread (not a child's exit code)
+
+
+def _execute(command: Command, runner: Runner, environment: Mapping[str, str], *, capture: bool) -> _Outcome:
+    """Run one command. With `capture` its output is held back (stderr merged) instead of reaching the terminal."""
+    options: dict[str, Any] = {"cwd": str(command.cwd), "env": environment, "check": False}
+    if capture:
+        options.update(
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+    started = time.monotonic()
+    output = ""
+    notice = ""
+    try:
+        result = runner(list(command.args), **options)
+        exit_code = int(result.returncode)
+        if capture and isinstance(result.stdout, str):
+            output = result.stdout
+    except FileNotFoundError as exception:
+        notice = f"❌ Komut bulunamadı: {exception.filename}"
+        exit_code = 127
+    except OSError as exception:
+        notice = f"❌ Komut çalıştırılamadı: {exception}"
+        exit_code = 126
+    return _Outcome(command, exit_code, started, time.monotonic(), output, notice)
+
+
+def _report(stage: str, outcome: _Outcome, measurement_path: pathlib.Path) -> int:
+    """Print what a command left, write its measurement row, and return its exit code. Main thread only."""
+    if outcome.output:
+        print(outcome.output, end="" if outcome.output.endswith("\n") else "\n", flush=True)
+    if outcome.notice:
+        print(outcome.notice)
+    _record_measurement(
+        stage, outcome.command, outcome.started, outcome.exit_code, measurement_path, finished=outcome.finished)
+    if outcome.exit_code:
+        print(f"❌ Çıkış {outcome.exit_code} ({outcome.seconds:.2f} s): {outcome.command.display}", flush=True)
+    else:
+        print(f"✅ {outcome.seconds:.2f} s", flush=True)
+    return outcome.exit_code
+
+
+def _blocks(commands: Sequence[Command]) -> list[list[Command]]:
+    """Split a command list into blocks: neighbours that share a group name form one block, every other command is alone."""
+    blocks: list[list[Command]] = []
+    for command in commands:
+        if command.group is not None and blocks and blocks[-1][0].group == command.group:
+            blocks[-1].append(command)
+        else:
+            blocks.append([command])
+    return blocks
+
+
+def _lanes(block: Sequence[Command]) -> list[list[int]]:
+    """Indexes of a block grouped by lane, in order of first appearance. A command without a lane is its own lane."""
+    lanes: dict[tuple[str, object], list[int]] = {}
+    for index, command in enumerate(block):
+        key = ("lane", command.lane) if command.lane is not None else ("alone", index)
+        lanes.setdefault(key, []).append(index)
+    return list(lanes.values())
+
+
+def _is_parallel(block: Sequence[Command]) -> bool:
+    return block[0].group is not None and len(_lanes(block)) > 1
+
+
+def _block_reports_trx(block: Sequence[Command]) -> bool:
+    return any(reports_trx(command) for command in block)
+
+
+def _group_heading(block: Sequence[Command]) -> str:
+    return f"paralel grup «{block[0].group}»: {len(_lanes(block))} hat, {len(block)} komut"
+
+
+def _print_plan(blocks: Sequence[Sequence[Command]]) -> None:
+    """`--komutlari-bas`: every command as `$ ...`; group and lane markers are `#` lines so a parser can skip them."""
+    for block in blocks:
+        parallel = _is_parallel(block)
+        if parallel:
+            print(f"# {_group_heading(block)}")
+        lane = None
+        for command in block:
+            if parallel and command.lane is not None and command.lane != lane:
+                lane = command.lane
+                print(f"# hat {lane}")
+            print(f"$ {command.display}")
+        if parallel:
+            print(f"# grup sonu «{block[0].group}»")
+
+
+GROUP_HEARTBEAT_SECONDS = 60.0
+"""A running group says so this often: its output is held back, and a quiet terminal looks like a hang."""
+
+
+def _label(command: Command) -> str:
+    """A short name for a command in progress lines: the test target of a `dotnet test`, else the command, cut."""
+    if command.args[:2] == ("dotnet", "test"):
+        return pathlib.PurePath(_test_target(command.args)).stem
+    text = command.display
+    return text if len(text) <= 80 else text[:77] + "..."
+
+
+def _run_sequential(
+    stage: str, commands: Sequence[Command], runner: Runner, environment: Mapping[str, str],
+    measurement_path: pathlib.Path,
+) -> int:
+    for command in commands:
+        print(f"$ {command.display}", flush=True)
+        exit_code = _report(stage, _execute(command, runner, environment, capture=False), measurement_path)
+        if exit_code:
+            return exit_code
+    return 0
+
+
+def _run_group(
+    stage: str, block: Sequence[Command], runner: Runner, environment: Mapping[str, str],
+    measurement_path: pathlib.Path,
+) -> int:
+    """Run a block's lanes at the same time and report it as if it had run in list order.
+
+    - Output is held back per command and printed in list order, as soon as every command before it was printed.
+    - Measurement rows are written here, on the calling thread, in list order.
+    - The first non-zero exit code in LIST order is the result, whatever finished first.
+    - The first command of every lane always starts, so the independent checks of a group all report. Once one
+      command is red, a lane starts no FURTHER command, but a command that is already running is awaited: no
+      child process is left behind.
+    """
+    lanes = _lanes(block)
+    outcomes: list[_Outcome | None] = [None] * len(block)
+    running: dict[int, float] = {}
+    finished: queue.Queue[int] = queue.Queue()
+    red = threading.Event()
+
+    def work(lane: Sequence[int]) -> None:
+        for position, index in enumerate(lane):
+            if position == 0 or not red.is_set():
+                running[index] = time.monotonic()
+                try:
+                    outcome = _execute(block[index], runner, environment, capture=True)
+                except Exception as exception:  # a defect here must not leave the calling thread waiting
+                    now = time.monotonic()
+                    outcome = _Outcome(
+                        block[index], INTERNAL_ERROR_EXIT_CODE, now, now,
+                        notice=f"❌ Komut koşucusu çöktü: {exception!r}")
+                outcomes[index] = outcome
+                running.pop(index, None)
+                if outcome.exit_code:
+                    red.set()
+            finished.put(index)
+
+    print(f"# {_group_heading(block)}; çıktı liste sırasıyla basılır", flush=True)
+    exit_code = 0
+    group_started = time.monotonic()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(lanes)) as pool:
+        for lane in lanes:
+            pool.submit(work, lane)
+        done: set[int] = set()
+        printed = 0
+        while printed < len(block):
+            try:
+                index = finished.get(timeout=GROUP_HEARTBEAT_SECONDS)
+            except queue.Empty:
+                names = ", ".join(_label(block[active]) for active in sorted(running))
+                print(f"   … sürüyor ({time.monotonic() - group_started:.0f} s): {names}", flush=True)
+                continue
+            done.add(index)
+            early = outcomes[index]
+            if index != printed and early is not None:
+                print(f"   … bitti, çıktısı sırasını bekliyor: {_label(early.command)}"
+                      f" ({early.seconds:.1f} s, çıkış {early.exit_code})", flush=True)
+            while printed in done:
+                outcome = outcomes[printed]
+                if outcome is None:
+                    print(f"   ⏭ atlandı (aynı grupta kırmızı var): {block[printed].display}")
+                else:
+                    print(f"$ {outcome.command.display}")
+                    result = _report(stage, outcome, measurement_path)
+                    exit_code = exit_code or result
+                printed += 1
+    return exit_code
+
+
+def _run_block(
+    stage: str, block: Sequence[Command], runner: Runner, environment: Mapping[str, str],
+    measurement_path: pathlib.Path,
+) -> int:
+    if _is_parallel(block):
+        return _run_group(stage, block, runner, environment, measurement_path)
+    return _run_sequential(stage, block, runner, environment, measurement_path)
+
+
+TRX_CHECK = Command(("kapi.py", "trx-denetimi"))
+"""Stands for the checks of a whole test run in the measurement file; a row exists only when they fail."""
+
+
+def _run_test_stages(
+    stage: str, blocks: Sequence[Sequence[Command]], runner: Runner, environment: Mapping[str, str],
+    measurement_path: pathlib.Path,
+) -> int:
+    """Run test blocks one after another as ONE test run.
+
+    The first red block ends the run, so a later and slower block never starts (fail fast). The checks over the
+    TRX files then run once, over everything written since the first block began: the executed-test count, the
+    module time limits, the duration record (one file per run) and, after a red run, the isolated rerun.
+    """
+    since = time.time()
+    exit_code = 0
+    for block in blocks:
+        exit_code = _run_block(stage, block, runner, environment, measurement_path)
+        if exit_code:
+            break
+    if not exit_code:
+        check_started = time.monotonic()
+        exit_code = require_executed_tests(since)
+        if not exit_code:
+            exit_code = enforce_module_time_limits(since)
+        if exit_code:
+            print(f"❌ Çıkış {exit_code}: test koşumunun TRX denetimi")
+            _record_measurement(stage, TRX_CHECK, check_started, exit_code, measurement_path)
+    record_test_durations(since)
+    if exit_code:
+        isolate_failed_tests(failed_tests_from_trx(since), runner=runner)
+    return exit_code
 
 
 def run_commands(
@@ -246,48 +504,32 @@ def run_commands(
     measurement_path: pathlib.Path = MEASUREMENTS,
     dry_run: bool = False,
 ) -> int:
-    """Run commands in order and stop at the first non-zero exit code."""
+    """Run commands in order and stop at the first non-zero exit code.
+
+    Neighbours that share a `Command.group` run concurrently (see `_run_group`). Neighbouring blocks that ask for
+    TRX reports are one test run: their checks run once, after the last of them.
+    """
+    blocks = _blocks(commands)
+    if dry_run:
+        _print_plan(blocks)
+        return 0
+
     environment = os.environ.copy()
     environment["MSBUILDDISABLENODEREUSE"] = "1"
 
-    for command in commands:
-        print(f"$ {command.display}")
-        if dry_run:
-            continue
-
-        started = time.monotonic()
-        wall_started = time.time()
-        try:
-            result = runner(
-                list(command.args),
-                cwd=str(command.cwd),
-                env=environment,
-                check=False,
-            )
-            exit_code = int(result.returncode)
-        except FileNotFoundError as exception:
-            print(f"❌ Komut bulunamadı: {exception.filename}")
-            exit_code = 127
-        except OSError as exception:
-            print(f"❌ Komut çalıştırılamadı: {exception}")
-            exit_code = 126
-
-        if not exit_code and reports_trx(command):
-            exit_code = require_executed_tests(wall_started)
-        if not exit_code and reports_trx(command):
-            exit_code = enforce_module_time_limits(wall_started)
-
-        _record_measurement(stage, command, started, exit_code, measurement_path)
-        if reports_trx(command):
-            record_test_durations(wall_started)
-        elapsed = time.monotonic() - started
+    position = 0
+    while position < len(blocks):
+        if _block_reports_trx(blocks[position]):
+            end = position
+            while end < len(blocks) and _block_reports_trx(blocks[end]):
+                end += 1
+            exit_code = _run_test_stages(stage, blocks[position:end], runner, environment, measurement_path)
+            position = end
+        else:
+            exit_code = _run_block(stage, blocks[position], runner, environment, measurement_path)
+            position += 1
         if exit_code:
-            print(f"❌ Çıkış {exit_code} ({elapsed:.2f} s): {command.display}")
-            if command.args[:2] == ("dotnet", "test"):
-                isolate_failed_tests(failed_tests_from_trx(wall_started), runner=runner)
             return exit_code
-        print(f"✅ {elapsed:.2f} s")
-
     return 0
 
 
@@ -1374,6 +1616,19 @@ def _dotnet_test_project(project: str) -> Command:
         "dotnet", "test", "--project", f"tests/{project}/{project}.csproj", "-c", "Release", "--no-build"))
 
 
+def _trx_test_command(target_flag: str, target: str, parallel_modules: int) -> Command:
+    """A `dotnet test` run that writes TRX reports, with the flags every gate test run shares.
+
+    The TRX flags equal those of the CI test steps: a failed test is machine-readable and
+    `isolate_failed_tests` can rerun it alone. Measured (2026-09-04): writing TRX stays below the noise of a run
+    (557 s with, 561 s without)."""
+    return Command((
+        "dotnet", "test", target_flag, target, "-c", "Release", "--no-build",
+        "--max-parallel-test-modules", str(parallel_modules),
+        "--report-trx", "--results-directory", TEST_RESULTS_DIRECTORY,
+        "--results-directory-layout", "per-module"))
+
+
 def full_solution_test_command() -> Command:
     """Run test projects with enough isolation for Docker and package tests.
 
@@ -1383,16 +1638,59 @@ def full_solution_test_command() -> Command:
     timeouts. Two projects at a time is the measured limit (TEST_MAX_CPU_COUNT):
     three starved each other, two ran green three times once the tests stopped
     sleeping fixed times.
+
+    The closing run does not use this single command any more (see `staged_test_commands`);
+    the quick inner loop does, when it cannot name the affected projects.
     """
-    # TRX bayraklari ci.yml "Test et" adimlariyla AYNI: dusen testin adi makine
-    # okunur hale gelir ve `isolate_failed_tests` onu izole tekrar kosar.
-    # Olculdu 2026-09-04: TRX yazimi kosum suresini olcum gurultusunun
-    # altinda etkiler (557 sn TRX'li, 561 sn TRX'siz).
-    return Command((
-        "dotnet", "test", "--solution", "Tracon.slnx", "-c", "Release", "--no-build",
-        "--max-parallel-test-modules", str(TEST_MAX_CPU_COUNT),
-        "--report-trx", "--results-directory", TEST_RESULTS_DIRECTORY,
-        "--results-directory-layout", "per-module"))
+    return _trx_test_command("--solution", "Tracon.slnx", TEST_MAX_CPU_COUNT)
+
+
+# The closing test run, in the order it runs:
+#   1. Core alone. Its 7 000 tests take about 40 s. MTP picks the module order inside one solution
+#      run and does not let a caller choose it (Core started 641 s into a 996 s run once), so a red
+#      Core test is only reliably early when Core is a run of its own.
+#   2. The light modules, in a solution filter (`FAST_TEST_SOLUTION_FILTER`): about a minute at
+#      two modules at a time.
+#   3. The heavy modules, in `TEST_MAX_CPU_COUNT` lanes that run beside each other. A lane is a chain
+#      of one-module runs, so at most that many heavy modules run at once, as before, and the order is
+#      the same every run. The containers start last. An earlier trial that ran the heavy modules
+#      right behind a light wave lost 121 SQL Server tests to a starved container (2026-09-04) and its
+#      cause was never isolated: this order narrows the exposure and does not prove it away. The
+#      acceptance runs of the closing gate are the evidence; if the red returns, a wait for container
+#      health between stages 2 and 3 is a separate hypothesis to measure first.
+# A red stage ends the run; later stages do not start.
+CORE_TEST_PROJECT = "Tracon.Core.UnitTests"
+FAST_TEST_SOLUTION_FILTER = "Tracon.fast.slnf"
+HEAVY_TEST_GROUP = "agir-testler"
+
+# Wall seconds of the last full gate (two modules at a time): TwoNode 444, AspNetCore 372, SqlServer 303,
+# Package 158, PostgreSql 111, Sqlite 70, E2E 33. Lane a adds up to 780, lane b to 711.
+# - SqlServer and TwoNode share a lane: they never run together, by construction. They compete for the
+#   container budget of one machine.
+# - E2E ends lane a. It starts when lane b has finished, so the browser runs on a quiet machine
+#   instead of beside the other heavy modules.
+# The number of lanes is `TEST_MAX_CPU_COUNT`.
+HEAVY_TEST_LANES: dict[str, tuple[str, ...]] = {
+    "a": ("Tracon.TwoNode.IntegrationTests", "Tracon.SqlServer.IntegrationTests", "Tracon.Ui.E2ETests"),
+    "b": (
+        "Tracon.AspNetCore.FunctionalTests", "Tracon.PostgreSql.IntegrationTests",
+        "Tracon.Package.Tests", "Tracon.Sqlite.IntegrationTests"),
+}
+
+
+def staged_test_commands() -> list[Command]:
+    """The closing test run: Core alone, then the light modules, then the heavy lanes."""
+    commands = [
+        _trx_test_command("--project", f"tests/{CORE_TEST_PROJECT}/{CORE_TEST_PROJECT}.csproj", TEST_MAX_CPU_COUNT),
+        _trx_test_command("--solution", FAST_TEST_SOLUTION_FILTER, TEST_MAX_CPU_COUNT),
+    ]
+    for lane, projects in HEAVY_TEST_LANES.items():
+        commands.extend(
+            dataclasses.replace(
+                _trx_test_command("--project", f"tests/{project}/{project}.csproj", 1),
+                group=HEAVY_TEST_GROUP, lane=lane)
+            for project in projects)
+    return commands
 
 
 TRX_NS = "{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}"
@@ -1614,22 +1912,32 @@ def generation_commands(extension: Extension = PUBLIC) -> list[Command]:
     ]
 
 
+READ_ONLY_GROUP = "salt-okunur"
+
+
 def closing_commands(
     base: str, *, site: bool = True, performance: bool = True, extension: Extension = PUBLIC,
 ) -> list[Command]:
-    # Cheapest first; the full test run (about 20 min, November 2026) is the most expensive step
+    # Cheapest first; the test run (about 20 min, November 2026) is the most expensive step
     # and runs LAST. Measured (October 2026): 11 of 42 red closing runs failed
     # in a step that used to run AFTER the tests - docs-site check 6,
     # `performans` 4, format 1 - about 144 minutes of test time thrown away.
     # Generation runs first so every later check sees the regenerated files.
-    commands = [
-        *generation_commands(extension),
+    #
+    # The read-only checks that follow it do not depend on each other, so they run at the same time as
+    # one group (about 115 s instead of 180 s). They only read the tree and the network. Everything that
+    # writes or builds (generation, restore, build, pack, site, format, performance) stays one after another.
+    read_only = [
         Command(("python3", extension.program, "tarama")),
         *extension.after_scan(base),
         # Reads the remote: the last release tag's packages and the last CI run. Early and cheap (a few
         # seconds), because a half-published release is the kind of red no local step can show.
         Command(("python3", extension.program, "uzak-durum")),
         Command(("python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "*_test.py")),
+    ]
+    commands = [
+        *generation_commands(extension),
+        *(dataclasses.replace(command, group=READ_ONLY_GROUP) for command in read_only),
         # A cached restore is a no-op and never re-runs the NuGet audit, so
         # an advisory published after the last restore stayed invisible here while
         # CI's cold checkout turned it into NU1902/NU1903 (a warning-as-error).
@@ -1669,7 +1977,7 @@ def closing_commands(
     # already scopes `ic-dongu`.
     if performance:
         commands.append(Command(("python3", "scripts/kapi.py", "performans")))
-    commands.append(full_solution_test_command())
+    commands.extend(staged_test_commands())
     return commands
 
 

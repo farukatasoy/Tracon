@@ -1,0 +1,24 @@
+{
+  "solution": {
+    "path": "Tracon.slnx",
+    "projects": [
+      "tests/Tracon.Embedded.Tests/Tracon.Embedded.Tests.csproj",
+      "tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj",
+      "tests/Tracon.Mcp.UnitTests/Tracon.Mcp.UnitTests.csproj",
+      "tests/Tracon.OpenAI.UnitTests/Tracon.OpenAI.UnitTests.csproj",
+      "tests/Tracon.Anthropic.UnitTests/Tracon.Anthropic.UnitTests.csproj",
+      "tests/Tracon.Google.UnitTests/Tracon.Google.UnitTests.csproj",
+      "tests/Tracon.Azure.UnitTests/Tracon.Azure.UnitTests.csproj",
+      "tests/Tracon.Voice.UnitTests/Tracon.Voice.UnitTests.csproj",
+      "tests/Tracon.AGUI.FunctionalTests/Tracon.AGUI.FunctionalTests.csproj",
+      "tests/Tracon.PackageOptions.UnitTests/Tracon.PackageOptions.UnitTests.csproj",
+      "tests/Tracon.Sql.Shared.UnitTests/Tracon.Sql.Shared.UnitTests.csproj",
+      "tests/Tracon.Workflows.UnitTests/Tracon.Workflows.UnitTests.csproj",
+      "tests/Tracon.Testing.UnitTests/Tracon.Testing.UnitTests.csproj",
+      "tests/Tracon.Testing.Contracts.Xunit.UnitTests/Tracon.Testing.Contracts.Xunit.UnitTests.csproj",
+      "tests/Tracon.Client.UnitTests/Tracon.Client.UnitTests.csproj",
+      "tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj",
+      "tests/Tracon.Capacity.Tests/Tracon.Capacity.Tests.csproj"
+    ]
+  }
+}
