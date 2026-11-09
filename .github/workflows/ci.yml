@@ -11,6 +11,15 @@ on:
 permissions:
   contents: read
 
+# Ayni dalin (veya PR'in) eski kosumu, yenisi gelince iptal edilir: eski commit'in
+# sonucu kimseyi ilgilendirmez ve runner dakikasi yanmaz. Etiket kosumu ASLA iptal
+# edilmez - yayin yari yolda kesilmemeli. Elle tetiklemenin grubu `run_id` icerir:
+# olcum icin birbiri ardindan tetiklenen kosumlar birbirini iptal etmez. Iptal
+# edilen kosumun karari yoktur (`remote_state` iptal edilmis kosumu atlar).
+concurrency:
+  group: ci-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/') }}
+
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -42,14 +51,37 @@ env:
 # gecerse once yeniden olc, sonra yukselt. `--max-parallel-test-modules 1` -> 2
 # gecisi sureyi kisaltir; sinirlar iki ayari da kapsar.
 #
-# Adim siniri yalniz test ve kapasite adimlarindadir. Adim siniri yalniz o
-# adimi kirar; sonraki `if: always()` yukleme adimlari yine kosar ve biten test
-# uygulamalarinin TRX'i artifact'ta kalir. Is siniri ise isin tamamini iptal
-# eder.
+# Adim siniri yalniz kapasite adimindadir. Her test modulu ayri bir adimdir; bir
+# modul takilirsa is siniri isi keser ve log takilan adimin adini soyler. Adim
+# siniri yalniz o adimi kirar; sonraki `if: always()` yukleme adimlari yine kosar
+# ve biten test uygulamalarinin TRX'i artifact'ta kalir. Is siniri ise isin
+# tamamini iptal eder.
 # ---------------------------------------------------------------------------
 jobs:
+  # ---------------------------------------------------------------------------
+  # Kesilmis zincir
+  #
+  # `build` derler, paketler ve derlenen cikti agacini TEK bir tar dosyasina
+  # koyar (`bin-<os>`). Her test isi `needs: build` ile AYNI kosumun bu tar'ini
+  # indirir, acar ve modullerini onunla kosar; hicbiri derlemez ya da
+  # paketlemez. Bir `v*` etiketinin ittigi dosyalar ile testlerin kostugu
+  # ikililer boylece tek derlemeden gelir. `publish` her test isine baglidir:
+  # kirmizi bir modul, hangi isin icinde olursa olsun, yayini durdurur.
+  #
+  # Neden tar: `upload-artifact` dizini zip'ler ve calistirma bitini kaybeder;
+  # test ikilileri (apphost, WorkerHarness) calistirilabilir olmalidir. Tar
+  # onceden sikistirilir, bu yuzden yukleme `compression-level: 0` ile yapilir.
+  #
+  # Neden her test isinde `dotnet restore`: `dotnet test --no-build` proje
+  # degerlendirmesi icin `project.assets.json` ister. Tar yalniz `artifacts/bin`
+  # tasir; geri yukleme NuGet onbelleginden saniyeler surer ve derleme ara
+  # ciktilarini (obj) tasimaktan ucuz ve guvenlidir.
+  #
+  # Is sirasi bir kuyruk ipucudur: uzun isler dosyada onde durur. Esamanli is
+  # siniri asilirsa GitHub hangi isi once baslatacagina kendisi karar verir.
+  # ---------------------------------------------------------------------------
   build:
-    name: Derle ve test et (${{ matrix.os }})
+    name: Derle (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     # CI yalniz kanonik repo'da kosar. Kod ayni dal ve etiketlerle ikinci bir
     # uzaga da itilir (ikinci bir uzak); orada hicbir is
@@ -59,8 +91,9 @@ jobs:
     # tasimayan yeni bir is eklenirse ayni kosulu kendisi tasir. Izin
     # listesidir: fork'lar da kosmaz. Repo tasinirsa bu satir guncellenir.
     if: github.repository == 'farukatasoy/Tracon'
-    # Olculen en uzun: 49,1 dk (windows, 2026-09-09); ubuntu 37,9 dk.
-    timeout-minutes: 100
+    # Testler artik burada kosmaz. Tahmin: ubuntu ~9 dk, windows ~12 dk; ilk
+    # kosumlardan sonra olculenin ~2 kati ile guncellenir.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -113,10 +146,6 @@ jobs:
       - name: Bagimliliklari geri yukle
         run: dotnet restore Tracon.slnx
 
-      - name: Kod bicimini dogrula
-        # Bicim sapmasi build'i kirar. Duzeltmek icin: dotnet format Tracon.slnx
-        run: dotnet format Tracon.slnx --verify-no-changes --no-restore
-
       # Agent haritasi (buildTransitive/Tracon.AgentMap.md) capabilities.md'den
       # URETILIR ama COMMIT edilir: `dotnet pack` onu okur, bu yuzden Node zinciri
       # `dotnet build`e baglanmaz. Bedeli sudur - kaynak degisip uretec kosulmazsa
@@ -166,16 +195,17 @@ jobs:
 
       # ---------------------------------------------------------------------
       # Tek derleme zinciri. Bir `v*` etiketinin nuget.org'a ittigi
-      # dosyalar BU adimin urettigi dosyalardir: test edilen derleme
-      # `--no-build` ile paketlenir, `release-dryrun` onlari paketlemeden
-      # dogrular, `publish` ayni baytlari iter.
+      # dosyalar BU adimin urettigi dosyalardir: derleme `--no-build` ile
+      # paketlenir, test isleri ayni derlemenin tar'ini kosar, `release-dryrun`
+      # paketleri paketlemeden dogrular, `publish` ayni baytlari iter.
       #
       # 🚨 Sira bir sozlesmedir: bu adim `Derle`'nin HEMEN ardindadir.
       # Performans kapisi, kapasite smoke'u ve Tracon.Package.Tests'in
       # fiksturleri src'yi yeniden derler (ReleaseArtifactFixture baska bir
-      # surumle; olculdu 2026-09-24: Tracon.Core.dll SHA-256'si degisti).
-      # Testten sonra kosan bir `--no-build` pack yanlis damgali DLL'i
-      # paketlerdi. Yalniz ubuntu bacagi paketler; Windows platform farkini olcer.
+      # surumle; olculdu 2026-09-24: Tracon.Core.dll SHA-256'si degisti). Artik
+      # hicbiri bu isin calisma alaninda kosmaz; sira yine de korunur, cunku
+      # araya giren bir adim derlemeyi yeniden damgalayabilir. Yalniz ubuntu
+      # bacagi paketler; Windows platform farkini olcer.
       #
       # Taban dogrulamasi pack aninin isidir: son `v*` etiketinin
       # paketleri izole bir cache'e nuget.org'dan restore edilir. Ag gerekir.
@@ -184,124 +214,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket
 
-      # Tahsis kapısı yalnız dört sıcak yoldan biri (veya bench/ kendisi)
-      # değiştiyse koşar - `kapi.py performans`'ın kendi mantığı
-      # (`performance_gate_triggered`) yeniden kullanılır, CI kendi diff
-      # tabanını hesaplar (PR'de taban dal, push'ta önceki commit).
-      #
-      # 🚨 Bir ETIKET push'unda `github.event.before` KIRK SIFIRDIR - o commit
-      # yoktur, diff hesaplanamaz. Eskiden bu, aşağıdaki "taban çözülemedi"
-      # dalına düşer ve kapıyı KAZARA koşulsuz tetiklerdi. Sonuç ölçüldü
-      # (2026-09-20): kapı 21 push boyunca `skipped` kaldı, ilk gerçek koşumu
-      # ilk `v*` etiketi oldu ve orada düştü - yani yalnız yayın yolunda koşan,
-      # hiç denenmemiş bir kapıydı. Etiket artık AÇIKÇA ele alınır: etiketin
-      # gösterdiği commit main'de zaten derlenip ölçülmüştür, bu yüzden kapı
-      # etikette koşmaz. Kararı sıfır SHA'nın yan etkisine bırakmıyoruz.
-      - name: Performans kapisi sicak yolu degisti mi?
-        if: matrix.os == 'ubuntu-latest'
-        id: perf-trigger
-        run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            echo "triggered=false" >> "$GITHUB_OUTPUT"
-            echo "etiket push'u - tahsis kapisi main'de olculdu, burada kosmaz"
-            exit 0
-          fi
-
-          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
-          if [ -z "$BASE" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
-            echo "triggered=true" >> "$GITHUB_OUTPUT"
-          else
-            TRIGGERED=$(python3 -c "import sys; sys.path.insert(0, 'scripts'); import kapi; print('true' if kapi.performance_gate_triggered(kapi.changed_paths('$BASE') or []) else 'false')")
-            echo "triggered=$TRIGGERED" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Yalnız TEK isletim sisteminde kosar: tahsis deterministiktir,
-      # ucunu de kosmak ayni uc sayiyi uc kez dogrulayip suresini uctler.
-      - name: Performans kapisi (tahsis)
-        if: matrix.os == 'ubuntu-latest' && steps.perf-trigger.outputs.triggered == 'true'
-        run: python3 scripts/kapi.py performans
-
-      # Playwright'in tarayici ikilileri NuGet paketiyle gelmez. Test fixture'i
-      # eksikse indirir, ancak Linux'ta sistem bagimliliklari ayri bir adim ister
-      # ve o adim sudo gerektirir. Onbellek isabetinde indirme atlanir.
-      - name: Playwright tarayicisini onbellekle
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            ~/.cache/ms-playwright
-            ~/Library/Caches/ms-playwright
-            ~\AppData\Local\ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-1.63.0
-
-      - name: Playwright sistem bagimliliklari
-        if: runner.os == 'Linux'
-        run: |
-          pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
-
-      # Tracon.PostgreSql.IntegrationTests ve Tracon.SqlServer.IntegrationTests
-      # Testcontainers uzerinden Linux container'i baslatir. `windows-latest`
-      # runner'inin Docker kurulumu Windows container icindir - Linux image
-      # baslatamaz; tum solution tek `dotnet test` cagrisiyla kosulursa bu iki
-      # proje Windows'ta ya sessizce atlanir ya da kirilir (Kesif 2026-08-23,
-      # kalem 6). Tracon.no-docker.slnf, slnx'teki 47 projeden yalniz bu iki
-      # Docker projesini ve Tracon.WorkerHarness yardimci exe'sini cikarir -
-      # geri kalan her sey (Sqlite entegrasyonu ve Docker istemeyen
-      # Tracon.Testing.Contracts.Xunit.UnitTests dahil) Windows'ta da gercekten
-      # kosar. Not: sandbox script testleri /bin/bash yoklugunda Windows'ta
-      # SKIPPED olarak gorunur (Assert.SkipWhen); ubuntu ayagi onlari kosar.
-      - name: Test et (tum projeler)
-        if: matrix.os == 'ubuntu-latest'
-        # Olculen en uzun 43,0 dk (2026-10-31, son uc kosum 27,8-43,0 dk), uc TFM
-        # bacagiyla. Bacaklar tek TFM'e indi; ilk tek TFM kosumu yeniden olculur
-        # ve sinir o olcumle guncellenir.
-        timeout-minutes: 60
-        # `dotnet test` Microsoft Testing Platform kipindedir (global.json
-        # `test.runner`); `-maxcpucount` bu kipte HIC TEST KOSTURMADAN cikis kodu 5
-        # verir ve `--` ayiricisi yoktur. Esdegeri `--max-parallel-test-modules`.
-        # TRX `--results-directory`'ye yazilir (ikilinin yanina degil); asagidaki
-        # "Test sonuclarini yukle" adimi ve kapi.py (TEST_RESULTS_DIRECTORY) AYNI
-        # yolu okur - kapi_test.py ucunun bir arada kaldigini denetler.
-        # --max-parallel-test-modules 1 BILEREK: yerel kapi (kapi.py) bir sure once
-        # 2 ile kosar, ama o olcum gelistirici makinesindeydi; runner donanimi
-        # olculmeden burasi degismez.
-        # TRACON_TEST_FULL_SWEEP: yerel kosum SQL Server'da workflow iptal
-        # taramasinin yarisini kosar (her graf ve baslangic, iki iptal yolundan
-        # biriyle); CI iki saglayicida da tam matrisi kosar.
-        env:
-          TRACON_TEST_FULL_SWEEP: '1'
-        run: dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
-
-      - name: Test et (Docker gerektirmeyenler)
-        if: matrix.os == 'windows-latest'
-        # Olculen en uzun 30,9 dk (2026-09-06, kirmizi kosum); yesil kosumda 29,0.
-        timeout-minutes: 65
-        run: dotnet test --solution Tracon.no-docker.slnf -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
-
-      # Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
-      # DEGIL. Uc HTTP yolu, iki kiraci, gercek TCP, gercek SQL ve packed
-      # tuketici provenance'i kontrol edilir; hicbir sure esige baglanmaz
-      # Agir profiller (sweep/arrival/workers/soak/nodes) CI'a GIRMEZ.
-      #
-      # 🚨 Yalniz Linux: kendi PostgreSQL container'ini baslatir ve
-      # `windows-latest` runner'i Linux image calistiramaz - ayni sebep
-      # Tracon.no-docker.slnf'in var olma sebebi.
-      #
-      # 🚨 Eksik Docker veya hazirlanmamis paket SESSIZ SKIP degil BASARISIZ
-      # onkosuldur: atlanmis bir provenance kontrolu CI log'unda gecmis bir
-      # kontrolden ayirt edilemez.
-      - name: Kapasite smoke (packed tuketici)
-        if: matrix.os == 'ubuntu-latest'
-        # Olculen en uzun 4,2 dk.
-        timeout-minutes: 10
-        run: |
-          python3 scripts/kapi.py kapasite \
-            --profil smoke \
-            --surum "0.0.0-ci.${{ github.run_number }}"
-
-      # Kume `Paketle` aninda manifest SHA-256'lariyla dondu. Bu adim testlerin
-      # ve kapasite smoke'unun kumeyi DEGISTIRMEDIGINI yuklemeden hemen once
-      # kanitlar. Yukleme testlerden SONRADIR: dusen bir test denemesi
-      # yuklemez, "Re-run failed jobs" ayni adla ikinci bir yuklemeye carpmaz.
+      # Kume `Paketle` aninda manifest SHA-256'lariyla dondu. Bu adim kumenin
+      # paketleme ile yukleme arasinda degismedigini yuklemeden hemen once
+      # kanitlar. Testler bu isin calisma alaninda kosmaz; yukleme, kirmizi bir
+      # test isinden once olur ama etiket yolunda kimseyi korumasiz birakmaz:
+      # `publish` her test isine, `release-dryrun` PR'de kosan her test isine
+      # baglidir ve `nuget-verified` yalniz onlar yesilken yuklenir.
       - name: Paketleri dogrula
         if: matrix.os == 'ubuntu-latest'
         run: python3 scripts/kapi.py paket-dogrula artifacts/ci-paket
@@ -318,21 +236,875 @@ jobs:
             artifacts/ci-paket/api-compat/*.xml
           if-no-files-found: error
 
-      - name: Kapasite smoke ciktisini yukle
-        if: always() && matrix.os == 'ubuntu-latest'
+      # Test islerinin kosacagi ikililer. `artifacts/bin` her projenin kendi
+      # cikti dizinini tasir (testler, ornekler, WorkerHarness, E2E'nin
+      # playwright.ps1'i); `obj` tasinmaz. Tar, calistirma bitini korur. Sikistirma
+      # bir boru hattidir (`gzip -1`): GNU ve bsd tar'in ikisinde de ayni calisir.
+      # Boyut ozete yazilir; sure adimin kendi suresinden okunur.
+      - name: Derleme ciktilarini tar'la
+        shell: bash
+        run: |
+          mkdir -p artifacts/ci-bin
+          tar -cf - artifacts/bin | gzip -1 > artifacts/ci-bin/bin.tar.gz
+          ls -l artifacts/ci-bin/bin.tar.gz
+          {
+            echo "### bin-${{ matrix.os }}"
+            echo "tar boyutu: $(du -h artifacts/ci-bin/bin.tar.gz | cut -f1); acilmis boyut: $(du -sh artifacts/bin | cut -f1)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Derleme ciktilarini yukle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: capacity-smoke
-          path: artifacts/capacity/**
-          if-no-files-found: ignore
+          name: bin-${{ matrix.os }}
+          path: artifacts/ci-bin/bin.tar.gz
+          # Tar zaten sikistirilmis; ikinci bir zip yalniz sure harcar.
+          compression-level: 0
+          # Yalniz bu kosumun test isleri okur.
+          retention-days: 1
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Kultur ve saat dilimi: .NET `LC_ALL` ve `TZ`'yi Linux'ta okur, yerel ayarin
+  # kurulu olmasini istemez. Yerelde olculen komut aynidir: tam cozumde iki bacak
+  # 16 275 testle yesildi. Burada Docker istemeyen projeler kosar (Windows
+  # bacaklariyla ayni solution filter); veritabani bacaklarinin kendi yerel ayari
+  # asagidaki matris islerindedir.
+  #
+  # Kosul `build` ile ayni zincir: her bacak `needs: build` tasir. PR'de kosmaz
+  # (her PR on bacak yakmasin); `main`, etiket ve elle tetiklemede kosar. En
+  # uzun is budur (modullerin tamami tek isin icinde, bir modul bir anda), bu
+  # yuzden dosyada onde durur.
+  # ---------------------------------------------------------------------------
+  culture-matrix:
+    name: Kultur (${{ matrix.name }})
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Tahmin: ~19 dk (kurulum 3 + moduller 15,8). Ilk kosumdan sonra olculenin
+    # ~2 kati ile guncellenir; onceki degeri derleme dahil 30,9 dk idi.
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: tr-TR, America/New_York
+            lc_all: tr_TR.UTF-8
+            tz: America/New_York
+          - name: de-DE, Australia/Lord_Howe
+            lc_all: de_DE.UTF-8
+            tz: Australia/Lord_Howe
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      # Tracon.Package.Tests kendi pack'ini kosar ve arayuz zinciri (npm) o pack'te
+      # soguk baslar.
+      - name: Node.js kur
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Playwright tarayicisini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.63.0
+
+      - name: Playwright sistem bagimliliklari
+        run: |
+          pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
+
+      # Degiskenler yalniz test surecine verilir: kurulu olmayan bir yerel ayar
+      # restore ve apt adimlarina uyari bastirmasin.
+      - name: Test et (Docker gerektirmeyenler)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        env:
+          LC_ALL: ${{ matrix.lc_all }}
+          TZ: ${{ matrix.tz }}
+        run: dotnet test --solution Tracon.no-docker.slnf -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
       - name: Test sonuclarini yukle
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: test-results-${{ matrix.os }}
+          name: test-results-culture-${{ strategy.job-index }}
           path: artifacts/test-results/**/*.trx
           if-no-files-found: ignore
+          overwrite: true
+
+  # ---------------------------------------------------------------------------
+  # Ubuntu test isleri (her biri bir sepet; sepet icinde bir modul bir anda)
+  #
+  # Ortak adimlar her isin basinda tekrarlanir (checkout, SDK, onbellek, tar,
+  # geri yukleme); bir moduldeki kirmizi sonraki modulleri DURDURMAZ: her test
+  # adimi `!cancelled()` ile kosar ve is yine de kirmizi biter. Bir test adimi
+  # yalniz geri yukleme basarisizsa atlanir.
+  #
+  # Tum solution'u kosan eski adimin yerine her test projesi AYRI bir adimdir.
+  # Yeni bir test projesi eklenirse buraya bir adim eklenmelidir; kapi testi
+  # (kapi_test.py) her test projesinin tam bir ubuntu ve (Docker'siz ise) tam bir
+  # windows isinde kostugunu denetler.
+  #
+  # Sinirlar: sinir = tahmin edilen surenin ~2 kati, 5 dk'ya yukari yuvarlanir
+  # (taban 10 dk). Tahminler eski seri kosumun modul sureleridir (ubuntu:
+  # TwoNode 460 sn, SqlServer 361, Package 278, AspNetCore 154, PostgreSql 150,
+  # Sqlite 91, Workflows 65, Core 64, E2E 56, Generators 40) ve ilk kosumdan
+  # sonra olculenle degistirilir.
+  # ---------------------------------------------------------------------------
+  test-twonode:
+    name: Test (TwoNode)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~10,5 dk (kurulum 2,7 + modul 7,7).
+    timeout-minutes: 25
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      # Yerel kosum SQL Server'da workflow iptal taramasinin yarisini kosar;
+      # CI iki saglayicida da tam matrisi kosar. Degisken yalniz bu modul tarafindan
+      # okunur.
+      - name: Test et (Tracon.TwoNode.IntegrationTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        env:
+          TRACON_TEST_FULL_SWEEP: '1'
+        run: dotnet test --project tests/Tracon.TwoNode.IntegrationTests/Tracon.TwoNode.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-twonode
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  test-package:
+    name: Test (Package, E2E)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~10,5 dk (kurulum 3 + Package 6,1 + E2E 0,9). Package'in fiksturleri
+    # kendi pack'ini kosar; arayuz zinciri (npm) o pack'te soguk baslar.
+    timeout-minutes: 25
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: Node.js kur
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      # Playwright'in tarayici ikilileri NuGet paketiyle gelmez. Test fixture'i
+      # eksikse indirir, ancak Linux'ta sistem bagimliliklari ayri bir adim ister
+      # ve o adim sudo gerektirir. Onbellek isabetinde indirme atlanir.
+      - name: Playwright tarayicisini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.63.0
+
+      - name: Playwright sistem bagimliliklari
+        run: |
+          pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
+
+      - name: Test et (Tracon.Package.Tests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Package.Tests/Tracon.Package.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Ui.E2ETests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Ui.E2ETests/Tracon.Ui.E2ETests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-package
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  # SQL Server ve PostgreSQL varsayilan imaj bacaklari: eski tum-proje bacaginin
+  # veritabani modulleri. Bacak `matrix` degil sabit bir istir ve PR'de de kosar;
+  # imaj ortam degiskeni VERILMEZ, fikstur kendi varsayilan imajini kullanir.
+  # Diger surumler ve yerel ayarlar asagidaki `*-matrix` islerindedir (PR'de kosmaz).
+  test-sqlserver:
+    name: Test (SQL Server, varsayilan imaj)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~9,5 dk (kurulum 2,7 + modul 6 + imaj indirme 0,7).
+    timeout-minutes: 25
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Test et (Tracon.SqlServer.IntegrationTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-sqlserver-default
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  test-postgres:
+    name: Test (PostgreSQL, varsayilan imaj)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~5,5 dk (kurulum 2,7 + modul 2,5 + imaj indirme 0,3).
+    timeout-minutes: 15
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Test et (Tracon.PostgreSql.IntegrationTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-postgres-default
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  test-aspnetcore:
+    name: Test (AspNetCore)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~5,5 dk (kurulum 2,7 + modul 2,6).
+    timeout-minutes: 15
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Test et (Tracon.AspNetCore.FunctionalTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.AspNetCore.FunctionalTests/Tracon.AspNetCore.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-aspnetcore
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  test-sqlite:
+    name: Test (SQLite, Workflows)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~5,5 dk (kurulum 2,7 + moduller 2,6).
+    timeout-minutes: 15
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Test et (Tracon.Sqlite.IntegrationTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Workflows.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Workflows.UnitTests/Tracon.Workflows.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-sqlite
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  # Hizli moduller ve Core. Core ilk siradadir: kirmizisi isin ilk dakikalarinda
+  # gorunur.
+  test-fast:
+    name: Test (Core ve hizli moduller)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~7 dk (kurulum 2,7 + moduller 4,1).
+    timeout-minutes: 15
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Test et (Tracon.Core.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Generators.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Mcp.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Mcp.UnitTests/Tracon.Mcp.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.OpenAI.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.OpenAI.UnitTests/Tracon.OpenAI.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Anthropic.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Anthropic.UnitTests/Tracon.Anthropic.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Google.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Google.UnitTests/Tracon.Google.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Azure.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Azure.UnitTests/Tracon.Azure.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Voice.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Voice.UnitTests/Tracon.Voice.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.AGUI.FunctionalTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.AGUI.FunctionalTests/Tracon.AGUI.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Cli.FunctionalTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.PackageOptions.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.PackageOptions.UnitTests/Tracon.PackageOptions.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Sql.Shared.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Sql.Shared.UnitTests/Tracon.Sql.Shared.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Testing.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Testing.UnitTests/Tracon.Testing.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Testing.Contracts.Xunit.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Testing.Contracts.Xunit.UnitTests/Tracon.Testing.Contracts.Xunit.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Client.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Client.UnitTests/Tracon.Client.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Embedded.Tests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Embedded.Tests/Tracon.Embedded.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Capacity.Tests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Capacity.Tests/Tracon.Capacity.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-fast
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  # ---------------------------------------------------------------------------
+  # Windows test isleri
+  #
+  # `windows-latest` runner'inin Docker kurulumu Windows container icindir -
+  # Linux image baslatamaz. TwoNode, PostgreSql ve SqlServer burada kosmaz;
+  # `Tracon.no-docker.slnf` ayni kumeyi tanimlar. Sandbox script testleri
+  # `/bin/bash` yoklugunda Windows'ta SKIPPED gorunur (Assert.SkipWhen); ubuntu
+  # isleri onlari kosar. Sepetler Windows modul sureleriyle dengelenir
+  # (Sqlite 541 sn, Workflows 297, AspNetCore 233, Package 203, Core 48, E2E 40,
+  # Generators 28) ve ilk kosumdan sonra olculenle degistirilir. Windows'ta
+  # Docker adimi, ubuntu'da Playwright sistem bagimliligi adimi yoktur.
+  # ---------------------------------------------------------------------------
+  test-windows-sqlite:
+    name: Test (windows, SQLite)
+    needs: build
+    runs-on: windows-latest
+    # Tahmin ~12 dk (kurulum 3 + modul 9).
+    timeout-minutes: 30
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-windows-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Test et (Tracon.Sqlite.IntegrationTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-windows-sqlite
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  test-windows-web:
+    name: Test (windows, AspNetCore, Package, E2E)
+    needs: build
+    runs-on: windows-latest
+    # Tahmin ~11 dk (kurulum 3,2 + moduller 7,9 + arayuz zincirinin soguk baslangici).
+    timeout-minutes: 30
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      # Tracon.Package.Tests kendi pack'ini kosar ve arayuz zinciri (npm) o pack'te
+      # soguk baslar.
+      - name: Node.js kur
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-windows-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      # Windows'ta sistem bagimliligi adimi yoktur; Test fixture'i tarayiciyi
+      # eksikse indirir. Onbellek isabetinde indirme atlanir.
+      - name: Playwright tarayicisini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~\AppData\Local\ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.63.0
+
+      - name: Test et (Tracon.AspNetCore.FunctionalTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.AspNetCore.FunctionalTests/Tracon.AspNetCore.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Package.Tests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Package.Tests/Tracon.Package.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Ui.E2ETests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Ui.E2ETests/Tracon.Ui.E2ETests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-windows-web
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
+  test-windows-core:
+    name: Test (windows, Core ve birim modulleri)
+    needs: build
+    runs-on: windows-latest
+    # Tahmin ~11 dk (kurulum 3 + moduller 7,5).
+    timeout-minutes: 30
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-windows-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Test et (Tracon.Core.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Workflows.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Workflows.UnitTests/Tracon.Workflows.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Generators.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Mcp.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Mcp.UnitTests/Tracon.Mcp.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.OpenAI.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.OpenAI.UnitTests/Tracon.OpenAI.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Anthropic.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Anthropic.UnitTests/Tracon.Anthropic.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Google.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Google.UnitTests/Tracon.Google.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Azure.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Azure.UnitTests/Tracon.Azure.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Voice.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Voice.UnitTests/Tracon.Voice.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.AGUI.FunctionalTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.AGUI.FunctionalTests/Tracon.AGUI.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Cli.FunctionalTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.PackageOptions.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.PackageOptions.UnitTests/Tracon.PackageOptions.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Sql.Shared.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Sql.Shared.UnitTests/Tracon.Sql.Shared.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Testing.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Testing.UnitTests/Tracon.Testing.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Testing.Contracts.Xunit.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Testing.Contracts.Xunit.UnitTests/Tracon.Testing.Contracts.Xunit.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Client.UnitTests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Client.UnitTests/Tracon.Client.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Embedded.Tests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Embedded.Tests/Tracon.Embedded.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test et (Tracon.Capacity.Tests)
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.Capacity.Tests/Tracon.Capacity.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-windows-core
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
 
   # ---------------------------------------------------------------------------
   # Platform matrisi (2026-11-04) -- BU ISLER GITHUB'DA HENUZ KOSULMADI
@@ -346,21 +1118,94 @@ jobs:
   #
   # Kosul `build` ile ayni: yalniz kanonik repo. Her bacak `needs: build` tasir,
   # cunku depo korumasi yalniz `build`'de durur ve atlanan bir bagimlilik onlari
-  # da atlatir; kapi testi bu zinciri zorunlu kilar. Bedel: bacaklar `build`'in
-  # suresini bekler ve `build` kirmizi ise kosmaz. PR'de kosmaz (her PR on bacak
-  # yakmasin), `main`, etiket ve elle tetiklemede kosar.
+  # da atlatir; kapi testi bu zinciri zorunlu kilar. PR'de kosmaz (her PR on bacak
+  # yakmasin), `main`, etiket ve elle tetiklemede kosar. Varsayilan imaj bacaklari
+  # (`test-postgres`, `test-sqlserver`) PR'de de kosar ve bu matrislerin disindadir.
   #
   # Bacak = bir ortam degiskeni seti. Test sinifi degismez: `SqlServerFixture` ve
-  # `PostgresFixture` degiskenleri okur; bos deger varsayilani korur.
+  # `PostgresFixture` degiskenleri okur; bos deger varsayilani korur. Bacaklar
+  # `build` isinin tar'ini kullanir; derlemez.
   # ---------------------------------------------------------------------------
+  sqlserver-matrix:
+    name: SQL Server (${{ matrix.name }})
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Tahmin ~9,5 dk (eski seri kosumda modul 361 sn; yerelde olculen en uzun
+    # kosum 14 dk, amd64 emulasyonunda). Runner olcumu yok.
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # En dusuk sunucu surumu: `src/Tracon.SqlServer/README.md` 2019+ der.
+          - name: '2019'
+            image: mcr.microsoft.com/mssql/server:2019-latest
+            collation: ''
+            lcid: ''
+          # Turkce collation: `Turkish_CI_AS` ve `MSSQL_LCID=1055` BIRLIKTE verilir;
+          # yalniz collation verilirse sunucu dili Ingilizce kalir ve havuzdan donen
+          # baglanti sifirlanirken duser.
+          - name: '2022, Turkish_CI_AS'
+            image: mcr.microsoft.com/mssql/server:2022-latest
+            collation: Turkish_CI_AS
+            lcid: '1055'
+    env:
+      TRACON_TEST_SQLSERVER_IMAGE: ${{ matrix.image }}
+      TRACON_TEST_SQLSERVER_COLLATION: ${{ matrix.collation }}
+      TRACON_TEST_SQLSERVER_LCID: ${{ matrix.lcid }}
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
+
+      - name: Test et
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
+        run: dotnet test --project tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+
+      - name: Test sonuclarini yukle
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-sqlserver-${{ strategy.job-index }}
+          path: artifacts/test-results/**/*.trx
+          if-no-files-found: ignore
+          overwrite: true
+
   postgres-matrix:
     name: PostgreSQL (${{ matrix.name }})
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # Yerelde olculen en uzun kosum 7 dk (yuklu makine, 1594 test, imaj hazir);
-    # derleme ve imaj indirme eklenir. Runner olcumu yok: ilk kosumdan sonra
-    # guncelle.
+    # Tahmin ~5,5 dk (eski seri kosumda modul 150 sn; yerelde olculen en uzun
+    # kosum 7 dk, yuklu makine, 1594 test, imaj hazir). Runner olcumu yok.
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -410,11 +1255,22 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      # Arayuz derlemesi bu test projesinin yolunda degil.
-      - name: Derle
-        run: dotnet build tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj -c Release -p:TraconFrontendEnabled=false
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
 
       - name: Test et
+        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
       - name: Test sonuclarini yukle
@@ -424,66 +1280,7 @@ jobs:
           name: test-results-postgres-${{ strategy.job-index }}
           path: artifacts/test-results/**/*.trx
           if-no-files-found: ignore
-
-  sqlserver-matrix:
-    name: SQL Server (${{ matrix.name }})
-    needs: build
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    # Yerelde olculen en uzun kosum 14 dk (amd64 emulasyonunda, Apple Silicon);
-    # runner yerel amd64'tur. Runner olcumu yok.
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # En dusuk sunucu surumu: `src/Tracon.SqlServer/README.md` 2019+ der.
-          - name: '2019'
-            image: mcr.microsoft.com/mssql/server:2019-latest
-            collation: ''
-            lcid: ''
-          # Turkce collation: `Turkish_CI_AS` ve `MSSQL_LCID=1055` BIRLIKTE verilir;
-          # yalniz collation verilirse sunucu dili Ingilizce kalir ve havuzdan donen
-          # baglanti sifirlanirken duser.
-          - name: '2022, Turkish_CI_AS'
-            image: mcr.microsoft.com/mssql/server:2022-latest
-            collation: Turkish_CI_AS
-            lcid: '1055'
-    env:
-      TRACON_TEST_SQLSERVER_IMAGE: ${{ matrix.image }}
-      TRACON_TEST_SQLSERVER_COLLATION: ${{ matrix.collation }}
-      TRACON_TEST_SQLSERVER_LCID: ${{ matrix.lcid }}
-    steps:
-      - name: Kaynak kodu al
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-
-      - name: .NET SDK kur
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
-        with:
-          global-json-file: global.json
-
-      - name: NuGet paketlerini onbellekle
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ${{ env.NUGET_PACKAGES }}
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
-          restore-keys: ${{ runner.os }}-nuget-
-
-      - name: Derle
-        run: dotnet build tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj -c Release -p:TraconFrontendEnabled=false
-
-      - name: Test et
-        run: dotnet test --project tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
-
-      - name: Test sonuclarini yukle
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: test-results-sqlserver-${{ strategy.job-index }}
-          path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          overwrite: true
 
   # SQLite surucusu yerel bir kutuphane tasir; surum o kutuphanenin surumudur.
   # Bacak, `Microsoft.Data.Sqlite`'in paketledigi kutuphanenin yerine ayni
@@ -495,7 +1292,7 @@ jobs:
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # Yerelde 1,5 dk (macOS, sicak onbellek); derleme ve geri yukleme eklenir.
+    # Tahmin ~5,5 dk (eski seri kosumda modul 91 sn). Yerelde 1,5 dk (macOS, sicak onbellek).
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -523,8 +1320,19 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derle
-        run: dotnet build tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj -c Release -p:TraconFrontendEnabled=false
+      - name: Derleme ciktilarini indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bin-ubuntu-latest
+          path: artifacts/ci-bin
+
+      - name: Derleme ciktilarini ac
+        shell: bash
+        run: tar -xzf artifacts/ci-bin/bin.tar.gz
+
+      - name: Bagimliliklari geri yukle
+        id: restore
+        run: dotnet restore Tracon.slnx
 
       - name: Yerel kutuphaneyi eski surumle degistir
         env:
@@ -552,29 +1360,23 @@ jobs:
           name: test-results-sqlite-floor
           path: artifacts/test-results/**/*.trx
           if-no-files-found: ignore
+          overwrite: true
 
-  # Kultur ve saat dilimi: .NET `LC_ALL` ve `TZ`'yi Linux'ta okur, yerel ayarin
-  # kurulu olmasini istemez. Yerelde olculen komut aynidir: tam cozumde iki bacak
-  # 16 275 testle yesildi. Burada
-  # Docker istemeyen projeler kosar (Windows bacagiyla ayni solution filter);
-  # veritabani bacaklarinin kendi yerel ayari yukaridaki islerdir.
-  culture-matrix:
-    name: Kultur (${{ matrix.name }})
+  # ---------------------------------------------------------------------------
+  # Test olmayan kapilar. `build` isinden ayrildilar: derleme zincirini
+  # geciktirmeden paralel kosarlar ve `release-dryrun` her birini bekler, yani
+  # kirmizi bir kapi onceki gibi provayi ve yayini durdurur.
+  # ---------------------------------------------------------------------------
+  format:
+    name: Kod bicimi (${{ matrix.os }})
     needs: build
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    # `build` isinin Windows bacagiyla ayni test kumesi (olculen en uzun 30,9 dk).
-    timeout-minutes: 65
+    runs-on: ${{ matrix.os }}
+    # Tahmin ~7 dk (eski seri kosumda ubuntu adimi 223 sn). Windows olcumu yok.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: tr-TR, America/New_York
-            lc_all: tr_TR.UTF-8
-            tz: America/New_York
-          - name: de-DE, Australia/Lord_Howe
-            lc_all: de_DE.UTF-8
-            tz: Australia/Lord_Howe
+        os: [ubuntu-latest, windows-latest]
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -586,6 +1388,8 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Eski adimin ortami korunur: biçim denetimi Node kurulu bir runner'da,
+      # node_modules olmadan kosardi.
       - name: Node.js kur
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -602,34 +1406,149 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derle
-        run: dotnet build Tracon.no-docker.slnf -c Release
+      - name: Bagimliliklari geri yukle
+        run: dotnet restore Tracon.slnx
 
-      - name: Playwright tarayicisini onbellekle
+      - name: Kod bicimini dogrula
+        # Bicim sapmasi build'i kirar. Duzeltmek icin: dotnet format Tracon.slnx
+        run: dotnet format Tracon.slnx --verify-no-changes --no-restore
+
+  # Tahsis kapisi yalniz dort sicak yoldan biri (veya bench/ kendisi)
+  # degistiyse kosar - `kapi.py performans`'in kendi mantigi
+  # (`performance_gate_triggered`) yeniden kullanilir, CI kendi diff
+  # tabanini hesaplar (PR'de taban dal, push'ta onceki commit).
+  #
+  # 🚨 Bir ETIKET push'unda `github.event.before` KIRK SIFIRDIR - o commit
+  # yoktur, diff hesaplanamaz. Eskiden bu, asagidaki "taban cozulemedi"
+  # dalina duser ve kapiyi KAZARA kosulsuz tetiklerdi. Sonuc olculdu
+  # (2026-09-20): kapi 21 push boyunca `skipped` kaldi, ilk gercek kosumu
+  # ilk `v*` etiketi oldu ve orada dustu - yani yalniz yayin yolunda kosan,
+  # hic denenmemis bir kapiydi. Etiket artik ACIKCA ele alinir: etiketin
+  # gosterdigi commit main'de zaten derlenip olculmustur, bu yuzden kapi
+  # etikette kosmaz. Karari sifir SHA'nin yan etkisine birakmiyoruz.
+  #
+  # Kapi src'yi yeniden derler; bu yuzden `build` isinin calisma alaninda
+  # degil, kendi isinde kosar.
+  performans:
+    name: Performans kapisi (tahsis)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~2 dk tetiklenmediginde, ~8 dk tetiklendiginde (kapanis kapisinda ~220 sn).
+    timeout-minutes: 30
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      - name: Python kur
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: NuGet paketlerini onbellekle
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-1.63.0
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Playwright sistem bagimliliklari
+      - name: Performans kapisi sicak yolu degisti mi?
+        id: perf-trigger
         run: |
-          pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "triggered=false" >> "$GITHUB_OUTPUT"
+            echo "etiket push'u - tahsis kapisi main'de olculdu, burada kosmaz"
+            exit 0
+          fi
 
-      # Degiskenler yalniz test surecine verilir: derleme, npm ve apt kurulu olmayan
-      # bir yerel ayar icin uyari basmasin.
-      - name: Test et (Docker gerektirmeyenler)
-        env:
-          LC_ALL: ${{ matrix.lc_all }}
-          TZ: ${{ matrix.tz }}
-        run: dotnet test --solution Tracon.no-docker.slnf -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
+          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
+            echo "triggered=true" >> "$GITHUB_OUTPUT"
+          else
+            TRIGGERED=$(python3 -c "import sys; sys.path.insert(0, 'scripts'); import kapi; print('true' if kapi.performance_gate_triggered(kapi.changed_paths('$BASE') or []) else 'false')")
+            echo "triggered=$TRIGGERED" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Test sonuclarini yukle
+      - name: Performans kapisi (tahsis)
+        if: steps.perf-trigger.outputs.triggered == 'true'
+        run: python3 scripts/kapi.py performans
+
+  # Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
+  # DEGIL. Uc HTTP yolu, iki kiraci, gercek TCP, gercek SQL ve packed
+  # tuketici provenance'i kontrol edilir; hicbir sure esige baglanmaz
+  # Agir profiller (sweep/arrival/workers/soak/nodes) CI'a GIRMEZ.
+  #
+  # Aparat kendi paketini uretir (izole feed, kendi surumu) ve src'yi yeniden
+  # derler; bu yuzden `build` isinin calisma alaninda degil kendi isinde kosar.
+  #
+  # 🚨 Yalniz Linux: kendi PostgreSQL container'ini baslatir ve
+  # `windows-latest` runner'i Linux image calistiramaz - ayni sebep
+  # Tracon.no-docker.slnf'in var olma sebebi.
+  #
+  # 🚨 Eksik Docker veya hazirlanmamis paket SESSIZ SKIP degil BASARISIZ
+  # onkosuldur: atlanmis bir provenance kontrolu CI log'unda gecmis bir
+  # kontrolden ayirt edilemez.
+  kapasite:
+    name: Kapasite smoke (packed tuketici)
+    needs: build
+    runs-on: ubuntu-latest
+    # Tahmin ~9 dk (kurulum 2 + pack 3 + smoke 2,4; onceki en uzun adim 4,2 dk,
+    # pack olmadan). Runner olcumu yok.
+    timeout-minutes: 30
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      # Aparatin pack'i arayuz varliklarini (TRACON0003) derler.
+      - name: Node.js kur
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
+
+      - name: Python kur
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Kapasite smoke (packed tuketici)
+        timeout-minutes: 20
+        run: |
+          python3 scripts/kapi.py kapasite \
+            --profil smoke \
+            --surum "0.0.0-ci.${{ github.run_number }}"
+
+      - name: Kapasite smoke ciktisini yukle
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: test-results-culture-${{ strategy.job-index }}
-          path: artifacts/test-results/**/*.trx
+          name: capacity-smoke
+          path: artifacts/capacity/**
           if-no-files-found: ignore
+          overwrite: true
 
   # ---------------------------------------------------------------------------
   # Yayın provası
@@ -643,6 +1562,11 @@ jobs:
   # Bayt esitligi her push'ta (PR dahil) sinanir - etiket yolunda yeni mantik
   # yoktur.
   #
+  # Is, `build`'e ve PR'de de kosan HER test ve kapi isine baglidir: kirmizi bir
+  # modul provayi ve dolayisiyla yayini durdurur. PR'de atlanan isler (matrisler,
+  # kultur) buraya GIRMEZ - atlanan bir bagimlilik bu isi de atlatir ve prova her
+  # push'ta (PR dahil) kosmalidir. O isler `publish`'in bagimliligidir.
+  #
   # `--surum` GECILMEZ: bu is her push'ta (PR dahil) kosar ve o an bir etiket
   # olmayabilir. Zorlanmis bir surum yalniz INSANIN gercek etiketten ONCE
   # yerelde kostugu provada anlamlidir. Bir GERCEK `v*` etiketinde
@@ -651,9 +1575,9 @@ jobs:
   release-dryrun:
     name: Yayin provasi (kapi.py yayin --kuru --paket-dizini)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, format, performans, kapasite, test-fast, test-aspnetcore, test-sqlite, test-twonode, test-package, test-postgres, test-sqlserver, test-windows-sqlite, test-windows-core, test-windows-web]
     # Olculen en uzun 5,7 dk (kendi pack'iyle). Pack artik
-    # bu iste degil; sinir ilk yeni koşumda yeniden olculur.
+    # bu iste degil; sinir ilk yeni kosumda yeniden olculur.
     timeout-minutes: 15
 
     steps:
@@ -716,11 +1640,17 @@ jobs:
   # bir unpublish penceresi vardir -- bu yuzden ucuz olan kanal ONCE basar ve
   # basarisiz olursa NuGet HIC basmaz. `npm-publish` var olan surumu atlar,
   # yani ayni etiket yeniden itildiginde bu bagimlilik zinciri KIRMAZ.
+  #
+  # `publish` AYNI kosumdaki HER test isine ve matris bacagina dogrudan baglidir
+  # (kapi: `dokuman-bakim.py` tek derleme zinciri): kirmizi bir modul, bir
+  # veritabani surumu ya da bir kultur bacagi, hangi isin icinde olursa olsun,
+  # nuget.org'a yazmayi durdurur. `site` bu listede YOKTUR: etikette kosmaz ve
+  # atlanan bir bagimlilik `publish`'i de atlatirdi.
   # ---------------------------------------------------------------------------
   publish:
     name: NuGet.org'a yayinla
     runs-on: ubuntu-latest
-    needs: [release-dryrun, npm-publish]
+    needs: [release-dryrun, npm-publish, test-fast, test-aspnetcore, test-sqlite, test-twonode, test-package, test-postgres, test-sqlserver, test-windows-sqlite, test-windows-core, test-windows-web, postgres-matrix, sqlserver-matrix, sqlite-floor, culture-matrix]
     # Olculen en uzun 0,5 dk; taban 10 dk. Sinir push'un ortasinda keserse bir
     # kisim paket yayinda kalir; `--skip-duplicate` isi yeniden kosmayi guvenli yapar.
     # Checkout + Python + dogrulama eklendi (her biri saniyeler).
@@ -795,14 +1725,16 @@ jobs:
   #
   # NuGet yayiniyla AYNI 'v*' etiketinde tetiklenir ve surumu AYNI etiketten
   # turetir -- iki kanal boylece YAPISAL olarak eslesir, ayri bir surum dosyasi
-  # yoktur. `needs: build` yeterlidir (paket testleri orada kosuyor). Bu is
-  # `publish`'ten ONCE kosar ve `publish` buna baglidir: geri donusu
-  # olmayan kanal (NuGet) en son basar.
+  # yoktur. Bu is `publish`'ten ONCE kosar ve `publish` buna baglidir: geri donusu
+  # olmayan kanal (NuGet) en son basar. Testler artik `build` icinde kosmaz; bu is
+  # `release-dryrun` uzerinden PR'de de kosan her test isine, ayrica matris
+  # bacaklarina baglidir: kirmizi bir bacak varken npm'e de yazilmaz, yoksa
+  # surum yarim kalirdi (npm yayinlandi, NuGet durdu).
   # ---------------------------------------------------------------------------
   npm-publish:
     name: npm.org'a yayinla
     runs-on: ubuntu-latest
-    needs: [build, release-dryrun]
+    needs: [build, release-dryrun, postgres-matrix, sqlserver-matrix, sqlite-floor, culture-matrix]
     # Olculen en uzun 0,3 dk; taban 10 dk. Yeniden kosum guvenlidir: var olan
     # surum atlanir ("Surum zaten yayinlanmis mi").
     timeout-minutes: 10

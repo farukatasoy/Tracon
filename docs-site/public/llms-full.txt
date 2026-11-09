@@ -23380,7 +23380,7 @@ turns it on.
 | 15.19 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `15` · 2026-11-04 |
 | 16.15 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `16` · 2026-11-04 |
 | 17.11 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `17` · 2026-11-04 |
-| 18.4, locale of the image | Verified: the default image of every run of the project | `build` · cell `ubuntu-latest` · the previous full-solution run on a development machine was 2026-11-03 |
+| 18.4, locale of the image | Verified: the default image of every run of the project | `test-postgres` · every push and pull request; the previous full-solution run on a development machine was 2026-11-03 |
 | 18.4, ICU locale `tr-TR` | Verified: 1 593 passed, 1 skipped in the matrix on 2026-11-04; 1 807 passed, 1 skipped on the development machine on 2026-11-08 (the whole project, the default image started with ICU `tr-TR`) | `postgres-matrix` · cell `18, ICU tr-TR` · 2026-11-04 |
 
 **A Turkish-locale database that holds rows when it applies one of four released migrations is recreated, not upgraded.** `lower()` follows the locale of the database, and in a Turkish one `lower('OpenAI')` ends in a dotless i (U+0131). PostgreSQL `0038` and `0062` and SQL Server `0025` and `0050` call it without an ordinal collation, and a released migration never changes. On a new database they run on empty tables, and a database of the last release does not run them again, so nothing changes there. A Turkish-locale database that holds rows when it applies one of them would store a provider name that ends in the dotless i (U+0131) instead of `openai` in a tenant binding (`0038`, `0025`; the tenant's own key then goes unused, without an error), and PostgreSQL `0062` would not find a header written as `AUTHORIZATION`, so the key of the removed column is added beside it and the reader takes that one. SQL Server `0050` reads a column of binary collation and is not affected. On any database, `0038` and `0025` decide by the sort order of the database which of two spellings of one provider saved at the same instant stays. `ProviderNameCaseMigrationTests` and `RemoveAuthorizationConfigurationKeyMigrationTests` state the outcome for each kind of database. Every later migration names an ordinal collation, and a test refuses one that does not.
@@ -23400,7 +23400,7 @@ slower than a native one and changes no result.
 | Server | Collation | Result | Run |
 |---|---|---|---|
 | 2019 | server default | Verified: 1 557 of 1 557. One case timed out in the first full run (a migration took longer than its 30-second command timeout on the emulated server under load) and passed when run alone | `sqlserver-matrix` · cell `2019` · 2026-11-04 |
-| 2022 | server default | Verified: the default image of every run of the project | `build` · cell `ubuntu-latest` · the previous full-solution run on a development machine was 2026-11-03 |
+| 2022 | server default | Verified: the default image of every run of the project | `test-sqlserver` · every push and pull request; the previous full-solution run on a development machine was 2026-11-03 |
 | 2022 | `Turkish_CI_AS`, language 1055 | Verified: 1 558 of 1 558 in the matrix on 2026-11-04 and 1 805 of 1 805 on the development machine on 2026-11-08 (the whole project, in 6 min 44 s), once the test fixture waits for the server to finish applying the collation (the image applies it after the server first accepts connections; without the wait 1 518 of 1 557 cases failed on 2026-11-04) | `sqlserver-matrix` · cell `2022, Turkish_CI_AS` · 2026-11-04 |
 
 The two settings of the Turkish cell are given together: a server started with only the collation keeps English as its language, and a pooled connection fails when it is reset. The image also applies the collation after the server first accepts connections, by rebuilding the system databases and dropping every connection; a run waits until the server reports the collation before it starts.
@@ -23420,7 +23420,7 @@ same family carried, and the project asks the engine for its version to be sure 
 
 | SQLite | Result | Run |
 |---|---|---|
-| 3.53.3, the bundled library | Verified: 1 639 of 1 639 | `build` · cell `ubuntu-latest` · 2026-11-04 |
+| 3.53.3, the bundled library | Verified: 1 639 of 1 639 | `test-sqlite` · 2026-11-04 |
 | 3.44.0 | Verified: 1 639 of 1 639 | `sqlite-floor` · cell `3.44.0` · 2026-11-04 |
 
 The same table applies to a SQLite library your application loads itself (a system library, or
@@ -23430,8 +23430,8 @@ The same table applies to a SQLite library your application loads itself (a syst
 
 | Cell | Result | Run |
 |---|---|---|
-| Linux x64 | Not verified here: this page records no CI result for it. Job `build` runs the whole solution on `ubuntu-latest`. The database servers above are Linux containers, and the SQLite project ran in a Linux arm64 container | `build` · cell `ubuntu-latest` |
-| Windows x64 | **Not verified.** This page records no CI result for the `windows-latest` leg of job `build`, which runs every project that does not need Docker | `build` · cell `windows-latest` |
+| Linux x64 | Not verified here: this page records no CI result for it. The jobs `test-fast`, `test-aspnetcore`, `test-sqlite`, `test-twonode`, `test-package`, `test-postgres` and `test-sqlserver` run the whole solution on `ubuntu-latest`. The database servers above are Linux containers, and the SQLite project ran in a Linux arm64 container | `test-fast` |
+| Windows x64 | **Not verified.** This page records no CI result for the `windows-latest` jobs `test-windows-core`, `test-windows-sqlite` and `test-windows-web`, which together run every project that does not need Docker | `test-windows-core` |
 | Process culture `tr-TR`, time zone `America/New_York` | Verified: the whole solution, 16 275 tests, 2026-11-01; run again on 2026-11-04 for the core unit tests (6 543 of 6 543) and the SQLite project (1 638 passed, 1 skipped) | `culture-matrix` · cell `tr-TR, America/New_York` · the projects that need no Docker |
 | Process culture `de-DE`, time zone `Australia/Lord_Howe` | Verified: the whole solution, 16 275 tests, 2026-11-01; run again on 2026-11-04 for the core unit tests (6 543 of 6 543 on the second run; the first run failed one lease case that passed in 3 runs alone and in 12 parallel runs) and the SQLite project (1 638 passed, 1 skipped) | `culture-matrix` · cell `de-DE, Australia/Lord_Howe` · the projects that need no Docker |
 

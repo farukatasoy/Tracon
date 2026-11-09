@@ -821,10 +821,14 @@ class KapiTestleri(unittest.TestCase):
             if line.strip().startswith("run: dotnet test ") and "Tracon" in line
         ]
 
-        # Iki cozum komutu (build isi) ve tek projeli veritabani/kultur isleri; hepsi ayni TRX bayraklarini tasir.
-        self.assertGreaterEqual(len([line for line in test_lines if "--solution" in line]), 2, test_lines)
+        # Test isleri modul basina bir adimdir (`--project`); cozum komutu yalniz kultur isinde kalir
+        # (Docker'siz solution filter). Hepsi ayni TRX bayraklarini tasir ve derlemez (`--no-build`).
+        self.assertGreaterEqual(len([line for line in test_lines if "--solution" in line]), 1, test_lines)
+        projeler = {re.search(r"--project tests/([\w.]+)/", line).group(1) for line in test_lines if "--project" in line}
+        self.assertGreaterEqual(len(projeler), 25, projeler)  # ayristirici bayatlarsa sessiz sifira dusmesin
         for line in test_lines:
             self.assertNotIn("-maxcpucount", line)
+            self.assertIn(" --no-build", line)
             if "--solution" in line:
                 # Cozum komutu modulleri tek tek kosar; tek projeli komutun paralel modulu yoktur.
                 self.assertIn("--max-parallel-test-modules 1", line)
@@ -1470,7 +1474,10 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(
             [g["name"] for g in _matris_girdileri(_is_blogu(metin, "postgres-matrix"))],
             ["12", "13", "14", "15", "16", "17", "18, ICU tr-TR"])
-        self.assertEqual(len(_matris_girdileri(_is_blogu(metin, "sqlserver-matrix"))), 2)
+        self.assertEqual(
+            [g["name"] for g in _matris_girdileri(_is_blogu(metin, "sqlserver-matrix"))],
+            ["2019", "2022, Turkish_CI_AS"])
+        self.assertEqual([g["sqlite"] for g in _matris_girdileri(_is_blogu(metin, "sqlite-floor"))], ["3.44.0"])
 
     def test_platform_bacagi_bagi_kopunca_kirmizi(self):
         metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -1490,6 +1497,79 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(len(_matris_bag_sorunlari(imajsiz, imajlar)), 1)  # boş imaj = pg18, hücre 13
         self.assertEqual(len(_matris_bag_sorunlari(sql_yil, imajlar)), 1)
         self.assertEqual(len(_matris_bag_sorunlari(bos_surum, imajlar)), 1)
+
+    def test_varsayilan_imaj_bacaklari_pr_de_kosar_ve_imaj_degiskeni_vermez(self):
+        # PostgreSQL ve SQL Server tum-proje bacaginin disindadir; matrisler yalniz varsayilan olmayan surum
+        # ve yerel ayarlari tasir ve PR'de kosmaz. Varsayilan imaj bu iki modulun PR'de de kosan tek yeridir.
+        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        isler = _ci_isleri(metin)
+
+        for is_adi, degisken in (
+            ("test-postgres", "TRACON_TEST_POSTGRES_IMAGE"),
+            ("test-sqlserver", "TRACON_TEST_SQLSERVER_IMAGE"),
+        ):
+            self.assertIsNone(isler[is_adi]["if"], f"`{is_adi}` PR dahil her olayda koşmalı")
+            self.assertNotIn(degisken, _is_blogu(metin, is_adi), f"`{is_adi}` fikstürün varsayılan imajını kullanır")
+            self.assertNotIn("matrix.", _is_blogu(metin, is_adi))
+        for is_adi in ("postgres-matrix", "sqlserver-matrix", "sqlite-floor", "culture-matrix"):
+            self.assertEqual(isler[is_adi]["if"], "github.event_name != 'pull_request'", is_adi)
+
+    def test_ci_her_test_projesi_kendi_isletim_sisteminde_tam_bir_kez_kosar(self):
+        # Solution komutu her projeyi kendiliginden kosardi; modul basina adimlar yeni bir test projesini
+        # sessizce disarida birakir. `test-*` isleri tum-proje bacaklaridir: ubuntu'dakiler Tracon.slnx'in,
+        # windows'takiler Tracon.no-docker.slnf'in test projelerini TAM BIR KEZ kosar. Matrisler (veritabani
+        # surumleri, kultur) ayri bacaklardir ve burada sayilmaz.
+        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        isler = _ci_isleri(metin)
+        # WorkerHarness test degil, ikinci surecin konusudur.
+        slnx = (ROOT / "Tracon.slnx").read_text(encoding="utf-8")
+        ubuntu_beklenen = set(re.findall(r'Path="tests/([\w.]+)/[\w.]+\.csproj"', slnx)) - {"Tracon.WorkerHarness"}
+        filtre = json.loads((ROOT / "Tracon.no-docker.slnf").read_text(encoding="utf-8"))
+        windows_beklenen = {
+            eslesme.group(1) for yol in filtre["solution"]["projects"]
+            if (eslesme := re.match(r"tests/([\w.]+)/", yol))} - {"Tracon.WorkerHarness"}
+
+        kosan: dict[str, dict[str, int]] = {"ubuntu-latest": {}, "windows-latest": {}}
+        for ad in isler:
+            if not ad.startswith("test-"):
+                continue
+            blok = _is_blogu(metin, ad)
+            isletim = re.search(r"(?m)^    runs-on:\s*(\S+)", blok).group(1)
+            for modul in re.findall(r"(?m)^\s+run: dotnet test --project tests/([\w.]+)/", blok):
+                kosan[isletim][modul] = kosan[isletim].get(modul, 0) + 1
+
+        self.assertGreaterEqual(len(ubuntu_beklenen), 25)
+        self.assertEqual(sorted(kosan["ubuntu-latest"].items()), [(m, 1) for m in sorted(ubuntu_beklenen)])
+        self.assertEqual(sorted(kosan["windows-latest"].items()), [(m, 1) for m in sorted(windows_beklenen)])
+
+    def test_ci_is_grafi_tutarli_ve_iptal_kurallari_yerinde(self):
+        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        isler = _ci_isleri(metin)
+
+        for ad, is_ in isler.items():
+            for bagimlilik in is_["needs"]:
+                self.assertIn(bagimlilik, isler, f"`{ad}` var olmayan `{bagimlilik}` işini bekliyor")
+        # Dongu yok: bagimliliksiz isten baslayarak her is siralanabilir.
+        siralanan: set[str] = set()
+        while len(siralanan) < len(isler):
+            hazir = [ad for ad, is_ in isler.items() if ad not in siralanan and set(is_["needs"]) <= siralanan]
+            self.assertTrue(hazir, f"bağımlılık döngüsü: {sorted(set(isler) - siralanan)}")
+            siralanan.update(hazir)
+
+        # Iptal: PR ve main'de eski kosum iptal edilir; etiket kosumu ASLA; elle tetiklemenin grubu `run_id`
+        # icerir (olcum icin ardisik tetiklenen kosumlar birbirini iptal etmez).
+        blok = re.search(r"(?m)^concurrency:\n((?:  .*\n)+)", metin)
+        self.assertIsNotNone(blok, "ci.yml'de iş akışı düzeyinde `concurrency:` yok")
+        grup = re.search(r"(?m)^  group: (.*)$", blok.group(1)).group(1)
+        iptal = re.search(r"(?m)^  cancel-in-progress: (.*)$", blok.group(1)).group(1)
+        self.assertIn("github.event_name == 'workflow_dispatch'", grup)
+        self.assertIn("github.run_id", grup)
+        self.assertIn("github.ref", grup)
+        self.assertIn("!startsWith(github.ref, 'refs/tags/')", iptal)
+        self.assertIn("github.event_name != 'workflow_dispatch'", iptal)
+        # Kapilar belge degisikligi diye atlanmaz.
+        self.assertNotIn("paths-ignore", metin)
+        self.assertIn("PYTHONUTF8: 1", metin)
 
     def test_uret_alt_komutu_yalniz_ureticileri_kosar(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
