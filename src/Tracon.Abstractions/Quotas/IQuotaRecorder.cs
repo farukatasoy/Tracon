@@ -32,15 +32,17 @@ internal interface IQuotaRecorder
     /// </summary>
     /// <param name="account">The tree's account: whose counter the tree adds to.</param>
     /// <param name="kind">What is about to start. It decides which limits count.</param>
-    /// <param name="unrecordedTokens">The tokens the tree has spent that its counter has not seen.</param>
-    /// <param name="unrecordedCost">The amount the tree has spent that its counter has not seen.</param>
+    /// <param name="unrecordedSpend">
+    /// Reads the tokens and the amount the tree has spent that its counter has not seen. It is called after the
+    /// counter is read, never before: a run of the tree that writes its entry between the two reads would otherwise
+    /// be counted in both, and a start the quota allows would be refused.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The decision. A store that cannot be read is answered as <c>AllowOnStoreFailure</c> says.</returns>
     ValueTask<QuotaDecision> CheckTreeStartAsync(
         TreeAccount account,
         TreeStartKind kind,
-        long unrecordedTokens,
-        decimal unrecordedCost,
+        Func<(long Tokens, decimal Cost)> unrecordedSpend,
         CancellationToken cancellationToken = default);
 }
 

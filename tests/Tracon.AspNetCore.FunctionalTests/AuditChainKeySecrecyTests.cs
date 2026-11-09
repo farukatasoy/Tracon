@@ -92,66 +92,15 @@ public sealed class AuditChainKeySecrecyTests
         options.ShouldContain("2026-10");
         options.ShouldNotContain(KeyBase64);
 
-        // The database file, the journal beside it and every byte in them. The id is in the file (a scan of an
-        // empty or wrong file would pass for the wrong reason); the value is not.
-        SqliteBytes(database.Path).ShouldContain("2026-10", Case.Sensitive, DescribeFiles(database.Path));
-        SqliteBytes(database.Path).ShouldNotContain(KeyBase64);
-        ContainsBytes(AllFileBytes(database.Path), KeyBytes).ShouldBeFalse("the raw key bytes are in the database file");
-    }
+        // The database file, the log and the journal beside it and every byte in them. The id is in the file (a scan
+        // of an empty or wrong file would pass for the wrong reason); the value is not. The pooled connections the
+        // host left are still open, so the read goes through the helper that reads a live database safely.
+        var bytes = database.ReadAllBytes();
+        var text = Encoding.Latin1.GetString(bytes);
 
-    private static byte[] AllFileBytes(string path)
-    {
-        var directory = Path.GetDirectoryName(path)!;
-        var name = Path.GetFileName(path);
-        using var all = new MemoryStream();
-
-        foreach (var file in Directory.EnumerateFiles(directory, name + "*"))
-        {
-            all.Write(ReadShared(file));
-        }
-
-        return all.ToArray();
-    }
-
-    // The host may still hold the database open. Windows refuses a plain read of a file another handle writes to;
-    // sharing read and write access is what lets the scan see the bytes while the connection lives.
-    private static byte[] ReadShared(string file)
-    {
-        // A busy host sometimes holds the file or its journal in a way even a sharing read cannot join for a moment
-        // ("being used by another process" in a full parallel run): the scan asks again instead of failing for it.
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var copy = new MemoryStream();
-
-                stream.CopyTo(copy);
-                return copy.ToArray();
-            }
-            catch (IOException) when (attempt < 20)
-            {
-                Thread.Sleep(50); // delay: retry
-            }
-        }
-    }
-
-    private static string SqliteBytes(string path) => Encoding.Latin1.GetString(AllFileBytes(path));
-
-    // Said when the id is missing from the file: what was on disk, so a failure is not read as a missing row by guess.
-    private static string DescribeFiles(string path)
-    {
-        var directory = Path.GetDirectoryName(path)!;
-        var name = Path.GetFileName(path);
-
-        return string.Join(
-            "; ",
-            Directory.EnumerateFiles(directory, name + "*").Select(file =>
-            {
-                var bytes = ReadShared(file);
-
-                return $"{Path.GetFileName(file)[name.Length..]}: {bytes.Length} bytes, id {(ContainsBytes(bytes, "2026-10"u8.ToArray()) ? "present" : "absent")}";
-            }));
+        text.ShouldContain("2026-10", Case.Sensitive, $"the key id is not among the {bytes.Length} bytes read, so the scan read the wrong file");
+        text.ShouldNotContain(KeyBase64);
+        ContainsBytes(bytes, KeyBytes).ShouldBeFalse("the raw key bytes are in the database file");
     }
 
     private static bool ContainsBytes(byte[] haystack, byte[] needle)

@@ -13,6 +13,11 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
 {
     private readonly ConcurrentDictionary<(string TenantId, string Name), Experiment> _experiments = new();
 
+    // Every writer reads an experiment and then writes or removes it, and a start also looks at the other experiments of its
+    // agent. They take this gate so that no writer acts on a copy another writer has already replaced or removed: a start
+    // that has read a draft must not put a running experiment back under a delete that removed the draft. Reads stay lock-free.
+    private readonly Lock _gate = new();
+
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<Experiment>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
     {
@@ -69,30 +74,34 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
 
         var key = (experiment.TenantId, experiment.Name);
 
-        if (_experiments.TryGetValue(key, out var existing) && existing.Status != ExperimentStatus.Draft)
+        lock (_gate)
         {
-            throw new TraconException(
-                $"Experiment '{experiment.Name}' has status '{existing.Status}'; only Draft experiments can be edited.");
+            if (_experiments.TryGetValue(key, out var existing) && existing.Status != ExperimentStatus.Draft)
+            {
+                throw new TraconException(
+                    $"Experiment '{experiment.Name}' has status '{existing.Status}'; only Draft experiments can be edited.");
+            }
+
+            // The canary policy and the rollback reason are NOT this method's: they
+            // belong to SetCanaryPolicyAsync and the canary evaluator, and the SQL
+            // stores leave both columns out of their upsert. Taking them from the
+            // incoming experiment erased a policy on every draft edit, because the
+            // management API rebuilds the experiment from a request that carries
+            // neither.
+            var saved = experiment with
+            {
+                Status = existing?.Status ?? ExperimentStatus.Draft,
+                StartedAt = existing?.StartedAt,
+                EndedAt = existing?.EndedAt,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                Canary = existing?.Canary,
+                RollbackReason = existing?.RollbackReason,
+            };
+
+            _experiments[key] = saved;
+
+            return new ValueTask<Experiment>(saved);
         }
-
-        // The canary policy and the rollback reason are NOT this method's: they
-        // belong to SetCanaryPolicyAsync and the canary evaluator, and the SQL
-        // stores leave both columns out of their upsert. Taking them from the
-        // incoming experiment erased a policy on every draft edit, because the
-        // management API rebuilds the experiment from a request that carries
-        // neither.
-        var saved = experiment with
-        {
-            Status = existing?.Status ?? ExperimentStatus.Draft,
-            StartedAt = existing?.StartedAt,
-            EndedAt = existing?.EndedAt,
-            UpdatedAt = DateTimeOffset.UtcNow,
-            Canary = existing?.Canary,
-            RollbackReason = existing?.RollbackReason,
-        };
-
-        _experiments[key] = saved;
-        return new ValueTask<Experiment>(saved);
     }
 
     /// <inheritdoc />
@@ -106,12 +115,15 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
 
         var key = (tenantId, name);
 
-        if (_experiments.TryGetValue(key, out var existing) && existing.Status == ExperimentStatus.Running)
+        lock (_gate)
         {
-            throw new TraconException($"Experiment '{name}' cannot be deleted while it is running; stop it first.");
-        }
+            if (_experiments.TryGetValue(key, out var existing) && existing.Status == ExperimentStatus.Running)
+            {
+                throw new TraconException($"Experiment '{name}' cannot be deleted while it is running; stop it first.");
+            }
 
-        return new ValueTask<bool>(_experiments.TryRemove(key, out _));
+            return new ValueTask<bool>(_experiments.TryRemove(key, out _));
+        }
     }
 
     /// <inheritdoc />
@@ -125,38 +137,42 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
 
         var key = (tenantId, name);
 
-        if (!_experiments.TryGetValue(key, out var experiment))
+        lock (_gate)
         {
-            throw new TraconException($"Experiment named '{name}' was not found.");
+            if (!_experiments.TryGetValue(key, out var experiment))
+            {
+                throw new TraconException($"Experiment named '{name}' was not found.");
+            }
+
+            if (experiment.Status != ExperimentStatus.Draft)
+            {
+                throw new TraconException($"Experiment '{name}' has status '{experiment.Status}'; it can only start from Draft.");
+            }
+
+            var conflict = _experiments.Values.FirstOrDefault(other =>
+                other.Status == ExperimentStatus.Running
+                && string.Equals(other.TenantId, tenantId, StringComparison.Ordinal)
+                && string.Equals(other.AgentName, experiment.AgentName, StringComparison.Ordinal));
+
+            if (conflict is not null)
+            {
+                throw new TraconException(
+                    $"Experiment '{conflict.Name}' is already running for agent '{experiment.AgentName}'. Only one experiment can run for an agent at a time.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            var started = experiment with
+            {
+                Status = ExperimentStatus.Running,
+                StartedAt = now,
+                UpdatedAt = now,
+            };
+
+            _experiments[key] = started;
+
+            return new ValueTask<Experiment>(started);
         }
-
-        if (experiment.Status != ExperimentStatus.Draft)
-        {
-            throw new TraconException($"Experiment '{name}' has status '{experiment.Status}'; it can only start from Draft.");
-        }
-
-        var conflict = _experiments.Values.FirstOrDefault(other =>
-            other.Status == ExperimentStatus.Running
-            && string.Equals(other.TenantId, tenantId, StringComparison.Ordinal)
-            && string.Equals(other.AgentName, experiment.AgentName, StringComparison.Ordinal));
-
-        if (conflict is not null)
-        {
-            throw new TraconException(
-                $"Experiment '{conflict.Name}' is already running for agent '{experiment.AgentName}'. Only one experiment can run for an agent at a time.");
-        }
-
-        var now = DateTimeOffset.UtcNow;
-
-        var started = experiment with
-        {
-            Status = ExperimentStatus.Running,
-            StartedAt = now,
-            UpdatedAt = now,
-        };
-
-        _experiments[key] = started;
-        return new ValueTask<Experiment>(started);
     }
 
     /// <inheritdoc />
@@ -170,27 +186,31 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
 
         var key = (tenantId, name);
 
-        if (!_experiments.TryGetValue(key, out var experiment))
+        lock (_gate)
         {
-            throw new TraconException($"Experiment named '{name}' was not found.");
+            if (!_experiments.TryGetValue(key, out var experiment))
+            {
+                throw new TraconException($"Experiment named '{name}' was not found.");
+            }
+
+            if (experiment.Status != ExperimentStatus.Running)
+            {
+                throw new TraconException($"Experiment '{name}' is not running.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            var stopped = experiment with
+            {
+                Status = ExperimentStatus.Stopped,
+                EndedAt = now,
+                UpdatedAt = now,
+            };
+
+            _experiments[key] = stopped;
+
+            return new ValueTask<Experiment>(stopped);
         }
-
-        if (experiment.Status != ExperimentStatus.Running)
-        {
-            throw new TraconException($"Experiment '{name}' is not running.");
-        }
-
-        var now = DateTimeOffset.UtcNow;
-
-        var stopped = experiment with
-        {
-            Status = ExperimentStatus.Stopped,
-            EndedAt = now,
-            UpdatedAt = now,
-        };
-
-        _experiments[key] = stopped;
-        return new ValueTask<Experiment>(stopped);
     }
 
     /// <inheritdoc />
@@ -220,19 +240,23 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
 
         var key = (tenantId, name);
 
-        if (!_experiments.TryGetValue(key, out var experiment))
+        lock (_gate)
         {
-            throw new TraconException($"Experiment named '{name}' was not found.");
+            if (!_experiments.TryGetValue(key, out var experiment))
+            {
+                throw new TraconException($"Experiment named '{name}' was not found.");
+            }
+
+            var updated = experiment with
+            {
+                Canary = policy,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            };
+
+            _experiments[key] = updated;
+
+            return new ValueTask<Experiment>(updated);
         }
-
-        var updated = experiment with
-        {
-            Canary = policy,
-            UpdatedAt = DateTimeOffset.UtcNow,
-        };
-
-        _experiments[key] = updated;
-        return new ValueTask<Experiment>(updated);
     }
 
     /// <inheritdoc />
@@ -276,23 +300,27 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
 
         var key = (tenantId, name);
 
-        if (!_experiments.TryGetValue(key, out var experiment) || experiment.Status != ExperimentStatus.Running)
+        lock (_gate)
         {
-            throw new TraconException($"Experiment '{name}' is not running.");
+            if (!_experiments.TryGetValue(key, out var experiment) || experiment.Status != ExperimentStatus.Running)
+            {
+                throw new TraconException($"Experiment '{name}' is not running.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            var updated = experiment with
+            {
+                Variants = variants,
+                Status = stop ? ExperimentStatus.Stopped : experiment.Status,
+                EndedAt = stop ? now : experiment.EndedAt,
+                RollbackReason = stop ? reason : experiment.RollbackReason,
+                UpdatedAt = now,
+            };
+
+            _experiments[key] = updated;
+
+            return new ValueTask<Experiment>(updated);
         }
-
-        var now = DateTimeOffset.UtcNow;
-
-        var updated = experiment with
-        {
-            Variants = variants,
-            Status = stop ? ExperimentStatus.Stopped : experiment.Status,
-            EndedAt = stop ? now : experiment.EndedAt,
-            RollbackReason = stop ? reason : experiment.RollbackReason,
-            UpdatedAt = now,
-        };
-
-        _experiments[key] = updated;
-        return new ValueTask<Experiment>(updated);
     }
 }

@@ -73,7 +73,10 @@ public sealed class ChildAgentInvoker : AIAgent
     /// <see cref="SubAgentSettings.WaitTimeout"/>/<see cref="TraconAgentGraphOptions.WaitTimeout"/>.
     /// Must be greater than <paramref name="childDeadline"/>.
     /// </param>
-    /// <param name="timeProvider">Time source for the wait race. Defaults to <see cref="TimeProvider.System"/>.</param>
+    /// <param name="timeProvider">
+    /// Time source for both wait layers: the cooperative deadline and the hard cutoff count on the same clock.
+    /// Defaults to <see cref="TimeProvider.System"/>.
+    /// </param>
     /// <param name="refusalMode">
     /// Whether a call that cannot deliver the sub-agent's answer comes back as
     /// a tool result (agent delegation, the default) or throws (a workflow step).
@@ -245,8 +248,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
         // Layer 1: the caller's token and Tracon's own deadline are
         // combined. A child that reads the token genuinely cancels here.
-        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(_childDeadline);
+        var deadline = new CallDeadline(_childDeadline, _timeProvider, cancellationToken);
 
         var invocation = agent.RunAsync(messages, session, childOptions, deadline.Token);
 
@@ -289,7 +291,7 @@ public sealed class ChildAgentInvoker : AIAgent
             response.AgentId = Id;
             return response;
         }
-        catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (deadline.HasElapsed && !cancellationToken.IsCancellationRequested)
         {
             // Layer 1: our own deadline fired and the child honored it.
             await WriteTimedOutAsync(scope!, childOptions, hardCutoff: false, CancellationToken.None).ConfigureAwait(false);
@@ -338,8 +340,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
         await WriteStartedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
 
-        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(_childDeadline);
+        var deadline = new CallDeadline(_childDeadline, _timeProvider, cancellationToken);
 
         // A child's caller - a workflow step, the next participant - reads the
         // answer and acts on it, so a loop child hands over its final iteration
@@ -468,7 +469,7 @@ public sealed class ChildAgentInvoker : AIAgent
     /// <summary>Advances the child's streaming enumerator under the same two-layer race as the non-streaming path.</summary>
     private async Task<ChildStep> AdvanceAsync(
         IAsyncEnumerator<AgentResponseUpdate> enumerator,
-        CancellationTokenSource deadline,
+        CallDeadline deadline,
         DateTimeOffset waitDeadline,
         CancellationToken cancellationToken)
     {
@@ -500,7 +501,7 @@ public sealed class ChildAgentInvoker : AIAgent
             // Only OUR deadline firing makes this a wait limit. An
             // OperationCanceledException raised while neither token was
             // cancelled is the provider's own request timeout.
-            return deadline.IsCancellationRequested
+            return deadline.HasElapsed
                 ? ChildStep.TimedOut()
                 : ChildStep.Faulted(ExceptionDispatchInfo.Capture(exception));
         }
@@ -911,9 +912,9 @@ public sealed class ChildAgentInvoker : AIAgent
     /// <summary>
     /// Observes a sub-agent call abandoned by the hard-cutoff layer so its
     /// eventual completion never produces an unobserved task exception, and
-    /// disposes the deadline source it was carrying once it settles.
+    /// disposes the deadline it was carrying once it settles.
     /// </summary>
-    private void ObserveAbandonedChild(Task invocation, CancellationTokenSource deadline)
+    private void ObserveAbandonedChild(Task invocation, CallDeadline deadline)
     {
         _ = invocation.ContinueWith(
             task =>
@@ -939,6 +940,60 @@ public sealed class ChildAgentInvoker : AIAgent
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// The cooperative layer of one call: a token that the caller's cancellation and the child deadline both cancel,
+    /// with the deadline counted on the invoker's time source.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="CancellationTokenSource.CancelAfter(TimeSpan)"/> counts on the system clock, whatever time source the
+    /// hard cutoff races on. The two layers then measured one call on two clocks: a host whose clock is not the
+    /// system's saw the cutoff and the deadline disagree about how long the call had run, and a deadline that passed
+    /// while the child was still starting made the child report the cooperative layer before it ever reached the model.
+    /// Here the deadline is a source built with the time source, so one clock decides both layers.
+    /// </para>
+    /// <para>
+    /// Disposing the deadline disposes its timer. A callback that is already running while that happens is the race
+    /// <see cref="CancellationTokenSource.CancelAfter(TimeSpan)"/> has too, and <see cref="CancellationTokenSource"/>
+    /// tolerates it, so the abandoned-child observer may dispose the deadline whenever the abandoned call settles.
+    /// </para>
+    /// </remarks>
+    private sealed class CallDeadline : IDisposable
+    {
+        private readonly CancellationTokenSource _elapsed;
+        private readonly CancellationTokenSource _linked;
+
+        public CallDeadline(TimeSpan limit, TimeProvider timeProvider, CancellationToken caller)
+        {
+            _elapsed = new CancellationTokenSource(limit, timeProvider);
+
+            try
+            {
+                _linked = CancellationTokenSource.CreateLinkedTokenSource(caller, _elapsed.Token);
+            }
+            catch
+            {
+                _elapsed.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>Gets the token the child runs under: cancelled by the caller or by the deadline.</summary>
+        public CancellationToken Token => _linked.Token;
+
+        /// <summary>
+        /// Gets whether the deadline itself has passed. A caller's cancellation does not set it, so a call that
+        /// reads it together with the caller's token tells the two apart.
+        /// </summary>
+        public bool HasElapsed => _elapsed.IsCancellationRequested;
+
+        public void Dispose()
+        {
+            _linked.Dispose();
+            _elapsed.Dispose();
+        }
     }
 
     /// <summary>One step of the streaming race: the next update, or a timeout outcome.</summary>

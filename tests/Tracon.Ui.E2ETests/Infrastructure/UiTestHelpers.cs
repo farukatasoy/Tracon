@@ -19,11 +19,7 @@ internal static class UiTestHelpers
     internal static readonly Regex RunLinkPattern =
         new("^run ", RegexOptions.None, TimeSpan.FromSeconds(1));
 
-    /// <summary>
-    /// Creates a database agent from the UI, then edits its instructions to
-    /// produce a second version. Shared precondition for the diff and
-    /// experiment tests.
-    /// </summary>
+    /// <summary>Waits until the agent editor has chosen the scripted provider, so its form is valid to save.</summary>
     internal static async Task WaitForDefaultProviderAsync(IPage page)
     {
         // The editor renders before its provider catalogue query completes.
@@ -34,6 +30,88 @@ internal static class UiTestHelpers
             .ToHaveValueAsync(ScriptedModels.ProviderName, new() { Timeout = 60_000 });
     }
 
+    /// <summary>
+    /// The page state that means "the agent <paramref name="name"/> is saved and
+    /// its stored version is <paramref name="version"/>": the agent's detail
+    /// screen, which shows the version the server answered with.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🚨 The heading alone is not a saved signal. The editor's own title is
+    /// "Edit {name}", and a role locator's <c>Name</c> matches as a
+    /// case-insensitive SUBSTRING by default: a wait for a heading named
+    /// <c>{name}</c> is satisfied on the edit page while the save request is
+    /// still in flight. A test that moved on from there (the experiment
+    /// screen, a reload) could abandon the save and read the old version
+    /// list. The detail screen is reached only after the save answered
+    /// (<c>navigate</c> in the editor's <c>onSuccess</c>), so its exact heading
+    /// plus the stored version in the origin badge cannot hold on the editor.
+    /// </para>
+    /// <para>
+    /// It is one locator so that a test can read its count at any moment
+    /// without waiting. <c>Has</c> is queried from the outer match, so both
+    /// parts must be on the page at once.
+    /// </para>
+    /// </remarks>
+    internal static ILocator AgentSavedMarker(IPage page, string name, int version) =>
+        page.Locator("body")
+            .Filter(new()
+            {
+                Has = page.GetByRole(AriaRole.Heading, new() { Name = name, Exact = true }),
+            })
+            .Filter(new()
+            {
+                Has = page.GetByText($"db · v{version}", new() { Exact = true }),
+            });
+
+    /// <summary>
+    /// Waits until the agent is saved with <paramref name="version"/> as its
+    /// stored version; see <see cref="AgentSavedMarker"/> for why a heading is
+    /// not enough.
+    /// </summary>
+    internal static async Task WaitForAgentSavedAsync(IPage page, string name, int version)
+    {
+        await Expect(AgentSavedMarker(page, name, version)).ToBeVisibleAsync();
+    }
+
+    /// <summary>
+    /// Creates a database agent from the UI and waits until it is saved as
+    /// version 1.
+    /// </summary>
+    internal static async Task CreateAgentAsync(
+        UiHost host,
+        Session session,
+        string name,
+        string instructions)
+    {
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
+        await session.Page.GetByTestId("agent-name").FillAsync(name);
+        await session.Page.GetByTestId("agent-instructions").FillAsync(instructions);
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+        var save = session.Page.GetByTestId("agent-save");
+        await Expect(save).ToBeEnabledAsync();
+        await save.ClickAsync();
+
+        await WaitForAgentSavedAsync(session.Page, name, 1);
+    }
+
+    /// <summary>
+    /// From the agent's detail screen, opens the editor and replaces the
+    /// instructions, leaving Save enabled and unclicked.
+    /// </summary>
+    internal static async Task EditInstructionsAsync(Session session, string instructions)
+    {
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit", Exact = true }).ClickAsync();
+        await session.Page.GetByTestId("agent-instructions").FillAsync(instructions);
+        await Expect(session.Page.GetByTestId("agent-save")).ToBeEnabledAsync();
+    }
+
+    /// <summary>
+    /// Creates a database agent from the UI, then edits its instructions to
+    /// produce a second version. Shared precondition for the diff and
+    /// experiment tests.
+    /// </summary>
     internal static async Task CreateAgentWithTwoVersionsAsync(
         UiHost host,
         Session session,
@@ -41,24 +119,12 @@ internal static class UiTestHelpers
         string firstInstructions,
         string secondInstructions)
     {
-        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
-        await WaitForDefaultProviderAsync(session.Page);
-        await session.Page.GetByTestId("agent-name").FillAsync(name);
-        await session.Page.GetByTestId("agent-instructions").FillAsync(firstInstructions);
-        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
-        var save = session.Page.GetByTestId("agent-save");
-        await Expect(save).ToBeEnabledAsync();
-        await save.ClickAsync();
+        await CreateAgentAsync(host, session, name, firstInstructions);
 
-        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = name })).ToBeVisibleAsync();
+        await EditInstructionsAsync(session, secondInstructions);
+        await session.Page.GetByTestId("agent-save").ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
-        await session.Page.GetByTestId("agent-instructions").FillAsync(secondInstructions);
-        save = session.Page.GetByTestId("agent-save");
-        await Expect(save).ToBeEnabledAsync();
-        await save.ClickAsync();
-
-        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = name })).ToBeVisibleAsync();
+        await WaitForAgentSavedAsync(session.Page, name, 2);
     }
 
     /// <summary>

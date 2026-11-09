@@ -24,6 +24,10 @@ public sealed class SubAgentTimeoutTests
     private const string WaitForCompletion = "background_agents_wait_for_first_completion";
     private const string GetResults = "background_agents_get_task_results";
 
+    // The hard-cutoff tests count both limits on a fake clock, so the values only have to order the two layers.
+    private static readonly TimeSpan ShortDeadline = TimeSpan.FromMilliseconds(50);
+    private static readonly TimeSpan ShortCutoff = TimeSpan.FromMilliseconds(150);
+
     [Fact]
     public async Task Cooperative_layer_cancels_a_child_that_reads_the_token()
     {
@@ -52,14 +56,19 @@ public sealed class SubAgentTimeoutTests
     [Fact]
     public async Task Hard_cutoff_abandons_a_child_that_ignores_cancellation()
     {
+        var clock = new ManualClock();
         var hanging = new HangingModelProvider(ResearcherProviderName, respectsCancellation: false);
         await using var host = await StartAsync(
-            hanging, harness: false, childDeadline: TimeSpan.FromMilliseconds(50), waitTimeout: TimeSpan.FromMilliseconds(150));
+            hanging, harness: false, childDeadline: ShortDeadline, waitTimeout: ShortCutoff, clock: clock);
 
         try
         {
             var agent = await ResolveRouterAsync(host);
-            var response = await agent.RunAsync("start").WaitAsync(TimeSpan.FromSeconds(10));
+            var running = agent.RunAsync("start", cancellationToken: TestContext.Current.CancellationToken);
+
+            await ChildLimits.ExpireAsync(clock, hanging.Started, ShortDeadline, ShortCutoff);
+
+            var response = await running.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
             response.Text.ShouldContain("did not respond in time", Case.Sensitive);
 
@@ -98,18 +107,24 @@ public sealed class SubAgentTimeoutTests
     public async Task Hard_cutoff_abandons_a_child_that_ignores_cancellation_in_tool_mode()
     {
         // SubAgentToolModeTests proves the cooperative limit in tool mode; this is the hard one.
+        var clock = new ManualClock();
         var hanging = new HangingModelProvider(ResearcherProviderName, respectsCancellation: false);
         await using var host = await StartAsync(
             hanging,
             harness: false,
-            childDeadline: TimeSpan.FromMilliseconds(50),
-            waitTimeout: TimeSpan.FromMilliseconds(150),
-            callMode: SubAgentCallMode.Tool);
+            childDeadline: ShortDeadline,
+            waitTimeout: ShortCutoff,
+            callMode: SubAgentCallMode.Tool,
+            clock: clock);
 
         try
         {
             var agent = await ResolveRouterAsync(host);
-            var response = await agent.RunAsync("start").WaitAsync(TimeSpan.FromSeconds(10));
+            var running = agent.RunAsync("start", cancellationToken: TestContext.Current.CancellationToken);
+
+            await ChildLimits.ExpireAsync(clock, hanging.Started, ShortDeadline, ShortCutoff);
+
+            var response = await running.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
             response.Text.ShouldContain("did not respond in time", Case.Sensitive);
 
@@ -130,14 +145,19 @@ public sealed class SubAgentTimeoutTests
     [Fact]
     public async Task Harness_path_produces_the_same_hard_cutoff_behavior()
     {
+        var clock = new ManualClock();
         var hanging = new HangingModelProvider(ResearcherProviderName, respectsCancellation: false);
         await using var host = await StartAsync(
-            hanging, harness: true, childDeadline: TimeSpan.FromMilliseconds(50), waitTimeout: TimeSpan.FromMilliseconds(150));
+            hanging, harness: true, childDeadline: ShortDeadline, waitTimeout: ShortCutoff, clock: clock);
 
         try
         {
             var agent = await ResolveRouterAsync(host);
-            var response = await agent.RunAsync("start").WaitAsync(TimeSpan.FromSeconds(10));
+            var running = agent.RunAsync("start", cancellationToken: TestContext.Current.CancellationToken);
+
+            await ChildLimits.ExpireAsync(clock, hanging.Started, ShortDeadline, ShortCutoff);
+
+            var response = await running.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
             response.Text.ShouldContain("did not respond in time", Case.Sensitive);
 
@@ -335,8 +355,16 @@ public sealed class SubAgentTimeoutTests
         bool harness,
         TimeSpan childDeadline,
         TimeSpan waitTimeout,
-        SubAgentCallMode? callMode = null)
+        SubAgentCallMode? callMode = null,
+        TimeProvider? clock = null)
         => TraconTestHost.StartAsync(
+            configureServices: services =>
+            {
+                if (clock is not null)
+                {
+                    services.AddSingleton<TimeProvider>(clock);
+                }
+            },
             configureTracon: builder =>
             {
                 builder.AddModelProvider(BuildRouterProvider(callMode));

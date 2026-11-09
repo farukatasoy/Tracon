@@ -122,6 +122,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The one fake clock: a test moves it, and the timers armed on it fire when it passes their due time. -->
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Counts the telemetry instruments a test makes and how many are still alive. -->
     <Compile Include="../Shared/Telemetry/*.cs" LinkBase="Shared/Telemetry" />
   </ItemGroup>

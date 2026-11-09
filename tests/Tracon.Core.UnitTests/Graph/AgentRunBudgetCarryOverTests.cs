@@ -262,8 +262,7 @@ public sealed class AgentRunBudgetCarryOverTests
         public ValueTask<QuotaDecision> CheckTreeStartAsync(
             TreeAccount account,
             TreeStartKind kind,
-            long unrecordedTokens,
-            decimal unrecordedCost,
+            Func<(long Tokens, decimal Cost)> unrecordedSpend,
             CancellationToken cancellationToken = default)
             => new(QuotaDecision.Allowed);
     }

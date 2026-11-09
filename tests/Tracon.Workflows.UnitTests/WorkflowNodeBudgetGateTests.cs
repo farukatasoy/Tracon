@@ -326,15 +326,13 @@ public sealed class WorkflowNodeBudgetGateTests
         public ValueTask<QuotaDecision> CheckTreeStartAsync(
             TreeAccount account,
             TreeStartKind kind,
-            long unrecordedTokens,
-            decimal unrecordedCost,
+            Func<(long Tokens, decimal Cost)> unrecordedSpend,
             CancellationToken cancellationToken = default)
         {
             Checks++;
             Account = account;
             Kind = kind;
-            UnrecordedTokens = unrecordedTokens;
-            UnrecordedCost = unrecordedCost;
+            (UnrecordedTokens, UnrecordedCost) = unrecordedSpend();
 
             return new(new QuotaDecision
             {

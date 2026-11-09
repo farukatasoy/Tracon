@@ -2,8 +2,7 @@
 #   TRACON_PLAYWRIGHT_LOCATOR_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release
 # One line per <path>|<risky locator call count>. The count may only shrink.
 # A call is risky when it carries neither Exact = true nor .First/.Nth(...).
-tests/Tracon.Ui.E2ETests/Infrastructure/UiTestHelpers.cs|3
-tests/Tracon.Ui.E2ETests/Ui/AgentTests.cs|16
+tests/Tracon.Ui.E2ETests/Ui/AgentTests.cs|15
 tests/Tracon.Ui.E2ETests/Ui/ApprovalTests.cs|5
 tests/Tracon.Ui.E2ETests/Ui/ConfirmationTests.cs|2
 tests/Tracon.Ui.E2ETests/Ui/DashboardTests.cs|2

@@ -22,7 +22,10 @@ namespace Tracon;
 internal sealed class InMemoryQuotaStore : IQuotaStore
 {
     private readonly ConcurrentDictionary<Guid, QuotaDefinition> _definitions = new();
-    private readonly Lock _saveGate = new();
+
+    // Every writer of _definitions takes this gate: a save finds the rule of a scope and then writes it, and a removal
+    // that landed between the two would be undone by the write.
+    private readonly Lock _ruleGate = new();
 
     // One call adds to the agent counter and to the tenant-wide counter, and a read must not see one without the other:
     // the SQL stores do both in one transaction.
@@ -89,7 +92,7 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         // at the same time must not each find none and each add a rule.
         QuotaDefinition saved;
 
-        lock (_saveGate)
+        lock (_ruleGate)
         {
             var existing = _definitions.Values.FirstOrDefault(candidate =>
                 string.Equals(candidate.TenantId, definition.TenantId, StringComparison.Ordinal)
@@ -118,13 +121,19 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
 
         tenantId = AmbientTenantScope.Normalize(tenantId);
 
-        if (!_definitions.TryGetValue(id, out var definition)
-            || !string.Equals(definition.TenantId, tenantId, StringComparison.Ordinal))
+        // The look-up and the removal are one step under the gate a save holds. A save that has found the rule and not yet
+        // written it must not have the rule removed from under it: the save would write the rule back, and the delete
+        // would already have said it removed it.
+        lock (_ruleGate)
         {
-            return new ValueTask<bool>(false);
-        }
+            if (!_definitions.TryGetValue(id, out var definition)
+                || !string.Equals(definition.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                return new ValueTask<bool>(false);
+            }
 
-        return new ValueTask<bool>(_definitions.TryRemove(id, out _));
+            return new ValueTask<bool>(_definitions.TryRemove(id, out _));
+        }
     }
 
     /// <inheritdoc />

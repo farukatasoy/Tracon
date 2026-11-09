@@ -9,21 +9,38 @@ namespace Tracon.Mcp.UnitTests;
 /// one says: nothing, too much, or something that is not a schema.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The handshake (<c>server/discover</c> or <c>initialize</c>, and the notification after it) is answered the way a working server answers it.
 /// What the test scripts is each of the other methods: <c>tools/list</c>, <c>tools/call</c>.
+/// </para>
+/// <para>
+/// The server stops in a fixed order: it takes no new request, cancels the ones it holds, waits for every request it
+/// accepted, and only then closes the listener. Closing it first broke a request whose handler had not read the body
+/// yet. On Unix the listener's close resets the connection to an empty next request (HTTP/1.0 until a request line
+/// says otherwise), and the late first read of a chunked body then marked that next response chunked, which throws
+/// <see cref="ProtocolViolationException"/>. The wait also means a handler that fails makes the dispose fail, so its
+/// owner sees it; a handler started and forgotten failed the whole test run after every test had passed.
+/// </para>
 /// </remarks>
 internal sealed class ScriptedMcpServer : IAsyncDisposable
 {
     private readonly HttpListener _listener = new();
     private readonly CancellationTokenSource _stop = new();
+    private readonly Func<Func<Task>, Task> _dispatch;
+    private readonly List<Task> _handlers = [];
     private readonly Task _serve;
 
     private readonly string _capabilities;
+    private bool _stopping;
 
-    private ScriptedMcpServer(Func<string, JsonNode?, JsonNode?, CancellationToken, Task<string?>> script, string capabilities)
+    private ScriptedMcpServer(
+        Func<string, JsonNode?, JsonNode?, CancellationToken, Task<string?>> script,
+        string capabilities,
+        Func<Func<Task>, Task>? dispatch)
     {
         Script = script;
         _capabilities = capabilities;
+        _dispatch = dispatch ?? (static handle => Task.Run(handle, CancellationToken.None));
 
         // HttpListener cannot bind port 0; a probe finds a free one, as the fake servers of the other test projects do.
         using var probe = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
@@ -55,33 +72,55 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
     /// <summary>Starts a server.</summary>
     /// <param name="script">The answer to each non-handshake method.</param>
     /// <param name="capabilities">The <c>capabilities</c> object the handshake declares; tools only by default.</param>
+    /// <param name="dispatch">
+    /// Starts the handling of one accepted request and returns its task; by default it runs on the thread pool. A test
+    /// passes its own to hold a request between its arrival and its handling.
+    /// </param>
     /// <returns>The running server.</returns>
     public static ScriptedMcpServer Start(
         Func<string, JsonNode?, JsonNode?, CancellationToken, Task<string?>> script,
-        string capabilities = "{\"tools\":{}}")
-        => new(script, capabilities);
+        string capabilities = "{\"tools\":{}}",
+        Func<Func<Task>, Task>? dispatch = null)
+        => new(script, capabilities, dispatch);
 
     /// <inheritdoc />
+    /// <remarks>Throws what a request handler failed with, when that is not the end of its connection or of the server.</remarks>
     public async ValueTask DisposeAsync()
     {
-        await _stop.CancelAsync();
-        _listener.Close();
+        Task[] handlers;
+
+        lock (_handlers)
+        {
+            _stopping = true;
+            handlers = [.. _handlers];
+        }
+
+        _stop.Cancel();
 
         try
         {
-            await _serve;
+            await Task.WhenAll(handlers);
         }
-        catch (Exception exception) when (exception is HttpListenerException or ObjectDisposedException or OperationCanceledException)
+        finally
         {
-            // The listener was closed while it waited for a request; that is the normal end.
-        }
+            _listener.Close();
 
-        _stop.Dispose();
+            try
+            {
+                await _serve;
+            }
+            catch (Exception exception) when (exception is HttpListenerException or ObjectDisposedException or OperationCanceledException)
+            {
+                // The listener was closed while it waited for a request; that is the normal end.
+            }
+
+            _stop.Dispose();
+        }
     }
 
     private async Task ServeAsync()
     {
-        while (!_stop.IsCancellationRequested)
+        while (true)
         {
             HttpListenerContext context;
 
@@ -94,7 +133,14 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
                 return;
             }
 
-            _ = Task.Run(() => HandleAsync(context), CancellationToken.None);
+            lock (_handlers)
+            {
+                // A request that arrives while the server stops is not handled; closing the listener ends its connection.
+                if (!_stopping)
+                {
+                    _handlers.Add(_dispatch(() => HandleAsync(context)));
+                }
+            }
         }
     }
 

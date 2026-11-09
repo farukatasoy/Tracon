@@ -92,7 +92,6 @@ elapsed-assert|tests/Tracon.SqlServer.IntegrationTests/DeltaStreamLatencyTests.c
 elapsed-assert|tests/Tracon.Sqlite.IntegrationTests/DeltaStreamLatencyTests.cs|2
 elapsed-assert|tests/Tracon.Sqlite.IntegrationTests/SqliteWriteContentionTests.cs|2
 sleep|tests/Shared/Infrastructure/HarnessExecutionLog.cs|1
-sleep|tests/Tracon.AspNetCore.FunctionalTests/AuditChainKeySecrecyTests.cs|1
 sleep|tests/Tracon.AspNetCore.FunctionalTests/ConcurrentToolInvocationTests.cs|1
 sleep|tests/Tracon.AspNetCore.FunctionalTests/FactoryAgentDiagnosticsTests.cs|1
 sleep|tests/Tracon.Core.UnitTests/Architecture/SyncOverAsyncSiteTests.cs|1

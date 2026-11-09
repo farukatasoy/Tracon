@@ -144,19 +144,23 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
 
         server = server with { TenantId = AmbientTenantScope.Normalize(server.TenantId) };
 
-        var key = Key(server.TenantId, server.Name);
-        var now = DateTimeOffset.UtcNow;
-
-        var saved = _servers.TryGetValue(key, out var existing)
-            ? server with { Id = existing.Id, CreatedAt = existing.CreatedAt, UpdatedAt = now }
-            : server with
+        // One atomic step: the definition that is there is replaced as it stands. A read followed by a write could put back a
+        // definition that a delete had just removed, under the identifier and the creation time of the one it removed.
+        var saved = _servers.AddOrUpdate(
+            Key(server.TenantId, server.Name),
+            static (_, change) => change.Server with
             {
-                Id = server.Id == Guid.Empty ? TraconId.NewId() : server.Id,
-                CreatedAt = now,
-                UpdatedAt = now,
-            };
-
-        _servers[key] = saved;
+                Id = change.Server.Id == Guid.Empty ? TraconId.NewId() : change.Server.Id,
+                CreatedAt = change.Now,
+                UpdatedAt = change.Now,
+            },
+            static (_, existing, change) => change.Server with
+            {
+                Id = existing.Id,
+                CreatedAt = existing.CreatedAt,
+                UpdatedAt = change.Now,
+            },
+            (Server: server, Now: DateTimeOffset.UtcNow));
 
         return new ValueTask<McpServerDefinition>(saved);
     }
@@ -210,16 +214,17 @@ internal sealed class InMemoryTenantStore : ITenantStore
         // otherwise name a tenant the runtime never resolves.
         var slug = AmbientTenantScope.Normalize(tenant.Slug);
 
-        var saved = _tenants.TryGetValue(slug, out var existing)
-            ? tenant with { Slug = slug, Id = existing.Id, CreatedAt = existing.CreatedAt }
-            : tenant with
+        // One atomic step: the record that is there is replaced as it stands. A read followed by a write could put back a
+        // record that a delete had just removed, under the identifier and the creation time of the one it removed.
+        var saved = _tenants.AddOrUpdate(
+            slug,
+            static (_, value) => value with
             {
-                Slug = slug,
-                Id = tenant.Id == Guid.Empty ? TraconId.NewId() : tenant.Id,
+                Id = value.Id == Guid.Empty ? TraconId.NewId() : value.Id,
                 CreatedAt = DateTimeOffset.UtcNow,
-            };
-
-        _tenants[saved.Slug] = saved;
+            },
+            static (_, existing, value) => value with { Id = existing.Id, CreatedAt = existing.CreatedAt },
+            tenant with { Slug = slug });
 
         return new ValueTask<TenantDescriptor>(saved);
     }

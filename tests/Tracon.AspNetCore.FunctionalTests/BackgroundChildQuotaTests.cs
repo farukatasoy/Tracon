@@ -265,15 +265,22 @@ public sealed class BackgroundChildQuotaTests
     {
         // Layer 1 of the wait limit: the child reads its token and stops. It reported no usage, so it adds
         // nothing: no entry, instead of a store round trip that leaves the counter where it was.
+        var deadline = TimeSpan.FromMilliseconds(50);
+        var clock = new ManualClock();
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
         var quota = new EntryRecordingQuotaStore();
 
         await using var host = await StartAsync(
             hanging,
             quota: quota,
-            subAgents: new SubAgentSettings { ChildDeadline = TimeSpan.FromMilliseconds(50), WaitTimeout = TimeSpan.FromSeconds(5) });
+            subAgents: new SubAgentSettings { ChildDeadline = deadline, WaitTimeout = TimeSpan.FromSeconds(5) },
+            clock: clock);
 
         await RunRouterAsync(host, streaming: false);
+
+        // The deadline counts on the host's clock and passes only now, with the child inside its model call. A deadline that
+        // passed while the child was still starting would cancel it before its run was recorded, and no row would ever exist.
+        await ChildLimits.ExpireAsync(clock, hanging.Started, deadline);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
 
@@ -374,7 +381,8 @@ public sealed class BackgroundChildQuotaTests
         bool workflows = false,
         EntryRecordingQuotaStore? quota = null,
         SubAgentSettings? subAgents = null,
-        IWebhookPublisher? webhooks = null)
+        IWebhookPublisher? webhooks = null,
+        TimeProvider? clock = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -428,6 +436,11 @@ public sealed class BackgroundChildQuotaTests
             },
             configureServices: services =>
             {
+                if (clock is not null)
+                {
+                    services.AddSingleton<TimeProvider>(clock);
+                }
+
                 if (quota is not null)
                 {
                     services.AddSingleton<IQuotaStore>(quota);

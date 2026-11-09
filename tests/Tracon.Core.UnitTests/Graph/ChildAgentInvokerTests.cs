@@ -211,9 +211,16 @@ public sealed class ChildAgentInvokerTests
     public async Task One_child_timing_out_does_not_affect_a_sibling_call_that_completes_normally()
     {
         var budget = new AgentRunBudget { MaxDepth = 3 };
+        var deadline = TimeSpan.FromMilliseconds(50);
+        var clock = new ManualClock();
 
         var (hangingInvoker, hangingStore) = CreateInvoker(
-            new BlockingChatClient(), childDeadline: TimeSpan.FromMilliseconds(50), waitTimeout: TimeSpan.FromSeconds(5));
+            ChildRefusalMode.ToolResult,
+            new BlockingChatClient(),
+            childDeadline: deadline,
+            waitTimeout: TimeSpan.FromSeconds(5),
+            hostsApproval: false,
+            timeProvider: clock);
         var (fastInvoker, fastStore) = CreateInvoker();
 
         SetScope(depth: 0, budget: budget);
@@ -221,6 +228,15 @@ public sealed class ChildAgentInvokerTests
 
         SetScope(depth: 0, budget: budget);
         var fastCall = fastInvoker.RunAsync("run");
+
+        // The deadline counts on the fake clock, so it cannot pass while the child is still starting. A child
+        // cancelled before its run is recorded leaves no row at all, which is a different outcome from this test's.
+        await WaitUntil.TrueAsync(
+            async () => (await hangingStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Count == 1 &&
+                        clock.Pending.Contains(deadline),
+            "the hanging child's run to be recorded with its deadline armed on the clock");
+
+        clock.Advance(deadline);
 
         var hangingResponse = await hangingCall;
         var fastResponse = await fastCall;
@@ -457,6 +473,130 @@ public sealed class ChildAgentInvokerTests
             $"{clock.CreatedTimers} timers were created for one call and {clock.RunningTimers} were still running when it ended");
     }
 
+    /// <summary>
+    /// The child deadline is counted on the invoker's own time source, as the hard cutoff is, so one clock decides both
+    /// layers.
+    /// </summary>
+    /// <remarks>
+    /// The deadline used to be armed on the system clock while the cutoff already ran on the invoker's. A loaded
+    /// machine could let the deadline pass while the child was still starting; the child then saw a cancelled token
+    /// before it reached the model and reported the cooperative layer, so a test that expected the hard cutoff failed
+    /// one run in a few.
+    /// </remarks>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_child_deadline_is_armed_on_the_invokers_clock_and_cancels_the_child_only_when_the_clock_reaches_it(bool streaming)
+    {
+        var deadline = TimeSpan.FromMilliseconds(50);
+        var clock = new ManualClock();
+        var probe = new TokenProbeChatClient(ignoresCancellation: false);
+
+        var (invoker, _) = CreateInvoker(
+            ChildRefusalMode.ToolResult,
+            probe,
+            childDeadline: deadline,
+            waitTimeout: TimeSpan.FromSeconds(5),
+            hostsApproval: false,
+            timeProvider: clock);
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var running = RunAsync(invoker, streaming);
+        var childToken = await probe.Entered.WaitAsync(TestContext.Current.CancellationToken);
+
+        // The child is inside the model call, so the deadline was armed before it started: on the clock the invoker holds.
+        clock.Pending.ShouldContain(deadline);
+
+        clock.Advance(deadline - TimeSpan.FromMilliseconds(1));
+
+        childToken.IsCancellationRequested.ShouldBeFalse("the clock has not reached the deadline");
+        running.IsCompleted.ShouldBeFalse();
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+
+        childToken.IsCancellationRequested.ShouldBeTrue("the clock reached the deadline");
+
+        var text = await running.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        text.ShouldContain("did not respond in time", Case.Sensitive);
+        clock.Pending.ShouldBeEmpty("the finished call left a timer armed");
+    }
+
+    /// <summary>
+    /// A child that ignores its token is abandoned when the SAME clock reaches the hard cutoff, after the deadline has
+    /// cancelled its token and left the call waiting.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_child_that_ignores_its_token_is_abandoned_when_the_same_clock_reaches_the_hard_cutoff(bool streaming)
+    {
+        var deadline = TimeSpan.FromMilliseconds(50);
+        var cutoff = TimeSpan.FromMilliseconds(150);
+        var clock = new ManualClock();
+        var probe = new TokenProbeChatClient(ignoresCancellation: true);
+
+        var (invoker, _) = CreateInvoker(
+            ChildRefusalMode.ToolResult,
+            probe,
+            childDeadline: deadline,
+            waitTimeout: cutoff,
+            hostsApproval: false,
+            timeProvider: clock);
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        try
+        {
+            var running = RunAsync(invoker, streaming);
+            var childToken = await probe.Entered.WaitAsync(TestContext.Current.CancellationToken);
+
+            await WaitUntil.TrueAsync(
+                () => clock.Pending.Contains(deadline) && clock.Pending.Contains(cutoff),
+                "the child deadline and the hard cutoff to be armed on the invoker's clock");
+
+            clock.Advance(deadline);
+
+            childToken.IsCancellationRequested.ShouldBeTrue("the deadline cancelled the token the child holds");
+            running.IsCompleted.ShouldBeFalse("a child that ignores its token keeps the call waiting until the cutoff");
+
+            clock.Advance(cutoff - deadline);
+
+            var text = await running.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+            text.ShouldContain("did not respond in time", Case.Sensitive);
+            probe.Finished.IsCompleted.ShouldBeFalse("the abandoned child is still running");
+        }
+        finally
+        {
+            probe.Release();
+        }
+    }
+
+    /// <summary>A call that finishes releases the timer its deadline armed, on every path that ends it.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_call_that_finishes_releases_the_timer_its_deadline_armed(bool streaming)
+    {
+        var clock = new CountingTimeProvider();
+        var (invoker, _) = CreateInvoker(
+            ChildRefusalMode.ToolResult,
+            client: null,
+            childDeadline: TimeSpan.FromSeconds(30),
+            waitTimeout: TimeSpan.FromSeconds(60),
+            hostsApproval: false,
+            timeProvider: clock);
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        (await RunAsync(invoker, streaming)).ShouldNotContain("did not respond in time", Case.Sensitive);
+
+        clock.CreatedTimers.ShouldBeGreaterThan(0, "the deadline arms a timer on the invoker's clock");
+        clock.RunningTimers.ShouldBe(0);
+    }
+
     private static async Task<string> RunAsync(ChildAgentInvoker invoker, bool streaming)
         => streaming ? await ReadStreamTextAsync(invoker) : (await invoker.RunAsync("run")).Text;
 
@@ -561,6 +701,66 @@ public sealed class ChildAgentInvokerTests
             timeProvider: timeProvider);
 
         return (invoker, store);
+    }
+
+    /// <summary>
+    /// A chat client that never answers and hands the test the token its call received. It stops when that token is
+    /// cancelled, or, when it ignores cancellation, only when the test releases it.
+    /// </summary>
+    private sealed class TokenProbeChatClient(bool ignoresCancellation) : IChatClient
+    {
+        private readonly TaskCompletionSource<CancellationToken> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _finished = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>Gets the token of the model call, once the child is inside it.</summary>
+        public Task<CancellationToken> Entered => _entered.Task;
+
+        /// <summary>Gets a task that completes when the model call returns or is cancelled.</summary>
+        public Task Finished => _finished.Task;
+
+        public void Release() => _release.TrySetResult();
+
+        public async Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            await HoldAsync(cancellationToken).ConfigureAwait(false);
+
+            return new ChatResponse(new ChatMessage(ChatRole.Assistant, "late result"));
+        }
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await HoldAsync(cancellationToken).ConfigureAwait(false);
+
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "late result");
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+            // The fake client has no resource to release.
+        }
+
+        private async Task HoldAsync(CancellationToken cancellationToken)
+        {
+            _entered.TrySetResult(cancellationToken);
+
+            try
+            {
+                await (ignoresCancellation ? _release.Task : _release.Task.WaitAsync(cancellationToken)).ConfigureAwait(false);
+            }
+            finally
+            {
+                _finished.TrySetResult();
+            }
+        }
     }
 
     private sealed class FixedTenantContext : ITenantContext

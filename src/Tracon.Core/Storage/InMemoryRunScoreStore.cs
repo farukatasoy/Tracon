@@ -35,7 +35,10 @@ internal sealed class InMemoryRunScoreStore(
     Func<Guid, CancellationToken, ValueTask<string?>>? agentNameResolver = null) : IRunScoreStore
 {
     private readonly ConcurrentDictionary<Guid, RunScore> _scores = new();
-    private readonly Lock _upsertGate = new();
+
+    // Every writer that reads a score before it writes or removes it takes this gate: an upsert finds the score of a target and
+    // then writes it, and a removal that landed between the two would be undone by the write.
+    private readonly Lock _scoreGate = new();
     private readonly ITenantContext? _tenantContext = tenantContext is null ? null : CanonicalTenantContext.Wrap(tenantContext);
 
     /// <inheritdoc />
@@ -57,7 +60,7 @@ internal sealed class InMemoryRunScoreStore(
         {
             // The look-up and the write are one step: writers that score one target at the same time must not each find
             // none and each add a row.
-            lock (_upsertGate)
+            lock (_scoreGate)
             {
                 var existing = _scores.Values.FirstOrDefault(candidate => IsSameTarget(candidate, score));
 
@@ -113,13 +116,19 @@ internal sealed class InMemoryRunScoreStore(
 
         tenantId = AmbientTenantScope.Normalize(tenantId);
 
-        if (_scores.TryGetValue(scoreId, out var existing)
-            && string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))
+        // The look-up and the removal are one step under the gate an upsert holds. An upsert that has found the score and not yet
+        // written it must not have the score removed from under it: the upsert would write the score back, and the delete
+        // would already have said it removed it.
+        lock (_scoreGate)
         {
-            return new ValueTask<bool>(_scores.TryRemove(scoreId, out _));
-        }
+            if (_scores.TryGetValue(scoreId, out var existing)
+                && string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                return new ValueTask<bool>(_scores.TryRemove(scoreId, out _));
+            }
 
-        return new ValueTask<bool>(false);
+            return new ValueTask<bool>(false);
+        }
     }
 
     /// <inheritdoc />

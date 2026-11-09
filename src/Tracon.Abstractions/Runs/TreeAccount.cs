@@ -24,8 +24,9 @@ namespace Tracon;
 internal sealed record TreeAccount(string TenantId, string RootName, string? UserId, IQuotaRecorder? Quota)
 {
     /// <summary>
-    /// Gets what the tree has written to the counter. Written by <c>TreeQuota.RecordAsync</c> alone, read by the
-    /// budget to tell a quota check how much of the tree's spend the counter has not seen yet.
+    /// Gets what the tree has credited to the counter. Written by <c>TreeQuota.RecordAsync</c> alone, just before the
+    /// store write and taken back if that write is stopped; read by the budget to tell a quota check how much of the
+    /// tree's spend the counter has not seen yet.
     /// </summary>
     public TreeLedger Ledger { get; } = new();
 }

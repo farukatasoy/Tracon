@@ -115,7 +115,7 @@ public sealed class AgentTests(BrowserFixture browsers)
         await Expect(session.Page.GetByTestId("fallback-provider-0")).ToHaveCountAsync(0);
 
         await session.Page.GetByTestId("agent-save").ClickAsync();
-        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })).ToBeVisibleAsync();
+        await WaitForAgentSavedAsync(session.Page, "fallback-agent", 2);
 
         await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
 

@@ -47,10 +47,10 @@ internal static class TreeQuotaGate
             return null;
         }
 
-        var (tokens, cost) = budget.UnrecordedSpend();
-
+        // The tree's unwritten spend is handed over as a read, not a value: the check reads it after the
+        // counter, so an entry another run of the tree writes meanwhile is not counted twice.
         var decision = await quota
-            .CheckTreeStartAsync(account, kind, tokens, cost, cancellationToken)
+            .CheckTreeStartAsync(account, kind, budget.UnrecordedSpend, cancellationToken)
             .ConfigureAwait(false);
 
         return decision.IsAllowed ? null : decision;

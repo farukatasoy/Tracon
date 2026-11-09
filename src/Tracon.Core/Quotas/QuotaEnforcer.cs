@@ -79,7 +79,7 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        return CheckCoreAsync(tenantId, agentName, Unrecorded.None, Compared.NewRun, cancellationToken);
+        return CheckCoreAsync(tenantId, agentName, static () => Unrecorded.None, Compared.NewRun, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -96,20 +96,30 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
     /// workflow whose first node already passed the limit is stopped before its root has written
     /// a single entry.
     /// </para>
+    /// <para>
+    /// The unwritten spend is read after the counter. A run of the tree writes its ledger before
+    /// the store (<c>TreeQuota.RecordAsync</c>), so an entry the counter already holds is never
+    /// counted as unwritten too.
+    /// </para>
     /// </remarks>
     public ValueTask<QuotaDecision> CheckTreeStartAsync(
         TreeAccount account,
         TreeStartKind kind,
-        long unrecordedTokens,
-        decimal unrecordedCost,
+        Func<(long Tokens, decimal Cost)> unrecordedSpend,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(account);
+        ArgumentNullException.ThrowIfNull(unrecordedSpend);
 
         return CheckCoreAsync(
             account.TenantId,
             account.RootName,
-            new Unrecorded(Math.Max(unrecordedTokens, 0), Math.Max(unrecordedCost, 0m)),
+            () =>
+            {
+                var (tokens, cost) = unrecordedSpend();
+
+                return new Unrecorded(Math.Max(tokens, 0), Math.Max(cost, 0m));
+            },
             kind == TreeStartKind.AgentStep ? Compared.AgentStep : Compared.FunctionNode,
             cancellationToken);
     }
@@ -137,7 +147,7 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
     private async ValueTask<QuotaDecision> CheckCoreAsync(
         string tenantId,
         string agentName,
-        Unrecorded unrecorded,
+        Func<Unrecorded> readUnrecorded,
         Compared compared,
         CancellationToken cancellationToken)
     {
@@ -192,6 +202,10 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
                     Reason = "Quota could not be verified.",
                 };
         }
+
+        // After the counter: what the tree has not written yet is read once the counter has been,
+        // so an entry that reached the counter in between is in one of the two, not in both.
+        var unrecorded = readUnrecorded();
 
         foreach (var definition in definitions)
         {

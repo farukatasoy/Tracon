@@ -254,8 +254,7 @@ public sealed class QuotaEnforcerTreeStartTests
             => Enforcer.CheckTreeStartAsync(
                 new TreeAccount(tenantId, rootName, UserId: null, Enforcer),
                 kind,
-                unrecordedTokens,
-                unrecordedCost,
+                () => (unrecordedTokens, unrecordedCost),
                 cancellationToken);
 
         public async Task SaveAsync(

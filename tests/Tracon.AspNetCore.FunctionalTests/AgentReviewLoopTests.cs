@@ -302,21 +302,26 @@ public sealed class AgentReviewLoopTests
     {
         // The reviewer shares the agent's sub-agent wait limits: the cooperative deadline cancels a reviewer that reads the
         // token, the hard cutoff abandons one that does not. Either way the run it opened is on the record.
+        var deadline = TimeSpan.FromMilliseconds(50);
+        var cutoff = ignoresCancellation ? TimeSpan.FromMilliseconds(150) : TimeSpan.FromSeconds(5);
+        var clock = new ManualClock();
         var hanging = new HangingModelProvider(ReviewerProvider, respectsCancellation: !ignoresCancellation);
 
         await using var host = await StartAsync(
             Writer("a draft"),
             hanging,
             onCriterionError: LoopOutcome.FailRun,
-            subAgents: new SubAgentSettings
-            {
-                ChildDeadline = TimeSpan.FromMilliseconds(50),
-                WaitTimeout = ignoresCancellation ? TimeSpan.FromMilliseconds(150) : TimeSpan.FromSeconds(5),
-            });
+            subAgents: new SubAgentSettings { ChildDeadline = deadline, WaitTimeout = cutoff },
+            clock: clock);
 
         try
         {
-            await Should.ThrowAsync<TraconException>(async () => await RunWriterAsync(host, "Write."));
+            // Both limits count on the host's clock: they pass when the test moves it, with the reviewer inside its model call.
+            var writing = RunWriterAsync(host, "Write.");
+
+            await ChildLimits.ExpireAsync(clock, hanging.Started, ignoresCancellation ? [deadline, cutoff] : [deadline]);
+
+            await Should.ThrowAsync<TraconException>(async () => await writing);
 
             var root = await RootRunAsync(host);
             root.Status.ShouldBe(RunStatus.Failed);
@@ -710,7 +715,8 @@ public sealed class AgentReviewLoopTests
         Action<TraconOptions>? configureOptions = null,
         Action<ITraconBuilder>? configureTracon = null,
         string[]? reviewerTools = null,
-        SubAgentSettings? subAgents = null)
+        SubAgentSettings? subAgents = null,
+        TimeProvider? clock = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -730,9 +736,20 @@ public sealed class AgentReviewLoopTests
 
                 builder.AddAgent(WriterAgent(reviewerVersion: null, maxIterations, onCriterionError, subAgents));
             },
-            configureServices: configureOptions is null
+            configureServices: configureOptions is null && clock is null
                 ? null
-                : services => services.Configure(configureOptions));
+                : services =>
+                {
+                    if (configureOptions is not null)
+                    {
+                        services.Configure(configureOptions);
+                    }
+
+                    if (clock is not null)
+                    {
+                        services.AddSingleton<TimeProvider>(clock);
+                    }
+                });
 
     private static async Task SaveReviewerAsync(TraconTestHost host, string provider, string? tenant)
     {
