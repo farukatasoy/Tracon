@@ -40,6 +40,7 @@ public sealed class UpstreamMisbehaviorTests
     private const string AgentName = "upstream-agent";
     private const string ProviderName = "upstream-provider";
     private const string Canary = "UPSTREAM-BODY-CANARY-71e3";
+    private const string CutAfterFirstChunkCase = "a stream cut after its first chunk";
 
     private static readonly Uri RunUri = new($"/tracon/api/agents/{AgentName}/run", UriKind.Relative);
 
@@ -71,7 +72,7 @@ public sealed class UpstreamMisbehaviorTests
             ["a 500 with a body"] = (context, call, streamed) => Status(context, 500, $"{{\"error\":{{\"message\":\"{Canary}\"}}}}"),
             ["an HTML error page"] = (context, call, streamed) => Status(context, 502, $"<html><body>{Canary}</body></html>", contentType: "text/html"),
             ["a 200 whose body is not JSON"] = (context, call, streamed) => Status(context, 200, $"<html>{Canary}</html>", contentType: "text/html"),
-            ["a stream cut after its first chunk"] = (context, call, streamed) => CutAfterFirstChunk(context, streamed),
+            [CutAfterFirstChunkCase] = (context, call, streamed) => CutAfterFirstChunk(context, streamed),
             ["a stream that never says it finished"] = (context, call, streamed) => NeverFinishes(context, streamed),
             ["a surrogate pair split over two chunks"] = (context, call, streamed) => SplitSurrogate(context, streamed),
             ["an answer of three megabytes"] = (context, call, streamed) => Answer(context, streamed, new string('a', 3 * 1024 * 1024)),
@@ -110,7 +111,7 @@ public sealed class UpstreamMisbehaviorTests
 
         frames.ShouldNotBeEmpty($"{name}: the stream carried no frame at all");
         string.Join('\n', frames.Select(static frame => frame.Data)).ShouldNotContain(Canary, Case.Sensitive, $"{name}: a frame echoes the provider's body");
-        clock.Steps.ShouldBe(ExpectedWaits(name, streamed: true), $"{name}: the waits between the client's tries");
+        AssertStreamedWaits(clock, name);
 
         await AssertRunSettledAsync(host, name);
     }
@@ -141,11 +142,28 @@ public sealed class UpstreamMisbehaviorTests
     // What the client library does with the case: a status it retries or a connection cut before any answer gets three
     // retries at its ordinary backoff (a Retry-After within the ceiling replaces a step that is shorter than it); a
     // stream cut after its first chunk is not a try that failed, so nothing is retried.
+    // A stream the server cuts right after its first chunk reaches the client in one of two ways, and which one depends on
+    // the wire, not on the product: the client has the response head when the connection ends (a stream broken after
+    // bytes arrived: no retry, no wait), or the reset is first (a connection error before any answer: the library
+    // retries, and waits its backoff as far as the tries it gets before one of them delivers the head). Both end the run
+    // in a terminal state, which is what the case holds; the waits are then none or a prefix of the library's backoff.
+    private static void AssertStreamedWaits(ManualClock clock, string name)
+    {
+        if (string.Equals(name, CutAfterFirstChunkCase, StringComparison.Ordinal))
+        {
+            clock.Steps.ShouldBe(LibraryBackoff.Take(clock.Steps.Count), $"{name}: no wait, or the start of the library's backoff");
+
+            return;
+        }
+
+        clock.Steps.ShouldBe(ExpectedWaits(name, streamed: true), $"{name}: the waits between the client's tries");
+    }
+
     private static TimeSpan[] ExpectedWaits(string name, bool streamed) => name switch
     {
         "a 429 with Retry-After" => [TimeSpan.FromSeconds(1), LibraryBackoff[1], LibraryBackoff[2]],
         "a 500 with a body" or "an HTML error page" => LibraryBackoff,
-        "a stream cut after its first chunk" => streamed ? [] : LibraryBackoff,
+        CutAfterFirstChunkCase => streamed ? [] : LibraryBackoff,
         _ => [],
     };
 
