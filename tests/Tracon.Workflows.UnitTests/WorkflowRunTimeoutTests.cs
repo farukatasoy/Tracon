@@ -26,7 +26,7 @@ public sealed class WorkflowRunTimeoutTests
             async (messages, _, cancellationToken) =>
             {
                 slowStarted.TrySetResult();
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false); // delay: simulated
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
 
                 return messages;
             });

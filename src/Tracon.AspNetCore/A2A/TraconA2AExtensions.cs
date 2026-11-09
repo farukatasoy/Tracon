@@ -88,7 +88,8 @@ public static class TraconA2AExtensions
             services.GetRequiredService<IToolRegistry>(),
             a2aOptions,
             services.GetRequiredService<IHostApplicationLifetime>(),
-            services.GetRequiredService<ILogger<A2AApprovalGuardFilter>>());
+            services.GetRequiredService<ILogger<A2AApprovalGuardFilter>>(),
+            services.GetService<TimeProvider>());
 
         var group = endpoints.MapGroup(pattern).WithTags("Tracon", "A2A");
         group.WithMetadata(ProblemDetailsOnDenialMarker.Instance);

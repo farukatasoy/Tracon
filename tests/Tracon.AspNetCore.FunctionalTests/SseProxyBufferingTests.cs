@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -63,13 +64,20 @@ public sealed class SseProxyBufferingTests
 
         using var response = await OpenEventsAsync(proxy.Address, runId);
 
-        var firstFrame = await ReadFirstFrameAsync(response, TimeSpan.FromSeconds(2));
+        var reading = StartReadingFirstFrame(response);
 
-        firstFrame.ShouldBeNull("a proxy that buffers in blocks holds a small frame back until the block fills or the stream ends");
+        // The proxy has read the first frame from the origin and holds it back: a block of 4096 bytes has not filled. Nothing
+        // of the body has been passed on at that point, so the reader has no frame, and no frame can come before the run
+        // goes on or ends.
+        await proxy.FirstBytesHeld.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        reading.IsCompleted.ShouldBeFalse("a proxy that buffers in blocks holds a small frame back until the block fills or the stream ends");
 
         // Letting the run finish ends the stream, which flushes the held block: the events were never lost, only late.
         gated.Open();
         await origin.Run;
+
+        (await reading.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken)).ShouldNotBeNull().Event.ShouldBe("run.started");
     }
 
     [Fact]
@@ -111,9 +119,8 @@ public sealed class SseProxyBufferingTests
             deadline.Token);
     }
 
-    private static async Task<SseFrame?> ReadFirstFrameAsync(HttpResponseMessage response, TimeSpan within)
-    {
-        var read = Task.Run(
+    private static Task<SseFrame?> StartReadingFirstFrame(HttpResponseMessage response)
+        => Task.Run(
             async () =>
             {
                 await using var stream = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
@@ -126,6 +133,10 @@ public sealed class SseProxyBufferingTests
                 return null;
             },
             TestContext.Current.CancellationToken);
+
+    private static async Task<SseFrame?> ReadFirstFrameAsync(HttpResponseMessage response, TimeSpan within)
+    {
+        var read = StartReadingFirstFrame(response);
 
         try
         {
@@ -160,6 +171,7 @@ public sealed class SseProxyBufferingTests
     {
         private readonly WebApplication _app;
         private readonly HttpClient _upstream = new() { Timeout = Timeout.InfiniteTimeSpan };
+        private readonly TaskCompletionSource _firstBytesHeld = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private ProxyHost(WebApplication app, Uri address)
         {
@@ -168,6 +180,9 @@ public sealed class SseProxyBufferingTests
         }
 
         public Uri Address { get; }
+
+        /// <summary>Completes once the proxy has read part of the body from the origin and kept it back instead of passing it on.</summary>
+        public Task FirstBytesHeld => _firstBytesHeld.Task;
 
         public static async Task<ProxyHost> StartAsync(Uri origin, bool honorAccelBuffering)
         {
@@ -242,6 +257,10 @@ public sealed class SseProxyBufferingTests
                     await context.Response.Body.WriteAsync(held.ToArray(), context.RequestAborted);
                     await context.Response.Body.FlushAsync(context.RequestAborted);
                     held.SetLength(0);
+                }
+                else
+                {
+                    _firstBytesHeld.TrySetResult();
                 }
             }
 

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -1375,6 +1376,7 @@ internal static class RunEndpoints
             ArgumentNullException.ThrowIfNull(httpContext);
 
             var cancellationToken = httpContext.RequestAborted;
+            var timeProvider = httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System;
             var next = SseWriter.ReadResumeSequence(httpContext.Request);
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
             // Stops the writer's keep-alive loop before the response ends.
@@ -1405,6 +1407,7 @@ internal static class RunEndpoints
                                        runId,
                                        next,
                                        pollInterval,
+                                       timeProvider,
                                        token => new ValueTask(writer.WriteKeepAliveAsync("waiting", token)),
                                        cancellationToken)
                                    .ConfigureAwait(false))

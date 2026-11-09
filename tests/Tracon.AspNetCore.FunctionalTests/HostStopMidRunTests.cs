@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Builder;
@@ -13,7 +12,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Stopping a host while a run is in flight: how long the stop and the dispose take, and what the run row says
+/// Stopping a host while a run is in flight: that the stop and the dispose return, and what the run row says
 /// afterwards, with a model that honors cancellation and with one that ignores it, on the in-process test server and
 /// on a real Kestrel socket.
 /// </summary>
@@ -21,15 +20,16 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// A model call that ignores its token cannot be stopped from outside. What the host owes is a bounded stop: the host's
 /// own shutdown timeout cuts the wait for the hosted services, and the run is left to the reconciler, which is the
-/// documented way a row that no process owns any more is closed. The test pins the bound, not the row: the row of a run
+/// documented way a row that no process owns any more is closed. The test pins that the stop returns, not the row: the row of a run
 /// whose model call never returns may stay <c>Running</c> after the stop, and the test says so.
 /// </para>
 /// </remarks>
 public sealed class HostStopMidRunTests
 {
-    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(3);
+    // The generic host's own timer, on the system clock: it cuts the wait for a run whose model ignores its token.
+    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromMilliseconds(250);
 
-    // The stop is cut at ShutdownTimeout; the margin is what a loaded machine may add.
+    // A failure bound, not a measurement: a stop that does not return within it is a hang.
     private static readonly TimeSpan StopBound = ShutdownTimeout + TimeSpan.FromSeconds(20);
 
     [Theory]
@@ -68,19 +68,12 @@ public sealed class HostStopMidRunTests
                 await sending.ContinueWith(static _ => { }, TaskScheduler.Default);
             }
 
-            var stop = Stopwatch.StartNew();
             await app.StopAsync().WaitAsync(StopBound, TestContext.Current.CancellationToken);
-            var stopTime = stop.Elapsed;
 
             var statusesAfterStop = await RunStatusesAsync(app);
 
-            stop.Restart();
             await app.DisposeAsync().AsTask().WaitAsync(StopBound, TestContext.Current.CancellationToken);
-            var disposeTime = stop.Elapsed;
             stoppedClean = true;
-
-            stopTime.ShouldBeLessThan(StopBound);
-            disposeTime.ShouldBeLessThan(StopBound);
 
             // A real socket is closed when the host stops; the in-process test server has none to close, so only the
             // real one tells whether a model that honors its token ends the run.

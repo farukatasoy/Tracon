@@ -55,17 +55,20 @@ internal static class ExternalSurfaceGuard
     /// <param name="lifetime">The application lifetime — the retry interval and the cancellation are read from it.</param>
     /// <param name="logger">The logger that records intermediate attempts as warnings.</param>
     /// <param name="protocol">The external surface name that appears in the log message (<c>"A2A"</c>/<c>"MCP"</c>).</param>
+    /// <param name="timeProvider">The clock the pause between two attempts runs on; the system clock when omitted.</param>
     /// <returns>The catalog descriptors.</returns>
     public static async Task<IReadOnlyList<AgentDescriptor>> ListCatalogWithRetryAsync(
         IAgentCatalog catalog,
         IHostApplicationLifetime lifetime,
         ILogger logger,
-        string protocol)
+        string protocol,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(lifetime);
         ArgumentNullException.ThrowIfNull(logger);
 
+        var clock = timeProvider ?? TimeProvider.System;
         var delay = TimeSpan.FromMilliseconds(200);
 
         for (var attempt = 1; ; attempt++)
@@ -86,7 +89,7 @@ internal static class ExternalSurfaceGuard
                     attempt,
                     delay.TotalMilliseconds);
 
-                await Task.Delay(delay, lifetime.ApplicationStopping).ConfigureAwait(false);
+                await Task.Delay(delay, clock, lifetime.ApplicationStopping).ConfigureAwait(false);
 
                 var next = delay * 2;
                 delay = next < MaxCatalogListDelay ? next : MaxCatalogListDelay;

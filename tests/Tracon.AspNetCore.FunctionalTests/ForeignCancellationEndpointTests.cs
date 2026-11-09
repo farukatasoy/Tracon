@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -144,16 +145,48 @@ public sealed class ForeignCancellationEndpointTests
     [Fact]
     public async Task The_external_surface_check_retries_a_catalog_that_times_out_instead_of_stopping_the_host()
     {
-        var catalog = new TimingOutOnceCatalog();
+        var clock = new ManualClock();
+        var catalog = new TimingOutCatalog(timeouts: 1);
 
-        var descriptors = await ExternalSurfaceGuard.ListCatalogWithRetryAsync(
+        var check = ExternalSurfaceGuard.ListCatalogWithRetryAsync(
             catalog,
             new RunningLifetime(),
             NullLogger.Instance,
-            "MCP");
+            "MCP",
+            clock);
 
-        descriptors.ShouldHaveSingleItem().Name.ShouldBe("alpha");
+        await clock.AdvanceUntilAsync(check);
+
+        (await check).ShouldHaveSingleItem().Name.ShouldBe("alpha");
         catalog.Calls.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task The_external_surface_check_waits_between_two_attempts_on_the_clock_it_was_given_doubling_up_to_five_seconds()
+    {
+        var clock = new ManualClock();
+        var catalog = new TimingOutCatalog(timeouts: 7);
+
+        var check = ExternalSurfaceGuard.ListCatalogWithRetryAsync(
+            catalog,
+            new RunningLifetime(),
+            NullLogger.Instance,
+            "A2A",
+            clock);
+
+        await clock.AdvanceUntilAsync(check, within: TimeSpan.FromSeconds(5));
+        await check;
+
+        clock.Steps.ShouldBe(
+        [
+            TimeSpan.FromMilliseconds(200),
+            TimeSpan.FromMilliseconds(400),
+            TimeSpan.FromMilliseconds(800),
+            TimeSpan.FromMilliseconds(1600),
+            TimeSpan.FromMilliseconds(3200),
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(5),
+        ]);
     }
 
     private static void ConfigureApprovalAgent(ITraconBuilder builder)
@@ -215,15 +248,15 @@ public sealed class ForeignCancellationEndpointTests
         public IReadOnlyDictionary<string, string>? Labels => null;
     }
 
-    /// <summary>A catalog whose first listing times out on its own, as an HTTP-backed source would.</summary>
-    private sealed class TimingOutOnceCatalog : IAgentCatalog
+    /// <summary>A catalog whose first listings time out on their own, as an HTTP-backed source would.</summary>
+    private sealed class TimingOutCatalog(int timeouts) : IAgentCatalog
     {
         private int _calls;
 
         public int Calls => Volatile.Read(ref _calls);
 
         public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
-            => Interlocked.Increment(ref _calls) == 1
+            => Interlocked.Increment(ref _calls) <= timeouts
                 ? throw new TaskCanceledException("the agent source timed out")
                 : new((IReadOnlyList<AgentDescriptor>)[new AgentDescriptor { Name = "alpha", Origin = AgentDefinitionOrigin.Code, SourceName = "code" }]);
 

@@ -196,13 +196,11 @@ public sealed class SessionWorkspaceProviderTests : IDisposable
         var provider = Provider(store: new HangingStore(), timeout: TimeSpan.FromMilliseconds(150));
         TraconRunContext.SetCurrent(WorkspaceTestSupport.Run("acme", "drafter", "session-1"));
         var context = await provider.InvokingAsync(new AIContextProvider.InvokingContext(_agent, session: null, new AIContext()));
-        var started = DateTimeOffset.UtcNow;
 
         // The bound is the test's own guard: without the timeout layer the store would wait for ever and the test would hang.
         using var bound = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         var result = await InvokeAsync(context, "file_access_read", new Dictionary<string, object?>(StringComparer.Ordinal) { ["fileName"] = "a.md" }, bound.Token);
 
-        (DateTimeOffset.UtcNow - started).ShouldBeLessThan(TimeSpan.FromSeconds(10));
         result?.ToString().ShouldNotBeNull().ShouldBe("Tool 'file_access_read' did not complete within 150ms.");
     }
 

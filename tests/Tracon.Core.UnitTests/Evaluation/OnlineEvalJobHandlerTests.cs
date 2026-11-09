@@ -319,20 +319,69 @@ public sealed class OnlineEvalJobHandlerTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
         var scores = new InMemoryRunScoreStore();
+        var clock = new ManualClock();
+        var timeout = TimeSpan.FromMinutes(2);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = BuildHandler(
             runs,
             inputs,
             scores,
-            [new AsyncJudge("slow", static async (_, token) =>
+            [new AsyncJudge("slow", async (_, token) =>
             {
+                started.SetResult();
                 await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
                 return new RunJudgment();
             })],
-            new OnlineEvaluationOptions { JudgeTimeout = TimeSpan.FromMilliseconds(10) });
+            new OnlineEvaluationOptions { JudgeTimeout = timeout },
+            clock);
 
-        await Should.ThrowAsync<JobRetryException>(() => handler.ExecuteAsync(ExecutionContext(runId, [])).AsTask());
+        var execution = handler.ExecuteAsync(ExecutionContext(runId, [])).AsTask();
+
+        await started.Task.WaitAsync(WaitUntil.DefaultTimeout);
+        clock.Advance(timeout);
+
+        await Should.ThrowAsync<JobRetryException>(() => execution);
 
         (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task The_judges_token_is_cancelled_when_the_hosts_clock_reaches_the_judge_timeout_and_not_before()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+        var clock = new ManualClock();
+        var timeout = TimeSpan.FromMinutes(2);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var watching = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            new InMemoryRunScoreStore(),
+            [new AsyncJudge("watches-its-token", async (_, token) =>
+            {
+                using var registration = token.Register(static state => ((TaskCompletionSource)state!).TrySetResult(), cancelled);
+
+                watching.SetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
+                return new RunJudgment();
+            })],
+            new OnlineEvaluationOptions { JudgeTimeout = timeout },
+            clock);
+
+        var execution = handler.ExecuteAsync(ExecutionContext(runId, [])).AsTask();
+
+        await watching.Task.WaitAsync(WaitUntil.DefaultTimeout);
+        clock.Advance(timeout - TimeSpan.FromMilliseconds(1));
+
+        cancelled.Task.IsCompleted.ShouldBeFalse("the judge's budget ended before the clock reached the timeout");
+
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+
+        cancelled.Task.IsCompleted.ShouldBeTrue("the judge's budget did not end when the clock reached the timeout");
+
+        await Should.ThrowAsync<JobRetryException>(() => execution);
     }
 
     [Theory]
@@ -409,6 +458,8 @@ public sealed class OnlineEvalJobHandlerTests
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
         var scores = new InMemoryRunScoreStore();
+        var clock = new ManualClock();
+        var timeout = TimeSpan.FromMinutes(2);
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = BuildHandler(
@@ -421,7 +472,8 @@ public sealed class OnlineEvalJobHandlerTests
                 await release.Task;
                 return JudgeVerdict.Headline("ignores-cancellation", 91);
             })],
-            new OnlineEvaluationOptions { JudgeTimeout = TimeSpan.FromMilliseconds(20) });
+            new OnlineEvaluationOptions { JudgeTimeout = timeout },
+            clock);
         var run = await runs.GetRunAsync(runId);
 
         var judging = handler.JudgeRunAsync(run!).AsTask();
@@ -429,13 +481,14 @@ public sealed class OnlineEvalJobHandlerTests
 
         try
         {
-            // The judge is released only in the finally block below: a handler
-            // that waited for it instead of its 20 ms timeout never completes
-            // here. This raced a one-second timer, a claim about the
-            // machine rather than a bound on the failure.
-            var result = await judging.WaitAsync(WaitUntil.DefaultTimeout);
+            // The judge is released only in the finally block below: a handler that waited for it instead of its
+            // timeout never completes here. The clock moves by the timeout and by nothing else.
+            await clock.AdvanceUntilAsync(judging, within: timeout);
+
+            var result = await judging;
             result.Scores.ShouldBeEmpty();
             result.Failures.ShouldHaveSingleItem().ErrorType.ShouldBe("judge_timeout");
+            clock.Steps.ShouldBe([timeout]);
         }
         finally
         {
@@ -549,13 +602,15 @@ public sealed class OnlineEvalJobHandlerTests
         InMemoryRunInputStore inputs,
         InMemoryRunScoreStore scores,
         IReadOnlyList<IRunJudge> judges,
-        OnlineEvaluationOptions? options = null)
+        OnlineEvaluationOptions? options = null,
+        TimeProvider? clock = null)
         => new(
             runs,
             inputs,
             scores,
             judges,
             new FixedTenantContext(Tenant),
+            timeProvider: clock,
             optionsMonitor: options is null ? null : new FixedOptionsMonitor(options));
 
     private sealed class FixedTenantContext(string tenantId) : ITenantContext

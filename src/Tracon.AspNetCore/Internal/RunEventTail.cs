@@ -26,6 +26,7 @@ internal static class RunEventTail
     /// <param name="runId">The run.</param>
     /// <param name="next">The first sequence number to read.</param>
     /// <param name="pollInterval">How long to wait between two reads of a run in progress.</param>
+    /// <param name="timeProvider">The clock the wait between two reads runs on.</param>
     /// <param name="idleAsync">
     /// Called after a read of a run in progress that found no new event, before the wait; a
     /// stream writes its keep-alive here.
@@ -43,10 +44,12 @@ internal static class RunEventTail
         Guid runId,
         long next,
         TimeSpan pollInterval,
+        TimeProvider timeProvider,
         Func<CancellationToken, ValueTask> idleAsync,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(runs);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(idleAsync);
 
         while (!cancellationToken.IsCancellationRequested)
@@ -74,7 +77,7 @@ internal static class RunEventTail
                 await idleAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(pollInterval, timeProvider, cancellationToken).ConfigureAwait(false);
         }
     }
 }

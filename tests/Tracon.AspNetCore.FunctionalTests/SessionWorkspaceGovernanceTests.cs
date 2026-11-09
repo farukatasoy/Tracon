@@ -121,11 +121,10 @@ public sealed class SessionWorkspaceGovernanceTests
             configureTracon: static builder => builder.Configure(static options => options.Tools.DefaultTimeout = TimeSpan.FromMilliseconds(200)),
             configureServices: static services => services.AddSingleton<AgentFileStore>(new HangingReadStore()));
 
-        var started = DateTimeOffset.UtcNow;
         var runId = await SessionWorkspaceApprovalTests.QueueAsync(host, "session-1");
 
+        // The read waits for ever: a run that waited for it never completes.
         (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
-        (DateTimeOffset.UtcNow - started).ShouldBeLessThan(TimeSpan.FromSeconds(30));
         provider.Requests[^1].Messages.SelectMany(static message => message.Contents).OfType<FunctionResultContent>()
             .Select(static result => result.Result?.ToString())
             .Contains("Tool 'file_access_read' did not complete within 200ms.", StringComparer.Ordinal).ShouldBeTrue();

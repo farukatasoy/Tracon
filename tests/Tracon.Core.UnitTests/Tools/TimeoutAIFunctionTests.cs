@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -25,32 +24,28 @@ public sealed class TimeoutAIFunctionTests
     }
 
     [Fact]
-    public async Task A_call_that_never_reads_its_token_is_still_cut_off_near_the_timeout()
+    public async Task A_call_that_never_reads_its_token_is_still_cut_off_when_the_clock_reaches_the_timeout()
     {
         // The tool body deliberately ignores the cancellation token — the
         // documented, non-cooperative case this class must still bound.
         var inner = AIFunctionFactory.Create(
             async () =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None); // delay: simulated
+                await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None); // delay: simulated
                 return "too late";
             },
             "slow_tool");
 
-        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromMilliseconds(200), NullLogger<TimeoutAIFunction>.Instance);
+        var clock = new ManualClock();
+        var timeout = TimeSpan.FromMinutes(5);
 
-        var stopwatch = Stopwatch.StartNew();
+        var exception = await TimeOutAsync(inner, timeout, clock);
 
-        var exception = await Should.ThrowAsync<TraconToolTimeoutException>(
-            async () => await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)));
-
-        stopwatch.Stop();
-
-        // Generous upper bound: the point is that the WAIT is bounded by the
-        // configured timeout, not by the tool's real 30-second body.
-        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5));
+        // The WAIT is bounded by the configured timeout, on the clock the wrapper was given: the clock moved by
+        // exactly that, and the tool's own body never ends.
+        clock.Steps.ShouldBe([timeout]);
         exception.ToolName.ShouldBe("slow_tool");
-        exception.Timeout.ShouldBe(TimeSpan.FromMilliseconds(200));
+        exception.Timeout.ShouldBe(timeout);
         exception.ErrorType.ShouldBe(TraconToolTimeoutException.ToolTimeoutErrorType);
     }
 
@@ -58,9 +53,8 @@ public sealed class TimeoutAIFunctionTests
     public async Task The_timeout_cancels_the_tool_body_instead_of_only_giving_up_on_it()
     {
         // 🚨 Measured on the old code: NOTHING was cancelled. A body that read
-        // its token on every wait still ran its full 3 seconds against a 300ms
-        // limit — the wrapper stopped waiting and left the work running, so a
-        // cooperative tool went on spending money nobody was waiting for.
+        // its token on every wait still ran to its end after the limit — the wrapper stopped waiting and left the
+        // work running, so a cooperative tool went on spending money nobody was waiting for.
         var outcome = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var inner = AIFunctionFactory.Create(
@@ -68,7 +62,7 @@ public sealed class TimeoutAIFunctionTests
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken); // delay: simulated
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); // delay: simulated
                     outcome.TrySetResult("ran to completion");
 
                     return "too late";
@@ -82,10 +76,7 @@ public sealed class TimeoutAIFunctionTests
             },
             "cooperative_slow_tool");
 
-        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromMilliseconds(200), NullLogger<TimeoutAIFunction>.Instance);
-
-        await Should.ThrowAsync<TraconToolTimeoutException>(
-            async () => await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)));
+        await TimeOutAsync(inner, TimeSpan.FromMinutes(5), new ManualClock());
 
         var result = await outcome.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
@@ -101,16 +92,13 @@ public sealed class TimeoutAIFunctionTests
         var inner = AIFunctionFactory.Create(
             async () =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None); // delay: simulated
+                await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None); // delay: simulated
 
                 return "too late";
             },
             "brief_tool");
 
-        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromMilliseconds(500), NullLogger<TimeoutAIFunction>.Instance);
-
-        var exception = await Should.ThrowAsync<TraconToolTimeoutException>(
-            async () => await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)));
+        var exception = await TimeOutAsync(inner, TimeSpan.FromMilliseconds(500), new ManualClock());
 
         exception.Message.ShouldBe("Tool 'brief_tool' did not complete within 500ms.");
         exception.Message.ShouldNotContain("0s");
@@ -122,16 +110,13 @@ public sealed class TimeoutAIFunctionTests
         var inner = AIFunctionFactory.Create(
             async () =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None); // delay: simulated
+                await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None); // delay: simulated
 
                 return "too late";
             },
             "slow_tool");
 
-        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromSeconds(1), NullLogger<TimeoutAIFunction>.Instance);
-
-        var exception = await Should.ThrowAsync<TraconToolTimeoutException>(
-            async () => await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)));
+        var exception = await TimeOutAsync(inner, TimeSpan.FromSeconds(1), new ManualClock());
 
         exception.Message.ShouldBe("Tool 'slow_tool' did not complete within 1s.");
     }
@@ -142,12 +127,13 @@ public sealed class TimeoutAIFunctionTests
         var inner = AIFunctionFactory.Create(
             async (CancellationToken cancellationToken) =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken); // delay: simulated
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); // delay: simulated
                 return "unreachable";
             },
             "cooperative_tool");
 
-        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromSeconds(30), NullLogger<TimeoutAIFunction>.Instance);
+        var clock = new ManualClock();
+        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromSeconds(30), NullLogger<TimeoutAIFunction>.Instance, clock);
 
         using var cts = new CancellationTokenSource();
         var invocation = wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), cts.Token).AsTask();
@@ -155,8 +141,20 @@ public sealed class TimeoutAIFunctionTests
         await cts.CancelAsync();
 
         // The caller's OWN cancellation must surface as itself, not be
-        // reinterpreted as TraconToolTimeoutException.
+        // reinterpreted as TraconToolTimeoutException. The clock never moved, so no timeout can have fired, and the
+        // timeout's timer does not outlive the call.
         await Should.ThrowAsync<OperationCanceledException>(async () => await invocation);
+        clock.RunningTimers.ShouldBe(0);
+    }
+
+    /// <summary>Calls a tool that never ends and moves the wrapper's clock to its timeout, which is what ends the call.</summary>
+    private static async Task<TraconToolTimeoutException> TimeOutAsync(AIFunction inner, TimeSpan timeout, ManualClock clock)
+    {
+        var wrapped = new TimeoutAIFunction(inner, timeout, NullLogger<TimeoutAIFunction>.Instance, clock);
+        var invocation = wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)).AsTask();
+
+        return await Should.ThrowAsync<TraconToolTimeoutException>(
+            async () => await clock.AdvanceUntilAsync(invocation, within: timeout));
     }
 
     /// <summary>

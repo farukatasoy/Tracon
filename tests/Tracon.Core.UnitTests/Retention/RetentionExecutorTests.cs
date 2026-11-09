@@ -147,6 +147,28 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
+    public async Task The_pause_between_two_batches_is_the_configured_delay_on_the_executors_clock()
+    {
+        var clock = new ManualClock();
+        var batchDelay = TimeSpan.FromMinutes(10);
+        var (executor, store, dataStore) = Build(batchSize: 2, batchDelay: batchDelay, clock: clock);
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30);
+        dataStore.DeleteBatchSizes.Enqueue(2);
+        dataStore.DeleteBatchSizes.Enqueue(2);
+        dataStore.DeleteBatchSizes.Enqueue(1);
+
+        var sweep = executor.RunAsync(Tenant, RetentionTargets.RunEvents).AsTask();
+
+        await clock.AdvanceUntilAsync(sweep, within: batchDelay);
+
+        // One pause after each full batch, none after the short one that ends the sweep; the sweep waited exactly the
+        // configured delay each time, on the clock it was handed.
+        clock.Steps.ShouldBe([batchDelay, batchDelay]);
+        (await sweep)[0].DeletedRows.ShouldBe(5);
+    }
+
+    [Fact]
     public async Task A_target_without_a_policy_produces_no_runs()
     {
         var (executor, _, dataStore) = Build();
@@ -390,11 +412,13 @@ public sealed class RetentionExecutorTests
     private static (RetentionExecutor Executor, IRetentionPolicyStore Store, RecordingRetentionStore DataStore) Build(
         IArchiveSink? archiveSink = null,
         int batchSize = 5000,
-        DateTimeOffset? now = null)
+        DateTimeOffset? now = null,
+        TimeSpan? batchDelay = null,
+        ManualClock? clock = null)
     {
         var policyStore = new InMemoryRetentionPolicyStore();
         var dataStore = new RecordingRetentionStore();
-        var options = new TraconRetentionOptions { BatchSize = batchSize, BatchDelay = TimeSpan.Zero };
+        var options = new TraconRetentionOptions { BatchSize = batchSize, BatchDelay = batchDelay ?? TimeSpan.Zero };
         var resolver = new RetentionPolicyResolver(policyStore, new StaticOptionsMonitor<TraconRetentionOptions>(options));
 
         var executor = new RetentionExecutor(
@@ -403,7 +427,7 @@ public sealed class RetentionExecutorTests
             resolver,
             new StaticOptionsMonitor<TraconRetentionOptions>(options),
             archiveSink,
-            new ManualClock(now ?? new DateTimeOffset(2026, 8, 5, 3, 0, 0, TimeSpan.Zero)));
+            clock ?? new ManualClock(now ?? new DateTimeOffset(2026, 8, 5, 3, 0, 0, TimeSpan.Zero)));
 
         return (executor, policyStore, dataStore);
     }

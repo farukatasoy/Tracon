@@ -37,8 +37,12 @@ internal static class EvalCommand
     private const int PreviousRunSearchWindow = 50;
     private static readonly JsonSerializerOptions PrettyJson = new() { WriteIndented = true };
 
-    public static async Task<int> RunAsync(IReadOnlyList<string> args, CancellationToken cancellationToken)
+    public static async Task<int> RunAsync(
+        IReadOnlyList<string> args,
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null)
     {
+        var clock = timeProvider ?? TimeProvider.System;
         var url = CliArgs.RequireOption(args, "--url");
         var suiteName = CliArgs.RequireOption(args, "--suite");
         var token = CliArgs.GetOption(args, "--token") ?? Environment.GetEnvironmentVariable("TRACON_TOKEN");
@@ -99,7 +103,7 @@ internal static class EvalCommand
             options.BaseAddress = baseAddress;
             options.Token = token;
 
-            // 🚨 The budget below (timeoutSource.CancelAfter) is the only limit
+            // 🚨 The budget below (the timeout source) is the only limit
             // this command promises. HttpClient's own 100 s default would cap
             // every request underneath it and report the cap as a cancellation
             // nothing asked for, so a longer budget could never be
@@ -116,8 +120,8 @@ internal static class EvalCommand
         {
             var client = provider.GetRequiredService<TraconApiClient>();
 
-            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutSource.CancelAfter(timeout);
+            using var budget = new CancellationTokenSource(timeout, clock);
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, budget.Token);
 
             Tracon.Client.Generated.EvalRun triggered;
             try
@@ -175,7 +179,7 @@ internal static class EvalCommand
             Tracon.Client.Generated.EvalRunDetailResponse detail;
             try
             {
-                detail = await PollUntilTerminalAsync(client, triggered.Id, pollInterval, timeoutSource.Token)
+                detail = await PollUntilTerminalAsync(client, triggered.Id, pollInterval, clock, timeoutSource.Token)
                     .ConfigureAwait(false);
             }
             catch (TraconApiException ex) when (ex.StatusCode == 403)
@@ -392,7 +396,7 @@ internal static class EvalCommand
     }
 
     private static async Task<Tracon.Client.Generated.EvalRunDetailResponse> PollUntilTerminalAsync(
-        TraconApiClient client, Guid runId, TimeSpan pollInterval, CancellationToken cancellationToken)
+        TraconApiClient client, Guid runId, TimeSpan pollInterval, TimeProvider clock, CancellationToken cancellationToken)
     {
         while (true)
         {
@@ -405,7 +409,7 @@ internal static class EvalCommand
                 return detail;
             }
 
-            await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(pollInterval, clock, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -487,7 +491,7 @@ internal static class EvalCommand
             return null;
         }
 
-        // --timeout arms CancelAfter and --poll-interval a Task.Delay; both
+        // --timeout arms a CancellationTokenSource and --poll-interval a Task.Delay; both
         // refuse more than about 49.7 days, and TimeSpan.FromSeconds overflows long
         // before a double runs out.
         if (seconds <= 0 || seconds * 1000 > TimerPeriod.MaxMilliseconds)

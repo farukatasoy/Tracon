@@ -75,12 +75,12 @@ public sealed class ToolApprovalPresenterTests
             OptionsMonitor(TimeSpan.FromMilliseconds(20)),
             NullLogger<ToolApprovalPresenterRunner>.Instance);
 
-        var watch = System.Diagnostics.Stopwatch.StartNew();
-        var result = await runner.ResolveAllAsync([Request("req-1", "cancel_order")], "tenant-a", "agent-a", CancellationToken.None);
-        watch.Stop();
+        // The presenter never answers: only the configured timeout can end the call, so a call that returns was bound by it.
+        var result = await Task
+            .Run(async () => await runner.ResolveAllAsync([Request("req-1", "cancel_order")], "tenant-a", "agent-a", CancellationToken.None), TestContext.Current.CancellationToken)
+            .WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
         result["req-1"].ShouldBeNull();
-        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5), "the configured 20ms timeout, not the presenter's infinite delay, must bound the call.");
     }
 
     [Fact]

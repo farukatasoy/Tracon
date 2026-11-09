@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -8,31 +7,34 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Stopping a host on a real socket while a run is live and a client holds its event stream
-/// (<c>GET /api/runs/{id}/events</c>) open: how long the stop and the dispose take, with and without draining, with the
+/// (<c>GET /api/runs/{id}/events</c>) open: that the stop and the dispose return, with and without draining, with the
 /// event client still connected and gone, and against a control with no event stream.
 /// </summary>
 /// <remarks>
 /// <para>
 /// The model of the run ignores its token, so nothing but the host's own timeout can end the wait. What the host owes is
 /// a bounded stop: the event stream polls the store and a run that never finishes keeps it going, so a stream that
-/// ignored the stop signal would hold the host until the shutdown timeout cut it. The bound is the shutdown timeout
-/// plus a margin for a loaded machine, as in the stop test of a run without an event stream. The drain wait is set
-/// longer than the shutdown timeout, so the host's timeout is the one that decides.
+/// ignored the stop signal would hold the host until the shutdown timeout cut it.
 /// </para>
 /// <para>
-/// Each case reports its measured times through the test's diagnostic messages.
+/// The host runs on a <see cref="ManualClock"/> and the test measures nothing. The drain wait is an hour on that clock, and
+/// the clock is moved only in steps of the stream's poll interval while the host stops, so the drain wait cannot end: a stop
+/// that waited for it, or for any wait but the host's own timeout, never returns and fails the bound on the stop. The host's
+/// shutdown timeout is the generic host's and runs on the system clock; it is short so that the cases do not wait for it.
 /// </para>
 /// </remarks>
 public sealed class HostStopOpenEventStreamTests
 {
-    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(3);
+    // The generic host's own timer, on the system clock: it cuts the wait for a run whose model ignores its token.
+    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromMilliseconds(250);
 
-    // The stop is cut at ShutdownTimeout; the margin is what a loaded machine may add.
+    // A failure bound, not a measurement: a stop that does not return within it is a hang.
     private static readonly TimeSpan StopBound = ShutdownTimeout + TimeSpan.FromSeconds(20);
 
-    // The host's own timeout is what ends the wait, not the drain wait (ten seconds here): a stop that took as long as the
-    // drain would be linked to it. Measured: four seconds, a second of it Kestrel's.
-    private static readonly TimeSpan TightStopBound = ShutdownTimeout + TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
+
+    // Far past anything the clock reaches while the host stops, so that only the host's own timeout can end the stop.
+    private static readonly TimeSpan DrainWait = TimeSpan.FromHours(1);
 
     public enum EventClient
     {
@@ -56,16 +58,18 @@ public sealed class HostStopOpenEventStreamTests
     public async Task A_host_stopped_with_a_live_run_and_an_open_event_stream_stops_in_bounded_time(bool drain, EventClient events)
     {
         var gated = new GatedModelProvider("gated", "gated-1");
+        var clock = new ManualClock();
         var origin = await LoopbackOriginHost.StartAsync(
             gated,
-            pollInterval: TimeSpan.FromMilliseconds(100),
+            pollInterval: PollInterval,
             configureServices: services =>
             {
+                services.AddSingleton<TimeProvider>(clock);
                 services.Configure<HostOptions>(options => options.ShutdownTimeout = ShutdownTimeout);
                 services.Configure<TraconDrainOptions>(options =>
                 {
                     options.Enabled = drain;
-                    options.Timeout = TimeSpan.FromSeconds(10);
+                    options.Timeout = DrainWait;
                 });
             });
         var stoppedClean = false;
@@ -124,9 +128,11 @@ public sealed class HostStopOpenEventStreamTests
                 }
             }
 
-            var stop = Stopwatch.StartNew();
-            await origin.StopAsync().WaitAsync(StopBound, TestContext.Current.CancellationToken);
-            var stopTime = stop.Elapsed;
+            // The stream polls and the drain waits on the clock, which moves by one poll interval at a time while the host
+            // stops. The drain wait is far beyond the interval, so it is left armed: the host's own timeout ends the stop.
+            var stopping = origin.StopAsync();
+
+            await clock.AdvanceUntilAsync(stopping, within: PollInterval, timeout: StopBound);
 
             // The run's own request may outlive the stop (its model ignores the token); a connection to the event stream
             // must not: its handler ends when the host aborts the connection.
@@ -137,17 +143,11 @@ public sealed class HostStopOpenEventStreamTests
 
             var inFlightAfterStop = origin.InFlight;
 
-            stop.Restart();
             await origin.DisposeAsync().AsTask().WaitAsync(StopBound, TestContext.Current.CancellationToken);
-            var disposeTime = stop.Elapsed;
             stoppedClean = true;
 
             TestContext.Current.SendDiagnosticMessage(
-                $"host stop: drain={drain} events={events} stop={stopTime.TotalSeconds:F2}s dispose={disposeTime.TotalSeconds:F2}s inFlightAfterStop={inFlightAfterStop}");
-
-            stopTime.ShouldBeLessThan(StopBound);
-            stopTime.ShouldBeLessThan(TightStopBound, "the stop took as long as the drain wait, so it is tied to it");
-            disposeTime.ShouldBeLessThan(StopBound);
+                $"host stop: drain={drain} events={events} polls={clock.Steps.Count} inFlightAfterStop={inFlightAfterStop}");
 
             // What the host owes ended above, on its own side of the socket. When the client's read learns of the reset is
             // the runtime's and the operating system's: on a loaded machine the connection was gone from the TCP table and
@@ -159,7 +159,15 @@ public sealed class HostStopOpenEventStreamTests
         {
             if (!stoppedClean)
             {
-                await origin.DisposeAsync();
+                // The failure is already on its way out; a stop that does not return must not hide it by holding the test.
+                try
+                {
+                    await origin.DisposeAsync().AsTask().WaitAsync(StopBound, TestContext.Current.CancellationToken);
+                }
+                catch (TimeoutException)
+                {
+                    // Reported by the failure above.
+                }
             }
         }
     }

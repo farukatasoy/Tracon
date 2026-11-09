@@ -23,7 +23,8 @@ internal sealed class A2AApprovalGuardFilter : IEndpointFilter
         IToolRegistry toolRegistry,
         TraconA2AOptions options,
         IHostApplicationLifetime lifetime,
-        ILogger<A2AApprovalGuardFilter> logger)
+        ILogger<A2AApprovalGuardFilter> logger,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(schemaReadyGate);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -32,7 +33,7 @@ internal sealed class A2AApprovalGuardFilter : IEndpointFilter
         ArgumentNullException.ThrowIfNull(lifetime);
         ArgumentNullException.ThrowIfNull(logger);
 
-        _checkTask = RunCheckAsync(schemaReadyGate, catalog, toolRegistry, options, lifetime, logger);
+        _checkTask = RunCheckAsync(schemaReadyGate, catalog, toolRegistry, options, lifetime, logger, timeProvider);
     }
 
     /// <inheritdoc />
@@ -49,14 +50,15 @@ internal sealed class A2AApprovalGuardFilter : IEndpointFilter
         IToolRegistry toolRegistry,
         TraconA2AOptions options,
         IHostApplicationLifetime lifetime,
-        ILogger logger)
+        ILogger logger,
+        TimeProvider? timeProvider)
     {
         try
         {
             await schemaReadyGate.WaitAsync(lifetime.ApplicationStopping).ConfigureAwait(false);
 
             var descriptors = await ExternalSurfaceGuard
-                .ListCatalogWithRetryAsync(catalog, lifetime, logger, "A2A")
+                .ListCatalogWithRetryAsync(catalog, lifetime, logger, "A2A", timeProvider)
                 .ConfigureAwait(false);
 
             ExternalSurfaceGuard.EnsureNoApprovalRequiredTools(

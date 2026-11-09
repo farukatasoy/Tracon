@@ -11,7 +11,13 @@ namespace Tracon.Cli.FunctionalTests.Infrastructure;
 /// </remarks>
 internal static class CliRunner
 {
-    public static async Task<CliResult> RunAsync(params string[] args)
+    public static Task<CliResult> RunAsync(params string[] args)
+        => RunAsync(() => Program.Main(args));
+
+    /// <summary>Runs one command with the console captured, for a test that hands the command more than its arguments.</summary>
+    /// <param name="command">The command; it returns the exit code.</param>
+    /// <returns>What the command exited with and wrote.</returns>
+    public static async Task<CliResult> RunAsync(Func<Task<int>> command)
     {
         var originalOut = Console.Out;
         var originalError = Console.Error;
@@ -24,7 +30,7 @@ internal static class CliRunner
 
         try
         {
-            var exitCode = await Program.Main(args).ConfigureAwait(false);
+            var exitCode = await command().ConfigureAwait(false);
             return new CliResult(exitCode, outWriter.ToString(), errorWriter.ToString());
         }
         finally

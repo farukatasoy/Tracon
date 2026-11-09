@@ -84,7 +84,8 @@ public static class TraconMcpServerExtensions
             services.GetRequiredService<IToolRegistry>(),
             mcpOptionsMonitor,
             services.GetRequiredService<IHostApplicationLifetime>(),
-            services.GetRequiredService<ILogger<McpApprovalGuardFilter>>());
+            services.GetRequiredService<ILogger<McpApprovalGuardFilter>>(),
+            services.GetService<TimeProvider>());
 
         var group = endpoints.MapGroup(pattern).WithTags("Tracon", "MCP");
         group.WithMetadata(ProblemDetailsOnDenialMarker.Instance);

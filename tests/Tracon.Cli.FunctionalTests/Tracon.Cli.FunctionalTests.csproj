@@ -23,6 +23,8 @@
     <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" LinkBase="Shared" />
     <!-- The secret canary's search, the same one the host tests use. -->
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/SecretHits.cs" LinkBase="Shared" />
+    <!-- The one fake clock: a test moves the clock the eval command waits on instead of waiting for it. -->
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
   </ItemGroup>
 
 </Project>

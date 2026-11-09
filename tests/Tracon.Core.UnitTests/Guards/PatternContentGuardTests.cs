@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Tracon.Core.UnitTests.Fakes;
 
@@ -205,18 +204,16 @@ public sealed class PatternContentGuardTests
             PiiPatterns.TurkishNationalId | PiiPatterns.ProviderApiKey);
 
         var pathological = new string('a', 20_000) + "@" + new string('b', 20_000);
-        var stopwatch = Stopwatch.StartNew();
 
         try
         {
-            await Inspect(guard, pathological);
+            // The call may spin before it first awaits, so it runs on its own thread for the bound to reach it.
+            await Task.Run(() => Inspect(guard, pathological), TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         }
         catch (RegexMatchTimeoutException)
         {
             // An acceptable outcome: the timeout fails the run, it does not hang it.
         }
-
-        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
     }
 
     [Fact]

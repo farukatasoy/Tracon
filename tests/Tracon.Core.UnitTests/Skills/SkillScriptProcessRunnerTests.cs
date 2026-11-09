@@ -63,11 +63,11 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
         var script = WriteScript("deaf.sh", $"echo $$ > '{pidFile}'\nexec sleep 30");
         var arguments = "{\"arguments\":\"" + new string('x', 4 * 1024 * 1024) + "\"}";
 
-        var watch = Stopwatch.StartNew();
-        var result = await RunAsync(script, options => options.Timeout = TimeSpan.FromSeconds(1), arguments);
+        // The script never reads: only the timeout can end the write, so a call that returns was ended by it.
+        var result = await RunAsync(script, options => options.Timeout = TimeSpan.FromSeconds(1), arguments)
+            .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         result.TimedOut.ShouldBeTrue();
-        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
 
         var pid = int.Parse(await File.ReadAllTextAsync(pidFile, TestContext.Current.CancellationToken), CultureInfo.InvariantCulture);
 

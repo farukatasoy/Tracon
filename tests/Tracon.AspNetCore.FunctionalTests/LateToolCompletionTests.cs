@@ -203,9 +203,9 @@ public sealed class LateToolCompletionTests
             {
                 try
                 {
-                    // Finite only so a body that is never cancelled fails with its
-                    // own words below instead of a bare timeout.
-                    await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken); // delay: simulated
+                    // Never ends by itself: only the timeout's cancellation can stop it. A body that is
+                    // never cancelled fails the wait on the outcome below instead of finishing.
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); // delay: simulated
                     outcome.TrySetResult("ran to completion");
 
                     return "report R-1 produced";

@@ -54,7 +54,8 @@ internal sealed class McpApprovalGuardFilter : IEndpointFilter
         IToolRegistry toolRegistry,
         IOptionsMonitor<TraconMcpServerOptions> optionsMonitor,
         IHostApplicationLifetime lifetime,
-        ILogger<McpApprovalGuardFilter> logger)
+        ILogger<McpApprovalGuardFilter> logger,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(schemaReadyGate);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -63,7 +64,7 @@ internal sealed class McpApprovalGuardFilter : IEndpointFilter
         ArgumentNullException.ThrowIfNull(lifetime);
         ArgumentNullException.ThrowIfNull(logger);
 
-        _checkTask = RunCheckAsync(schemaReadyGate, catalog, toolRegistry, optionsMonitor, lifetime, logger);
+        _checkTask = RunCheckAsync(schemaReadyGate, catalog, toolRegistry, optionsMonitor, lifetime, logger, timeProvider);
     }
 
     /// <inheritdoc />
@@ -80,7 +81,8 @@ internal sealed class McpApprovalGuardFilter : IEndpointFilter
         IToolRegistry toolRegistry,
         IOptionsMonitor<TraconMcpServerOptions> optionsMonitor,
         IHostApplicationLifetime lifetime,
-        ILogger logger)
+        ILogger logger,
+        TimeProvider? timeProvider)
     {
         try
         {
@@ -88,7 +90,7 @@ internal sealed class McpApprovalGuardFilter : IEndpointFilter
 
             var options = optionsMonitor.CurrentValue;
             var descriptors = await ExternalSurfaceGuard
-                .ListCatalogWithRetryAsync(catalog, lifetime, logger, "MCP")
+                .ListCatalogWithRetryAsync(catalog, lifetime, logger, "MCP", timeProvider)
                 .ConfigureAwait(false);
 
             ExternalSurfaceGuard.EnsureNoApprovalRequiredTools(

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -93,10 +94,9 @@ public sealed class KnowledgeToolGovernanceTests
             new HangingKnowledgeStore(),
             configureTracon: static builder => builder.Configure(static options => options.Tools.DefaultTimeout = TimeSpan.FromMilliseconds(200)));
 
-        var started = DateTimeOffset.UtcNow;
-        var stream = await RunAsync(host, tenant: null);
+        // The store waits for ever: only the tool's own timeout can end the call, so a run that returns was cut by it.
+        var stream = await RunAsync(host, tenant: null).WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
-        (DateTimeOffset.UtcNow - started).ShouldBeLessThan(TimeSpan.FromSeconds(30));
         stream.ShouldContain("Tool 'search_knowledge' did not complete within 200ms.");
 
         var call = (await CallsAsync(host)).ShouldHaveSingleItem();

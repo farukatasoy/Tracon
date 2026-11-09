@@ -55,6 +55,10 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Providers.Shared/ProviderHealthCheckCore.cs"] = "provider Timeout — the four provider validators (HTTP range, ProviderTimeoutValidationTests)",
         ["src/Tracon.Workflows/Internal/WorkflowRunner.cs"] = "TraconWorkflowOptions.RunTimeout / WorkflowDefinition.RunTimeout — TraconWorkflowOptionsValidator, WorkflowDefinitionValidator (save and compile), ceiling cut",
         ["src/Tracon.Workflows/Internal/WorkflowRunTypes.cs"] = "WorkflowDefinition.RunTimeout / WorkflowRegistrationOptions.RunTimeout — the run deadline re-arms the source the runner armed with the validated TraconWorkflowOptions.RunTimeout, cut to the ceiling",
+        ["src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs"] = "TraconEndpointOptions.RunEventPollInterval — the property setter (TimerPeriod.IsValid); the follow stream waits it between two looks for the run's next continuation, on the clock the host registered",
+        ["src/Tracon.AspNetCore/Internal/RunEventTail.cs"] = "TraconEndpointOptions.RunEventPollInterval — the property setter (TimerPeriod.IsValid); the wait between two reads of a run in progress runs on the clock the host registered",
+        ["src/Tracon.AspNetCore/Security/ExternalSurfaceGuard.cs"] = "constant 200 ms doubling up to the constant 5 s ceiling (MaxCatalogListDelay) that no operator sets, waited on the clock the host registered",
+        ["src/Tracon.Core/Retention/RetentionExecutor.cs"] = "TraconRetentionOptions.BatchDelay — TraconRetentionOptionsValidator (zero up to TimerPeriod.MaxMilliseconds); the pause between two batches runs on the executor's clock",
         ["src/Tracon.AspNetCore/Streaming/SseWriter.cs"] = "TraconEndpointOptions.StreamKeepAliveInterval — the property setter (TimerPeriod.IsValid); the delay is the part of it still to wait",
         ["src/Tracon.Core/Recording/RunEventWriter.cs"] = "TraconRunRecordingOptions.SinkTimeout — TraconOptionsValidator (zero and Timeout.InfiniteTimeSpan wait for ever, anything else TimerPeriod.IsValid); the closing write's pause and budget are the constants 250 ms CompletionRetryPause and 5 s CompletionBudget",
         ["src/Tracon.Core/Scheduling/JobOutcomeWriteRetry.cs"] = "constant 5 s ceiling (MaxDelay), cut to the lease window left",
@@ -112,9 +116,89 @@ public sealed partial class TimeoutSiteTests
 
     [Theory]
     [InlineData("var wait = " + DelayCall + "Timeout.InfiniteTimeSpan, cancellationToken);")]
-    [InlineData("await " + DelayCall + "options.BatchDelay, cancellationToken);")]
+    [InlineData("await " + DelayCall + "options.PollInterval, cancellationToken);")]
     public void The_pattern_leaves_a_delay_with_no_time_source_to_the_other_gates(string source)
         => TimeoutCall().IsMatch(source).ShouldBeFalse();
+
+    /// <summary>
+    /// The contract package is test support that ships as a package; the test-time ratchet governs its waits, not this gate.
+    /// </summary>
+    private const string ContractsPackage = "Tracon.Testing.Contracts.Xunit";
+
+    // A delay that names no time source waits on the system clock, whatever the host registered. These are the ones that do
+    // so on purpose. Every other delay in product code takes its clock from the host, so that a test advances it instead of
+    // waiting (TimeoutSiteTests above lists the ones that arm a timeout on it).
+    private static readonly Dictionary<string, (int Count, string Reason)> KnownRealClockDelays = new(StringComparer.Ordinal)
+    {
+        ["src/Tracon.Sql.Shared/Internal/SqlStoreContext.cs"] = (1, "SQL conflict jitter: the random 10-40 ms pause before a deadlock victim retries, which spreads the victims out in real time against a database whose locks clear in real time"),
+        ["src/Tracon.Sql.Shared/Migrations/MigrationRunner.cs"] = (1, "SQL conflict jitter: the random pause before a migration statement is retried after a transient conflict; it runs before the host's clock exists"),
+        ["src/Tracon.Sql.Shared/Stores/SqlAuditLog.cs"] = (1, "SQL conflict jitter: the random pause before an audit write that lost the hash chain to a concurrent writer is retried, against a database whose locks clear in real time"),
+        ["src/Tracon.Sql.Shared/Stores/SqlEvalStore.cs"] = (1, "SQL conflict jitter: the random pause before a promotion that read the same sequence number as a concurrent one is retried, against a database whose locks clear in real time"),
+    };
+
+    [Fact]
+    public void Every_product_delay_that_names_no_time_source_is_a_known_real_clock_wait()
+    {
+        var root = FindRepositoryRoot();
+        var actual = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var path in Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(root, path).Replace('\\', '/');
+
+            if (relative.Contains("/obj/", StringComparison.Ordinal) || relative.Contains(ContractsPackage, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var count = CountRealClockDelays(File.ReadAllText(path));
+
+            if (count > 0)
+            {
+                actual[relative] = count;
+            }
+        }
+
+        var unknown = actual.Where(site => !KnownRealClockDelays.ContainsKey(site.Key) || KnownRealClockDelays[site.Key].Count != site.Value);
+        var gone = KnownRealClockDelays.Where(site => actual.GetValueOrDefault(site.Key) != site.Value.Count);
+
+        unknown.Select(static site => $"{site.Key}: {site.Value}").Order(StringComparer.Ordinal).ShouldBeEmpty(
+            "A delay in product code names no time source, so it waits on the system clock whatever the host registered and a " +
+            "test cannot advance it. Take a TimeProvider and pass it to Task.Delay. Only a wait that must run in real time " +
+            "(a database's lock contention clears in real time) is added here, with its count and the reason.");
+        gone.Select(static site => site.Key).Order(StringComparer.Ordinal).ShouldBeEmpty(
+            "A known real-clock delay is gone or changed its count; fix the list.");
+    }
+
+    [Theory]
+    [InlineData("await " + DelayCall + "delay, _clock, cancellationToken);", 0)]
+    [InlineData("await " + DelayCall + "TimeSpan.FromMilliseconds(Random.Shared.Next(10, 40)), cancellationToken);", 1)]
+    [InlineData("await " + DelayCall + "Timeout.InfiniteTimeSpan, token);", 0)]
+    [InlineData("return " + DelayCall + "\n    TimeSpan.FromMilliseconds(5),\n    CancellationToken.None);", 1)]
+    [InlineData("// await " + DelayCall + "5, token);", 0)]
+    [InlineData("/// <see cref=\"" + DelayCall + "TimeSpan)\"/>", 0)]
+    public void The_scan_counts_the_delays_that_name_no_time_source(string source, int expected)
+        => CountRealClockDelays(source).ShouldBe(expected);
+
+    private static int CountRealClockDelays(string source)
+    {
+        var code = string.Join('\n', source.Split('\n').Where(static line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal)));
+
+        return DelayStatement()
+            .Matches(code)
+            .Count(static match => !TimeSource().IsMatch(match.Value) && !NeverWakes().IsMatch(match.Groups["arguments"].Value));
+    }
+
+    // The arguments of a delay run to the end of its statement; a call may be written over several lines.
+    [GeneratedRegex(@"Task\.Delay\((?<arguments>[^;]*);", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 5000)]
+    private static partial Regex DelayStatement();
+
+    [GeneratedRegex(@"(?:[Tt]imeProvider|[Cc]lock)\b", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 5000)]
+    private static partial Regex TimeSource();
+
+    // A delay of no end never wakes by time, so no clock decides when it ends.
+    [GeneratedRegex(@"^\s*(?:Timeout\.Infinite(?:TimeSpan)?\b|-1\b)", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 5000)]
+    private static partial Regex NeverWakes();
 
     private static string FindRepositoryRoot()
     {

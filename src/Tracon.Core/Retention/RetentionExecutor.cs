@@ -234,7 +234,7 @@ internal sealed class RetentionExecutor(
 
                 if (options.BatchDelay > TimeSpan.Zero)
                 {
-                    await Task.Delay(options.BatchDelay, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(options.BatchDelay, _clock, cancellationToken).ConfigureAwait(false);
                 }
             }
         }

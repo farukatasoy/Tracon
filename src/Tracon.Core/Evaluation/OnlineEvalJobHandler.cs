@@ -260,8 +260,11 @@ internal sealed class OnlineEvalJobHandler(
         RunJudgment judgment;
         Task<RunJudgment> invocation;
         var timeout = optionsMonitor?.CurrentValue.JudgeTimeout ?? TimeSpan.FromSeconds(60);
-        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        budget.CancelAfter(timeout);
+        var clock = timeProvider ?? TimeProvider.System;
+
+        // The budget runs on the same clock as the race below, so a host that stands in for time ends both at once.
+        using var timeBudget = new CancellationTokenSource(timeout, clock);
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeBudget.Token);
 
         try
         {
@@ -269,7 +272,7 @@ internal sealed class OnlineEvalJobHandler(
             invocation = judge.JudgeAsync(judgeContext, budget.Token).AsTask();
 
             var judgeFinished = await TaskRace
-                .FinishedFirstAsync(invocation, timeout, timeProvider ?? TimeProvider.System, cancellationToken)
+                .FinishedFirstAsync(invocation, timeout, clock, cancellationToken)
                 .ConfigureAwait(false);
 
             if (!judgeFinished)
@@ -289,7 +292,7 @@ internal sealed class OnlineEvalJobHandler(
         }
         catch (OperationCanceledException exception)
         {
-            var timedOut = budget.IsCancellationRequested;
+            var timedOut = timeBudget.IsCancellationRequested;
             failures.Add(Failure(judge.Name, timedOut
                 ? JudgeFailureTypes.Timeout
                 : JudgeFailureTypes.Failed, retryable: true));

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -184,7 +183,7 @@ public sealed class ToolGovernanceEndpointTests
                         {
                             // Deliberately does NOT accept a CancellationToken:
                             // the non-cooperative case the development notes Manual Case 8 covers.
-                            await Task.Delay(TimeSpan.FromSeconds(30)); // delay: simulated
+                            await Task.Delay(Timeout.InfiniteTimeSpan); // delay: simulated
                             return "too late";
                         },
                         "slow_report"))
@@ -194,18 +193,13 @@ public sealed class ToolGovernanceEndpointTests
                 builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });
 
-        var stopwatch = Stopwatch.StartNew();
-
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "fetch the report", SessionId = "s-timeout" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         // The timeout does NOT fail the run: the model receives a tool error
         // and finishes its turn. The wait is bounded by the tool's OWN
-        // 300ms timeout, not by its real 30-second body.
+        // 300ms timeout: its body never ends, so a run that waited for it never completes.
         (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
-
-        stopwatch.Stop();
-        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{runId}/tools", UriKind.Relative));
@@ -248,7 +242,7 @@ public sealed class ToolGovernanceEndpointTests
                     Microsoft.Extensions.AI.AIFunctionFactory.Create(
                         async () =>
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(30)); // delay: simulated
+                            await Task.Delay(Timeout.InfiniteTimeSpan); // delay: simulated
                             return "too late";
                         },
                         "slow_report"))

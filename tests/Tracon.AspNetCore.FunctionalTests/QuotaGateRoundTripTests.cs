@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -7,8 +6,7 @@ using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// What the check at the start of a node costs the store: the reads it adds, counted on the real store, and the
-/// time a chain takes with the quota on and off.
+/// What the check at the start of a node costs the store: the reads it adds, counted on the real store.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,8 +15,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// a chain of 21 nodes and a chain of one, so the reads the door and the run's close make (the same for both) cancel.
 /// </para>
 /// <para>
-/// The time is written to the test output and not asserted: it depends on the machine, and the cost of a store round trip
-/// is the store's (the measurement here is a local SQLite file, the cheapest a round trip gets).
+/// The time a chain takes is not a test's to measure: it depends on the machine, and the cost of a store round trip is the
+/// store's. A test that only wrote it down asserted nothing about the product, and it was removed with its stopwatch.
 /// </para>
 /// </remarks>
 public sealed class QuotaGateRoundTripTests
@@ -41,20 +39,6 @@ public sealed class QuotaGateRoundTripTests
 
         lists.ShouldBe(1);
         usages.ShouldBe(1);
-    }
-
-    [Fact]
-    public async Task The_time_a_chain_takes_with_the_quota_on_and_off_is_written_down()
-    {
-        using var off = await ElapsedAsync(quotaEnabled: false, withRule: false);
-        using var empty = await ElapsedAsync(quotaEnabled: true, withRule: false);
-        using var ruled = await ElapsedAsync(quotaEnabled: true, withRule: true);
-
-        // Medians of five runs of a 21-node chain on a local SQLite file, written for the change's record.
-        Console.WriteLine($"QUOTA-GATE-TIME chain={Nodes} nodes: quota off {off.Median:F1} ms, quota on and no rule {empty.Median:F1} ms, quota on and a rule {ruled.Median:F1} ms");
-        Console.WriteLine($"QUOTA-GATE-TIME per node: no rule {(empty.Median - off.Median) / Nodes:F2} ms, a rule {(ruled.Median - off.Median) / Nodes:F2} ms");
-
-        off.Median.ShouldBeGreaterThan(0);
     }
 
     /// <summary>The reads one node start adds: the difference between a long chain and a short one, per node.</summary>
@@ -91,34 +75,6 @@ public sealed class QuotaGateRoundTripTests
         await RunAsync(host);
 
         return (lists!.Count, usages!.Count);
-    }
-
-    private static async Task<Timings> ElapsedAsync(bool quotaEnabled, bool withRule)
-    {
-        var database = new TempSqliteDatabase("quota-gate-time");
-
-        await using var host = await Start(
-            database,
-            services => services.Configure<TraconQuotaOptions>(options => options.Enabled = quotaEnabled),
-            configureTracon: null);
-
-        await PrepareAsync(host, Nodes, withRule);
-        await RunAsync(host);
-
-        var samples = new List<double>();
-
-        for (var index = 0; index < 5; index++)
-        {
-            var watch = Stopwatch.StartNew();
-
-            await RunAsync(host);
-
-            samples.Add(watch.Elapsed.TotalMilliseconds);
-        }
-
-        samples.Sort();
-
-        return new Timings(samples[2], database);
     }
 
     private static Task<TraconTestHost> Start(
@@ -160,11 +116,5 @@ public sealed class QuotaGateRoundTripTests
         }
 
         await SaveAsync(host, Workflow, [.. Enumerable.Range(0, nodes).Select(static index => Function($"pass-{index:00}"))]);
-    }
-
-    /// <summary>The median of the samples, and the database that is deleted with it.</summary>
-    private sealed record Timings(double Median, TempSqliteDatabase Database) : IDisposable
-    {
-        public void Dispose() => Database.Dispose();
     }
 }

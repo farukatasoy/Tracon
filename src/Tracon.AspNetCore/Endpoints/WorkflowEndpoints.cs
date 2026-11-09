@@ -2242,6 +2242,7 @@ internal static class WorkflowEndpoints
             ArgumentNullException.ThrowIfNull(httpContext);
 
             var cancellationToken = httpContext.RequestAborted;
+            var timeProvider = httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System;
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
             await using var writerScope = writer.ConfigureAwait(false);
             long sequence = 0;
@@ -2264,6 +2265,7 @@ internal static class WorkflowEndpoints
                                            current,
                                            next: 0,
                                            pollInterval,
+                                           timeProvider,
                                            token => new ValueTask(writer.WriteKeepAliveAsync("waiting", token)),
                                            cancellationToken)
                                        .ConfigureAwait(false))
@@ -2366,7 +2368,7 @@ internal static class WorkflowEndpoints
                     }
 
                     await sse.WriteKeepAliveAsync("waiting", token).ConfigureAwait(false);
-                    await Task.Delay(pollInterval, token).ConfigureAwait(false);
+                    await Task.Delay(pollInterval, timeProvider, token).ConfigureAwait(false);
                 }
             }
         }

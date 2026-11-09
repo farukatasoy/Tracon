@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,18 +35,12 @@ public sealed class TraconClientTimeoutTests
 
         var client = Resolve(services);
 
-        var watch = Stopwatch.StartNew();
-
-        await Should.ThrowAsync<OperationCanceledException>(
-            async () => await client.TraconModelsHealthAsync(refresh: null, CancellationToken.None));
-
-        watch.Stop();
-
         // Without the setting this takes HttpClient's own default of 100 s -
-        // which is precisely the cap a longer caller budget could never cross.
-        watch.Elapsed.ShouldBeLessThan(
-            TimeSpan.FromSeconds(30),
-            "the configured timeout, not HttpClient's 100 s default, must bound the request.");
+        // which is precisely the cap a longer caller budget could never cross. The server never answers, so a call that
+        // ends within the failure bound was ended by the configured timeout.
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await client.TraconModelsHealthAsync(refresh: null, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
     }
 
     /// <summary>

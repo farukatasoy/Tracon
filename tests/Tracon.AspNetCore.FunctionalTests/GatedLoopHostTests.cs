@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -105,7 +104,7 @@ public sealed class GatedLoopHostTests
     [Fact]
     public async Task A_loop_that_ignores_its_stop_token_does_not_hold_the_host_beyond_the_shutdown_timeout()
     {
-        var shutdownTimeout = TimeSpan.FromMilliseconds(500);
+        var shutdownTimeout = TimeSpan.FromMilliseconds(100);
 
         using var host = await StartAsync(
             services =>
@@ -118,13 +117,9 @@ public sealed class GatedLoopHostTests
         var gate = host.Services.GetServices<IHostedService>().OfType<GatedLoop<StubbornLoop>>().Single();
         await WaitUntil.TrueAsync(() => gate.Loop?.ExecuteTask is not null, "the gate to start the stubborn loop");
 
-        var clock = Stopwatch.StartNew();
-
-        await host.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
-
         // The shutdown timeout ends the wait for the loop, both in the loop's own stop and in the gate's: the stop is
-        // bounded by the timeout and not by the loop. Ten times the timeout is the margin for a loaded machine.
-        clock.Elapsed.ShouldBeLessThan(shutdownTimeout * 10);
+        // bounded by the timeout and not by the loop, which never ends. A stop that waited for the loop does not return.
+        await host.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
     }
 
     private static bool IsGate(IHostedService service)

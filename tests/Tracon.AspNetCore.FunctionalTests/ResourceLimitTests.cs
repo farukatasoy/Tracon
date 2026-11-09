@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -7,18 +6,19 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Large inputs and many concurrent runs on the in-memory test host: each case ends in bounded time and in a
-/// named outcome, never in a hang, a 5xx or a run left <c>Running</c>.
+/// Large inputs and many concurrent runs on the in-memory test host: each case ends and ends in a named outcome, never
+/// in a hang, a 5xx or a run left <c>Running</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The bounds are loose on purpose (ten times what was measured on a developer machine); they catch a case
-/// that stops being bounded, not one that gets 20% slower. The sizes are the smaller of the two measured
+/// The bound on each case is a failure bound and not a measurement (<see cref="Generous"/>): it catches a case that
+/// stops ending, and says nothing about one that gets slower. The sizes are the smaller of the two measured
 /// sizes: a workflow of 90 agent steps, the longest chain the default super-step limit lets through (a chain of 2 000
 /// used to be saved and took 11 to 23 seconds to fail; it is refused at the save now), and 128 tools, the most an agent may
 /// carry (5 000 took about 1.5 seconds to compile and put 690 KB of tool definitions into every model request; an agent over
@@ -50,17 +50,22 @@ public sealed class ResourceLimitTests
         });
 
         var nodes = Enumerable.Range(0, Steps).Select(static index => new { name = $"step{index}", kind = "Agent" }).ToArray();
-        var watch = Stopwatch.StartNew();
 
-        using var saved = await host.Client.PutAsJsonAsync("/tracon/api/workflows/long-chain", new { kind = "Sequential", nodes });
+        var running = Task.Run(
+            async () =>
+            {
+                using var saved = await host.Client.PutAsJsonAsync("/tracon/api/workflows/long-chain", new { kind = "Sequential", nodes });
 
-        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+                saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
 
-        using var response = await host.Client.PostAsJsonAsync("/tracon/api/workflows/long-chain/run", new WorkflowRunHttpRequest { Message = "hello" });
-        _ = await response.Content.ReadAsStringAsync();
+                using var response = await host.Client.PostAsJsonAsync("/tracon/api/workflows/long-chain/run", new WorkflowRunHttpRequest { Message = "hello" });
+                _ = await response.Content.ReadAsStringAsync();
 
-        watch.Elapsed.ShouldBeLessThan(Generous);
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+                return response.StatusCode;
+            },
+            TestContext.Current.CancellationToken);
+
+        (await running.WaitAsync(Generous, TestContext.Current.CancellationToken)).ShouldBe(HttpStatusCode.OK);
 
         var runs = await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 10_000 });
         var root = runs.Single(static run => run.ParentRunId is null);
@@ -72,7 +77,7 @@ public sealed class ResourceLimitTests
     }
 
     [Fact]
-    public async Task An_agent_with_as_many_tools_as_the_limit_allows_compiles_and_runs_in_bounded_time_and_the_model_gets_all_of_them()
+    public async Task An_agent_with_as_many_tools_as_the_limit_allows_compiles_and_runs_and_the_model_gets_all_of_them()
     {
         const int Count = TraconToolOptions.DefaultMaxToolsPerAgent;
 
@@ -98,17 +103,13 @@ public sealed class ResourceLimitTests
             });
         });
 
-        var watch = Stopwatch.StartNew();
-        var first = await RunAsync(host, "many-tools", sessionId: null);
+        var first = await RunAsync(host, "many-tools", sessionId: null).WaitAsync(Generous, TestContext.Current.CancellationToken);
 
-        watch.Elapsed.ShouldBeLessThan(Generous);
         first.ShouldBe(HttpStatusCode.OK);
         provider.Requests.Single().Options!.Tools!.Count.ShouldBe(Count);
 
-        // The compiled agent is cached: the second run does not pay for the tools again.
-        watch.Restart();
-        (await RunAsync(host, "many-tools", sessionId: null)).ShouldBe(HttpStatusCode.OK);
-        watch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5));
+        // The compiled agent is cached, and a second run ends the same way.
+        (await RunAsync(host, "many-tools", sessionId: null).WaitAsync(Generous, TestContext.Current.CancellationToken)).ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -173,28 +174,33 @@ public sealed class ResourceLimitTests
             }
         });
 
-        var watch = Stopwatch.StartNew();
-        using var saved = await host.Client.PostAsJsonAsync(
-            "/tracon/api/agents",
-            new AgentDefinitionRequest
+        var saveAndRun = Task.Run(
+            async () =>
             {
-                Name = "coordinator",
-                Instructions = "Delegate.",
-                Model = new ModelBinding { Provider = "probe", Model = "probe-1" },
-                CallableAgents = Enumerable.Range(0, Count).Select(static index => new CallableAgentReference { Name = $"helper{index}" }).ToArray(),
-            });
+                using var saved = await host.Client.PostAsJsonAsync(
+                    "/tracon/api/agents",
+                    new AgentDefinitionRequest
+                    {
+                        Name = "coordinator",
+                        Instructions = "Delegate.",
+                        Model = new ModelBinding { Provider = "probe", Model = "probe-1" },
+                        CallableAgents = Enumerable.Range(0, Count).Select(static index => new CallableAgentReference { Name = $"helper{index}" }).ToArray(),
+                    });
 
-        saved.StatusCode.ShouldBe(HttpStatusCode.Created, await saved.Content.ReadAsStringAsync());
-        (await RunAsync(host, "coordinator", sessionId: null)).ShouldBe(HttpStatusCode.OK);
+                saved.StatusCode.ShouldBe(HttpStatusCode.Created, await saved.Content.ReadAsStringAsync());
 
-        watch.Elapsed.ShouldBeLessThan(Generous);
+                return await RunAsync(host, "coordinator", sessionId: null);
+            },
+            TestContext.Current.CancellationToken);
+
+        (await saveAndRun.WaitAsync(Generous, TestContext.Current.CancellationToken)).ShouldBe(HttpStatusCode.OK);
 
         // The callable agents are reached through a few generic tools, not one tool each.
         provider.Requests.Single().Options!.Tools!.Count.ShouldBeLessThan(20);
     }
 
     [Fact]
-    public async Task A_session_with_twenty_thousand_prior_messages_runs_in_bounded_time_and_grows_by_the_new_turn_only()
+    public async Task A_session_with_twenty_thousand_prior_messages_runs_and_grows_by_the_new_turn_only()
     {
         const int Prior = 20_000;
 
@@ -220,9 +226,7 @@ public sealed class ResourceLimitTests
         await store.SaveAsync(record with { State = Repeat(record.State, Prior) });
         var before = (await store.GetAsync("long"))!.State.GetRawText().Length;
 
-        var watch = Stopwatch.StartNew();
-        (await RunAsync(host, "long-chat", "long")).ShouldBe(HttpStatusCode.OK);
-        watch.Elapsed.ShouldBeLessThan(Generous);
+        (await RunAsync(host, "long-chat", "long").WaitAsync(Generous, TestContext.Current.CancellationToken)).ShouldBe(HttpStatusCode.OK);
 
         var after = (await store.GetAsync("long"))!.State.GetRawText().Length;
 
@@ -237,7 +241,7 @@ public sealed class ResourceLimitTests
     {
         const int Runs = 100;
 
-        var provider = new DelayingProvider("slow", TimeSpan.FromMilliseconds(100));
+        var provider = new OverlappingProvider("slow");
 
         await using var host = await TraconTestHost.StartAsync(builder =>
         {
@@ -251,9 +255,19 @@ public sealed class ResourceLimitTests
             });
         });
 
-        var watch = Stopwatch.StartNew();
-        var statuses = await Task.WhenAll(Enumerable.Range(0, Runs).Select(index => RunAsync(host, "worker", $"session-{index}")));
-        watch.Elapsed.ShouldBeLessThan(Generous);
+        var all = Task.WhenAll(Enumerable.Range(0, Runs).Select(index => RunAsync(host, "worker", $"session-{index}")));
+
+        try
+        {
+            // The runs overlap by construction: every model call waits until all of them are in, and then they are let go.
+            await WaitUntil.TrueAsync(() => provider.CountCalls() == Runs, "every run to be waiting in the model call at once");
+        }
+        finally
+        {
+            provider.Release();
+        }
+
+        var statuses = await all.WaitAsync(Generous, TestContext.Current.CancellationToken);
 
         statuses.ShouldAllBe(static status => status == HttpStatusCode.OK);
 
@@ -306,23 +320,34 @@ public sealed class ResourceLimitTests
         }
     }
 
-    /// <summary>A model provider that answers after a fixed delay, so that many runs overlap.</summary>
-    private sealed class DelayingProvider(string name, TimeSpan delay) : IModelProvider
+    /// <summary>A model provider whose calls all wait for one release, so that many runs overlap.</summary>
+    private sealed class OverlappingProvider(string name) : IModelProvider
     {
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _calls;
+
         public string Name { get; } = name;
 
         public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = $"{name}-1" }];
 
-        public IChatClient CreateChatClient(ModelBinding binding) => new Client(delay);
+        /// <summary>Counts the model calls that are waiting or have been let go.</summary>
+        /// <returns>The number of calls made so far.</returns>
+        public int CountCalls() => Volatile.Read(ref _calls);
 
-        private sealed class Client(TimeSpan delay) : IChatClient
+        public IChatClient CreateChatClient(ModelBinding binding) => new Client(this);
+
+        /// <summary>Lets every waiting call and every later one answer.</summary>
+        public void Release() => _release.TrySetResult();
+
+        private sealed class Client(OverlappingProvider owner) : IChatClient
         {
             public async Task<ChatResponse> GetResponseAsync(
                 IEnumerable<ChatMessage> messages,
                 ChatOptions? options = null,
                 CancellationToken cancellationToken = default)
             {
-                await Task.Delay(delay, cancellationToken); // delay: simulated
+                Interlocked.Increment(ref owner._calls);
+                await owner._release.Task.WaitAsync(cancellationToken);
 
                 return new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok"));
             }
@@ -332,7 +357,8 @@ public sealed class ResourceLimitTests
                 ChatOptions? options = null,
                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
-                await Task.Delay(delay, cancellationToken); // delay: simulated
+                Interlocked.Increment(ref owner._calls);
+                await owner._release.Task.WaitAsync(cancellationToken);
 
                 yield return new ChatResponseUpdate(ChatRole.Assistant, "ok");
             }

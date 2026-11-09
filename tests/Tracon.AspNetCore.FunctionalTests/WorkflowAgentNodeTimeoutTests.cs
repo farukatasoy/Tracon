@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -35,14 +36,16 @@ public sealed class WorkflowAgentNodeTimeoutTests
     public async Task An_agent_nodes_timeout_replaces_the_installations_child_deadline_for_that_step()
     {
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var clock = new ManualClock();
 
         // The installation's deadline is far away: only the node's can fire.
-        await using var host = await StartAsync(hanging, childDeadline: TimeSpan.FromMinutes(10));
+        await using var host = await StartAsync(hanging, clock, childDeadline: TimeSpan.FromMinutes(10));
 
         await SaveAsync(host, "steps", timeout: "00:00:00.3");
 
-        var workflow = await RunAsync(host, "steps");
+        var (workflow, waited) = await RunAsync(host, clock, "steps", within: TimeSpan.FromSeconds(1));
 
+        waited.ShouldBe([TimeSpan.FromMilliseconds(300)], "the step ended at its own timeout, not at the installation's");
         workflow.Status.ShouldBe(RunStatus.Failed);
         workflow.Error.ShouldNotBeNull();
         workflow.Error.Type.ShouldBe(TraconChildRunTimeoutException.ChildRunTimeoutErrorType);
@@ -55,13 +58,15 @@ public sealed class WorkflowAgentNodeTimeoutTests
     public async Task A_step_without_a_timeout_of_its_own_keeps_the_installations_child_deadline()
     {
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var clock = new ManualClock();
 
-        await using var host = await StartAsync(hanging, childDeadline: TimeSpan.FromMilliseconds(300));
+        await using var host = await StartAsync(hanging, clock, childDeadline: TimeSpan.FromMilliseconds(300));
 
         await SaveAsync(host, "steps", timeout: null);
 
-        var workflow = await RunAsync(host, "steps");
+        var (workflow, waited) = await RunAsync(host, clock, "steps", within: TimeSpan.FromSeconds(1));
 
+        waited.ShouldBe([TimeSpan.FromMilliseconds(300)], "the step ended at the installation's deadline");
         workflow.Status.ShouldBe(RunStatus.Failed);
         workflow.Error.ShouldNotBeNull().Type.ShouldBe(TraconChildRunTimeoutException.ChildRunTimeoutErrorType);
         workflow.Error.Message.ShouldContain("'Tracon:AgentGraph:ChildDeadline'");
@@ -75,33 +80,36 @@ public sealed class WorkflowAgentNodeTimeoutTests
         // wrapper the cache built first would reach the other tenant if the key
         // ignored the tenant or the timeout.
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var clock = new ManualClock();
 
-        await using var host = await StartAsync(hanging, childDeadline: TimeSpan.FromSeconds(2), tenancy: true);
+        await using var host = await StartAsync(hanging, clock, childDeadline: TimeSpan.FromSeconds(2), tenancy: true);
 
         await SaveAsync(host, "steps", timeout: "00:00:00.3", tenant: TenantA);
         await SaveAsync(host, "steps", timeout: null, tenant: TenantB);
 
         foreach (var tenant in new[] { TenantA, TenantB, TenantA, TenantB })
         {
-            var workflow = await RunAsync(host, "steps", tenant);
+            var (workflow, waited) = await RunAsync(host, clock, "steps", within: TimeSpan.FromSeconds(3), tenant);
 
             workflow.TenantId.ShouldBe(tenant);
             workflow.Status.ShouldBe(RunStatus.Failed);
 
             if (string.Equals(tenant, TenantA, StringComparison.Ordinal))
             {
+                waited.ShouldBe([TimeSpan.FromMilliseconds(300)], "tenant A's step ended at its own timeout");
                 workflow.Error!.Message.ShouldContain("the 'timeout' of node");
                 workflow.Error.Message.ShouldContain("00:00:00.3");
             }
             else
             {
+                waited.ShouldBe([TimeSpan.FromSeconds(2)], "tenant B's step ended at the installation's deadline");
                 workflow.Error!.Message.ShouldContain("'Tracon:AgentGraph:ChildDeadline'");
                 workflow.Error.Message.ShouldContain("00:00:02");
             }
         }
     }
 
-    private static Task<TraconTestHost> StartAsync(HangingModelProvider hanging, TimeSpan childDeadline, bool tenancy = false)
+    private static Task<TraconTestHost> StartAsync(HangingModelProvider hanging, ManualClock clock, TimeSpan childDeadline, bool tenancy = false)
         => TraconTestHost.StartAsync(
             builder =>
             {
@@ -125,11 +133,15 @@ public sealed class WorkflowAgentNodeTimeoutTests
                     });
                 }
             },
-            configureServices: services => services.Configure<TraconOptions>(options =>
+            configureServices: services =>
             {
-                options.AgentGraph.ChildDeadline = childDeadline;
-                options.AgentGraph.WaitTimeout = childDeadline + TimeSpan.FromSeconds(30);
-            }));
+                services.AddSingleton<TimeProvider>(clock);
+                services.Configure<TraconOptions>(options =>
+                {
+                    options.AgentGraph.ChildDeadline = childDeadline;
+                    options.AgentGraph.WaitTimeout = childDeadline + TimeSpan.FromSeconds(30);
+                });
+            });
 
     private static async Task SaveAsync(TraconTestHost host, string name, string? timeout, string? tenant = null)
     {
@@ -152,7 +164,27 @@ public sealed class WorkflowAgentNodeTimeoutTests
         saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
     }
 
-    private static async Task<RunRecord> RunAsync(TraconTestHost host, string name, string? tenant = null)
+    /// <summary>
+    /// Runs the workflow and moves the host's clock to the timers that fall within <paramref name="within"/>, the step's
+    /// deadline among them, and no further.
+    /// </summary>
+    /// <returns>The run, and the amounts the clock was moved by for this run.</returns>
+    private static async Task<(RunRecord Run, IReadOnlyList<TimeSpan> Waited)> RunAsync(
+        TraconTestHost host,
+        ManualClock clock,
+        string name,
+        TimeSpan within,
+        string? tenant = null)
+    {
+        var movedBefore = clock.Steps.Count;
+        var running = StartRunAsync(host, name, tenant);
+
+        await clock.AdvanceUntilAsync(running, within);
+
+        return (await running, [.. clock.Steps.Skip(movedBefore)]);
+    }
+
+    private static async Task<RunRecord> StartRunAsync(TraconTestHost host, string name, string? tenant)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/tracon/api/workflows/{name}/run")
         {

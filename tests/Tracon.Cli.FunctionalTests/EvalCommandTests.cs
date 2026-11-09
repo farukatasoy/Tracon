@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Tracon.Cli.Commands;
 using Tracon.Cli.FunctionalTests.Infrastructure;
 using Tracon.Testing;
+using Tracon.Tests.Common;
 
 namespace Tracon.Cli.FunctionalTests;
 
@@ -221,32 +222,38 @@ public sealed class EvalCommandTests
         result.ExitCode.ShouldBe(2);
     }
 
-    [Fact]
-    public async Task Timeout_expires_while_the_run_stays_pending()
+    /// <summary>
+    /// The CLI waits on the clock it is given: the budget and the poll are two timers on it, and moving the clock to the
+    /// budget ends the wait. Nothing here waits for the budget to pass.
+    /// </summary>
+    [Theory]
+    [InlineData(new[] { "--timeout", "90" }, 90)]
+    [InlineData(new string[0], 1800)]
+    public async Task Timeout_expires_when_the_clock_the_command_waits_on_reaches_the_budget_while_the_run_stays_pending(
+        string[] budgetArguments,
+        int budgetSeconds)
     {
-        // RunWorker: false keeps the job Pending forever, exercising the
-        // "polling never sees a terminal state" branch deterministically.
-        await using var host = await RealHttpHost.StartAsync(
-            configureTracon: builder =>
-            {
-                builder
-                .AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage())
-                .AddAgent(new AgentDefinition
-                {
-                    Name = AgentName,
-                    Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
-                    Origin = AgentDefinitionOrigin.Code,
-                });
-                builder.UseScheduling(options => options.RunWorker = false);
-            });
+        var budget = TimeSpan.FromSeconds(budgetSeconds);
+        var pollInterval = TimeSpan.FromHours(1);
+        var clock = new ManualClock();
+        await using var host = await StartPendingHostAsync();
         await CreateSuiteAsync(host, SuiteName, AgentName, ("hello", "hello"));
 
-        var result = await CliRunner.RunAsync(
-            "eval", "--url", host.BaseAddress.ToString(), "--suite", SuiteName,
-            "--timeout", "1", "--poll-interval", "0.1");
+        var command = CliRunner.RunAsync(() => EvalCommand.RunAsync(
+            ["--url", host.BaseAddress.ToString(), "--suite", SuiteName, "--poll-interval", "3600", .. budgetArguments],
+            CancellationToken.None,
+            clock));
+
+        // The trigger answered and the command is polling: the budget and the pause between two polls are armed.
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(pollInterval), "the command to arm its first poll pause");
+        clock.Pending.ShouldBe([budget, pollInterval]);
+
+        clock.Advance(budget);
+
+        var result = await command;
 
         result.ExitCode.ShouldBe(2);
-        result.Combined.ShouldContain("Timed out");
+        result.Combined.ShouldContain($"Timed out after {budgetSeconds} s waiting for suite");
     }
 
     [Fact]
@@ -329,7 +336,7 @@ public sealed class EvalCommandTests
     }
 
     /// <summary>
-    /// <c>--timeout</c> arms <c>CancelAfter</c> and <c>--poll-interval</c> a
+    /// <c>--timeout</c> arms a <c>CancellationTokenSource</c> and <c>--poll-interval</c> a
     /// <c>Task.Delay</c>; past about 49.7 days both threw (and a large enough number
     /// overflowed <c>TimeSpan</c>) instead of being refused as a usage error.
     /// </summary>
@@ -356,13 +363,34 @@ public sealed class EvalCommandTests
     }
 
     [Fact]
-    public async Task External_cancellation_breaks_the_poll_loop_immediately_instead_of_waiting_out_the_timeout()
+    public async Task External_cancellation_breaks_the_poll_loop_without_the_clock_moving_and_leaves_no_timer_behind()
     {
-        // Simulates Ctrl+C (Program.cs wires CancelKeyPress into the same
-        // token) without needing a real signal: the run stays Pending forever
-        // (RunWorker: false), and the token is canceled long before the
-        // generous --timeout would ever fire on its own.
-        await using var host = await RealHttpHost.StartAsync(
+        // Simulates Ctrl+C (Program.cs wires CancelKeyPress into the same token) without needing a real signal: the run
+        // stays Pending forever (RunWorker: false), and the token is canceled while the command waits for its next poll.
+        // The clock never moves, so the generous --timeout cannot be what ended the wait.
+        var clock = new ManualClock();
+        await using var host = await StartPendingHostAsync();
+        await CreateSuiteAsync(host, SuiteName, AgentName, ("hello", "hello"));
+        using var cancellation = new CancellationTokenSource();
+
+        var command = CliRunner.RunAsync(() => EvalCommand.RunAsync(
+            ["--url", host.BaseAddress.ToString(), "--suite", SuiteName, "--timeout", "300", "--poll-interval", "0.1"],
+            cancellation.Token,
+            clock));
+
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(TimeSpan.FromSeconds(0.1)), "the command to arm its first poll pause");
+        await cancellation.CancelAsync();
+
+        var result = await command;
+
+        result.ExitCode.ShouldBe(2);
+        result.Combined.ShouldContain("Canceled.");
+        clock.RunningTimers.ShouldBe(0);
+    }
+
+    /// <summary>A host whose job stays Pending for ever: the run never reaches a terminal state, so the command keeps polling.</summary>
+    private static Task<RealHttpHost> StartPendingHostAsync()
+        => RealHttpHost.StartAsync(
             configureTracon: builder =>
             {
                 builder
@@ -375,21 +403,4 @@ public sealed class EvalCommandTests
                 });
                 builder.UseScheduling(options => options.RunWorker = false);
             });
-        await CreateSuiteAsync(host, SuiteName, AgentName, ("hello", "hello"));
-
-        using var cancellation = new CancellationTokenSource();
-        cancellation.CancelAfter(TimeSpan.FromMilliseconds(300));
-
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var exitCode = await EvalCommand.RunAsync(
-            [
-                "--url", host.BaseAddress.ToString(), "--suite", SuiteName,
-                "--timeout", "300", "--poll-interval", "0.1",
-            ],
-            cancellation.Token);
-        stopwatch.Stop();
-
-        exitCode.ShouldBe(2);
-        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(30));
-    }
 }

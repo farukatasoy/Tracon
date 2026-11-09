@@ -133,7 +133,6 @@ public sealed class RunCancellationSweepTests
             sinks: [FaultProxy<IRunEventSink>.Create(new NullSink(), plan)]);
 
         Exception? failure = null;
-        var finished = Stopwatch.StartNew();
 
         try
         {

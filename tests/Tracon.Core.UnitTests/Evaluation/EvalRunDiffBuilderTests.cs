@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Tracon.Core.UnitTests.Evaluation;
 
 public sealed class EvalRunDiffBuilderTests
@@ -238,23 +236,20 @@ public sealed class EvalRunDiffBuilderTests
     }
 
     [Fact]
-    public void Aligning_thousands_of_cases_stays_linear()
+    public async Task Aligning_thousands_of_cases_stays_linear()
     {
         const int count = 20_000;
         var ids = Enumerable.Range(0, count).Select(static _ => Guid.NewGuid()).ToArray();
         var baseline = ids.Select(static id => Result(id, true)).ToArray();
         var candidate = ids.Select(static id => Result(id, true)).ToArray();
 
-        var stopwatch = Stopwatch.StartNew();
-        var diff = EvalRunDiffBuilder.Build(Run(total: count), Run(total: count), baseline, candidate, 0, 10);
-        stopwatch.Stop();
+        // A nested scan over both sides would be 4x10^8 comparisons here. The bound is a failure bound, deliberately
+        // loose - a quadratic alignment does not return within it, and a slow machine does.
+        var diff = await Task
+            .Run(() => EvalRunDiffBuilder.Build(Run(total: count), Run(total: count), baseline, candidate, 0, 10), TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         diff.TotalCases.ShouldBe(count);
-
-        // A nested scan over both sides would be 4x10^8 comparisons here. The
-        // ceiling is deliberately loose - it fails on a quadratic alignment,
-        // not on a slow machine.
-        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5));
     }
 
     private static EvalCaseDiffKind KindOf(EvalRunDiff diff, Guid caseId)
