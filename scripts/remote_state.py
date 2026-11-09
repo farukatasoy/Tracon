@@ -221,10 +221,11 @@ def ci_state(
     remote: str = "origin",
     branch: str = "main",
     *,
+    workflow: str = "ci.yml",
     runner: Runner = subprocess.run,
     which: Callable[[str], str | None] = shutil.which,
 ) -> CiState | None:
-    """The last CI run of `branch` on `remote` that decided something, or `None` when it cannot be read.
+    """The last run of `workflow` on `branch` of `remote` that decided something, or `None` when it cannot be read.
 
     A skipped or cancelled run decided nothing (a repository that mirrors its code elsewhere skips every
     run), so the newest run that finished with a verdict, or is still running, is the one that counts.
@@ -240,7 +241,7 @@ def ci_state(
     try:
         completed = runner(
             [
-                "gh", "run", "list", "-R", slug, "--branch", branch, "--workflow", "ci.yml", "--limit", "10",
+                "gh", "run", "list", "-R", slug, "--branch", branch, "--workflow", workflow, "--limit", "10",
                 "--json", "status,conclusion,url,headSha",
             ],
             cwd=root,

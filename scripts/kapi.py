@@ -22,6 +22,7 @@ import queue
 import re
 import shlex
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -95,25 +96,32 @@ TEST_RESULTS_DIRECTORY = "artifacts/test-results"
 TEST_DURATIONS_DIRECTORY = "artifacts/test-sureleri"
 TEST_DURATIONS_KEEP = 20
 
-# Modul basina duvar suresi siniri, saniye: TRX'in `Times start` ile `finish`
-# arasi, container baslatma dahil. TRX raporlayan bir `dotnet test` (tam kosum)
-# yesil biter ama bir modul sinirini asarsa kapi KIRMIZIDIR. Sinir yerel
-# kapinin ayaridir (iki modul ayni anda, gelistirici makinesi); CI bu
-# komutu kosmaz, runner donanimi olculmedi.
+# Modul basina mutlak duvar suresi butcesi, saniye: TRX'in `Times start` ile `finish` arasi,
+# container baslatma dahil. TRX raporlayan bir `dotnet test` (tam kosum) yesil biter ama
+# butcesi olan bir modul butcesini asarsa kapi KIRMIZIDIR (cikis kodu 90). Her test modulu bir butce
+# tasiyabilir; tablo tek yerdedir ve bu dosyadadir. Butcesi olmayan modulun suresi her kosumda
+# raporlanir ama kapiyi kirmaz. Butce yerel kapinin ayaridir (iki modul ayni anda, gelistirici
+# makinesi); CI bu komutu kosmaz, runner donanimi olculmedi.
 #
-# Baslangic degerleri tam kapidan olculur (iki modul ayni anda, baska modullerle
-# birlikte, bos makine degil): en yavas kosumda SqlServer 361 sn, TwoNode 489 sn.
-# Sinir en yavas olcumun %10 ustudur, 10 sn'ye yuvarlanir. Hedefler SqlServer
-# 240 sn, TwoNode 500 sn'dir; sinir hedefe iner.
+# Bir giris SU KURALLA eklenir: ayni kod boyutunda (test sayisi +-%5) en az UC yesil tam-modul
+# kosumunun TRX duvar suresi vardir; butce = en yavas kosum + %10, 10 sn'ye yukari yuvarlanir. Tahminle
+# ve tek kosumla butce konmaz. En yavas olcumu 10 sn'nin altindaki modulde butce konmaz: 10 sn'ye
+# yuvarlama olculenin katini verir ve bir sinir olmaz. Her girisin kaniti burada durur:
+#   SqlServer 400: tam kapida iki modul ayni anda, baska modullerle birlikte (bos makine degil);
+#     en yavas kosum 361 sn. Hedef 240 sn; butce hedefe iner.
+#   TwoNode 540: ayni olcum; en yavas kosum 489 sn. Hedef 500 sn.
+#   Ui.E2ETests 60: uc TRX, 115-117 test: 46,6 sn (matris a) · 47,9 sn (matris b) · 32,6 sn (son tam
+#     kapi); 47,9 x 1,10 = 52,7 sn -> 60 sn.
 #
-# 🚨 Sayi yalniz DUSER. Asan modulde sinir yukseltilmez: once sebep olculur
+# 🚨 Sayi yalniz DUSER. Asan modulde butce yukseltilmez: once sebep olculur
 # (`artifacts/test-sureleri/` test basina kayit). Tek istisna kanitli yavas
 # makinedir: hicbir assert dusmedi ve format ile derleme ayni gunun normal
 # kosumunun en az 4 kati surdu. O kosum bir kez tekrarlanir ve kaydedilir.
-# Sinirsiz modulun suresi yalniz raporlanir.
+# Sure DEGISKENLIGI kapida denetlenmez: onu `kararlilik` komutu olcer.
 TEST_MODULE_TIME_LIMITS_SECONDS: dict[str, int] = {
     "Tracon.SqlServer.IntegrationTests": 400,
     "Tracon.TwoNode.IntegrationTests": 540,
+    "Tracon.Ui.E2ETests": 60,
 }
 
 # A root that does not exist is skipped, so the public tree (where `docs` holds two
@@ -592,23 +600,31 @@ def enforce_module_time_limits(
     root: pathlib.Path = ROOT,
     limits: dict[str, int] | None = None,
 ) -> int:
-    """0, sinirli her modul sinirinin altindaysa; asan varsa `MODULE_TIME_LIMIT_EXIT_CODE`.
+    """0, butcesi olan her modul butcesinin altindaysa; asan varsa `MODULE_TIME_LIMIT_EXIT_CODE`.
 
-    Siniri olan modulun suresi her kosumda basilir: sinira yaklasma kirmizidan
-    once gorunur. Suresi okunamayan TRX uyarir, kapiyi kirmaz."""
+    Her modulun duvar suresi her kosumda basilir: butceye yaklasma kirmizidan once gorunur. Butcesi
+    olmayan modul yalniz raporlanir (`sinir yok`). Suresi okunamayan TRX uyarir, kapiyi kirmaz.
+    Sure degiskenligi burada denetlenmez; onu `kararlilik` olcer."""
     limits = TEST_MODULE_TIME_LIMITS_SECONDS if limits is None else limits
     results = root / TEST_RESULTS_DIRECTORY
-    exceeded: list[str] = []
+    measured: list[tuple[float, str, int | None]] = []
     for project, trx, tree in _recent_trx_reports(since, root):
-        limit = limits.get(project)
-        if limit is None:
-            continue
         label = trx.parent.relative_to(results).as_posix()
         seconds = trx_wall_seconds(tree)
         if seconds is None:
             print(f"   ⚠️ {label}: TRX süresi okunamadı, süre sınırı denetlenmedi")
             continue
-        print(f"   ⏱️  {label}: {seconds:.0f} s (sınır {limit} s)")
+        measured.append((seconds, label, limits.get(project)))
+    if measured:
+        print("   ⏱️  Modül süreleri (TRX duvar süresi; sınırı olmayan modül yalnız raporlanır):")
+    exceeded: list[str] = []
+    for seconds, label, limit in sorted(measured, key=lambda row: (-row[0], row[1])):
+        if limit is None:
+            print(f"      {label}: {seconds:.0f} s · sınır yok")
+            continue
+        headroom = limit - seconds
+        remaining = f"kalan {headroom:.0f} s (%{100 * headroom / limit:.0f})" if headroom >= 0 else f"AŞILDI {-headroom:.0f} s"
+        print(f"      {label}: {seconds:.0f} s · sınır {limit} s · {remaining}")
         if seconds > limit:
             exceeded.append(f"{label} {seconds:.0f} s > {limit} s")
     if not exceeded:
@@ -1999,6 +2015,794 @@ def test_commands(
 
 
 # -----------------------------------------------------------------------------
+# `kararlilik` - does one set of built binaries behave the same way, run after run?
+#
+# The gate answers "is this tree green once". This command answers the other question: the SAME
+# bytes, run N times, must give the same results in about the same time. It never builds. It runs the
+# test executables that already sit in `artifacts/bin/` (the same files `test` runs), keeps the TRX of
+# every run in a directory of its own, and compares the runs:
+#
+#   - result identity: the same tests with the same outcomes in every run, also under CPU pressure and
+#     in a shuffled order. Any difference is red and names the test. A test that fails in every run is
+#     red too: a stable red is not a stable result.
+#   - time: per test, the spread between the slowest and the fastest run may not exceed
+#     max(STABILITY_TEST_FLOOR_MS, STABILITY_TEST_MEDIAN_FACTOR x the median of that test); per module,
+#     the slowest wall time may not exceed the fastest by more than STABILITY_MODULE_WALL_PERCENT
+#     (with a floor of STABILITY_MODULE_WALL_FLOOR_MS, so a one-second module is not judged by
+#     scheduler noise). Only the runs without CPU pressure are judged; pressured runs are reported.
+#
+# Shuffled order: every xunit v3 test executable of this repository offers `--seed <integer>`
+# ("Set the randomization seed"). With `--sira-karistir` each run gets a different, recorded seed, so a
+# failure is replayed with the same seed. xunit documents the order of test COLLECTIONS as random from
+# run to run and the order of classes, methods and cases as stable; it does not say that a seed
+# reorders them. The command therefore measures instead of assuming: it compares the order in which
+# the tests STARTED (TRX `startTime`) between runs and prints the share of neighbouring pairs that kept
+# their order. A value close to 1.0 in a shuffled module is reported as "no visible effect".
+#
+# The thresholds below may only be tightened.
+# -----------------------------------------------------------------------------
+
+STABILITY_REPORT_DIRECTORY = ARTIFACTS / "kararlilik"
+STABILITY_REPORTS_KEEP = 20
+STABILITY_TRX_DIRECTORIES_KEEP = 3
+STABILITY_DEFAULT_REPEAT = 5
+STABILITY_MIN_REPEAT = 2
+STABILITY_TRX_NAME = "result.trx"
+STABILITY_MODULE_TIMEOUT_MINUTES = 45
+"""A module run that takes longer is cut by the test platform's own `--timeout` and counts as a red run."""
+
+STABILITY_TEST_FLOOR_MS = 200
+STABILITY_TEST_MEDIAN_FACTOR = 1
+STABILITY_MODULE_WALL_PERCENT = 15
+STABILITY_MODULE_WALL_FLOOR_MS = 200
+
+STABILITY_TIME_EXIT_CODE = 91
+STABILITY_RESULT_EXIT_CODE = 92
+STABILITY_USAGE_EXIT_CODE = 2
+STABILITY_RUN_TIMEOUT_EXIT_CODE = 124
+STABILITY_LAUNCH_EXIT_CODE = 126
+
+STABILITY_SHUFFLE_NO_EFFECT = 0.98
+STABILITY_SHUFFLE_MIN_TESTS = 20
+STABILITY_PASSING_OUTCOMES = ("Passed", "NotExecuted")
+STABILITY_LISTED_PROBLEMS = 8
+"""How many findings per module reach the terminal; the report file holds more."""
+
+STABILITY_BURNER_LIFETIME_SECONDS = 3 * 3600
+"""A burner stops itself after this long, whatever happens to the command that started it."""
+_BURNER_SOURCE = (
+    "import os, sys, time\n"
+    "parent, lifetime = int(sys.argv[1]), float(sys.argv[2])\n"
+    "end = time.monotonic() + lifetime\n"
+    "while True:\n"
+    "    for _ in range(200000):\n"
+    "        pass\n"
+    "    if time.monotonic() > end or (os.name == 'posix' and os.getppid() != parent):\n"
+    "        break\n"
+)
+
+
+class CpuBurner:
+    """Busy Python processes that take CPU time from the test run, never more than `count`.
+
+    A burner ends in three ways, so none is left behind: `stop()` (also from `__exit__`), the lifetime it
+    was given, and - on POSIX - the death of the process that started it."""
+
+    def __init__(
+        self,
+        count: int,
+        *,
+        popen: Callable[..., Any] = subprocess.Popen,
+        lifetime_seconds: float = STABILITY_BURNER_LIFETIME_SECONDS,
+    ) -> None:
+        self.count = count
+        self._popen = popen
+        self._lifetime = lifetime_seconds
+        self._processes: list[Any] = []
+
+    @property
+    def running(self) -> bool:
+        return bool(self._processes)
+
+    def alive(self) -> int:
+        return sum(1 for process in self._processes if process.poll() is None)
+
+    def start(self) -> None:
+        if self.running:
+            return
+        try:
+            for _ in range(self.count):
+                self._processes.append(self._popen(
+                    [sys.executable, "-c", _BURNER_SOURCE, str(os.getpid()), str(self._lifetime)],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+        except BaseException:
+            self.stop()
+            raise
+
+    def stop(self) -> None:
+        processes, self._processes = self._processes, []
+        for process in processes:
+            try:
+                process.terminate()
+            except OSError:
+                pass
+        for process in processes:
+            try:
+                process.wait(timeout=5)
+            except Exception:
+                try:
+                    process.kill()
+                    process.wait(timeout=5)
+                except Exception:
+                    pass
+
+    def __enter__(self) -> "CpuBurner":
+        self.start()
+        return self
+
+    def __exit__(self, *exception: object) -> None:
+        self.stop()
+
+
+def stability_burner_count(cpu_count: int | None = None) -> int:
+    """Half of the logical CPUs, at least one."""
+    return max(1, (cpu_count or os.cpu_count() or 1) // 2)
+
+
+@dataclasses.dataclass(frozen=True)
+class StabilityUnit:
+    """One test executable of a stability run: a module, or one framework leg of a multi-targeted module."""
+
+    project: str
+    output: str
+    stage: str
+    lane: str | None
+    executable: pathlib.Path
+
+    @property
+    def label(self) -> str:
+        framework = self.output.removeprefix("release").removeprefix("_")
+        return f"{self.project} ({framework})" if framework else self.project
+
+    @property
+    def slug(self) -> str:
+        return f"{self.project}__{self.output}"
+
+
+@dataclasses.dataclass(frozen=True)
+class ModuleRun:
+    """What one run of one test executable left behind."""
+
+    label: str
+    index: int
+    pressured: bool
+    seed: int | None
+    exit_code: int
+    process_seconds: float
+    wall_seconds: float | None = None
+    durations_ms: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    outcomes: Mapping[str, tuple[str, ...]] = dataclasses.field(default_factory=dict)
+    order: tuple[str, ...] = ()
+    problem: str = ""
+    """Why the run left no usable report (empty when it did)."""
+
+    @property
+    def failed_tests(self) -> list[str]:
+        return sorted(
+            name for name, outcomes in self.outcomes.items()
+            if any(outcome not in STABILITY_PASSING_OUTCOMES for outcome in outcomes))
+
+    @property
+    def clean(self) -> bool:
+        return not self.problem and self.exit_code == 0 and not self.failed_tests
+
+
+@dataclasses.dataclass(frozen=True)
+class DurationSpread:
+    """How far apart the runs of one test were, and how far apart they may be."""
+
+    name: str
+    span_ms: int
+    allowed_ms: float
+    durations_ms: tuple[int, ...]
+
+    @property
+    def ratio(self) -> float:
+        return self.span_ms / self.allowed_ms
+
+    @property
+    def exceeded(self) -> bool:
+        return self.span_ms > self.allowed_ms
+
+
+@dataclasses.dataclass
+class ModuleComparison:
+    """The verdict on one module over all its runs."""
+
+    label: str
+    runs: int
+    judged_runs: int
+    pressured_runs: int
+    wall_seconds: tuple[float, ...] = ()
+    """Wall times of the judged (clean, unpressured) runs."""
+    wall_spread_percent: float | None = None
+    wall_exceeded: bool = False
+    pressured_wall_seconds: tuple[float, ...] = ()
+    worst_test: DurationSpread | None = None
+    slow_tests: list[DurationSpread] = dataclasses.field(default_factory=list)
+    result_problems: list[str] = dataclasses.field(default_factory=list)
+    time_problems: list[str] = dataclasses.field(default_factory=list)
+    order_similarity: list[float] = dataclasses.field(default_factory=list)
+    notes: list[str] = dataclasses.field(default_factory=list)
+
+    @property
+    def verdict(self) -> str:
+        if self.result_problems:
+            return "sonuç"
+        if self.time_problems:
+            return "süre"
+        return "yeşil"
+
+
+@dataclasses.dataclass(frozen=True)
+class _ModuleReport:
+    wall_seconds: float | None
+    durations_ms: dict[str, int]
+    outcomes: dict[str, tuple[str, ...]]
+    order: tuple[str, ...]
+
+
+def read_module_report(directory: pathlib.Path) -> _ModuleReport | None:
+    """The newest TRX in `directory` as durations, outcomes and start order; `None` when there is none to read."""
+    import xml.etree.ElementTree as elementtree
+
+    try:
+        files = sorted(directory.glob("*.trx"), key=lambda path: path.stat().st_mtime)
+        if not files:
+            return None
+        tree = elementtree.parse(files[-1])
+    except (OSError, elementtree.ParseError):
+        return None
+    durations: dict[str, int] = {}
+    outcomes: dict[str, list[str]] = {}
+    started: dict[str, float] = {}
+    for result in tree.getroot().iter(TRX_NS + "UnitTestResult"):
+        name = result.get("testName")
+        if not name:
+            continue
+        duration = _trx_duration_ms(result.get("duration"))
+        if duration is not None:
+            durations[name] = max(duration, durations.get(name, 0))
+        outcomes.setdefault(name, []).append(result.get("outcome") or "Passed")
+        begin = _trx_instant(result.get("startTime"))
+        if begin is not None and begin < started.get(name, begin + 1):
+            started[name] = begin
+    return _ModuleReport(
+        trx_wall_seconds(tree),
+        durations,
+        {name: tuple(sorted(found)) for name, found in outcomes.items()},
+        tuple(sorted(started, key=lambda name: (started[name], name))))
+
+
+def wall_spread_exceeded(walls_seconds: Sequence[float]) -> tuple[bool, float]:
+    """(over the limit?, spread in percent of the fastest run). Integer milliseconds: a value exactly on the limit passes."""
+    milliseconds = [round(seconds * 1000) for seconds in walls_seconds]
+    fastest, slowest = min(milliseconds), max(milliseconds)
+    spread = slowest - fastest
+    percent = 100.0 * spread / fastest if fastest else (0.0 if spread == 0 else float("inf"))
+    allowed_times_100 = max(fastest * STABILITY_MODULE_WALL_PERCENT, STABILITY_MODULE_WALL_FLOOR_MS * 100)
+    return spread * 100 > allowed_times_100, percent
+
+
+def duration_spreads(runs: Sequence[ModuleRun]) -> list[DurationSpread]:
+    """The spread of every test that every run measured, widest relative to its limit first."""
+    if len(runs) < 2:
+        return []
+    common = set(runs[0].durations_ms)
+    for run in runs[1:]:
+        common &= set(run.durations_ms)
+    spreads: list[DurationSpread] = []
+    for name in common:
+        durations = tuple(run.durations_ms[name] for run in runs)
+        allowed = max(STABILITY_TEST_FLOOR_MS, STABILITY_TEST_MEDIAN_FACTOR * statistics.median(durations))
+        spreads.append(DurationSpread(name, max(durations) - min(durations), allowed, durations))
+    return sorted(spreads, key=lambda spread: (-spread.ratio, spread.name))
+
+
+def order_similarity(reference: Sequence[str], other: Sequence[str]) -> float | None:
+    """Share of neighbouring pairs of `reference` that `other` starts in the same order; `None` for fewer than two tests."""
+    position = {name: index for index, name in enumerate(other)}
+    common = [name for name in reference if name in position]
+    if len(common) < 2:
+        return None
+    kept = sum(1 for first, second in zip(common, common[1:]) if position[first] < position[second])
+    return kept / (len(common) - 1)
+
+
+def _result_differences(usable: Sequence[ModuleRun]) -> list[str]:
+    problems: list[str] = []
+    names = sorted(set().union(*(run.outcomes for run in usable)))
+    for name in names:
+        per_run = [run.outcomes.get(name) for run in usable]
+        if len(set(per_run)) > 1:
+            shown = ", ".join(
+                f"koşum {run.index}: {'/'.join(found) if found else 'yok'}" for run, found in zip(usable, per_run))
+            problems.append(f"{name} — sonuç değişti ({shown})")
+        elif per_run[0] and any(outcome not in STABILITY_PASSING_OUTCOMES for outcome in per_run[0]):
+            problems.append(f"{name} — her koşumda düştü ({'/'.join(per_run[0])})")
+    return problems
+
+
+def compare_module(label: str, runs: Sequence[ModuleRun], *, shuffled: bool = False) -> ModuleComparison:
+    """Compare the runs of one module: result identity over all runs, time over the clean unpressured ones."""
+    ordered = sorted(runs, key=lambda run: run.index)
+    comparison = ModuleComparison(
+        label, len(ordered), 0, sum(1 for run in ordered if run.pressured))
+    for run in ordered:
+        if run.problem:
+            comparison.result_problems.append(f"koşum {run.index}: {run.problem}")
+    usable = [run for run in ordered if not run.problem]
+    comparison.result_problems.extend(_result_differences(usable))
+    for run in usable:
+        if run.exit_code != 0 and not run.failed_tests:
+            comparison.result_problems.append(
+                f"koşum {run.index}: çıkış kodu {run.exit_code} ama raporda düşen test yok")
+
+    judged = [run for run in ordered if run.clean and not run.pressured]
+    comparison.judged_runs = len(judged)
+    comparison.pressured_wall_seconds = tuple(
+        run.wall_seconds for run in ordered if run.clean and run.pressured and run.wall_seconds is not None)
+    if len(judged) < 2:
+        comparison.notes.append(
+            f"süre karşılaştırılamadı: baskısız ve temiz koşum {len(judged)} (en az 2 gerekir)")
+    else:
+        spreads = duration_spreads(judged)
+        comparison.slow_tests = [spread for spread in spreads if spread.exceeded]
+        comparison.worst_test = spreads[0] if spreads else None
+        for spread in comparison.slow_tests:
+            comparison.time_problems.append(
+                f"{spread.name} — test süresi aralığı {spread.span_ms} ms > {spread.allowed_ms:.0f} ms"
+                f" (koşumlar: {', '.join(str(ms) for ms in spread.durations_ms)})")
+        walls = [run.wall_seconds for run in judged if run.wall_seconds is not None]
+        if len(walls) < len(judged):
+            comparison.notes.append("bazı TRX'lerde duvar süresi okunamadı; modül süresi karşılaştırılamadı")
+        elif walls:
+            comparison.wall_seconds = tuple(walls)
+            comparison.wall_exceeded, comparison.wall_spread_percent = wall_spread_exceeded(walls)
+            if comparison.wall_exceeded:
+                comparison.time_problems.insert(
+                    0, f"modül duvar süresi: en yavaş {max(walls):.1f} s, en hızlı {min(walls):.1f} s"
+                       f" (fark %{comparison.wall_spread_percent:.1f} > %{STABILITY_MODULE_WALL_PERCENT})")
+
+    if len(usable) >= 2:
+        reference = usable[0].order
+        for run in usable[1:]:
+            similarity = order_similarity(reference, run.order)
+            if similarity is not None:
+                comparison.order_similarity.append(similarity)
+        if (shuffled and comparison.order_similarity
+                and len(reference) >= STABILITY_SHUFFLE_MIN_TESTS
+                and min(comparison.order_similarity) >= STABILITY_SHUFFLE_NO_EFFECT):
+            comparison.notes.append(
+                "karıştırmanın görünür etkisi yok: başlama sırası koşumlar arasında neredeyse aynı"
+                " (tek koleksiyon olabilir ya da sıralayıcı tohumu kullanmıyor)")
+    return comparison
+
+
+def stability_exit_code(comparisons: Iterable[ModuleComparison]) -> int:
+    """0 when every module is green; a result problem outranks a time problem."""
+    verdicts = {comparison.verdict for comparison in comparisons}
+    if "sonuç" in verdicts:
+        return STABILITY_RESULT_EXIT_CODE
+    if "süre" in verdicts:
+        return STABILITY_TIME_EXIT_CODE
+    return 0
+
+
+def _stability_seconds(values: Sequence[float]) -> str:
+    if not values:
+        return "-"
+    return f"{min(values):.1f} / {statistics.median(values):.1f} / {max(values):.1f}"
+
+
+def format_stability_table(comparisons: Sequence[ModuleComparison], *, shuffled: bool) -> list[str]:
+    """One human table: per module the wall times, the worst test and the verdict."""
+    symbols = {"yeşil": "✅", "süre": "⏱️ süre", "sonuç": "❌ sonuç"}
+    header = ["modül", "koşum", "duvar s (min / medyan / maks)", "fark %", "baskılı maks s", "en kötü test (aralık / sınır ms)"]
+    if shuffled:
+        header.append("sıra")
+    header.append("karar")
+    rows: list[list[str]] = []
+    for comparison in comparisons:
+        worst = comparison.worst_test
+        row = [
+            comparison.label,
+            f"{comparison.runs}",
+            _stability_seconds(comparison.wall_seconds),
+            "-" if comparison.wall_spread_percent is None else f"{comparison.wall_spread_percent:.1f}",
+            f"{max(comparison.pressured_wall_seconds):.1f}" if comparison.pressured_wall_seconds else "-",
+            "-" if worst is None else f"{worst.span_ms} / {worst.allowed_ms:.0f}",
+        ]
+        if shuffled:
+            row.append(f"{min(comparison.order_similarity):.2f}" if comparison.order_similarity else "-")
+        row.append(symbols[comparison.verdict])
+        rows.append(row)
+    widths = [max(len(header[column]), *(len(row[column]) for row in rows)) if rows else len(header[column])
+              for column in range(len(header))]
+    lines = ["  ".join(cell.ljust(widths[column]) for column, cell in enumerate(header)).rstrip()]
+    lines.append("  ".join("-" * width for width in widths))
+    lines.extend("  ".join(cell.ljust(widths[column]) for column, cell in enumerate(row)).rstrip() for row in rows)
+    return lines
+
+
+def stability_payload(
+    comparisons: Sequence[ModuleComparison],
+    runs: Mapping[str, Sequence[ModuleRun]],
+    *,
+    stamp: str,
+    repeat: int,
+    shuffled: bool,
+    base_seed: int | None,
+    pressure_runs: Sequence[int],
+    burner_count: int,
+    exit_code: int,
+) -> dict[str, Any]:
+    """The report file: thresholds, per run facts, and every finding (the terminal lists only the first few)."""
+    modules: dict[str, Any] = {}
+    for comparison in comparisons:
+        module_runs = sorted(runs[comparison.label], key=lambda run: run.index)
+        modules[comparison.label] = {
+            "verdict": comparison.verdict,
+            "runs": [
+                {
+                    "index": run.index,
+                    "pressured": run.pressured,
+                    "seed": run.seed,
+                    "exit_code": run.exit_code,
+                    "process_seconds": round(run.process_seconds, 3),
+                    "wall_seconds": None if run.wall_seconds is None else round(run.wall_seconds, 3),
+                    "tests": len(run.outcomes),
+                    "problem": run.problem,
+                }
+                for run in module_runs
+            ],
+            "judged_runs": comparison.judged_runs,
+            "wall_seconds": [round(seconds, 3) for seconds in comparison.wall_seconds],
+            "wall_spread_percent": None if comparison.wall_spread_percent is None else round(comparison.wall_spread_percent, 2),
+            "pressured_wall_seconds": [round(seconds, 3) for seconds in comparison.pressured_wall_seconds],
+            "worst_test": None if comparison.worst_test is None else dataclasses.asdict(comparison.worst_test),
+            "slow_tests": [dataclasses.asdict(spread) for spread in comparison.slow_tests[:50]],
+            "result_problems": comparison.result_problems[:200],
+            "time_problems": comparison.time_problems[:200],
+            "order_similarity": [round(value, 4) for value in comparison.order_similarity],
+            "notes": comparison.notes,
+        }
+    return {
+        "utc": stamp,
+        "repeat": repeat,
+        "shuffled": shuffled,
+        "base_seed": base_seed,
+        "pressure": {"runs": list(pressure_runs), "burners": burner_count if pressure_runs else 0},
+        "thresholds": {
+            "test_floor_ms": STABILITY_TEST_FLOOR_MS,
+            "test_median_factor": STABILITY_TEST_MEDIAN_FACTOR,
+            "module_wall_percent": STABILITY_MODULE_WALL_PERCENT,
+            "module_wall_floor_ms": STABILITY_MODULE_WALL_FLOOR_MS,
+        },
+        "exit_code": exit_code,
+        "modules": modules,
+    }
+
+
+def _prune_stability_reports(directory: pathlib.Path) -> None:
+    """Keep the newest reports, and the TRX directories of only the newest few."""
+    for old in sorted(directory.glob("*.json"))[:-STABILITY_REPORTS_KEEP]:
+        old.unlink()
+    for old in sorted(path for path in directory.iterdir() if path.is_dir())[:-STABILITY_TRX_DIRECTORIES_KEEP]:
+        shutil.rmtree(old, ignore_errors=True)
+
+
+def stability_plan(root: pathlib.Path = ROOT) -> list[tuple[str, str, str | None]]:
+    """(project, stage, lane) of every test module, in the order the closing run starts them."""
+    plan: list[tuple[str, str, str | None]] = [(CORE_TEST_PROJECT, "core", None)]
+    filter_file = json.loads((root / FAST_TEST_SOLUTION_FILTER).read_text(encoding="utf-8"))
+    for path in filter_file["solution"]["projects"]:
+        plan.append((pathlib.PurePosixPath(path).stem, "light", None))
+    for lane, projects in HEAVY_TEST_LANES.items():
+        plan.extend((project, "heavy", lane) for project in projects)
+    return plan
+
+
+def stability_units(
+    projects: Sequence[str] | None = None,
+    exclude: Sequence[str] = (),
+    *,
+    root: pathlib.Path = ROOT,
+    environ: Mapping[str, str] = os.environ,
+) -> list[StabilityUnit]:
+    """The executables to run. `projects` limits the set, `exclude` removes from it; a name nobody knows is an error."""
+    plan = stability_plan(root)
+    known = {project for project, _, _ in plan}
+    unknown = sorted((set(projects or ()) | set(exclude)) - known)
+    if unknown:
+        raise ValueError(f"bilinmeyen test modülü: {', '.join(unknown)}")
+    units: list[StabilityUnit] = []
+    for project, stage, lane in plan:
+        if (projects and project not in projects) or project in exclude:
+            continue
+        for output in test_output_directories(project, root=root, environ=environ):
+            units.append(StabilityUnit(project, output.name, stage, lane, output / project))
+    return units
+
+
+def _stability_command(unit: StabilityUnit, directory: pathlib.Path, seed: int | None) -> list[str]:
+    arguments = [
+        str(unit.executable), "--report-trx", "--report-trx-filename", STABILITY_TRX_NAME,
+        "--results-directory", str(directory), "--timeout", f"{STABILITY_MODULE_TIMEOUT_MINUTES}m",
+        "--ansi", "off", "--progress", "off"]
+    if seed is not None:
+        arguments += ["--seed", str(seed)]
+    return arguments
+
+
+def _run_stability_unit(
+    unit: StabilityUnit, index: int, pressured: bool, seed: int | None, run_directory: pathlib.Path,
+    runner: Runner, environment: Mapping[str, str], root: pathlib.Path,
+) -> ModuleRun:
+    """Run one executable once. Never raises: whatever goes wrong becomes the `problem` of the run."""
+    directory = run_directory / unit.slug
+    started = time.monotonic()
+    exit_code = 0
+    problem = ""
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        with (directory / "output.log").open("wb") as log:
+            result = runner(
+                _stability_command(unit, directory, seed), cwd=str(root), env=environment, check=False,
+                stdout=log, stderr=subprocess.STDOUT, timeout=(STABILITY_MODULE_TIMEOUT_MINUTES + 2) * 60)
+        exit_code = int(result.returncode)
+    except subprocess.TimeoutExpired:
+        exit_code, problem = STABILITY_RUN_TIMEOUT_EXIT_CODE, f"{STABILITY_MODULE_TIMEOUT_MINUTES} dk içinde bitmedi"
+    except FileNotFoundError as exception:
+        exit_code, problem = 127, f"ikili bulunamadı: {exception.filename}"
+    except OSError as exception:
+        exit_code, problem = STABILITY_LAUNCH_EXIT_CODE, f"süreç başlatılamadı: {exception}"
+    except BaseException as exception:  # a defect here must not leave the calling thread waiting
+        exit_code, problem = INTERNAL_ERROR_EXIT_CODE, f"koşucu çöktü: {exception!r}"
+    process_seconds = time.monotonic() - started
+    report = None if problem else read_module_report(directory)
+    if report is None or not report.outcomes:
+        return ModuleRun(
+            unit.label, index, pressured, seed, exit_code, process_seconds,
+            problem=problem or (
+                f"TRX raporu yok ya da okunamadı (çıkış {exit_code})" if report is None
+                else f"raporda hiç test yok (çıkış {exit_code})"))
+    return ModuleRun(
+        unit.label, index, pressured, seed, exit_code, process_seconds, report.wall_seconds,
+        report.durations_ms, report.outcomes, report.order)
+
+
+def _stability_progress(run: ModuleRun) -> str:
+    if run.problem:
+        return f"   ❌ {run.label}: {run.problem}"
+    failed = len(run.failed_tests)
+    wall = "?" if run.wall_seconds is None else f"{run.wall_seconds:.1f}"
+    mark = "✅" if run.clean else "❌"
+    detail = f", {failed} düşen" if failed else (f", çıkış {run.exit_code}" if run.exit_code else "")
+    return f"   {mark} {run.label}: {wall} s, {len(run.outcomes)} test{detail}"
+
+
+def _execute_stability_run(
+    units: Sequence[StabilityUnit], index: int, pressured: bool, seed: int | None, run_directory: pathlib.Path,
+    runner: Runner, environment: Mapping[str, str], root: pathlib.Path,
+) -> list[ModuleRun]:
+    """One run of every selected module, in the order and with the concurrency of the closing test run.
+
+    Core alone first, then the light modules `TEST_MAX_CPU_COUNT` at a time, then the heavy lanes beside each
+    other. A red module does not stop the run: stability needs every run to finish."""
+    finished: list[ModuleRun] = []
+    running: dict[str, float] = {}
+
+    def stage(chains: list[list[StabilityUnit]], workers: int) -> None:
+        arrived: queue.Queue[ModuleRun] = queue.Queue()
+        total = sum(len(chain) for chain in chains)
+
+        def work(chain: Sequence[StabilityUnit]) -> None:
+            for unit in chain:
+                running[unit.label] = time.monotonic()
+                try:
+                    run = _run_stability_unit(unit, index, pressured, seed, run_directory, runner, environment, root)
+                except BaseException as exception:  # the calling thread counts results: one must always arrive
+                    run = ModuleRun(
+                        unit.label, index, pressured, seed, INTERNAL_ERROR_EXIT_CODE, 0.0,
+                        problem=f"koşucu çöktü: {exception!r}")
+                finally:
+                    running.pop(unit.label, None)
+                arrived.put(run)
+
+        began = time.monotonic()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+            for chain in chains:
+                pool.submit(work, chain)
+            for _ in range(total):
+                while True:
+                    try:
+                        run = arrived.get(timeout=GROUP_HEARTBEAT_SECONDS)
+                        break
+                    except queue.Empty:
+                        names = ", ".join(sorted(running))
+                        print(f"   … sürüyor ({time.monotonic() - began:.0f} s): {names}", flush=True)
+                finished.append(run)
+                print(_stability_progress(run), flush=True)
+
+    core = [unit for unit in units if unit.stage == "core"]
+    if core:
+        stage([core], 1)
+    light = [[unit] for unit in units if unit.stage == "light"]
+    if light:
+        stage(light, TEST_MAX_CPU_COUNT)
+    lanes: dict[str, list[StabilityUnit]] = {}
+    for unit in units:
+        if unit.stage == "heavy":
+            lanes.setdefault(unit.lane or unit.project, []).append(unit)
+    if lanes:
+        stage(list(lanes.values()), len(lanes))
+    return finished
+
+
+def _print_stability_findings(comparisons: Sequence[ModuleComparison]) -> None:
+    for comparison in comparisons:
+        findings = [("sonuç", problem) for problem in comparison.result_problems]
+        findings += [("süre", problem) for problem in comparison.time_problems]
+        if not findings and not comparison.notes:
+            continue
+        print(f"\n{comparison.label}")
+        for kind, problem in findings[:STABILITY_LISTED_PROBLEMS]:
+            print(f"   {'❌' if kind == 'sonuç' else '⏱️'} {problem}")
+        if len(findings) > STABILITY_LISTED_PROBLEMS:
+            print(f"   … {len(findings) - STABILITY_LISTED_PROBLEMS} bulgu daha rapor dosyasında")
+        for note in comparison.notes:
+            print(f"   ℹ️ {note}")
+
+
+def stability_check(
+    units: Sequence[StabilityUnit],
+    repeat: int = STABILITY_DEFAULT_REPEAT,
+    *,
+    shuffle: bool = False,
+    pressure: bool = False,
+    pressure_runs: Sequence[int] | None = None,
+    base_seed: int | None = None,
+    root: pathlib.Path = ROOT,
+    runner: Runner = subprocess.run,
+    burner_factory: Callable[[int], CpuBurner] = CpuBurner,
+    report_directory: pathlib.Path | None = None,
+    measurement_path: pathlib.Path = MEASUREMENTS,
+    stamp: str | None = None,
+    cpu_count: int | None = None,
+) -> int:
+    """Run the units `repeat` times, compare the runs, write the report, return the exit code.
+
+    0 when every module is stable; `STABILITY_RESULT_EXIT_CODE` when any result differs (or a test fails);
+    `STABILITY_TIME_EXIT_CODE` when only the time differs; `STABILITY_USAGE_EXIT_CODE` when the command
+    itself could not be set up. CPU pressure runs only for the runs in `pressure_runs` (default: the last two)."""
+    if repeat < STABILITY_MIN_REPEAT:
+        print(f"❌ --tekrar en az {STABILITY_MIN_REPEAT} olmalı.")
+        return STABILITY_USAGE_EXIT_CODE
+    if not units:
+        print("❌ Koşulacak test modülü yok.")
+        return STABILITY_USAGE_EXIT_CODE
+    if pressure and pressure_runs is None:
+        pressure_runs = [repeat - 1, repeat] if repeat >= 3 else [repeat]
+    pressured_runs = sorted(set(pressure_runs or ())) if pressure else []
+    if any(number < 1 or number > repeat for number in pressured_runs):
+        print(f"❌ --baski-kosumlari 1 ile {repeat} arasında olmalı.")
+        return STABILITY_USAGE_EXIT_CODE
+    if not shuffle:
+        base_seed = None
+    elif base_seed is None:
+        base_seed = int(time.time()) % 1_000_000_000
+
+    started = time.monotonic()
+    stamp = stamp or time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    report_directory = STABILITY_REPORT_DIRECTORY if report_directory is None else report_directory
+    run_root = report_directory / stamp
+    environment = os.environ.copy()
+    environment["MSBUILDDISABLENODEREUSE"] = "1"
+    burners = stability_burner_count(cpu_count)
+    burner = burner_factory(burners)
+    shuffle_text = f"açık (tohum {base_seed} + koşum no - 1)" if shuffle else "kapalı"
+    pressure_text = (
+        "koşum " + ", ".join(str(number) for number in pressured_runs) + f" ({burners} yük işlemi)"
+        if pressured_runs else "yok")
+    print(f"Kararlılık: {repeat} koşum, {len(units)} test ikilisi; sıra karıştırma: {shuffle_text}; "
+          f"CPU baskısı: {pressure_text}", flush=True)
+    collected: dict[str, list[ModuleRun]] = {unit.label: [] for unit in units}
+    try:
+        for index in range(1, repeat + 1):
+            pressured = index in pressured_runs
+            if pressured and not burner.running:
+                try:
+                    burner.start()
+                except OSError as exception:
+                    print(f"❌ CPU baskısı kurulamadı: {exception}")
+                    return STABILITY_USAGE_EXIT_CODE
+                if burner.alive() < burner.count:
+                    print("❌ CPU baskısı kurulamadı: yük işlemleri başlar başlamaz bitti.")
+                    return STABILITY_USAGE_EXIT_CODE
+            elif not pressured and burner.running:
+                burner.stop()
+            seed = None if base_seed is None or not shuffle else base_seed + index - 1
+            print(f"\nKoşum {index}/{repeat}"
+                  f"{' · CPU baskısı' if pressured else ''}{f' · tohum {seed}' if seed is not None else ''}", flush=True)
+            for run in _execute_stability_run(
+                    units, index, pressured, seed, run_root / f"run-{index}", runner, environment, root):
+                collected[run.label].append(run)
+    finally:
+        burner.stop()
+
+    comparisons = [compare_module(unit_label, collected[unit_label], shuffled=shuffle) for unit_label in collected]
+    exit_code = stability_exit_code(comparisons)
+    print("\n" + "\n".join(format_stability_table(comparisons, shuffled=shuffle)))
+    _print_stability_findings(comparisons)
+    if pressured_runs:
+        print("\nCPU baskılı koşumların süreleri raporlanır ama kırmızı saymaz; baskı altında yalnız sonuç kırmızı sayılır.")
+    verdict = {0: "✅ Kararlı: sonuçlar aynı, süreler sınır içinde.",
+               STABILITY_TIME_EXIT_CODE: f"⏱️ Süre kararsız (çıkış {STABILITY_TIME_EXIT_CODE}): sonuçlar aynı, süre farkı sınırı aştı.",
+               STABILITY_RESULT_EXIT_CODE: f"❌ Sonuç kararsız (çıkış {STABILITY_RESULT_EXIT_CODE}): yeni faz açılmaz, önce bu giderilir."}[exit_code]
+    print(verdict, flush=True)
+
+    payload = stability_payload(
+        comparisons, collected, stamp=stamp, repeat=repeat, shuffled=shuffle, base_seed=base_seed,
+        pressure_runs=pressured_runs, burner_count=burners, exit_code=exit_code)
+    try:
+        report_directory.mkdir(parents=True, exist_ok=True)
+        report_path = report_directory / f"{stamp}.json"
+        report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        _prune_stability_reports(report_directory)
+        print(f"📄 Rapor: {report_path}")
+    except OSError as exception:
+        print(f"⚠️ Kararlılık raporu yazılamadı: {exception}")
+    _record_measurement(
+        "kararlilik",
+        Command(("kapi.py", "kararlilik", "--tekrar", str(repeat), *(("--sira-karistir",) if shuffle else ()),
+                 *(("--baski",) if pressure else ()))),
+        started, exit_code, measurement_path)
+    return exit_code
+
+
+def stability_dry_run(units: Sequence[StabilityUnit], repeat: int, shuffle: bool, pressure: bool) -> None:
+    """`--komutlari-bas`: the commands of one run, with the markers of the run loop as `#` lines."""
+    print(f"# {repeat} koşum; her koşumda aşağıdaki komutlar, Core tek başına, hafif modüller {TEST_MAX_CPU_COUNT}'şer, ağır hatlar yan yana")
+    if pressure:
+        print(f"# CPU baskısı: son koşumlar için {stability_burner_count()} yük işlemi")
+    for unit in units:
+        print("$ " + shlex.join(_stability_command(unit, pathlib.Path("<koşum>") / unit.slug, 1 if shuffle else None)))
+
+
+def stability_from_arguments(args: argparse.Namespace) -> int:
+    """The `kararlilik` subcommand: resolve the modules, refuse to run without built binaries, then `stability_check`."""
+    try:
+        units = stability_units(args.proje, args.haric or ())
+    except ValueError as error:
+        print(f"❌ {error}")
+        return STABILITY_USAGE_EXIT_CODE
+    pressure = args.baski or bool(args.baski_kosumlari)
+    if args.komutlari_bas:
+        stability_dry_run(units, args.tekrar, args.sira_karistir, pressure)
+        return 0
+    missing = [unit.label for unit in units if not unit.executable.is_file()]
+    if missing:
+        print(f"❌ Derlenmiş test ikilisi yok: {', '.join(missing)}")
+        print("   `kararlilik` derlemez. Önce `dotnet build Tracon.slnx -c Release` koş.")
+        return STABILITY_USAGE_EXIT_CODE
+    return stability_check(
+        units, args.tekrar, shuffle=args.sira_karistir, pressure=pressure,
+        pressure_runs=args.baski_kosumlari, base_seed=args.tohum,
+        report_directory=pathlib.Path(args.cikti) if args.cikti else None)
+
+
+# -----------------------------------------------------------------------------
 # `yayin` - release rehearsal
 #
 # Writes nothing to a network. It packs the solution (forcing a version via the
@@ -3181,6 +3985,10 @@ def capacity_measurement(profile: str, version: str, output: pathlib.Path) -> in
         return 1
 
 
+STABILITY_WORKFLOW = "kararlilik.yml"
+"""The scheduled workflow of the public repository that runs `kararlilik` (see `.github/workflows`)."""
+
+
 def remote_state_check(root: pathlib.Path = ROOT, ci_remote: str = "origin") -> int:
     """Reads what only the remote knows: did the last release tag reach nuget.org, and what did the last CI run say.
 
@@ -3232,6 +4040,19 @@ def remote_state_check(root: pathlib.Path = ROOT, ci_remote: str = "origin") -> 
     else:
         print(f"ℹ️ '{ci_remote}' son CI koşumu henüz karar vermedi: {ci.status} {ci.conclusion}".rstrip() + f" ({ci.sha})")
 
+    # The weekly stability run (`kararlilik.yml`) is a warning only: a red one means "do not open a new phase".
+    stability = remote_state.ci_state(root, ci_remote, workflow=STABILITY_WORKFLOW)
+
+    if stability is None:
+        print(f"ℹ️ '{ci_remote}' için karar vermiş bir kararlılık koşumu okunamadı (henüz koşmadı, gh yok ya da ağ yok).")
+    elif stability.is_red:
+        print(f"⚠️ '{ci_remote}' son kararlılık koşumu kırmızı ({stability.conclusion}, {stability.sha}): {stability.url}")
+        print("   Yeni faz açılmaz: önce kararsızlığı gider (raporu `kararlilik` artifact'ında).")
+    elif stability.status == "completed" and stability.conclusion == "success":
+        print(f"✅ '{ci_remote}' son kararlılık koşumu yeşil ({stability.sha})")
+    else:
+        print(f"ℹ️ '{ci_remote}' son kararlılık koşumu henüz karar vermedi: {stability.status} {stability.conclusion}".rstrip())
+
     return exit_code
 
 
@@ -3262,6 +4083,25 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
     test.add_argument(
         "--tfm",
         help="çoklu TFM projesinde tek bacak (ör. net10.0); verilmezse her bacak koşar")
+    kararlilik = subparsers.add_parser(
+        "kararlilik",
+        help="aynı derlenmiş test ikilileri N kez koşar; sonuç ve süre farkını ölçer (derlemez)")
+    kararlilik.add_argument(
+        "--tekrar", type=int, default=STABILITY_DEFAULT_REPEAT,
+        help=f"koşum sayısı (varsayılan {STABILITY_DEFAULT_REPEAT}, en az {STABILITY_MIN_REPEAT})")
+    kararlilik.add_argument(
+        "--proje", nargs="+", action="extend", help="yalnız bu test modülleri (varsayılan: hepsi)")
+    kararlilik.add_argument("--haric", nargs="+", action="extend", help="bu test modüllerini koşma")
+    kararlilik.add_argument(
+        "--sira-karistir", action="store_true",
+        help="her koşuma farklı xunit `--seed` ver; tohumlar raporlanır")
+    kararlilik.add_argument(
+        "--baski", action="store_true",
+        help="bazı koşumlarda CPU'nun yarısını yük işlemleriyle meşgul et (varsayılan: son iki koşum)")
+    kararlilik.add_argument(
+        "--baski-kosumlari", nargs="+", type=int, metavar="N", help="baskı uygulanacak koşum numaraları (1 tabanlı)")
+    kararlilik.add_argument("--tohum", type=int, help="ilk koşumun tohumu (varsayılan: saatten türetilir)")
+    kararlilik.add_argument("--cikti", help=f"rapor dizini (varsayılan {STABILITY_REPORT_DIRECTORY.relative_to(ROOT).as_posix()})")
     yayin = subparsers.add_parser("yayin", help="yayın provası - ağa hiçbir şey yazmaz")
     yayin.add_argument(
         "--kuru", action="store_true", required=True,
@@ -3350,6 +4190,8 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             if not require_test_runtimes(frameworks):
                 return 1
         return run_commands("test", commands, dry_run=args.komutlari_bas)
+    if args.stage == "kararlilik":
+        return stability_from_arguments(args)
     if args.stage == "paket-dogrula":
         if args.komutlari_bas:
             print(f"(dotnet çağrısı yok) {args.dizin}/{PACKAGE_MANIFEST_NAME} -> her dosyanın ham SHA-256'sı")
@@ -3375,7 +4217,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
 
     if args.komutlari_bas:
         return run_commands("kapanis", closing_commands("<taban>", extension=extension), dry_run=True)
-    parser.error("bir aşama belirtin: tarama, uret, uzak-durum, ic-dongu, kapanis, performans, test, yayin, paketle veya paket-dogrula")
+    parser.error("bir aşama belirtin: tarama, uret, uzak-durum, ic-dongu, kapanis, performans, test, kararlilik, yayin, paketle veya paket-dogrula")
     return 2
 
 

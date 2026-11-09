@@ -245,6 +245,24 @@ class CiStateTests(unittest.TestCase):
     def test_only_skipped_runs_leave_nothing_to_report(self) -> None:
         self.assertIsNone(self._state([{"status": "completed", "conclusion": "skipped", "url": "u", "headSha": "a"}]))
 
+    def test_the_workflow_to_read_is_a_parameter_and_defaults_to_ci(self) -> None:
+        commands: list[list[str]] = []
+
+        def run(command, **kwargs):  # noqa: ANN001, ANN202
+            commands.append(list(command))
+
+            if command[:2] == ["git", "remote"]:
+                return subprocess.CompletedProcess(command, 0, stdout="https://github.com/owner/repo.git\n", stderr="")
+
+            return subprocess.CompletedProcess(command, 0, stdout="[]", stderr="")
+
+        remote_state.ci_state(ROOT, runner=run, which=lambda name: "/usr/bin/gh")
+        remote_state.ci_state(ROOT, workflow="kararlilik.yml", runner=run, which=lambda name: "/usr/bin/gh")
+
+        listings = [command for command in commands if command[:3] == ["gh", "run", "list"]]
+        self.assertEqual(["ci.yml", "kararlilik.yml"], [command[command.index("--workflow") + 1] for command in listings])
+        self.assertTrue(all("-R" in command for command in listings))
+
     def test_everything_unreadable_is_none(self) -> None:
         self.assertIsNone(self._state([], gh_code=1))
         self.assertIsNone(self._state([]))
@@ -305,6 +323,57 @@ class RemoteStateCheckTests(unittest.TestCase):
 
         self.assertIn("'mirror'", text)
         self.assertNotIn("✅ 'mirror'", text)
+
+    def _check_with_stability(
+        self, ci: remote_state.CiState | None, stability: remote_state.CiState | None,
+    ) -> tuple[int, str, list[str]]:
+        workflows: list[str] = []
+
+        def ci_state(root, remote="origin", branch="main", *, workflow="ci.yml", **kwargs):  # noqa: ANN001, ANN202
+            workflows.append(workflow)
+            return stability if workflow == kapi.STABILITY_WORKFLOW else ci
+
+        output = io.StringIO()
+
+        with mock.patch.object(breaking_changes, "resolve_baseline", return_value="1.0.0"), \
+                mock.patch.object(remote_state, "packable_ids_at", return_value=["A"]), \
+                mock.patch.object(remote_state, "release_state", return_value=remote_state.ReleaseState("1.0.0", (), (), 1)), \
+                mock.patch.object(remote_state, "ci_state", side_effect=ci_state), \
+                contextlib.redirect_stdout(output):
+            code = kapi.remote_state_check(ROOT, "mirror")
+
+        return code, output.getvalue(), workflows
+
+    def test_a_red_stability_run_warns_that_no_new_phase_opens_and_does_not_fail(self) -> None:
+        green = remote_state.CiState("completed", "success", "https://example.test/ci", "abcdef01")
+        red = remote_state.CiState("completed", "failure", "https://example.test/stability", "abcdef01")
+
+        code, text, workflows = self._check_with_stability(green, red)
+
+        self.assertEqual(0, code)
+        self.assertEqual(["ci.yml", "kararlilik.yml"], workflows)
+        self.assertIn("kararlılık koşumu kırmızı", text)
+        self.assertIn("https://example.test/stability", text)
+        self.assertIn("Yeni faz açılmaz", text)
+        self.assertIn("✅ 'mirror' son CI koşumu yeşil", text)
+
+    def test_a_green_stability_run_is_reported_and_a_missing_one_is_only_information(self) -> None:
+        green = remote_state.CiState("completed", "success", "u", "abcdef01")
+
+        _, text, _ = self._check_with_stability(green, green)
+        _, missing, _ = self._check_with_stability(green, None)
+
+        self.assertIn("✅ 'mirror' son kararlılık koşumu yeşil", text)
+        self.assertIn("ℹ️ 'mirror' için karar vermiş bir kararlılık koşumu okunamadı", missing)
+        self.assertNotIn("Yeni faz açılmaz", missing)
+
+    def test_a_stability_run_still_going_is_not_green(self) -> None:
+        running = remote_state.CiState("in_progress", "", "u", "abcdef01")
+
+        _, text, _ = self._check_with_stability(running, running)
+
+        self.assertNotIn("✅ 'mirror' son kararlılık", text)
+        self.assertIn("son kararlılık koşumu henüz karar vermedi", text)
 
     def test_a_tag_tree_git_cannot_read_falls_back_to_the_working_tree_with_a_warning(self) -> None:
         output = io.StringIO()

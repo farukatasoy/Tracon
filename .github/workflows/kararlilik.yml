@@ -1,0 +1,119 @@
+name: Stability
+
+# Runs the built test executables of the modules that fit a runner five times against the same bytes and compares the
+# runs, once a week and on demand. It builds once and never builds again: the point is that one set of bytes gives the same
+# results in about the same time, every time, in a shuffled order and under CPU pressure. It is not part of the pull
+# request gate, and a red run is not a verdict on one change: it means the test suite itself is unstable, and no new
+# piece of work starts until the report says why.
+#
+# The job runs the command a developer runs on a laptop:
+#
+#   dotnet build Tracon.slnx -c Release
+#   python3 scripts/kapi.py kararlilik --tekrar 5 --sira-karistir --baski --haric <modules>
+#
+# so a failing run is replayed by copying those lines. The report (`artifacts/kararlilik/<utc>.json`) names every test
+# whose outcome changed and every test and module whose time moved more than the limits allow, with the seed of every
+# shuffled run; the TRX files and the output of every run are uploaded next to it.
+#
+# What the run leaves out, and why: the three modules that start database containers (SqlServer, PostgreSql, TwoNode),
+# the package module (it restores and packs from the network) and the browser module (it installs a browser). Their time
+# is dominated by image pulls, package feeds and downloads, which a free runner cannot hold still, and five repeats of a
+# 400 second module would multiply the run for a number nobody could act on. They run in the full local command, which
+# has no exclusion: `python3 scripts/kapi.py kararlilik --tekrar 5 --sira-karistir --baski`.
+
+on:
+  schedule:
+    # Sunday, 02:41 UTC. An odd minute keeps the run off the top of the hour, when scheduled workflows queue longest, and the
+    # day keeps it apart from the OpenAPI fuzz run of Monday and the SDK conformance run of Wednesday. The report is
+    # waiting on Monday morning.
+    - cron: '41 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A second run waits for the first instead of racing it for the same runner pool.
+concurrency:
+  group: kararlilik
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  CI: true
+  # The gate scripts write Turkish; the default code page of a runner may not hold every letter.
+  PYTHONUTF8: 1
+
+jobs:
+  stability:
+    name: Same bytes, five runs
+    # The canonical repository only: the development repository and forks never run this job.
+    if: github.repository == 'farukatasoy/Tracon'
+    runs-on: ubuntu-latest
+    # Not measured on a runner. A laptop runs this set once in about ten minutes (Core 37 s, the light modules about two
+    # minutes, AspNetCore 372 s and Sqlite 70 s one after the other), so five runs with two of them under pressure are
+    # estimated at two to two and a half hours on a runner that is up to twice as slow, plus the build. The limit leaves
+    # room above that estimate. Re-measure after the first run and move the limits with the measurement.
+    timeout-minutes: 240
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # MinVer derives the version from git tags; the whole history is needed.
+          fetch-depth: 0
+
+      - name: Set up the .NET SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+
+      # The solution build bundles the user interface, which needs Node.js.
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            src/Tracon.UI/frontend/package-lock.json
+            packages/tracon-client/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache the NuGet packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore the dependencies
+        run: dotnet restore Tracon.slnx
+
+      # The one build of the run. `kararlilik` starts the executables this step leaves in `artifacts/bin/`.
+      - name: Build
+        run: dotnet build Tracon.slnx -c Release --no-restore
+
+      # The exit code is 91 when only a time moved, 92 when a result changed (or a test failed in every run) and 2 when the
+      # command could not be set up. The step fails on any of them; the report is uploaded either way.
+      - name: Run the stability check
+        timeout-minutes: 210
+        run: >-
+          python3 scripts/kapi.py kararlilik --tekrar 5 --sira-karistir --baski
+          --haric Tracon.SqlServer.IntegrationTests Tracon.PostgreSql.IntegrationTests Tracon.TwoNode.IntegrationTests
+          Tracon.Package.Tests Tracon.Ui.E2ETests
+
+      # Uploaded whether the run passed or not: the TRX files of the five runs explain a red the table only names.
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kararlilik-report
+          path: artifacts/kararlilik/**
+          retention-days: 30
+          if-no-files-found: warn
