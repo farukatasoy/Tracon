@@ -26,6 +26,12 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// class limits how many delays that take real time may exist.
 /// </para>
 /// <para>
+/// <c>ManualClock</c> itself can pay real time: made with <c>WithSystemTimers</c> or <c>OverSystemClock</c>, or given a
+/// <c>SystemTimersWithin</c> or <c>AutoFireWithin</c>, its timers run on the system's clock or fire on their own. Those
+/// modes are migration aids, and the clock's own source is exempt, so each use in a test is counted per file as
+/// <c>manual-clock-real-timers</c>; <c>ManualClockTests</c> exercises them and is exempt too.
+/// </para>
+/// <para>
 /// A file that moves keeps its debt: change the path in the baseline by hand, in the same change, and leave the count.
 /// </para>
 /// </remarks>
@@ -37,6 +43,13 @@ public sealed partial class TestTimeRatchetTests
 
     /// <summary>The fake every other clock moves to; it is the one subclass that stays.</summary>
     private const string StandardClockFile = "tests/Shared/Time/ManualClock.cs";
+
+    /// <summary>The tests of the standard clock; they use its real-time modes to prove them.</summary>
+    private const string StandardClockTestsFile = "tests/Tracon.Core.UnitTests/TestInfrastructure/ManualClockTests.cs";
+
+    private const string TimeProviderSubclassKind = "time-provider-subclass";
+
+    private const string RealTimersKind = "manual-clock-real-timers";
 
     private static readonly string[] ScanRoots = ["tests", "src/Tracon.Testing.Contracts.Xunit"];
 
@@ -91,6 +104,10 @@ public sealed partial class TestTimeRatchetTests
     [InlineData("var clock = new Stopwatch();", "stopwatch")]
     [InlineData("private sealed class FixedTime : TimeProvider", "time-provider-subclass")]
     [InlineData("private sealed class FixedTime(DateTimeOffset now) : TimeProvider", "time-provider-subclass")]
+    [InlineData("var clock = ManualClock.WithSystemTimers(start);", "manual-clock-real-timers")]
+    [InlineData("var clock = ManualClock.OverSystemClock(TimeSpan.FromHours(1), systemTimestamp: false);", "manual-clock-real-timers")]
+    [InlineData("var clock = new ManualClock { SystemTimersWithin = TimeSpan.FromMilliseconds(100) };", "manual-clock-real-timers")]
+    [InlineData("    AutoFireWithin = TimeSpan.FromSeconds(1),", "manual-clock-real-timers")]
     [InlineData("await Task.Delay(200); // delay: simulated", "delay:simulated")]
     [InlineData("await Task.Delay(200, token); // delay: product", "delay:product")]
     [InlineData("await Task.Delay(200); // delay: negative", "delay:negative")]
@@ -110,8 +127,17 @@ public sealed partial class TestTimeRatchetTests
     [InlineData("/// <see cref=\"Stopwatch.StartNew\"/>")]
     [InlineData("* Thread.Sleep(50)")]
     [InlineData("var seen = clock.GetUtcNow();")]
+    [InlineData("var clock = new ManualClock();")]
+    [InlineData("// var clock = ManualClock.WithSystemTimers(start);")]
+    [InlineData("/// <see cref=\"ManualClock.OverSystemClock\"/> and <c>SystemTimersWithin = x</c>")]
+    [InlineData("if (clock.AutoFireWithin == null) { }")]
     public void The_scan_leaves_the_rest_alone(string line)
         => Kinds(line).ShouldBeEmpty();
+
+    [Fact]
+    public void Every_real_time_mode_on_one_line_is_counted()
+        => Kinds("var clock = new ManualClock { SystemTimersWithin = poll, AutoFireWithin = poll };")
+            .ShouldBe([RealTimersKind, RealTimersKind]);
 
     [Fact]
     public void A_new_sleep_is_red()
@@ -152,20 +178,33 @@ public sealed partial class TestTimeRatchetTests
     }
 
     [Fact]
-    public void The_standard_clock_is_not_debt()
+    public void The_standard_clock_and_its_tests_are_not_debt()
     {
         var directory = Directory.CreateTempSubdirectory("tracon-time-ratchet");
 
         try
         {
             var clock = Path.Combine(directory.FullName, "tests", "Shared", "Time", "ManualClock.cs");
+            var clockTests = Path.Combine(directory.FullName, StandardClockTestsFile);
             var other = Path.Combine(directory.FullName, "tests", "Other.cs");
 
             Directory.CreateDirectory(Path.GetDirectoryName(clock)!);
-            File.WriteAllText(clock, "internal sealed class ManualClock : TimeProvider");
-            File.WriteAllText(other, "internal sealed class OtherClock : TimeProvider");
+            Directory.CreateDirectory(Path.GetDirectoryName(clockTests)!);
+            File.WriteAllText(
+                clock,
+                "internal sealed class ManualClock : TimeProvider\n" +
+                "{\n" +
+                "    public static ManualClock WithSystemTimers(DateTimeOffset? start = null) => new();\n" +
+                "    public TimeSpan? SystemTimersWithin { get; init; }\n" +
+                "}\n");
+            File.WriteAllText(clockTests, "var clock = ManualClock.WithSystemTimers(start);\n");
+            File.WriteAllText(
+                other,
+                "internal sealed class OtherClock : TimeProvider\n" +
+                "var clock = ManualClock.WithSystemTimers(start);\n");
 
-            Scan(directory.FullName).ShouldBe(Counts(("time-provider-subclass|tests/Other.cs", 1)));
+            Scan(directory.FullName).ShouldBe(
+                Counts(($"{TimeProviderSubclassKind}|tests/Other.cs", 1), ($"{RealTimersKind}|tests/Other.cs", 1)));
         }
         finally
         {
@@ -261,8 +300,7 @@ public sealed partial class TestTimeRatchetTests
                 {
                     foreach (var kind in Kinds(line))
                     {
-                        if (string.Equals(kind, "time-provider-subclass", StringComparison.Ordinal) &&
-                            string.Equals(relative, StandardClockFile, StringComparison.Ordinal))
+                        if (IsExempt(kind, relative))
                         {
                             continue;
                         }
@@ -278,6 +316,15 @@ public sealed partial class TestTimeRatchetTests
         return counts;
     }
 
+    private static bool IsExempt(string kind, string relative)
+        => kind switch
+        {
+            TimeProviderSubclassKind => string.Equals(relative, StandardClockFile, StringComparison.Ordinal),
+            RealTimersKind => string.Equals(relative, StandardClockFile, StringComparison.Ordinal)
+                || string.Equals(relative, StandardClockTestsFile, StringComparison.Ordinal),
+            _ => false,
+        };
+
     private static List<string> Kinds(string line)
     {
         var kinds = new List<string>();
@@ -291,7 +338,8 @@ public sealed partial class TestTimeRatchetTests
         AddMatches(kinds, line, Sleep(), "sleep");
         AddMatches(kinds, line, ElapsedAssertion(), "elapsed-assert");
         AddMatches(kinds, line, StopwatchUse(), "stopwatch");
-        AddMatches(kinds, line, TimeProviderSubclass(), "time-provider-subclass");
+        AddMatches(kinds, line, TimeProviderSubclass(), TimeProviderSubclassKind);
+        AddMatches(kinds, line, ManualClockRealTimers(), RealTimersKind);
 
         if (line.Contains("Task.Delay(", StringComparison.Ordinal) && !Unbounded().IsMatch(line))
         {
@@ -343,6 +391,12 @@ public sealed partial class TestTimeRatchetTests
         RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: Timeout.Infinite)]
     private static partial Regex TimeProviderSubclass();
+
+    [GeneratedRegex(
+        @"\b(?:WithSystemTimers|OverSystemClock)\(|\b(?:SystemTimersWithin|AutoFireWithin)\s*=(?!=)",
+        RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: Timeout.Infinite)]
+    private static partial Regex ManualClockRealTimers();
 
     [GeneratedRegex(
         @"Task\.Delay\(\s*(?:Timeout\.Infinite(?:TimeSpan)?\b|-1\b)",

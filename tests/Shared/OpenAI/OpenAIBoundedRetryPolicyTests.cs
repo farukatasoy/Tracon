@@ -111,10 +111,11 @@ public sealed class OpenAIBoundedRetryPolicyTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task A_token_that_is_already_cancelled_ends_the_wait_without_arming_a_timer(bool synchronous)
+    public async Task A_token_that_is_already_cancelled_ends_the_wait_and_leaves_no_timer_armed(bool synchronous)
     {
         // Through a pipeline the library throws on a cancelled token before it ever reaches the wait, so the wait is
-        // called the way the library calls it: with the delay and the message's token.
+        // called the way the library calls it: with the delay and the message's token. The asynchronous wait never arms a
+        // timer for a cancelled token; the blocking one arms its timer before it sees the token and drops it on the way out.
         var clock = new ManualClock();
         var policy = new OpenAIBoundedRetryPolicy(clock);
         using var cancellation = new CancellationTokenSource();
@@ -126,7 +127,25 @@ public sealed class OpenAIBoundedRetryPolicyTests
 
         await AssertCancelledAsync(wait);
 
-        clock.Pending.ShouldBeEmpty("a wait that begins cancelled arms nothing");
+        clock.Pending.ShouldBeEmpty("a wait that begins cancelled leaves no timer armed");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_wait_on_the_system_clock_is_the_library_s_own_and_still_ends_on_cancellation(bool synchronous)
+    {
+        // The default clock is the system's, and then both waits are the library's. The delay is an hour: only the
+        // token can end the call, and it is already cancelled, so nothing here waits.
+        var policy = new OpenAIBoundedRetryPolicy();
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var wait = synchronous
+            ? Task.Run(() => Invoke(policy, "Wait", TimeSpan.FromHours(1), cancellation.Token))
+            : (Task)Invoke(policy, "WaitAsync", TimeSpan.FromHours(1), cancellation.Token)!;
+
+        await AssertCancelledAsync(wait);
     }
 
     [Theory]

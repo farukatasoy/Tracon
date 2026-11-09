@@ -27,28 +27,40 @@ public sealed class ManualClockTests
     public async Task A_single_advance_fires_only_the_timer_that_is_armed()
     {
         var clock = new ManualClock();
-        var work = WaitThreeTimesAsync(clock);
+        var secondArmed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var work = WaitTwiceAsync(clock, secondArmed);
 
         clock.Advance(TimeSpan.FromHours(1));
 
-        work.IsCompleted.ShouldBeFalse("the second wait was armed after the first fired, so the one advance never reached it");
+        // The work arms its second timer in the continuation of the first wake and says so; the test waits for that signal
+        // and not for the continuation to happen to have run.
+        await secondArmed.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        clock.Pending.ShouldBe([TimeSpan.FromSeconds(2)], "the second wait was armed after the first fired, so the one advance never reached it");
+        work.IsCompleted.ShouldBeFalse();
 
         await clock.AdvanceUntilAsync(work);
+
+        clock.Steps.ShouldBe([TimeSpan.FromSeconds(2)]);
     }
 
     [Fact]
-    public async Task A_timer_beyond_the_reach_is_left_alone()
+    public async Task A_timer_beyond_the_reach_is_left_alone_when_it_is_the_only_one_armed()
     {
         var clock = new ManualClock();
-        var deadlineFired = false;
+        var deadlineFired = 0;
+        var never = new TaskCompletionSource();
 
-        using var deadline = clock.CreateTimer(_ => deadlineFired = true, null, TimeSpan.FromMinutes(5), Timeout.InfiniteTimeSpan);
-        var work = WaitOnAsync(clock, TimeSpan.FromSeconds(1));
+        using var deadline = clock.CreateTimer(_ => Interlocked.Increment(ref deadlineFired), null, TimeSpan.FromMinutes(5), Timeout.InfiniteTimeSpan);
 
-        await clock.AdvanceUntilAsync(work, within: TimeSpan.FromSeconds(30));
+        // The work cannot end by itself, so nothing but firing the deadline could carry it: with the reach honored the call
+        // ends by its failure bound, with the clock where it was.
+        await Should.ThrowAsync<TimeoutException>(
+            () => clock.AdvanceUntilAsync(never.Task, within: TimeSpan.FromSeconds(30), timeout: TimeSpan.FromMilliseconds(200)));
 
-        deadlineFired.ShouldBeFalse("a deadline of the system under test is not the wait the call stands in for");
-        clock.Steps.ShouldBe([TimeSpan.FromSeconds(1)]);
+        Volatile.Read(ref deadlineFired).ShouldBe(0, "a deadline of the system under test is not the wait the call stands in for");
+        clock.Steps.ShouldBeEmpty();
+        clock.Pending.ShouldBe([TimeSpan.FromMinutes(5)]);
     }
 
     [Fact]
@@ -387,6 +399,24 @@ public sealed class ManualClockTests
         await WaitOnAsync(clock, TimeSpan.FromSeconds(1));
         await WaitOnAsync(clock, TimeSpan.FromSeconds(2));
         await WaitOnAsync(clock, TimeSpan.FromSeconds(4));
+    }
+
+    // Waits one second, arms a second wait and says so, then waits two seconds more.
+    private static async Task WaitTwiceAsync(ManualClock clock, TaskCompletionSource secondArmed)
+    {
+        await WaitOnAsync(clock, TimeSpan.FromSeconds(1));
+
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var timer = clock.CreateTimer(
+            static state => ((TaskCompletionSource)state!).TrySetResult(),
+            done,
+            TimeSpan.FromSeconds(2),
+            Timeout.InfiniteTimeSpan);
+
+        secondArmed.TrySetResult();
+
+        await done.Task.ConfigureAwait(false);
     }
 
     private static async Task FailAfterAsync(ManualClock clock)

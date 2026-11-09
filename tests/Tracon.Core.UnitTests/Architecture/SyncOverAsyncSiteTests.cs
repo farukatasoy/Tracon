@@ -34,7 +34,7 @@ public sealed class SyncOverAsyncSiteTests
         ["src/Tracon.AspNetCore/Security/TraconRolePolicies.cs"] =
             "resolves the role policy names once while the endpoints are mapped; the default provider answers from a dictionary",
         ["src/Tracon.OpenAI.Shared/OpenAIBoundedRetryPolicy.cs"] =
-            "the synchronous half of the client library's retry loop (Wait): only a caller of the library's blocking API reaches it, and the library's own wait blocks the same thread; the asynchronous half awaits",
+            "the synchronous half of the client library's retry loop (Wait), on an injected clock only: only a caller of the library's blocking API reaches it, and the library's own wait blocks the same thread (the system clock keeps that wait); the asynchronous half awaits",
     };
 
     [Fact]

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -26,7 +27,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </remarks>
 public sealed class HostStopMidRunTests
 {
-    // The generic host's own timer, on the system clock: it cuts the wait for a run whose model ignores its token.
+    // The generic host's own timer, on the system clock: it cuts the wait for a run whose model ignores its token, and the
+    // socket's graceful wait for one that honors it (only the abort at the cut cancels that run). Short, so no case waits long.
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromMilliseconds(250);
 
     // A failure bound, not a measurement: a stop that does not return within it is a hang.
@@ -70,17 +72,19 @@ public sealed class HostStopMidRunTests
 
             await app.StopAsync().WaitAsync(StopBound, TestContext.Current.CancellationToken);
 
-            var statusesAfterStop = await RunStatusesAsync(app);
+            // A real socket is closed when the host stops; the in-process test server has none to close, so only the
+            // real one tells whether a model that honors its token ends the run. Nothing cancels the run before the host
+            // aborts the connection, at the end of its shutdown timeout, so the row is written after that cut and may
+            // not be there yet when the stop returns: the test waits for it (a failure bound) instead of reading it once.
+            if (kestrel && modelHonorsCancellation)
+            {
+                await WaitUntil.TrueAsync(
+                    async () => !(await RunStatusesAsync(app)).Contains("Running", StringComparer.Ordinal),
+                    "a model that honors its token to leave the run in a terminal state after the host stopped");
+            }
 
             await app.DisposeAsync().AsTask().WaitAsync(StopBound, TestContext.Current.CancellationToken);
             stoppedClean = true;
-
-            // A real socket is closed when the host stops; the in-process test server has none to close, so only the
-            // real one tells whether a model that honors its token ends the run.
-            if (kestrel && modelHonorsCancellation)
-            {
-                statusesAfterStop.Contains("Running", StringComparer.Ordinal).ShouldBeFalse("a model that honors its token must not leave the run Running after the host stopped");
-            }
 
             hanging.Release("late");
             _ = sending.ContinueWith(static task => _ = task.Exception, TaskScheduler.Default);

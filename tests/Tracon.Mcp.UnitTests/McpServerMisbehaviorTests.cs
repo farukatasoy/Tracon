@@ -248,6 +248,53 @@ public sealed class McpServerMisbehaviorTests
     }
 
     [Fact]
+    public async Task A_resource_read_that_the_server_never_answers_ends_at_the_connection_limit_on_the_clock()
+    {
+        // The read's limit is armed on the clock the catalog was given and nothing else moves it: a limit on the system's
+        // clock would leave the clock without a timer and the read waiting five real seconds, or here for as long as it takes.
+        var asked = 0;
+
+        await using var broken = ScriptedMcpServer.Start(
+            (method, _, _, _) =>
+            {
+                switch (method)
+                {
+                    case "resources/list":
+                        return Task.FromResult<string?>("""{"resources":[{"uri":"res://1","name":"resource 1"}]}""");
+                    case "resources/read":
+                        Interlocked.Increment(ref asked);
+
+                        return Task.FromResult<string?>(null);
+                    default:
+                        return Task.FromResult<string?>(string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(GoodTool) : "{}");
+                }
+            },
+            "{\"tools\":{},\"resources\":{}}");
+
+        var clock = new ManualClock();
+        await using var rig = await Rig.StartAsync(broken, maxToolsPerServer: null, clock);
+
+        (await rig.Catalog.RefreshAsync(TestContext.Current.CancellationToken)).HadUnreachableServers.ShouldBeFalse();
+        rig.Catalog.TryGetConnection("default", "broken", out var connection).ShouldBeTrue("the server was not reached");
+        clock.Pending.ShouldBeEmpty("a refresh that ended leaves no limit armed");
+
+        var read = connection!
+            .ReadDeclaredResourceAsync("res://1", 1024, new TraconMcpOptions { ConnectionTimeout = ConnectionTimeout }, NullLogger.Instance, TestContext.Current.CancellationToken)
+            .AsTask();
+
+        await WaitUntil.TrueAsync(() => Volatile.Read(ref asked) > 0, "the silent server to be asked for the resource");
+
+        clock.Pending.ShouldBe([ConnectionTimeout], "the read's limit, one connection timeout away on the clock the catalog was given");
+
+        clock.Advance(ConnectionTimeout);
+
+        var (status, content) = await read.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        status.ShouldBe(McpOperationStatus.ConnectionFailed);
+        content.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task A_call_to_a_tool_with_an_x_mcp_header_still_sends_the_header_the_list_declared()
     {
         // The collecting overload of the SDK fills the client's tool cache, and the cache is how a call finds which of its

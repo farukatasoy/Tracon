@@ -97,19 +97,6 @@ public sealed class ProviderRetryAfterTests
         return data;
     }
 
-    public static TheoryData<string, bool> Providers()
-    {
-        var data = new TheoryData<string, bool>();
-
-        foreach (var provider in new[] { OpenAi, Anthropic })
-        {
-            data.Add(provider, false);
-            data.Add(provider, true);
-        }
-
-        return data;
-    }
-
     [Theory]
     [MemberData(nameof(RecoveringRuns))]
     public async Task A_retry_after_that_is_absurd_or_not_a_delay_does_not_hold_or_fail_a_run_that_recovers(

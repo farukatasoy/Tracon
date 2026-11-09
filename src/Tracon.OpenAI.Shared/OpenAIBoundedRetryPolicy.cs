@@ -20,7 +20,7 @@ namespace Tracon;
 /// Retries and the retriable statuses stay the library's: only the delay is decided here, and the wait that follows it
 /// is the library's wait moved onto the host's clock. The library sleeps on the system clock, so a host whose clock
 /// is not the system's (a test host that stands in for time) would still wait the backoff for real.
-/// <see cref="TimeProvider.System"/> keeps the library's behavior exactly.
+/// <see cref="TimeProvider.System"/> keeps the library's behavior exactly: both waits are then the library's own.
 /// </para>
 /// </remarks>
 internal sealed class OpenAIBoundedRetryPolicy : ClientRetryPolicy
@@ -48,12 +48,21 @@ internal sealed class OpenAIBoundedRetryPolicy : ClientRetryPolicy
     }
 
     /// <inheritdoc />
-    protected override async Task WaitAsync(TimeSpan time, CancellationToken cancellationToken)
-        => await Task.Delay(time, _timeProvider, cancellationToken).ConfigureAwait(false);
+    protected override Task WaitAsync(TimeSpan time, CancellationToken cancellationToken)
+        => IsSystemClock
+            ? base.WaitAsync(time, cancellationToken)
+            : Task.Delay(time, _timeProvider, cancellationToken);
 
     /// <inheritdoc />
     protected override void Wait(TimeSpan time, CancellationToken cancellationToken)
     {
+        if (IsSystemClock)
+        {
+            base.Wait(time, cancellationToken);
+
+            return;
+        }
+
         var elapsed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var timer = _timeProvider.CreateTimer(
@@ -65,4 +74,8 @@ internal sealed class OpenAIBoundedRetryPolicy : ClientRetryPolicy
         // Throws OperationCanceledException when the caller gives up first, as the library's own wait does.
         elapsed.Task.Wait(cancellationToken);
     }
+
+    // The system clock keeps the library's own waits: the same code, and for the blocking loop the library's wait handle
+    // instead of a timer and a task.
+    private bool IsSystemClock => ReferenceEquals(_timeProvider, TimeProvider.System);
 }

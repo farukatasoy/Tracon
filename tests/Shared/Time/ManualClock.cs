@@ -299,8 +299,9 @@ internal sealed class ManualClock : TimeProvider
     }
 
     /// <summary>
-    /// Gets the amounts <see cref="AdvanceUntilAsync"/> moved the clock by, in order: one per timer it fired. A test that
-    /// asserts how long a wait was reads it here instead of timing the wait.
+    /// Gets the amounts <see cref="AdvanceUntilAsync"/> moved the clock by, in order: one for each time it moved the clock to
+    /// the earliest armed timer (timers due at the same instant fire together, in one step). A test that asserts how long a
+    /// wait was reads it here instead of timing the wait.
     /// </summary>
     public IReadOnlyList<TimeSpan> Steps
     {
@@ -413,6 +414,8 @@ internal sealed class ManualClock : TimeProvider
     {
         lock (_gate)
         {
+            // Disarmed under the lock that Pending and the fire path read it under.
+            timer.DueAt = null;
             _timers.Remove(timer);
         }
     }
@@ -441,7 +444,7 @@ internal sealed class ManualClock : TimeProvider
 
     private sealed class ManualTimer(ManualClock owner, TimerCallback callback, object? state) : ITimer
     {
-        private bool _disposed;
+        private volatile bool _disposed;
 
         /// <summary>The clock tick the timer fires at; <see langword="null"/> while disarmed.</summary>
         public long? DueAt { get; set; }
@@ -480,7 +483,6 @@ internal sealed class ManualClock : TimeProvider
             }
 
             _disposed = true;
-            DueAt = null;
             owner.Remove(this);
         }
 

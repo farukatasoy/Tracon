@@ -22,6 +22,9 @@ internal sealed class McpConnection : IAsyncDisposable
 
     private readonly McpClient _client;
 
+    // The host's clock: the limit of a resource read runs on it, as the connect and the list limits do.
+    private readonly TimeProvider _timeProvider;
+
     // The names of the tools the client's tool cache holds on this connection's behalf (ListToolsAsync).
     private readonly HashSet<string> _cachedToolNames = new(StringComparer.Ordinal);
     private readonly string _serverName;
@@ -55,9 +58,11 @@ internal sealed class McpConnection : IAsyncDisposable
         string fingerprint,
         string sourceFingerprint,
         TraconMcpOptions options,
-        ILogger logger)
+        ILogger logger,
+        TimeProvider timeProvider)
     {
         _client = client;
+        _timeProvider = timeProvider;
         _serverName = serverName;
         _requiresApproval = requiresApproval;
         _options = options;
@@ -208,7 +213,8 @@ internal sealed class McpConnection : IAsyncDisposable
                 ComputeFingerprint(server),
                 ToolSourceFingerprint.ForEndpoint(server.Endpoint),
                 options,
-                logger);
+                logger,
+                timeProvider);
 
             // A new connection has no earlier list to keep: anything but a listing fails it.
             var refresh = await connection.RefreshCatalogAsync(options, logger, timeProvider, cancellationToken).ConfigureAwait(false);
@@ -397,8 +403,8 @@ internal sealed class McpConnection : IAsyncDisposable
                 return (McpOperationStatus.Ok, ToContent(uri, cached));
             }
 
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(options.ConnectionTimeout);
+            using var limit = new CancellationTokenSource(options.ConnectionTimeout, _timeProvider);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, limit.Token);
 
             var result = await _client.ReadResourceAsync(uri, options: null, timeout.Token).ConfigureAwait(false);
             var fresh = BuildCacheEntry(result, maxBytesPerResource);

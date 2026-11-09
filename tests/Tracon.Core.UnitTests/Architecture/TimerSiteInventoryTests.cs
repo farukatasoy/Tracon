@@ -55,7 +55,7 @@ public sealed class TimerSiteInventoryTests
             (1, "A partition definition: the limiter builds the window only for a partition a limited request names."),
 
         ["Tracon.OpenAI.Shared:Tracon.OpenAIBoundedRetryPolicy.Wait"] =
-            (1, "Armed for the length of one retry wait of a synchronous client call and disposed with it; nothing runs while no call is retrying."),
+            (1, "Armed only on an injected clock, for the length of one retry wait of a synchronous client call, and disposed with it; the system clock keeps the library's own wait and nothing runs while no call is retrying."),
 
         ["Tracon.Core:Tracon.ApprovalExpirationService.ExecuteAsync"] =
             (1, "Built after the loop read its expiration switch as on; a host with the switch off returns before it."),

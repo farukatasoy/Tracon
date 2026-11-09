@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A host that registers its own `TimeProvider` now gets that clock for waits that used the system clock.** The wait between two tries of the OpenAI, Azure OpenAI and Anthropic clients
+  (a `Retry-After` date is read against it too), the poll of the run-event and the workflow follow streams, the pause between retention batches, the retry of an MCP or A2A tool
+  catalog listing, a tool's timeout, and the MCP connection and catalog limits all run on it.
+  What to do:
+  - **Nothing, unless the registered `TimeProvider` only moves when told to.** With `TimeProvider.System` (the default) nothing changes. A host or a test that registers a clock it
+    advances by hand must advance it for these waits to end. The Anthropic client library sleeps on the system clock and does not follow it.
+
 ## [1.0.0-preview.8] - 2026-11-08
 
 This release hardens the run store and the leases that several nodes share, prices a prompt-cache write as the fourth term of a run's cost, and gives a deployment
