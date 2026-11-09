@@ -41,6 +41,7 @@ internal sealed class OpenAIChatClientFactory
     /// <summary>Initializes a new factory from options.</summary>
     /// <param name="options">Provider options.</param>
     /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
+    /// <param name="timeProvider">The clock the client's retry wait runs on; <see cref="TimeProvider.System"/> when omitted.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// <see cref="OpenAIProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
@@ -49,8 +50,8 @@ internal sealed class OpenAIChatClientFactory
     /// This is the setup-time key, so it is trimmed and checked before a header is built from it
     /// (<c>OutboundApiKey</c>).
     /// </remarks>
-    public OpenAIChatClientFactory(OpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(options, SetupKey(options), loggerFactory)
+    public OpenAIChatClientFactory(OpenAIProviderOptions options, ILoggerFactory? loggerFactory = null, TimeProvider? timeProvider = null)
+        : this(options, SetupKey(options), loggerFactory, timeProvider)
     {
     }
 
@@ -58,8 +59,9 @@ internal sealed class OpenAIChatClientFactory
     /// <param name="options">Provider options.</param>
     /// <param name="setupApiKey">The key, trimmed and checked (<c>OutboundApiKey</c>); the one value the client is built with and the factory reports.</param>
     /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
-    private OpenAIChatClientFactory(OpenAIProviderOptions options, string? setupApiKey, ILoggerFactory? loggerFactory)
-        : this(Build(options, setupApiKey, egressGuard: null), options.Endpoint ?? DefaultEndpoint, options.DefaultModel, loggerFactory)
+    /// <param name="timeProvider">The clock the client's retry wait runs on.</param>
+    private OpenAIChatClientFactory(OpenAIProviderOptions options, string? setupApiKey, ILoggerFactory? loggerFactory, TimeProvider? timeProvider)
+        : this(Build(options, setupApiKey, egressGuard: null, timeProvider), options.Endpoint ?? DefaultEndpoint, options.DefaultModel, loggerFactory)
     {
         SetupApiKey = setupApiKey;
     }
@@ -224,6 +226,7 @@ internal sealed class OpenAIChatClientFactory
     /// override; a setup-time endpoint is the operator's own decision and is
     /// written in code.
     /// </param>
+    /// <param name="timeProvider">The clock the client's retry wait runs on; <see cref="TimeProvider.System"/> when omitted.</param>
     /// <returns>The client that was built.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException"><see cref="OpenAIProviderOptions.ApiKey"/> is empty.</exception>
@@ -231,14 +234,14 @@ internal sealed class OpenAIChatClientFactory
     /// The key is used as it was stored: a tenant's key is masked wherever the text of its failure is shown,
     /// and the setup-time key goes through the constructor instead.
     /// </remarks>
-    public static OpenAIClient CreateClient(OpenAIProviderOptions options, EgressSocketGuard? egressGuard = null)
+    public static OpenAIClient CreateClient(OpenAIProviderOptions options, EgressSocketGuard? egressGuard = null, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return Build(options, options.ApiKey, egressGuard);
+        return Build(options, options.ApiKey, egressGuard, timeProvider);
     }
 
-    private static OpenAIClient Build(OpenAIProviderOptions options, string? apiKey, EgressSocketGuard? egressGuard)
+    private static OpenAIClient Build(OpenAIProviderOptions options, string? apiKey, EgressSocketGuard? egressGuard, TimeProvider? timeProvider)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -250,7 +253,7 @@ internal sealed class OpenAIChatClientFactory
 
         // A Retry-After above a minute is ignored, not obeyed: the library's own policy waited a day for a
         // day and threw out of its retry loop for a value past ~49 days (OpenAIBoundedRetryPolicy).
-        var clientOptions = new OpenAIClientOptions { RetryPolicy = new OpenAIBoundedRetryPolicy() };
+        var clientOptions = new OpenAIClientOptions { RetryPolicy = new OpenAIBoundedRetryPolicy(timeProvider) };
 
         if (options.Endpoint is not null)
         {

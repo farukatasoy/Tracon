@@ -49,6 +49,9 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
     /// tenant-supplied endpoint override; when <see langword="null"/>, such an
     /// override is not guarded.
     /// </param>
+    /// <param name="timeProvider">
+    /// The clock the retry wait of a tenant's own client runs on; <see cref="TimeProvider.System"/> when omitted.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public AzureOpenAIModelProvider(
@@ -57,7 +60,8 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
         IReadOnlyList<ModelDescriptor> models,
         ILogger<AzureOpenAIModelProvider>? logger = null,
         AzureOpenAIProviderOptions? healthCheckOptions = null,
-        EgressSocketGuard? egressGuard = null)
+        EgressSocketGuard? egressGuard = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -76,7 +80,7 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
                 resolved: !string.IsNullOrWhiteSpace(healthCheckOptions.ApiKey) || healthCheckOptions.CredentialFactory is not null,
                 alternative: $"assign {nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.CredentialFactory)}");
         _baseOptions = healthCheckOptions;
-        _core = new ModelProviderCore<AzureOpenAIChatClientFactory>(models, egressGuard);
+        _core = new ModelProviderCore<AzureOpenAIChatClientFactory>(models, egressGuard, timeProvider);
     }
 
     /// <inheritdoc />
@@ -185,7 +189,7 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 
         options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
 
-        var client = AzureOpenAIChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint));
+        var client = AzureOpenAIChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint), timeProvider: _core.Clock);
 
         return AzureOpenAIChatClientFactory.FromClient(client, options.DefaultDeployment);
     }

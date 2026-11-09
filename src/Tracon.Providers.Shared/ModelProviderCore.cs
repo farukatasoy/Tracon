@@ -47,13 +47,21 @@ internal sealed class ModelProviderCore<TFactory>
     /// <summary>Creates the shared state for one provider instance.</summary>
     /// <param name="models">The provider's catalog.</param>
     /// <param name="egressGuard">The outbound network guard for tenant-supplied endpoints, or <see langword="null"/>.</param>
-    internal ModelProviderCore(IReadOnlyList<ModelDescriptor> models, EgressSocketGuard? egressGuard)
+    /// <param name="timeProvider">The clock a tenant client's retry wait runs on; <see cref="TimeProvider.System"/> when omitted.</param>
+    internal ModelProviderCore(IReadOnlyList<ModelDescriptor> models, EgressSocketGuard? egressGuard, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(models);
 
         _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _egressGuard = egressGuard;
+        Clock = timeProvider ?? TimeProvider.System;
     }
+
+    /// <summary>
+    /// Gets the clock the provider's clients wait on between two tries. A provider hands it to the client it builds for
+    /// a tenant credential, so that client waits on the same clock as the setup-time client does.
+    /// </summary>
+    internal TimeProvider Clock { get; }
 
     /// <summary>
     /// Returns <see langword="true"/> when the catalog is non-empty and does not

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -26,12 +27,26 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The OpenAI cases drive the real <c>OpenAIClient</c> against <see cref="ScriptedOpenAIAudioServer"/>
 /// and assert the wire. The generic cases use a client that carries no provider name.
 /// </para>
+/// <para>
+/// A service that keeps failing is retried by the client three times with a backoff of its own (0.8, 1.6 and 3.2
+/// seconds) on the host's clock. The cases that provoke it run on a <see cref="ManualClock"/> and step it through the
+/// waits, so none of them waits.
+/// </para>
 /// </remarks>
 #pragma warning disable MEAI001
 public sealed class SpeechClientBridgeTests
 {
     private const string KeyName = "Tracon:ProviderKeys:Speech";
     private static readonly Uri SpeakUri = new("/tracon/api/voice/speak", UriKind.Relative);
+
+    // The OpenAI client library's ordinary backoff between its three retries.
+    private static readonly TimeSpan[] LibraryBackoff = [TimeSpan.FromSeconds(0.8), TimeSpan.FromSeconds(1.6), TimeSpan.FromSeconds(3.2)];
+
+    // The furthest timer the clock is stepped to. The library's longest backoff step is 3.2 seconds. The host's nearest
+    // timer of its own is the job worker's poll, 10 seconds away when the call starts and still 4.2 seconds away after
+    // the three waits of a call that never recovers (5.8 seconds), so a reach in between leaves it alone. A reach that
+    // took it in would step it as soon as the last answer was in flight and no retry timer was armed.
+    private static readonly TimeSpan RetryReach = TimeSpan.FromSeconds(3.5);
 
     [Fact]
     public async Task Speak_sends_the_model_voice_and_text_the_service_expects_and_saves_the_audio()
@@ -167,15 +182,19 @@ public sealed class SpeechClientBridgeTests
     [Fact]
     public async Task A_service_failure_is_a_502_that_does_not_echo_the_service_body()
     {
+        var clock = new ManualClock();
         await using var server = await ScriptedOpenAIAudioServer.StartAsync();
-        await using var host = await StartAsync(server);
+        await using var host = await StartAsync(server, configureServices: services => services.AddSingleton<TimeProvider>(clock));
         server.FailNext(500, times: 10);
 
-        using var response = await host.Client.PostAsJsonAsync(
+        var speak = host.Client.PostAsJsonAsync(
             SpeakUri,
             new { text = "hello", provider = "openai" },
             TestContext.Current.CancellationToken);
+        await clock.AdvanceUntilAsync(speak, within: RetryReach);
+        using var response = await speak;
 
+        clock.Steps.ShouldBe(LibraryBackoff, "the client retried the failing service three times on the host's clock");
         response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
 
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -315,12 +334,13 @@ public sealed class SpeechClientBridgeTests
     [Fact]
     public async Task A_streaming_call_the_service_refuses_names_the_status_and_not_the_service_text()
     {
+        var clock = new ManualClock();
         await using var server = await ScriptedOpenAIAudioServer.StartAsync();
-        await using var host = await StartAsync(server);
+        await using var host = await StartAsync(server, configureServices: services => services.AddSingleton<TimeProvider>(clock));
         var synthesizer = await Resolver(host).GetSynthesizerAsync("openai", TestContext.Current.CancellationToken);
         server.FailNext(500, times: 10);
 
-        var exception = await Should.ThrowAsync<TraconException>(async () =>
+        var streaming = Should.ThrowAsync<TraconException>(async () =>
         {
             await foreach (var chunk in synthesizer.SynthesizeStreamingAsync(
                                new SpeechRequest { Text = "hello" },
@@ -329,7 +349,10 @@ public sealed class SpeechClientBridgeTests
                 chunk.Length.ShouldBeGreaterThan(0);
             }
         });
+        await clock.AdvanceUntilAsync(streaming, within: RetryReach);
+        var exception = await streaming;
 
+        clock.Steps.ShouldBe(LibraryBackoff, "the client retried the failing service three times on the host's clock");
         exception.Message.ShouldContain("HTTP 500 (model_not_found)");
         exception.Message.ShouldNotContain("upstream-body-text-that-must-not-leak");
     }
@@ -376,17 +399,21 @@ public sealed class SpeechClientBridgeTests
     [Fact]
     public async Task A_transcription_failure_is_a_tracon_exception_that_does_not_echo_the_service_body()
     {
+        var clock = new ManualClock();
         await using var server = await ScriptedOpenAIAudioServer.StartAsync();
-        await using var host = await StartAsync(server);
+        await using var host = await StartAsync(server, configureServices: services => services.AddSingleton<TimeProvider>(clock));
         var transcriber = await Resolver(host).GetTranscriberAsync("openai", TestContext.Current.CancellationToken);
         server.FailNext(500, times: 10);
 
-        var exception = await Should.ThrowAsync<TraconException>(async () => await transcriber.TranscribeAsync(
+        var transcription = Should.ThrowAsync<TraconException>(async () => await transcriber.TranscribeAsync(
             new MemoryStream(ScriptedOpenAIAudioServer.Mp3),
             "audio/mpeg",
             null,
             TestContext.Current.CancellationToken));
+        await clock.AdvanceUntilAsync(transcription, within: RetryReach);
+        var exception = await transcription;
 
+        clock.Steps.ShouldBe(LibraryBackoff, "the client retried the failing service three times on the host's clock");
         exception.Message.ShouldContain("HTTP 500 (model_not_found)");
         exception.Message.ShouldNotContain("upstream-body-text-that-must-not-leak");
     }

@@ -169,7 +169,8 @@ public static class OpenAICompatibleProviderExtensions
             // provider, that endpoint is dialled through the outbound address
             // guard. Without it a host name resolving to a private address was
             // never checked (the binding save path checks only IP literals).
-            egressGuard: provider.GetService<EgressSocketGuard>());
+            egressGuard: provider.GetService<EgressSocketGuard>(),
+            timeProvider: provider.GetService<TimeProvider>());
     }
 
     private static void ValidateName(string name)

@@ -20,7 +20,7 @@ namespace Tracon;
 /// behaviour applies <strong>only</strong> through this cache — that is, only to the
 /// providers registered with <c>UseOpenAICompatible()</c>. <c>UseOpenAI()</c> still does
 /// not run without a key
-/// (<see cref="OpenAIChatClientFactory.CreateClient(OpenAIProviderOptions, EgressSocketGuard)"/> is unchanged).
+/// (<see cref="OpenAIChatClientFactory.CreateClient(OpenAIProviderOptions, EgressSocketGuard, TimeProvider)"/> is unchanged).
 /// </para>
 /// </remarks>
 internal sealed class OpenAINamedChatClientFactoryCache
@@ -33,16 +33,19 @@ internal sealed class OpenAINamedChatClientFactoryCache
 
     private readonly IOptionsMonitor<OpenAIProviderOptions> _optionsMonitor;
     private readonly ILoggerFactory? _loggerFactory;
+    private readonly TimeProvider? _timeProvider;
     private readonly ConcurrentDictionary<string, OpenAIChatClientFactory> _factories = new(StringComparer.OrdinalIgnoreCase);
 
     public OpenAINamedChatClientFactoryCache(
         IOptionsMonitor<OpenAIProviderOptions> optionsMonitor,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
 
         _optionsMonitor = optionsMonitor;
         _loggerFactory = loggerFactory;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>Returns the factory for the given name, building and caching it when absent.</summary>
@@ -57,7 +60,7 @@ internal sealed class OpenAINamedChatClientFactoryCache
 
         if (!string.IsNullOrWhiteSpace(options.ApiKey))
         {
-            return new OpenAIChatClientFactory(options, _loggerFactory);
+            return new OpenAIChatClientFactory(options, _loggerFactory, _timeProvider);
         }
 
         var client = OpenAIChatClientFactory.CreateClient(new OpenAIProviderOptions
@@ -66,7 +69,7 @@ internal sealed class OpenAINamedChatClientFactoryCache
             Endpoint = options.Endpoint,
             Organization = options.Organization,
             Timeout = options.Timeout,
-        });
+        }, timeProvider: _timeProvider);
 
         return OpenAIChatClientFactory.FromClient(client, options.DefaultModel, _loggerFactory);
     }

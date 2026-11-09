@@ -275,7 +275,9 @@ public sealed class WorkflowParameterBindingTests
                         "Edit for a {{tone}} tone, voice {{voice}}.",
                         Tone(required: false, defaultValue: "casual"),
                         new AgentParameter { Name = "voice", Kind = AgentParameterKind.Text, DefaultValue = "plain" }))
-                    .UseWorkflows();
+                    .UseWorkflows()
+                    // The batch tests wait for the worker to pick a job up; the default poll is ten seconds.
+                    .UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
 
                 configure?.Invoke(builder);
             });

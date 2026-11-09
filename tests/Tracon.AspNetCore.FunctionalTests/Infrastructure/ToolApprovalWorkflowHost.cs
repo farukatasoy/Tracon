@@ -58,6 +58,9 @@ internal static class ToolApprovalWorkflowHost
                     static services => AgentWorkflowBuilder.BuildSequential(
                         CodeApproval, [services.GetWorkflowAgent(CodeApproval, AgentStepHost.Agent)]));
 
+                // A queued answer is picked up by the worker; the default poll is ten seconds.
+                builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
+
                 configureTracon?.Invoke(builder);
             },
             configureServices);

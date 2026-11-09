@@ -4,7 +4,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -27,16 +29,32 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// back are counted once. Both modes are driven (buffered and streamed) because the retry sits in front of the
 /// stream.
 /// </para>
+/// <para>
+/// The OpenAI clients wait between two tries on the host's clock, so their legs run on a <see cref="ManualClock"/> and
+/// no test waits for a backoff: the call is carried to its end by stepping the clock, and <c>Steps</c> says how long
+/// each wait was (the header's seconds, or the library's 0.8, 1.6 and 3.2 for a header that was ignored). The
+/// Anthropic library sleeps on the system clock and offers no hook to change that, so its legs wait for real.
+/// </para>
 /// </remarks>
 public sealed class ProviderRetryAfterTests
 {
     private const string AgentName = "retry-after-agent";
 
-    // A recovering run takes about a second and a run that never recovers about six (the library's three backoff
-    // steps), so the bound is five times the slower one. A header that is obeyed blows through it.
+    // The bound on a failure, not a budget: an OpenAI leg ends as soon as the clock has been stepped through its
+    // waits, and an Anthropic leg that recovers takes about a second (that library's own backoff, six at the most
+    // when it never recovers). A header that is obeyed blows through it.
     private static readonly TimeSpan Bound = TimeSpan.FromSeconds(30);
 
+    // The furthest timer the clock is stepped to. The library's longest backoff step is 3.2 seconds. The host's nearest
+    // timer of its own is the job worker's poll, 10 seconds away when the call starts and still 4.2 seconds away after
+    // the three waits of a call that never recovers (5.8 seconds), so a reach in between leaves it alone. A reach that
+    // took it in would step it as soon as the last answer was in flight and no retry timer was armed.
+    private static readonly TimeSpan RetryReach = TimeSpan.FromSeconds(3.5);
+
     private static readonly Uri RunUri = new($"/tracon/api/agents/{AgentName}/run", UriKind.Relative);
+
+    // The OpenAI client library's ordinary backoff between its three retries.
+    private static readonly TimeSpan[] LibraryBackoff = [TimeSpan.FromSeconds(0.8), TimeSpan.FromSeconds(1.6), TimeSpan.FromSeconds(3.2)];
 
     public static TheoryData<string, string, bool> RecoveringRuns()
     {
@@ -111,13 +129,39 @@ public sealed class ProviderRetryAfterTests
         run.Usage.ShouldNotBeNull();
         run.Usage.InputTokens.ShouldBe(rig.Input, "the tokens of the answer that came back are counted once");
         run.Usage.OutputTokens.ShouldBe(rig.Output);
+
+        // A header the ceiling ignores leaves the library's first backoff step: with the ceiling gone the wait would be
+        // the header's (a day, or a value the timer refuses), which the clock never steps to.
+        rig.Clock?.Steps.ShouldBe([LibraryBackoff[0]], $"{provider}, Retry-After '{retryAfter}': the wait was not the library's first backoff step");
     }
 
     [Theory]
-    [MemberData(nameof(Providers))]
-    public async Task A_retry_after_within_a_minute_is_obeyed(string provider, bool streamed)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_retry_after_within_a_minute_is_obeyed_by_the_openai_clients(bool streamed)
     {
-        await using var rig = await StartAsync(provider, "2", rejected: 1);
+        await using var rig = await StartAsync(OpenAi, "2", rejected: 1);
+        using var bound = BoundedToken();
+
+        await SendAsync(rig, streamed, bound.Token);
+
+        var run = await SingleTerminalRunAsync(rig.Host);
+
+        run.Status.ShouldBe(RunStatus.Completed, $"{run.Error?.Message}");
+        rig.Calls().ShouldBe(2);
+
+        // The ordinary backoff of the first retry is 0.8 seconds, so a wait of two seconds is the header.
+        rig.Clock.ShouldNotBeNull().Steps.ShouldBe([TimeSpan.FromSeconds(2)], "the client did not wait for the Retry-After it was given");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_retry_after_within_a_minute_is_obeyed_by_the_anthropic_client(bool streamed)
+    {
+        // The Anthropic library sleeps on the system clock and has no hook for another, so this wait is measured for
+        // real: it is the one check here that cannot run on the manual clock.
+        await using var rig = await StartAsync(Anthropic, "2", rejected: 1);
         using var bound = BoundedToken();
         var clock = Stopwatch.StartNew();
 
@@ -127,11 +171,11 @@ public sealed class ProviderRetryAfterTests
 
         var run = await SingleTerminalRunAsync(rig.Host);
 
-        run.Status.ShouldBe(RunStatus.Completed, $"{provider}: {run.Error?.Message}");
+        run.Status.ShouldBe(RunStatus.Completed, $"{run.Error?.Message}");
         rig.Calls().ShouldBe(2);
 
         // The ordinary backoff of the first retry is under a second, so a wait of nearly two seconds is the header.
-        clock.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(1.5), $"{provider} did not wait for the Retry-After it was given");
+        clock.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(1.5), "the Anthropic client did not wait for the Retry-After it was given");
     }
 
     [Theory]
@@ -155,6 +199,9 @@ public sealed class ProviderRetryAfterTests
         rig.Calls().ShouldBeGreaterThan(1, $"{provider}: the 429 was not retried with the ordinary backoff");
         (run.Usage?.InputTokens ?? 0).ShouldBe(0, "a run that never got an answer counts no tokens");
         (run.Usage?.OutputTokens ?? 0).ShouldBe(0);
+
+        // The header is a day; every wait the clock was stepped through is the library's own backoff.
+        rig.Clock?.Steps.ShouldBe(LibraryBackoff, $"{provider}: the retries did not wait the library's ordinary backoff");
     }
 
     [Theory]
@@ -167,8 +214,11 @@ public sealed class ProviderRetryAfterTests
 
         primary.ChatCompletionOverride = (context, _) => TooManyRequests(context, "86400");
         fallback.ChatCompletionOverride = (context, _) => Answer(context, IsStreamed(fallback));
+        var clock = new ManualClock();
 
-        await using var host = await TraconTestHost.StartAsync(builder => builder
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => services.AddSingleton<TimeProvider>(clock),
+            configureTracon: builder => builder
             .UseOpenAICompatible("retry-after-primary", options => options.Endpoint = primary.BaseAddress)
             .UseOpenAICompatible("retry-after-fallback", options => options.Endpoint = fallback.BaseAddress)
             .AddAgent(new AgentDefinition
@@ -186,13 +236,14 @@ public sealed class ProviderRetryAfterTests
 
         using var bound = BoundedToken(TimeSpan.FromSeconds(60));
 
-        await SendAsync(host, streamed, bound.Token);
+        await SendAsync(host, streamed, clock, bound.Token);
 
         var run = await SingleTerminalRunAsync(host);
 
         run.Status.ShouldBe(RunStatus.Completed, run.Error?.Message);
         fallback.ChatCompletionCallCount.ShouldBe(1);
         primary.ChatCompletionCallCount.ShouldBeGreaterThan(1, "the primary's 429 was not retried before the fallback took over");
+        clock.Steps.ShouldBe(LibraryBackoff, "the primary's retries waited the library's ordinary backoff, not the day it asked for");
         run.Usage.ShouldNotBeNull();
         run.Usage.InputTokens.ShouldBe(5, "only the answer of the fallback is counted");
         run.Usage.OutputTokens.ShouldBe(3);
@@ -211,9 +262,25 @@ public sealed class ProviderRetryAfterTests
     }
 
     private static Task SendAsync(Rig rig, bool streamed, CancellationToken cancellationToken)
-        => SendAsync(rig.Host, streamed, cancellationToken);
+        => SendAsync(rig.Host, streamed, rig.Clock, cancellationToken);
 
-    private static async Task SendAsync(TraconTestHost host, bool streamed, CancellationToken cancellationToken)
+    // On a host whose clock is manual the call is carried to its end by stepping that clock through the waits the
+    // client makes between its tries; on a real clock it just runs.
+    private static async Task SendAsync(TraconTestHost host, bool streamed, ManualClock? clock, CancellationToken cancellationToken)
+    {
+        var send = SendCoreAsync(host, streamed, cancellationToken);
+
+        if (clock is null)
+        {
+            await send;
+
+            return;
+        }
+
+        await clock.AdvanceUntilAsync(send, within: RetryReach);
+    }
+
+    private static async Task SendCoreAsync(TraconTestHost host, bool streamed, CancellationToken cancellationToken)
     {
         if (!streamed)
         {
@@ -250,11 +317,14 @@ public sealed class ProviderRetryAfterTests
     private static async Task<Rig> StartOpenAiAsync(string retryAfter, int rejected)
     {
         var server = await FakeOpenAiCompatibleServer.StartAsync();
+        var clock = new ManualClock();
 
         server.ChatCompletionOverride = (context, call)
             => call <= rejected ? TooManyRequests(context, retryAfter) : Answer(context, IsStreamed(server));
 
-        var host = await TraconTestHost.StartAsync(builder => builder
+        var host = await TraconTestHost.StartAsync(
+            configureServices: services => services.AddSingleton<TimeProvider>(clock),
+            configureTracon: builder => builder
             .UseOpenAICompatible("retry-after-provider", options => options.Endpoint = server.BaseAddress)
             .AddAgent(new AgentDefinition
             {
@@ -264,7 +334,7 @@ public sealed class ProviderRetryAfterTests
                 Origin = AgentDefinitionOrigin.Code,
             }));
 
-        return new Rig(host, server, () => server.ChatCompletionCallCount, Input: 5, Output: 3);
+        return new Rig(host, server, () => server.ChatCompletionCallCount, Input: 5, Output: 3, clock);
     }
 
     private static async Task<Rig> StartAnthropicAsync(string retryAfter, int rejected)
@@ -302,7 +372,7 @@ public sealed class ProviderRetryAfterTests
                 Origin = AgentDefinitionOrigin.Code,
             }));
 
-        return new Rig(host, server, () => server.Bodies.Count, Input: 12, Output: 6);
+        return new Rig(host, server, () => server.Bodies.Count, Input: 12, Output: 6, Clock: null);
     }
 
     private static bool IsStreamed(FakeOpenAiCompatibleServer server)
@@ -369,7 +439,8 @@ public sealed class ProviderRetryAfterTests
 
         """;
 
-    private sealed record Rig(TraconTestHost Host, IAsyncDisposable Server, Func<int> Calls, int Input, int Output) : IAsyncDisposable
+    // Clock is the host's manual clock; null for a provider whose client waits on the system clock.
+    private sealed record Rig(TraconTestHost Host, IAsyncDisposable Server, Func<int> Calls, int Input, int Output, ManualClock? Clock) : IAsyncDisposable
     {
         public async ValueTask DisposeAsync()
         {

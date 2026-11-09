@@ -26,6 +26,8 @@
   -->
   <ItemGroup Label="Shared OpenAI source tests">
     <Compile Include="../Shared/OpenAI/**/*.cs" LinkBase="Shared/OpenAI" />
+    <!-- The clock the retry policy's wait is driven on, so no test waits for a backoff. -->
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
   </ItemGroup>
 
 </Project>

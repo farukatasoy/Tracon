@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -26,6 +28,12 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// (a negative count times a price is money handed back), and a failure's text does not contain the provider's body,
 /// which can carry anything.
 /// </para>
+/// <para>
+/// The host runs on a <see cref="ManualClock"/>. The client library retries a status or a cut connection three times
+/// with a backoff of its own (0.8, 1.6 and 3.2 seconds), and it waits on the host's clock, so the test steps the clock
+/// through the waits instead of sitting through them. The steps are also asserted: a case the library retries must
+/// have waited those steps, and one it does not retry must have waited none.
+/// </para>
 /// </remarks>
 public sealed class UpstreamMisbehaviorTests
 {
@@ -34,6 +42,14 @@ public sealed class UpstreamMisbehaviorTests
     private const string Canary = "UPSTREAM-BODY-CANARY-71e3";
 
     private static readonly Uri RunUri = new($"/tracon/api/agents/{AgentName}/run", UriKind.Relative);
+
+    // The furthest timer the clock is stepped to. The library's longest backoff step is 3.2 seconds. The host's nearest
+    // timer of its own is the job worker's poll, 10 seconds away when the call starts and still 4.2 seconds away after
+    // the three waits of a call that never recovers (5.8 seconds), so a reach in between leaves it alone. A reach that
+    // took it in would step it as soon as the last answer was in flight and no retry timer was armed.
+    private static readonly TimeSpan RetryReach = TimeSpan.FromSeconds(3.5);
+
+    private static readonly TimeSpan[] LibraryBackoff = [TimeSpan.FromSeconds(0.8), TimeSpan.FromSeconds(1.6), TimeSpan.FromSeconds(3.2)];
 
     public static TheoryData<string> Cases() => [.. Replies.Keys];
 
@@ -65,21 +81,17 @@ public sealed class UpstreamMisbehaviorTests
     [MemberData(nameof(Cases))]
     public async Task A_buffered_run_against_a_misbehaving_provider_ends_in_a_terminal_state(string name)
     {
+        var clock = new ManualClock();
         await using var server = await StartServerAsync(name);
-        await using var host = await StartHostAsync(server);
+        await using var host = await StartHostAsync(server, clock);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, RunUri)
-        {
-            Content = JsonContent.Create(new AgentRunRequest { Message = "hello" }),
-        };
-        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+        var exchange = SendBufferedAsync(host);
+        await clock.AdvanceUntilAsync(exchange, within: RetryReach);
+        var (status, body) = await exchange;
 
-        using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
-
-        response.StatusCode.ShouldNotBe(HttpStatusCode.InternalServerError, $"{name}: the host answered with a bare 500");
-
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        status.ShouldNotBe(HttpStatusCode.InternalServerError, $"{name}: the host answered with a bare 500");
         body.ShouldNotContain(Canary, Case.Sensitive, $"{name}: the response echoes the provider's body");
+        clock.Steps.ShouldBe(ExpectedWaits(name, streamed: false), $"{name}: the waits between the client's tries");
 
         await AssertRunSettledAsync(host, name);
     }
@@ -88,20 +100,54 @@ public sealed class UpstreamMisbehaviorTests
     [MemberData(nameof(Cases))]
     public async Task A_streamed_run_against_a_misbehaving_provider_ends_in_a_terminal_state(string name)
     {
+        var clock = new ManualClock();
         await using var server = await StartServerAsync(name);
-        await using var host = await StartHostAsync(server);
+        await using var host = await StartHostAsync(server, clock);
 
+        var exchange = SendStreamedAsync(host);
+        await clock.AdvanceUntilAsync(exchange, within: RetryReach);
+        var frames = await exchange;
+
+        frames.ShouldNotBeEmpty($"{name}: the stream carried no frame at all");
+        string.Join('\n', frames.Select(static frame => frame.Data)).ShouldNotContain(Canary, Case.Sensitive, $"{name}: a frame echoes the provider's body");
+        clock.Steps.ShouldBe(ExpectedWaits(name, streamed: true), $"{name}: the waits between the client's tries");
+
+        await AssertRunSettledAsync(host, name);
+    }
+
+    private static async Task<(HttpStatusCode Status, string Body)> SendBufferedAsync(TraconTestHost host)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, RunUri)
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hello" }),
+        };
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+
+        using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        return (response.StatusCode, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    private static async Task<IReadOnlyList<SseFrame>> SendStreamedAsync(TraconTestHost host)
+    {
         using var response = await host.Client.PostAsJsonAsync(
             RunUri, new AgentRunRequest { Message = "hello" }, TestContext.Current.CancellationToken);
 
         await using var stream = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
-        var frames = await SseReader.ReadAllAsync(stream);
 
-        frames.ShouldNotBeEmpty($"{name}: the stream carried no frame at all");
-        string.Join('\n', frames.Select(static frame => frame.Data)).ShouldNotContain(Canary, Case.Sensitive, $"{name}: a frame echoes the provider's body");
-
-        await AssertRunSettledAsync(host, name);
+        return await SseReader.ReadAllAsync(stream);
     }
+
+    // What the client library does with the case: a status it retries or a connection cut before any answer gets three
+    // retries at its ordinary backoff (a Retry-After within the ceiling replaces a step that is shorter than it); a
+    // stream cut after its first chunk is not a try that failed, so nothing is retried.
+    private static TimeSpan[] ExpectedWaits(string name, bool streamed) => name switch
+    {
+        "a 429 with Retry-After" => [TimeSpan.FromSeconds(1), LibraryBackoff[1], LibraryBackoff[2]],
+        "a 500 with a body" or "an HTML error page" => LibraryBackoff,
+        "a stream cut after its first chunk" => streamed ? [] : LibraryBackoff,
+        _ => [],
+    };
 
     private static async Task AssertRunSettledAsync(TraconTestHost host, string name)
     {
@@ -136,8 +182,10 @@ public sealed class UpstreamMisbehaviorTests
         return server;
     }
 
-    private static Task<TraconTestHost> StartHostAsync(FakeOpenAiCompatibleServer server)
-        => TraconTestHost.StartAsync(builder => builder
+    private static Task<TraconTestHost> StartHostAsync(FakeOpenAiCompatibleServer server, ManualClock clock)
+        => TraconTestHost.StartAsync(
+            configureServices: services => services.AddSingleton<TimeProvider>(clock),
+            configureTracon: builder => builder
             .UseOpenAICompatible(ProviderName, options => options.Endpoint = server.BaseAddress)
             .AddAgent(new AgentDefinition
             {

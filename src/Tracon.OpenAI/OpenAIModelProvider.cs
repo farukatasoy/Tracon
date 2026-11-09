@@ -66,6 +66,9 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     /// tenant-supplied endpoint override; when <see langword="null"/>, such an
     /// override is not guarded.
     /// </param>
+    /// <param name="timeProvider">
+    /// The clock the retry wait of a tenant's own client runs on; <see cref="TimeProvider.System"/> when omitted.
+    /// </param>
     /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public OpenAIModelProvider(
@@ -76,7 +79,8 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
         ILogger<OpenAIModelProvider>? logger = null,
         OpenAIProviderOptions? healthCheckOptions = null,
         string? configurationSectionKey = OpenAIProviderOptions.SectionName,
-        EgressSocketGuard? egressGuard = null)
+        EgressSocketGuard? egressGuard = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -101,7 +105,7 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
             ? $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Models)}"
             : $"{configurationSectionKey}:{nameof(OpenAIProviderOptions.Models)}";
         _baseOptions = healthCheckOptions;
-        _core = new ModelProviderCore<OpenAIChatClientFactory>(models, egressGuard);
+        _core = new ModelProviderCore<OpenAIChatClientFactory>(models, egressGuard, timeProvider);
     }
 
     /// <inheritdoc />
@@ -247,7 +251,7 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
 
         options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
 
-        var client = OpenAIChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint));
+        var client = OpenAIChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint), _core.Clock);
 
         return OpenAIChatClientFactory.FromClient(client, options.DefaultModel);
     }

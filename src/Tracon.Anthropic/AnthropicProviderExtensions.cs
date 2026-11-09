@@ -91,7 +91,8 @@ public static class AnthropicProviderExtensions
         // One client, one HTTP connection pool.
         services.TryAddSingleton(static provider => new AnthropicChatClientFactory(
             provider.GetRequiredService<IOptions<AnthropicProviderOptions>>().Value,
-            provider.GetService<ILoggerFactory>()));
+            provider.GetService<ILoggerFactory>(),
+            provider.GetService<TimeProvider>()));
 
         if (alreadyRegistered)
         {
@@ -108,7 +109,8 @@ public static class AnthropicProviderExtensions
                 AnthropicModelCatalog.Build(options),
                 provider.GetService<ILogger<AnthropicModelProvider>>(),
                 healthCheckOptions: options,
-                egressGuard: provider.GetService<EgressSocketGuard>());
+                egressGuard: provider.GetService<EgressSocketGuard>(),
+                timeProvider: provider.GetService<TimeProvider>());
         });
 
         return builder;

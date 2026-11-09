@@ -44,6 +44,10 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
     /// tenant-supplied endpoint override; when <see langword="null"/>, such an
     /// override is not guarded.
     /// </param>
+    /// <param name="timeProvider">
+    /// The clock a date in a <c>Retry-After</c> header of a tenant's own client is read against;
+    /// <see cref="TimeProvider.System"/> when omitted.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public AnthropicModelProvider(
@@ -52,7 +56,8 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
         IReadOnlyList<ModelDescriptor> models,
         ILogger<AnthropicModelProvider>? logger = null,
         AnthropicProviderOptions? healthCheckOptions = null,
-        EgressSocketGuard? egressGuard = null)
+        EgressSocketGuard? egressGuard = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -70,7 +75,7 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
                 AnthropicProviderOptions.SectionName,
                 resolved: !string.IsNullOrWhiteSpace(healthCheckOptions.ApiKey));
         _baseOptions = healthCheckOptions;
-        _core = new ModelProviderCore<AnthropicChatClientFactory>(models, egressGuard);
+        _core = new ModelProviderCore<AnthropicChatClientFactory>(models, egressGuard, timeProvider);
     }
 
     /// <inheritdoc />
@@ -162,7 +167,7 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
         options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
 
-        var client = AnthropicChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint));
+        var client = AnthropicChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint), _core.Clock);
 
         return AnthropicChatClientFactory.FromClient(client, options.DefaultModel, options.DefaultMaxOutputTokens);
     }

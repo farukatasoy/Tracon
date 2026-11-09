@@ -55,6 +55,7 @@ internal sealed class AzureOpenAIChatClientFactory
     /// <summary>Builds a new factory from options.</summary>
     /// <param name="options">The provider options.</param>
     /// <param name="loggerFactory">The logger factory passed to produced clients.</param>
+    /// <param name="timeProvider">The clock the client's retry wait runs on; <see cref="TimeProvider.System"/> when omitted.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// <see cref="AzureOpenAIProviderOptions.Endpoint"/> is empty, or neither an API key
@@ -64,8 +65,8 @@ internal sealed class AzureOpenAIChatClientFactory
     /// This is the setup-time key, so it is trimmed and checked before a header is built from it
     /// (<c>OutboundApiKey</c>). A credential factory wins over the key, and then the key is not read.
     /// </remarks>
-    public AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(options, SetupKey(options), loggerFactory)
+    public AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, ILoggerFactory? loggerFactory = null, TimeProvider? timeProvider = null)
+        : this(options, SetupKey(options), loggerFactory, timeProvider)
     {
     }
 
@@ -76,8 +77,9 @@ internal sealed class AzureOpenAIChatClientFactory
     /// <see langword="null"/> when a credential factory is given, because that credential is not a key.
     /// </param>
     /// <param name="loggerFactory">The logger factory passed to produced clients.</param>
-    private AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, string? setupApiKey, ILoggerFactory? loggerFactory)
-        : this(Build(options, setupApiKey, egressGuard: null, transport: null), options.DefaultDeployment, loggerFactory)
+    /// <param name="timeProvider">The clock the client's retry wait runs on.</param>
+    private AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, string? setupApiKey, ILoggerFactory? loggerFactory, TimeProvider? timeProvider)
+        : this(Build(options, setupApiKey, egressGuard: null, transport: null, timeProvider), options.DefaultDeployment, loggerFactory)
     {
         // Build has already refused an empty endpoint.
         _endpoint = V1Endpoint(options.Endpoint!);
@@ -194,6 +196,7 @@ internal sealed class AzureOpenAIChatClientFactory
     /// non-HTTPS address, so a loopback server cannot carry it. Wins over
     /// <paramref name="egressGuard"/>.
     /// </param>
+    /// <param name="timeProvider">The clock the client's retry wait runs on; <see cref="TimeProvider.System"/> when omitted.</param>
     /// <returns>The built client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
@@ -213,18 +216,20 @@ internal sealed class AzureOpenAIChatClientFactory
     public static OpenAIClient CreateClient(
         AzureOpenAIProviderOptions options,
         EgressSocketGuard? egressGuard = null,
-        PipelineTransport? transport = null)
+        PipelineTransport? transport = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return Build(options, options.ApiKey, egressGuard, transport);
+        return Build(options, options.ApiKey, egressGuard, transport, timeProvider);
     }
 
     private static OpenAIClient Build(
         AzureOpenAIProviderOptions options,
         string? apiKey,
         EgressSocketGuard? egressGuard,
-        PipelineTransport? transport)
+        PipelineTransport? transport,
+        TimeProvider? timeProvider)
     {
         if (options.Endpoint is null)
         {
@@ -240,7 +245,7 @@ internal sealed class AzureOpenAIChatClientFactory
         var clientOptions = new OpenAIClientOptions
         {
             Endpoint = V1Endpoint(options.Endpoint),
-            RetryPolicy = new OpenAIBoundedRetryPolicy(),
+            RetryPolicy = new OpenAIBoundedRetryPolicy(timeProvider),
         };
 
         // 🚨 Same family as OpenAIClientOptions: the hook is

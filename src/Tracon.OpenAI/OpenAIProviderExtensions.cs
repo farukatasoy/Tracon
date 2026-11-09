@@ -101,7 +101,8 @@ public static class OpenAIProviderExtensions
         // One client, one HTTP connection pool. Both providers share it.
         services.TryAddSingleton(static provider => new OpenAIChatClientFactory(
             provider.GetRequiredService<IOptions<OpenAIProviderOptions>>().Value,
-            provider.GetService<ILoggerFactory>()));
+            provider.GetService<ILoggerFactory>(),
+            provider.GetService<TimeProvider>()));
 
         if (alreadyRegistered)
         {
@@ -135,7 +136,8 @@ public static class OpenAIProviderExtensions
             OpenAIModelCatalog.Build(options),
             provider.GetService<ILogger<OpenAIModelProvider>>(),
             healthCheckOptions: options,
-            egressGuard: provider.GetService<EgressSocketGuard>());
+            egressGuard: provider.GetService<EgressSocketGuard>(),
+            timeProvider: provider.GetService<TimeProvider>());
     }
 
     /// <summary>

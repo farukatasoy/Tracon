@@ -41,6 +41,7 @@ internal sealed class AnthropicChatClientFactory
     /// <summary>Builds a new factory from settings.</summary>
     /// <param name="options">Provider settings.</param>
     /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
+    /// <param name="timeProvider">The clock a date in a <c>Retry-After</c> header is read against; <see cref="TimeProvider.System"/> when omitted.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// <see cref="AnthropicProviderOptions.ApiKey"/> is empty, or contains a character an HTTP header cannot carry.
@@ -49,8 +50,8 @@ internal sealed class AnthropicChatClientFactory
     /// This is the setup-time key, so it is trimmed and checked before a header is built from it
     /// (<c>OutboundApiKey</c>).
     /// </remarks>
-    public AnthropicChatClientFactory(AnthropicProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(options, SetupKey(options), loggerFactory)
+    public AnthropicChatClientFactory(AnthropicProviderOptions options, ILoggerFactory? loggerFactory = null, TimeProvider? timeProvider = null)
+        : this(options, SetupKey(options), loggerFactory, timeProvider)
     {
     }
 
@@ -58,8 +59,9 @@ internal sealed class AnthropicChatClientFactory
     /// <param name="options">Provider settings.</param>
     /// <param name="setupApiKey">The key, trimmed and checked; the one value the client is built with and the factory reports.</param>
     /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
-    private AnthropicChatClientFactory(AnthropicProviderOptions options, string setupApiKey, ILoggerFactory? loggerFactory)
-        : this(Build(options, setupApiKey, egressGuard: null), options.DefaultModel, options.DefaultMaxOutputTokens, loggerFactory)
+    /// <param name="timeProvider">The clock a date in a <c>Retry-After</c> header is read against.</param>
+    private AnthropicChatClientFactory(AnthropicProviderOptions options, string setupApiKey, ILoggerFactory? loggerFactory, TimeProvider? timeProvider)
+        : this(Build(options, setupApiKey, egressGuard: null, timeProvider), options.DefaultModel, options.DefaultMaxOutputTokens, loggerFactory)
     {
         SetupApiKey = setupApiKey;
     }
@@ -195,6 +197,7 @@ internal sealed class AnthropicChatClientFactory
     /// override; a setup-time endpoint is the operator's own decision and is
     /// written in code.
     /// </param>
+    /// <param name="timeProvider">The clock a date in a <c>Retry-After</c> header is read against; <see cref="TimeProvider.System"/> when omitted.</param>
     /// <returns>The constructed client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException"><see cref="AnthropicProviderOptions.ApiKey"/> is empty.</exception>
@@ -202,7 +205,7 @@ internal sealed class AnthropicChatClientFactory
     /// The key is used as it was stored: a tenant's key is masked wherever the text of its failure is shown,
     /// and the setup-time key goes through the constructor instead.
     /// </remarks>
-    public static AnthropicClient CreateClient(AnthropicProviderOptions options, EgressSocketGuard? egressGuard = null)
+    public static AnthropicClient CreateClient(AnthropicProviderOptions options, EgressSocketGuard? egressGuard = null, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -211,7 +214,7 @@ internal sealed class AnthropicChatClientFactory
             throw EmptyKey();
         }
 
-        return Build(options, options.ApiKey, egressGuard);
+        return Build(options, options.ApiKey, egressGuard, timeProvider);
     }
 
     private static TraconException EmptyKey()
@@ -220,7 +223,7 @@ internal sealed class AnthropicChatClientFactory
             "Provide the key through the `UseAnthropic(apiKey)` call, or set " +
             $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.ApiKey)}'.");
 
-    private static AnthropicClient Build(AnthropicProviderOptions options, string apiKey, EgressSocketGuard? egressGuard)
+    private static AnthropicClient Build(AnthropicProviderOptions options, string apiKey, EgressSocketGuard? egressGuard, TimeProvider? timeProvider)
     {
         var clientOptions = new Anthropic.Core.ClientOptions
         {
@@ -230,7 +233,7 @@ internal sealed class AnthropicChatClientFactory
 
             // The library obeys a Retry-After of any length (a day-long header held a run for a day); the
             // handler drops the ones above a minute so its own backoff applies.
-            Handlers = [new AnthropicRetryAfterHandler(TimeProvider.System)],
+            Handlers = [new AnthropicRetryAfterHandler(timeProvider ?? TimeProvider.System)],
         };
 
         // BaseUrl does not accept null; when it is not given, the SDK's own default

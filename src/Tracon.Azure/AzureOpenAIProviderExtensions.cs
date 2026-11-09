@@ -115,7 +115,8 @@ public static class AzureOpenAIProviderExtensions
         // One client, one HTTP connection pool.
         services.TryAddSingleton(static provider => new AzureOpenAIChatClientFactory(
             provider.GetRequiredService<IOptions<AzureOpenAIProviderOptions>>().Value,
-            provider.GetService<ILoggerFactory>()));
+            provider.GetService<ILoggerFactory>(),
+            provider.GetService<TimeProvider>()));
 
         if (alreadyRegistered)
         {
@@ -132,7 +133,8 @@ public static class AzureOpenAIProviderExtensions
                 AzureOpenAIModelCatalog.Build(options),
                 provider.GetService<ILogger<AzureOpenAIModelProvider>>(),
                 healthCheckOptions: options,
-                egressGuard: provider.GetService<EgressSocketGuard>());
+                egressGuard: provider.GetService<EgressSocketGuard>(),
+                timeProvider: provider.GetService<TimeProvider>());
         });
 
         return builder;

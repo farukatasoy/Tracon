@@ -30,6 +30,18 @@ public sealed class ModelProviderCoreTests
     }
 
     [Fact]
+    public void Without_a_clock_the_provider_waits_on_the_system_clock()
+        => new ModelProviderCore<object>([], egressGuard: null).Clock.ShouldBeSameAs(TimeProvider.System);
+
+    [Fact]
+    public void The_clock_the_host_registered_is_the_one_the_provider_hands_to_its_clients()
+    {
+        var clock = Substitute.For<TimeProvider>();
+
+        new ModelProviderCore<object>([], egressGuard: null, clock).Clock.ShouldBeSameAs(clock);
+    }
+
+    [Fact]
     public void Tenant_endpoint_without_a_configured_guard_stays_unguarded()
         => new ModelProviderCore<object>([], egressGuard: null)
             .GuardFor(new Uri("https://tenant.example.test/"))

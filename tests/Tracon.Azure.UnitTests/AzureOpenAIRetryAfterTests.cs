@@ -2,6 +2,7 @@ using System.ClientModel.Primitives;
 using System.Net;
 using Microsoft.Extensions.AI;
 using Tracon.Azure.UnitTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.Azure.UnitTests;
 
@@ -29,20 +30,41 @@ public sealed class AzureOpenAIRetryAfterTests
     [InlineData("Fri, 31 Dec 9999 23:59:59 GMT")]
     public async Task A_retry_after_beyond_a_minute_is_retried_at_the_ordinary_backoff(string retryAfter)
     {
+        var clock = new ManualClock();
         var handler = new TooManyRequestsOnce(retryAfter);
         var client = AzureOpenAIChatClientFactory.CreateClient(
             TestData.Options(),
-            transport: new HttpClientPipelineTransport(new HttpClient(handler)));
+            transport: new HttpClientPipelineTransport(new HttpClient(handler)),
+            timeProvider: clock);
         using var chatClient = AzureOpenAIChatClientFactory.FromClient(client).CreateChatClient(TestData.Binding());
 
-        // The library's first backoff is under a second; a call that obeyed the header would not return before this limit.
-        using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        bound.CancelAfter(TimeSpan.FromSeconds(30));
+        var response = chatClient.GetResponseAsync("ping", cancellationToken: TestContext.Current.CancellationToken);
 
-        var response = await chatClient.GetResponseAsync("ping", cancellationToken: bound.Token);
+        // The wait is carried to its end by stepping the clock; a call that obeyed the header would arm a timer of a day
+        // and the clock would leave it alone.
+        await clock.AdvanceUntilAsync(response);
 
-        response.Text.ShouldBe("pong");
+        (await response).Text.ShouldBe("pong");
         handler.Calls.ShouldBe(2, "one 429 and the retry that answered");
+        clock.Steps.ShouldBe([TimeSpan.FromSeconds(0.8)], "the library's first backoff step, not the header's");
+    }
+
+    [Fact]
+    public async Task A_retry_after_within_a_minute_is_obeyed_on_the_clock_the_client_was_given()
+    {
+        var clock = new ManualClock();
+        var handler = new TooManyRequestsOnce("2");
+        var client = AzureOpenAIChatClientFactory.CreateClient(
+            TestData.Options(),
+            transport: new HttpClientPipelineTransport(new HttpClient(handler)),
+            timeProvider: clock);
+        using var chatClient = AzureOpenAIChatClientFactory.FromClient(client).CreateChatClient(TestData.Binding());
+
+        var response = chatClient.GetResponseAsync("ping", cancellationToken: TestContext.Current.CancellationToken);
+
+        await clock.AdvanceUntilAsync(response);
+
+        clock.Steps.ShouldBe([TimeSpan.FromSeconds(2)], "the header's two seconds, which is more than the first backoff step");
     }
 
     private sealed class TooManyRequestsOnce(string retryAfter) : HttpMessageHandler

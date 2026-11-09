@@ -29,6 +29,7 @@ internal sealed class ManualClock : TimeProvider
 
     private readonly Lock _gate = new();
     private readonly List<ManualTimer> _timers = [];
+    private readonly List<TimeSpan> _steps = [];
     private long _elapsedTicks;
     private long _wallStepTicks;
 
@@ -107,6 +108,77 @@ internal sealed class ManualClock : TimeProvider
         {
             timer.Fire();
         }
+    }
+
+    /// <summary>
+    /// Gets the amounts <see cref="AdvanceUntilAsync"/> moved the clock by, in order: one per timer it fired. A test that
+    /// asserts how long a wait was reads it here instead of timing the wait.
+    /// </summary>
+    public IReadOnlyList<TimeSpan> Steps
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _steps];
+            }
+        }
+    }
+
+    /// <summary>
+    /// Moves the clock to the earliest armed timer, again and again, until <paramref name="work"/> ends.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Advance"/> fires only the timers that are armed when it runs. Work that waits, wakes and then waits
+    /// again (an HTTP client retrying with backoff) arms its next timer only after the previous one fired, so one
+    /// <see cref="Advance"/> cannot carry it to the end. This steps through them one by one, the way the real clock
+    /// would, without waiting for any of them.
+    /// </para>
+    /// <para>
+    /// A timer due further away than <paramref name="within"/> is left alone: it is a deadline or a heartbeat of the
+    /// system under test, not the wait this call stands in for, and firing it would end the work by timeout.
+    /// </para>
+    /// </remarks>
+    /// <param name="work">The work that waits on this clock.</param>
+    /// <param name="within">The furthest timer the call may fire; a minute when omitted, the ceiling a provider's retry header is honored up to.</param>
+    /// <param name="timeout">The failure bound for <paramref name="work"/> to end; <see cref="WaitUntil.DefaultTimeout"/> when omitted.</param>
+    /// <returns>A task that ends when <paramref name="work"/> has ended; it rethrows what <paramref name="work"/> threw.</returns>
+    public async Task AdvanceUntilAsync(Task work, TimeSpan? within = null, TimeSpan? timeout = null)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+
+        var reach = within ?? TimeSpan.FromMinutes(1);
+
+        await WaitUntil.TrueAsync(
+            async () =>
+            {
+                if (work.IsCompleted)
+                {
+                    return true;
+                }
+
+                var armed = Pending;
+
+                if (armed.Count > 0 && armed[0] <= reach)
+                {
+                    var step = armed[0] < TimeSpan.Zero ? TimeSpan.Zero : armed[0];
+
+                    lock (_gate)
+                    {
+                        _steps.Add(step);
+                    }
+
+                    Advance(step);
+                    await Task.Yield();
+                }
+
+                return work.IsCompleted;
+            },
+            "the work that waits on the manual clock to end",
+            timeout).ConfigureAwait(false);
+
+        await work.ConfigureAwait(false);
     }
 
     private void Remove(ManualTimer timer)
