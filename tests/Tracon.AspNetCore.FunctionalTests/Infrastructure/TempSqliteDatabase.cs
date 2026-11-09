@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -49,13 +50,51 @@ internal sealed class TempSqliteDatabase : IDisposable
 
         foreach (var path in Directory.EnumerateFiles(directory, fileName + "*"))
         {
-            // The host may hold the file open; Windows refuses a plain read unless writers are allowed to share.
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            try
+            {
+                // The host may hold the file open; Windows refuses a plain read unless writers are allowed to share.
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-            stream.CopyTo(all);
+                stream.CopyTo(all);
+            }
+            catch (IOException exception)
+            {
+                // A sharing violation on a Unix file means somebody holds a lock on it. It showed once in a full run on
+                // macOS and could not be repeated with the three test classes that read the file; the failure names the
+                // holder so the next time says who it is instead of guessing.
+                throw new IOException($"{exception.Message}{Environment.NewLine}Holders of the file, from lsof:{Environment.NewLine}{WhoHolds(path)}", exception);
+            }
         }
 
         return all.ToArray();
+    }
+
+    private static string WhoHolds(string path)
+    {
+        try
+        {
+            using var lsof = Process.Start(new ProcessStartInfo("lsof", ["-nP", "--", path])
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            });
+
+            if (lsof is null)
+            {
+                return "(lsof did not start)";
+            }
+
+            var output = lsof.StandardOutput.ReadToEnd();
+
+            lsof.WaitForExit(TimeSpan.FromSeconds(5));
+
+            return output.Length == 0 ? "(no process holds the file now)" : output;
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            return $"(lsof is not available: {exception.Message})";
+        }
     }
 
     public void Dispose()
