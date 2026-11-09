@@ -287,6 +287,63 @@ public sealed class ManualClockTests
     }
 
     [Fact]
+    public async Task A_timer_within_the_system_reach_runs_on_real_time_and_a_timer_beyond_it_stays_virtual()
+    {
+        var clock = new ManualClock { SystemTimersWithin = TimeSpan.FromMilliseconds(100) };
+        var shortFired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var longFired = 0;
+
+        using var shortTimer = clock.CreateTimer(_ => shortFired.TrySetResult(), null, TimeSpan.FromMilliseconds(20), Timeout.InfiniteTimeSpan);
+        using var longTimer = clock.CreateTimer(_ => Interlocked.Increment(ref longFired), null, TimeSpan.FromMinutes(5), Timeout.InfiniteTimeSpan);
+
+        await shortFired.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        Volatile.Read(ref longFired).ShouldBe(0, "five minutes are not passed by waiting");
+        clock.Pending.ShouldBe([TimeSpan.FromMinutes(5)]);
+        clock.CreatedTimers.ShouldBe(1, "the short timer is the system's and the clock does not count it");
+
+        clock.Advance(TimeSpan.FromMinutes(5));
+
+        Volatile.Read(ref longFired).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_periodic_timer_within_the_system_reach_keeps_ticking_without_the_clock_being_advanced()
+    {
+        var clock = new ManualClock { SystemTimersWithin = TimeSpan.FromMilliseconds(100) };
+        using var poll = new PeriodicTimer(TimeSpan.FromMilliseconds(10), clock);
+
+        // A failure bound: a periodic timer that stayed virtual would never tick and the wait would never end.
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        bound.CancelAfter(WaitUntil.DefaultTimeout);
+
+        for (var tick = 0; tick < 3; tick++)
+        {
+            (await poll.WaitForNextTickAsync(bound.Token)).ShouldBeTrue();
+        }
+
+        clock.CreatedTimers.ShouldBe(0);
+        clock.Pending.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_period_beyond_the_system_reach_makes_a_virtual_timer_even_when_its_first_wait_is_short()
+    {
+        var clock = new ManualClock { SystemTimersWithin = TimeSpan.FromMilliseconds(100) };
+        var ticks = 0;
+
+        using var timer = clock.CreateTimer(_ => Interlocked.Increment(ref ticks), null, TimeSpan.FromMilliseconds(20), TimeSpan.FromSeconds(30));
+
+        Volatile.Read(ref ticks).ShouldBe(0);
+        clock.Pending.ShouldBe([TimeSpan.FromMilliseconds(20)]);
+
+        clock.Advance(TimeSpan.FromMilliseconds(20));
+
+        Volatile.Read(ref ticks).ShouldBe(1);
+        clock.Pending.ShouldBe([TimeSpan.FromSeconds(30)]);
+    }
+
+    [Fact]
     public void A_clock_with_system_timers_moves_the_timestamp_only_when_it_is_told_to()
     {
         var manual = ManualClock.WithSystemTimers(new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero), systemTimestamp: false);

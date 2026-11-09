@@ -58,6 +58,7 @@ internal static class ToolWrapperChain
     /// <param name="authorizingLogger">The logger passed to the installed <see cref="AuthorizingAIFunction"/>.</param>
     /// <param name="timeoutLogger">The logger passed to the installed <see cref="TimeoutAIFunction"/>.</param>
     /// <param name="validatingLogger">The logger passed to the installed <see cref="ValidatingAIFunction"/>, when one is installed.</param>
+    /// <param name="timeProvider">The time source of the tool timeout; the system's when omitted.</param>
     /// <returns>
     /// The wrapped, invocable declaration for a server-side tool, or
     /// <paramref name="registration"/>'s own declaration unchanged for a
@@ -79,7 +80,8 @@ internal static class ToolWrapperChain
         IRunAttributionContext? attribution,
         ILogger<AuthorizingAIFunction> authorizingLogger,
         ILogger<TimeoutAIFunction> timeoutLogger,
-        ILogger<ValidatingAIFunction> validatingLogger)
+        ILogger<ValidatingAIFunction> validatingLogger,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(descriptor);
@@ -118,7 +120,11 @@ internal static class ToolWrapperChain
             ? new ApprovalRequiredAIFunction(wrapped)
             : wrapped;
 
-        wrapped = new TimeoutAIFunction(wrapped, registration.Timeout ?? defaultTimeout, timeoutLogger);
+        wrapped = new TimeoutAIFunction(
+            wrapped,
+            registration.Timeout ?? defaultTimeout,
+            timeoutLogger,
+            timeProvider ?? TimeProvider.System);
 
         // A no-op validator (the untouched default) adds no layer: an
         // installation that never registers its own validator pays no extra

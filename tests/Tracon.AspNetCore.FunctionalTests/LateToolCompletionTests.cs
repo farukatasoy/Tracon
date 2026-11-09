@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 // Same rationale as ApprovalEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost share a
 // name, so a blanket `using Tracon.Testing;` would produce CS0104.
@@ -80,8 +81,47 @@ public sealed class LateToolCompletionTests
         => new(
             Microsoft.Extensions.AI.AIFunctionFactory.Create(body, "slow_report"))
         {
-            Timeout = TimeSpan.FromMilliseconds(300),
+            Timeout = ToolTimeout,
         };
+
+    /// <summary>The limit every tool of this class is registered with.</summary>
+    private static readonly TimeSpan ToolTimeout = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>A pause the host's own loops make (the 20 ms job poll) stays on the system's timers; a tool timeout does not.</summary>
+    private static readonly TimeSpan HostLoops = TimeSpan.FromMilliseconds(100);
+
+    private static ManualClock NewClock() => new() { SystemTimersWithin = HostLoops };
+
+    /// <summary>
+    /// Starts a host that runs the tool's timeout on <paramref name="clock"/>, so the limit passes when the test moves the
+    /// clock to it and not after 300 ms of waiting.
+    /// </summary>
+    private static Task<TraconTestHost> StartHostAsync(ManualClock clock, TraconToolRegistration registration, EntryRecordingQuotaStore? quota = null)
+        => TraconTestHost.StartAsync(
+            Builder(registration),
+            configureServices: services =>
+            {
+                services.AddSingleton<TimeProvider>(clock);
+
+                if (quota is not null)
+                {
+                    ConfigureQuotaHost(services, quota);
+                }
+            });
+
+    /// <summary>
+    /// Waits for the run to complete, moving the clock to the tool's timeout: the body never ends, so the run completes
+    /// only because that limit was reached, and by no other timer.
+    /// </summary>
+    private static async Task CompleteAsync(TraconTestHost host, ManualClock clock, Guid runId)
+    {
+        var completed = host.WaitForRunStatusAsync(runId, "Completed");
+
+        await clock.AdvanceUntilAsync(completed, within: ToolTimeout);
+
+        clock.Steps.ShouldBe([ToolTimeout], "the run went on at the tool's own timeout");
+        (await completed).ShouldBe("Completed");
+    }
 
     private static Action<ITraconBuilder> Builder(TraconToolRegistration registration)
         => builder =>
@@ -108,8 +148,11 @@ public sealed class LateToolCompletionTests
         var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = NewRelease();
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async _ =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async _ =>
             {
                 // Deliberately ignores the cancellation the timeout requests —
                 // the non-cooperative body that is the whole reason this path
@@ -127,12 +170,12 @@ public sealed class LateToolCompletionTests
                 finished.TrySetResult(true);
 
                 return "report R-1 produced";
-            })));
+            }));
 
         var runId = await StartAsync(host, "s-late-success");
 
         // The model is told the call failed and the run finishes on time.
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
 
         var timedOut = await ReadSingleInvocationAsync(host, runId);
         timedOut.TimedOut.ShouldBeTrue();
@@ -155,8 +198,9 @@ public sealed class LateToolCompletionTests
         string.Equals(settled.Usage.Unit, ToolUsageUnits.Images, StringComparison.Ordinal).ShouldBeTrue();
         settled.Result.ShouldNotBeNull();
         settled.Result.ShouldContain("report R-1 produced");
-        settled.Duration.ShouldNotBeNull();
-        settled.Duration.Value.ShouldBeGreaterThan(TimeSpan.FromMilliseconds(300));
+
+        // The body ran from the call to its late end on the host's clock, which stood still but for the tool's own limit.
+        settled.Duration.ShouldBe(ToolTimeout);
     }
 
     [Fact]
@@ -167,17 +211,20 @@ public sealed class LateToolCompletionTests
         // as two and halve the tool's error rate.
         var release = NewRelease();
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async _ =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async _ =>
             {
                 await release.Task;
 
                 return "report R-1 produced";
-            })));
+            }));
 
         var runId = await StartAsync(host, "s-late-count");
 
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
         release.SetResult();
         await WaitForLateSettlementAsync(host, runId);
 
@@ -198,8 +245,11 @@ public sealed class LateToolCompletionTests
         // and ran to completion.
         var outcome = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async cancellationToken =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async cancellationToken =>
             {
                 try
                 {
@@ -216,11 +266,11 @@ public sealed class LateToolCompletionTests
 
                     throw;
                 }
-            })));
+            }));
 
         var runId = await StartAsync(host, "s-late-cooperative");
 
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
 
         (await outcome.Task.WaitAsync(TimeSpan.FromSeconds(20))).ShouldBe("cancelled");
 
@@ -242,18 +292,21 @@ public sealed class LateToolCompletionTests
         var faulted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = NewRelease();
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async _ =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async _ =>
             {
                 await release.Task;
                 faulted.TrySetResult(true);
 
                 throw new InvalidOperationException("the provider rejected it");
-            })));
+            }));
 
         var runId = await StartAsync(host, "s-late-fault");
 
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
         release.SetResult();
         await faulted.Task.WaitAsync(TimeSpan.FromSeconds(20));
 
@@ -285,8 +338,11 @@ public sealed class LateToolCompletionTests
         var release = NewRelease();
         var quota = new EntryRecordingQuotaStore();
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async _ =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async _ =>
             {
                 await release.Task;
 
@@ -301,12 +357,12 @@ public sealed class LateToolCompletionTests
                 finished.TrySetResult(true);
 
                 return "report R-1 produced";
-            })),
-            configureServices: services => ConfigureQuotaHost(services, quota));
+            }),
+            quota);
 
         var runId = await StartAsync(host, "s-late-quota");
 
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
 
         // The run closed with nothing reported: its entry adds the run and no money.
         var closed = quota.Entries.ShouldHaveSingleItem();
@@ -352,8 +408,11 @@ public sealed class LateToolCompletionTests
         var release = NewRelease();
         var quota = new EntryRecordingQuotaStore();
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async _ =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async _ =>
             {
                 TraconToolUsage.Report(new ToolCallUsage
                 {
@@ -369,12 +428,12 @@ public sealed class LateToolCompletionTests
                 await release.Task;
 
                 return "report R-1 produced";
-            })),
-            configureServices: services => ConfigureQuotaHost(services, quota));
+            }),
+            quota);
 
         var runId = await StartAsync(host, "s-late-once");
 
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
         await reported.Task.WaitAsync(TimeSpan.FromSeconds(20));
 
         release.SetResult();
@@ -404,8 +463,11 @@ public sealed class LateToolCompletionTests
         var release = NewRelease();
         var quota = new EntryRecordingQuotaStore();
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async _ =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async _ =>
             {
                 TraconToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Images, Quantity = 1m, Cost = 0.02m, Currency = "USD" });
                 reportedInTime.TrySetResult(true);
@@ -416,12 +478,12 @@ public sealed class LateToolCompletionTests
                 finished.TrySetResult(true);
 
                 return "report R-1 produced";
-            })),
-            configureServices: services => ConfigureQuotaHost(services, quota));
+            }),
+            quota);
 
         var runId = await StartAsync(host, "s-late-difference");
 
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
         await reportedInTime.Task.WaitAsync(TimeSpan.FromSeconds(20));
 
         quota.Entries.ShouldHaveSingleItem().Cost.ShouldBe(0.02m);
@@ -453,8 +515,11 @@ public sealed class LateToolCompletionTests
         var release = NewRelease();
         var quota = new EntryRecordingQuotaStore();
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async _ =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async _ =>
             {
                 await release.Task;
 
@@ -469,12 +534,12 @@ public sealed class LateToolCompletionTests
                 finished.TrySetResult(true);
 
                 return "report R-1 produced";
-            })),
-            configureServices: services => ConfigureQuotaHost(services, quota));
+            }),
+            quota);
 
         var runId = await StartAsync(host, "s-late-eur");
 
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
         release.SetResult();
         await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
         await WaitForLateSettlementAsync(host, runId);
@@ -490,8 +555,11 @@ public sealed class LateToolCompletionTests
         var release = NewRelease();
         var quota = new EntryRecordingQuotaStore { FailWhen = static entry => entry.Runs == 0 };
 
-        await using var host = await TraconTestHost.StartAsync(
-            Builder(SlowTool(async _ =>
+        var clock = NewClock();
+
+        await using var host = await StartHostAsync(
+            clock,
+            SlowTool(async _ =>
             {
                 await release.Task;
 
@@ -506,12 +574,12 @@ public sealed class LateToolCompletionTests
                 finished.TrySetResult(true);
 
                 return "report R-1 produced";
-            })),
-            configureServices: services => ConfigureQuotaHost(services, quota));
+            }),
+            quota);
 
         var runId = await StartAsync(host, "s-late-store-fault");
 
-        await host.WaitForRunStatusAsync(runId, "Completed");
+        await CompleteAsync(host, clock, runId);
         release.SetResult();
         await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
 

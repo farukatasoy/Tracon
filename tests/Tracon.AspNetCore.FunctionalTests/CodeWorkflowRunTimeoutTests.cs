@@ -2,6 +2,7 @@ using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -22,14 +23,18 @@ public sealed class CodeWorkflowRunTimeoutTests
     [Fact]
     public async Task A_run_that_reaches_the_registrations_run_timeout_ends_canceled_and_names_the_registration()
     {
+        var clock = new ManualClock();
+
         await using var host = await StartAsync(
+            clock,
             runTimeout: TimeSpan.FromMilliseconds(300),
             installation: TimeSpan.FromMinutes(10),
             ceiling: null,
             work: TimeSpan.FromMinutes(5));
 
-        var run = await RecordAsync(host, await RunAsync(host, Flow));
+        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromSeconds(1)));
 
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(300)], "the run ended at its registration's timeout, not at the installation's or the node's");
         run.Status.ShouldBe(RunStatus.Canceled);
 
         var error = run.Error.ShouldNotBeNull();
@@ -45,28 +50,36 @@ public sealed class CodeWorkflowRunTimeoutTests
     {
         // The installation would stop the run after 300 ms; the registration allows five seconds and the host's ceiling
         // allows an hour. The node takes 800 ms.
+        var clock = new ManualClock();
+
         await using var host = await StartAsync(
+            clock,
             runTimeout: TimeSpan.FromSeconds(5),
             installation: TimeSpan.FromMilliseconds(300),
             ceiling: TimeSpan.FromHours(1),
             work: TimeSpan.FromMilliseconds(800));
 
-        var run = await RecordAsync(host, await RunAsync(host, Flow));
+        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromSeconds(1)));
 
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(800)], "the installation's 300 ms was not armed: the run waited for the node alone");
         run.Status.ShouldBe(RunStatus.Completed, run.Error?.Message);
     }
 
     [Fact]
     public async Task A_registration_without_a_run_timeout_keeps_the_installations_value()
     {
+        var clock = new ManualClock();
+
         await using var host = await StartAsync(
+            clock,
             runTimeout: null,
             installation: TimeSpan.FromMilliseconds(300),
             ceiling: null,
             work: TimeSpan.FromMinutes(5));
 
-        var run = await RecordAsync(host, await RunAsync(host, Flow));
+        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromSeconds(1)));
 
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(300)], "the run ended at the installation's timeout");
         run.Status.ShouldBe(RunStatus.Canceled);
         run.Error.ShouldNotBeNull().Message.ShouldContain("Tracon:Workflows:RunTimeout", Case.Sensitive);
     }
@@ -77,6 +90,7 @@ public sealed class CodeWorkflowRunTimeoutTests
         var problem = await Should.ThrowAsync<Exception>(async () =>
         {
             await using var host = await StartAsync(
+                new ManualClock(),
                 runTimeout: TimeSpan.FromHours(2),
                 installation: TimeSpan.FromMinutes(10),
                 ceiling: null,
@@ -87,7 +101,30 @@ public sealed class CodeWorkflowRunTimeoutTests
         problem.Message.ShouldContain("Tracon:Workflows:MaxRunTimeout", Case.Sensitive);
     }
 
-    private static Task<TraconTestHost> StartAsync(TimeSpan? runTimeout, TimeSpan installation, TimeSpan? ceiling, TimeSpan work)
+    /// <summary>
+    /// Runs the workflow and moves the host's clock to the timers that fall within <paramref name="within"/>, the run's
+    /// timeout and the node's work among them, and no further.
+    /// </summary>
+    private static async Task<Guid> RunWithinAsync(TraconTestHost host, ManualClock clock, TimeSpan within)
+    {
+        var running = RunAsync(host, Flow);
+
+        await clock.AdvanceUntilAsync(running, within);
+
+        return await running;
+    }
+
+    /// <summary>The node's work: it takes <paramref name="span"/> of the host's clock, and ends early when the run is cancelled.</summary>
+    private static async Task PassAsync(TimeProvider clock, TimeSpan span, CancellationToken cancellationToken)
+    {
+        var passed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var timer = clock.CreateTimer(static state => ((TaskCompletionSource)state!).TrySetResult(), passed, span, Timeout.InfiniteTimeSpan);
+
+        await passed.Task.WaitAsync(cancellationToken);
+    }
+
+    private static Task<TraconTestHost> StartAsync(ManualClock clock, TimeSpan? runTimeout, TimeSpan installation, TimeSpan? ceiling, TimeSpan work)
         => NodeUsageHost.StartAsync(
             builder =>
             {
@@ -95,7 +132,7 @@ public sealed class CodeWorkflowRunTimeoutTests
                     "render",
                     _ => async (messages, _, token) =>
                     {
-                        await Task.Delay(work, token); // delay: simulated
+                        await PassAsync(clock, work, token);
 
                         return messages;
                     });
@@ -110,9 +147,13 @@ public sealed class CodeWorkflowRunTimeoutTests
                     },
                     options => options.RunTimeout = runTimeout);
             },
-            services => services.Configure<TraconWorkflowOptions>(options =>
+            services =>
             {
-                options.RunTimeout = installation;
-                options.MaxRunTimeout = ceiling;
-            }));
+                services.AddSingleton<TimeProvider>(clock);
+                services.Configure<TraconWorkflowOptions>(options =>
+                {
+                    options.RunTimeout = installation;
+                    options.MaxRunTimeout = ceiling;
+                });
+            });
 }

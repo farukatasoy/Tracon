@@ -96,13 +96,15 @@ public sealed class RunDeadlineTests
         // wall-clock limit of its own. This proves MaxDuration cuts a queued
         // run off exactly like the synchronous path above.
         //
-        // 🚨 No fake TimeProvider here, unlike the synchronous test above:
+        // 🚨 The clock keeps the system's timers, unlike a fully manual one:
         // JobWorkerBackgroundService's own polling/lease-renewal loop reads
-        // the SAME registered TimeProvider, and a clock that only advances
-        // when the tool body calls it stalls that loop forever (measured: the
-        // run never left Queued/Running). A short REAL MaxDuration plus a
-        // REAL (short) tool delay exercises the same cutoff without freezing
-        // the host's own background machinery.
+        // the SAME registered TimeProvider, and virtual timers that only move
+        // when the tool body calls the clock would stall that loop forever
+        // (measured: the run never left Queued/Running). The tool moves the
+        // clock past the deadline the way the synchronous test does, and the
+        // loops keep ticking in real time.
+        var clock = ManualClock.WithSystemTimers();
+
         await using var host = await TraconTestHost.StartAsync(
             builder =>
             {
@@ -110,9 +112,9 @@ public sealed class RunDeadlineTests
                 .AddModelProvider(new FakeModelProvider("deadline-model")
                     .CallsTool(ToolName)
                     .RespondsWith("final answer"))
-                .AddTool((Func<Task<string>>)(async () =>
+                .AddTool((Func<string>)(() =>
                 {
-                    await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: simulated
+                    clock.Advance(TimeSpan.FromSeconds(10));
                     return "tool result";
                 }), name: ToolName)
                 .AddAgent(DeadlineAgent());
@@ -120,7 +122,8 @@ public sealed class RunDeadlineTests
             },
             configureServices: services =>
             {
-                services.Configure<TraconOptions>(o => o.AgentGraph.MaxDuration = TimeSpan.FromMilliseconds(200));
+                services.AddSingleton<TimeProvider>(clock);
+                services.Configure<TraconOptions>(o => o.AgentGraph.MaxDuration = TimeSpan.FromSeconds(5));
             });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, Run) { Content = JsonContent.Create(new AgentRunRequest { Message = "do it" }) };

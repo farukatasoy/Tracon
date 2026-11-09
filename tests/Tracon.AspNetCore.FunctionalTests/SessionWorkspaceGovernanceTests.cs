@@ -2,6 +2,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 // Same rationale as AgentExtensionRunTests.cs: the package's Tracon.Testing.TraconTestHost and
 // this project's own TraconTestHost share a name.
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
@@ -115,16 +116,28 @@ public sealed class SessionWorkspaceGovernanceTests
             .RespondsWith("Gave up.")
             .EchoesUserMessage();
 
+        // The host's 20 ms job poll keeps ticking on the system's timers; the tool's 200 ms timeout waits for the test.
+        var clock = new ManualClock { SystemTimersWithin = TimeSpan.FromMilliseconds(100) };
+
         await using var host = await StartAsync(
             provider,
             new WorkspaceSettings { Enabled = true, DisableReadApproval = true },
             configureTracon: static builder => builder.Configure(static options => options.Tools.DefaultTimeout = TimeSpan.FromMilliseconds(200)),
-            configureServices: static services => services.AddSingleton<AgentFileStore>(new HangingReadStore()));
+            configureServices: services =>
+            {
+                services.AddSingleton<TimeProvider>(clock);
+                services.AddSingleton<AgentFileStore>(new HangingReadStore());
+            });
 
         var runId = await SessionWorkspaceApprovalTests.QueueAsync(host, "session-1");
 
         // The read waits for ever: a run that waited for it never completes.
-        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
+        var completed = host.WaitForRunStatusAsync(runId, "Completed");
+
+        await clock.AdvanceUntilAsync(completed, within: TimeSpan.FromMilliseconds(200));
+
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(200)], "the read was cut at the installation's default tool timeout");
+        (await completed).ShouldBe("Completed");
         provider.Requests[^1].Messages.SelectMany(static message => message.Contents).OfType<FunctionResultContent>()
             .Select(static result => result.Result?.ToString())
             .Contains("Tool 'file_access_read' did not complete within 200ms.", StringComparer.Ordinal).ShouldBeTrue();

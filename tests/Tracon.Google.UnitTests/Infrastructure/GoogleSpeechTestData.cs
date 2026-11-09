@@ -202,9 +202,10 @@ internal static class GoogleSpeechTestData
         };
     }
 
-    /// <summary>Returns its bytes, then throws <see cref="IOException"/> or waits until the read is cancelled.</summary>
+    /// <summary>Returns its bytes, then throws <see cref="IOException"/> or waits until the read is cancelled or the stream is closed.</summary>
     private sealed class StallingStream(byte[] data, bool breakConnection) : Stream
     {
+        private readonly ManualResetEventSlim _closed = new(initialState: false);
         private int _position;
 
         public override bool CanRead => true;
@@ -258,10 +259,21 @@ internal static class GoogleSpeechTestData
                 throw new IOException("The connection was reset.");
             }
 
-            // A read that nothing cancels: the test ends it by cancelling the token the caller holds.
-            Thread.Sleep(TimeSpan.FromSeconds(30));
+            // A read that nothing cancels: the test ends it by cancelling the token the caller holds, which closes the
+            // stream. The bound only keeps a stream that is never closed from holding its thread for ever.
+            _closed.Wait(WaitUntil.DefaultTimeout);
 
             return 0;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _closed.Set();
+            }
+
+            base.Dispose(disposing);
         }
 
         public override void Flush()

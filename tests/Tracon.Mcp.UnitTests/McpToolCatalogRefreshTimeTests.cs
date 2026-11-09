@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Configuration;
@@ -16,8 +15,9 @@ namespace Tracon.Mcp.UnitTests;
 /// The pass holds the catalog's refresh gate, and the manual refresh, the completion of an OAuth
 /// authorization, and the background discovery all wait for it. Connected one after another, a
 /// tenant with several servers that accept a connection and never answer made all of them wait
-/// for the sum of the timeouts. The limit here is a bound between the two shapes: side by side the
-/// pass takes about one timeout, one after another it takes three.
+/// for the sum of the timeouts. The pass runs on a clock the test moves: side by side the three limits
+/// are armed together and one step of the clock carries them all, one after another the clock would
+/// have to move three times.
 /// </remarks>
 public sealed class McpToolCatalogRefreshTimeTests
 {
@@ -66,6 +66,8 @@ public sealed class McpToolCatalogRefreshTimeTests
                 TestContext.Current.CancellationToken);
         }
 
+        var clock = new ManualClock();
+
         var catalog = new McpToolCatalog(
             servers,
             new InMemoryTenantStore(),
@@ -78,24 +80,40 @@ public sealed class McpToolCatalogRefreshTimeTests
             McpToolPolicyTestGates.Open(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null,
-            egressGuard: new EgressSocketGuard(static () => new EgressAddressPolicy(AllowPrivateNetworkTargets: true, AllowLoopback: true)));
+            egressGuard: new EgressSocketGuard(static () => new EgressAddressPolicy(AllowPrivateNetworkTargets: true, AllowLoopback: true)),
+            timeProvider: clock);
 
-        var clock = Stopwatch.StartNew();
-        var outcome = await catalog.RefreshAsync(TestContext.Current.CancellationToken);
-        clock.Stop();
+        var refreshing = catalog.RefreshAsync(TestContext.Current.CancellationToken).AsTask();
+
+        // Every server's limit is armed before any of them is reached; a pass that connected them one after another would
+        // never have more than one armed, and this wait would fail.
+        await WaitUntil.TrueAsync(
+            () => clock.Pending.Count == 3,
+            "the limits of all three silent servers to be armed together",
+            TimeSpan.FromSeconds(10));
+
+        // Every server was tried: a pass that skipped one would end early and prove nothing about the limit.
+        await WaitUntil.TrueAsync(
+            () =>
+            {
+                lock (held)
+                {
+                    return held.Count == 3;
+                }
+            },
+            "all three servers to have a connection accepted");
+
+        await clock.AdvanceUntilAsync(refreshing, within: ConnectionTimeout);
+
+        var outcome = await refreshing;
 
         listener.Stop();
         await accepting;
 
-        lock (held)
-        {
-            held.Count.ShouldBe(3, "every server was tried; the limit below would hold for a pass that skipped them");
-        }
-
         outcome.HadUnreachableServers.ShouldBeTrue();
-        clock.Elapsed.ShouldBeLessThan(
-            ConnectionTimeout * 2.25,
-            $"three servers that never answer took {clock.Elapsed} to refresh, with a limit of {ConnectionTimeout} each");
+        clock.Steps.ShouldBe(
+            [ConnectionTimeout],
+            $"three servers that never answer took more than one {ConnectionTimeout} limit to give up on");
     }
 
     private sealed class EmptyConfiguration : IConfiguration

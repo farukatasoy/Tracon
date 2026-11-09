@@ -91,7 +91,8 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
             provider.GetService<IRunAttributionContext>(),
             provider.GetRequiredService<ILogger<AuthorizingAIFunction>>(),
             provider.GetRequiredService<ILogger<TimeoutAIFunction>>(),
-            provider.GetRequiredService<ILogger<ValidatingAIFunction>>());
+            provider.GetRequiredService<ILogger<ValidatingAIFunction>>(),
+            provider.GetService<TimeProvider>());
     }
 #pragma warning restore MEAI001
 
@@ -105,6 +106,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     /// <param name="authorizingLogger">The logger passed to every <see cref="AuthorizingAIFunction"/> instance.</param>
     /// <param name="timeoutLogger">The logger passed to every <see cref="TimeoutAIFunction"/> instance.</param>
     /// <param name="validatingLogger">The logger passed to every <see cref="ValidatingAIFunction"/> instance.</param>
+    /// <param name="timeProvider">The time source of every tool timeout; the system's when omitted.</param>
     /// <exception cref="ArgumentNullException"><paramref name="registrations"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// The same name is registered more than once, or a client-side tool
@@ -120,7 +122,8 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
         IRunAttributionContext? attribution,
         ILogger<AuthorizingAIFunction> authorizingLogger,
         ILogger<TimeoutAIFunction> timeoutLogger,
-        ILogger<ValidatingAIFunction> validatingLogger)
+        ILogger<ValidatingAIFunction> validatingLogger,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(registrations);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
@@ -174,7 +177,8 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
                 attribution,
                 authorizingLogger,
                 timeoutLogger,
-                validatingLogger);
+                validatingLogger,
+                timeProvider);
 
             if (!_tools.TryAdd(name, function))
             {

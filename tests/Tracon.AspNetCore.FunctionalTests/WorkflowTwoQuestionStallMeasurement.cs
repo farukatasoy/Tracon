@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -104,7 +103,6 @@ public sealed class WorkflowTwoQuestionStallMeasurement
         var failures = new ConcurrentBag<Failure>();
         var ended = new EndTally();
         var inFlight = 0;
-        var elapsed = Stopwatch.StartNew();
 
         await Parallel.ForEachAsync(
             Enumerable.Range(0, runs),
@@ -126,20 +124,16 @@ public sealed class WorkflowTwoQuestionStallMeasurement
                 }
             });
 
-        elapsed.Stop();
-
         var ordered = failures.OrderBy(static failure => failure.Iteration).ToList();
         var stalls = ordered.Count(static failure => failure.Verdict == Verdict.Stalled);
         var lost = ordered.Count(static failure => failure.Verdict == Verdict.EndedWithoutResult);
         var errors = ordered.Count(static failure => failure.Verdict == Verdict.Failed);
 
-        var wall = elapsed.Elapsed.TotalSeconds;
-
         Console.WriteLine(FormattableString.Invariant(
-            $"TWO-QUESTION-STALL runs={runs} parallel={parallel} stalls={stalls} ended-without-result={lost} errors={errors} output={ended.Outputs} second-question-open={ended.Awaiting} wall={wall:F1} s ({runs / wall:F1} runs/s)"));
+            $"TWO-QUESTION-STALL runs={runs} parallel={parallel} stalls={stalls} ended-without-result={lost} errors={errors} output={ended.Outputs} second-question-open={ended.Awaiting}"));
 
         var summary = FormattableString.Invariant(
-            $"{stalls} stalled, {lost} ended without the output or the second question, {errors} failed, of {runs} runs ({RunsVariable}={runs}, {ParallelVariable}={parallel}, {StallBound.TotalSeconds:0} s bound, {wall:F1} s wall).");
+            $"{stalls} stalled, {lost} ended without the output or the second question, {errors} failed, of {runs} runs ({RunsVariable}={runs}, {ParallelVariable}={parallel}, {StallBound.TotalSeconds:0} s bound).");
 
         ordered.Count.ShouldBe(0, summary + Environment.NewLine + string.Join(Environment.NewLine, ordered.Select(static failure => failure.ToString())));
     }
@@ -155,7 +149,6 @@ public sealed class WorkflowTwoQuestionStallMeasurement
         {
             (sourceId, requestId) = await StartAsync(host, cancellationToken);
 
-            var sent = Stopwatch.StartNew();
             using var abandon = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var drain = DrainAsync(host, sourceId.Value, requestId, frames, abandon.Token);
 
@@ -172,7 +165,7 @@ public sealed class WorkflowTwoQuestionStallMeasurement
                 var stalled = new Failure(
                     iteration,
                     Verdict.Stalled,
-                    FormattableString.Invariant($"iteration {iteration}, {concurrent} in flight when it started, no end after {sent.Elapsed.TotalSeconds:F1} s") + Environment.NewLine + held);
+                    FormattableString.Invariant($"iteration {iteration}, {concurrent} in flight when it started, no end within {StallBound.TotalSeconds:0} s") + Environment.NewLine + held);
 
                 await abandon.CancelAsync();
                 await Settle(drain);
@@ -192,7 +185,7 @@ public sealed class WorkflowTwoQuestionStallMeasurement
             return new Failure(
                 iteration,
                 verdict,
-                FormattableString.Invariant($"iteration {iteration}, {concurrent} in flight when it started, the stream ended after {sent.Elapsed.TotalSeconds:F1} s")
+                FormattableString.Invariant($"iteration {iteration}, {concurrent} in flight when it started, the stream ended")
                     + Environment.NewLine
                     + await DescribeAsync(host, sourceId.Value, responseId, requestId, frames));
         }

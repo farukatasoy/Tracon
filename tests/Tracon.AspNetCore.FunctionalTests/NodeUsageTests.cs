@@ -205,6 +205,7 @@ public sealed class NodeUsageTests
     public async Task A_node_that_reports_after_its_timeout_keeps_the_item_in_the_detail_and_out_of_the_total()
     {
         var lateReported = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         await using var host = await StartAsync(builder => builder
             .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
@@ -214,8 +215,9 @@ public sealed class NodeUsageTests
                     await context.ReportUsageAsync(Speech(0.1m));
 
                     // 🚨 Ignores its token on purpose: the run stopped waiting for this body at the
-                    // timeout, and the body outlives the run's closed row (the case).
-                    await Task.Delay(TimeSpan.FromSeconds(2), CancellationToken.None); // delay: simulated
+                    // timeout, and the body outlives the run's closed row (the case). It finishes when
+                    // the test says so, which is after the run closed and so after the timeout fired.
+                    await release.Task;
 
                     (await context.ReportUsageAsync(Speech(5m))).ShouldBeTrue();
                     lateReported.SetResult();
@@ -232,6 +234,7 @@ public sealed class NodeUsageTests
         closed.Status.ShouldBe(RunStatus.Failed);
         closed.NonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.1m);
 
+        release.SetResult();
         await lateReported.Task.WaitAsync(TimeSpan.FromSeconds(30));
 
         // The late item is in the detail ...

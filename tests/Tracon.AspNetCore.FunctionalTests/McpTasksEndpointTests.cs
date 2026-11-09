@@ -8,6 +8,7 @@ using ModelContextProtocol;
 using ModelContextProtocol.Extensions.Tasks;
 using ModelContextProtocol.Protocol;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -25,7 +26,12 @@ public sealed class McpTasksEndpointTests
         // GetTaskAsync then rejects. The full-package CI run hit this rarely
         // under CPU contention (three tests, seen once); this test forces
         // the same slow-first-response shape deterministically instead of
-        // waiting for real contention to reproduce it.
+        // waiting for real contention to reproduce it: the server holds the
+        // first answer, the client's clock moves past the SDK's default window
+        // while it waits, and the answer comes after.
+        var clock = new ManualClock();
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var firstRequest = 0;
 
         await using var host = await TraconTestHost.StartAsync(
@@ -41,14 +47,25 @@ public sealed class McpTasksEndpointTests
                 if (context.Request.Path.StartsWithSegments("/tracon/mcp", StringComparison.Ordinal)
                     && Interlocked.Exchange(ref firstRequest, 1) == 0)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(6)); // delay: simulated
+                    reached.SetResult();
+                    await release.Task;
                 }
 
                 await next();
             }),
             configureAfterMap: app => app.MapTraconMcpServer());
 
-        await using var client = await McpTaskTestClient.ConnectAsync(host.Client, "/tracon/mcp");
+        var connecting = McpTaskTestClient.ConnectAsync(host.Client, "/tracon/mcp", timeProvider: clock);
+
+        await reached.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        // The probe's own window is armed before the request leaves, and it is the helper's, not the SDK's 5 seconds.
+        clock.Pending.ShouldContain(McpTaskTestClient.DiscoverProbeWindow);
+
+        clock.Advance(TimeSpan.FromSeconds(6));
+        release.SetResult();
+
+        await using var client = await connecting;
 
         client.NegotiatedProtocolVersion.ShouldBe("2026-07-28");
     }

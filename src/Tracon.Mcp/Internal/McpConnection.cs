@@ -159,8 +159,9 @@ internal sealed class McpConnection : IAsyncDisposable
             return (null, false);
         }
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(options.ConnectionTimeout);
+        // The limit runs on the host's clock: a host that stands in for time moves it, a real one waits it out.
+        using var limit = new CancellationTokenSource(options.ConnectionTimeout, timeProvider);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, limit.Token);
 
         try
         {
@@ -296,8 +297,8 @@ internal sealed class McpConnection : IAsyncDisposable
         _options = options;
         _logger = logger;
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(options.ConnectionTimeout);
+        using var limit = new CancellationTokenSource(options.ConnectionTimeout, timeProvider);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, limit.Token);
 
         try
         {

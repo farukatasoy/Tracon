@@ -13,14 +13,24 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// </summary>
 internal static class McpTaskTestClient
 {
+    /// <summary>How long the client waits for the <c>server/discover</c> answer before it falls back to <c>initialize</c>.</summary>
+    public static readonly TimeSpan DiscoverProbeWindow = TimeSpan.FromSeconds(30);
+
     /// <summary>Connects to the given MCP endpoint, with the Tasks extension declared.</summary>
     /// <param name="client">The in-process test host's client.</param>
     /// <param name="path">The MCP endpoint path.</param>
     /// <param name="token">The bearer token; <see langword="null"/> if none.</param>
     /// <param name="tenantHeader">The tenant header value; <see langword="null"/> if none.</param>
+    /// <param name="timeProvider">
+    /// The clock of the client's initialization and discover-probe timeouts; the system's when <see langword="null"/>.
+    /// </param>
     /// <returns>The connected client. The caller disposes it.</returns>
     public static async Task<McpClient> ConnectAsync(
-        HttpClient client, string path, string? token = null, string? tenantHeader = null)
+        HttpClient client,
+        string path,
+        string? token = null,
+        string? tenantHeader = null,
+        TimeProvider? timeProvider = null)
     {
         var headers = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -61,7 +71,8 @@ internal static class McpTaskTestClient
                 // legacy `initialize` handshake and negotiates 2025-11-25,
                 // which the Tasks extension rejects. 30s stays safely under
                 // McpClientOptions.InitializationTimeout's 60s default.
-                DiscoverProbeTimeout = TimeSpan.FromSeconds(30),
+                DiscoverProbeTimeout = DiscoverProbeWindow,
+                TimeProvider = timeProvider ?? TimeProvider.System,
             });
     }
 }

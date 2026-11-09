@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 // Same rationale as ApprovalEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
@@ -24,6 +25,12 @@ public sealed class ToolGovernanceEndpointTests
     private const string AgentName = "governance-agent";
 
     private static readonly Uri Run = new($"/tracon/api/agents/{AgentName}/run", UriKind.Relative);
+
+    /// <summary>A pause the host's own loops make (the 20 ms job poll) stays on the system's timers; a tool timeout does not.</summary>
+    private static readonly TimeSpan HostLoops = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>A host clock that moves only when a test moves it, except for the host's own short loops.</summary>
+    private static ManualClock HostClock() => new() { SystemTimersWithin = HostLoops };
 
     private static async Task<HttpResponseMessage> PostQueuedAsync(TraconTestHost host, object body)
     {
@@ -158,6 +165,8 @@ public sealed class ToolGovernanceEndpointTests
     [Fact]
     public async Task Timed_out_call_completes_the_run_well_before_the_real_body_and_marks_the_record()
     {
+        var clock = HostClock();
+
         await using var host = await TraconTestHost.StartAsync(
             builder =>
             {
@@ -191,7 +200,8 @@ public sealed class ToolGovernanceEndpointTests
                     Timeout = TimeSpan.FromMilliseconds(300),
                 });
                 builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
-            });
+            },
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "fetch the report", SessionId = "s-timeout" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
@@ -199,7 +209,12 @@ public sealed class ToolGovernanceEndpointTests
         // The timeout does NOT fail the run: the model receives a tool error
         // and finishes its turn. The wait is bounded by the tool's OWN
         // 300ms timeout: its body never ends, so a run that waited for it never completes.
-        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
+        var completed = host.WaitForRunStatusAsync(runId, "Completed");
+
+        await clock.AdvanceUntilAsync(completed, within: TimeSpan.FromMilliseconds(300));
+
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(300)], "the run went on at the tool's own timeout and not at another timer");
+        (await completed).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{runId}/tools", UriKind.Relative));
@@ -215,6 +230,10 @@ public sealed class ToolGovernanceEndpointTests
     [Fact]
     public async Task Repeated_tool_timeouts_never_open_the_providers_circuit_breaker()
     {
+        const int Runs = 6;
+
+        var clock = HostClock();
+
         // Manual Case 5: ModelProviderCircuitBreaker wraps only the
         // IChatClient pipeline (CircuitBreakingChatClient); a tool exception
         // never reaches it structurally. This proves it BEHAVIORALLY: if a
@@ -223,13 +242,21 @@ public sealed class ToolGovernanceEndpointTests
         // (5) consecutive failures and turn run #6 into an immediate
         // TraconProviderUnavailableException (RunFailed), not a normal
         // Completed run with its own ToolFailed tool result.
+        //
+        // The script is consumed once, in order, and then the fallback answers every turn: one call-and-answer pair
+        // for each run, or only the first run would call the tool and the rest would not time out at all.
+        var model = new FakeModelProvider("gov-model");
+
+        for (var i = 0; i < Runs; i++)
+        {
+            model.CallsTool("slow_report", new { reportId = "R-1" }).RespondsWith("The report is late.");
+        }
+
         await using var host = await TraconTestHost.StartAsync(
             builder =>
             {
                 builder
-                    .AddModelProvider(new FakeModelProvider("gov-model")
-                        .CallsTool("slow_report", new { reportId = "R-1" })
-                        .EchoesLastToolResult())
+                    .AddModelProvider(model)
                     .AddAgent(new AgentDefinition
                     {
                         Name = AgentName,
@@ -250,24 +277,33 @@ public sealed class ToolGovernanceEndpointTests
                     Timeout = TimeSpan.FromMilliseconds(200),
                 });
                 builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
-            });
+            },
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
 
         // TraconCircuitBreakerOptions.FailureThreshold defaults to 5; six
         // runs is one more than that threshold.
-        for (var i = 0; i < 6; i++)
+        for (var i = 0; i < Runs; i++)
         {
             using var accepted = await PostQueuedAsync(
                 host, new AgentRunRequest { Message = "fetch the report", SessionId = $"s-cb-{i}" });
             var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
             // An open circuit would make the run fail instead of completing.
-            (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
+            var completed = host.WaitForRunStatusAsync(runId, "Completed");
+
+            await clock.AdvanceUntilAsync(completed, within: TimeSpan.FromMilliseconds(200));
+
+            (await completed).ShouldBe("Completed");
         }
+
+        clock.Steps.ShouldBe(Enumerable.Repeat(TimeSpan.FromMilliseconds(200), Runs), "every run was cut by the tool's own timeout, once");
     }
 
     [Fact]
     public async Task Approval_wait_is_not_bounded_by_the_tools_own_timeout()
     {
+        var clock = HostClock();
+
         // Manual Case 6: a Destructive + RequiresApproval tool ALSO
         // carries a short timeout. The timeout must bound only the real
         // execution after approval, never the human wait — ApprovalRequiredAIFunction
@@ -297,16 +333,20 @@ public sealed class ToolGovernanceEndpointTests
                     Timeout = TimeSpan.FromMilliseconds(200),
                 });
                 builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
-            });
+            },
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "s-approval-timeout" });
         var originalRunId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         (await host.WaitForRunStatusAsync(originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
 
-        // Wait well past the tool's own 200ms timeout before deciding. The
-        // elapsed time IS the premise - no signal can stand in for it.
-        await Task.Delay(TimeSpan.FromSeconds(1)); // delay: product
+        // Wait well past the tool's own 200ms timeout before deciding. The time that passes IS the premise:
+        // no timer is armed for the tool while the person decides, and the clock is moved past the limit.
+        clock.Pending.ShouldAllBe(
+            static due => due > TimeSpan.FromMilliseconds(200),
+            "a timer at or inside the tool's limit was already armed while the call waited for a decision");
+        clock.Advance(TimeSpan.FromSeconds(1));
 
         using var pendingResponse = await host.Client.GetAsync(new Uri("/tracon/api/approvals/pending", UriKind.Relative));
         var approvalId = (await TraconTestHost.ReadJsonAsync(pendingResponse))

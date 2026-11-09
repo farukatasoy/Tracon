@@ -6,12 +6,18 @@ namespace Tracon.Capacity.Tests;
 /// <summary>The SSE reader, including the truncation it must report rather than swallow.</summary>
 public sealed class CapacityStreamReaderTests
 {
+    /// <summary>
+    /// The instant the request is taken to be dispatched. The reader stamps each frame with the time since it, and no test
+    /// here reads that stamp: they pin what the reader splits out of the bytes.
+    /// </summary>
+    private const long DispatchedAt = 0;
+
     private static MemoryStream Body(string text) => new MemoryStream(Encoding.UTF8.GetBytes(text));
 
     [Fact]
     public async Task Frames_are_read_in_order_with_their_ids_and_names()
     {
-        var reader = new SseFrameReader(System.Diagnostics.Stopwatch.GetTimestamp());
+        var reader = new SseFrameReader(DispatchedAt);
 
         var frames = new List<SseFrame>();
 
@@ -36,7 +42,7 @@ public sealed class CapacityStreamReaderTests
         // 🚨 A lost final frame is one of the failure modes this apparatus
         // exists to catch. Yielding the partial frame would make it look like
         // a clean end of stream.
-        var reader = new SseFrameReader(System.Diagnostics.Stopwatch.GetTimestamp());
+        var reader = new SseFrameReader(DispatchedAt);
         var frames = new List<SseFrame>();
 
         await foreach (var frame in reader.ReadAsync(Body(
@@ -52,7 +58,7 @@ public sealed class CapacityStreamReaderTests
     [Fact]
     public async Task Keep_alive_comments_are_not_counted_as_content()
     {
-        var reader = new SseFrameReader(System.Diagnostics.Stopwatch.GetTimestamp());
+        var reader = new SseFrameReader(DispatchedAt);
         var frames = new List<SseFrame>();
 
         await foreach (var frame in reader.ReadAsync(Body(": waiting\n\nid: 0\nevent: update\ndata: one\n\n")))
@@ -69,7 +75,7 @@ public sealed class CapacityStreamReaderTests
     public async Task The_reconnect_delay_the_run_stream_opens_with_is_not_counted_as_content()
     {
         // 🚨 The measured time to first content must not start at a block that carries no event.
-        var reader = new SseFrameReader(System.Diagnostics.Stopwatch.GetTimestamp());
+        var reader = new SseFrameReader(DispatchedAt);
         var frames = new List<SseFrame>();
 
         await foreach (var frame in reader.ReadAsync(Body("retry: 3000\n\n: waiting\n\nid: 0\nevent: update\ndata: one\n\n")))
@@ -86,7 +92,7 @@ public sealed class CapacityStreamReaderTests
     [Fact]
     public async Task Multi_line_data_is_joined_the_way_the_protocol_says()
     {
-        var reader = new SseFrameReader(System.Diagnostics.Stopwatch.GetTimestamp());
+        var reader = new SseFrameReader(DispatchedAt);
         var frames = new List<SseFrame>();
 
         await foreach (var frame in reader.ReadAsync(Body("event: update\ndata: one\ndata: two\n\n")))
@@ -100,7 +106,7 @@ public sealed class CapacityStreamReaderTests
     [Fact]
     public async Task An_empty_body_yields_nothing_and_is_not_truncation()
     {
-        var reader = new SseFrameReader(System.Diagnostics.Stopwatch.GetTimestamp());
+        var reader = new SseFrameReader(DispatchedAt);
         var count = 0;
 
         await foreach (var _ in reader.ReadAsync(Body("")))

@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Common;
 // Same rationale as ToolGovernanceEndpointTests.cs: the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost
 // share the same name; a blanket `using Tracon.Testing;` would produce CS0104.
@@ -184,6 +185,9 @@ public sealed class ConcurrentToolInvocationTests
         // have no timeout of their own and are only slower than tool_b's short one.
         using var barrier = new Barrier(3);
 
+        // The host's 20 ms job poll keeps ticking on the system's timers; tool_b's 200 ms timeout waits for the test.
+        var clock = new ManualClock { SystemTimersWithin = TimeSpan.FromMilliseconds(100) };
+
         await using var host = await TraconTestHost.StartAsync(
             builder =>
             {
@@ -196,14 +200,15 @@ public sealed class ConcurrentToolInvocationTests
                     .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: true));
 
                 // tool_b's body waits at the SAME barrier as its siblings, then
-                // sleeps well past its own 200ms timeout - it must time out
+                // never ends (and never reads a token), so it is past its own 200ms
+                // timeout whenever the run looks - it must time out
                 // WITHOUT affecting tool_a/tool_c, which carry no timeout at all.
                 builder.Services.AddSingleton(new TraconToolRegistration(
                     Microsoft.Extensions.AI.AIFunctionFactory.Create(
                         () => Task.Run(async () =>
                         {
                             barrier.SignalAndWait(TimeSpan.FromSeconds(10));
-                            await Task.Delay(TimeSpan.FromSeconds(2)); // delay: simulated
+                            await Task.Delay(Timeout.InfiniteTimeSpan); // delay: simulated
                             return "result_b";
                         }),
                         "tool_b"))
@@ -212,12 +217,18 @@ public sealed class ConcurrentToolInvocationTests
                 });
 
                 builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
-            });
+            },
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
 
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run all three", SessionId = "s-concurrent-timeout" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
+        var completed = host.WaitForRunStatusAsync(runId, "Completed");
+
+        await clock.AdvanceUntilAsync(completed, within: TimeSpan.FromMilliseconds(200));
+
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(200)], "only tool_b's own timeout was reached; the siblings' limits (the default 30 s) were not");
+        (await completed).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{runId}/tools", UriKind.Relative));

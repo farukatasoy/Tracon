@@ -25,7 +25,8 @@ namespace Tracon.Tests.Common;
 /// <see cref="StepMonotonic"/>. The timers are virtual too, unless the clock is made with <see cref="WithSystemTimers"/> or
 /// <see cref="OverSystemClock"/>, which are migration aids and not the goal: a host whose background loops still tick on
 /// the system's timers (a 20 ms job-worker poll) cannot run on virtual ones, because nothing would ever advance them.
-/// A test that can run on virtual timers should.
+/// A test that can run on virtual timers should. <see cref="SystemTimersWithin"/> is the middle way for a host that has both
+/// kinds of wait: its short loops tick on the system's timers and the long timeout a test is about stays virtual.
 /// </para>
 /// <para>
 /// Linked into the test projects that need it, not copied.
@@ -106,6 +107,20 @@ internal sealed class ManualClock : TimeProvider
     /// time to take, so it is off unless a test asks where a leaked timer came from.
     /// </summary>
     public bool CaptureTimerOrigins { get; init; }
+
+    /// <summary>
+    /// Gets or initializes how far away a timer may be, and how short its period, to run on the system's timers; a timer
+    /// beyond it is virtual and moves only when the test advances the clock.
+    /// </summary>
+    /// <remarks>
+    /// For a host whose background loops tick on short periods (a 20 ms job-worker poll, which nothing would ever advance
+    /// on virtual timers) and whose timeouts, the thing the test is about, are longer: the poll keeps ticking and the
+    /// timeout waits for <see cref="Advance"/>, <see cref="FireAll"/> or <see cref="AdvanceUntilAsync"/>. The span is
+    /// chosen by the test, below the shortest timeout it advances to. A timer the system runs is invisible to
+    /// <see cref="Pending"/>, the counters, <see cref="FireAll"/> and <see cref="AdvanceUntilAsync"/>, as for
+    /// <see cref="WithSystemTimers"/>.
+    /// </remarks>
+    public TimeSpan? SystemTimersWithin { get; init; }
 
     /// <summary>
     /// Gets or initializes how far away a timer may be and still fire the moment it is armed, on a thread-pool thread and
@@ -228,7 +243,7 @@ internal sealed class ManualClock : TimeProvider
     /// <inheritdoc />
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
-        if (_systemTimers)
+        if (_systemTimers || RunsOnSystemTimers(dueTime, period))
         {
             return TimeProvider.System.CreateTimer(callback, state, dueTime, period);
         }
@@ -353,6 +368,12 @@ internal sealed class ManualClock : TimeProvider
 
         await work.ConfigureAwait(false);
     }
+
+    private bool RunsOnSystemTimers(TimeSpan dueTime, TimeSpan period)
+        => SystemTimersWithin is { } reach
+            && dueTime >= TimeSpan.Zero
+            && dueTime <= reach
+            && (period == Timeout.InfiniteTimeSpan || period <= reach);
 
     private void FireDueAfter(TimeSpan amount, bool holdWall)
     {

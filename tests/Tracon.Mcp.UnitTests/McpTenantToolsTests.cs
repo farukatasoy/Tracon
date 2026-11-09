@@ -38,6 +38,54 @@ public sealed class McpTenantToolsTests
     }
 
     [Fact]
+    public async Task An_mcp_tools_timeout_is_waited_out_on_the_clock_the_set_was_built_with()
+    {
+        // A remote server that never answers a call: only the tool's own limit can end it, and the limit runs on the host's
+        // clock, so a host that stands in for time moves it instead of waiting.
+        var clock = new ManualClock();
+        var limit = TimeSpan.FromSeconds(45);
+        var registration = new TraconToolRegistration(
+            AIFunctionFactory.Create(
+                async () =>
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, CancellationToken.None); // delay: simulated
+
+                    return "too late";
+                },
+                "remote_tool"))
+        {
+            Source = "github-mcp",
+            Timeout = limit,
+        };
+
+        var tools = McpTenantTools.Create(
+            [registration],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            McpToolPolicyTestGates.Open(),
+            NoOpToolArgumentsValidator.Instance,
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance,
+            timeProvider: clock);
+
+        tools.TryGet("remote_tool", out var tool).ShouldBeTrue();
+
+        var call = ((AIFunction)tool!).InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)).AsTask();
+
+        await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the call to arm its timeout on the clock");
+
+        clock.Pending.ShouldBe([limit]);
+
+        await clock.AdvanceUntilAsync(call, within: limit);
+
+        (await call)?.ToString().ShouldNotBeNull().ShouldContain("did not complete within");
+        clock.Steps.ShouldBe([limit]);
+    }
+
+    [Fact]
     public void An_mcp_tool_is_never_marked_RunsOnClient()
     {
         // Replay rejects a definition that carries a

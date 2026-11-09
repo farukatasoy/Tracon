@@ -158,7 +158,7 @@ public sealed class VoiceConversationTests
         // 🚨 If the interrupted reply is not written, the model will NOT SEE
         // its own half-finished sentence on the next turn, and the
         // conversation breaks.
-        var voice = new StubVoiceProvider { SynthesisDelay = TimeSpan.FromSeconds(5) };
+        var voice = new StubVoiceProvider { HoldSynthesis = true };
         await using var host = await StartAsync(voice);
         await using var client = await ConnectAsync(host);
 

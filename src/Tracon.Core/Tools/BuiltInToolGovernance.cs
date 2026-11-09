@@ -37,6 +37,7 @@ internal sealed class BuiltInToolGovernance
     private readonly ILogger<AuthorizingAIFunction> _authorizingLogger;
     private readonly ILogger<TimeoutAIFunction> _timeoutLogger;
     private readonly ILogger<ValidatingAIFunction> _validatingLogger;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>Creates the governance with the dependencies of the tool chain.</summary>
     /// <param name="authorizationHandler">The authorization policy applied before every server-side call.</param>
@@ -47,6 +48,7 @@ internal sealed class BuiltInToolGovernance
     /// <param name="authorizingLogger">The logger passed to every authorizing layer.</param>
     /// <param name="timeoutLogger">The logger passed to every timeout layer.</param>
     /// <param name="validatingLogger">The logger passed to every validating layer.</param>
+    /// <param name="timeProvider">The time source of every tool timeout; the system's when omitted.</param>
     public BuiltInToolGovernance(
         IToolAuthorizationHandler authorizationHandler,
         TenantToolPolicyGate policyGate,
@@ -55,7 +57,8 @@ internal sealed class BuiltInToolGovernance
         IRunAttributionContext? attribution,
         ILogger<AuthorizingAIFunction> authorizingLogger,
         ILogger<TimeoutAIFunction> timeoutLogger,
-        ILogger<ValidatingAIFunction> validatingLogger)
+        ILogger<ValidatingAIFunction> validatingLogger,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(authorizationHandler);
         ArgumentNullException.ThrowIfNull(policyGate);
@@ -73,6 +76,7 @@ internal sealed class BuiltInToolGovernance
         _authorizingLogger = authorizingLogger;
         _timeoutLogger = timeoutLogger;
         _validatingLogger = validatingLogger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>Builds the governance from the final service-provider state.</summary>
@@ -90,7 +94,8 @@ internal sealed class BuiltInToolGovernance
             provider.GetService<IRunAttributionContext>(),
             provider.GetRequiredService<ILogger<AuthorizingAIFunction>>(),
             provider.GetRequiredService<ILogger<TimeoutAIFunction>>(),
-            provider.GetRequiredService<ILogger<ValidatingAIFunction>>());
+            provider.GetRequiredService<ILogger<ValidatingAIFunction>>(),
+            provider.GetService<TimeProvider>());
     }
 
     /// <summary>Wraps a tool in the tool chain.</summary>
@@ -131,6 +136,7 @@ internal sealed class BuiltInToolGovernance
             _attribution,
             _authorizingLogger,
             _timeoutLogger,
-            _validatingLogger);
+            _validatingLogger,
+            _timeProvider);
     }
 }

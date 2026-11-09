@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
@@ -16,6 +15,11 @@ namespace Tracon.Mcp.UnitTests;
 /// to <c>tools/list</c>: nothing at all, three thousand tools, a schema that is not a schema, two tools under one name,
 /// a description of several megabytes. A second, healthy server is registered beside it; its tool must survive each of
 /// them.
+/// <para>
+/// The refresh runs on a clock the test moves. A refresh that is meant to end without using its connection limit ends with
+/// the clock where it started, and one that is meant to end at the limit is carried to it by one step of exactly that limit:
+/// no wall-clock bound says how long it took.
+/// </para>
 /// </remarks>
 public sealed class McpServerMisbehaviorTests
 {
@@ -26,13 +30,23 @@ public sealed class McpServerMisbehaviorTests
     [Fact]
     public async Task A_server_that_never_answers_tools_list_costs_one_timeout_and_the_healthy_server_keeps_its_tool()
     {
-        await using var broken = ScriptedMcpServer.Start((method, _, _, _) => Task.FromResult<string?>(
-            string.Equals(method, "tools/list", StringComparison.Ordinal) ? null : "{}"));
+        var asked = 0;
 
-        var (outcome, elapsed, tools) = await RefreshAsync(broken);
+        await using var broken = ScriptedMcpServer.Start((method, _, _, _) =>
+        {
+            if (!string.Equals(method, "tools/list", StringComparison.Ordinal))
+            {
+                return Task.FromResult<string?>("{}");
+            }
+
+            Interlocked.Increment(ref asked);
+
+            return Task.FromResult<string?>(null);
+        });
+
+        var (outcome, tools) = await RefreshToTheLimitAsync(broken, () => Volatile.Read(ref asked) > 0, "the silent server to be asked for its tools");
 
         outcome.HadUnreachableServers.ShouldBeTrue("a server that never answers is unreachable");
-        elapsed.ShouldBeLessThan(ConnectionTimeout * 4, $"the refresh waited {elapsed} for a server that never answers tools/list");
         HasHealthyTool(tools).ShouldBeTrue("the healthy server's tool is gone");
     }
 
@@ -45,9 +59,8 @@ public sealed class McpServerMisbehaviorTests
         await using var broken = ScriptedMcpServer.Start((method, _, _, _) => Task.FromResult<string?>(
             string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(many) : "{}"));
 
-        var (outcome, elapsed, tools) = await RefreshAsync(broken);
+        var (outcome, tools) = await RefreshAsync(broken);
 
-        elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(20), $"listing 3000 tools took {elapsed}");
         HasHealthyTool(tools).ShouldBeTrue("the healthy server's tool is gone");
 
         // The limit per server is the default of the option (100), and the healthy server's one tool is on top of it. These
@@ -83,11 +96,11 @@ public sealed class McpServerMisbehaviorTests
         // default limit of 100 needs 101 of them in two seconds); what the test pins is that the reading STOPS there.
         const int limit = 10;
 
-        var (outcome, elapsed, tools) = await RefreshAsync(broken, limit);
+        var (outcome, tools) = await RefreshAsync(broken, limit);
 
         // The server is reachable and keeps its first tools: a list that does not end is cut like a list that is too long.
+        // The refresh ended with the connection limit unreached: the clock it runs on was never moved.
         outcome.HadUnreachableServers.ShouldBeFalse("the limit was reached, so the list was not waited for");
-        elapsed.ShouldBeLessThan(ConnectionTimeout, $"the refresh read pages for {elapsed}");
         tools.Count(static name => name.StartsWith("broken_", StringComparison.Ordinal)).ShouldBe(limit);
         HasHealthyTool(tools).ShouldBeTrue("the healthy server's tool is gone");
 
@@ -115,10 +128,12 @@ public sealed class McpServerMisbehaviorTests
                 "{\"tools\":[{\"name\":\"not a name " + page + "\",\"description\":\"d\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}],\"nextCursor\":\"page-" + page + "\"}");
         });
 
-        var (outcome, elapsed, tools) = await RefreshAsync(broken);
+        var (outcome, tools) = await RefreshToTheLimitAsync(
+            broken,
+            () => Volatile.Read(ref pages) > 1,
+            "the server to be asked for a second page of its list");
 
         outcome.HadUnreachableServers.ShouldBeTrue("a list with no last page is a server that cannot be listed");
-        elapsed.ShouldBeLessThan(ConnectionTimeout * 4, $"the refresh read pages for {elapsed}");
         Volatile.Read(ref pages).ShouldBeGreaterThan(1, "the server was never asked for a second page, so the list did not end");
         HasHealthyTool(tools).ShouldBeTrue("the healthy server's tool is gone");
         tools.ShouldNotContain(static name => name.StartsWith("broken_", StringComparison.Ordinal));
@@ -145,7 +160,7 @@ public sealed class McpServerMisbehaviorTests
                 "{\"tools\":[" + listed + "]" + (page < 10 ? ",\"nextCursor\":\"page-" + page + "\"" : string.Empty) + "}");
         });
 
-        var (_, _, tools) = await RefreshAsync(broken);
+        var (_, tools) = await RefreshAsync(broken);
 
         tools.Count(static name => name.StartsWith("broken_", StringComparison.Ordinal)).ShouldBe(new TraconMcpOptions().MaxToolsPerServer);
         tools.Contains("broken_tool_0", StringComparer.Ordinal).ShouldBeTrue();
@@ -173,7 +188,7 @@ public sealed class McpServerMisbehaviorTests
                 + (page < 4 ? ",\"nextCursor\":\"page-" + page + "\"" : string.Empty) + "}");
         });
 
-        var (_, _, tools) = await RefreshAsync(broken);
+        var (_, tools) = await RefreshAsync(broken);
 
         tools.Count(static name => name.StartsWith("broken_", StringComparison.Ordinal)).ShouldBe(4);
         Volatile.Read(ref pages).ShouldBe(4);
@@ -187,10 +202,49 @@ public sealed class McpServerMisbehaviorTests
         await using var broken = ScriptedMcpServer.Start((method, _, _, _) => Task.FromResult<string?>(
             string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(EmptyHeader, GoodTool) : "{}"));
 
-        var (_, _, tools) = await RefreshAsync(broken);
+        var (_, tools) = await RefreshAsync(broken);
 
         tools.Contains("broken_healthy_tool", StringComparer.Ordinal).ShouldBeTrue();
         tools.Contains("broken_bad_header", StringComparer.Ordinal).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_call_to_a_tool_whose_server_never_answers_ends_at_the_tool_timeout_on_the_clock_of_the_catalog()
+    {
+        // The list is fine and the call is not: only the tool's own limit, which the catalog's tool set arms on the clock the
+        // catalog was given, can end it.
+        var called = 0;
+
+        await using var broken = ScriptedMcpServer.Start((method, _, _, _) =>
+        {
+            if (string.Equals(method, "tools/call", StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref called);
+
+                return Task.FromResult<string?>(null);
+            }
+
+            return Task.FromResult<string?>(string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(GoodTool) : "{}");
+        });
+
+        var clock = new ManualClock();
+        await using var rig = await Rig.StartAsync(broken, maxToolsPerServer: null, clock);
+
+        (await rig.Catalog.RefreshAsync(TestContext.Current.CancellationToken)).HadUnreachableServers.ShouldBeFalse();
+        rig.Catalog.ForTenant("default").TryGet("broken_healthy_tool", out var tool).ShouldBeTrue();
+
+        var call = ((AIFunction)tool!).InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), TestContext.Current.CancellationToken).AsTask();
+
+        await WaitUntil.TrueAsync(() => Volatile.Read(ref called) > 0 && clock.Pending.Count > 0, "the call to reach the silent server with its limit armed");
+
+        var limit = new TraconOptions().Tools.DefaultTimeout;
+
+        clock.Pending.ShouldBe([limit]);
+
+        await clock.AdvanceUntilAsync(call, within: limit);
+
+        (await call)?.ToString().ShouldNotBeNull().ShouldContain("did not complete within");
+        clock.Steps.ShouldBe([limit]);
     }
 
     [Fact]
@@ -236,9 +290,8 @@ public sealed class McpServerMisbehaviorTests
         await using var broken = ScriptedMcpServer.Start((method, _, _, _) => Task.FromResult<string?>(
             string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(brokenTool, GoodTool) : "{}"));
 
-        var (_, elapsed, tools) = await RefreshAsync(broken);
+        var (_, tools) = await RefreshAsync(broken);
 
-        elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
         HasHealthyTool(tools).ShouldBeTrue($"the healthy server's tool is gone after {brokenTool}");
     }
 
@@ -248,7 +301,7 @@ public sealed class McpServerMisbehaviorTests
         await using var broken = ScriptedMcpServer.Start((method, _, _, _) => Task.FromResult<string?>(
             string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(GoodTool, GoodTool) : "{}"));
 
-        var (_, _, tools) = await RefreshAsync(broken);
+        var (_, tools) = await RefreshAsync(broken);
 
         HasHealthyTool(tools).ShouldBeTrue("the healthy server's tool is gone");
     }
@@ -263,9 +316,8 @@ public sealed class McpServerMisbehaviorTests
                 ? Tools("{\"name\":\"huge\",\"description\":\"" + description + "\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}")
                 : "{}"));
 
-        var (_, elapsed, tools) = await RefreshAsync(broken);
+        var (_, tools) = await RefreshAsync(broken);
 
-        elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(20));
         HasHealthyTool(tools).ShouldBeTrue("the healthy server's tool is gone");
     }
 
@@ -274,18 +326,45 @@ public sealed class McpServerMisbehaviorTests
 
     private static string Tools(params string[] tools) => "{\"tools\":[" + string.Join(',', tools) + "]}";
 
-    /// <summary>Registers the scripted server and a healthy one for one tenant, refreshes, and lists the tool names.</summary>
-    private static async Task<(McpRefreshOutcome Outcome, TimeSpan Elapsed, List<string> Tools)> RefreshAsync(ScriptedMcpServer broken, int? maxToolsPerServer = null)
+    /// <summary>
+    /// Registers the scripted server and a healthy one for one tenant, refreshes on a clock nobody moves, and lists the tool
+    /// names. A refresh that ends here ended without its connection limit: the limit is armed on the clock and never reached,
+    /// and one that would need it never ends and fails the wait.
+    /// </summary>
+    private static async Task<(McpRefreshOutcome Outcome, List<string> Tools)> RefreshAsync(ScriptedMcpServer broken, int? maxToolsPerServer = null)
     {
-        await using var rig = await Rig.StartAsync(broken, maxToolsPerServer);
+        var clock = new ManualClock();
+        await using var rig = await Rig.StartAsync(broken, maxToolsPerServer, clock);
 
-        var clock = Stopwatch.StartNew();
-        var outcome = await rig.Catalog.RefreshAsync(TestContext.Current.CancellationToken);
-        clock.Stop();
+        var outcome = await rig.Catalog.RefreshAsync(TestContext.Current.CancellationToken).AsTask()
+            .WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
-        var tools = rig.Catalog.ForTenant("default").Descriptors.Select(static tool => tool.Name).ToList();
+        clock.CreatedTimers.ShouldBeGreaterThan(0, "the connection limit runs on the clock the catalog was given");
 
-        return (outcome, clock.Elapsed, tools);
+        return (outcome, rig.Catalog.ForTenant("default").Descriptors.Select(static tool => tool.Name).ToList());
+    }
+
+    /// <summary>
+    /// The same refresh for a server that makes it wait for the connection limit: once <paramref name="reached"/> says the
+    /// server has the request in hand and the healthy server is done (only the silent server's two limits are armed, the
+    /// connection's and the list's), the clock moves by exactly the limit and the refresh gives up on it.
+    /// </summary>
+    private static async Task<(McpRefreshOutcome Outcome, List<string> Tools)> RefreshToTheLimitAsync(ScriptedMcpServer broken, Func<bool> reached, string description)
+    {
+        var clock = new ManualClock();
+        await using var rig = await Rig.StartAsync(broken, maxToolsPerServer: null, clock);
+
+        var refreshing = rig.Catalog.RefreshAsync(TestContext.Current.CancellationToken).AsTask();
+
+        await WaitUntil.TrueAsync(() => reached() && clock.Pending.Count == 2, description);
+
+        clock.Pending.ShouldBe([ConnectionTimeout, ConnectionTimeout], "the silent server's connection limit and list limit, both one limit away");
+
+        clock.Advance(ConnectionTimeout);
+
+        var outcome = await refreshing.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        return (outcome, rig.Catalog.ForTenant("default").Descriptors.Select(static tool => tool.Name).ToList());
     }
 
     private static TraconMcpOptions MisbehaviorOptions(int? maxToolsPerServer)
@@ -313,7 +392,7 @@ public sealed class McpServerMisbehaviorTests
 
         public McpToolCatalog Catalog { get; }
 
-        public static async Task<Rig> StartAsync(ScriptedMcpServer broken, int? maxToolsPerServer = null)
+        public static async Task<Rig> StartAsync(ScriptedMcpServer broken, int? maxToolsPerServer = null, ManualClock? clock = null)
         {
             var healthy = ScriptedMcpServer.Start((method, _, _, _) => Task.FromResult<string?>(
                 string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(GoodTool) : "{}"));
@@ -345,7 +424,8 @@ public sealed class McpServerMisbehaviorTests
                 McpToolPolicyTestGates.Open(),
                 NoOpToolArgumentsValidator.Instance,
                 attribution: null,
-                egressGuard: new EgressSocketGuard(static () => new EgressAddressPolicy(AllowPrivateNetworkTargets: true, AllowLoopback: true)));
+                egressGuard: new EgressSocketGuard(static () => new EgressAddressPolicy(AllowPrivateNetworkTargets: true, AllowLoopback: true)),
+                timeProvider: clock);
 
             return new Rig(catalog, healthy);
         }

@@ -151,6 +151,7 @@ internal sealed class McpTenantTools
     /// calls through, or <see langword="null"/> when none is known. A served tool
     /// missing from the map reports <see cref="UnboundBinding"/>.
     /// </param>
+    /// <param name="timeProvider">The time source of every tool timeout; the system's when omitted.</param>
     /// <returns>The set.</returns>
     /// <remarks>
     /// A name collision is <strong>not an error</strong>. In the code
@@ -173,7 +174,8 @@ internal sealed class McpTenantTools
         int? defaultMaxOutputBytes = null,
         IReadOnlyDictionary<TraconToolRegistration, string>? sourceFingerprints = null,
         IReadOnlyCollection<string>? serverNames = null,
-        IReadOnlyDictionary<TraconToolRegistration, long>? connectionGenerations = null)
+        IReadOnlyDictionary<TraconToolRegistration, long>? connectionGenerations = null,
+        TimeProvider? timeProvider = null)
     {
         var tools = new Dictionary<string, AIFunctionDeclaration>(registrations.Count, StringComparer.Ordinal);
         var sources = new Dictionary<string, string>(registrations.Count, StringComparer.Ordinal);
@@ -229,7 +231,8 @@ internal sealed class McpTenantTools
                 attribution,
                 authorizingLogger,
                 timeoutLogger,
-                validatingLogger);
+                validatingLogger,
+                timeProvider);
 
             if (!tools.TryAdd(name, function))
             {

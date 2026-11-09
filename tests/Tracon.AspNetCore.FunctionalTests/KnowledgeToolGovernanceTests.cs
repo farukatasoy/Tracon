@@ -89,13 +89,21 @@ public sealed class KnowledgeToolGovernanceTests
     public async Task A_vector_store_that_hangs_ends_at_the_tool_timeout_and_the_run_goes_on()
     {
         var embeddings = new CountingEmbeddings();
+        var clock = new ManualClock();
         await using var host = await StartAsync(
             embeddings,
             new HangingKnowledgeStore(),
+            services => services.AddSingleton<TimeProvider>(clock),
             configureTracon: static builder => builder.Configure(static options => options.Tools.DefaultTimeout = TimeSpan.FromMilliseconds(200)));
 
         // The store waits for ever: only the tool's own timeout can end the call, so a run that returns was cut by it.
-        var stream = await RunAsync(host, tenant: null).WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        var running = RunAsync(host, tenant: null);
+
+        await clock.AdvanceUntilAsync(running, within: TimeSpan.FromMilliseconds(200));
+
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(200)], "the search was cut at the installation's default tool timeout");
+
+        var stream = await running;
 
         stream.ShouldContain("Tool 'search_knowledge' did not complete within 200ms.");
 

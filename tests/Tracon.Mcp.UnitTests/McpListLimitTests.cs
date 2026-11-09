@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -103,6 +102,9 @@ public sealed class McpListLimitTests
         await using var server = EndlessServer("resources/list", () => Interlocked.Increment(ref pages), static page => Resource(page));
         var servers = await StoreAsync(server);
 
+        // The connection limit runs on a clock nobody moves: a pass that kept reading pages until the limit would never end.
+        var clock = new ManualClock();
+
         await using var catalog = new McpToolCatalog(
             servers,
             new InMemoryTenantStore(),
@@ -115,14 +117,14 @@ public sealed class McpListLimitTests
             McpToolPolicyTestGates.Open(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null,
-            egressGuard: Guard());
+            egressGuard: Guard(),
+            timeProvider: clock);
 
-        var clock = Stopwatch.StartNew();
-        var outcome = await catalog.RefreshAsync(TestContext.Current.CancellationToken);
-        clock.Stop();
+        var outcome = await catalog.RefreshAsync(TestContext.Current.CancellationToken).AsTask()
+            .WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
         outcome.HadUnreachableServers.ShouldBeFalse("the limit was reached, so the list was not waited for");
-        clock.Elapsed.ShouldBeLessThan(ConnectionTimeout);
+        clock.CreatedTimers.ShouldBeGreaterThan(0, "the connection limit was armed on the catalog's clock, and the clock never moved");
         Volatile.Read(ref pages).ShouldBe(Limit + 1);
 
         // The kept resources make the read_resource tool appear.

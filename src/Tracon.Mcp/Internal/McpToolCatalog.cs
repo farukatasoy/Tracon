@@ -235,7 +235,8 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         _coreOptions.Value.Tools.DefaultMaxOutputBytes,
                         sources,
                         plan.ServerNames,
-                        generations);
+                        generations,
+                        _timeProvider);
                     total += registrations.Count;
                 }
             }

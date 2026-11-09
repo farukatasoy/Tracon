@@ -28,12 +28,13 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
     /// <summary>The chunks that were spoken.</summary>
     public List<string> Spoken { get; } = [];
 
-    /// <summary>How long to wait before starting synthesis.</summary>
+    /// <summary>Gets or sets whether streaming synthesis starts and never finishes until the caller cancels it.</summary>
     /// <remarks>
-    /// The barge-in test needs synthesis to slow down so it can send the
-    /// interrupt message while the response is still in progress.
+    /// The barge-in test needs the response to be still in progress when it sends the
+    /// interrupt message; a synthesis that waits for the cancellation holds it there for
+    /// exactly as long as the test needs, however slow the machine is.
     /// </remarks>
-    public TimeSpan SynthesisDelay { get; set; }
+    public bool HoldSynthesis { get; set; }
 
     /// <inheritdoc />
     public string ProviderName => "test-voice";
@@ -80,9 +81,9 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
         SpeechRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (SynthesisDelay > TimeSpan.Zero)
+        if (HoldSynthesis)
         {
-            await Task.Delay(SynthesisDelay, cancellationToken); // delay: simulated
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); // delay: simulated
         }
 
         lock (Spoken)
