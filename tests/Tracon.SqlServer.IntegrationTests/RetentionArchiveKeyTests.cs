@@ -13,7 +13,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// real schema proves that. <c>run_events</c> is clustered by <c>(run_id, seq)</c>,
 /// whose <c>uniqueidentifier</c> order is not time order.
 /// </remarks>
-public sealed class RetentionArchiveKeyTests(SqlServerFixture fixture)
+public sealed class RetentionArchiveKeyTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     private const string Tenant = "tenant-a";
 
@@ -25,7 +25,7 @@ public sealed class RetentionArchiveKeyTests(SqlServerFixture fixture)
     [MemberData(nameof(AllTargets))]
     public async Task Every_targets_archive_delete_runs_against_the_schema(string target)
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var dialect = context.StoreContext.Dialect;
         var definition = RetentionTargetRegistry.Resolve(dialect, target);
         var where = SqlDialect.Combine(definition.WherePredicate, definition.TenantPredicate);
@@ -54,7 +54,7 @@ public sealed class RetentionArchiveKeyTests(SqlServerFixture fixture)
     {
         // Two runs, events written newest first: their time order is the reverse
         // of their write order, and the key has two columns.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var newest = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var written = 0;
 
@@ -100,7 +100,7 @@ public sealed class RetentionArchiveKeyTests(SqlServerFixture fixture)
         // The key of sessions is (tenant_id, id): two tenants can use the same id.
         // An installation-wide archive batch of one row must not delete the other
         // tenant's row, which it never archived.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         await SeedSessionAsync(context, "shared-id", "tenant-a");
         await SeedSessionAsync(context, "shared-id", "tenant-b");
 

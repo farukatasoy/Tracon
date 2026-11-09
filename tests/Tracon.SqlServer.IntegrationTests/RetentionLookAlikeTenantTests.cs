@@ -15,7 +15,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// only looks when the migrations run. The rows are written here with raw SQL for that reason.
 /// </para>
 /// </remarks>
-public sealed class RetentionLookAlikeTenantTests(SqlServerFixture fixture)
+public sealed class RetentionLookAlikeTenantTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     // The first letter is U+FF41, the full-width "a". The default collation compares it equal to the ASCII "a".
     private const string LookAlike = "ａcme";
@@ -23,7 +23,7 @@ public sealed class RetentionLookAlikeTenantTests(SqlServerFixture fixture)
     [Fact]
     public async Task A_direct_delete_for_one_tenant_leaves_the_rows_of_a_look_alike_tenant()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var old = DateTimeOffset.UtcNow.AddDays(-60);
         var own = await SeedFinishedJobAsync(context, "acme", old);
         var other = await SeedFinishedJobAsync(context, LookAlike, old);
@@ -41,7 +41,7 @@ public sealed class RetentionLookAlikeTenantTests(SqlServerFixture fixture)
     {
         // A tenant is the same tenant in any letter case. The check that keeps a look-alike out must not also keep out the
         // row of the tenant itself that was written before the identifier was folded to lower case.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var old = DateTimeOffset.UtcNow.AddDays(-60);
         var capitals = await SeedFinishedJobAsync(context, "ACME", old);
         var cutoff = DateTimeOffset.UtcNow.AddDays(-1);
@@ -55,7 +55,7 @@ public sealed class RetentionLookAlikeTenantTests(SqlServerFixture fixture)
     [Fact]
     public async Task A_delete_of_sessions_for_one_tenant_leaves_the_rows_of_a_look_alike_tenant()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var old = DateTimeOffset.UtcNow.AddDays(-60);
         var own = await SeedOldSessionAsync(context, "acme", old);
         var other = await SeedOldSessionAsync(context, LookAlike, old);

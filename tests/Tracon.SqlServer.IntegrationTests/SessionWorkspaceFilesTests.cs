@@ -16,7 +16,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// </remarks>
 // MAAI001: AgentFileStore is marked "evaluation purposes only" - the same rationale as the product code.
 #pragma warning disable MAAI001
-public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisposable
+public sealed class SessionWorkspaceFilesTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>, IDisposable
 {
     private const string Tenant = "tenant-a";
     private const string EmptyJsonState = "'{}'";
@@ -26,7 +26,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task The_SQL_store_is_the_file_tree_the_eraser_looks_for()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // The eraser and the quota check take the SQL answer when the store is an IAgentFileTree and walk the store
         // file by file when it is not; walking a SQL store would need an agent, and an erasure has none.
@@ -36,7 +36,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task The_size_of_a_directory_counts_its_files_and_their_bytes_in_UTF8_whichever_agent_wrote_them()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tree = context.AgentFiles;
         var root = SessionWorkspacePaths.SessionRoot(Tenant, "session-1");
 
@@ -55,7 +55,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task A_directory_with_no_files_measures_zero()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         (await context.AgentFiles.MeasureAsync(Tenant, "tenant-a/~workspace/nothing", CancellationToken.None)).ShouldBe(default);
     }
@@ -63,7 +63,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task The_files_of_a_directory_are_read_with_their_path_below_it()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var root = SessionWorkspacePaths.SessionRoot(Tenant, "session-1");
         await WriteAsync(context, "drafter", root + "/drafter/notes.md", "alpha");
         await WriteAsync(context, "reviewer", root + "/reviewer/reports/q3.md", "beta");
@@ -76,7 +76,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task A_delete_takes_the_directory_and_nothing_beside_it()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tree = context.AgentFiles;
         var root = SessionWorkspacePaths.SessionRoot(Tenant, "session-1");
         await WriteAsync(context, "drafter", root + "/drafter/notes.md", "alpha");
@@ -94,7 +94,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task A_delete_never_reaches_another_tenant_that_has_the_same_path()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tree = context.AgentFiles;
         var path = "shared/~workspace/key/drafter/notes.md";
         await WriteAsync(context, "drafter", path, "alpha", tenant: "tenant-a");
@@ -108,7 +108,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task A_character_that_LIKE_reads_as_a_wildcard_matches_only_itself()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tree = context.AgentFiles;
         await WriteAsync(context, "drafter", "acme_1/~workspace/key/drafter/notes.md", "underscore");
         await WriteAsync(context, "drafter", "acmeX1/~workspace/key/drafter/notes.md", "other");
@@ -125,7 +125,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task A_directory_that_is_a_prefix_of_another_does_not_take_the_other()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tree = context.AgentFiles;
         await WriteAsync(context, "drafter", "tenant-a/~workspace/abc/drafter/notes.md", "one");
         await WriteAsync(context, "drafter", "tenant-a/~workspace/abcdef/drafter/notes.md", "two");
@@ -138,7 +138,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task An_empty_directory_is_refused_because_it_would_match_every_file_of_the_tenant()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tree = context.AgentFiles;
         await WriteAsync(context, "drafter", "tenant-a/drafter/memory.md", "kept");
 
@@ -154,7 +154,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
         // The unit tests stand a double in for the SQL store. This is the combination a host runs: the SQL store answers
         // a search with the whole stored path (a leading slash, the tenant and the key of the session), and the model must
         // read names relative to the directory it asked about.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var options = new FixedWorkspaceOptions(new TraconWorkspaceOptions { MaxFileBytes = 1000, MaxSessionBytes = 100_000, MaxTenantBytes = 1_000_000, FileOverheadBytes = 0 });
         var tenantA = new SessionWorkspaceFileStore(new SqlAgentFileStore(context.StoreContext, new FixedTenantContext("tenant-a")), context.AgentFiles, "tenant-a", "drafter", options);
         var tenantB = new SessionWorkspaceFileStore(new SqlAgentFileStore(context.StoreContext, new FixedTenantContext("tenant-b")), context.AgentFiles, "tenant-b", "drafter", options);
@@ -198,7 +198,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task A_data_subject_erasure_over_SqlServer_takes_the_workspace_of_the_sessions_in_the_same_call()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         await SeedSessionAsync(context, "session-1", Tenant);
         await SeedSessionAsync(context, "session-2", Tenant);
         var root1 = SessionWorkspacePaths.SessionRoot(Tenant, "session-1");
@@ -232,7 +232,7 @@ public sealed class SessionWorkspaceFilesTests(SqlServerFixture fixture) : IDisp
     [Fact]
     public async Task The_sessions_retention_target_over_SqlServer_takes_the_workspace_of_each_expired_session()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         await SeedSessionAsync(context, "old-session", Tenant);
         var root = SessionWorkspacePaths.SessionRoot(Tenant, "old-session");
         await WriteAsync(context, "drafter", root + "/drafter/notes.md", "alpha");

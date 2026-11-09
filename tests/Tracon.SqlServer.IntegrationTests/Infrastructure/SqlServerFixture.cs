@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Testcontainers.MsSql;
+using Tracon.Tests.Common;
 
 namespace Tracon.SqlServer.IntegrationTests.Infrastructure;
 
@@ -17,9 +18,13 @@ namespace Tracon.SqlServer.IntegrationTests.Infrastructure;
 /// The container starts once for the whole assembly; the schema is shared per
 /// contract test CLASS (see <see cref="SqlServerSchemaFixture"/>,
 /// <see cref="SqlServerTestContext"/>), and isolation between tests is
-/// achieved by resetting data. The migration lock is also now scoped
-/// to the schema rather than the whole database; together these two
-/// let the 29 class fixtures run their migrations in PARALLEL.
+/// achieved by resetting data. The class fixtures migrate their schemas one
+/// at a time (see <see cref="SqlServerTestContext"/>), so every test that
+/// creates a schema of its own waits for the others.
+/// </para>
+/// <para>
+/// The tests use a database of their own on the server, not <c>master</c>; it runs without the log flush on commit
+/// (see <see cref="NonDurableSqlServerDatabase"/>).
 /// </para>
 /// <para>
 /// 🚨 The SQL Server container needs ~2 GB of memory; it is noticeably heavier
@@ -49,10 +54,20 @@ public sealed class SqlServerFixture : IAsyncLifetime
 
     private static readonly TimeSpan CollationProbeInterval = TimeSpan.FromSeconds(5);
 
+    /// <summary>The database the tests use on the server.</summary>
+    public const string DatabaseName = "tracon_tests";
+
     private readonly MsSqlContainer _container = CreateContainer();
 
-    /// <summary>Gets the connection string of the running container.</summary>
-    public string ConnectionString => _container.GetConnectionString();
+    /// <summary>Gets the connection string of the tests' database on the running container.</summary>
+    public string ConnectionString
+    {
+        get => field ?? throw new InvalidOperationException("The SQL Server container has not started.");
+        private set;
+    }
+
+    /// <summary>Gets the container's own connection string, which opens <c>master</c>.</summary>
+    internal string ServerConnectionString => _container.GetConnectionString();
 
     /// <inheritdoc />
     public async ValueTask InitializeAsync()
@@ -65,6 +80,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
         {
             await WaitForCollationAsync(collation);
         }
+
+        ConnectionString = await NonDurableSqlServerDatabase.CreateAsync(ServerConnectionString, DatabaseName);
     }
 
     /// <summary>
@@ -75,7 +92,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
     /// </summary>
     private async Task WaitForCollationAsync(string expected)
     {
-        var builder = new SqlConnectionStringBuilder(ConnectionString) { Pooling = false };
+        var builder = new SqlConnectionStringBuilder(ServerConnectionString) { Pooling = false };
         var deadline = DateTime.UtcNow + CollationChangeBudget;
         string? previousStart = null;
 

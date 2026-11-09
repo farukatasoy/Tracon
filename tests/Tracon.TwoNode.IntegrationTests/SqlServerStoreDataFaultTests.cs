@@ -4,12 +4,12 @@ namespace Tracon.TwoNode.IntegrationTests;
 
 /// <summary>A value too long for its column on SQL Server, which refuses it.</summary>
 /// <remarks>
-/// The scenarios are in <see cref="StoreDataFaultAcceptanceContract"/>; see
-/// <see cref="PostgreSqlDefinitionTransferTests"/> for why the class shares a collection.
+/// The scenarios are in <see cref="StoreDataFaultAcceptanceContract"/>; see <see cref="TwoNodeAcceptanceSerial"/>
+/// for why the class shares a collection and its server.
 /// </remarks>
 [Collection(TwoNodeAcceptanceSerial.Name)]
 public sealed class SqlServerStoreDataFaultTests(SqlServerTwoNodeServer server)
-    : StoreDataFaultAcceptanceContract, IClassFixture<SqlServerTwoNodeServer>
+    : StoreDataFaultAcceptanceContract
 {
     /// <inheritdoc />
     protected override bool RefusesLongText => true;

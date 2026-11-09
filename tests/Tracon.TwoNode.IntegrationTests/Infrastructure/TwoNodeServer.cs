@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Npgsql;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
+using Tracon.Tests.Common;
 
 namespace Tracon.TwoNode.IntegrationTests.Infrastructure;
 
@@ -11,7 +12,8 @@ namespace Tracon.TwoNode.IntegrationTests.Infrastructure;
 /// </summary>
 /// <remarks>
 /// <para>
-/// One container per test CLASS, started when the first test of the class runs and removed when the last one is done.
+/// One container per provider for the whole run: the collection fixture of <see cref="TwoNodeAcceptanceSerial"/> starts
+/// it when the first class of the collection runs and removes it when the last one is done.
 /// <strong>No test connects to a remote or shared server.</strong> Every test takes a schema of its own
 /// (<see cref="NewDatabase"/>): the scenarios write runs, jobs, counters and OAuth servers, and a row one test leaves
 /// behind must not be read by another.
@@ -102,6 +104,10 @@ public sealed class PostgreSqlTwoNodeServer : TwoNodeServer
 }
 
 /// <summary>The SQL Server container (about 2 GB of memory; the image is heavier than PostgreSQL's).</summary>
+/// <remarks>
+/// The hosts use a database of their own on the server, not <c>master</c>; it runs without the log flush on commit
+/// (see <see cref="NonDurableSqlServerDatabase"/>).
+/// </remarks>
 public sealed class SqlServerTwoNodeServer : TwoNodeServer
 {
     private readonly MsSqlContainer _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
@@ -111,29 +117,57 @@ public sealed class SqlServerTwoNodeServer : TwoNodeServer
     /// <inheritdoc />
     public override string Name => "SQL Server";
 
+    private string ConnectionString
+    {
+        get => field ?? throw new InvalidOperationException("The SQL Server container has not started.");
+        set;
+    }
+
     /// <inheritdoc />
     public override TwoNodeDatabase NewDatabase()
-        => new SqlServerTwoNodeDatabase(_container.GetConnectionString(), NewSchemaName());
+        => new SqlServerTwoNodeDatabase(ConnectionString, NewSchemaName());
 
     /// <inheritdoc />
     public override async Task<TwoNodeDatabase> NewDatabaseForLoginAsync(string password)
     {
         var login = "canary_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..10];
 
-        await using var connection = new SqlConnection(_container.GetConnectionString());
+        await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync();
 
         await using var command = connection.CreateCommand();
         command.CommandText = $"CREATE LOGIN [{login}] WITH PASSWORD = '{password}', CHECK_POLICY = OFF; ALTER SERVER ROLE sysadmin ADD MEMBER [{login}];";
         await command.ExecuteNonQueryAsync();
 
-        var connectionString = new SqlConnectionStringBuilder(_container.GetConnectionString()) { UserID = login, Password = password }.ConnectionString;
+        var connectionString = new SqlConnectionStringBuilder(ConnectionString) { UserID = login, Password = password }.ConnectionString;
 
         return new SqlServerTwoNodeDatabase(connectionString, NewSchemaName());
     }
 
     /// <inheritdoc />
-    public override async ValueTask InitializeAsync() => await _container.StartAsync();
+    public override async ValueTask InitializeAsync()
+    {
+        await _container.StartAsync();
+
+        ConnectionString = await NonDurableSqlServerDatabase.CreateAsync(_container.GetConnectionString(), "tracon_two_node");
+
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT DB_NAME(), delayed_durability_desc, recovery_model_desc FROM sys.databases WHERE database_id = DB_ID();";
+
+        await using var reader = await command.ExecuteReaderAsync();
+        await reader.ReadAsync();
+
+        if (!string.Equals(reader.GetString(0), "tracon_two_node", StringComparison.Ordinal)
+            || !string.Equals(reader.GetString(1), "FORCED", StringComparison.Ordinal)
+            || !string.Equals(reader.GetString(2), "SIMPLE", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"The hosts' database is {reader.GetString(0)} with delayed durability {reader.GetString(1)} and recovery {reader.GetString(2)}; the options of NonDurableSqlServerDatabase did not take.");
+        }
+    }
 
     /// <inheritdoc />
     public override async ValueTask DisposeAsync() => await _container.DisposeAsync();

@@ -12,12 +12,12 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// expression is a <c>CASE WHEN EXISTS</c> inside a T-SQL <c>ORDER BY</c>; one
 /// dialect passing proves the text, not this provider's parse of it.
 /// </remarks>
-public sealed class RunInputRetentionTests(SqlServerFixture fixture)
+public sealed class RunInputRetentionTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     [Fact]
     public async Task A_waiting_workflow_runs_input_row_survives_retention()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var old = DateTimeOffset.UtcNow.AddDays(-60);
         var cutoff = DateTimeOffset.UtcNow.AddDays(-1);
         var waiting = await SeedRunAsync(context, RunStatus.AwaitingInput, old);

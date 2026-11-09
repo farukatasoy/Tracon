@@ -48,12 +48,21 @@ namespace Tracon.PostgreSql.IntegrationTests.FailureManifests;
 /// fail every other class in the assembly for a reason that has nothing to do
 /// with them.
 /// </para>
+/// <para>
+/// The container keeps the durability of a production server. The image
+/// builder turns <c>fsync</c>, <c>full_page_writes</c> and
+/// <c>synchronous_commit</c> off for every other container of the run; this
+/// one turns them back on, because the scenarios stop and start the server and
+/// read what was committed before the stop. <see cref="InitializeAsync"/> checks
+/// the three settings before a scenario runs.
+/// </para>
 /// </remarks>
 [Collection(TwoProcessFailureProof.Name)]
 public sealed class DatabaseUnavailableTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("pgvector/pgvector:pg18")
         .WithDatabase("tracon_outage")
+        .WithCommand("-c", "fsync=on", "-c", "full_page_writes=on", "-c", "synchronous_commit=on")
         .WithCleanUp(true)
         .Build();
 
@@ -74,6 +83,14 @@ public sealed class DatabaseUnavailableTests : IAsyncLifetime
         await using var command = connection.CreateCommand();
         command.CommandText = "CREATE EXTENSION IF NOT EXISTS vector;";
         await command.ExecuteNonQueryAsync();
+
+        command.CommandText = "SELECT string_agg(name, ', ' ORDER BY name) FROM pg_settings"
+            + " WHERE name IN ('fsync', 'full_page_writes', 'synchronous_commit') AND setting <> 'on';";
+
+        if (await command.ExecuteScalarAsync() is string off)
+        {
+            throw new InvalidOperationException($"The outage container runs with {off} off; the scenarios need a durable server.");
+        }
     }
 
     /// <inheritdoc />

@@ -25,9 +25,49 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// </remarks>
 public abstract class WorkflowCancellationSweepAcceptanceContract
 {
-    /// <summary>Gets every combination of graph, start and way to cancel.</summary>
+    /// <summary>The environment variable that makes a provider that sweeps half of the combinations sweep all of them.</summary>
+    /// <remarks>CI sets it to <c>1</c>; a plain local run leaves it unset.</remarks>
+    public const string FullSweepVariable = "TRACON_TEST_FULL_SWEEP";
+
+    /// <summary>Gets whether this run sweeps every combination on every provider (<see cref="FullSweepVariable"/> is <c>1</c>).</summary>
+    protected static bool FullSweep
+        => string.Equals(Environment.GetEnvironmentVariable(FullSweepVariable), "1", StringComparison.Ordinal);
+
+    /// <summary>Gets the combinations the theory runs: every combination of graph, start and way to cancel.</summary>
     /// <returns>The combinations.</returns>
-    public static TheoryData<SweepGraph, SweepStart, bool> Combinations()
+    /// <remarks>
+    /// A provider class may hide this member with one of its own: the theory reads the member by name from the class that
+    /// runs it, before its base.
+    /// </remarks>
+    public static TheoryData<SweepGraph, SweepStart, bool> Combinations() => AllCombinations();
+
+    /// <summary>
+    /// Gets half of the combinations: every graph and both starts, each with one of the two ways to cancel, and each way
+    /// to cancel with both starts.
+    /// </summary>
+    /// <returns>The combinations whose way to cancel alternates with the graph and the start.</returns>
+    /// <remarks>
+    /// The two ways to cancel reach the same awaited calls; they differ in who asks for the cancel. Alternating them keeps
+    /// every awaited call of every graph swept on the server, through one of the two.
+    /// </remarks>
+    internal static TheoryData<SweepGraph, SweepStart, bool> HalfOfCombinations()
+    {
+        var data = new TheoryData<SweepGraph, SweepStart, bool>();
+
+        foreach (var row in AllCombinations())
+        {
+            var (graph, start, operatorCancel) = row.Data;
+
+            if (operatorCancel == (((int)graph + (int)start) % 2 == 1))
+            {
+                data.Add(graph, start, operatorCancel);
+            }
+        }
+
+        return data;
+    }
+
+    private static TheoryData<SweepGraph, SweepStart, bool> AllCombinations()
     {
         var data = new TheoryData<SweepGraph, SweepStart, bool>();
 

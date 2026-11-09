@@ -25,14 +25,16 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// (<c>TRACON_TEST_SQLSERVER_COLLATION</c>, <c>TRACON_TEST_SQLSERVER_LCID</c>, the 2019 image) run the same class.
 /// </para>
 /// </remarks>
-public sealed class TenantAlphabetCollationTests(SqlServerFixture fixture)
+public sealed class TenantAlphabetCollationTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     private const int LoginFailedNumber = 18456;
 
     [Fact]
     public async Task No_two_different_canonical_strings_over_the_alphabet_are_equal_in_a_tenant_column()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        // No reset: the class reads the catalog and writes only to temporary tables, so the schema holds no row of
+        // its own. The first statement of each test stays the catalog read, which handles the login failure below.
+        var context = schema.Context;
 
         var alphabet = Alphabet();
 
@@ -54,7 +56,8 @@ public sealed class TenantAlphabetCollationTests(SqlServerFixture fixture)
     [Fact]
     public async Task The_measurement_sees_a_fold_when_there_is_one_outside_the_alphabet()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        // No reset, for the reason the test above gives.
+        var context = schema.Context;
 
         // The control that gives the test above its meaning: a query that could not see the collation fold
         // anything would also report no pair inside the alphabet. Composed against decomposed is the case the

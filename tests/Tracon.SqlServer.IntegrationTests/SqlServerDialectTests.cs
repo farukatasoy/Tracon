@@ -13,7 +13,8 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// on the other hand, close pitfalls that exist only on the SQL Server side;
 /// PostgreSQL has no counterpart to them.
 /// </remarks>
-public sealed class SqlServerDialectTests(SqlServerFixture fixture)
+public sealed class SqlServerDialectTests(SqlServerFixture fixture, SqlServerSchemaFixture schema)
+    : IClassFixture<SqlServerSchemaFixture>
 {
     /// <summary>
     /// 🚨 If a decimal parameter is sent without precision, SQL Server assumes
@@ -23,7 +24,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     [Fact]
     public async Task Cost_decimal_round_trips_without_truncation()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         var runId = TraconId.NewId();
         await context.Runs.StartRunAsync(TestData.Run(runId));
@@ -54,7 +55,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     [Fact]
     public async Task Timestamp_round_trips_as_UTC()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // Deliberately written with an offset that is NOT UTC.
         var startedAt = new DateTimeOffset(2026, 3, 15, 12, 30, 45, TimeSpan.FromHours(3));
@@ -76,7 +77,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     [Fact]
     public async Task Polymorphic_JSON_round_trips_unchanged()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // A nested payload carrying the `$type` discriminator. If this were
         // jsonb, key order would be lost and reading would throw JsonException.
@@ -115,7 +116,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     [Fact]
     public async Task High_write_tables_primary_key_is_not_clustered()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         foreach (var table in new[] { "runs", "tool_invocations", "spans", "audit_log", "attachments" })
         {
@@ -142,7 +143,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     [Fact]
     public async Task Runs_are_returned_sorted_by_start_time()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         var start = DateTimeOffset.UtcNow.AddMinutes(-10);
         var expected = new List<Guid>();
@@ -170,7 +171,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     [Fact]
     public async Task Event_array_is_searched_with_exact_match()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.Webhooks.SaveSubscriptionAsync(new WebhookSubscription
         {

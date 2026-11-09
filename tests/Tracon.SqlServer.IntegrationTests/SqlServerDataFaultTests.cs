@@ -17,7 +17,8 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// too, and a class that took them for a refused value would turn a store that is down into a <c>400</c>.
 /// </para>
 /// </remarks>
-public sealed class SqlServerDataFaultTests(SqlServerFixture fixture)
+public sealed class SqlServerDataFaultTests(SqlServerFixture fixture, SqlServerSchemaFixture schema)
+    : IClassFixture<SqlServerSchemaFixture>
 {
     private static readonly SqlServerDialect Dialect = new("dbo");
 
@@ -26,7 +27,7 @@ public sealed class SqlServerDataFaultTests(SqlServerFixture fixture)
     [Fact]
     public async Task A_text_over_its_column_is_a_text_too_long_fault()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // A new key runs the INSERT branch of the two-statement upsert.
         var inserted = await Should.ThrowAsync<SqlException>(async () =>
@@ -48,7 +49,7 @@ public sealed class SqlServerDataFaultTests(SqlServerFixture fixture)
     [Fact]
     public async Task The_limit_is_the_column_length_and_not_a_byte_count()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // nvarchar(200) holds 200 UTF-16 code units: 100 emoji (two units each) fit, 101 do not. A string of 199 ASCII
         // characters and one surrogate pair is 201 units.
@@ -73,7 +74,7 @@ public sealed class SqlServerDataFaultTests(SqlServerFixture fixture)
     [Fact]
     public async Task A_refused_write_leaves_the_earlier_row_and_the_connection_pool_usable()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.Tenants.SaveAsync(Tenant("kept", "first"), TestContext.Current.CancellationToken);
 
@@ -110,10 +111,10 @@ public sealed class SqlServerDataFaultTests(SqlServerFixture fixture)
         // and the one every database gives once VERBOSE_TRUNCATION_WARNINGS is off. The shared container is at the
         // current level, so both are provoked in a database made for the purpose.
         var name = "truncation_probe_" + Guid.NewGuid().ToString("N");
-        await using var master = new SqlConnection(fixture.ConnectionString);
-        await master.OpenAsync(TestContext.Current.CancellationToken);
+        await using var server = new SqlConnection(fixture.ConnectionString);
+        await server.OpenAsync(TestContext.Current.CancellationToken);
 
-        await ExecuteAsync(master, $"CREATE DATABASE [{name}];");
+        await ExecuteAsync(server, $"CREATE DATABASE [{name}];");
 
         try
         {
@@ -139,7 +140,7 @@ public sealed class SqlServerDataFaultTests(SqlServerFixture fixture)
         }
         finally
         {
-            await ExecuteAsync(master, $"ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}];");
+            await ExecuteAsync(server, $"ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}];");
         }
     }
 

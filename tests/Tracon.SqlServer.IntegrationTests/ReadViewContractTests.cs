@@ -9,18 +9,20 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// duplicated hand-computed expectation.
 /// </summary>
 /// <remarks>
-/// Builds its OWN schema with <c>EnableReadViews = true</c>, not the shared
-/// schema fixture used by other contract test classes: the view is opt-in
-/// and most contract test classes must not pay for it.
+/// Uses a schema fixture of its OWN, migrated with <c>EnableReadViews = true</c>
+/// (<see cref="SqlServerReadViewSchemaFixture"/>), not the schema fixture the
+/// other test classes use: the view is opt-in and most test classes must not
+/// pay for it.
 /// </remarks>
-public sealed class ReadViewContractTests(SqlServerFixture fixture) : IAsyncLifetime
+public sealed class ReadViewContractTests(SqlServerReadViewSchemaFixture schema)
+    : IClassFixture<SqlServerReadViewSchemaFixture>, IAsyncLifetime
 {
     private SqlServerTestContext _context = null!;
 
-    public async ValueTask InitializeAsync()
-        => _context = await SqlServerTestContext.CreateAsync(fixture, applyMigrations: true, enableReadViews: true);
+    public async ValueTask InitializeAsync() => _context = await schema.ResetAsync(tenantId: "default");
 
-    public async ValueTask DisposeAsync() => await _context.DisposeAsync();
+    // The schema belongs to the class fixture, which drops it after the last test.
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
     public async Task Total_cost_in_the_view_matches_the_stores_own_statistics()

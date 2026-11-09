@@ -11,21 +11,21 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// stored bytes, not just the round trip through the store.
 /// </summary>
 /// <remarks>
-/// Each test builds its own <see cref="SqlStoreContext"/> from an isolated,
-/// migrated schema (<see cref="SqlServerTestContext"/>) and swaps in a
+/// Each test empties the class's migrated schema (<see cref="SqlServerSchemaFixture"/>),
+/// builds its own <see cref="SqlStoreContext"/> over it and swaps in a
 /// content protector — <see cref="SqlServerTestContext"/> itself always uses
 /// the no-op default, so protection is layered on top here rather than
 /// changed in the shared fixture every other contract test also relies on.
 /// </remarks>
 #pragma warning disable MAAI001 // AgentFileStore is "evaluation purposes only" — same rationale as the product code.
-public sealed class ContentProtectionTests(SqlServerFixture fixture)
+public sealed class ContentProtectionTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     private static readonly string TestKey = Convert.ToBase64String(Enumerable.Range(0, 32).Select(static i => (byte)i).ToArray());
 
     [Fact]
     public async Task Session_state_is_encrypted_at_rest_when_protection_is_on()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.SessionState });
         var sessions = new SqlSessionStore(protectingContext, baseContext.TenantContext);
 
@@ -49,7 +49,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Workflow_checkpoint_state_is_encrypted_at_rest_and_read_back_unchanged()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.WorkflowCheckpointState });
         var checkpoints = new SqlWorkflowCheckpointStore(protectingContext);
         const string State = """{"$type":0,"messages":["checkpoint-words"]}""";
@@ -83,7 +83,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Session_state_stays_plaintext_when_protection_is_off()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var sessions = new SqlSessionStore(baseContext.StoreContext, baseContext.TenantContext);
 
         await sessions.SaveAsync(TestData.Session("s1", TestData.State("""{"turn":"visible-value"}""")));
@@ -97,7 +97,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task A_row_written_before_protection_was_turned_on_stays_readable_after()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var unprotectedSessions = new SqlSessionStore(baseContext.StoreContext, baseContext.TenantContext);
         await unprotectedSessions.SaveAsync(TestData.Session("legacy", TestData.State("""{"turn":"old-value"}""")));
 
@@ -113,7 +113,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task A_column_left_out_of_the_protected_set_stays_plaintext_while_another_column_is_encrypted()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
 
         // Protection is ON overall, but Columns only names SessionState -
         // RunInput must be written as plaintext even though the same
@@ -150,7 +150,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Run_input_messages_are_encrypted_at_rest()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.RunInput });
         var runInputs = new SqlRunInputStore(protectingContext);
         var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);
@@ -181,7 +181,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Run_input_parameters_are_encrypted_at_rest()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
 
         // Only the parameters column is in scope: the messages beside it stay
         // plain, which proves the column is chosen on its own.
@@ -223,7 +223,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Run_event_text_and_payload_are_encrypted_at_rest()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.RunEventText, ProtectedColumn.RunEventPayload });
         var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);
         var runId = Guid.NewGuid();
@@ -263,7 +263,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Run_event_text_and_payload_are_encrypted_at_rest_when_written_as_a_group()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.RunEventText, ProtectedColumn.RunEventPayload });
         var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);
         var runId = Guid.NewGuid();
@@ -289,7 +289,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Tool_arguments_and_result_are_encrypted_at_rest()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.ToolArguments, ProtectedColumn.ToolResult });
         var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);
         var runId = Guid.NewGuid();
@@ -324,7 +324,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Agent_file_content_is_encrypted_at_rest_and_search_still_finds_matches()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.AgentFileContent });
         var agentFiles = new SqlAgentFileStore(protectingContext, baseContext.TenantContext);
 
@@ -357,7 +357,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Attachment_content_is_encrypted_at_rest_and_the_hash_still_matches_plaintext()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.AttachmentContent });
         var attachments = new SqlAttachmentStore(protectingContext);
         var plaintext = "attachment body with secret-content"u8.ToArray();
@@ -387,7 +387,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Reading_with_an_unconfigured_key_id_throws_naming_the_key_id()
     {
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
         var writerContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.SessionState });
         var writer = new SqlSessionStore(writerContext, baseContext.TenantContext);
         await writer.SaveAsync(TestData.Session("s1", TestData.State("""{"turn":"x"}""")));
@@ -407,7 +407,7 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
         // false looks like in production - not a swapped-out protector.
         // Unprotect looks at the value's own $apEnc tag, never at IsEnabled,
         // so a row written while on must not strand once it is turned off.
-        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+        var baseContext = await schema.ResetAsync(tenantId: "default");
 
         var options = new TraconContentProtectionOptions { Enabled = true, ActiveKeyId = "k1" };
         options.Keys["k1"] = "Keys:k1";

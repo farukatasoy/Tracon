@@ -4,12 +4,12 @@ namespace Tracon.TwoNode.IntegrationTests;
 
 /// <summary>A value too long for its column on PostgreSQL, which keeps text of any length.</summary>
 /// <remarks>
-/// The scenarios are in <see cref="StoreDataFaultAcceptanceContract"/>. The class joins the collection of the two-node
-/// set so the PostgreSQL and SQL Server containers never run at once.
+/// The scenarios are in <see cref="StoreDataFaultAcceptanceContract"/>; see <see cref="TwoNodeAcceptanceSerial"/>
+/// for why the class shares a collection and its server.
 /// </remarks>
 [Collection(TwoNodeAcceptanceSerial.Name)]
 public sealed class PostgreSqlStoreDataFaultTests(PostgreSqlTwoNodeServer server)
-    : StoreDataFaultAcceptanceContract, IClassFixture<PostgreSqlTwoNodeServer>
+    : StoreDataFaultAcceptanceContract
 {
     /// <inheritdoc />
     protected override bool RefusesLongText => false;

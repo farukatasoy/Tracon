@@ -81,6 +81,8 @@
     <Compile Include="../Shared/Workflows/*.cs" LinkBase="Shared/Workflows" />
     <Compile Include="../Shared/Recording/TestRunRecording.cs" Link="Shared/Recording/TestRunRecording.cs" />
     <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
+    <!-- The SQL Server container's database for the hosts: not master, and without the log flush on commit. -->
+    <Compile Include="../Shared/Infrastructure/NonDurableSqlServerDatabase.cs" Link="Shared/Infrastructure/NonDurableSqlServerDatabase.cs" />
   </ItemGroup>
 
   <ItemGroup>

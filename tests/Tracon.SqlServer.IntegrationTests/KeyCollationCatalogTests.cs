@@ -19,7 +19,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// ordinally, is an error too, so the list cannot go stale.
 /// </para>
 /// </remarks>
-public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
+public sealed class KeyCollationCatalogTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     private const string Ordinal = "Latin1_General_BIN2";
 
@@ -66,7 +66,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task Every_text_key_column_compares_ordinally_or_is_listed_with_its_reason()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         var keys = await TextKeyColumnsAsync(context);
 
@@ -89,7 +89,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task No_entry_of_the_list_is_stale()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         var keys = await TextKeyColumnsAsync(context);
 
@@ -107,7 +107,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task Every_column_that_carries_a_session_id_compares_ordinally()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // SQL Server refuses to compare two columns of different collations, and a lookup by the one left
         // case-insensitive lists the runs of two sessions as one. The identity has one collation everywhere.
@@ -134,7 +134,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task Every_column_that_names_a_request_or_a_parent_or_a_checkpoint_compares_ordinally()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // Those columns carry an id that another column carries too (the parent of a checkpoint is the checkpoint_id of an
         // earlier row), and no index makes them a key, so the test above never meets them. A comparison of the two stops with
@@ -160,7 +160,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task Every_column_that_carries_a_definition_name_compares_ordinally()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // The name of an agent lives in its definition and again in every table that records what ran under it. A column of
         // another collation makes two definitions that differ only in letter case one in a filter or a group, and stops a
@@ -183,7 +183,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task Every_column_that_carries_a_user_identity_compares_ordinally()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // The owner of a session, the user of a run and the actor of an audit entry are identities an identity provider
         // hands out, and providers keep letter case. A column that folds it lists the sessions of "Bs7" for "bs7" and
@@ -204,7 +204,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task Every_column_that_carries_the_name_of_a_lease_owner_compares_ordinally()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // The caller chooses the name of a worker (JobLeaseRequest.Owner) and of a node that holds a singleton lease, so
         // "Worker-A" and "worker-a" are two owners. A column that folds the case lets the second renew, finish and release
@@ -224,7 +224,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task The_name_of_an_experiment_variant_compares_ordinally()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // The name of a variant is chosen by whoever defines the experiment; two arms named "A" and "a" are two arms.
         var columns = await ColumnsAsync(context, "c.name = N'variant'");
@@ -239,7 +239,7 @@ public sealed class KeyCollationCatalogTests(SqlServerFixture fixture)
     [Fact]
     public async Task The_label_columns_that_stay_out_of_the_family_are_not_taken_for_names()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         // A node label, a span name, a score name and a key label are written by the library or by the model and never compared
         // with the name of a definition. The list says which columns the test above does NOT guard, so the next reader does not

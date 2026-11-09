@@ -58,37 +58,29 @@ public sealed class UpgradeFromReleaseTests(PostgresFixture fixture) : UpgradeGa
 
         var connectionString = new NpgsqlConnectionStringBuilder(fixture.ConnectionString) { Database = name, Pooling = false }.ConnectionString;
 
-        try
+        await using (var connection = new NpgsqlConnection(connectionString))
         {
-            await using (var connection = new NpgsqlConnection(connectionString))
-            {
-                await connection.OpenAsync(TestContext.Current.CancellationToken);
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
 
-                await using var extension = connection.CreateCommand();
-                extension.CommandText = "CREATE EXTENSION IF NOT EXISTS vector;";
-                await extension.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            await using var extension = connection.CreateCommand();
+            extension.CommandText = "CREATE EXTENSION IF NOT EXISTS vector;";
+            await extension.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
 
-                // Prove the database is the Turkish one before the gate says anything about it: the dotted capital of the
-                // Turkish alphabet lower-cases to the dotted small i, and the English one does not.
-                await using var probe = connection.CreateCommand();
-                probe.CommandText = "SELECT lower('I' COLLATE \"default\") = '\u0131';";
-                (await probe.ExecuteScalarAsync(TestContext.Current.CancellationToken)).ShouldBe(true, "the database does not fold I to the dotless i: it is not a Turkish locale database");
-            }
-
-            await using var database = new PostgresUpgradeDatabase(
-                PostgresTestContext.Create(connectionString, PostgresTestContext.NewSchemaName(), enableKnowledge: true, enableReadViews: true));
-
-            await UpgradeTheReleaseAsync(database, optionalSets: true);
+            // Prove the database is the Turkish one before the gate says anything about it: the dotted capital of the
+            // Turkish alphabet lower-cases to the dotted small i, and the English one does not.
+            await using var probe = connection.CreateCommand();
+            probe.CommandText = "SELECT lower('I' COLLATE \"default\") = '\u0131';";
+            (await probe.ExecuteScalarAsync(TestContext.Current.CancellationToken)).ShouldBe(true, "the database does not fold I to the dotless i: it is not a Turkish locale database");
         }
-        finally
-        {
-            await using var admin = new NpgsqlConnection(fixture.ConnectionString);
-            await admin.OpenAsync(TestContext.Current.CancellationToken);
 
-            await using var drop = admin.CreateCommand();
-            drop.CommandText = $"DROP DATABASE IF EXISTS {name} WITH (FORCE);";
-            await drop.ExecuteNonQueryAsync(CancellationToken.None);
-        }
+        await using var database = new PostgresUpgradeDatabase(
+            PostgresTestContext.Create(connectionString, PostgresTestContext.NewSchemaName(), enableKnowledge: true, enableReadViews: true));
+
+        await UpgradeTheReleaseAsync(database, optionalSets: true);
+
+        // The database is not dropped. A DROP DATABASE waits for a checkpoint of the whole server, and on a server that is
+        // busy with the rest of the suite it overran the command timeout after the upgrade had passed. The name is unique
+        // and the container is removed at the end of the run, as it is for every schema the other tests leave.
     }
 
     /// <inheritdoc />

@@ -48,6 +48,8 @@
     <!-- A stream over a connection with a round trip: written one chunk at a time, and in groups. -->
     <Compile Include="../Shared/Infrastructure/DeltaStreamOverLatency.cs" Link="Infrastructure/Shared/DeltaStreamOverLatency.cs" />
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Infrastructure/Shared/ManualClock.cs" />
+    <!-- The tests' database on the container: not master, and without the log flush on commit. -->
+    <Compile Include="../Shared/Infrastructure/NonDurableSqlServerDatabase.cs" Link="Infrastructure/Shared/NonDurableSqlServerDatabase.cs" />
   </ItemGroup>
 
   <ItemGroup>

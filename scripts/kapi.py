@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import datetime
 import fnmatch
 import gzip
 import hashlib
@@ -84,6 +85,27 @@ TEST_MAX_CPU_COUNT = 2
 TEST_RESULTS_DIRECTORY = "artifacts/test-results"
 TEST_DURATIONS_DIRECTORY = "artifacts/test-sureleri"
 TEST_DURATIONS_KEEP = 20
+
+# Modul basina duvar suresi siniri, saniye: TRX'in `Times start` ile `finish`
+# arasi, container baslatma dahil. TRX raporlayan bir `dotnet test` (tam kosum)
+# yesil biter ama bir modul sinirini asarsa kapi KIRMIZIDIR. Sinir yerel
+# kapinin ayaridir (iki modul ayni anda, gelistirici makinesi); CI bu
+# komutu kosmaz, runner donanimi olculmedi.
+#
+# Baslangic degerleri tam kapidan olculur (iki modul ayni anda, baska modullerle
+# birlikte, bos makine degil): en yavas kosumda SqlServer 361 sn, TwoNode 489 sn.
+# Sinir en yavas olcumun %10 ustudur, 10 sn'ye yuvarlanir. Hedefler SqlServer
+# 240 sn, TwoNode 500 sn'dir; sinir hedefe iner.
+#
+# 🚨 Sayi yalniz DUSER. Asan modulde sinir yukseltilmez: once sebep olculur
+# (`artifacts/test-sureleri/` test basina kayit). Tek istisna kanitli yavas
+# makinedir: hicbir assert dusmedi ve format ile derleme ayni gunun normal
+# kosumunun en az 4 kati surdu. O kosum bir kez tekrarlanir ve kaydedilir.
+# Sinirsiz modulun suresi yalniz raporlanir.
+TEST_MODULE_TIME_LIMITS_SECONDS: dict[str, int] = {
+    "Tracon.SqlServer.IntegrationTests": 400,
+    "Tracon.TwoNode.IntegrationTests": 540,
+}
 
 # A root that does not exist is skipped, so the public tree (where `docs` holds two
 # contract directories) and the development repository run the same list.
@@ -252,6 +274,8 @@ def run_commands(
 
         if not exit_code and reports_trx(command):
             exit_code = require_executed_tests(wall_started)
+        if not exit_code and reports_trx(command):
+            exit_code = enforce_module_time_limits(wall_started)
 
         _record_measurement(stage, command, started, exit_code, measurement_path)
         if reports_trx(command):
@@ -288,6 +312,69 @@ def require_executed_tests(since: float, root: pathlib.Path = ROOT) -> int:
         return ZERO_TESTS_EXIT_CODE
     print(f"   {tests} test, {modules} modül (TRX: {TEST_RESULTS_DIRECTORY})")
     return 0
+
+
+MODULE_TIME_LIMIT_EXIT_CODE = 90  # MTP kodlarinin (0-12) disinda: gate kendi kirmizisini ayirt eder
+
+
+def _trx_instant(value: str | None) -> float | None:
+    """TRX zaman damgasi (`2026-11-09T11:03:40.357499Z`) -> epoch saniye; cozulemezse `None`.
+
+    .NET kesri yedi haneye kadar yazabilir; `datetime` alti haneyi okur, fazlasi atilir."""
+    match = re.fullmatch(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d+))?(Z|[+-]\d\d:\d\d)?", value or "")
+    if match is None:
+        return None
+    stamp, fraction, zone = match.groups()
+    text = stamp + "." + (fraction or "0")[:6].ljust(6, "0") + ("+00:00" if zone in (None, "Z") else zone)
+    try:
+        return datetime.datetime.fromisoformat(text).timestamp()
+    except ValueError:
+        return None
+
+
+def trx_wall_seconds(tree: Any) -> float | None:
+    """Bir TRX'in duvar suresi: `Times start` ile `finish` arasi, saniye. Okunamazsa `None`."""
+    times = tree.getroot().find(TRX_NS + "Times")
+    if times is None:
+        return None
+    start, finish = _trx_instant(times.get("start")), _trx_instant(times.get("finish"))
+    if start is None or finish is None or finish < start:
+        return None
+    return finish - start
+
+
+def enforce_module_time_limits(
+    since: float,
+    root: pathlib.Path = ROOT,
+    limits: dict[str, int] | None = None,
+) -> int:
+    """0, sinirli her modul sinirinin altindaysa; asan varsa `MODULE_TIME_LIMIT_EXIT_CODE`.
+
+    Siniri olan modulun suresi her kosumda basilir: sinira yaklasma kirmizidan
+    once gorunur. Suresi okunamayan TRX uyarir, kapiyi kirmaz."""
+    limits = TEST_MODULE_TIME_LIMITS_SECONDS if limits is None else limits
+    results = root / TEST_RESULTS_DIRECTORY
+    exceeded: list[str] = []
+    for project, trx, tree in _recent_trx_reports(since, root):
+        limit = limits.get(project)
+        if limit is None:
+            continue
+        label = trx.parent.relative_to(results).as_posix()
+        seconds = trx_wall_seconds(tree)
+        if seconds is None:
+            print(f"   ⚠️ {label}: TRX süresi okunamadı, süre sınırı denetlenmedi")
+            continue
+        print(f"   ⏱️  {label}: {seconds:.0f} s (sınır {limit} s)")
+        if seconds > limit:
+            exceeded.append(f"{label} {seconds:.0f} s > {limit} s")
+    if not exceeded:
+        return 0
+    print(f"❌ Modül süre sınırı aşıldı: {'; '.join(exceeded)}.")
+    print("   → Sınırı yükseltme ve kapıyı yeniden koşturma: önce hangi testin uzadığını"
+          f" ölç ({TEST_DURATIONS_DIRECTORY}/, test başına süre). Tek istisna kanıtlı yavaş"
+          " makinedir: hiçbir assert düşmedi ve format ile derleme aynı günün normalinin"
+          " en az 4 katı sürdü.")
+    return MODULE_TIME_LIMIT_EXIT_CODE
 
 
 def _walk_files(root: pathlib.Path, *, excluded_dirs: set[str] | None = None) -> Iterable[pathlib.Path]:

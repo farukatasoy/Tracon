@@ -7,15 +7,17 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// <see cref="RunStatistics.ScoredRuns"/>/<see cref="RunStatistics.PositiveRate"/>
 /// computation on SQL Server, against a real database.
 /// </summary>
-public sealed class RunScoreStatisticsTests(SqlServerFixture fixture) : IAsyncLifetime
+public sealed class RunScoreStatisticsTests(SqlServerSchemaFixture schema)
+    : IClassFixture<SqlServerSchemaFixture>, IAsyncLifetime
 {
     private SqlServerTestContext _context = null!;
 
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => _context = await SqlServerTestContext.CreateAsync(fixture);
+    public async ValueTask InitializeAsync() => _context = await schema.ResetAsync(tenantId: "default");
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync() => await _context.DisposeAsync();
+    /// <remarks>The schema belongs to the class fixture, which drops it after the last test.</remarks>
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
     public async Task Binary_scores_positive_rate_is_computed_correctly()

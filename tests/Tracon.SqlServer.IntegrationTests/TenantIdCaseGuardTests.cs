@@ -23,12 +23,12 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// that deletion red.
 /// </para>
 /// </remarks>
-public sealed class TenantIdCaseGuardTests(SqlServerFixture fixture)
+public sealed class TenantIdCaseGuardTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     [Fact]
     public async Task A_non_canonical_row_stops_the_runner_and_names_the_table()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.ExecuteAsync($"""
             INSERT INTO {context.SchemaName}.tenant_egress_policies (tenant_id, allowed_providers, updated_at)
@@ -58,7 +58,7 @@ public sealed class TenantIdCaseGuardTests(SqlServerFixture fixture)
         // must not send the operator down that road without saying so.
         const string tenant = "caf\u00E9";
 
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.ExecuteAsync($"""
             INSERT INTO {context.SchemaName}.audit_log (id, tenant_id, actor, action, entity, created_at)
@@ -83,7 +83,7 @@ public sealed class TenantIdCaseGuardTests(SqlServerFixture fixture)
     {
         // 🚨 SQL Server joins a composed accented letter and its decomposed spelling, and a full-width letter and its
         // plain one, into one tenant under its default collation. The predicate has to read the code points.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.ExecuteAsync($"""
             INSERT INTO {context.SchemaName}.tenant_egress_policies (tenant_id, allowed_providers, updated_at)
@@ -104,7 +104,7 @@ public sealed class TenantIdCaseGuardTests(SqlServerFixture fixture)
         // take this row for the default policy and wave it through.
         const string tenant = "\uFF0A";
 
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.ExecuteAsync($"""
             INSERT INTO {context.SchemaName}.retention_policies (id, tenant_id, target, created_at, updated_at)
@@ -121,7 +121,7 @@ public sealed class TenantIdCaseGuardTests(SqlServerFixture fixture)
     public async Task The_default_retention_policy_row_passes()
     {
         // "*" in retention_policies is the default policy of every tenant, not a tenant.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.ExecuteAsync($"""
             INSERT INTO {context.SchemaName}.retention_policies (id, tenant_id, target, created_at, updated_at)
@@ -134,7 +134,7 @@ public sealed class TenantIdCaseGuardTests(SqlServerFixture fixture)
     [Fact]
     public async Task The_wildcard_in_any_other_table_stops_the_runner()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.ExecuteAsync($"""
             INSERT INTO {context.SchemaName}.tenant_egress_policies (tenant_id, allowed_providers, updated_at)
@@ -153,7 +153,7 @@ public sealed class TenantIdCaseGuardTests(SqlServerFixture fixture)
         // 🚨 Measured over every UTF-16 code unit but NUL, one per row. A bracket class with the hyphen written last
         // read ".-]" as a range from a dot to a closing bracket: capital letters and ":" passed as canonical and "-"
         // was flagged. No hand-picked sample showed it, because the samples that failed were the ones nobody wrote.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         var allowed = string.Join(", ", Alphabet().Select(static character => $"N'{character}'"));
         var predicate = context.StoreContext.Dialect.NonCanonicalTenantIdPredicate;
@@ -185,7 +185,7 @@ public sealed class TenantIdCaseGuardTests(SqlServerFixture fixture)
         // The other half. Without it a guard that always threw would satisfy
         // the case above, and a guard that cried wolf on every start would be
         // switched off within a week.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         await context.ExecuteAsync($"""
             INSERT INTO {context.SchemaName}.tenant_egress_policies (tenant_id, allowed_providers, updated_at)

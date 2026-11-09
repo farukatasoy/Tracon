@@ -264,6 +264,11 @@ jobs:
         # --max-parallel-test-modules 1 BILEREK: yerel kapi (kapi.py) bir sure once
         # 2 ile kosar, ama o olcum gelistirici makinesindeydi; runner donanimi
         # olculmeden burasi degismez.
+        # TRACON_TEST_FULL_SWEEP: yerel kosum SQL Server'da workflow iptal
+        # taramasinin yarisini kosar (her graf ve baslangic, iki iptal yolundan
+        # biriyle); CI iki saglayicida da tam matrisi kosar.
+        env:
+          TRACON_TEST_FULL_SWEEP: '1'
         run: dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
       - name: Test et (Docker gerektirmeyenler)

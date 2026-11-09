@@ -11,12 +11,12 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// the migrated schema, so a migration that changes one of them without the other fails here and not in a production
 /// write that is lost.
 /// </remarks>
-public sealed class AuditLabelWidthTests(SqlServerFixture fixture)
+public sealed class AuditLabelWidthTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     [Fact]
     public async Task The_dialects_limit_is_the_width_of_every_label_column_of_the_audit_log()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         var widths = await context.CatalogScalarAsync<string>(
             "SELECT STRING_AGG(CAST(c.name + N'=' + CAST(c.max_length / 2 AS nvarchar(10)) AS nvarchar(max)), N';') " +

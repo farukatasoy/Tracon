@@ -1111,6 +1111,114 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(len(kalan), kapi.TEST_DURATIONS_KEEP)
         self.assertNotIn("20000101T000000Z.json.gz", kalan)
 
+    def _zamanli_trx(self, kok: pathlib.Path, proje: str, baslangic: str, bitis: str) -> None:
+        dizin = kok / kapi.TEST_RESULTS_DIRECTORY / proje / "net10.0_arm64"
+        dizin.mkdir(parents=True)
+        (dizin / "sonuc.trx").write_text(
+            '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
+            f'<Times creation="{baslangic}" queuing="{baslangic}" start="{baslangic}" finish="{bitis}" />'
+            '<Results><UnitTestResult testName="N.S.A" duration="00:00:01" outcome="Passed" /></Results></TestRun>',
+            encoding="utf-8")
+
+    def test_modul_suresi_siniri_asarsa_kapi_kirmizi(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._zamanli_trx(kok, "P", "2026-11-09T11:03:40.3574990Z", "2026-11-09T11:12:25.866393Z")
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"P": 500})
+
+        self.assertEqual(kod, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertIn("P/net10.0_arm64 526 s > 500 s", output.getvalue())
+        self.assertIn("ölç", output.getvalue())
+
+    def test_modul_suresi_sinirin_altindaysa_yesil_ve_basilir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._zamanli_trx(kok, "P", "2026-11-09T11:00:00Z", "2026-11-09T11:03:59.9Z")
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"P": 240})
+
+        self.assertEqual(kod, 0)
+        self.assertIn("P/net10.0_arm64: 240 s (sınır 240 s)", output.getvalue())
+
+    def test_siniri_olmayan_modul_denetlenmez(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._zamanli_trx(kok, "Q", "2026-11-09T11:00:00Z", "2026-11-09T13:00:00Z")
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"P": 1})
+
+        self.assertEqual(kod, 0)
+        self.assertEqual(output.getvalue(), "")
+
+    def test_suresi_okunamayan_trx_uyarir_ve_kapiyi_kirmaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            self._sureli_trx(kok, "P", [("N.S.A", "00:00:01")])
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"P": 1})
+
+        self.assertEqual(kod, 0)
+        self.assertIn("okunamadı", output.getvalue())
+
+    def test_trx_zaman_damgasi_yedi_haneli_kesri_ve_saat_dilimini_okur(self):
+        self.assertAlmostEqual(
+            kapi._trx_instant("2026-11-09T11:00:01.1234567+01:00") - kapi._trx_instant("2026-11-09T10:00:00Z"),
+            1.123456, places=5)
+        self.assertIsNone(kapi._trx_instant("dun"))
+        self.assertIsNone(kapi._trx_instant(None))
+
+    def test_tam_kosum_sinirlari_iki_modulu_kapsar(self):
+        # Sinirlar yalniz duser; bu test bugunku degerleri sabitler ki bir
+        # yukseltme gozden kacmasin (kapi.py yorumundaki kural).
+        self.assertLessEqual(kapi.TEST_MODULE_TIME_LIMITS_SECONDS["Tracon.SqlServer.IntegrationTests"], 400)
+        self.assertLessEqual(kapi.TEST_MODULE_TIME_LIMITS_SECONDS["Tracon.TwoNode.IntegrationTests"], 540)
+
+    def test_yesil_tam_kosum_sure_sinirini_denetler(self):
+        komut = kapi.full_solution_test_command()
+        with mock.patch.object(kapi, "require_executed_tests", return_value=0), \
+                mock.patch.object(kapi, "enforce_module_time_limits", return_value=kapi.MODULE_TIME_LIMIT_EXIT_CODE) as sinir, \
+                mock.patch.object(kapi, "record_test_durations"), \
+                mock.patch.object(kapi, "isolate_failed_tests", return_value=[]), \
+                mock.patch.object(kapi, "failed_tests_from_trx", return_value=[]), \
+                mock.patch.object(kapi, "_record_measurement"), \
+                contextlib.redirect_stdout(io.StringIO()):
+            kod = kapi.run_commands("test", [komut], runner=mock.Mock(return_value=mock.Mock(returncode=0)))
+
+        self.assertEqual(kod, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        sinir.assert_called_once()
+
+    def _sure_sinirli_kosum(self, komut, *, cikis):
+        with mock.patch.object(kapi, "require_executed_tests", return_value=0), \
+                mock.patch.object(kapi, "enforce_module_time_limits", return_value=kapi.MODULE_TIME_LIMIT_EXIT_CODE) as sinir, \
+                mock.patch.object(kapi, "record_test_durations"), \
+                mock.patch.object(kapi, "isolate_failed_tests", return_value=[]), \
+                mock.patch.object(kapi, "failed_tests_from_trx", return_value=[]), \
+                mock.patch.object(kapi, "_record_measurement"), \
+                contextlib.redirect_stdout(io.StringIO()):
+            kod = kapi.run_commands("test", [komut], runner=mock.Mock(return_value=mock.Mock(returncode=cikis)))
+        return kod, sinir
+
+    def test_kirmizi_tam_kosum_cikis_kodunu_korur_ve_sure_sinirini_denetlemez(self):
+        # Dusen bir test sure siniri kodu 9 ile ezilmemeli: kirmizinin sebebi test.
+        kod, sinir = self._sure_sinirli_kosum(kapi.full_solution_test_command(), cikis=2)
+
+        self.assertEqual(kod, 2)
+        sinir.assert_not_called()
+
+    def test_trx_istemeyen_dotnet_test_sure_sinirini_denetlemez(self):
+        komut = kapi.Command(("dotnet", "test", "--project", "P.csproj"))
+        self.assertFalse(kapi.reports_trx(komut))
+
+        kod, sinir = self._sure_sinirli_kosum(komut, cikis=0)
+
+        self.assertEqual(kod, 0)
+        sinir.assert_not_called()
+
     def test_izole_kosum_dusen_bacagin_ikilisini_kosar(self):
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)

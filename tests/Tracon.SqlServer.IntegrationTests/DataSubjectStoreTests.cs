@@ -14,7 +14,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// untested on this provider until this file existed — see the audit
 /// finding that asked for this).
 /// </remarks>
-public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
+public sealed class DataSubjectStoreTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     private static readonly string EmptyJsonState = "N'{}'";
 
@@ -24,7 +24,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     [Fact]
     public async Task Erase_removes_only_the_named_tenants_session_even_when_ids_collide()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         const string SessionId = "shared-session-id";
         await SeedSessionAsync(context, SessionId, "tenant-a");
         await SeedSessionAsync(context, SessionId, "tenant-b");
@@ -41,7 +41,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     [Fact]
     public async Task Erase_cascades_from_run_to_run_inputs()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var runId = await SeedRunAsync(context, "tenant-a");
         await SeedRunInputAsync(context, runId, "tenant-a");
 
@@ -60,7 +60,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     {
         // The items are not an export target (they hold units and amounts, no content), so the
         // run's foreign key is what removes them: DataSubjectCoverageTests names that rule.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var runId = await SeedRunAsync(context, "tenant-a");
         await SeedNonTokenUsageAsync(context, runId, "tenant-a");
         (await NonTokenUsageCountAsync(context, runId)).ShouldBe(1);
@@ -76,7 +76,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     [Fact]
     public async Task Erase_removes_a_conversation_and_its_items_together()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var conversationId = await SeedConversationAsync(context, "tenant-a");
         await SeedConversationItemAsync(context, conversationId, seq: 1);
         await SeedConversationItemAsync(context, conversationId, seq: 2);
@@ -93,7 +93,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     [Fact]
     public async Task Preview_reports_counts_without_deleting_anything()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         const string SessionId = "preview-session";
         await SeedSessionAsync(context, SessionId, "tenant-a");
 
@@ -106,7 +106,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     [Fact]
     public async Task Erase_rolls_back_every_delete_when_the_commit_callback_throws()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         const string SessionId = "rollback-session";
         await SeedSessionAsync(context, SessionId, "tenant-a");
 
@@ -122,7 +122,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     [Fact]
     public async Task Export_does_not_include_another_tenants_data()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         const string SessionId = "export-session";
         await SeedSessionAsync(context, SessionId, "tenant-a");
         await SeedSessionAsync(context, SessionId, "tenant-b");
@@ -148,7 +148,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
         // serialized workflow, which can hold the subject's own messages. The run
         // waits for input: erasure is a right, not retention, so the "keep the
         // checkpoints of a waiting run" does not apply — the run row goes too.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var waitingRunId = await SeedRunAsync(context, "tenant-a", status: (int)RunStatus.AwaitingInput);
         await SeedCheckpointAsync(context, "tenant-a", "wf-session-a", runId: null);
         await SeedCheckpointAsync(context, "tenant-a", "wf-session-b", waitingRunId);
@@ -171,7 +171,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     [Fact]
     public async Task Export_includes_the_workflow_checkpoints_with_their_state_as_stored()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         await SeedCheckpointAsync(context, "tenant-a", "wf-session-a", runId: null, state: CheckpointState);
         await SeedCheckpointAsync(context, "tenant-b", "wf-session-a", runId: null);
 
@@ -195,7 +195,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
         // reaches it. A resolver that named only a session reached the session's
         // runs but not their scores — and a score's comment can hold the
         // subject's own words.
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var runId = await SeedRunAsync(context, "tenant-a", sessionId: "scored-session");
         await context.RunScores.UpsertAsync(Score(runId, "tenant-a"));
 
@@ -224,7 +224,7 @@ public sealed class DataSubjectStoreTests(SqlServerFixture fixture)
     [Fact]
     public async Task Erase_and_export_reach_the_promoted_case_the_stored_response_the_queued_job_and_the_batch_item()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var runId = await SeedRunAsync(context, "tenant-a", sessionId: "subject-session");
         var otherRunId = await SeedRunAsync(context, "tenant-a", sessionId: "other-session");
 

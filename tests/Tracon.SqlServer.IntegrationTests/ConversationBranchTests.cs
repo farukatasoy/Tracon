@@ -21,7 +21,7 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// one dialect passing proves the text, not the round trip.
 /// </para>
 /// </remarks>
-public sealed class ConversationBranchTests(SqlServerFixture fixture)
+public sealed class ConversationBranchTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     private const string Tenant = "default";
 
@@ -31,7 +31,7 @@ public sealed class ConversationBranchTests(SqlServerFixture fixture)
     [Fact]
     public async Task Branch_copies_items_up_to_the_given_sequence()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var parent = await SeedConversationAsync(context, itemCount: 4);
 
         var branch = await context.ConversationBranches.BranchAsync(Tenant, parent, upToSequence: 1);
@@ -45,7 +45,7 @@ public sealed class ConversationBranchTests(SqlServerFixture fixture)
     [Fact]
     public async Task Branch_without_a_limit_copies_the_ENTIRE_conversation()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var parent = await SeedConversationAsync(context, itemCount: 3);
 
         var branch = await context.ConversationBranches.BranchAsync(Tenant, parent, upToSequence: null);
@@ -57,7 +57,7 @@ public sealed class ConversationBranchTests(SqlServerFixture fixture)
     [Fact]
     public async Task An_empty_limit_is_valid_but_opens_an_empty_branch()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var parent = await SeedConversationAsync(context, itemCount: 2);
 
         var branch = await context.ConversationBranches.BranchAsync(Tenant, parent, upToSequence: -1);
@@ -70,7 +70,7 @@ public sealed class ConversationBranchTests(SqlServerFixture fixture)
     [Fact]
     public async Task Another_tenants_conversation_cannot_be_branched()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var parent = await SeedConversationAsync(context, itemCount: 2);
 
         (await context.ConversationBranches.BranchAsync("other-tenant", parent, upToSequence: null))
@@ -80,7 +80,7 @@ public sealed class ConversationBranchTests(SqlServerFixture fixture)
     [Fact]
     public async Task A_nonexistent_conversation_returns_null()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
 
         (await context.ConversationBranches.BranchAsync(Tenant, TraconId.NewId(), upToSequence: null))
             .ShouldBeNull();

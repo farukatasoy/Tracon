@@ -12,12 +12,12 @@ namespace Tracon.SqlServer.IntegrationTests;
 /// <c>CASE WHEN</c> inside an <c>ORDER BY</c> and the key is two columns; one dialect passing proves
 /// the text, not this provider's parse of it.
 /// </remarks>
-public sealed class WorkflowRequestRetentionTests(SqlServerFixture fixture)
+public sealed class WorkflowRequestRetentionTests(SqlServerSchemaFixture schema) : IClassFixture<SqlServerSchemaFixture>
 {
     [Fact]
     public async Task A_closed_row_goes_by_age_and_an_open_row_never_does()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tenantId = context.TenantContext.TenantId;
         var expired = await SeedRunAsync(context, tenantId);
         var waiting = await SeedRunAsync(context, tenantId);
@@ -47,7 +47,7 @@ public sealed class WorkflowRequestRetentionTests(SqlServerFixture fixture)
     [Fact]
     public async Task A_row_closed_after_the_cutoff_stays()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tenantId = context.TenantContext.TenantId;
         var run = await SeedRunAsync(context, tenantId);
         var requestedAt = DateTimeOffset.UtcNow.AddMinutes(-30);
@@ -65,7 +65,7 @@ public sealed class WorkflowRequestRetentionTests(SqlServerFixture fixture)
     [Fact]
     public async Task Open_rows_are_not_counted_toward_the_row_limit()
     {
-        await using var context = await SqlServerTestContext.CreateAsync(fixture);
+        var context = await schema.ResetAsync(tenantId: "default");
         var tenantId = context.TenantContext.TenantId;
         var requestedAt = DateTimeOffset.UtcNow.AddDays(-10);
 
