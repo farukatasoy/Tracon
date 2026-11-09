@@ -220,9 +220,9 @@ public sealed class RunTests(BrowserFixture browsers)
 
         var shown = (await identifier.InnerTextAsync()).Trim();
 
-        await identifier.Locator("xpath=..").GetByRole(AriaRole.Button, new() { Name = "Copy", Exact = true }).ClickAsync();
-
-        var copied = await session.Page.EvaluateAsync<string>("() => navigator.clipboard.readText()");
+        var copied = await SharedClipboard.CopyAndReadAsync(
+            session.Page,
+            async () => await identifier.Locator("xpath=..").GetByRole(AriaRole.Button, new() { Name = "Copy", Exact = true }).ClickAsync());
 
         copied.ShouldBe(shown, "The copy control did not put the identifier on the clipboard.");
     }

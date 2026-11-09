@@ -48,9 +48,9 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/workflows/summarize-and-translate");
 
         await Expect(session.Page.GetByTestId("workflow-graph")).ToBeVisibleAsync();
-        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Copy" }).First.ClickAsync();
-
-        var copied = await session.Page.EvaluateAsync<string>("() => navigator.clipboard.readText()");
+        var copied = await SharedClipboard.CopyAndReadAsync(
+            session.Page,
+            async () => await session.Page.GetByRole(AriaRole.Button, new() { Name = "Copy" }).First.ClickAsync());
 
         // The copied text is produced by Microsoft Agent Framework; the UI
         // does not render it, it only passes it through (bundle budget).
