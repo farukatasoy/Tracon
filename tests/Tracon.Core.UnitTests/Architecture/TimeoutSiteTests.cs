@@ -51,6 +51,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Mcp/Internal/McpShortLivedConnection.cs"] = "TraconMcpOptions.ConnectionTimeout — TraconMcpOptionsValidator",
         ["src/Tracon.Mcp/McpOAuthAuthorizationCoordinator.cs"] = "TraconMcpOptions.ConnectionTimeout — TraconMcpOptionsValidator",
         ["src/Tracon.OpenAI/Live/OpenAILiveSideband.cs"] = "constant 10 s",
+        ["src/Tracon.OpenAI.Shared/OpenAIBoundedRetryPolicy.cs"] = "the delay between two tries of the client library, already decided by GetNextDelay (a Retry-After above ProviderRetryAfter.MaximumHonoredDelay is replaced by the library backoff, OpenAIBoundedRetryPolicyTests); this site only waits it out on the host clock",
         ["src/Tracon.Providers.Shared/ProviderHealthCheckCore.cs"] = "provider Timeout — the four provider validators (HTTP range, ProviderTimeoutValidationTests)",
         ["src/Tracon.Workflows/Internal/WorkflowRunner.cs"] = "TraconWorkflowOptions.RunTimeout / WorkflowDefinition.RunTimeout — TraconWorkflowOptionsValidator, WorkflowDefinitionValidator (save and compile), ceiling cut",
         ["src/Tracon.Workflows/Internal/WorkflowRunTypes.cs"] = "WorkflowDefinition.RunTimeout / WorkflowRegistrationOptions.RunTimeout — the run deadline re-arms the source the runner armed with the validated TraconWorkflowOptions.RunTimeout, cut to the ceiling",

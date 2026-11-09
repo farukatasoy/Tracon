@@ -14,7 +14,7 @@ public sealed class AgentRunBudgetCarryOverTests
     [Fact]
     public void A_carried_over_budget_starts_from_what_the_chain_spent()
     {
-        var budget = new AgentRunBudget(maxDuration: null, new ManualTimeProvider(Start), new BudgetCarryOver(120, 0.8m, 3, TimeSpan.Zero))
+        var budget = new AgentRunBudget(maxDuration: null, new ManualClock(Start), new BudgetCarryOver(120, 0.8m, 3, TimeSpan.Zero))
         {
             MaxTotalCost = 1m,
             MaxTotalTokens = 150,
@@ -37,7 +37,7 @@ public sealed class AgentRunBudgetCarryOverTests
     [Fact]
     public void The_run_count_ceiling_counts_the_runs_the_chain_started()
     {
-        var budget = new AgentRunBudget(maxDuration: null, new ManualTimeProvider(Start), new BudgetCarryOver(0, 0m, 3, TimeSpan.Zero))
+        var budget = new AgentRunBudget(maxDuration: null, new ManualClock(Start), new BudgetCarryOver(0, 0m, 3, TimeSpan.Zero))
         {
             MaxTotalRuns = 4,
         };
@@ -49,7 +49,7 @@ public sealed class AgentRunBudgetCarryOverTests
     [Fact]
     public void The_deadline_is_the_time_the_chain_has_left()
     {
-        var clock = new ManualTimeProvider(Start);
+        var clock = new ManualClock(Start);
 
         // 10 minutes used of 30: the person's three days between the two runs are not in it.
         var budget = new AgentRunBudget(TimeSpan.FromMinutes(30), clock, new BudgetCarryOver(0, 0m, 0, TimeSpan.FromMinutes(10)));
@@ -66,7 +66,7 @@ public sealed class AgentRunBudgetCarryOverTests
     [Fact]
     public void A_chain_that_used_all_of_the_time_is_exhausted_at_once_and_says_how_long_it_ran()
     {
-        var budget = new AgentRunBudget(TimeSpan.FromMinutes(30), new ManualTimeProvider(Start), new BudgetCarryOver(0, 0m, 0, TimeSpan.FromMinutes(45)));
+        var budget = new AgentRunBudget(TimeSpan.FromMinutes(30), new ManualClock(Start), new BudgetCarryOver(0, 0m, 0, TimeSpan.FromMinutes(45)));
 
         budget.IsDurationBudgetExhausted.ShouldBeTrue();
         budget.IsNodeStartExhausted.ShouldBeTrue();
@@ -76,7 +76,7 @@ public sealed class AgentRunBudgetCarryOverTests
     [Fact]
     public void A_chain_with_no_time_limit_has_no_deadline_whatever_it_used()
     {
-        var budget = new AgentRunBudget(maxDuration: null, new ManualTimeProvider(Start), new BudgetCarryOver(0, 0m, 0, TimeSpan.FromDays(9)));
+        var budget = new AgentRunBudget(maxDuration: null, new ManualClock(Start), new BudgetCarryOver(0, 0m, 0, TimeSpan.FromDays(9)));
 
         budget.Deadline.ShouldBeNull();
         budget.IsDurationBudgetExhausted.ShouldBeFalse();
@@ -85,7 +85,7 @@ public sealed class AgentRunBudgetCarryOverTests
     [Fact]
     public void An_absurd_amount_of_used_time_does_not_overflow_the_deadline()
     {
-        var budget = new AgentRunBudget(TimeSpan.FromMinutes(5), new ManualTimeProvider(Start), new BudgetCarryOver(0, 0m, 0, TimeSpan.MaxValue));
+        var budget = new AgentRunBudget(TimeSpan.FromMinutes(5), new ManualClock(Start), new BudgetCarryOver(0, 0m, 0, TimeSpan.MaxValue));
 
         budget.IsDurationBudgetExhausted.ShouldBeTrue();
     }
@@ -93,7 +93,7 @@ public sealed class AgentRunBudgetCarryOverTests
     [Fact]
     public void Nothing_carried_over_is_the_budget_a_new_run_gets()
     {
-        var clock = new ManualTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var fresh = new AgentRunBudget(TimeSpan.FromMinutes(5), clock);
         var none = new AgentRunBudget(TimeSpan.FromMinutes(5), clock, BudgetCarryOver.None);
 
@@ -107,7 +107,7 @@ public sealed class AgentRunBudgetCarryOverTests
     [Fact]
     public void A_negative_carry_over_is_ignored()
     {
-        var budget = new AgentRunBudget(maxDuration: null, new ManualTimeProvider(Start), new BudgetCarryOver(-5, -1m, -2, TimeSpan.FromSeconds(-9)));
+        var budget = new AgentRunBudget(maxDuration: null, new ManualClock(Start), new BudgetCarryOver(-5, -1m, -2, TimeSpan.FromSeconds(-9)));
 
         budget.ConsumedTokens.ShouldBe(0);
         budget.ConsumedCost.ShouldBe(0m);
@@ -119,7 +119,7 @@ public sealed class AgentRunBudgetCarryOverTests
     {
         var options = new TraconAgentGraphOptions { MaxTotalCost = 1m, MaxDuration = TimeSpan.FromMinutes(30) };
 
-        var budget = options.CreateBudget(new ManualTimeProvider(Start), new BudgetCarryOver(0, 0.5m, 0, TimeSpan.FromMinutes(10)));
+        var budget = options.CreateBudget(new ManualClock(Start), new BudgetCarryOver(0, 0.5m, 0, TimeSpan.FromMinutes(10)));
 
         budget.MaxTotalCost.ShouldBe(1m);
         budget.ConsumedCost.ShouldBe(0.5m);
@@ -143,7 +143,7 @@ public sealed class AgentRunBudgetCarryOverTests
     {
         // The earlier runs of a continued workflow wrote their own share when they ended. Counted again it
         // would be counted twice.
-        var budget = new AgentRunBudget(maxDuration: null, new ManualTimeProvider(Start), new BudgetCarryOver(100, 0.8m, 0, TimeSpan.Zero));
+        var budget = new AgentRunBudget(maxDuration: null, new ManualClock(Start), new BudgetCarryOver(100, 0.8m, 0, TimeSpan.Zero));
 
         budget.Account = Account();
 

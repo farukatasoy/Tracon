@@ -218,7 +218,7 @@ public sealed class QuotaEnforcerTests
         var enforcer = new QuotaEnforcer(
             new ThrowingQuotaStore(),
             Options(new TraconQuotaOptions()),
-            timeProvider: new ManualTimeProvider());
+            timeProvider: new ManualClock());
 
         // A temporarily unreachable database must not stop the service.
         (await enforcer.CheckAsync(Tenant, Agent)).IsAllowed.ShouldBeTrue();
@@ -230,7 +230,7 @@ public sealed class QuotaEnforcerTests
         var enforcer = new QuotaEnforcer(
             new ThrowingQuotaStore(),
             Options(new TraconQuotaOptions { AllowOnStoreFailure = false }),
-            timeProvider: new ManualTimeProvider());
+            timeProvider: new ManualClock());
 
         (await enforcer.CheckAsync(Tenant, Agent)).IsAllowed.ShouldBeFalse();
     }
@@ -241,7 +241,7 @@ public sealed class QuotaEnforcerTests
         var enforcer = new QuotaEnforcer(
             new ThrowingQuotaStore(),
             Options(new TraconQuotaOptions()),
-            timeProvider: new ManualTimeProvider());
+            timeProvider: new ManualClock());
 
         // Observability must not break functionality: a completed run is not
         // retroactively broken because its counter could not be written.
@@ -266,7 +266,7 @@ public sealed class QuotaEnforcerTests
 
         // 22:30 UTC is already the next day in Istanbul (UTC+3): a filter
         // computed in UTC would name the wrong daily counter.
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 22, 30, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 3, 22, 30, 0, TimeSpan.Zero));
         var enforcer = new QuotaEnforcer(store, Options(new TraconQuotaOptions { TimeZone = "Europe/Istanbul" }), null, clock);
 
         await SaveQuotaAsync(store, maxRuns: 10);
@@ -284,7 +284,7 @@ public sealed class QuotaEnforcerTests
         }
     }
 
-    private static (QuotaEnforcer Enforcer, IQuotaStore Store, ManualTimeProvider Clock) Build(
+    private static (QuotaEnforcer Enforcer, IQuotaStore Store, ManualClock Clock) Build(
         Action<TraconQuotaOptions>? configure = null,
         IWebhookPublisher? publisher = null)
     {
@@ -292,7 +292,7 @@ public sealed class QuotaEnforcerTests
         configure?.Invoke(options);
 
         var store = new InMemoryQuotaStore();
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
 
         return (new QuotaEnforcer(store, Options(options), publisher, clock), store, clock);
     }
@@ -323,7 +323,7 @@ public sealed class QuotaEnforcerTests
 
     private static async Task RecordAsync(
         QuotaEnforcer enforcer,
-        ManualTimeProvider clock,
+        ManualClock clock,
         long runs = 1,
         long tokens = 0,
         decimal? cost = null,

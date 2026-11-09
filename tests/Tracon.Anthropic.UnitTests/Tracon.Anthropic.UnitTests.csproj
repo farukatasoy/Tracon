@@ -19,4 +19,9 @@
     <Compile Include="../Shared/Providers/**/*.cs" LinkBase="Shared/Providers" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The standard fake clock: the retry handler tests give it the instant the Retry-After date is read against. -->
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
+  </ItemGroup>
+
 </Project>

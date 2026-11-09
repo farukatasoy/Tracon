@@ -20,7 +20,7 @@ public sealed class JobQueueDepthGaugeTests
     [Fact]
     public async Task No_measurement_is_produced_and_the_store_is_not_queried_while_disabled()
     {
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 1);
 
@@ -33,7 +33,7 @@ public sealed class JobQueueDepthGaugeTests
         // Default off means DEFAULT OFF: the refresher returns at once, creates
         // no timer, and not one query reaches the store.
         await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
-        clock.ActiveTimerCount.ShouldBe(0);
+        clock.RunningTimers.ShouldBe(0);
 
         collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName).ShouldBeEmpty();
         store.DepthCalls.ShouldBe(0);
@@ -85,7 +85,7 @@ public sealed class JobQueueDepthGaugeTests
     [Fact]
     public async Task Scrapes_read_the_cache_and_only_a_timer_tick_queries_the_store()
     {
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 1);
 
@@ -100,7 +100,7 @@ public sealed class JobQueueDepthGaugeTests
         collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
         store.DepthCalls.ShouldBe(1, "a scrape only reads the cache");
 
-        clock.TriggerAll();
+        clock.FireAll();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
         store.DepthCalls.ShouldBe(2, "one timer tick is exactly one refresh");
@@ -128,7 +128,7 @@ public sealed class JobQueueDepthGaugeTests
     [Fact]
     public async Task A_transient_failure_keeps_the_previous_value_instead_of_dropping_to_zero()
     {
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 4);
 
@@ -142,7 +142,7 @@ public sealed class JobQueueDepthGaugeTests
             .ShouldHaveSingleItem().Value.ShouldBe(4);
 
         store.NextFailure = new TraconException("simulated store outage");
-        clock.TriggerAll();
+        clock.FireAll();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
         // A blip must not read as "the queue drained" on a dashboard.
@@ -153,7 +153,7 @@ public sealed class JobQueueDepthGaugeTests
     [Fact]
     public async Task A_cancellation_that_is_not_the_hosts_is_a_failure_and_the_refresher_keeps_running()
     {
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 2);
 
@@ -167,13 +167,13 @@ public sealed class JobQueueDepthGaugeTests
         // TaskCanceledException. The host is not stopping, so this is an
         // ordinary failure: the refresher must log it and keep going, not end.
         store.NextFailure = new TaskCanceledException("simulated client timeout");
-        clock.TriggerAll();
+        clock.FireAll();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
         observer.ExecuteTask!.IsCompleted.ShouldBeFalse("a foreign cancellation must not end the refresher");
 
         await EnqueueAsync(store, lane: "default", count: 1);
-        clock.TriggerAll();
+        clock.FireAll();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 3);
 
         collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
@@ -210,7 +210,7 @@ public sealed class JobQueueDepthGaugeTests
             options,
             new SchemaReadyGate([]),
             meterFactory,
-            timeProvider: new TriggerableTimeProvider(),
+            timeProvider: new ManualClock(),
             logger: NullLogger<JobQueueDepthObserver>.Instance,
             metrics: metrics);
 
@@ -233,7 +233,7 @@ public sealed class JobQueueDepthGaugeTests
     [Fact]
     public async Task A_scrape_never_waits_for_the_store()
     {
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingJobStore { Stall = new(TaskCreationOptions.RunContinuationsAsynchronously) };
         await EnqueueAsync(store, lane: "default", count: 1);
 
@@ -271,7 +271,7 @@ public sealed class JobQueueDepthGaugeTests
     [Fact]
     public async Task The_first_query_waits_until_the_schema_is_ready()
     {
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 1);
 
@@ -290,7 +290,7 @@ public sealed class JobQueueDepthGaugeTests
         // may exist until the gate opens.
         await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken); // delay: negative
         store.DepthCalls.ShouldBe(0);
-        clock.ActiveTimerCount.ShouldBe(0);
+        clock.RunningTimers.ShouldBe(0);
 
         gate.MarkReady();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 1);
@@ -319,7 +319,7 @@ public sealed class JobQueueDepthGaugeTests
             meterFactory,
             // A timer that fires only on request: no real 30 s tick can add a
             // refresh the test did not ask for.
-            timeProvider: clock ?? new TriggerableTimeProvider(),
+            timeProvider: clock ?? new ManualClock(),
             logger: NullLogger<JobQueueDepthObserver>.Instance);
 
     private static async Task StartAndWaitForRefreshAsync(JobQueueDepthObserver observer)

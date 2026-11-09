@@ -149,7 +149,7 @@ public abstract class SecretCanaryAcceptanceContract
         var structured = new StructuredLogProbe();
         // The database decides when a job is ready (its own clock, so a host whose clock is skewed cannot lease early or late):
         // the test's clock starts in the past and stays there, so every job its schedules open is already due for the server.
-        var clock = new ManualTimeProvider(DateTimeOffset.UtcNow.AddHours(-1));
+        var clock = ManualClock.WithSystemTimers(DateTimeOffset.UtcNow.AddHours(-1));
 
         await using var wire = await CanaryWireServer.StartAsync();
         await using var host = await StartAsync(

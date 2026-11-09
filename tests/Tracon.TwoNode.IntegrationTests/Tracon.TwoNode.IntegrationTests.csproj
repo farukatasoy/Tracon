@@ -52,7 +52,7 @@
     <!-- ProductOpenApiDocument registers the document corrections of the reference host; they are one file in the sample. -->
     <Compile Include="../../samples/Tracon.Api/OpenApi/PublishedDocumentCorrections.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/HangingModelProvider.cs" LinkBase="Shared" />
-    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/ManualTimeProvider.cs" LinkBase="Shared" />
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/TestData.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/RecordingLoggerProvider.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/McpOAuthKit.cs" LinkBase="Shared" />

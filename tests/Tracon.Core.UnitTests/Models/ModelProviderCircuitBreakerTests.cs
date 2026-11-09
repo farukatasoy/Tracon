@@ -113,7 +113,7 @@ public sealed class ModelProviderCircuitBreakerTests
     [Fact]
     public void No_retry_happens_before_the_break_duration_elapses()
     {
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var breaker = new ModelProviderCircuitBreaker(
             Monitor(o =>
             {
@@ -132,7 +132,7 @@ public sealed class ModelProviderCircuitBreakerTests
     [Fact]
     public void A_single_attempt_passes_once_the_break_duration_elapses()
     {
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var breaker = new ModelProviderCircuitBreaker(
             Monitor(o =>
             {
@@ -150,7 +150,7 @@ public sealed class ModelProviderCircuitBreakerTests
     [Fact]
     public void Circuit_reopens_immediately_when_the_half_open_attempt_fails()
     {
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var breaker = new ModelProviderCircuitBreaker(
             Monitor(o =>
             {
@@ -170,7 +170,7 @@ public sealed class ModelProviderCircuitBreakerTests
     [Fact]
     public void Circuit_closes_when_the_half_open_attempt_succeeds()
     {
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var breaker = new ModelProviderCircuitBreaker(
             Monitor(o =>
             {
@@ -217,7 +217,7 @@ public sealed class ModelProviderCircuitBreakerTests
     [Fact]
     public void IsOpen_reports_the_remaining_time_and_does_not_change_state_while_the_circuit_is_open()
     {
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var breaker = new ModelProviderCircuitBreaker(
             Monitor(o =>
             {

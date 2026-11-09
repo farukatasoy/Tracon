@@ -32,7 +32,7 @@ public abstract partial class TwoNodeAcceptanceContract
     [Fact]
     public async Task Two_nodes_admit_the_rate_limit_once()
     {
-        var clock = new ManualTimeProvider(FrozenNow);
+        var clock = ManualClock.WithSystemTimers(FrozenNow);
         await using var pair = await StartRateLimitPairAsync(clock);
 
         var statuses = new List<HttpStatusCode>();
@@ -52,7 +52,7 @@ public abstract partial class TwoNodeAcceptanceContract
     [Fact]
     public async Task A_tenants_limit_is_spent_on_both_nodes_and_another_tenant_has_a_window_of_its_own()
     {
-        var clock = new ManualTimeProvider(FrozenNow);
+        var clock = ManualClock.WithSystemTimers(FrozenNow);
         await using var pair = await StartRateLimitPairAsync(clock, limit: 2, tenancy: true);
 
         (await StatusAsync(pair.A, "tenant-a")).ShouldBe(HttpStatusCode.OK);
@@ -69,7 +69,7 @@ public abstract partial class TwoNodeAcceptanceContract
     [Fact]
     public async Task A_new_window_admits_requests_again_on_both_nodes()
     {
-        var clock = new ManualTimeProvider(FrozenNow);
+        var clock = ManualClock.WithSystemTimers(FrozenNow);
         await using var pair = await StartRateLimitPairAsync(clock, window: TimeSpan.FromMinutes(1));
 
         for (var request = 0; request < Limit; request++)
@@ -89,7 +89,7 @@ public abstract partial class TwoNodeAcceptanceContract
     [Fact]
     public async Task The_inbound_trigger_limit_is_counted_across_both_nodes()
     {
-        var clock = new ManualTimeProvider(FrozenNow);
+        var clock = ManualClock.WithSystemTimers(FrozenNow);
         await using var pair = await TwoNodeCluster.StartAsync(
             NewDatabase(),
             configure: static builder => builder.UseScheduling(static options => options.RunWorker = false),
@@ -113,7 +113,7 @@ public abstract partial class TwoNodeAcceptanceContract
     }
 
     private Task<TwoNodeCluster> StartRateLimitPairAsync(
-        ManualTimeProvider clock,
+        ManualClock clock,
         int limit = Limit,
         bool tenancy = false,
         TimeSpan? window = null)
@@ -168,7 +168,7 @@ public abstract partial class TwoNodeAcceptanceContract
     }
 
     /// <summary>Sends a validly signed trigger request. Each label makes a body, so no two signatures repeat.</summary>
-    private static async Task<HttpStatusCode> SendTriggerAsync(TraconTestHost host, string label, ManualTimeProvider clock)
+    private static async Task<HttpStatusCode> SendTriggerAsync(TraconTestHost host, string label, ManualClock clock)
     {
         var body = "{\"event\":{\"text\":\"" + label + "\"}}";
         var timestamp = clock.GetUtcNow();

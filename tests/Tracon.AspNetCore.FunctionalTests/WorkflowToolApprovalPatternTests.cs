@@ -364,7 +364,7 @@ public sealed class WorkflowToolApprovalPatternTests
         // of the phase, option A: a step left AwaitingApproval for good would show an approval that
         // nothing can answer any more.
         var limit = TimeSpan.FromMinutes(5);
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var calls = new int[1];
 
         await using var host = await TraconTestHost.StartAsync(
@@ -408,7 +408,7 @@ public sealed class WorkflowToolApprovalPatternTests
         // The answered step stays as it closed: its answer continued on a new run and the tool ran. The step whose
         // request ran out closes with the workflow. Closing both would show a step as failed that did its work.
         var limit = TimeSpan.FromMinutes(5);
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var cancels = new int[1];
         var refunds = new int[1];
 

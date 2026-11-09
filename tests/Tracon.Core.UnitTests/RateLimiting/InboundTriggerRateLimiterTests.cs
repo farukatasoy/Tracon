@@ -18,7 +18,7 @@ public sealed class InboundTriggerRateLimiterTests
     public async Task The_instance_scope_counts_in_process_memory_and_never_calls_the_store()
     {
         var store = new CountingStore();
-        var clock = new ManualTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var one = Create(store, clock, RateLimitScope.Instance, limit: 2);
         var two = Create(store, clock, RateLimitScope.Instance, limit: 2);
 
@@ -35,7 +35,7 @@ public sealed class InboundTriggerRateLimiterTests
     public async Task The_deployment_scope_shares_one_window_between_instances()
     {
         var store = new InMemoryRateLimitCounterStore();
-        var clock = new ManualTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var one = Create(store, clock, RateLimitScope.Deployment, limit: 2);
         var two = Create(store, clock, RateLimitScope.Deployment, limit: 2);
 
@@ -49,7 +49,7 @@ public sealed class InboundTriggerRateLimiterTests
     public async Task The_deployment_scope_keeps_a_window_for_each_trigger_and_opens_a_new_one_each_minute()
     {
         var store = new InMemoryRateLimitCounterStore();
-        var clock = new ManualTimeProvider(Start.AddSeconds(5));
+        var clock = new ManualClock(Start.AddSeconds(5));
         var limiter = Create(store, clock, RateLimitScope.Deployment, limit: 1);
 
         (await limiter.TryAcquireAsync(Trigger)).ShouldBeTrue();
@@ -65,7 +65,7 @@ public sealed class InboundTriggerRateLimiterTests
     public async Task The_deployment_scope_counts_the_trigger_under_its_own_key()
     {
         var store = new CountingStore();
-        var limiter = Create(store, new ManualTimeProvider(Start), RateLimitScope.Deployment, limit: 5);
+        var limiter = Create(store, new ManualClock(Start), RateLimitScope.Deployment, limit: 5);
 
         await limiter.TryAcquireAsync(Trigger);
 
@@ -75,7 +75,7 @@ public sealed class InboundTriggerRateLimiterTests
     [Fact]
     public async Task A_store_failure_falls_back_to_the_local_window_and_never_lifts_the_limit()
     {
-        var clock = new ManualTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var limiter = Create(new CountingStore(failing: true), clock, RateLimitScope.Deployment, limit: 2);
 
         (await limiter.TryAcquireAsync(Trigger)).ShouldBeTrue();
@@ -88,7 +88,7 @@ public sealed class InboundTriggerRateLimiterTests
     [Fact]
     public async Task A_store_failure_does_not_reject_every_request()
     {
-        var limiter = Create(new CountingStore(failing: true), new ManualTimeProvider(Start), RateLimitScope.Deployment, limit: 60);
+        var limiter = Create(new CountingStore(failing: true), new ManualClock(Start), RateLimitScope.Deployment, limit: 60);
 
         // Not fail-closed either.
         (await limiter.TryAcquireAsync(Trigger)).ShouldBeTrue();
@@ -101,9 +101,9 @@ public sealed class InboundTriggerRateLimiterTests
         var scope = new MutableRateLimitOptions();
         var limiter = new InboundTriggerRateLimiter(
             new StaticOptionsMonitor<TraconInboundTriggerOptions>(new TraconInboundTriggerOptions { MaxRequestsPerMinute = 3 }),
-            new ManualTimeProvider(Start),
+            new ManualClock(Start),
             scope.Monitor,
-            new DeploymentRateLimiter(store, new ManualTimeProvider(Start)));
+            new DeploymentRateLimiter(store, new ManualClock(Start)));
 
         await limiter.TryAcquireAsync(Trigger);
         store.Calls.ShouldBe(0);
@@ -119,7 +119,7 @@ public sealed class InboundTriggerRateLimiterTests
     {
         var limiter = new InboundTriggerRateLimiter(
             new StaticOptionsMonitor<TraconInboundTriggerOptions>(new TraconInboundTriggerOptions { MaxRequestsPerMinute = 1 }),
-            new ManualTimeProvider(Start));
+            new ManualClock(Start));
 
         (await limiter.TryAcquireAsync(Trigger)).ShouldBeTrue();
         (await limiter.TryAcquireAsync(Trigger)).ShouldBeFalse();
@@ -127,7 +127,7 @@ public sealed class InboundTriggerRateLimiterTests
 
     private static InboundTriggerRateLimiter Create(
         IRateLimitCounterStore store,
-        ManualTimeProvider clock,
+        ManualClock clock,
         RateLimitScope scope,
         int limit)
         => new(

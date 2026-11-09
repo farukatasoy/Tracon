@@ -50,7 +50,7 @@ public sealed class WorkflowRunTimeoutReasonTests
 
         await SaveChainAsync(host);
 
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var runner = host.CreateRunnerWithTimeProvider(
             clock,
             static options => options.RunTimeout = TimeSpan.FromMinutes(5));
@@ -68,7 +68,7 @@ public sealed class WorkflowRunTimeoutReasonTests
         // Both facts must be true before the test fires the runner deadline.
         await Task.WhenAll(slowStarted.Task, slowInvocationRecorded.Task)
             .WaitAsync(TestContext.Current.CancellationToken);
-        clock.TriggerAll();
+        clock.FireAll();
 
         var events = await collecting;
         var closing = events[^1];
@@ -157,7 +157,7 @@ public sealed class WorkflowRunTimeoutReasonTests
 
         await SaveChainAsync(host);
 
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var runner = host.CreateRunnerWithTimeProvider(
             clock,
             static options =>
@@ -180,7 +180,7 @@ public sealed class WorkflowRunTimeoutReasonTests
 
         // The queued run says it has started while it still waits for the slot.
         await queuedStarted.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-        clock.TriggerAll();
+        clock.FireAll();
 
         var events = await queued.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 

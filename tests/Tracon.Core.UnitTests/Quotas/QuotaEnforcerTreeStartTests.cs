@@ -224,7 +224,7 @@ public sealed class QuotaEnforcerTreeStartTests
 
     private sealed class Harness
     {
-        private readonly ManualTimeProvider _clock = new(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        private readonly ManualClock _clock = new(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
 
         private Harness(IQuotaStore store, TraconQuotaOptions options)
         {

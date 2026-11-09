@@ -159,7 +159,7 @@ public sealed class TenantWorkflowConcurrencyTests
     public async Task A_run_that_times_out_waiting_for_its_tenant_slot_names_the_setting_and_leaks_nothing()
     {
         var (host, gate) = await BuildAsync();
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var runner = host.CreateRunnerWithTimeProvider(
             clock,
             static options =>
@@ -178,7 +178,7 @@ public sealed class TenantWorkflowConcurrencyTests
 
         (await StatusAsync(host, "tenant-a", waitingId)).ShouldBe(RunStatus.Queued);
 
-        clock.TriggerAll();
+        clock.FireAll();
 
         var events = await waiting.Events.WaitAsync(Patience, TestContext.Current.CancellationToken);
 
@@ -242,7 +242,7 @@ public sealed class TenantWorkflowConcurrencyTests
         // as it opens, not at the next cycle: a process that stops in between would leave the row Queued for good.
         // The store marks with its own clock, so the test moves that clock an hour ahead once the runs are open: every
         // mark is then an hour old when the scan reads it.
-        var storeClock = new SteppedSystemClock();
+        var storeClock = ManualClock.OverSystemClock(TimeSpan.Zero);
         var (host, gate) = await BuildAsync(runStoreClock: storeClock);
         host.Reconciliation = new RunReconciliationOptions { Enabled = reconciliation };
 
@@ -261,7 +261,7 @@ public sealed class TenantWorkflowConcurrencyTests
         (await StatusAsync(host, "tenant-a", waitingId)).ShouldBe(RunStatus.Queued);
 
         // Everything that ever signaled is an hour old to the store, so a five minute threshold finds it stale.
-        storeClock.Step(TimeSpan.FromHours(1));
+        storeClock.StepWallClock(TimeSpan.FromHours(1));
 
         var claimed = await host.RunStore.ClaimOrphanedRunsAsync(TimeSpan.FromMinutes(5), 10, TestContext.Current.CancellationToken);
 
@@ -602,17 +602,5 @@ public sealed class TenantWorkflowConcurrencyTests
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(TimeSpan staleAfter, int max, CancellationToken cancellationToken = default)
             => inner.ClaimOrphanedRunsAsync(staleAfter, max, cancellationToken);
-    }
-
-    /// <summary>The system clock plus a distance the test moves: a store whose clock runs ahead once the test says so.</summary>
-    private sealed class SteppedSystemClock : TimeProvider
-    {
-        private long _offsetTicks;
-
-        public override DateTimeOffset GetUtcNow() => TimeProvider.System.GetUtcNow() + TimeSpan.FromTicks(Interlocked.Read(ref _offsetTicks));
-
-        /// <summary>Moves the clock forward.</summary>
-        /// <param name="amount">How far.</param>
-        public void Step(TimeSpan amount) => Interlocked.Add(ref _offsetTicks, amount.Ticks);
     }
 }

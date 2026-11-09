@@ -26,6 +26,8 @@
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/StructuredLogProbe.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/LeakProbe.cs" LinkBase="Shared" />
     <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/TempSqliteDatabase.cs" LinkBase="Shared" />
+    <!-- The standard fake clock: the rate limit tests freeze the wall clock and leave the host's timers real. -->
+    <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
   </ItemGroup>
 
   <ItemGroup>

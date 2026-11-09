@@ -403,7 +403,7 @@ public sealed class RetentionExecutorTests
             resolver,
             new StaticOptionsMonitor<TraconRetentionOptions>(options),
             archiveSink,
-            new ManualTimeProvider(now ?? new DateTimeOffset(2026, 8, 5, 3, 0, 0, TimeSpan.Zero)));
+            new ManualClock(now ?? new DateTimeOffset(2026, 8, 5, 3, 0, 0, TimeSpan.Zero)));
 
         return (executor, policyStore, dataStore);
     }

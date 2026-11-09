@@ -17,7 +17,7 @@ internal sealed class QuotaHarness
     /// <param name="store">The counter store; an in-memory one when omitted.</param>
     public QuotaHarness(DateTimeOffset start, Action<TraconQuotaOptions>? configure = null, IQuotaStore? store = null)
     {
-        Clock = new AdjustableClock(start);
+        Clock = new ManualClock(start);
         Store = store ?? new InMemoryQuotaStore();
 
         var options = new TraconQuotaOptions();
@@ -27,7 +27,7 @@ internal sealed class QuotaHarness
     }
 
     /// <summary>Gets the clock the enforcer reads; hand it to the runner too.</summary>
-    public AdjustableClock Clock { get; }
+    public ManualClock Clock { get; }
 
     /// <summary>Gets the counter store.</summary>
     public IQuotaStore Store { get; }

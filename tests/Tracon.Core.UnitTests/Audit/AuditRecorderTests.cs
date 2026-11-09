@@ -256,7 +256,7 @@ public sealed class AuditRecorderTests
         // background timer with no ambient actor to resolve, and the skill script
         // runner stamps its entries with an injected TimeProvider.
         var log = new CapturingAuditLog();
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero));
 
         await AuditRecorder.WriteOrThrowAsync(
             log,

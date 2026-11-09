@@ -24,7 +24,7 @@ public sealed class InMemoryJobStoreTests
     [Fact]
     public async Task A_job_that_is_not_yet_due_cannot_be_leased()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         var store = new InMemoryJobStore(clock);
 
         await store.EnqueueAsync(
@@ -63,7 +63,7 @@ public sealed class InMemoryJobStoreTests
     [Fact]
     public async Task A_job_can_be_re_leased_once_the_lease_expires()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         var store = new InMemoryJobStore(clock);
         var job = await store.EnqueueAsync(NewJob() with { ScheduledFor = clock.GetUtcNow() }, ["a"]);
 
@@ -130,7 +130,7 @@ public sealed class InMemoryJobStoreTests
     {
         // The job is scheduled at the clock's own time: one scheduled in the clock's future is not
         // leasable, and this test must hold a lease to complete it.
-        var clock = new ManualTimeProvider(DateTimeOffset.UtcNow);
+        var clock = new ManualClock(DateTimeOffset.UtcNow);
         var store = new InMemoryJobStore(clock);
         var job = await store.EnqueueAsync(NewJob() with { ScheduledFor = clock.GetUtcNow() }, ["a"]);
         var lease = JobLease.Of((await store.LeaseAsync(new JobLeaseRequest { Owner = "worker-1", LeaseDuration = TimeSpan.FromMinutes(5) }))!);

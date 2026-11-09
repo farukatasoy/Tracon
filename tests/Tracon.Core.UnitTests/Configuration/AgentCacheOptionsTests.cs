@@ -96,7 +96,7 @@ public sealed class AgentCacheOptionsTests
     [Fact]
     public void The_cache_follows_the_clock_the_container_registers()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var services = new ServiceCollection();
         services.AddSingleton<TimeProvider>(clock);
         services.AddTracon(new ConfigurationBuilder()

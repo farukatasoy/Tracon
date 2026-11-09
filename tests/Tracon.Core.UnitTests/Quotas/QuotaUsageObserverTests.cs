@@ -24,7 +24,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task No_measurement_is_produced_and_the_store_is_not_queried_while_disabled()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var tenants = new InMemoryTenantStore();
         var store = new CountingQuotaStore(new InMemoryQuotaStore());
 
@@ -36,7 +36,7 @@ public sealed class QuotaUsageObserverTests
 
         // Off means off: the refresher returns at once and creates no timer.
         await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
-        clock.ActiveTimerCount.ShouldBe(0);
+        clock.RunningTimers.ShouldBe(0);
 
         collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldBeEmpty();
         collector.Trigger(TraconDiagnostics.QuotaLimitGaugeName).ShouldBeEmpty();
@@ -54,7 +54,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task A_refresh_reads_only_the_current_periods()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var (inner, tenants) = await SeedAsync(clock, maxRuns: 10);
         var store = new CountingQuotaStore(inner);
 
@@ -78,7 +78,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task A_tenant_whose_quota_rules_cannot_be_read_does_not_stop_the_gauge_of_the_tenants_after_it()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var (inner, tenants) = await SeedAsync(clock, maxRuns: 100);
         await RecordUsageAsync(inner, clock, runs: 3);
 
@@ -109,7 +109,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task Value_matches_the_quota_record_when_enabled()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var (store, tenants) = await SeedAsync(clock, maxRuns: 100, maxTokens: 5000);
 
         await RecordUsageAsync(store, clock, runs: 3, tokens: 400);
@@ -144,7 +144,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task Disabled_rule_does_not_appear_in_the_gauge()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10, enabled: false);
         await SaveRuleAsync(store, clock, agentName: null, maxRuns: 50);
         await RecordUsageAsync(store, clock, runs: 5);
@@ -166,7 +166,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task Polls_read_the_cache_and_only_a_timer_tick_queries_the_store()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var (inner, tenants) = await SeedAsync(clock, maxRuns: 10);
         var store = new CountingQuotaStore(inner);
 
@@ -185,7 +185,7 @@ public sealed class QuotaUsageObserverTests
         store.UsageCalls.ShouldBe(1, "a poll only reads the cache");
 
         // The refresh interval elapsed: the timer tick produces ONE new query.
-        clock.TriggerAll();
+        clock.FireAll();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
         store.UsageCalls.ShouldBe(2);
@@ -194,7 +194,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task A_new_value_appears_after_the_next_refresh_and_not_before()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10);
         await RecordUsageAsync(store, clock, runs: 1);
 
@@ -209,7 +209,7 @@ public sealed class QuotaUsageObserverTests
         // The published value is at most one interval old: still the cache.
         collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem().Value.ShouldBe(1.0);
 
-        clock.TriggerAll();
+        clock.FireAll();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
         collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem().Value.ShouldBe(3.0);
@@ -218,7 +218,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task Tag_set_does_not_carry_an_unbounded_field()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10);
         await RecordUsageAsync(store, clock, runs: 1);
 
@@ -245,7 +245,7 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task A_poll_never_waits_for_the_store()
     {
-        var clock = new TriggerableTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var (inner, tenants) = await SeedAsync(clock, maxRuns: 10);
         var store = new CountingQuotaStore(inner) { Stall = new(TaskCreationOptions.RunContinuationsAsynchronously) };
 

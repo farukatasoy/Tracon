@@ -82,7 +82,7 @@ public sealed class AuditingSkillScriptGrantStoreTests
     [Fact]
     public async Task A_grant_and_a_revoke_are_stamped_with_the_registered_clock()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
         var audit = new CapturingAuditLog();
         var store = Create(new RecordingGrantStore(), audit, clock);
 

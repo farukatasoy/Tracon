@@ -29,7 +29,7 @@ public sealed class WorkflowRequestExpiryWebhookTests
     [Fact]
     public async Task A_run_failed_by_an_expired_request_publishes_run_failed_with_the_runs_payload()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var publisher = new RecordingWebhookPublisher();
 
         await using var host = await StartAsync(clock: clock, configureServices: services => services.AddSingleton<IWebhookPublisher>(publisher));
@@ -59,7 +59,7 @@ public sealed class WorkflowRequestExpiryWebhookTests
     [Fact]
     public async Task The_payload_carries_what_the_run_spent_before_it_waited()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var publisher = new RecordingWebhookPublisher();
 
         await using var host = await TraconTestHost.StartAsync(
@@ -113,7 +113,7 @@ public sealed class WorkflowRequestExpiryWebhookTests
     [Fact]
     public async Task An_answered_requests_run_closes_without_a_second_run_completed()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var publisher = new RecordingWebhookPublisher();
 
         await using var host = await StartAsync(clock: clock, configureServices: services => services.AddSingleton<IWebhookPublisher>(publisher));
@@ -137,7 +137,7 @@ public sealed class WorkflowRequestExpiryWebhookTests
     [Fact]
     public async Task A_publisher_that_fails_does_not_undo_the_close_or_stop_the_next_one()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var publisher = new RecordingWebhookPublisher();
 
         await using var host = await StartAsync(clock: clock, configureServices: services => services.AddSingleton<IWebhookPublisher>(publisher));
@@ -162,7 +162,7 @@ public sealed class WorkflowRequestExpiryWebhookTests
     [Fact]
     public async Task A_host_without_a_publisher_closes_the_run_as_before()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
 
         await using var host = await StartAsync(clock: clock);
 

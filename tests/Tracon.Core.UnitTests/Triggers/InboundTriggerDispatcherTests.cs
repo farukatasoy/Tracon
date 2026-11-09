@@ -413,7 +413,7 @@ public sealed class InboundTriggerDispatcherTests
             UpdatedAt = Now,
         };
 
-    private static async Task<(InboundTriggerDispatcher Dispatcher, ManualTimeProvider Clock)> CreateDispatcherWithSavedTriggerAsync(
+    private static async Task<(InboundTriggerDispatcher Dispatcher, ManualClock Clock)> CreateDispatcherWithSavedTriggerAsync(
         TraconInboundTriggerOptions? options = null)
     {
         var store = new InMemoryInboundTriggerStore();
@@ -424,7 +424,7 @@ public sealed class InboundTriggerDispatcherTests
 
     private static async Task<(
         InboundTriggerDispatcher Dispatcher,
-        ManualTimeProvider Clock,
+        ManualClock Clock,
         InMemoryJobStore JobStore,
         InMemoryRunStore RunStore,
         InMemoryInboundTriggerStore TriggerStore)> CreateFullDispatcherWithSavedTriggerAsync()
@@ -439,14 +439,14 @@ public sealed class InboundTriggerDispatcherTests
         return (dispatcher, clock, jobStore, runStore, store);
     }
 
-    private static (InboundTriggerDispatcher Dispatcher, ManualTimeProvider Clock) CreateDispatcher(
+    private static (InboundTriggerDispatcher Dispatcher, ManualClock Clock) CreateDispatcher(
         InMemoryInboundTriggerStore? triggerStore = null,
         InMemoryJobStore? jobStore = null,
         InMemoryRunStore? runStore = null,
         TraconInboundTriggerOptions? options = null,
-        ManualTimeProvider? clock = null)
+        ManualClock? clock = null)
     {
-        clock ??= new ManualTimeProvider(Now);
+        clock ??= new ManualClock(Now);
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection([new KeyValuePair<string, string?>(SecretConfigurationKey, Secret)])

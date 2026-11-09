@@ -88,6 +88,12 @@ internal static class WorkflowCancellationSweep
 {
     private static readonly TimeSpan RunBound = TimeSpan.FromSeconds(20);
 
+    /// <summary>
+    /// How far a timer may be and still fire the moment the runner arms it: the pause before a write is asked again is one,
+    /// and the run's deadline, which the run disposes when it ends and nothing ever fires, is not.
+    /// </summary>
+    private static readonly TimeSpan ShortTimer = TimeSpan.FromSeconds(1);
+
     /// <summary>Sweeps one combination: the graph, how it starts, the kind of store and the way the run is canceled.</summary>
     /// <param name="backend">Where the runs write.</param>
     /// <param name="graph">The graph to run.</param>
@@ -163,7 +169,7 @@ internal static class WorkflowCancellationSweep
         var plan = new FaultPlan { HonorCancellation = storeHonorsToken };
         using var cts = new CancellationTokenSource();
         var registry = new RunCancellationRegistry();
-        var clock = new TimerLedgerClock();
+        var clock = new ManualClock { AutoFireWithin = ShortTimer, CaptureTimerOrigins = true };
         var awaited = 0;
         string? cancelledAt = null;
 
@@ -278,9 +284,9 @@ internal static class WorkflowCancellationSweep
             problems.Add($"{activities.Open} activity(ies) started and never stopped");
         }
 
-        if (clock.Armed != 0)
+        if (clock.Pending.Count != 0)
         {
-            problems.Add($"{clock.Armed} timer(s) are still armed on the runner's clock, made at: {clock.Origins}");
+            problems.Add($"{clock.Pending.Count} timer(s) are still armed on the runner's clock, made at: {clock.PendingOrigins}");
         }
 
         if (failure is not TimeoutException)

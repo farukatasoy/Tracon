@@ -18,7 +18,7 @@ public sealed class DeploymentRateLimiterTests
     [Fact]
     public async Task Requests_within_the_limit_are_allowed_and_the_next_is_rejected_with_the_wait()
     {
-        var clock = new ManualTimeProvider(Start.AddSeconds(15));
+        var clock = new ManualClock(Start.AddSeconds(15));
         var limiter = new DeploymentRateLimiter(new InMemoryRateLimitCounterStore(), clock);
 
         for (var count = 0; count < 3; count++)
@@ -36,7 +36,7 @@ public sealed class DeploymentRateLimiterTests
     public async Task The_window_ends_for_every_instance_at_the_same_moment()
     {
         // Two limiters share one store: their requests are one stream, and a new window opens for both at once.
-        var clock = new ManualTimeProvider(Start.AddSeconds(15));
+        var clock = new ManualClock(Start.AddSeconds(15));
         var store = new InMemoryRateLimitCounterStore();
         var first = new DeploymentRateLimiter(store, clock);
         var second = new DeploymentRateLimiter(store, clock);
@@ -59,7 +59,7 @@ public sealed class DeploymentRateLimiterTests
         using var meters = new TestMeterFactory();
         using var collector = new MetricCollector(meters.Meter);
         using var metrics = new TraconMetrics(meters);
-        var limiter = new DeploymentRateLimiter(new FailingStore(), new ManualTimeProvider(Start), metrics);
+        var limiter = new DeploymentRateLimiter(new FailingStore(), new ManualClock(Start), metrics);
 
         (await Count(limiter, kind: RateLimiterKind.Endpoint)).ShouldBeNull();
         (await Count(limiter, kind: RateLimiterKind.Trigger)).ShouldBeNull();
@@ -73,7 +73,7 @@ public sealed class DeploymentRateLimiterTests
     [Fact]
     public async Task A_store_failure_is_logged_once_a_minute_for_each_partition()
     {
-        var clock = new ManualTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var logger = new SpyLogger();
         var limiter = new DeploymentRateLimiter(new FailingStore(), clock, logger: logger);
         var other = RateLimitPartitionKey.ForTenant(RateLimitGroups.Management, "globex");
@@ -103,7 +103,7 @@ public sealed class DeploymentRateLimiterTests
         using var meters = new TestMeterFactory();
         using var collector = new MetricCollector(meters.Meter);
         using var metrics = new TraconMetrics(meters);
-        var limiter = new DeploymentRateLimiter(new CancellationAwareStore(), new ManualTimeProvider(Start), metrics);
+        var limiter = new DeploymentRateLimiter(new CancellationAwareStore(), new ManualClock(Start), metrics);
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
@@ -120,7 +120,7 @@ public sealed class DeploymentRateLimiterTests
         using var meters = new TestMeterFactory();
         using var collector = new MetricCollector(meters.Meter);
         using var metrics = new TraconMetrics(meters);
-        var limiter = new DeploymentRateLimiter(new FailingStore(new OperationCanceledException("store timeout")), new ManualTimeProvider(Start), metrics);
+        var limiter = new DeploymentRateLimiter(new FailingStore(new OperationCanceledException("store timeout")), new ManualClock(Start), metrics);
 
         (await Count(limiter)).ShouldBeNull();
 
@@ -131,7 +131,7 @@ public sealed class DeploymentRateLimiterTests
     public async Task The_store_receives_the_key_text_and_the_aligned_window_start()
     {
         var store = new RecordingStore();
-        var limiter = new DeploymentRateLimiter(store, new ManualTimeProvider(Start.AddSeconds(33)));
+        var limiter = new DeploymentRateLimiter(store, new ManualClock(Start.AddSeconds(33)));
 
         await Count(limiter);
 
@@ -143,7 +143,7 @@ public sealed class DeploymentRateLimiterTests
     {
         // A clock that jumped forward on another instance moved the stored window ahead; it never moves back, so the
         // partition stays spent until real time catches up. The request is still decided from the stored window.
-        var clock = new ManualTimeProvider(Start.AddSeconds(15));
+        var clock = new ManualClock(Start.AddSeconds(15));
         var logger = new SpyLogger();
         var store = new FixedAnswerStore(Start.AddMinutes(10), count: 7);
         var limiter = new DeploymentRateLimiter(store, clock, logger: logger);
@@ -169,7 +169,7 @@ public sealed class DeploymentRateLimiterTests
     [Fact]
     public async Task A_stored_window_exactly_one_window_ahead_is_the_ordinary_boundary_and_is_not_warned_about()
     {
-        var clock = new ManualTimeProvider(Start.AddSeconds(59));
+        var clock = new ManualClock(Start.AddSeconds(59));
         var logger = new SpyLogger();
         var limiter = new DeploymentRateLimiter(new FixedAnswerStore(Start.AddMinutes(1), count: 1), clock, logger: logger);
 

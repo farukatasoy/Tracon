@@ -37,7 +37,7 @@ public sealed class FailedRunToolRowsTests
     [Fact]
     public async Task A_queued_run_that_ends_on_a_budget_refusal_lists_the_call_that_ran_and_the_call_that_was_refused()
     {
-        var clock = new SteppedClock();
+        var clock = SteppedClock();
         var tools = new ToolBodies(clock);
 
         await using var host = await StartAsync(
@@ -80,7 +80,7 @@ public sealed class FailedRunToolRowsTests
     [Fact]
     public async Task A_provider_that_fails_after_a_tool_turn_leaves_the_row_and_the_events_of_the_call_that_ran()
     {
-        var clock = new SteppedClock();
+        var clock = SteppedClock();
         var tools = new ToolBodies(clock);
 
         await using var host = await StartAsync(
@@ -247,7 +247,7 @@ public sealed class FailedRunToolRowsTests
     [Fact]
     public async Task A_queued_run_that_succeeds_writes_one_row_and_one_pair_of_events_per_call_and_measures_the_duration()
     {
-        var clock = new SteppedClock();
+        var clock = SteppedClock();
         var tools = new ToolBodies(clock);
 
         await using var host = await StartAsync(
@@ -284,7 +284,7 @@ public sealed class FailedRunToolRowsTests
     [Fact]
     public async Task A_run_that_streams_still_writes_one_row_and_one_pair_of_events_per_call()
     {
-        var clock = new SteppedClock();
+        var clock = SteppedClock();
         var tools = new ToolBodies(clock);
 
         await using var host = await StartAsync(
@@ -561,18 +561,7 @@ public sealed class FailedRunToolRowsTests
     /// Its wall clock follows the real one (plus what was advanced) and its timers are the system's, because the job
     /// worker leases a job by the time the queue stamped it with and keeps polling by timer.
     /// </summary>
-    private sealed class SteppedClock : TimeProvider
-    {
-        private long _advanced;
-
-        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
-
-        public override long GetTimestamp() => Interlocked.Read(ref _advanced);
-
-        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow + TimeSpan.FromTicks(Interlocked.Read(ref _advanced));
-
-        public void Advance(TimeSpan amount) => Interlocked.Add(ref _advanced, amount.Ticks);
-    }
+    private static ManualClock SteppedClock() => ManualClock.OverSystemClock(TimeSpan.Zero, systemTimestamp: false);
 
     /// <summary>
     /// A provider whose first model call asks for every tool it was given in one turn and whose later calls fail with a
@@ -635,7 +624,7 @@ public sealed class FailedRunToolRowsTests
     }
 
     /// <summary>The tool bodies of one test, and how often each was called.</summary>
-    private sealed class ToolBodies(SteppedClock? clock = null)
+    private sealed class ToolBodies(ManualClock? clock = null)
     {
         private readonly Dictionary<string, int> _counts = new(StringComparer.Ordinal);
 

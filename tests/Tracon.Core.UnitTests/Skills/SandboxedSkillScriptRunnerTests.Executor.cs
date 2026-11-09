@@ -272,7 +272,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests
             }
         });
 
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var executor = new DelegateExecutor((_, _) => Task.FromResult(Exited(0, "second-file")));
 
         using var runner = CreateExecutorRunner(
@@ -294,10 +294,10 @@ public sealed partial class SandboxedSkillScriptRunnerTests
             await swapped.Task.WaitAsync(TimeSpan.FromSeconds(30));
             await WaitForTimerAsync(clock);
 
-            clock.DueTimes.ShouldBe([TimeSpan.FromSeconds(35)]);
+            clock.Pending.ShouldBe([TimeSpan.FromSeconds(35)]);
             first.IsCompleted.ShouldBeFalse();
 
-            clock.TriggerAll();
+            clock.FireAll();
 
             var exception = await Should.ThrowAsync<TraconException>(async () => await first.WaitAsync(TimeSpan.FromSeconds(30)));
             exception.Message.ShouldContain("could not be read in time");
@@ -428,7 +428,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests
     public async Task An_executor_past_its_timeout_is_abandoned_at_the_wait_limit_and_frees_the_quota(bool ignoresToken)
     {
         var skill = Demo(EchoScript());
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var firstCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var tokens = new ConcurrentQueue<CancellationToken>();
@@ -480,9 +480,9 @@ public sealed partial class SandboxedSkillScriptRunnerTests
 
             // The slot is held while the first executor call runs.
             (await Task.WhenAny(secondCalled.Task, Task.Delay(TimeSpan.FromMilliseconds(300)))).ShouldNotBe(secondCalled.Task); // delay: negative
-            clock.DueTimes.ShouldBe([TimeSpan.FromSeconds(35)]);
+            clock.Pending.ShouldBe([TimeSpan.FromSeconds(35)]);
 
-            clock.TriggerAll();
+            clock.FireAll();
 
             var firstText = (await first.WaitAsync(TimeSpan.FromSeconds(30))).ShouldBeOfType<string>();
             firstText.ShouldContain("did not return in time");
@@ -883,8 +883,8 @@ public sealed partial class SandboxedSkillScriptRunnerTests
         }
     }
 
-    private static Task WaitForTimerAsync(TriggerableTimeProvider clock)
-        => WaitUntil.TrueAsync(() => clock.ActiveTimerCount > 0, "the runner armed its wait limit");
+    private static Task WaitForTimerAsync(ManualClock clock)
+        => WaitUntil.TrueAsync(() => clock.RunningTimers > 0, "the runner armed its wait limit");
 
     /// <summary>An audit log that runs <paramref name="onScriptRun"/> while it writes the <c>script.run</c> entry.</summary>
     private sealed class SwappingAuditLog(Action onScriptRun) : IAuditLog

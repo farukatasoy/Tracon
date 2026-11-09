@@ -538,7 +538,7 @@ public sealed class WorkflowNodeRetryTests
     [Fact]
     public async Task A_delay_that_outgrows_the_timer_is_capped_instead_of_throwing()
     {
-        var time = new TriggerableTimeProvider();
+        var time = new ManualClock();
         var attempts = 0;
 
         var handler = WorkflowNodeRetry.Wrap(
@@ -557,7 +557,7 @@ public sealed class WorkflowNodeRetryTests
         // Each probe fires the retry's pending delay; the call ends after the third attempt.
         await WaitUntil.TrueAsync(() =>
         {
-            time.TriggerAll();
+            time.FireAll();
 
             return call.IsCompleted;
         });

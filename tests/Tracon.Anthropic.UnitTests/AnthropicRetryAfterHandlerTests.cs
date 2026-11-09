@@ -75,7 +75,7 @@ public sealed class AnthropicRetryAfterHandlerTests
 
     private static async Task<HttpResponseMessage> SendAsync(params (string Name, string Value)[] headers)
     {
-        using var handler = new AnthropicRetryAfterHandler(new FixedTime(Now))
+        using var handler = new AnthropicRetryAfterHandler(new ManualClock(Now))
         {
             InnerHandler = new Respond(headers),
         };
@@ -98,10 +98,5 @@ public sealed class AnthropicRetryAfterHandlerTests
 
             return Task.FromResult(response);
         }
-    }
-
-    private sealed class FixedTime(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
     }
 }

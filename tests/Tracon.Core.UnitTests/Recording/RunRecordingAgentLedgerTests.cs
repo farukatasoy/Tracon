@@ -48,13 +48,13 @@ public sealed class RunRecordingAgentLedgerTests
         // The end of a call must not read earlier than its start: the close step orders the two events by time, and
         // an end written first would find no call to close (a row named "unknown", and the call closed a second time
         // as unfinished).
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
 
         var tool = AIFunctionFactory.Create(
             () =>
             {
-                clock.Advance(TimeSpan.FromSeconds(-30));
+                clock.StepWallClock(TimeSpan.FromSeconds(-30));
 
                 return "sunny";
             },

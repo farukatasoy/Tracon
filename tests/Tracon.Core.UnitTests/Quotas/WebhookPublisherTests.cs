@@ -144,7 +144,7 @@ public sealed class WebhookPublisherTests
 
         var store = new InMemoryWebhookStore();
         var jobs = new InMemoryJobStore();
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
 
         return (
             new WebhookPublisher(store, jobs, new StaticMonitor<TraconWebhookOptions>(options), clock),

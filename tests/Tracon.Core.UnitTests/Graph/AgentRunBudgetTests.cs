@@ -147,7 +147,7 @@ public sealed class AgentRunBudgetTests
 
         cost.IsNodeStartExhausted.ShouldBeTrue();
 
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var time = new AgentRunBudget(TimeSpan.FromSeconds(5), clock);
 
         time.IsNodeStartExhausted.ShouldBeFalse();
@@ -177,7 +177,7 @@ public sealed class AgentRunBudgetTests
     [Fact]
     public void The_node_start_message_names_the_time_budget_without_the_model_turn_sentence()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var budget = new AgentRunBudget(TimeSpan.FromSeconds(5), clock);
 
         clock.Advance(TimeSpan.FromSeconds(7));
@@ -193,7 +193,7 @@ public sealed class AgentRunBudgetTests
     [Fact]
     public void The_node_start_message_names_cost_first_when_time_is_spent_too()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var budget = new AgentRunBudget(TimeSpan.FromSeconds(5), clock) { MaxTotalCost = 1m };
 
         budget.RecordUsage(0, 2m);
@@ -208,7 +208,7 @@ public sealed class AgentRunBudgetTests
     {
         // The time sentence is split in two so the node text can leave the model-turn sentence
         // out; the model call and the child run must still read the whole text.
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var budget = new AgentRunBudget(TimeSpan.FromSeconds(5), clock);
 
         clock.Advance(TimeSpan.FromSeconds(7));

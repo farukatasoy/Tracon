@@ -25,7 +25,7 @@ public sealed class WallClockStepTests
     [Fact]
     public async Task A_wall_clock_stepped_forward_dispatches_a_schedule_once_and_not_once_per_missed_run()
     {
-        var clock = new ManualTimeProvider(Start);
+        var clock = ManualClock.WithSystemTimers(Start, systemTimestamp: false);
         var (jobs, schedules, plan, worker) = Build(clock);
 
         await schedules.SaveAsync(Schedule(Start), TestContext.Current.CancellationToken);
@@ -58,7 +58,7 @@ public sealed class WallClockStepTests
     [Fact]
     public async Task A_wall_clock_stepped_back_keeps_the_schedule_silent_for_the_step_and_then_dispatches_it_once()
     {
-        var clock = new ManualTimeProvider(Start);
+        var clock = ManualClock.WithSystemTimers(Start, systemTimestamp: false);
         var (jobs, schedules, plan, worker) = Build(clock);
 
         await schedules.SaveAsync(Schedule(Start), TestContext.Current.CancellationToken);
@@ -95,7 +95,7 @@ public sealed class WallClockStepTests
     [Fact]
     public async Task The_single_executor_guard_counts_its_lease_on_the_monotonic_clock()
     {
-        var clock = new ManualTimeProvider(Start);
+        var clock = ManualClock.WithSystemTimers(Start, systemTimestamp: false);
         var leaseDuration = TimeSpan.FromSeconds(30);
         var guard = new SingletonGuard(
             new InMemorySingletonLeaseStore(clock),

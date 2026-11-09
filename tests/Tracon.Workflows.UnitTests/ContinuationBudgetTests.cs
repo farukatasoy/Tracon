@@ -394,7 +394,7 @@ public sealed class ContinuationBudgetTests
     {
         // MaxDuration is one hour. The interrupted run executed for ten minutes, then the host was down for two
         // hours, then the recovery closed its row and opened the continuation. The row says it ran 2 h 10 min.
-        var clock = new AdjustableClock(Start + TimeSpan.FromMinutes(130));
+        var clock = new ManualClock(Start + TimeSpan.FromMinutes(130));
         var host = new WorkflowTestHost();
         var flow = new BudgetedApprovalWorkflow(host, firstAmount: 0m, publishAmount: 0m);
         var deadlines = new List<DateTimeOffset?>();
@@ -436,7 +436,7 @@ public sealed class ContinuationBudgetTests
     {
         // The start came from the runner's clock and the end from the system clock, so a
         // continuation's spent time was the gap between a fake start and today.
-        var clock = new AdjustableClock(Start);
+        var clock = new ManualClock(Start);
         var host = new WorkflowTestHost();
         var flow = new BudgetedApprovalWorkflow(host, firstAmount: 0m, publishAmount: 0m);
 
@@ -452,7 +452,7 @@ public sealed class ContinuationBudgetTests
     [Fact]
     public async Task The_time_a_workflow_waited_for_a_person_does_not_count_against_the_time_limit()
     {
-        var clock = new AdjustableClock(Start);
+        var clock = new ManualClock(Start);
         var host = new WorkflowTestHost();
         var flow = new BudgetedApprovalWorkflow(host, firstAmount: 0m, publishAmount: 0m);
 
@@ -477,7 +477,7 @@ public sealed class ContinuationBudgetTests
     [Fact]
     public async Task A_chain_that_used_all_of_its_time_refuses_its_first_node()
     {
-        var clock = new AdjustableClock(Start);
+        var clock = new ManualClock(Start);
         var host = new WorkflowTestHost();
         var flow = new BudgetedApprovalWorkflow(host, firstAmount: 0m, publishAmount: 0m);
 

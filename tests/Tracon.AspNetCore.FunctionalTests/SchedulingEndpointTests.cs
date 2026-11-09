@@ -129,7 +129,7 @@ public sealed class SchedulingEndpointTests
     [Fact]
     public async Task A_schedule_and_the_job_it_triggers_are_timed_on_the_registered_clock()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         await using var host = await TraconTestHost.StartAsync(
             configureServices: services => services.AddSingleton<TimeProvider>(clock));

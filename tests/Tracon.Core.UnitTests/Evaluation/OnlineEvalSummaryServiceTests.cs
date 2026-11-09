@@ -116,7 +116,7 @@ public sealed class OnlineEvalSummaryServiceTests
         });
     }
 
-    private static (OnlineEvalSummaryService Service, InMemoryRunStore Runs, RecordingPublisher Publisher, ManualTimeProvider Clock) Build(
+    private static (OnlineEvalSummaryService Service, InMemoryRunStore Runs, RecordingPublisher Publisher, ManualClock Clock) Build(
         Action<OnlineEvaluationOptions>? configure = null)
     {
         var options = new OnlineEvaluationOptions();
@@ -124,7 +124,7 @@ public sealed class OnlineEvalSummaryServiceTests
 
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var publisher = new RecordingPublisher();
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 7, 10, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 7, 10, 0, 0, TimeSpan.Zero));
 
         var service = new OnlineEvalSummaryService(
             runs,

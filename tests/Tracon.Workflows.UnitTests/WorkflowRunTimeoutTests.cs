@@ -42,7 +42,7 @@ public sealed class WorkflowRunTimeoutTests
             ],
         });
 
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
         var runner = host.CreateRunnerWithTimeProvider(
             clock,
             static options => options.RunTimeout = TimeSpan.FromMinutes(5));
@@ -61,7 +61,7 @@ public sealed class WorkflowRunTimeoutTests
         // stream between the handler starting and the event being recorded.
         await Task.WhenAll(slowStarted.Task, slowInvocationRecorded.Task)
             .WaitAsync(TestContext.Current.CancellationToken);
-        clock.TriggerAll();
+        clock.FireAll();
 
         var events = await collecting;
 

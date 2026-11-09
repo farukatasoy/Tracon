@@ -80,7 +80,7 @@ public sealed class TraconDrainServiceTests
         var registry = new RunCancellationRegistry();
         using var runCts = new CancellationTokenSource();
         using var registration = registry.Register(Guid.NewGuid(), Guid.NewGuid(), tenantId: null, runCts);
-        var clock = new TriggerableTimeProvider();
+        var clock = new ManualClock();
 
         var service = new TraconDrainService(
             registry,
@@ -91,7 +91,7 @@ public sealed class TraconDrainServiceTests
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         var stopped = service.StopAsync(TestContext.Current.CancellationToken);
-        clock.TriggerAll();
+        clock.FireAll();
 
         await stopped.WaitAsync(TestContext.Current.CancellationToken);
         registry.ActiveCount.ShouldBe(1);

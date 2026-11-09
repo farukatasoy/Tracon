@@ -18,8 +18,8 @@ public sealed class LeaseStealUnderClockStepTests
     [Fact]
     public async Task A_wall_clock_stepped_past_the_lease_does_not_let_a_second_guard_take_it_while_the_owner_still_holds_it()
     {
-        var ownerClock = new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
-        var storeClock = new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var ownerClock = new ManualClock(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var storeClock = new ManualClock(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         var store = new InMemorySingletonLeaseStore(storeClock);
         var options = new StaticOptionsMonitor<SingletonExecutionOptions>(new SingletonExecutionOptions
         {
@@ -28,7 +28,7 @@ public sealed class LeaseStealUnderClockStepTests
         });
 
         var owner = new SingletonGuard(store, options, "probe", timeProvider: ownerClock);
-        var other = new SingletonGuard(store, options, "probe", timeProvider: new ManualTimeProvider());
+        var other = new SingletonGuard(store, options, "probe", timeProvider: new ManualClock());
 
         await owner.TickAsync(TestContext.Current.CancellationToken);
         await other.TickAsync(TestContext.Current.CancellationToken);

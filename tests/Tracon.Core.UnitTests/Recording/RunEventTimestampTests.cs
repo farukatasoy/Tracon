@@ -13,7 +13,7 @@ public sealed class RunEventTimestampTests
     public async Task A_draft_with_a_time_keeps_it_in_the_event_and_in_the_store()
     {
         var store = new InMemoryRunStore();
-        var writer = await StartAsync(store, new ManualTimeProvider());
+        var writer = await StartAsync(store, new ManualClock());
         var ran = new DateTimeOffset(2026, 10, 27, 9, 15, 30, TimeSpan.Zero) + TimeSpan.FromTicks(1234);
 
         var runEvent = await writer.AppendAsync(new RunEventDraft(RunEventType.ToolInvoking) { ToolName = "lookup", Timestamp = ran });
@@ -31,7 +31,7 @@ public sealed class RunEventTimestampTests
     [Fact]
     public async Task A_draft_without_a_time_is_stamped_by_the_writers_clock()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 10, 27, 10, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 10, 27, 10, 0, 0, TimeSpan.Zero));
         var writer = await StartAsync(new InMemoryRunStore(), clock);
 
         clock.Advance(TimeSpan.FromMinutes(5));
@@ -45,7 +45,7 @@ public sealed class RunEventTimestampTests
     public async Task The_time_of_a_draft_does_not_change_the_order_of_the_events()
     {
         // Order is the sequence number; the time is the event's own. A later event may carry an earlier time.
-        var writer = await StartAsync(new InMemoryRunStore(), new ManualTimeProvider());
+        var writer = await StartAsync(new InMemoryRunStore(), new ManualClock());
 
         var late = await writer.AppendAsync(new RunEventDraft(RunEventType.ToolInvoked) { ToolName = "a" });
         var early = await writer.AppendAsync(new RunEventDraft(RunEventType.ToolInvoking)

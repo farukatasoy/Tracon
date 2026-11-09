@@ -119,7 +119,7 @@ public sealed class DiConstructedServiceResolutionTests
     [Fact]
     public async Task RunSampler_uses_the_registered_clock_for_its_hourly_window()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 24, 10, 15, 0, TimeSpan.Zero));
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2026, 9, 24, 10, 15, 0, TimeSpan.Zero));
 
         await using var host = await TraconTestHost.StartAsync(
             configureServices: services =>

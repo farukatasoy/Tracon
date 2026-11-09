@@ -50,14 +50,14 @@ public abstract partial class TwoNodeAcceptanceContract
             {
                 builder.Services.AddSingleton(probe);
                 probe.Install(builder.Services, leaseGate: probe.FirstAttemptRunning);
-                builder.Services.AddSingleton<TimeProvider>(new SkewedTimeProvider(HourAhead));
+                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(HourAhead));
                 builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(200));
             },
             configureB: builder =>
             {
                 builder.Services.AddSingleton(probe);
                 probe.Install(builder.Services);
-                builder.Services.AddSingleton<TimeProvider>(new SkewedTimeProvider(-HourAhead));
+                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(-HourAhead));
                 builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(100));
             },
             configureServices: static services => services.Configure<TraconSchedulingOptions>(static options => options.LeaseDuration = TimeSpan.FromSeconds(2)));
@@ -135,7 +135,7 @@ public abstract partial class TwoNodeAcceptanceContract
             configureA: static builder => builder.Services.Configure<RunReconciliationOptions>(static options => options.ScanInterval = TimeSpan.FromHours(1)),
             configureB: builder =>
             {
-                builder.Services.AddSingleton<TimeProvider>(new SkewedTimeProvider(HourAhead));
+                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(HourAhead));
                 builder.Services.Configure<RunReconciliationOptions>(static options => options.ScanInterval = TimeSpan.FromMilliseconds(200));
             },
             reconciliation: true);
@@ -204,7 +204,7 @@ public abstract partial class TwoNodeAcceptanceContract
                 .AddAgent(TestData.Definition() with { Model = new ModelBinding { Provider = hanging.Name, Model = "hanging-1" } }),
             configureA: builder =>
             {
-                builder.Services.AddSingleton<TimeProvider>(new SkewedTimeProvider(-HourAhead));
+                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(-HourAhead));
                 builder.Services.Configure<RunReconciliationOptions>(static options => options.ScanInterval = TimeSpan.FromHours(1));
 
                 // The first beat is two minutes off (the threshold is five): the run has to survive the scans before it.
@@ -260,12 +260,5 @@ public abstract partial class TwoNodeAcceptanceContract
 
             await probe.ReleaseHandler.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
-    }
-
-    /// <summary>The system's timers and monotonic clock, and a wall clock shifted by a fixed amount.</summary>
-    /// <param name="offset">How far the wall clock is from the system's.</param>
-    private sealed class SkewedTimeProvider(TimeSpan offset) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => base.GetUtcNow() + offset;
     }
 }

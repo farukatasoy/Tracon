@@ -108,7 +108,7 @@ public sealed class SingletonGuardTests
     [Fact]
     public async Task One_failed_renewal_does_not_give_the_lease_up()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingSingletonLeaseStore();
         var guard = new SingletonGuard(store, Options(Held(TimeSpan.FromSeconds(30))), LeaseName, timeProvider: clock);
 
@@ -130,7 +130,7 @@ public sealed class SingletonGuardTests
     [Fact]
     public async Task Renewals_that_keep_failing_past_the_whole_lease_give_it_up()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingSingletonLeaseStore();
         var guard = new SingletonGuard(store, Options(Held(TimeSpan.FromSeconds(30))), LeaseName, timeProvider: clock);
 
@@ -154,7 +154,7 @@ public sealed class SingletonGuardTests
     {
         // The store call hangs, so no tick ends and none of the catch paths runs: the answer to
         // "do I hold it" must come from the clock, not from the loop.
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var store = new CountingSingletonLeaseStore();
         var guard = new SingletonGuard(store, Options(Held(TimeSpan.FromSeconds(30))), LeaseName, timeProvider: clock);
 

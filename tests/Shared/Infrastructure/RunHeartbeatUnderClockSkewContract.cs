@@ -225,7 +225,7 @@ public abstract class RunHeartbeatUnderClockSkewContract
         var runId = TraconId.NewId();
 
         await runs.StartRunAsync(TestData.Run(runId));
-        await OpenRunStore(new SkewedTimeProvider(TimeSpan.FromHours(1))).TouchHeartbeatAsync([runId]);
+        await OpenRunStore(ManualClock.OverSystemClock(TimeSpan.FromHours(1))).TouchHeartbeatAsync([runId]);
 
         // The mark is older than the threshold from the next statement on; the wait is the time the threshold has to pass.
         await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken); // delay: product
@@ -281,9 +281,9 @@ public abstract class RunHeartbeatUnderClockSkewContract
         var gate = new SchemaReadyGate([]);
 
         // The node that scans reads its clock ahead in its store too: the store decides what is old.
-        var scanClock = new SkewedTimeProvider(ahead);
+        var scanClock = ManualClock.OverSystemClock(ahead);
 
-        var writer = new RunHeartbeatWriter(runs, registry, options, gate, new SkewedTimeProvider(writerOffset), NullLogger<RunHeartbeatWriter>.Instance);
+        var writer = new RunHeartbeatWriter(runs, registry, options, gate, ManualClock.OverSystemClock(writerOffset), NullLogger<RunHeartbeatWriter>.Instance);
         var sweeper = new RunReconciliationService(
             OpenRunStore(scanClock),
             leases,
@@ -325,12 +325,6 @@ public abstract class RunHeartbeatUnderClockSkewContract
     /// <summary>Writes one measured row where a run with detailed output shows it.</summary>
     private static void Describe(string setup, string observed)
         => TestContext.Current.TestOutputHelper?.WriteLine($"[clock skew] run heartbeat | {setup} | {observed}");
-
-    /// <summary>The system's timers and a wall clock shifted by a fixed amount.</summary>
-    private sealed class SkewedTimeProvider(TimeSpan offset) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => base.GetUtcNow() + offset;
-    }
 
     private sealed class EmptyToolRegistry : IToolRegistry
     {

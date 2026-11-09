@@ -448,7 +448,7 @@ public sealed class ChildAgentInvokerTests
     {
         const int Updates = 200;
 
-        var clock = new CountingTimeProvider();
+        var clock = new ManualClock();
         var chunks = Enumerable.Range(0, Updates)
             .Select(static index => new ChatResponseUpdate(ChatRole.Assistant, $"part {index} "))
             .ToArray();
@@ -580,7 +580,7 @@ public sealed class ChildAgentInvokerTests
     [InlineData(true)]
     public async Task A_call_that_finishes_releases_the_timer_its_deadline_armed(bool streaming)
     {
-        var clock = new CountingTimeProvider();
+        var clock = new ManualClock();
         var (invoker, _) = CreateInvoker(
             ChildRefusalMode.ToolResult,
             client: null,

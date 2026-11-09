@@ -136,7 +136,7 @@ public sealed class AsyncRunTests
     [Fact]
     public async Task A_queued_run_is_picked_up_on_a_host_whose_registered_clock_is_in_another_year()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         await using var host = await TraconTestHost.StartAsync(
             static builder =>

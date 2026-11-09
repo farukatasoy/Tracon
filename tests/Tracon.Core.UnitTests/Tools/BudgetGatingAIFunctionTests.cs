@@ -166,7 +166,7 @@ public sealed class BudgetGatingAIFunctionTests
     [Fact]
     public void The_refusal_names_the_limit_that_stopped_the_call()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
 
         var tokens = new AgentRunBudget { MaxTotalTokens = 10 };
         tokens.RecordUsage(10);

@@ -214,7 +214,7 @@ public sealed class CircuitBreakerFailureClassificationTests
     {
         // The failure is not counted, so it is neither the trial's success nor
         // its failure: the circuit stays half-open (the same as a content block).
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var status = 503;
         var raw = new ThrowingChatClient(() => new FakeProviderSdkException($"HTTP {status} (error)"));
         var (breaker, client) = Pipeline(raw, time: time);

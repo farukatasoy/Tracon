@@ -88,10 +88,10 @@ public sealed class TreeQuotaCountOnceTests
     /// <summary>A root that has spent its tokens and names a counter with a token limit.</summary>
     private sealed class Tree
     {
-        private readonly ManualTimeProvider _clock;
+        private readonly ManualClock _clock;
         private readonly TreeAccount _account;
 
-        private Tree(ManualTimeProvider clock, HoldingQuotaStore store, TreeAccount account, AgentRunBudget budget)
+        private Tree(ManualClock clock, HoldingQuotaStore store, TreeAccount account, AgentRunBudget budget)
         {
             _clock = clock;
             _account = account;
@@ -105,7 +105,7 @@ public sealed class TreeQuotaCountOnceTests
 
         public static async Task<Tree> StartAsync(decimal? cost = null)
         {
-            var clock = new ManualTimeProvider(new DateTimeOffset(2026, 11, 9, 9, 0, 0, TimeSpan.Zero));
+            var clock = new ManualClock(new DateTimeOffset(2026, 11, 9, 9, 0, 0, TimeSpan.Zero));
             var store = new HoldingQuotaStore(new InMemoryQuotaStore());
             var enforcer = new QuotaEnforcer(
                 store,

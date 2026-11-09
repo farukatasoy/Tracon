@@ -155,7 +155,7 @@ public sealed class QuotaThresholdCrossingTests
     {
         var publisher = new RecordingPublisher();
         var store = new ClaimFaultQuotaStore(new InMemoryQuotaStore());
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
         var enforcer = new QuotaEnforcer(store, Options(new TraconQuotaOptions()), publisher, clock);
 
         await SaveQuotaAsync(store, maxRuns: 10);
@@ -178,7 +178,7 @@ public sealed class QuotaThresholdCrossingTests
     {
         var publisher = new RecordingPublisher();
         var store = new ClaimFaultQuotaStore(new InMemoryQuotaStore());
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
         var enforcer = new QuotaEnforcer(store, Options(new TraconQuotaOptions()), publisher, clock);
 
         await SaveQuotaAsync(store, maxRuns: 10);
@@ -203,7 +203,7 @@ public sealed class QuotaThresholdCrossingTests
         publisher.Events.ShouldHaveSingleItem().EventType.ShouldBe(WebhookEvents.QuotaThreshold);
     }
 
-    private static (QuotaEnforcer Enforcer, IQuotaStore Store, ManualTimeProvider Clock) Build(
+    private static (QuotaEnforcer Enforcer, IQuotaStore Store, ManualClock Clock) Build(
         bool runStreamEnabled = false,
         Action<TraconQuotaOptions>? configure = null,
         IWebhookPublisher? publisher = null)
@@ -212,7 +212,7 @@ public sealed class QuotaThresholdCrossingTests
         configure?.Invoke(options);
 
         var store = new InMemoryQuotaStore();
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
 
         return (new QuotaEnforcer(store, Options(options), publisher, clock), store, clock);
     }
@@ -243,7 +243,7 @@ public sealed class QuotaThresholdCrossingTests
 
     private static async Task<IReadOnlyList<QuotaThresholdCrossing>> RecordAsync(
         QuotaEnforcer enforcer,
-        ManualTimeProvider clock,
+        ManualClock clock,
         long runs = 1,
         long tokens = 0,
         decimal? cost = null,
@@ -251,7 +251,7 @@ public sealed class QuotaThresholdCrossingTests
         => await enforcer.RecordAsync(Consumption(clock, runs, tokens, cost, agentName));
 
     private static QuotaConsumption Consumption(
-        ManualTimeProvider clock,
+        ManualClock clock,
         long runs = 1,
         long tokens = 0,
         decimal? cost = null,

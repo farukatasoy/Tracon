@@ -25,7 +25,7 @@ public sealed class JobWorkerLeaseContractTests
         // on the real clock a 300 ms lease leaves a margin of 100 ms, and a tick that a loaded machine delayed by that much
         // made the worker give the lease up on purpose, the renewals stopped at two and the wait below ran out its 30 s. The
         // renewal timer still ticks in real time; only the time a lease may go unproven is read from this clock.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var jobs = new FailFirstRenewalJobStore(clock);
         var handler = new BlockingHandler();
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
@@ -48,7 +48,7 @@ public sealed class JobWorkerLeaseContractTests
     [Fact]
     public async Task A_job_whose_lease_ran_out_is_not_run_past_its_attempt_limit()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var jobs = new InMemoryJobStore(clock);
         var handler = new CountingHandler();
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
@@ -274,7 +274,7 @@ public sealed class JobWorkerLeaseContractTests
     [Fact]
     public async Task A_completion_the_store_keeps_refusing_is_left_to_lease_expiry()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var jobs = new RefusingCompletionJobStore(clock);
         var handler = new CountingHandler(jobs.Arm);
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
@@ -345,7 +345,7 @@ public sealed class JobWorkerLeaseContractTests
         // and it hands a running job whose lease has run out to the next poll. On the real clock that made the assertion
         // below a race between the worker letting go and the lease running out, and a loaded machine lost it; a lease that
         // cannot run out leaves the worker as the only thing that decides whether the job is run again.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.Refuse };
         var handler = new StopsWhenCancelledHandler(handlerReturnsNormally);
         var publisher = new RecordingPublisher();
@@ -390,7 +390,7 @@ public sealed class JobWorkerLeaseContractTests
     public async Task A_lost_lease_is_handed_out_again_once_it_lapses_on_the_stores_clock()
     {
         var lease = TimeSpan.FromMilliseconds(300);
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.Refuse };
         var handler = new StopsWhenCancelledHandler();
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
@@ -459,7 +459,7 @@ public sealed class JobWorkerLeaseContractTests
         // override CreateTimer uses the system timer), but the time a lease may go unproven is read from this clock.
         // On the real clock the margin was one renewal interval, 300 ms: a tick that a loaded machine delayed by that
         // much made the worker drop a healthy lease, the renewals stopped at one, and the wait below ran out its 30 s.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.ThrowOnce };
         var handler = new StopsWhenCancelledHandler();
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));

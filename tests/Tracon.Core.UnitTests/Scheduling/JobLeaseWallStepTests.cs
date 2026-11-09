@@ -25,7 +25,7 @@ public sealed class JobLeaseWallStepTests
     [Fact]
     public async Task A_wall_clock_stepped_past_the_lease_does_not_let_a_second_slot_lease_the_job_that_is_still_running()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var store = new ProbeJobStore(new InMemoryJobStore(clock));
         var handler = new CountingHandler();
 

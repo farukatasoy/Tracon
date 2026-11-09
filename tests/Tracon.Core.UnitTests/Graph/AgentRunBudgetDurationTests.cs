@@ -12,7 +12,7 @@ public sealed class AgentRunBudgetDurationTests
     [Fact]
     public void No_duration_limit_is_never_exhausted()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var budget = new AgentRunBudget(maxDuration: null, clock);
 
         clock.Advance(TimeSpan.FromDays(365));
@@ -25,7 +25,7 @@ public sealed class AgentRunBudgetDurationTests
     public void Deadline_is_computed_once_at_construction_from_the_given_TimeProvider()
     {
         var start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var clock = new ManualTimeProvider(start);
+        var clock = new ManualClock(start);
 
         var budget = new AgentRunBudget(TimeSpan.FromMinutes(5), clock);
 
@@ -41,7 +41,7 @@ public sealed class AgentRunBudgetDurationTests
     [Fact]
     public void Duration_limit_trips_once_the_deadline_passes()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var budget = new AgentRunBudget(TimeSpan.FromMinutes(5), clock);
 
         clock.Advance(TimeSpan.FromMinutes(4));
@@ -59,7 +59,7 @@ public sealed class AgentRunBudgetDurationTests
     {
         // TryReserveRun (child run start) also checks the deadline: no
         // new child run starts in a tree whose time has run out.
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var budget = new AgentRunBudget(TimeSpan.FromMinutes(5), clock);
 
         clock.Advance(TimeSpan.FromMinutes(5));
@@ -71,7 +71,7 @@ public sealed class AgentRunBudgetDurationTests
     [Fact]
     public void Zero_or_negative_MaxDuration_removes_the_limit_via_CreateBudget()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
 
         var zero = new TraconAgentGraphOptions { MaxDuration = TimeSpan.Zero }.CreateBudget(clock);
         var negative = new TraconAgentGraphOptions { MaxDuration = TimeSpan.FromSeconds(-1) }.CreateBudget(clock);
@@ -86,7 +86,7 @@ public sealed class AgentRunBudgetDurationTests
     public void Positive_MaxDuration_carries_through_CreateBudget()
     {
         var start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var clock = new ManualTimeProvider(start);
+        var clock = new ManualClock(start);
 
         var budget = new TraconAgentGraphOptions { MaxDuration = TimeSpan.FromMinutes(10) }.CreateBudget(clock);
 
@@ -101,7 +101,7 @@ public sealed class AgentRunBudgetDurationTests
         // means "no limit"), AgentRunBudget itself takes MaxDuration at face
         // value — the same way a raw MaxTotalTokens = 0 reads as "exhausted
         // from the start", not "unlimited".
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var budget = new AgentRunBudget(TimeSpan.Zero, clock);
 
         budget.IsDurationBudgetExhausted.ShouldBeTrue();
@@ -111,7 +111,7 @@ public sealed class AgentRunBudgetDurationTests
     public void Negative_MaxDuration_given_directly_produces_an_already_passed_deadline()
     {
         var start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var clock = new ManualTimeProvider(start);
+        var clock = new ManualClock(start);
         var budget = new AgentRunBudget(TimeSpan.FromSeconds(-5), clock);
 
         budget.Deadline.ShouldBe(start - TimeSpan.FromSeconds(5));
@@ -121,7 +121,7 @@ public sealed class AgentRunBudgetDurationTests
     [Fact]
     public void TimeSpan_MaxValue_does_not_overflow_DateTimeOffset()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
 
         var budget = new AgentRunBudget(TimeSpan.MaxValue, clock);
 
@@ -146,7 +146,7 @@ public sealed class AgentRunBudgetDurationTests
         // the class: the message-producing code and the exhaustion check
         // must read the same source, or a third dimension can drift out of
         // sync with the message that describes it.
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var budget = new AgentRunBudget(TimeSpan.FromSeconds(30), clock);
 
         clock.Advance(TimeSpan.FromSeconds(29));

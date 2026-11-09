@@ -147,7 +147,7 @@ public sealed class CompiledAgentCacheRaceTests
     [Fact]
     public async Task Sweeps_by_idle_time_that_run_while_the_cache_is_in_use_change_nothing_a_run_can_see()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = new CompiledAgentCache(
             new TraconAgentCacheOptions { MaxEntries = 10_000, IdleLifetime = TimeSpan.FromSeconds(30) },
             clock);

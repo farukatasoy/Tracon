@@ -15,7 +15,7 @@ public sealed class ToolCallLedgerTests
     [Fact]
     public void A_settled_call_keeps_its_result_its_times_and_how_long_it_took()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
 
         var started = clock.GetUtcNow();
@@ -39,7 +39,7 @@ public sealed class ToolCallLedgerTests
     [Fact]
     public void A_call_that_ended_with_an_exception_keeps_the_exception_and_no_result()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
         var failure = new InvalidOperationException("upstream connection reset");
 
@@ -60,14 +60,14 @@ public sealed class ToolCallLedgerTests
     {
         // The duration reads the monotonic clock, so a correction of the wall clock cannot make it negative; the wall
         // time of the end is a label, and it must not read earlier than the label of the start.
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
 
         var started = clock.GetUtcNow();
         var entry = ledger.Begin(Call("call-1")).ShouldNotBeNull();
 
         clock.Advance(TimeSpan.FromSeconds(5));
-        clock.Advance(TimeSpan.FromSeconds(-30));
+        clock.StepWallClock(TimeSpan.FromSeconds(-30));
         ledger.Settle(entry, "sunny");
 
         var snapshot = ledger.Unclaimed().ShouldHaveSingleItem();
@@ -79,7 +79,7 @@ public sealed class ToolCallLedgerTests
     [Fact]
     public void A_call_that_has_not_ended_is_open_and_has_no_duration()
     {
-        var ledger = new ToolCallLedger(new ManualTimeProvider());
+        var ledger = new ToolCallLedger(new ManualClock());
 
         ledger.Begin(Call("call-1")).ShouldNotBeNull();
 
@@ -94,7 +94,7 @@ public sealed class ToolCallLedgerTests
     public void A_call_that_is_already_open_belongs_to_the_layer_that_began_it()
     {
         // The tool chain composed twice around one tool: the inner layer must not record the call again.
-        var ledger = new ToolCallLedger(new ManualTimeProvider());
+        var ledger = new ToolCallLedger(new ManualClock());
 
         ledger.Begin(Call("call-1")).ShouldNotBeNull();
 
@@ -106,7 +106,7 @@ public sealed class ToolCallLedgerTests
     public void An_identity_used_again_after_its_call_ended_is_a_new_call()
     {
         // A provider that repeats an identity across two turns: each call is its own row.
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
 
         ledger.Settle(ledger.Begin(Call("call-1")).ShouldNotBeNull(), "first");
@@ -119,7 +119,7 @@ public sealed class ToolCallLedgerTests
     [Fact]
     public void A_call_settled_twice_keeps_its_first_outcome()
     {
-        var ledger = new ToolCallLedger(new ManualTimeProvider());
+        var ledger = new ToolCallLedger(new ManualClock());
         var entry = ledger.Begin(Call("call-1")).ShouldNotBeNull();
 
         ledger.Settle(entry, "first");
@@ -134,7 +134,7 @@ public sealed class ToolCallLedgerTests
     [Fact]
     public void Unclaimed_lists_the_calls_in_the_order_they_started_and_claims_nothing()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
 
         ledger.Begin(Call("call-a", "first"));
@@ -148,7 +148,7 @@ public sealed class ToolCallLedgerTests
     [Fact]
     public void A_claimed_call_is_handed_over_once_and_leaves_the_unclaimed_list()
     {
-        var ledger = new ToolCallLedger(new ManualTimeProvider());
+        var ledger = new ToolCallLedger(new ManualClock());
         ledger.Settle(ledger.Begin(Call("call-1")).ShouldNotBeNull(), "sunny");
 
         ledger.Claim("call-1").ShouldNotBeNull().Result.ShouldBe("sunny");
@@ -160,7 +160,7 @@ public sealed class ToolCallLedgerTests
     [Fact]
     public void A_claim_takes_the_oldest_call_with_the_identity_first()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
 
         ledger.Settle(ledger.Begin(Call("call-1")).ShouldNotBeNull(), "first");
@@ -176,7 +176,7 @@ public sealed class ToolCallLedgerTests
     public void A_call_that_did_not_pass_through_the_chain_is_not_in_the_ledger()
     {
         // A hosted tool, or a tool of the framework: the message is the only record of such a call.
-        var ledger = new ToolCallLedger(new ManualTimeProvider());
+        var ledger = new ToolCallLedger(new ManualClock());
 
         ledger.Claim("hosted-call").ShouldBeNull();
     }
@@ -184,7 +184,7 @@ public sealed class ToolCallLedgerTests
     [Fact]
     public void A_claimed_call_that_never_ended_does_not_hold_back_a_new_call_with_its_identity()
     {
-        var ledger = new ToolCallLedger(new ManualTimeProvider());
+        var ledger = new ToolCallLedger(new ManualClock());
 
         ledger.Begin(Call("call-1")).ShouldNotBeNull();
         ledger.Claim("call-1").ShouldNotBeNull();

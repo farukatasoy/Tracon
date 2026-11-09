@@ -17,7 +17,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// </para>
 /// <para>
 /// The expiry service reads the clock the host registers. A test that wants a request to run out
-/// hands the host a <see cref="ManualTimeProvider"/> and moves it; the scan interval is short so the
+/// hands the host a <see cref="ManualClock"/> and moves it; the scan interval is short so the
 /// service looks soon after.
 /// </para>
 /// </remarks>

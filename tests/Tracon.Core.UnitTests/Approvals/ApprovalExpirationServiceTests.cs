@@ -144,7 +144,7 @@ public sealed class ApprovalExpirationServiceTests
                 ? new InMemoryRunStore(tenantContext: new SingleTenantContext(Options.Create(new TraconOptions())))
                 : new InMemoryRunStore();
             Approvals = new InMemoryPendingApprovalStore();
-            Clock = new FixedClock(Now);
+            Clock = new ManualClock(Now);
 
             using var provider = new ServiceCollection()
                 .AddOptions<TraconApprovalOptions>().Services
@@ -165,7 +165,7 @@ public sealed class ApprovalExpirationServiceTests
 
         public InMemoryPendingApprovalStore Approvals { get; }
 
-        public FixedClock Clock { get; }
+        public ManualClock Clock { get; }
 
         public ApprovalExpirationService Service { get; }
 
@@ -208,10 +208,5 @@ public sealed class ApprovalExpirationServiceTests
                 ExpiresAt = expiresAt,
                 CreatedAt = Now.AddMinutes(-20),
             });
-    }
-
-    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
     }
 }

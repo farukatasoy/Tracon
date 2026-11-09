@@ -16,7 +16,7 @@ public sealed class JobLeaseExpiryTests
     [Fact]
     public async Task An_abandoned_lease_expires_and_the_re_leased_job_carries_its_completed_item_unfiltered()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         var store = new InMemoryJobStore(clock);
 
         var job = await store.EnqueueAsync(

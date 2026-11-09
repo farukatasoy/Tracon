@@ -127,7 +127,7 @@ public sealed class RunSamplerTests
     [Fact]
     public async Task Sampling_stops_when_MaxScoresPerHour_is_exceeded()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 7, 10, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 7, 10, 0, 0, TimeSpan.Zero));
         var (sampler, jobs) = Build(
             options =>
             {
@@ -147,7 +147,7 @@ public sealed class RunSamplerTests
     [Fact]
     public async Task Budget_resets_when_the_hour_changes()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 7, 10, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2026, 8, 7, 10, 0, 0, TimeSpan.Zero));
         var (sampler, jobs) = Build(
             options =>
             {
@@ -185,7 +185,7 @@ public sealed class RunSamplerTests
         var jobs = new InMemoryJobStore();
 
         return (
-            new RunSampler(jobs, new StaticOptionsMonitor<OnlineEvaluationOptions>(options), clock ?? new ManualTimeProvider()),
+            new RunSampler(jobs, new StaticOptionsMonitor<OnlineEvaluationOptions>(options), clock ?? new ManualClock()),
             jobs);
     }
 }

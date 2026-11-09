@@ -32,7 +32,7 @@ public sealed class RateLimitMemoryCardinalityTests
     [Fact]
     public async Task The_in_memory_counter_removes_the_entries_whose_window_has_ended()
     {
-        var clock = new ManualTimeProvider(Start.AddSeconds(15));
+        var clock = new ManualClock(Start.AddSeconds(15));
         var store = new InMemoryRateLimitCounterStore();
         var limiter = new DeploymentRateLimiter(store, clock);
 
@@ -52,7 +52,7 @@ public sealed class RateLimitMemoryCardinalityTests
     [Fact]
     public async Task A_window_that_is_still_open_keeps_counting_through_a_sweep()
     {
-        var clock = new ManualTimeProvider(Start.AddSeconds(15));
+        var clock = new ManualClock(Start.AddSeconds(15));
         var store = new InMemoryRateLimitCounterStore();
         var limiter = new DeploymentRateLimiter(store, clock);
 
@@ -115,7 +115,7 @@ public sealed class RateLimitMemoryCardinalityTests
     [Fact]
     public async Task A_longer_window_than_the_one_first_seen_is_never_cut_short()
     {
-        var clock = new ManualTimeProvider(Start.AddSeconds(15));
+        var clock = new ManualClock(Start.AddSeconds(15));
         var store = new InMemoryRateLimitCounterStore();
         var limiter = new DeploymentRateLimiter(store, clock);
         var hour = TimeSpan.FromHours(1);
@@ -135,7 +135,7 @@ public sealed class RateLimitMemoryCardinalityTests
     [Fact]
     public async Task The_warning_maps_forget_the_partitions_that_were_warned_about_longer_ago_than_the_interval()
     {
-        var clock = new ManualTimeProvider(Start);
+        var clock = new ManualClock(Start);
         var limiter = new DeploymentRateLimiter(new FailingStore(), clock);
 
         for (var tenant = 0; tenant < 3_000; tenant++)

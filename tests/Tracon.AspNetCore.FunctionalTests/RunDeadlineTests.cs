@@ -49,7 +49,7 @@ public sealed class RunDeadlineTests
         // of really sleeping: by the time it returns, the tree's time is
         // already up, and the cutoff must land on the NEXT model call
         // (the one that would produce "final answer"), never inside the tool.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
 
         await using var host = await TraconTestHost.StartAsync(
             builder => builder
@@ -141,7 +141,7 @@ public sealed class RunDeadlineTests
     {
         // Regression guard for the "Riskler" row: a zero (unset) MaxDuration
         // must not silently start cutting off runs that already run long.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
 
         await using var host = await TraconTestHost.StartAsync(
             builder => builder
@@ -178,7 +178,7 @@ public sealed class RunDeadlineTests
         // model call. An explicit cancel that interrupts a tool call already
         // in flight must win: the run's terminal status is Canceled, never
         // QuotaExceeded, however close the deadline already is.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var toolStarted = new TaskCompletionSource();
         var releaseTool = new TaskCompletionSource();
 

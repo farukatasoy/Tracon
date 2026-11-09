@@ -27,7 +27,7 @@ public sealed class AGUIRateLimitTests
             TestAgents.AddEcho,
             configureServices: services =>
             {
-                services.AddSingleton<TimeProvider>(new FrozenClock(FrozenNow));
+                services.AddSingleton<TimeProvider>(ManualClock.WithSystemTimers(FrozenNow));
                 services.Configure<TraconRateLimitOptions>(options =>
                 {
                     options.Enabled = true;
@@ -61,7 +61,7 @@ public sealed class AGUIRateLimitTests
             TestAgents.AddEcho,
             configureServices: services =>
             {
-                services.AddSingleton<TimeProvider>(new FrozenClock(FrozenNow));
+                services.AddSingleton<TimeProvider>(ManualClock.WithSystemTimers(FrozenNow));
                 services.Configure<TraconRateLimitOptions>(options =>
                 {
                     options.Enabled = true;
@@ -86,10 +86,4 @@ public sealed class AGUIRateLimitTests
 
     private static async Task<HttpStatusCode> AgUiStatusAsync(AGUITestHost host, string thread)
         => (await host.RunAsync(TestAgents.Echo, AGUIInputs.User(thread, "hi"))).Status;
-
-    /// <summary>A wall clock that stands still. Timers stay real.</summary>
-    private sealed class FrozenClock(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
-    }
 }

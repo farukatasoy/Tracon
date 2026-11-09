@@ -31,7 +31,7 @@ public sealed class SingletonLeaseTakeoverTests
     [Fact]
     public async Task Other_instance_takes_over_when_the_owner_stops()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var store = new InMemorySingletonLeaseStore(clock);
         var lease = Options(new SingletonExecutionOptions { Enabled = true, LeaseDuration = TimeSpan.FromSeconds(30) });
 

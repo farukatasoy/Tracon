@@ -327,7 +327,7 @@ public sealed class BudgetLineageTests
     [Fact]
     public async Task A_store_that_cannot_be_read_fails_the_read_and_never_returns_a_zero()
     {
-        var clock = new AdjustableClock(Start);
+        var clock = new ManualClock(Start);
         var failing = new FaultyReadRunStore(
             new InMemoryRunStore(tenantContext: new WorkflowTestHost.FixedTenantContext()),
             static _ => new IOException("the run store is down"));
@@ -342,7 +342,7 @@ public sealed class BudgetLineageTests
     [Fact]
     public async Task A_cancellation_is_not_turned_into_a_failure_to_read()
     {
-        var clock = new AdjustableClock(Start);
+        var clock = new ManualClock(Start);
         var store = new InMemoryRunStore(tenantContext: new WorkflowTestHost.FixedTenantContext());
 
         using var cancellation = new CancellationTokenSource();
@@ -372,10 +372,10 @@ public sealed class BudgetLineageTests
         WorkflowResponseLink.ReadSourceRunId($$"""{"sourceRunId":"{{source}}","requestId":"cut""").ShouldBeNull();
     }
 
-    private static (InMemoryRunStore Store, AdjustableClock Clock) Setup()
-        => (new InMemoryRunStore(tenantContext: new WorkflowTestHost.FixedTenantContext()), new AdjustableClock(Start));
+    private static (InMemoryRunStore Store, ManualClock Clock) Setup()
+        => (new InMemoryRunStore(tenantContext: new WorkflowTestHost.FixedTenantContext()), new ManualClock(Start));
 
-    private static async ValueTask<BudgetCarryOver> ReadAsync(InMemoryRunStore store, AdjustableClock clock, Guid run, ILogger? logger = null)
+    private static async ValueTask<BudgetCarryOver> ReadAsync(InMemoryRunStore store, ManualClock clock, Guid run, ILogger? logger = null)
         => await BudgetLineage.ReadAsync(store, run, Tenant, "USD", clock, logger ?? NullLogger.Instance, CancellationToken.None);
 
     private static async Task OpenAsync(

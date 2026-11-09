@@ -139,7 +139,7 @@ public abstract class SqlLeaseUnderClockSkewContract
     [InlineData(-3600)]
     public async Task A_single_executor_lease_ends_when_the_database_clock_says_so(int ownerOffsetSeconds)
     {
-        var stores = await OpenAsync(new ShiftedClock(ownerOffsetSeconds), new ShiftedClock(0));
+        var stores = await OpenAsync(ShiftedBy(ownerOffsetSeconds), ShiftedBy(0));
         var name = $"skew-{Guid.NewGuid():N}";
 
         var clock = Stopwatch.StartNew();
@@ -175,9 +175,9 @@ public abstract class SqlLeaseUnderClockSkewContract
     [InlineData(-3600)]
     public async Task A_node_whose_clock_differs_does_not_take_a_job_another_node_is_running(int aheadSeconds)
     {
-        var first = new ShiftedClock(0);
+        var first = ShiftedBy(0);
 
-        var stores = await OpenAsync(first, new ShiftedClock(aheadSeconds));
+        var stores = await OpenAsync(first, ShiftedBy(aheadSeconds));
 
         await stores.FirstJobs.EnqueueAsync(Due(), ["a"], TestContext.Current.CancellationToken);
 
@@ -213,9 +213,9 @@ public abstract class SqlLeaseUnderClockSkewContract
     [InlineData(-3600)]
     public async Task A_job_lease_ends_when_the_database_clock_says_so(int firstOffsetSeconds)
     {
-        var first = new ShiftedClock(firstOffsetSeconds);
+        var first = ShiftedBy(firstOffsetSeconds);
 
-        var stores = await OpenAsync(first, new ShiftedClock(0));
+        var stores = await OpenAsync(first, ShiftedBy(0));
 
         await stores.FirstJobs.EnqueueAsync(Due(), ["a"], TestContext.Current.CancellationToken);
 
@@ -262,9 +262,9 @@ public abstract class SqlLeaseUnderClockSkewContract
     [InlineData(-3600)]
     public async Task A_job_renewal_by_a_node_whose_clock_differs_is_measured_on_the_database_clock(int ownerOffsetSeconds)
     {
-        var owner = new ShiftedClock(ownerOffsetSeconds);
+        var owner = ShiftedBy(ownerOffsetSeconds);
 
-        var stores = await OpenAsync(owner, new ShiftedClock(0));
+        var stores = await OpenAsync(owner, ShiftedBy(0));
 
         await stores.FirstJobs.EnqueueAsync(Due(), ["a"], TestContext.Current.CancellationToken);
 
@@ -323,7 +323,7 @@ public abstract class SqlLeaseUnderClockSkewContract
     [InlineData(-3600)]
     public async Task A_retry_delay_is_measured_on_the_database_clock(int releaserOffsetSeconds)
     {
-        var stores = await OpenAsync(new ShiftedClock(releaserOffsetSeconds), new ShiftedClock(0));
+        var stores = await OpenAsync(ShiftedBy(releaserOffsetSeconds), ShiftedBy(0));
 
         await stores.FirstJobs.EnqueueAsync(Due(), ["a"], TestContext.Current.CancellationToken);
 
@@ -364,9 +364,9 @@ public abstract class SqlLeaseUnderClockSkewContract
     [Fact]
     public async Task A_job_written_with_a_time_ahead_of_the_database_waits_until_the_database_reaches_it()
     {
-        var writer = new ShiftedClock(90);
+        var writer = ShiftedBy(90);
 
-        var stores = await OpenAsync(writer, new ShiftedClock(90));
+        var stores = await OpenAsync(writer, ShiftedBy(90));
 
         // What a node queues "to run at once": its own now, which is ninety seconds past the database's.
         var atOnce = TestData.Job(scheduledFor: writer.GetUtcNow());
@@ -432,9 +432,9 @@ public abstract class SqlLeaseUnderClockSkewContract
     [Fact]
     public async Task A_fast_node_polling_takes_none_of_the_running_jobs_of_another_node()
     {
-        var first = new ShiftedClock(0);
+        var first = ShiftedBy(0);
 
-        var stores = await OpenAsync(first, new ShiftedClock((int)JobLeaseDuration.TotalSeconds + 1));
+        var stores = await OpenAsync(first, ShiftedBy((int)JobLeaseDuration.TotalSeconds + 1));
         const int Jobs = 3;
         var leases = new List<JobLease>();
 
@@ -505,6 +505,10 @@ public abstract class SqlLeaseUnderClockSkewContract
     private static JobLeaseRequest Request(string owner, TimeSpan? duration = null)
         => new() { Owner = owner, LeaseDuration = duration ?? JobLeaseDuration };
 
+    /// <summary>The system clock moved by a fixed amount: it keeps running, and it is wrong by that amount.</summary>
+    /// <param name="offsetSeconds">How far the clock is ahead of the real time (negative: behind).</param>
+    private static ManualClock ShiftedBy(int offsetSeconds) => ManualClock.OverSystemClock(TimeSpan.FromSeconds(offsetSeconds));
+
     private static JobCompletion Completion(TimeProvider clock)
         => new() { Status = JobStatus.Completed, CompletedAt = clock.GetUtcNow() };
 
@@ -520,13 +524,6 @@ public abstract class SqlLeaseUnderClockSkewContract
     /// <summary>Writes one measured row where a run with detailed output shows it.</summary>
     private static void Report(string subject, string setup, string observed)
         => TestContext.Current.TestOutputHelper?.WriteLine($"[clock skew] {subject} | {setup} | {observed}");
-
-    /// <summary>The system clock moved by a fixed amount: it keeps running, and it is wrong by that amount.</summary>
-    /// <param name="offsetSeconds">How far the clock is ahead of the real time (negative: behind).</param>
-    private sealed class ShiftedClock(int offsetSeconds) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => base.GetUtcNow() + TimeSpan.FromSeconds(offsetSeconds);
-    }
 
     /// <summary>An options monitor that returns one value and never tracks changes.</summary>
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>

@@ -95,7 +95,7 @@ public sealed class JobMetricsTests
     [Fact]
     public async Task The_duration_comes_from_the_monotonic_clock_not_the_wall_clock()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 2, 12, 0, 0, TimeSpan.Zero));
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2026, 9, 2, 12, 0, 0, TimeSpan.Zero), systemTimestamp: false);
 
         // The handler advances the monotonic clock by 5 s and simultaneously
         // drags the WALL clock an hour backwards -- an NTP correction mid-job.
@@ -207,12 +207,12 @@ public sealed class JobMetricsTests
         private readonly TaggedCollector _collector;
         private readonly TestJobHandlerHost _handlers;
         private readonly JobWorkerBackgroundService _worker;
-        private readonly ManualTimeProvider? _clock;
+        private readonly ManualClock? _clock;
 
         public WorkerHarness(
             IJobHandler? handler,
             Action<TraconSchedulingOptions>? configure = null,
-            ManualTimeProvider? clock = null)
+            ManualClock? clock = null)
         {
             _clock = clock;
 
@@ -382,12 +382,12 @@ public sealed class JobMetricsTests
     }
 
     /// <summary>Moves the monotonic clock forward and the wall clock backwards while the job runs.</summary>
-    private sealed class ClockMovingHandler(ManualTimeProvider clock, TimeSpan forward, TimeSpan rewind) : IJobHandler
+    private sealed class ClockMovingHandler(ManualClock clock, TimeSpan forward, TimeSpan rewind) : IJobHandler
     {
         public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
         {
             clock.Advance(forward);
-            clock.Advance(-rewind);
+            clock.StepWallClock(-rewind);
 
             return default;
         }

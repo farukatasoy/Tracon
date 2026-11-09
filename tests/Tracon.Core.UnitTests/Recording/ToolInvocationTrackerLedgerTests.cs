@@ -14,7 +14,7 @@ public sealed class ToolInvocationTrackerLedgerTests
     [Fact]
     public void A_run_that_does_not_stream_takes_the_duration_and_the_settle_time_from_the_ledger()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
         var tracker = new ToolInvocationTracker(TraconId.NewId(), measureDuration: false, clock, ledger: ledger);
 
@@ -37,7 +37,7 @@ public sealed class ToolInvocationTrackerLedgerTests
     [Fact]
     public void A_run_that_streams_keeps_its_own_measurement()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
         var tracker = new ToolInvocationTracker(TraconId.NewId(), measureDuration: true, clock, ledger: ledger);
 
@@ -57,7 +57,7 @@ public sealed class ToolInvocationTrackerLedgerTests
     [Fact]
     public void A_call_outside_the_tool_chain_has_no_duration_in_a_run_that_does_not_stream()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var tracker = new ToolInvocationTracker(TraconId.NewId(), measureDuration: false, clock, ledger: new ToolCallLedger(clock));
 
         tracker.OnCall(Call("hosted-1"), source: null, arguments: null);
@@ -71,7 +71,7 @@ public sealed class ToolInvocationTrackerLedgerTests
     [Fact]
     public void Writing_the_row_claims_the_call_so_the_close_step_finds_nothing_left()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
         var tracker = new ToolInvocationTracker(TraconId.NewId(), measureDuration: false, clock, ledger: ledger);
 
@@ -87,7 +87,7 @@ public sealed class ToolInvocationTrackerLedgerTests
     [Fact]
     public void A_call_the_tracker_holds_as_started_is_reported_as_pending_until_it_is_written()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var tracker = new ToolInvocationTracker(TraconId.NewId(), measureDuration: false, clock);
 
         tracker.IsPending("call-1").ShouldBeFalse();
@@ -102,7 +102,7 @@ public sealed class ToolInvocationTrackerLedgerTests
     [Fact]
     public void An_unfinished_call_is_closed_with_the_time_it_ran_and_claimed()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var ledger = new ToolCallLedger(clock);
         var tracker = new ToolInvocationTracker(TraconId.NewId(), measureDuration: false, clock, ledger: ledger);
 
@@ -123,7 +123,7 @@ public sealed class ToolInvocationTrackerLedgerTests
     [Fact]
     public void An_unfinished_call_has_no_duration_without_a_ledger_in_a_run_that_does_not_stream()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var tracker = new ToolInvocationTracker(TraconId.NewId(), measureDuration: false, clock);
 
         tracker.OnCall(Call("call-1"), source: null, arguments: null);

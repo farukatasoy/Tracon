@@ -31,7 +31,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task A_run_whose_request_ran_out_of_time_is_closed_and_an_answer_to_it_is_refused()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         await using var host = await StartAsync(clock: clock);
 
         var (runId, requestId) = await RunToAwaitAsync(host, Timed);
@@ -66,7 +66,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task A_request_without_a_limit_never_expires()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         await using var host = await StartAsync(clock: clock);
 
         var (runId, _) = await RunToAwaitAsync(host, Open);
@@ -81,7 +81,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task An_answered_request_closes_its_run_as_completed_and_not_as_a_failure()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         await using var host = await StartAsync(clock: clock);
 
         var (runId, requestId) = await RunToAwaitAsync(host, Timed);
@@ -106,7 +106,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task Each_tenant_has_its_own_requests_closed()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         await using var host = await StartAsync(tenancy: true, clock: clock);
 
         var alpha = await RunToAwaitAsync(host, Timed, tenant: "alpha");
@@ -126,7 +126,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task A_stored_workflow_expires_at_the_limit_of_the_version_the_run_recorded()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         await using var host = await StartAsync(
             clock: clock,
             configureTracon: static builder => builder
@@ -161,7 +161,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     public async Task A_run_left_waiting_by_a_process_that_stopped_after_closing_its_row_is_closed_by_the_next_process()
     {
         using var database = new TempSqliteDatabase("request-expiry-restart");
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         Guid runId;
 
         // The first process scans once an hour, so it does nothing during the case. It closes the
@@ -180,7 +180,7 @@ public sealed class WorkflowRequestExpirationHttpTests
         }
 
         // The next process takes the lease, looks for runs a stopped process left, and closes this one.
-        await using var second = await StartAsync(clock: new ManualTimeProvider(), configureTracon: builder => builder.UseSqlite(database.ConnectionString));
+        await using var second = await StartAsync(clock: ManualClock.WithSystemTimers(), configureTracon: builder => builder.UseSqlite(database.ConnectionString));
 
         await second.WaitForRunStatusAsync(runId, "Failed");
 
@@ -198,7 +198,7 @@ public sealed class WorkflowRequestExpirationHttpTests
         // in it passes the check "the run still waits" and starts its work; the row is closed, so
         // the answer cannot mark it. When the run is closed, nothing on it says it was answered.
         using var database = new TempSqliteDatabase("request-expiry-window");
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         Guid runId;
         Guid answerRun;
 
@@ -223,7 +223,7 @@ public sealed class WorkflowRequestExpirationHttpTests
             row.AnsweredAt.ShouldBeNull();
         }
 
-        await using var second = await StartAsync(clock: new ManualTimeProvider(), configureTracon: builder => builder.UseSqlite(database.ConnectionString));
+        await using var second = await StartAsync(clock: ManualClock.WithSystemTimers(), configureTracon: builder => builder.UseSqlite(database.ConnectionString));
 
         await second.WaitForRunStatusAsync(runId, "Failed");
 
@@ -241,7 +241,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     public async Task What_a_waiting_run_keeps_is_kept_until_its_request_expires_and_released_after()
     {
         using var database = new TempSqliteDatabase("request-expiry-retention");
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         await using var host = await StartAsync(
             clock: clock,
             configureTracon: builder => builder.UseSqlite(database.ConnectionString));

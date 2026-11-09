@@ -29,7 +29,7 @@ public sealed class JobLeaseClockStepTests
     [Fact]
     public async Task A_wall_clock_stepped_forward_and_back_does_not_cost_the_running_job_its_lease()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var store = new ProbeJobStore(new InMemoryJobStore(clock));
         var handler = new GatedHandler();
         var (worker, host) = Worker(store, handler, OneSlot, clock: clock);
@@ -72,7 +72,7 @@ public sealed class JobLeaseClockStepTests
     [Fact]
     public async Task A_monotonic_jump_past_the_lease_with_a_healthy_store_still_lets_the_job_finish()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var store = new ProbeJobStore(new InMemoryJobStore(clock));
         var handler = new GatedHandler();
         var (worker, host) = Worker(store, handler, OneSlot, clock: clock);
@@ -111,7 +111,7 @@ public sealed class JobLeaseClockStepTests
     {
         // The safe direction: a counter that says the lease ran out, and a store that cannot confirm it, end the attempt at
         // the next tick instead of letting the handler run on a lease another worker may hold.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var store = new ProbeJobStore(new InMemoryJobStore(clock));
         var handler = new GatedHandler();
         var (worker, host) = Worker(store, handler, OneSlot, clock: clock);
@@ -142,7 +142,7 @@ public sealed class JobLeaseClockStepTests
     public async Task The_same_store_outage_without_a_monotonic_jump_keeps_the_handler_running_until_the_lease_could_really_have_run_out()
     {
         // The other side of the test above: nothing but the jump differs, so the jump is what ended the attempt.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var store = new ProbeJobStore(new InMemoryJobStore(clock));
         var handler = new GatedHandler();
         var (worker, host) = Worker(store, handler, OneSlot, clock: clock);
@@ -180,7 +180,7 @@ public sealed class JobLeaseClockStepTests
         // has passed on the clock the worker counts the lease on, so the lease is still provable and the handler keeps
         // running. A worker that counted on the wall clock would give a lease up that it holds (a step ahead) or keep
         // one that is gone (a step back).
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var store = new ProbeJobStore(new InMemoryJobStore(clock));
         var handler = new GatedHandler();
         var (worker, host) = Worker(store, handler, OneSlot, clock: clock);
@@ -214,7 +214,7 @@ public sealed class JobLeaseClockStepTests
     {
         // The failing path stamps the completion with the host's wall clock as the succeeding path does: a record, and
         // no decision. The close must happen whatever the step, once, on the first and only attempt.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers(systemTimestamp: false);
         var store = new ProbeJobStore(new InMemoryJobStore(clock));
         var handler = new GatedHandler { FailOnRelease = true };
         var (worker, host) = Worker(store, handler, OneSlot, clock: clock);

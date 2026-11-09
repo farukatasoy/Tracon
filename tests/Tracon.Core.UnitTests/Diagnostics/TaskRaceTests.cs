@@ -43,7 +43,7 @@ public sealed class TaskRaceTests
     [Fact]
     public async Task Races_that_work_wins_leave_no_timer_running()
     {
-        var clock = new CountingTimeProvider();
+        var clock = new ManualClock();
 
         for (var round = 0; round < 100; round++)
         {

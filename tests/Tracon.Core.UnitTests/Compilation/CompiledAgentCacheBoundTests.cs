@@ -22,10 +22,10 @@ public sealed class CompiledAgentCacheBoundTests
 {
     private const string Fingerprint = "FINGERPRINT-1";
 
-    private static CompiledAgentCache Create(int maxEntries, TimeSpan? idleLifetime = null, ManualTimeProvider? clock = null)
+    private static CompiledAgentCache Create(int maxEntries, TimeSpan? idleLifetime = null, ManualClock? clock = null)
         => new(
             new TraconAgentCacheOptions { MaxEntries = maxEntries, IdleLifetime = idleLifetime ?? TimeSpan.FromHours(1) },
-            clock ?? new ManualTimeProvider());
+            clock ?? new ManualClock());
 
     private static AIAgent Resolve(CompiledAgentCache cache, string tenant, string name = "support", string dependencies = "")
         => cache.GetOrAdd(tenant, name, Fingerprint, dependencies, string.Empty, () => new TaggedAgent($"{tenant}/{name}/{dependencies}"));
@@ -92,7 +92,7 @@ public sealed class CompiledAgentCacheBoundTests
     [Fact]
     public void The_entries_used_least_recently_are_the_ones_dropped()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = Create(maxEntries: 10, clock: clock);
 
         for (var tenant = 0; tenant < 10; tenant++)
@@ -119,7 +119,7 @@ public sealed class CompiledAgentCacheBoundTests
     [Fact]
     public void Several_entries_are_dropped_in_the_order_they_were_last_used()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = Create(maxEntries: 20, clock: clock);
 
         for (var tenant = 0; tenant < 20; tenant++)
@@ -156,7 +156,7 @@ public sealed class CompiledAgentCacheBoundTests
         for (var seed = 0; seed < 20; seed++)
         {
             var random = new Random(seed);
-            var clock = new ManualTimeProvider();
+            var clock = new ManualClock();
             var cache = Create(maxEntries: 60, clock: clock);
             var lastUsed = new Dictionary<string, (long Use, int Stored)>(StringComparer.Ordinal);
 
@@ -221,7 +221,7 @@ public sealed class CompiledAgentCacheBoundTests
     [Fact]
     public void An_entry_that_stays_idle_for_the_whole_lifetime_is_dropped_when_the_cache_is_next_used()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = Create(maxEntries: 1_000, idleLifetime: TimeSpan.FromMinutes(10), clock: clock);
 
         Resolve(cache, "tenant-a");
@@ -241,7 +241,7 @@ public sealed class CompiledAgentCacheBoundTests
     [Fact]
     public void A_miss_sweeps_the_idle_entries_too()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = Create(maxEntries: 1_000, idleLifetime: TimeSpan.FromMinutes(10), clock: clock);
 
         Resolve(cache, "tenant-a");
@@ -256,7 +256,7 @@ public sealed class CompiledAgentCacheBoundTests
     [Fact]
     public void A_use_starts_the_idle_time_again()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = Create(maxEntries: 1_000, idleLifetime: TimeSpan.FromMinutes(10), clock: clock);
 
         Resolve(cache, "tenant-a");
@@ -274,7 +274,7 @@ public sealed class CompiledAgentCacheBoundTests
     [Fact]
     public void An_entry_is_not_dropped_before_its_lifetime_has_passed()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = Create(maxEntries: 1_000, idleLifetime: TimeSpan.FromMinutes(10), clock: clock);
 
         Resolve(cache, "tenant-a");
@@ -295,7 +295,7 @@ public sealed class CompiledAgentCacheBoundTests
     [InlineData("replaced")]
     public void An_entry_that_leaves_the_cache_is_not_disposed_and_the_run_that_holds_it_keeps_a_working_agent(string how)
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
 
         // A cache with room, so the idle case leaves by its lifetime and by nothing else.
         var cache = Create(maxEntries: string.Equals(how, "idle", StringComparison.Ordinal) ? 100 : 1, idleLifetime: TimeSpan.FromMinutes(10), clock: clock);
@@ -331,7 +331,7 @@ public sealed class CompiledAgentCacheBoundTests
     [Fact]
     public void A_key_never_serves_another_tenants_agent_after_eviction_and_compiling_again()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = Create(maxEntries: 10, clock: clock);
         var random = new Random(20261104);
 
@@ -384,7 +384,7 @@ public sealed class CompiledAgentCacheBoundTests
     [Fact]
     public void The_defaults_hold_a_single_tenant_installation_without_dropping_anything()
     {
-        var clock = new ManualTimeProvider();
+        var clock = new ManualClock();
         var cache = new CompiledAgentCache(new TraconAgentCacheOptions(), clock);
 
         // 100 agents, three cultures, three live versions of each: far more than a single tenant keeps.

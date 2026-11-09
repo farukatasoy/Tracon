@@ -21,7 +21,7 @@ public sealed class ModelProviderCircuitBreakerClockTests
     [Fact]
     public void A_wall_clock_stepped_back_does_not_keep_the_circuit_open_longer_than_the_break()
     {
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var breaker = Breaker(time);
 
         breaker.RecordFailure(Provider);
@@ -39,7 +39,7 @@ public sealed class ModelProviderCircuitBreakerClockTests
     [Fact]
     public void A_wall_clock_stepped_forward_does_not_close_the_circuit_early()
     {
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var breaker = Breaker(time);
 
         breaker.RecordFailure(Provider);
@@ -56,7 +56,7 @@ public sealed class ModelProviderCircuitBreakerClockTests
     [Fact]
     public void The_remaining_break_the_health_report_gives_follows_the_elapsed_time_not_the_wall_clock()
     {
-        var time = new ManualTimeProvider();
+        var time = new ManualClock();
         var breaker = Breaker(time);
 
         breaker.RecordFailure(Provider);

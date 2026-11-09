@@ -33,7 +33,7 @@ public sealed class ScheduledJobSecretCanaryTests
     {
         const string Scenario = "scheduled-job";
 
-        var clock = new ManualTimeProvider(new DateTimeOffset(2030, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2030, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         using var database = new TempSqliteDatabase("scheduled-job-canary");
 

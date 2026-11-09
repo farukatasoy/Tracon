@@ -64,7 +64,7 @@ public sealed class FunctionNodeBudgetGateTests
     [Fact]
     public async Task A_function_node_does_not_start_once_the_time_budget_has_passed()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var synthesized = new Calls();
 
         await using var host = await StartAsync(
@@ -389,7 +389,7 @@ public sealed class FunctionNodeBudgetGateTests
         // cancelled run, or the runner files a cancelled run as Canceled whatever it threw (the
         // two are not told apart here). The order inside the gate is pinned by the unit case
         // `A_cancelled_call_throws_the_cancellation_before_the_budget_refusal`.
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var rendering = new TaskCompletionSource();
         var release = new TaskCompletionSource();
         var synthesized = new Calls();

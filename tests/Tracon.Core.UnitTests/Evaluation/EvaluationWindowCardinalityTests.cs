@@ -32,10 +32,10 @@ public sealed class EvaluationWindowCardinalityTests
         Status = RunStatus.Completed,
     };
 
-    private static (RunSampler Sampler, ManualTimeProvider Clock) BuildSampler(int maxScoresPerHour = 5)
+    private static (RunSampler Sampler, ManualClock Clock) BuildSampler(int maxScoresPerHour = 5)
     {
         var options = new OnlineEvaluationOptions { Enabled = true, SampleRate = 1.0, MaxScoresPerHour = maxScoresPerHour };
-        var clock = new ManualTimeProvider(Noon);
+        var clock = new ManualClock(Noon);
 
         return (new RunSampler(new InMemoryJobStore(), new StaticOptionsMonitor<OnlineEvaluationOptions>(options), clock), clock);
     }
@@ -124,7 +124,7 @@ public sealed class EvaluationWindowCardinalityTests
     [Fact]
     public async Task A_sweep_that_removes_the_score_window_between_the_lookup_and_the_lock_does_not_lose_the_score()
     {
-        var clock = new ManualTimeProvider(Noon);
+        var clock = new ManualClock(Noon);
         var window = TimeSpan.FromHours(1);
         var options = new OnlineEvaluationOptions { EvaluationWindow = window, MinSampleSize = 2, LowScoreThreshold = 60 };
         var publisher = new CountingPublisher();
@@ -157,7 +157,7 @@ public sealed class EvaluationWindowCardinalityTests
     [Fact]
     public async Task The_score_windows_that_hold_no_score_are_removed()
     {
-        var clock = new ManualTimeProvider(Noon);
+        var clock = new ManualClock(Noon);
         var options = new OnlineEvaluationOptions { EvaluationWindow = TimeSpan.FromHours(1) };
         var service = new OnlineEvalSummaryService(
             new InMemoryRunStore(),
@@ -181,7 +181,7 @@ public sealed class EvaluationWindowCardinalityTests
     [Fact]
     public async Task A_score_window_that_still_holds_a_score_is_kept_and_keeps_counting()
     {
-        var clock = new ManualTimeProvider(Noon);
+        var clock = new ManualClock(Noon);
         var options = new OnlineEvaluationOptions { EvaluationWindow = TimeSpan.FromHours(1), MinSampleSize = 2, LowScoreThreshold = 60 };
         var publisher = new CountingPublisher();
         var service = new OnlineEvalSummaryService(

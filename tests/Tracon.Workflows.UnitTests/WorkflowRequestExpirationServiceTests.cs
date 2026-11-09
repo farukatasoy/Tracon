@@ -304,7 +304,7 @@ public sealed class WorkflowRequestExpirationServiceTests
         var service = BuildService(
             inbox,
             host.RunStore,
-            new AdjustableClock(DateTimeOffset.UtcNow),
+            new ManualClock(DateTimeOffset.UtcNow),
             factory.CreateLogger<WorkflowRequestExpirationService>());
 
         await service.TickAsync(CancellationToken.None);
@@ -359,7 +359,7 @@ public sealed class WorkflowRequestExpirationServiceTests
         var service = BuildService(
             new UnreachableInbox(),
             host.RunStore,
-            new AdjustableClock(DateTimeOffset.UtcNow),
+            new ManualClock(DateTimeOffset.UtcNow),
             factory.CreateLogger<WorkflowRequestExpirationService>());
 
         await service.TickAsync(CancellationToken.None);
@@ -400,7 +400,7 @@ public sealed class WorkflowRequestExpirationServiceTests
             _workflow = workflow;
             Host = new WorkflowTestHost();
             Inbox = new StrandingInbox(new InMemoryWorkflowRequestStore(Host.TenantContext), Host.RunStore);
-            Clock = new AdjustableClock(DateTimeOffset.UtcNow);
+            Clock = new ManualClock(DateTimeOffset.UtcNow);
             Logs = new CapturingLoggerProvider();
             _factory = new LoggerFactory([Logs]);
 
@@ -419,7 +419,7 @@ public sealed class WorkflowRequestExpirationServiceTests
 
         public StrandingInbox Inbox { get; }
 
-        public AdjustableClock Clock { get; }
+        public ManualClock Clock { get; }
 
         public CapturingLoggerProvider Logs { get; }
 

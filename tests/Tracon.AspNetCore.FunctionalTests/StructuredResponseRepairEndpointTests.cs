@@ -141,7 +141,7 @@ public sealed class StructuredResponseRepairEndpointTests
     [Fact]
     public async Task The_trees_deadline_still_applies_to_a_repair_turn_and_stops_it_from_looping()
     {
-        var clock = new ManualTimeProvider();
+        var clock = ManualClock.WithSystemTimers();
         var provider = new ClockAdvancingModelProvider(clock, TimeSpan.FromSeconds(10));
 
         await using var host = await TraconTestHost.StartAsync(
@@ -386,11 +386,11 @@ public sealed class StructuredResponseRepairEndpointTests
     }
 
     /// <summary>
-    /// A model provider whose every call advances a <see cref="ManualTimeProvider"/>
+    /// A model provider whose every call advances a <see cref="ManualClock"/>
     /// by <paramref name="advancePerCall"/> before answering with invalid JSON -
     /// used to trip <c>AgentGraph.MaxDuration</c> deterministically without a real delay.
     /// </summary>
-    private sealed class ClockAdvancingModelProvider(ManualTimeProvider clock, TimeSpan advancePerCall) : IModelProvider
+    private sealed class ClockAdvancingModelProvider(ManualClock clock, TimeSpan advancePerCall) : IModelProvider
     {
         public string Name => "structured";
 
