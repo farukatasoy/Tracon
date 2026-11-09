@@ -1498,12 +1498,20 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // Webhook
         // -------------------------------------------------------------------
 
+        // 🚨 ON CONFLICT names ONE index. Two writers that save the same new record (the same identifier and the same
+        // name) both pass the check of the name index before either has written to it, and the second then fails on the
+        // primary key when the first commits. Measured: about one send in five failed that way with eight writers. The
+        // writers of one (tenant, name) are put in a line before the insert instead: the lock is taken while the row is
+        // built, so the second writer reaches the check after the first has committed and updates the row it finds.
+        // The lock lives as long as the statement's own transaction; nothing else takes it.
         UpsertWebhookSubscription = $"""
             INSERT INTO {Schema}.webhook_subscriptions
                 ({WebhookSubscriptionColumns})
-            VALUES
-                (@id, @tenant_id, @name, @url, @events, @secret_configuration_key, @headers, @enabled,
-                 @consecutive_failures, @created_at, @updated_at, @header_configuration_keys)
+            SELECT @id, @tenant_id, @name, @url, @events, @secret_configuration_key, @headers, @enabled,
+                   @consecutive_failures, @created_at, @updated_at, @header_configuration_keys
+              FROM (SELECT pg_advisory_xact_lock(
+                        hashtextextended('{Schema}.webhook_subscriptions' || chr(31) || @tenant_id || chr(31) || @name, 0))
+                   ) AS serialized
             ON CONFLICT (tenant_id, name) DO UPDATE
                SET url                       = EXCLUDED.url,
                    events                    = EXCLUDED.events,

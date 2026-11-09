@@ -90,15 +90,22 @@ public sealed class MigrationParityTests
 
         foreach (var (dialect, upsert) in Upserts(table))
         {
-            // The @-parameter list of every VALUES clause in the statement.
+            // The @-parameter list of every VALUES clause in the statement, and of every INSERT ... SELECT that lists
+            // only parameters: a statement that has to run something before the insert (a lock taken while the row is
+            // built) selects its row instead of listing it in VALUES, and the order is carried by hand the same way.
             var valueLists = Regex
                 .Matches(upsert, @"VALUES\s*\((?<columns>[^)]*)\)",
                     RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
                     TimeSpan.FromSeconds(5))
+                .Concat(Regex.Matches(
+                    upsert,
+                    @"\bSELECT\s+(?<columns>@\w+(?:\s*,\s*@\w+)*)\s+FROM\b",
+                    RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+                    TimeSpan.FromSeconds(5)))
                 .Select(match => Split(match.Groups["columns"].Value, trimLeading: '@'))
                 .ToList();
 
-            valueLists.ShouldNotBeEmpty($"{dialect} has no VALUES clause for '{table}'");
+            valueLists.ShouldNotBeEmpty($"{dialect} has no VALUES clause or parameter SELECT for '{table}'");
 
             foreach (var parameters in valueLists)
             {
