@@ -52,11 +52,10 @@ jobs:
     # The canonical repository only: the development repository and forks never run this job.
     if: github.repository == 'farukatasoy/Tracon'
     runs-on: ubuntu-latest
-    # Not measured on a runner. A laptop runs this set once in about ten minutes (Core 37 s, the light modules about two
-    # minutes, AspNetCore 372 s and Sqlite 70 s one after the other), so five runs with two of them under pressure are
-    # estimated at two to two and a half hours on a runner that is up to twice as slow, plus the build. The limit leaves
-    # room above that estimate. Re-measure after the first run and move the limits with the measurement.
-    timeout-minutes: 240
+    # Measured on the first runner run (2026-11-10, ubuntu-24.04): 41 minutes for the job, 36 of them in the stability step
+    # (five runs, the last two under pressure; a run takes 6.5 minutes, a pressured one 8.4), the rest checkout, restore and
+    # build. Each limit is two and a half times its measurement. Move the limits with the next measurement.
+    timeout-minutes: 105
 
     steps:
       - name: Check out the source
@@ -102,7 +101,7 @@ jobs:
       # The exit code is 91 when only a time moved, 92 when a result changed (or a test failed in every run) and 2 when the
       # command could not be set up. The step fails on any of them; the report is uploaded either way.
       - name: Run the stability check
-        timeout-minutes: 210
+        timeout-minutes: 90
         run: >-
           python3 scripts/kapi.py kararlilik --tekrar 5 --sira-karistir --baski
           --haric Tracon.SqlServer.IntegrationTests Tracon.PostgreSql.IntegrationTests Tracon.TwoNode.IntegrationTests
