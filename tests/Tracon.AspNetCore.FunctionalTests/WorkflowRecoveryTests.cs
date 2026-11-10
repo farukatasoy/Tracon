@@ -367,7 +367,12 @@ public sealed class WorkflowRecoveryTests
             configureServices: static services => services.Configure<TraconSchedulingOptions>(static options =>
             {
                 options.PollInterval = TimeSpan.FromMilliseconds(50);
-                options.LeaseDuration = TimeSpan.FromSeconds(2);
+
+                // The lease running out is part of what this case proves, so it cannot be frozen; but a lease a loaded
+                // runner can outlast is what keeps a second, unplanned interruption out of the chain (two seconds
+                // failed twice on windows-latest: the chain passed its one allowed continuation, and the first
+                // super-step's checkpoint came late).
+                options.LeaseDuration = TimeSpan.FromSeconds(6);
             }));
 
         await SaveRecoverableAsync(host);
