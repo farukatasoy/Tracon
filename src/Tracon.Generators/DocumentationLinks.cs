@@ -13,8 +13,7 @@ namespace Tracon.Generators;
 /// The site declares the same address in <c>docs-site/site.config.mjs</c>, and the two
 /// declarations cannot be one file because one is C# and the other is JavaScript. They
 /// are held together by <c>DiagnosticIntegrityTests</c>, which reads that file and fails
-/// when the value below no longer matches it. This is the same arrangement
-/// <c>ShippedDocumentationSelfContainmentTests</c> uses for the internal-history pattern.
+/// when the value below no longer matches it.
 /// </para>
 /// </remarks>
 internal static class DocumentationLinks

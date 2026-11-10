@@ -26,7 +26,6 @@ import { basename, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as buildAgentMap, outputs as agentMapOutputs, releasePagesSlug, verifyBudget } from './build-agent-map.mjs';
 import { formerHosts, repositoryIsPublic, repositoryUrl, site, siteUrl } from '../site.config.mjs';
-import { hasInternalHistory } from './internal-history.mjs';
 import { portableRelative as relative } from './path-utils.mjs';
 import { sidebar, sectionImages } from '../src/sidebar.mjs';
 
@@ -793,14 +792,6 @@ if (existsSync(apiRoot)) {
     if (/github\.com\/farukatasoy\/Tracon\/blob\/[^)]+\/src\/[^)]+\.cs/.test(text)) {
       errors.push(`${label}: internal Tracon type links to source instead of the local reference`);
     }
-
-    if (
-      /\b(?:phase|faz)\s+\d+\b|\b(?:K|F)-\d{2,3}\b|\bK[1-4]\b|\bsection\s+\d+(?:\.\d+)?\b|\b(?:HATA|MT)-[A-Z0-9-]+\b|(?:<code>|`)?docs\/[^\s`<),]+/i.test(
-        text,
-      )
-    ) {
-      errors.push(`${label}: internal development history leaked into the public reference`);
-    }
   }
 }
 
@@ -810,9 +801,6 @@ for (const directory of [join(docsRoot, 'http-api')]) {
     (entry) => entry.endsWith('.md') && !isSynchronizationCopy(entry),
   )) {
     const text = readFileSync(file, 'utf8');
-    if (hasInternalHistory(text)) {
-      errors.push(`${relative(docsRoot, file)}: internal development history leaked into HTTP reference`);
-    }
     if (/\brationale\b|\b(?:int|long|decimal|double|string|float\[\])\?\s+[A-Z][A-Za-z0-9_.]+/i.test(text)) {
       errors.push(`${relative(docsRoot, file)}: malformed source prose leaked into HTTP reference`);
     }
@@ -1194,10 +1182,6 @@ const packagedOpenApi = join(repositoryRoot, 'docs/openapi/tracon.json');
 if (existsSync(packagedOpenApi)) {
   const text = readFileSync(packagedOpenApi, 'utf8');
 
-  if (hasInternalHistory(text)) {
-    errors.push('docs/openapi/tracon.json: internal development history is packaged into Tracon.AspNetCore');
-  }
-
   // Two shapes: a nullable member ("string? X.Y") and a plain one ("string X.Y").
   // Measured: fixing only the first left seventeen of the second behind.
   const signatureLeak =
@@ -1214,9 +1198,6 @@ if (existsSync(packagedOpenApi)) {
 const publishedOpenApi = join(siteRoot, 'public/openapi/tracon.json');
 if (existsSync(publishedOpenApi)) {
   const text = readFileSync(publishedOpenApi, 'utf8');
-  if (hasInternalHistory(text)) {
-    errors.push('public/openapi/tracon.json: internal development history leaked into OpenAPI');
-  }
   if (/\brationale\b|\b(?:int|long|decimal|double|string|float\[\])\?\s+[A-Z][A-Za-z0-9_.]+/i.test(text)) {
     errors.push('public/openapi/tracon.json: malformed source prose leaked into OpenAPI');
   }
@@ -1508,15 +1489,10 @@ for (const label of Object.keys(sectionImages)) {
   }
 }
 
-// 10. The rule the packaged documentation already follows applies to the site's own
-//     hand-written pages too: a reader cannot resolve a decision number. 404 is a
-//     page a reader reaches, so it answers to this rule like any other.
+// 10. Rules for the site's own hand-written pages. 404 is a page a reader reaches, so
+//     it answers to these rules like any other.
 for (const file of handWrittenContent) {
   const text = readFileSync(file, 'utf8');
-
-  if (hasInternalHistory(text)) {
-    errors.push(`${relative(docsRoot, file)}: internal development history leaked into a public page`);
-  }
 
   // A per-package framework REQUIREMENT is owned by the compatibility matrix, which
   // is bound to the csproj files above. A page that restates it in prose is a copy
@@ -1695,7 +1671,7 @@ for (const { page, path, pattern, label } of quotedSizes) {
 // The development journal's alarm voice, on a page a consumer reads. Two other
 // surfaces already refuse it: build-api-reference.mjs rewrites 🚨 and ⚠️ into
 // "**Important:**" on its way out, and the package's own XML answers to
-// ShippedDocumentationSelfContainmentTests. A page typed straight into
+// ShippedDocumentationVoiceTests. A page typed straight into
 // src/content/docs/ passes through neither, so the marker reached the reader
 // unstripped in three paragraphs across two guides while both of those gates
 // stayed green. The warning itself is worth keeping; only the shouting is not.

@@ -1959,7 +1959,7 @@ jobs:
   # Dokuman sitesi (docs-site/) kapilari
   #
   # Bu is YAYINLAMAZ. Site kendi sunucumuzda barinir ve yayini
-  # `scripts/site-deploy.sh` yapar -- ozel repo'da GitHub Pages ucretli plan
+  # bakimcinin deploy betigi yapar -- ozel repo'da GitHub Pages ucretli plan
   # ister. Burada kalan sey, siteyi DERLEYIP kapilarini kosmaktir:
   # derlenmeyen bir site yayin gunune kadar sessiz kalmasin.
   #
@@ -1974,7 +1974,7 @@ jobs:
   # calistirmaz.
   #
   # 🚨 Is PR'de KOSMAZ ve bu bilincli bir bosluktur: ozel repo'nun Actions
-  # dakikasi sinirlidir ve `site-deploy.sh` dort kapiyi yayindan once zaten
+  # dakikasi sinirlidir ve deploy betigi dort kapiyi yayindan once zaten
   # kosar. Bir PR'i durdurmasi gereken kapi `build` isine konur -- oradaki
   # `check-content.mjs` adimi tam olarak bu sebeple oradadir.
   # ---------------------------------------------------------------------------

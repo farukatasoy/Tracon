@@ -217,27 +217,6 @@ public sealed class AgentSkillCommandTests : IDisposable
         GateSkillText.Body.ShouldNotContain("---", Case.Sensitive, "front matter belongs to the shell, not the procedure");
     }
 
-    /// <summary>
-    /// This file ships to a consumer, and no other gate covers it: the shipped
-    /// documentation gate reads XML doc comments, and this text is a string
-    /// literal. It may only point at things the consumer holds.
-    /// </summary>
-    [Fact]
-    public void The_written_text_points_at_nothing_from_the_development_record()
-    {
-        var pattern = new Regex(
-            File.ReadAllText(Path.Combine(RepositoryRoot(), "docs-site", "scripts", "internal-history.pattern")).Trim(),
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-            TimeSpan.FromSeconds(5));
-
-        var offending = pattern.Matches(GateSkillText.ClaudeCodeSkill(GateSkillText.MapRevision))
-            .Select(match => match.Value)
-            .ToList();
-
-        offending.ShouldBeEmpty(
-            $"the gate skill names something the consumer never receives: {string.Join(", ", offending)}");
-    }
-
     [Fact]
     public async Task Json_reports_what_the_command_did()
     {

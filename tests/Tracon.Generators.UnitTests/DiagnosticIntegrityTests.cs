@@ -341,8 +341,7 @@ public sealed class DiagnosticIntegrityTests
     /// which ships inside the analyzer package, and as <c>site</c> in
     /// <c>docs-site/site.config.mjs</c>, which the Astro build imports. Neither language
     /// can read the other's declaration, so this gate reads the JavaScript one and turns
-    /// red when the shipped help links stop agreeing with it. Same arrangement as
-    /// <c>ShippedDocumentationSelfContainmentTests</c> and the internal-history pattern.
+    /// red when the shipped help links stop agreeing with it.
     /// </remarks>
     private static string SiteUrl { get; } = ReadSiteUrl();
 

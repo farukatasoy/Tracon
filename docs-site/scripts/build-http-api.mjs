@@ -14,7 +14,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hasInternalHistory } from './internal-history.mjs';
 
 import { base } from '../site.config.mjs';
 
@@ -492,22 +491,11 @@ function renderPath(path) {
   return path.startsWith('/tracon') ? `{prefix}${path.slice('/tracon'.length)}` : `{prefix}${path}`;
 }
 
-// The source documentation is kept self-contained by
-// ShippedDocumentationSelfContainmentTests, so nothing here repairs journal prose
-// any more: a reference that reaches this point is a defect in the source, and
-// silently patching it is what produced sentences like "promote a run to a case,.".
-// What remains is presentation, not repair.
+// The source documentation is kept free of journal prose at the source, so nothing
+// here repairs it: silently patching a reference is what produced sentences like
+// "promote a run to a case,.". What remains is presentation, not repair.
 function sanitizeInternalHistory(text) {
-  const value = String(text);
-
-  if (hasInternalHistory(value)) {
-    throw new Error(
-      `Internal development history reached the HTTP reference: "${value.slice(0, 120)}". ` +
-        'Fix the XML documentation in src/ rather than filtering it here.',
-    );
-  }
-
-  return value
+  return String(text)
     .replace(/\brationale\b/gi, 'reason')
     .replace(/\b(?:OLDEST|AS IS)\b/g, (match) => match.toLowerCase())
     // Not before an ellipsis: "POST .../trigger" is a path, not a sentence end.

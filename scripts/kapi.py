@@ -65,9 +65,7 @@ NUSPEC_DEPENDENCY_PATTERN = re.compile(r'<dependency id="(?P<id>[^"]+)" version=
 # bayt bayt eşit olmalı (paketleme kontrol edilen dosyayı mı aldı?).
 THIRD_PARTY_NOTICE_NAME = "THIRD-PARTY-NOTICES.txt"
 THIRD_PARTY_NOTICE_PACKAGES = {"Tracon.UI": pathlib.PurePath("src", "Tracon.UI", THIRD_PARTY_NOTICE_NAME)}
-APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
 APPLIED_MIGRATION_DIRECTORIES = ("Migrations", "MigrationsKnowledge", "MigrationsViews")
-GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # Iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
 # timeout uretiyordu). Sabit beklemeler kosul-beklemeye donunce
 # olculdu, ayni makine, ayni kod (d0cdd2c2): 1 modul 863 ve 879 sn,
@@ -157,8 +155,7 @@ DOC_REFERENCE_ROOTS = ("src", "tests", "samples", "bench", "scripts", "docs-site
 # script's own comments. These never resolve and are not a defect.
 DOC_REFERENCE_PLACEHOLDER = re.compile(r"(^|[-/])(NN|X|Y)([-.]|$)")
 # A migration that already ran against a customer database is BYTE-FROZEN:
-# `migration_integrity_violations` rejects any change to it, a comment included,
-# and its own docstring says updating the manifest cannot approve one. A stale
+# the publishing gate rejects any change to it, a comment included. A stale
 # reference inside such a file therefore cannot be repaired — measured, not
 # assumed. The gate must not demand the impossible, so those directories are
 # exempt; the comment stays true of the moment the migration shipped.
@@ -235,6 +232,18 @@ def _no_commands(base: str) -> tuple[Command, ...]:
 
 
 @dataclasses.dataclass(frozen=True)
+class ScanCheck:
+    """One more finding class for `tarama`: a heading and the function that returns its violations.
+
+    The function gets the repository root and returns the violations; an empty result is clean. It must
+    fail red, not skip: a check that cannot run returns a violation that says so.
+    """
+
+    heading: str
+    violations: Callable[[pathlib.Path], Sequence[str]]
+
+
+@dataclasses.dataclass(frozen=True)
 class Extension:
     """Steps a wrapper adds around the public gates.
 
@@ -249,6 +258,8 @@ class Extension:
     """Generators that run before the public ones."""
     after_scan: Callable[[str], Sequence[Command]] = _no_commands
     """Checks that run right after `tarama`; the argument is the `kapanis --taban` commit."""
+    scan_checks: tuple[ScanCheck, ...] = ()
+    """More finding classes for `tarama` itself, so they run before a commit and before `after_scan`."""
     sync_roots: tuple[str, ...] = ()
     doc_reference_roots: tuple[str, ...] = ()
     ci_remote: str = "origin"
@@ -856,20 +867,16 @@ def upgrade_baseline_drift(root: pathlib.Path = ROOT) -> list[str]:
 
 
 def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
-    """Run the synchronization-copy, secret, migration-integrity, doc-reference, public-surface and Context7-version scans."""
+    """Run the synchronization-copy, secret, doc-reference, public-surface, Context7-version and upgrade-baseline scans, then the extension's own."""
     copies = find_sync_copies(root, (*SYNC_ROOTS, *extension.sync_roots))
     secrets, synthetic = find_secrets(root)
-    foreign_anchor = migration_anchor_not_in_history(root)
-    migrations = [] if foreign_anchor else migration_integrity_violations(root)
     stale_docs = find_stale_doc_references(root, (*DOC_REFERENCE_ROOTS, *extension.doc_reference_roots))
     public_surface = public_surface_violations(root)
     context7 = context7_version_drift(root)
     upgrade_baseline = upgrade_baseline_drift(root)
-    if foreign_anchor:
-        print(f"Tarama: ⚠️ uygulanmış migration bütünlüğü bu depoda doğrulanamadı: {APPLIED_MIGRATION_MANIFEST} "
-              f"tabanı ({foreign_anchor[:12]}) bu deponun geçmişinde yok. Doğrulama, tabanı taşıyan depoda koşar.")
-    if (not copies and not secrets and not migrations and not stale_docs and not public_surface and not context7
-            and not upgrade_baseline):
+    extra = [(check.heading, list(check.violations(root))) for check in extension.scan_checks]
+    if (not copies and not secrets and not stale_docs and not public_surface and not context7
+            and not upgrade_baseline and not any(violations for _, violations in extra)):
         print("Tarama: ✅ temiz"
               + (f" ({synthetic} işaretli sentetik credential atlandı)" if synthetic else ""))
         return 0
@@ -884,10 +891,6 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
             print(f"  {match}")
         if len(secrets) > 20:
             print(f"  … +{len(secrets) - 20}")
-    if migrations:
-        print("Tarama: ❌ uygulanmış migration değişikliği")
-        for violation in migrations:
-            print(f"  {violation}")
     if stale_docs:
         print("Tarama: ❌ bayat doküman referansı (arşivlenen faz)")
         for reference in stale_docs[:20]:
@@ -907,6 +910,13 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
         print("Tarama: ❌ yükseltme kapısının tabanı son yayından geride — yayın kesimi tabanı da ilerletir")
         for violation in upgrade_baseline:
             print(f"  {violation}")
+    for heading, violations in extra:
+        if violations:
+            print(f"Tarama: ❌ {heading}")
+            for violation in violations[:20]:
+                print(f"  {violation}")
+            if len(violations) > 20:
+                print(f"  … +{len(violations) - 20}")
     return 1
 
 
@@ -918,104 +928,6 @@ def _git(*args: str) -> list[str] | None:
     if result.returncode:
         return None
     return [line for line in result.stdout.splitlines() if line.strip()]
-
-
-def migration_anchor_not_in_history(root: pathlib.Path = ROOT) -> str | None:
-    """Return the manifest's base commit when the repository's COMPLETE history lacks it.
-
-    A mirror carries rewritten history, so the commits the manifest anchors to do not
-    exist there; the check cannot run and says so instead of failing every scan. A
-    shallow clone is different: it lacks old commits by construction, and the check
-    must stay red there rather than quietly pass.
-    """
-    try:
-        loaded = json.loads((root / APPLIED_MIGRATION_MANIFEST).read_text(encoding="utf-8"))
-        commit = loaded.get("baselineCommit") if isinstance(loaded, dict) else None
-    except (OSError, json.JSONDecodeError):
-        return None
-    if not isinstance(commit, str) or not GIT_COMMIT.fullmatch(commit):
-        return None
-    try:
-        shallow = subprocess.run(
-            ["git", "rev-parse", "--is-shallow-repository"], cwd=root, capture_output=True, text=True, check=False)
-        known = subprocess.run(
-            ["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=root, capture_output=True, check=False)
-    except OSError:
-        return None
-    if shallow.returncode or shallow.stdout.strip() != "false":
-        return None
-    return commit if known.returncode else None
-
-
-def migration_integrity_violations(
-    root: pathlib.Path = ROOT,
-    *,
-    baseline_commit: str | None = None,
-    source_commits: Mapping[str, str] | None = None,
-    source_reader: Callable[[str, str], bytes | None] | None = None,
-) -> list[str]:
-    """Find changes to migrations that already belong to the release line.
-
-    The manifest anchors each migration to immutable Git content. Its base
-    commit freezes the release line; an explicit per-file source commit covers
-    a known repair whose safe content predates that base. Updating the manifest
-    alone can therefore never approve a changed migration byte.
-    """
-    if baseline_commit is None or source_commits is None:
-        manifest = root / APPLIED_MIGRATION_MANIFEST
-        try:
-            loaded = json.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exception:
-            return [f"{APPLIED_MIGRATION_MANIFEST}: applied migration manifest okunamadı: {exception}"]
-        if not isinstance(loaded, dict):
-            return [f"{APPLIED_MIGRATION_MANIFEST}: git tabanı geçersiz"]
-
-        baseline_commit = loaded.get("baselineCommit")
-        source_commits = loaded.get("sourceCommits", {})
-
-    if not isinstance(baseline_commit, str) or not GIT_COMMIT.fullmatch(baseline_commit):
-        return [f"{APPLIED_MIGRATION_MANIFEST}: baselineCommit geçersiz"]
-    if not isinstance(source_commits, Mapping) or not all(
-        isinstance(path, str) and isinstance(commit, str) and GIT_COMMIT.fullmatch(commit)
-        for path, commit in source_commits.items()
-    ):
-        return [f"{APPLIED_MIGRATION_MANIFEST}: sourceCommits eşlemesi geçersiz"]
-
-    if source_reader is None:
-        def source_reader(commit: str, relative: str) -> bytes | None:
-            try:
-                result = subprocess.run(
-                    ["git", "show", f"{commit}:{relative}"],
-                    cwd=root,
-                    capture_output=True,
-                    check=False,
-                )
-            except OSError:
-                return None
-            return result.stdout if result.returncode == 0 else None
-
-    # `MigrationsViews` ships and is checksummed at startup like the other two
-    # sets, so an in-place edit must fail here, not in a user's database.
-    migrations = sorted(
-        migration
-        for directory in APPLIED_MIGRATION_DIRECTORIES
-        for migration in root.glob(f"src/*/{directory}/*.sql"))
-    found = {migration.relative_to(root).as_posix(): migration for migration in migrations}
-    violations: list[str] = []
-
-    for relative, migration in found.items():
-        source_commit = source_commits.get(relative, baseline_commit)
-        source = source_reader(source_commit, relative)
-        if source is None:
-            violations.append(f"{relative}: git tabanı {source_commit[:12]} dosyayı içermiyor")
-            continue
-        if migration.read_bytes() != source:
-            violations.append(f"{relative}: applied migration içeriği git tabanı {source_commit[:12]} ile farklı")
-
-    for relative in sorted(set(source_commits).difference(found)):
-        violations.append(f"{relative}: sourceCommits içinde var ama migration dosyası yok")
-
-    return violations
 
 
 def changed_paths(base: str = "HEAD") -> list[str] | None:

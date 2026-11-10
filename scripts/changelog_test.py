@@ -67,7 +67,7 @@ class ChangelogTestleri(unittest.TestCase):
 
         self.assertTrue(changelog.has_section(text, "Unreleased"))
 
-    # latest_released_version: yayın, tarihli ilk bölümdür; `site-deploy.sh` aynı kuralı okur.
+    # latest_released_version: yayın, tarihli ilk bölümdür.
 
     def test_son_yayin_ilk_tarihli_bolumdur(self):
         text = (

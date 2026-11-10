@@ -128,8 +128,7 @@ public sealed class DeclaredRequestBodyTests
 
     // 🚨 Declaration order matters: static field initialisers run in order, so
     // `RepositoryRoot` must come BEFORE `OpenApiPath`. The other way round
-    // throws `TypeInitializationException` — the same trap is recorded in
-    // `ShippedDocumentationSelfContainmentTests`.
+    // throws `TypeInitializationException`.
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 
     private static string OpenApiPath { get; } = Path.Combine(

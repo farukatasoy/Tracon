@@ -22,7 +22,6 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { internalHistoryMarker } from './internal-history.mjs';
 
 import { base } from '../site.config.mjs';
 
@@ -755,25 +754,13 @@ function inlineMarkdown(value) {
     .trim();
 }
 
-// The source documentation is kept self-contained by
-// ShippedDocumentationSelfContainmentTests, so nothing here strips journal prose any
-// more. A reference that reaches this point is a defect in src/, and repairing it
-// here is what used to leave half-sentences behind. What remains turns docfx output
-// into readable Markdown.
+// The source documentation is kept free of journal prose at the source, so nothing
+// here strips it. Repairing a reference at this point is what used to leave
+// half-sentences behind. What remains turns docfx output into readable Markdown.
 function sanitizeInternalHistory(body) {
   return body.split(/(```[\s\S]*?```)/g).map((part, index) => {
     if (index % 2 === 1) {
       return part;
-    }
-
-    const marker = internalHistoryMarker(part);
-
-    if (marker) {
-      throw new Error(
-        `Internal development history reached the API reference: "${marker.text}" in ` +
-          `"...${part.slice(Math.max(0, marker.index - 60), marker.index + 60).replace(/\n/g, ' ')}...". ` +
-          'Fix the XML documentation in src/ rather than filtering it here.',
-      );
     }
 
     return part

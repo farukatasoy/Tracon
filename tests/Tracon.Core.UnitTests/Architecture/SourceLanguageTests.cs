@@ -98,8 +98,6 @@ public sealed class SourceLanguageTests
     [
         "tests/Tracon.Core.UnitTests/Architecture/SourceLanguageTests.cs",
         "tests/Tracon.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs",
-        // Carries the defect-id prefix, which is also a Turkish word.
-        "tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs",
         "src/Tracon.UI/frontend/src/locales/tr.ts",
         // An earlier change split the monolithic tr.ts into domain fragments — same
         // That decision status, still an aggregate-only file with no dictionary text

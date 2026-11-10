@@ -573,11 +573,10 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(kapi.context7_version_drift(pathlib.Path(directory)), [])
 
     def test_scan_yalniz_context7_kaymasiyla_kirmiziya_doner(self):
-        # Ötekiler boş: sonucu yalnız etiket ayırt eder. Geçici kökte migration manifesti
-        # yoktur; taklit edilmezse `scan` her iki durumda da 1 döner ve test bir şey kanıtlamaz.
+        # Ötekiler boş: sonucu yalnız etiket ayırt eder; taklit edilmezse `scan` her iki durumda da 1 döner
+        # ve test bir şey kanıtlamaz.
         bos = {
-            "find_sync_copies": [], "find_secrets": ([], 0), "migration_anchor_not_in_history": None,
-            "migration_integrity_violations": [], "find_stale_doc_references": [],
+            "find_sync_copies": [], "find_secrets": ([], 0), "find_stale_doc_references": [],
             "public_surface_violations": [],
         }
         for tag, beklenen in (("v1.0.0-preview.6", 0), ("v1.0.0-preview.5", 1)):
@@ -590,6 +589,53 @@ class KapiTestleri(unittest.TestCase):
 
             self.assertEqual(result, beklenen, output.getvalue())
             self.assertEqual("v1.0.0-preview.5" in output.getvalue(), beklenen == 1)
+
+    def _bos_tarama(self, stack: contextlib.ExitStack, directory: str) -> pathlib.Path:
+        """`scan`'in public bulgu sınıflarını boşaltır; geriye yalnız uzantının kontrolü sonucu belirler."""
+        for ad, deger in {
+            "find_sync_copies": [], "find_secrets": ([], 0), "find_stale_doc_references": [],
+            "public_surface_violations": [], "context7_version_drift": [], "upgrade_baseline_drift": [],
+        }.items():
+            stack.enter_context(mock.patch.object(kapi, ad, return_value=deger))
+        return pathlib.Path(directory)
+
+    def test_scan_uzantinin_bulgu_sinifi_basligi_ve_ihlaliyle_kirmiziya_doner(self):
+        uzanti = kapi.Extension(scan_checks=(
+            kapi.ScanCheck("temiz sınıf", lambda kok: []),
+            kapi.ScanCheck("kirli sınıf", lambda kok: ["a.cs:3: iz", "b.cs:4: iz"]),
+        ))
+        with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            sonuc = kapi.scan(self._bos_tarama(stack, directory), uzanti)
+
+        self.assertEqual(1, sonuc)
+        self.assertIn("Tarama: ❌ kirli sınıf", output.getvalue())
+        self.assertIn("  a.cs:3: iz", output.getvalue())
+        self.assertNotIn("temiz sınıf", output.getvalue())
+
+    def test_scan_uzantinin_kontrolleri_temizse_yesil_doner_ve_kok_dizinini_alir(self):
+        gorulen = []
+        uzanti = kapi.Extension(scan_checks=(kapi.ScanCheck("sınıf", lambda kok: gorulen.append(kok) or []),))
+        with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            kok = self._bos_tarama(stack, directory)
+            sonuc = kapi.scan(kok, uzanti)
+
+        self.assertEqual(0, sonuc, output.getvalue())
+        self.assertEqual([kok], gorulen)
+
+    def test_scan_uzantisiz_public_kok_ozel_bulgu_sinifi_calistirmaz(self):
+        self.assertEqual((), kapi.PUBLIC.scan_checks)
+
+    def test_scan_uzantinin_uzun_ihlal_listesi_yirmide_kesilir(self):
+        uzanti = kapi.Extension(scan_checks=(kapi.ScanCheck("sınıf", lambda kok: [f"d{i}.cs" for i in range(25)]),))
+        with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            kapi.scan(self._bos_tarama(stack, directory), uzanti)
+
+        self.assertIn("  d19.cs", output.getvalue())
+        self.assertNotIn("d20.cs", output.getvalue())
+        self.assertIn("… +5", output.getvalue())
 
     def test_context7_surumu_repoda_son_yayinla_ayni(self):
         # SINIF KAPISI: bu repoda gercek olan denetim.
@@ -1733,81 +1779,6 @@ class KapiTestleri(unittest.TestCase):
         yakalamıyordu; git PATH'te yoksa `changed_paths()` traceback ile çöküyordu."""
         with mock.patch("subprocess.run", side_effect=FileNotFoundError("git")):
             self.assertIsNone(kapi.changed_paths())
-
-    def test_uygulanmis_migration_git_tabanıyla_ayni_olmalidir(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
-            migration = root / "src" / "Example" / "Migrations" / "0001_initial.sql"
-            migration.parent.mkdir(parents=True)
-            original = b"CREATE TABLE example ();\n"
-            migration.write_bytes(original)
-            source = lambda commit, relative: original if (commit, relative) == ("abcdef1", migration.relative_to(root).as_posix()) else None
-
-            self.assertEqual(
-                kapi.migration_integrity_violations(
-                    root,
-                    baseline_commit="abcdef1",
-                    source_commits={},
-                    source_reader=source),
-                [])
-
-            migration.write_text("CREATE TABLE changed_example ();\n", encoding="utf-8")
-
-            violations = kapi.migration_integrity_violations(
-                root,
-                baseline_commit="abcdef1",
-                source_commits={},
-                source_reader=source)
-
-        self.assertEqual(len(violations), 1)
-        self.assertIn("0001_initial.sql", violations[0])
-        self.assertIn("git tabanı", violations[0])
-
-    def test_manifesti_değiştirmek_uygulanmis_migration_değişikliğini_onaylayamaz(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
-            migration = root / "src" / "Example" / "Migrations" / "0001_initial.sql"
-            migration.parent.mkdir(parents=True)
-            original = b"CREATE TABLE example ();\n"
-            migration.write_text("CREATE TABLE changed_example ();\n", encoding="utf-8")
-            source = lambda commit, relative: original if (commit, relative) == ("abcdef1", migration.relative_to(root).as_posix()) else None
-
-            violations = kapi.migration_integrity_violations(
-                root,
-                baseline_commit="abcdef1",
-                source_commits={},
-                source_reader=source)
-
-        self.assertEqual(len(violations), 1)
-        self.assertIn("git tabanı", violations[0])
-
-    def test_okuma_gorunumu_dosyasi_da_git_tabanıyla_ayni_olmalidir(self):
-        # `MigrationsViews/*.sql` sevk edilir ve açılışta sağlama toplamıyla
-        # denetlenir; yerinde bir düzenleme CI'da değil, kullanıcının veritabanında
-        # yakalanıyordu. Kapı yalnız `Migrations` ve `MigrationsKnowledge` dizinlerini
-        # okuyordu.
-        for directory_name in ("Migrations", "MigrationsKnowledge", "MigrationsViews"):
-            with self.subTest(directory=directory_name), tempfile.TemporaryDirectory() as directory:
-                root = pathlib.Path(directory)
-                file = root / "src" / "Example" / directory_name / "0001_read_views.sql"
-                file.parent.mkdir(parents=True)
-                original = b"CREATE VIEW example_v1 AS SELECT 1;\n"
-                file.write_bytes(original)
-                relative = file.relative_to(root).as_posix()
-                source = lambda commit, path: original if (commit, path) == ("abcdef1", relative) else None
-
-                self.assertEqual(
-                    kapi.migration_integrity_violations(
-                        root, baseline_commit="abcdef1", source_commits={}, source_reader=source),
-                    [])
-
-                file.write_text("CREATE VIEW example_v1 AS SELECT 2;\n", encoding="utf-8")
-
-                violations = kapi.migration_integrity_violations(
-                    root, baseline_commit="abcdef1", source_commits={}, source_reader=source)
-
-                self.assertEqual(len(violations), 1)
-                self.assertIn(relative, violations[0])
 
 
 def _slnx_test_modulleri(kok: pathlib.Path = ROOT) -> list[str]:
@@ -3803,52 +3774,6 @@ class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
         self.assertEqual(skipped, 1)
 
 
-class MigrasyonTabaniGecmisteTestleri(unittest.TestCase):
-    """Bir ayna yeniden yazılmış geçmiş taşır: manifestin tabanı orada yoktur."""
-
-    def _depo(self, kok: pathlib.Path) -> str:
-        env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
-               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
-        for komut in (["init", "-q"], ["commit", "-q", "--allow-empty", "-m", "x"]):
-            subprocess.run(["git", *komut], cwd=kok, check=True, capture_output=True, env=env)
-        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=kok, check=True,
-                              capture_output=True, text=True).stdout.strip()
-
-    def _manifest(self, kok: pathlib.Path, taban: str) -> None:
-        (kok / "scripts").mkdir()
-        (kok / kapi.APPLIED_MIGRATION_MANIFEST).write_text(
-            json.dumps({"baselineCommit": taban, "sourceCommits": {}}), encoding="utf-8")
-
-    def test_tabani_olmayan_tam_gecmis_dogrulanamadi_sayilir(self):
-        with tempfile.TemporaryDirectory() as gecici:
-            kok = pathlib.Path(gecici)
-            self._depo(kok)
-            self._manifest(kok, "0" * 40)
-
-            self.assertEqual(kapi.migration_anchor_not_in_history(kok), "0" * 40)
-
-    def test_tabani_olan_depo_dogrulanabilir(self):
-        with tempfile.TemporaryDirectory() as gecici:
-            kok = pathlib.Path(gecici)
-            self._manifest(kok, self._depo(kok))
-
-            self.assertIsNone(kapi.migration_anchor_not_in_history(kok))
-
-    def test_okunamayan_manifest_dogrulanamadi_sayilmaz(self):
-        with tempfile.TemporaryDirectory() as gecici:
-            kok = pathlib.Path(gecici)
-            self._depo(kok)
-
-            self.assertIsNone(kapi.migration_anchor_not_in_history(kok))
-
-    def test_git_olmayan_dizin_dogrulanamadi_sayilmaz(self):
-        with tempfile.TemporaryDirectory() as gecici:
-            kok = pathlib.Path(gecici)
-            self._manifest(kok, "0" * 40)
-
-            self.assertIsNone(kapi.migration_anchor_not_in_history(kok))
-
-
 class KapasiteKomutuTestleri(unittest.TestCase):
     """Kapasite ölçümü bir KAPI DEĞİLDİR."""
 
@@ -4888,13 +4813,9 @@ class KararlilikIsAkisiTestleri(unittest.TestCase):
         # Komut gercekten cozulur: hicbir bilinmeyen ad yok.
         self.assertTrue(kapi.stability_units(exclude=haric))
 
-    def test_dosya_adi_uzak_durum_okumasinin_aradigi_workflow_adidir_ve_dosya_public_agactadir(self):
+    def test_dosya_adi_uzak_durum_okumasinin_aradigi_workflow_adidir(self):
         self.assertEqual(kapi.STABILITY_WORKFLOW, "kararlilik.yml")
         self.assertTrue((self.WORKFLOWS / kapi.STABILITY_WORKFLOW).is_file())
-        agac = [
-            satir.strip() for satir in (ROOT / "scripts" / "kamu-agaci.txt").read_text(encoding="utf-8").splitlines()
-            if satir.strip() and not satir.startswith("#")]
-        self.assertIn(".github/", agac)
 
     def test_zincirsiz_is_akislari_testi_bu_dosyayi_da_kapsar(self):
         dosyalar = [p.name for p in self.WORKFLOWS.glob("*.yml") if p.name not in ZINCIRSIZ_DOSYA_DISI]
