@@ -28,6 +28,7 @@ import sys
 import tempfile
 import threading
 import time
+import xml.etree.ElementTree as ElementTree
 import zipfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
@@ -869,16 +870,37 @@ def upgrade_baseline_drift(root: pathlib.Path = ROOT) -> list[str]:
     return []
 
 
+XML_CONFIGURATION_SUFFIXES = frozenset({".config", ".props", ".targets", ".csproj"})
+
+
+def find_malformed_xml(root: pathlib.Path = ROOT) -> list[str]:
+    """Return `path: error` records for build and package configuration files that are not well-formed XML.
+
+    An XML comment may not contain two hyphens in a row, and a command line such as `--dry-run` pasted into
+    one makes every restore or build that reads the file fail. Such a rewrite compiles nowhere else, so this
+    scan is the only place that sees it before a restore does."""
+    found: list[str] = []
+    for path in _walk_files(root):
+        if path.suffix.lower() not in XML_CONFIGURATION_SUFFIXES:
+            continue
+        try:
+            ElementTree.parse(path)
+        except (ElementTree.ParseError, OSError) as error:
+            found.append(f"{path.relative_to(root)}: {error}")
+    return found
+
+
 def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
-    """Run the synchronization-copy, secret, doc-reference, public-surface, Context7-version and upgrade-baseline scans, then the extension's own."""
+    """Run the synchronization-copy, secret, doc-reference, XML, public-surface, Context7-version and upgrade-baseline scans, then the extension's own."""
     copies = find_sync_copies(root, (*SYNC_ROOTS, *extension.sync_roots))
     secrets, synthetic = find_secrets(root, extension)
     stale_docs = find_stale_doc_references(root, (*DOC_REFERENCE_ROOTS, *extension.doc_reference_roots))
+    malformed_xml = find_malformed_xml(root)
     public_surface = public_surface_violations(root)
     context7 = context7_version_drift(root)
     upgrade_baseline = upgrade_baseline_drift(root)
     extra = [(check.heading, list(check.violations(root))) for check in extension.scan_checks]
-    if (not copies and not secrets and not stale_docs and not public_surface and not context7
+    if (not copies and not secrets and not stale_docs and not malformed_xml and not public_surface and not context7
             and not upgrade_baseline and not any(violations for _, violations in extra)):
         print("Scan: ✅ clean"
               + (f" ({synthetic} marked synthetic credentials skipped)" if synthetic else ""))
@@ -900,6 +922,10 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
             print(f"  {reference}")
         if len(stale_docs) > 20:
             print(f"  … +{len(stale_docs) - 20}")
+    if malformed_xml:
+        print("Scan: ❌ configuration file is not well-formed XML (an XML comment cannot contain two hyphens in a row)")
+        for violation in malformed_xml[:20]:
+            print(f"  {violation}")
     if public_surface:
         print("Scan: ❌ public surface without evidence — make the type `internal`, mention it by name in a guide, "
               "or write a reason in `scripts/public-surface-reasons.tsv`")

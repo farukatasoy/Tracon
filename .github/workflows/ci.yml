@@ -27,8 +27,8 @@ env:
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   CI: true
   # Python on a Windows runner decodes `sys.stdout` and `subprocess(text=True)` output with the
-  # default code page (**cp1252**), which lacks some letters the scripts and their tests handle
-  # (for example the Turkish s-cedilla, g-breve and dotted capital I): the first `print` of such a
+  # default code page (**cp1252**), which lacks some characters the scripts and their tests print
+  # (for example the status marks and arrows in their output): the first `print` of such a
   # character raises `UnicodeEncodeError` and the gate goes red for a reason that has nothing to
   # do with the change. UTF-8 mode switches both decoders at once (measured: `getpreferredencoding`
   # also becomes `utf-8`), so it is wider than `PYTHONIOENCODING`. It sits at the workflow level

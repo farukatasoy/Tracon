@@ -126,15 +126,28 @@ public sealed class SourceLanguageTests
     /// <summary>
     /// The language picker labels its own entry in its own language, and the
     /// localization end-to-end test asserts the actual translated heading
-    /// text from <c>locales/tr.ts</c> — both are legitimate Turkish. The third form is an
-    /// explicit, line-bound exception: a test that proves a RENAMED command or flag is rejected
-    /// has to contain the old Turkish name, and so does the table that lets a release gate read a tag cut
-    /// before a rename; both say so with the marker in a comment on that line.
+    /// text from <c>locales/tr.ts</c> — both are legitimate Turkish.
     /// </summary>
     private static readonly Regex AllowedLinePattern = new(
-        @"shell\.language\.tr|Gösterge Paneli|legacy-name",
+        @"shell\.language\.tr|Gösterge Paneli",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// The one explicit, line-bound exception for the tooling: a test that proves a RENAMED command or flag
+    /// is rejected has to contain the old Turkish name, and so does the table that lets a release gate read a
+    /// tag cut before a rename. Such a line ends in a comment that says <c># legacy-name</c>. The marker is
+    /// honoured only under <see cref="LegacyNameRoots"/>, only as the trailing comment, and only up to
+    /// <see cref="LegacyNameLineCeiling"/> lines in the whole tree, which can only shrink.
+    /// </summary>
+    private static readonly Regex LegacyNameMarkerPattern = new(
+        @"#\s*legacy-name\s*$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly string[] LegacyNameRoots = ["scripts/", ".github/"];
+
+    private const int LegacyNameLineCeiling = 20;
 
     /// <summary>
     /// Turkish-named identifiers that are not prose and must survive translation:
@@ -149,7 +162,7 @@ public sealed class SourceLanguageTests
     /// the pointer a reader cannot follow, and hiding it hid the sentence around it too.
     /// </remarks>
     private static readonly Regex IdentifierMaskPattern = new(
-        @"HATA[-_][A-Za-z0-9_-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:py|sh)\b",
+        @"HATA-[A-Za-z0-9-]+|HATA_[A-Z0-9]+_[0-9]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:py|sh)\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -249,6 +262,8 @@ public sealed class SourceLanguageTests
     [InlineData("def test_scan_reports_a_sync_copy(self):", false)]
     [InlineData("public async Task Shell_still_loads_HATA_S4_003()", false)]
     [InlineData("var text = \"naïve café\";", false)]
+    [InlineData("var text = \"bu yeni dosya icin yazildi\"; // legacy-name", true)]
+    [InlineData("public void HATA_bu_yeni_dosya_icin_yazildi()", true)]
     public void A_line_is_offending_unless_only_a_masked_identifier_is_Turkish(string line, bool offending)
         => IsOffending(line).ShouldBe(offending);
 
@@ -293,6 +308,47 @@ public sealed class SourceLanguageTests
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Theory]
+    [InlineData("old = \"--dosya\"  # legacy-name", "scripts/gate_test.py", false)]
+    [InlineData("old = \"--dosya\"  # legacy-name", ".github/workflows/ci.yml", false)]
+    [InlineData("old = \"--dosya\"  # legacy-name", "src/Tracon.Core/Thing.cs", true)]
+    [InlineData("old = \"bu yeni dosya icin\" # legacy-name and more text", "scripts/gate_test.py", true)]
+    public void The_legacy_name_marker_is_honoured_only_as_a_trailing_comment_under_the_tooling_roots(
+        string line, string path, bool offending)
+        => IsOffending(line, HonoursLegacyNameMarker(path)).ShouldBe(offending);
+
+    [Fact]
+    public void The_legacy_name_marker_stays_under_its_ceiling()
+    {
+        var used = 0;
+
+        foreach (var root in LegacyNameRoots)
+        {
+            var absoluteRoot = Path.Combine(RepositoryRoot, root);
+
+            if (!Directory.Exists(absoluteRoot))
+            {
+                continue;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(absoluteRoot, "*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(RepositoryRoot, file).Replace('\\', '/');
+
+                if (!ScannedExtensions.Contains(Path.GetExtension(file)) || IsSkipped(relative))
+                {
+                    continue;
+                }
+
+                used += File.ReadLines(file).Count(line => LegacyNameMarkerPattern.IsMatch(line));
+            }
+        }
+
+        used.ShouldBeLessThanOrEqualTo(
+            LegacyNameLineCeiling,
+            $"{used} lines carry the legacy-name marker; the ceiling is {LegacyNameLineCeiling} and it can only shrink.");
     }
 
     [Fact]
@@ -370,7 +426,7 @@ public sealed class SourceLanguageTests
                     continue;
                 }
 
-                var count = CountOffendingLines(file);
+                var count = CountOffendingLines(file, relative);
 
                 if (count > 0)
                 {
@@ -388,7 +444,7 @@ public sealed class SourceLanguageTests
                 continue;
             }
 
-            var count = CountOffendingLines(file);
+            var count = CountOffendingLines(file, name);
 
             if (count > 0)
             {
@@ -425,13 +481,14 @@ public sealed class SourceLanguageTests
         return false;
     }
 
-    private static int CountOffendingLines(string file)
+    private static int CountOffendingLines(string file, string relativePath)
     {
         var count = 0;
+        var markerHonoured = HonoursLegacyNameMarker(relativePath);
 
         foreach (var line in File.ReadLines(file))
         {
-            if (IsOffending(line))
+            if (IsOffending(line, markerHonoured))
             {
                 count++;
             }
@@ -440,9 +497,17 @@ public sealed class SourceLanguageTests
         return count;
     }
 
-    private static bool IsOffending(string line)
+    private static bool HonoursLegacyNameMarker(string relativePath)
+        => LegacyNameRoots.Any(root => relativePath.StartsWith(root, StringComparison.Ordinal));
+
+    private static bool IsOffending(string line, bool legacyNameMarkerHonoured = false)
     {
         if (line.Length == 0 || AllowedLinePattern.IsMatch(line))
+        {
+            return false;
+        }
+
+        if (legacyNameMarkerHonoured && LegacyNameMarkerPattern.IsMatch(line))
         {
             return false;
         }

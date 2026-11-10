@@ -4995,5 +4995,63 @@ class CommandSurfaceTests(unittest.TestCase):
                 self.assertNotIn("is red", text)
 
 
+class MalformedXmlScanTests(unittest.TestCase):
+    def _write(self, root: pathlib.Path, name: str, text: str) -> None:
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def test_a_double_hyphen_inside_an_xml_comment_is_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write(root, "samples/NuGet.config", "<configuration><!-- run gate.py release --dry-run --></configuration>")
+            self._write(root, "Directory.Build.props", "<Project><!-- fine --></Project>")
+            self._write(root, "notes.txt", "<not xml")
+
+            found = gate.find_malformed_xml(root)
+
+        self.assertEqual(1, len(found), found)
+        self.assertTrue(found[0].startswith(str(pathlib.Path("samples", "NuGet.config")) + ":"), found)
+
+    def test_excluded_build_trees_are_not_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write(root, "obj/generated.props", "<broken")
+
+            self.assertEqual([], gate.find_malformed_xml(root))
+
+    def test_scan_turns_red_on_a_malformed_configuration_file_alone(self):
+        empty = {
+            "find_sync_copies": [], "find_secrets": ([], 0), "find_stale_doc_references": [],
+            "public_surface_violations": [], "context7_version_drift": [], "upgrade_baseline_drift": [],
+        }
+        with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            for name, value in empty.items():
+                stack.enter_context(mock.patch.object(gate, name, return_value=value))
+            root = pathlib.Path(directory)
+            self._write(root, "Directory.Build.targets", "<Project><!-- a -- b --></Project>")
+
+            result = gate.scan(root)
+
+        self.assertEqual(1, result, output.getvalue())
+        self.assertIn("not well-formed XML", output.getvalue())
+
+    def test_scan_hands_its_extension_to_the_secret_scan(self):
+        extension = gate.Extension(record_dirs=("archive",))
+        with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
+                contextlib.redirect_stdout(io.StringIO()):
+            for name, value in {
+                "find_sync_copies": [], "find_stale_doc_references": [], "public_surface_violations": [],
+                "context7_version_drift": [], "upgrade_baseline_drift": [],
+            }.items():
+                stack.enter_context(mock.patch.object(gate, name, return_value=value))
+            secrets = stack.enter_context(mock.patch.object(gate, "find_secrets", return_value=([], 0)))
+
+            gate.scan(pathlib.Path(directory), extension)
+
+        secrets.assert_called_once_with(pathlib.Path(directory), extension)
+
+
 if __name__ == "__main__":
     unittest.main()
