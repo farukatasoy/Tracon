@@ -110,8 +110,15 @@ TEST_DURATIONS_KEEP = 20
 #   SqlServer 400: tam kapida iki modul ayni anda, baska modullerle birlikte (bos makine degil);
 #     en yavas kosum 361 sn. Hedef 240 sn; butce hedefe iner.
 #   TwoNode 540: ayni olcum; en yavas kosum 489 sn. Hedef 500 sn.
-#   Ui.E2ETests 60: uc TRX, 115-117 test: 46,6 sn (matris a) · 47,9 sn (matris b) · 32,6 sn (son tam
-#     kapi); 47,9 x 1,10 = 52,7 sn -> 60 sn.
+#   Ui.E2ETests 40: bes `kararlilik` kosumu, 117 test, en yavas 32,3 sn x 1,10 = 35,5 sn -> 40 sn
+#     (onceki 60 sn, CI matrisinin 47,9 sn'lik olcumunden gelmisti: bu makinede degil).
+#   Asagidaki yedisi ayni bes `kararlilik` kosumundan (ayni test sayisi; en yavas kosum, CPU baskili
+#   iki kosum DAHIL, yani butce kapinin normal kosumundan comerttir): AspNetCore 359,7 sn (4296 test)
+#   -> 400 · PostgreSql 149,4 sn (1805) -> 170 · Package 275,9 sn (139) -> 310 · Core 42,1 sn (7373;
+#   bir kosumu kirmizi, yesil kosumlarin en yavasi) -> 50 · Workflows 31,2 sn (703) -> 40 ·
+#   Generators 23,8 sn (414) -> 30 · Sqlite 75,1 sn (1880) -> 90. Butce konmayanlar: SqlServer
+#     ve TwoNode (en yavas olcum baskili kosumdan 387,7 ve 643,4 sn: yukseltme olurdu, tablo yalniz
+#     duser); Cli (10,2 sn: 20 sn'ye yuvarlama bir sinir olmaz) ve 10 sn altindaki moduller.
 #
 # 🚨 Sayi yalniz DUSER. Asan modulde butce yukseltilmez: once sebep olculur
 # (`artifacts/test-sureleri/` test basina kayit). Tek istisna kanitli yavas
@@ -121,7 +128,14 @@ TEST_DURATIONS_KEEP = 20
 TEST_MODULE_TIME_LIMITS_SECONDS: dict[str, int] = {
     "Tracon.SqlServer.IntegrationTests": 400,
     "Tracon.TwoNode.IntegrationTests": 540,
-    "Tracon.Ui.E2ETests": 60,
+    "Tracon.Ui.E2ETests": 40,
+    "Tracon.AspNetCore.FunctionalTests": 400,
+    "Tracon.PostgreSql.IntegrationTests": 170,
+    "Tracon.Package.Tests": 310,
+    "Tracon.Core.UnitTests": 50,
+    "Tracon.Workflows.UnitTests": 40,
+    "Tracon.Generators.UnitTests": 30,
+    "Tracon.Sqlite.IntegrationTests": 90,
 }
 
 # A root that does not exist is skipped, so the public tree (where `docs` holds two

@@ -1254,7 +1254,14 @@ class KapiTestleri(unittest.TestCase):
         sabit = {
             "Tracon.SqlServer.IntegrationTests": 400,
             "Tracon.TwoNode.IntegrationTests": 540,
-            "Tracon.Ui.E2ETests": 60,
+            "Tracon.Ui.E2ETests": 40,
+            "Tracon.AspNetCore.FunctionalTests": 400,
+            "Tracon.PostgreSql.IntegrationTests": 170,
+            "Tracon.Package.Tests": 310,
+            "Tracon.Core.UnitTests": 50,
+            "Tracon.Workflows.UnitTests": 40,
+            "Tracon.Generators.UnitTests": 30,
+            "Tracon.Sqlite.IntegrationTests": 90,
         }
         butceler = kapi.TEST_MODULE_TIME_LIMITS_SECONDS
 
