@@ -3,14 +3,39 @@ using Microsoft.Playwright;
 namespace Tracon.Ui.E2ETests.Infrastructure;
 
 /// <summary>The browser context for a single test.</summary>
+/// <remarks>
+/// The session keeps what the page said while the test ran (console errors, page errors, requests that failed or were
+/// refused) and writes it, with the page's address and visible text, to the test's output when it is disposed. A test
+/// that times out waiting for an element otherwise leaves nothing to say whether the page was on the right screen.
+/// </remarks>
 internal sealed class Session : IAsyncDisposable
 {
+    private const int BodyTextLimit = 600;
+
     private readonly IBrowserContext _context;
+    private readonly List<string> _events = [];
 
     private Session(IBrowserContext context, IPage page)
     {
         _context = context;
         Page = page;
+
+        page.Console += (_, message) =>
+        {
+            if (message.Type is "error" or "warning")
+            {
+                Record($"console {message.Type}: {message.Text}");
+            }
+        };
+        page.PageError += (_, error) => Record($"page error: {error}");
+        page.RequestFailed += (_, request) => Record($"request failed: {request.Method} {request.Url} ({request.Failure})");
+        page.Response += (_, response) =>
+        {
+            if (response.Status >= 400)
+            {
+                Record($"response {response.Status}: {response.Request.Method} {response.Url}");
+            }
+        };
     }
 
     public IPage Page { get; }
@@ -48,5 +73,52 @@ internal sealed class Session : IAsyncDisposable
         return new Session(context, await context.NewPageAsync());
     }
 
-    public async ValueTask DisposeAsync() => await _context.CloseAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await WriteDiagnosticsAsync().ConfigureAwait(false);
+        await _context.CloseAsync().ConfigureAwait(false);
+    }
+
+    private void Record(string line)
+    {
+        lock (_events)
+        {
+            _events.Add(line);
+        }
+    }
+
+    private async Task WriteDiagnosticsAsync()
+    {
+        var output = TestContext.Current.TestOutputHelper;
+
+        if (output is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var body = await Page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 2000 }).ConfigureAwait(false);
+            var visible = body.Length <= BodyTextLimit ? body : body[..BodyTextLimit] + "...";
+
+            output.WriteLine($"[page] {Page.Url}");
+            output.WriteLine($"[page text] {visible.ReplaceLineEndings(" | ")}");
+        }
+        catch (PlaywrightException exception)
+        {
+            output.WriteLine($"[page] could not be read: {exception.Message}");
+        }
+
+        string[] events;
+
+        lock (_events)
+        {
+            events = [.. _events];
+        }
+
+        foreach (var line in events)
+        {
+            output.WriteLine($"[page event] {line}");
+        }
+    }
 }

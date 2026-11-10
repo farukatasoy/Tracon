@@ -31,6 +31,10 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         await session.Page.GetByLabel("Token").FillAsync(token);
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
 
+        // The token is kept once the server accepted it. A page load started before that finds no token and shows the
+        // shell screen again, so the playground never appears (a slow runner lost this race).
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).First).ToBeVisibleAsync();
+
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
 
         // BUG-S4-011: the `media-src` directive did not exist at all,
