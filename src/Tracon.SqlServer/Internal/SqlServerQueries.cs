@@ -66,9 +66,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
     /// <inheritdoc />
     /// <remarks>
     /// The server's UTC clock at offset zero, so the stored value has the same offset the application writes.
-    /// <c>SYSDATETIMEOFFSET()</c> would carry the offset of the server's time zone. Like every function of this family it
-    /// is read once per statement, and the column it is compared with is <c>datetimeoffset(7)</c>, so the 100-ns
-    /// precision is kept.
+    /// <c>SYSDATETIMEOFFSET()</c> would carry the offset of the server's time zone. Each reference is a separate read of the
+    /// clock: a statement that stamps a start and an end with it can see two instants a few milliseconds apart under
+    /// load. The column it is compared with is <c>datetimeoffset(7)</c>, so the 100-ns precision is kept.
     /// </remarks>
     protected override string LeaseNow => "TODATETIMEOFFSET(SYSUTCDATETIME(), 0)";
 
