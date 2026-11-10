@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""scripts/capacity.py için testler.
+"""Tests for scripts/capacity.py.
 
-Ölçümün kendisini değil, ölçümü BAŞLATMAYI yöneten kararları test eder:
-profil doğrulama, hücre planı ve exact sürüm kapısı. Bu üçü yanlışsa koşum
-saatler sürer ve sonunda yorumlanamayan bir rapor verir.
+They test the decisions that govern STARTING a measurement, not the measurement itself:
+profile validation, the cell plan and the exact-version gate. When one of these three is
+wrong the run takes hours and ends with a report nobody can interpret.
 """
 
 from __future__ import annotations
@@ -162,7 +162,7 @@ class ReusableFeedTests(unittest.TestCase):
 
 
 class ShippedProfileTests(unittest.TestCase):
-    """Repo'nun kendi profilleri de kapıdan geçer."""
+    """The profiles the repository ships pass the gate as well."""
 
     def test_every_shipped_profile_is_measurable(self):
         for path in sorted(capacity.PROFILE_DIR.glob("*.json")):
@@ -176,8 +176,8 @@ class ShippedProfileTests(unittest.TestCase):
         self.assertEqual(smoke["measureSeconds"], 0)
 
     def test_the_soak_profile_writes_its_chosen_load_explicitly(self):
-        # Öneri algoritması workload'u sessizce değiştiremez: seçilen
-        # concurrency profilde AÇIK bir sayı olarak durur.
+        # The recommendation algorithm cannot change the workload silently: the chosen
+        # concurrency stands in the profile as an EXPLICIT number.
         soak = capacity.load_profile("soak")
         self.assertEqual(soak["concurrency"], [8])
         self.assertEqual(soak["measureSeconds"], 1800)
@@ -227,8 +227,8 @@ class CellPlanTests(unittest.TestCase):
         self.assertEqual(cells[0]["scenarios"], ["buffered", "streaming", "queued"])
 
     def test_the_worker_axis_never_multiplies_the_concurrency_list(self):
-        # 🚨 Eksen çaprazlanırsa 1/2/4 worker × 4 basamak çıkar ve rapor
-        # "worker sayısı" eksenini okunamaz hale getirir.
+        # 🚨 Crossing the axis would give 1/2/4 workers x 4 steps and make the
+        # "worker count" axis of the report unreadable.
         cells = capacity.plan_cells(
             profile(scenarios=["queued"], concurrency=[1, 8, 32, 64],
                     fixedConcurrency=8, workerCounts=[1, 2, 4], repeats=2),
@@ -248,7 +248,7 @@ class CellPlanTests(unittest.TestCase):
         self.assertEqual(len({c["cellId"] for c in cells}), len(cells))
 
     def test_two_axes_together_are_refused(self):
-        # Birlikte verilirse plan_cells yalnız birini koşardı ve diğeri sessizce düşerdi.
+        # Given together, plan_cells would run only one and silently drop the other.
         problems = capacity.validate_profile(profile(apiHostCounts=[1, 2], workerCounts=[1, 2]))
         self.assertTrue(any("separate axes" in p for p in problems))
 
@@ -285,7 +285,7 @@ class ExactVersionTests(unittest.TestCase):
 
 class CanaryTests(unittest.TestCase):
     def test_the_planted_canary_is_credential_shaped(self):
-        # Yakalanamayacak bir canary her redaction testini boşa çıkarır.
+        # A canary that cannot be caught makes every redaction test pointless.
         self.assertIn("Password=", capacity.CANARY_CREDENTIAL)
 
 
@@ -305,13 +305,14 @@ class CommandLineTests(unittest.TestCase):
         code, text = self._exit_code_and_text("--help")
 
         self.assertEqual(code, 0)
-        self.assertIsNone(re.search("[çğıöşüÇĞİÖŞÜ]", text))
+        # Written as code points so that this source file holds no Turkish letter itself.
+        self.assertIsNone(re.search("[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]", text))
 
         for flag in ("--profile", "--package-version", "--output", "--keep-workspace", "--ready-feed"):
             self.assertIn(flag, text)
 
     def test_the_old_turkish_flags_are_refused(self):
-        for old in ("--profil", "--surum", "--cikti", "--calisma-alanini-birak", "--hazir-feed"):
+        for old in ("--profil", "--surum", "--cikti", "--calisma-alanini-birak", "--hazir-feed"):  # legacy-name
             code, text = self._exit_code_and_text("--profile", "smoke", "--package-version", "1.0.0", old, "x")
             self.assertEqual(code, 2, old)
             self.assertIn("unrecognized arguments", text)

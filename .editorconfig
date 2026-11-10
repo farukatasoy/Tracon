@@ -1,11 +1,11 @@
-# Tracon kod stili
-# Bu dosya build sirasinda uygulanir (EnforceCodeStyleInBuild=true).
-# `dotnet format --verify-no-changes` CI'da dogrular.
+# Tracon code style
+# This file is applied during the build (EnforceCodeStyleInBuild=true).
+# CI verifies it with `dotnet format --verify-no-changes`.
 
 root = true
 
 # ---------------------------------------------------------------------------
-# Tum dosyalar
+# All files
 # ---------------------------------------------------------------------------
 [*]
 charset = utf-8
@@ -32,21 +32,21 @@ indent_size = 4
 # ---------------------------------------------------------------------------
 [*.cs]
 
-#### using yonergeleri ####
+#### using directives ####
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
 csharp_using_directive_placement = outside_namespace:error
 
-#### dosya kapsamli namespace ####
+#### file-scoped namespaces ####
 csharp_style_namespace_declarations = file_scoped:error
 
-#### this. kullanilmaz ####
+#### no this. qualification ####
 dotnet_style_qualification_for_field = false:warning
 dotnet_style_qualification_for_property = false:warning
 dotnet_style_qualification_for_method = false:warning
 dotnet_style_qualification_for_event = false:warning
 
-#### dil anahtar sozcukleri ####
+#### language keywords ####
 dotnet_style_predefined_type_for_locals_parameters_members = true:error
 dotnet_style_predefined_type_for_member_access = true:error
 
@@ -80,11 +80,11 @@ dotnet_style_prefer_conditional_expression_over_assignment = true:silent
 dotnet_style_prefer_conditional_expression_over_return = true:silent
 dotnet_style_readonly_field = true:warning
 
-#### degismezlik ####
+#### immutability ####
 csharp_prefer_static_local_function = true:warning
 dotnet_style_require_accessibility_modifiers = for_non_interface_members:error
 
-#### bosluk ####
+#### whitespace ####
 csharp_new_line_before_open_brace = all
 csharp_new_line_before_else = true
 csharp_new_line_before_catch = true
@@ -100,7 +100,7 @@ csharp_space_between_method_declaration_parameter_list_parentheses = false
 csharp_space_between_method_call_parameter_list_parentheses = false
 csharp_space_around_binary_operators = before_and_after
 
-#### isimlendirme ####
+#### naming ####
 dotnet_naming_rule.interfaces_start_with_i.severity = error
 dotnet_naming_rule.interfaces_start_with_i.symbols = interfaces
 dotnet_naming_rule.interfaces_start_with_i.style = prefix_i
@@ -116,9 +116,9 @@ dotnet_naming_symbols.types_and_members.applicable_kinds = class,struct,enum,del
 dotnet_naming_symbols.types_and_members.applicable_accessibilities = *
 dotnet_naming_style.pascal_case.capitalization = pascal_case
 
-# DIKKAT: Isimlendirme kurallarinda SIRA onemlidir - ilk eslesen kural kazanir.
-# Bu yuzden const ve static readonly kurallari, genel private alan kuralindan
-# ONCE gelmelidir. Aksi halde `private const Foo` da `_` oneki ister.
+# NOTE: ORDER matters in naming rules - the first matching rule wins.
+# So the const and static readonly rules must come BEFORE the general
+# private field rule. Otherwise `private const Foo` would also demand a `_` prefix.
 
 dotnet_naming_rule.constants_pascal_case.severity = error
 dotnet_naming_rule.constants_pascal_case.symbols = constants
@@ -149,61 +149,61 @@ dotnet_naming_symbols.parameters.applicable_kinds = parameter
 dotnet_naming_style.camel_case.capitalization = camel_case
 
 # ---------------------------------------------------------------------------
-# Tani seviyeleri
+# Diagnostic severities
 # ---------------------------------------------------------------------------
 
-# CA1848: LoggerMessage delegeleri kullan. `suggestion` kalir: IDE onerir,
-# build'i kirmaz. Olcum 2026-09-23: src altinda 212 dogrudan log cagrisi var
-# (96 dosya; 132 Warning, 40 Error, 22 Debug, 15 Information, 2 Critical,
-# 1 Log(level)) ve 2 [LoggerMessage]. Cogu catch veya hata dalindadir ya da
-# acilista bir kez kosar. Hata olmayan kosullu cagrilar da vardir: run, session
-# veya metric basina Information/Debug (katalog disi model - BYOK kiracisinda
-# her run; canli ses session'inin kapanisi; degerlendirme metric dongusu).
-# Hepsi IsEnabled korumalidir. Per-token veya per-event dongude (akisli uclar,
-# RunEventWriter.AppendAsync basari yolu) log cagrisi YOKTUR. Arguman maliyetini
-# CA1873 (hata) ve 78 IsEnabled guard'i zorlar. Yeni kodda sabit mesaj icin
-# [LoggerMessage] tercih edilir (ornek: UnpricedModelWarningService).
-# Yeniden acilma kosulu: per-token veya per-event basari yoluna bir log cagrisi
-# eklenirse o dosya icin CA1848 = warning yapilir ve cagri [LoggerMessage]'a
-# cevrilir.
+# CA1848: use LoggerMessage delegates. Stays `suggestion`: the IDE suggests it,
+# the build does not break. Measured 2026-09-23: src has 212 direct log calls
+# (96 files; 132 Warning, 40 Error, 22 Debug, 15 Information, 2 Critical,
+# 1 Log(level)) and 2 [LoggerMessage]. Most sit in a catch or an error branch,
+# or run once at startup. There are non-error conditional calls too: per run,
+# session or metric Information/Debug (a model outside the catalog - every run
+# of a BYOK tenant; the close of a live voice session; the evaluation metric
+# loop). All of them are guarded by IsEnabled. There is NO log call in a
+# per-token or per-event loop (streaming endpoints, the success path of
+# RunEventWriter.AppendAsync). The argument cost is enforced by CA1873 (error)
+# and 78 IsEnabled guards. New code should prefer [LoggerMessage] for a constant
+# message (example: UnpricedModelWarningService).
+# Reopen condition: if a log call is added to a per-token or per-event success
+# path, that file gets CA1848 = warning and the call is converted to [LoggerMessage].
 dotnet_diagnostic.CA1848.severity = suggestion
 
-# CA1062: Public metotlarda null kontrolu. Nullable reference types acik oldugu
-# icin gereksiz tekrar olusturur.
+# CA1062: null checks on public methods. Nullable reference types are enabled,
+# so the check would only repeat what the compiler already enforces.
 dotnet_diagnostic.CA1062.severity = none
 
-# CA1303: Yerellestirilebilir dizeler. Tracon hata mesajlarini yerellestirmez.
+# CA1303: localizable strings. Tracon does not localize its error messages.
 dotnet_diagnostic.CA1303.severity = none
 
-# MA0004/MA0022: Meziantou - ConfigureAwait ve ValueTask kurallari kutuphane icin dogru.
+# MA0004: Meziantou - the ConfigureAwait rule is right for a library.
 dotnet_diagnostic.MA0004.severity = warning
 
-# MA0051: Metot cok uzun. Esik cok dusuk, gurultu yapiyor.
+# MA0051: method too long. The threshold is too low and only produces noise.
 dotnet_diagnostic.MA0051.severity = suggestion
 
-# MA0048: Dosya adi tip adiyla eslesmeli. Partial ve ic tiplerde yanlis pozitif verir.
+# MA0048: file name must match the type name. Gives false positives on partial and nested types.
 dotnet_diagnostic.MA0048.severity = suggestion
 
-# IDE0055: Bicimlendirme. `dotnet format` ile zorunlu kilinir.
+# IDE0055: formatting. Enforced through `dotnet format`.
 dotnet_diagnostic.IDE0055.severity = warning
 
 # ---------------------------------------------------------------------------
-# Test projeleri - daha gevsek kurallar
+# Test projects - looser rules
 # ---------------------------------------------------------------------------
 [tests/**/*.cs]
-# xUnit1051: her cagriya TestContext.Current.CancellationToken gecirilmesini ister.
-# Eski yorum "uzun suren test eklenirse (Testcontainers, Playwright) o proje icin
-# yeniden acilir" diyordu. Kosul gerceklesti, kural acilmadi; `none` BILEREK
-# kalir. Olcum 2026-09-23 (kural `warning` yapilip derlendi, tekil cagri/dosya):
-# PostgreSql entegrasyon 286/32, SqlServer entegrasyon 92/10, Ui.E2ETests 12/5,
-# Core.UnitTests 1032/93. Uzun testlerde asilma siniri token'da degil diger
-# katmanlardadir: ProcessRunner cagrilarinin 48'de 47'si kendi timeout'unu, Playwright
-# `Expect` kendi bekleme sinirini, CI test adimi ve isi `timeout-minutes`'i tasir.
-# Token yalniz iptal gecikmesini kisaltir. Yeniden acilma kosulu: uzun bir testte
-# iptalin asili kaldigi olculurse o proje icin `warning` yapilir.
+# xUnit1051: asks for TestContext.Current.CancellationToken on every call.
+# Long-running tests exist (Testcontainers, Playwright), yet the rule stays
+# `none` ON PURPOSE. Measured 2026-09-23 (rule set to `warning` and compiled;
+# distinct calls/files): PostgreSql integration 286/32, SqlServer integration 92/10,
+# Ui.E2ETests 12/5, Core.UnitTests 1032/93. In long tests the protection against
+# hanging is not in the token but in the other layers: 47 of the 48 ProcessRunner
+# calls carry their own timeout, Playwright `Expect` carries its own wait limit,
+# and the CI test step and job carry `timeout-minutes`. The token only shortens
+# the cancellation delay. Reopen condition: if cancellation is measured to hang
+# in a long test, that project gets `warning`.
 dotnet_diagnostic.xUnit1051.severity = none
-dotnet_diagnostic.CA1707.severity = none      # Test adlarinda alt cizgi serbest
-dotnet_diagnostic.CA2007.severity = none      # Testlerde ConfigureAwait gerekmez
+dotnet_diagnostic.CA1707.severity = none      # Underscores are allowed in test names
+dotnet_diagnostic.CA2007.severity = none      # ConfigureAwait is not needed in tests
 dotnet_diagnostic.MA0004.severity = none
 dotnet_diagnostic.MA0016.severity = none
 dotnet_diagnostic.CA1861.severity = none
@@ -225,8 +225,8 @@ dotnet_diagnostic.CA1861.severity = none
 
 [samples/**/*.cs]
 dotnet_diagnostic.CA1848.severity = none
-# CA2007 / MA0004: ConfigureAwait(false). Bu kurallar KUTUPHANE kodu icindir.
-# ASP.NET Core uygulamalarinda SynchronizationContext yoktur; ornek kodda
-# ConfigureAwait cagrilari yalnizca gurultu yapar ve ornegi okumasi zorlastirir.
+# CA2007 / MA0004: ConfigureAwait(false). These rules are for LIBRARY code.
+# ASP.NET Core applications have no SynchronizationContext; in sample code the
+# ConfigureAwait calls only add noise and make the sample harder to read.
 dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.MA0004.severity = none

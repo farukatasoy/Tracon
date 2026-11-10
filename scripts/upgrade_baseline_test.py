@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Yükseltme kapısının taban betiğinin testleri: özet algoritması ve manifestin yeniden yazımı."""
+"""Tests of the baseline script of the upgrade gate: the digest algorithm and the rewrite of the manifest."""
 from __future__ import annotations
 
 import contextlib
@@ -20,51 +20,51 @@ sys.modules[spec.name] = ub
 spec.loader.exec_module(ub)
 
 
-class DeyimOzetiTestleri(unittest.TestCase):
-    def test_yorum_ve_bosluk_ozeti_degistirmez(self):
-        a = "-- eski yorum\nCREATE TABLE {schema}t (id TEXT);\n/* blok */\n"
-        b = "-- yeni yorum, baska satir\n\nCREATE  TABLE {schema}t\n  (id TEXT);\n"
+class StatementDigestTests(unittest.TestCase):
+    def test_comments_and_whitespace_do_not_change_the_digest(self):
+        a = "-- old comment\nCREATE TABLE {schema}t (id TEXT);\n/* block */\n"
+        b = "-- new comment, another line\n\nCREATE  TABLE {schema}t\n  (id TEXT);\n"
 
         self.assertEqual(ub.statement_digest(a), ub.statement_digest(b))
 
-    def test_deyim_degisince_ozet_degisir(self):
+    def test_a_changed_statement_changes_the_digest(self):
         a = "CREATE TABLE {schema}t (id TEXT);"
         b = "CREATE TABLE {schema}t (id TEXT, extra TEXT);"
 
         self.assertNotEqual(ub.statement_digest(a), ub.statement_digest(b))
 
-    def test_satir_sonu_farki_ozeti_degistirmez(self):
+    def test_line_ending_differences_do_not_change_the_digest(self):
         self.assertEqual(ub.statement_digest("SELECT 1;\r\nSELECT 2;"), ub.statement_digest("SELECT 1;\nSELECT 2;"))
 
-    def test_ham_toplam_yorumu_da_kapsar_ve_buyuk_harf_yazilir(self):
-        text = "-- yorum\nSELECT 1;\n"
+    def test_raw_checksum_covers_comments_and_is_upper_case(self):
+        text = "-- comment\nSELECT 1;\n"
         expected = hashlib.sha256(text.encode("utf-8")).hexdigest().upper()
 
         self.assertEqual(ub.raw_checksum(text), expected)
         self.assertEqual(ub.raw_checksum(text.replace("\n", "\r\n")), expected)
         self.assertNotEqual(ub.raw_checksum(text), ub.raw_checksum("SELECT 1;\n"))
 
-    def test_bom_ozeti_degistirmez(self):
+    def test_a_bom_does_not_change_the_checksum(self):
         raw = b"\xef\xbb\xbfSELECT 1;\n"
 
         self.assertEqual(ub.describe("0001_initial.sql", raw)["checksum"], ub.describe("0001_initial.sql", b"SELECT 1;\n")["checksum"])
 
-    def test_dosya_adi_biciminden_sira_numarasi_okunur(self):
+    def test_the_sequence_number_is_read_from_the_file_name(self):
         entry = ub.describe("0042_header_configuration_keys.sql", b"SELECT 1;")
 
         self.assertEqual(entry["id"], 42)
         self.assertEqual(entry["name"], "0042_header_configuration_keys")
 
-    def test_bicime_uymayan_dosya_adi_reddedilir(self):
+    def test_a_file_name_that_does_not_match_the_pattern_is_rejected(self):
         with self.assertRaises(ValueError):
             ub.describe("initial.sql", b"SELECT 1;")
 
 
-class ManifestTestleri(unittest.TestCase):
+class ManifestTests(unittest.TestCase):
     def _manifest(self, version: str, exemptions: list[dict]) -> dict:
         return {"version": version, "tag": f"v{version}", "providers": {}, "exemptions": exemptions}
 
-    def test_ayni_surumde_muafiyetler_korunur(self):
+    def test_exemptions_are_kept_for_the_same_version(self):
         previous = self._manifest("1.0.0-preview.6", [{"provider": "sqlite", "name": "0001_initial"}])
 
         with mock.patch.object(ub, "read_tag", return_value={}), mock.patch.object(ub, "read_optional_tag", return_value={}):
@@ -72,7 +72,7 @@ class ManifestTestleri(unittest.TestCase):
 
         self.assertEqual(manifest["exemptions"], previous["exemptions"])
 
-    def test_yeni_surumde_muafiyetler_bosalir(self):
+    def test_exemptions_are_emptied_for_a_new_version(self):
         previous = self._manifest("1.0.0-preview.6", [{"provider": "sqlite", "name": "0001_initial"}])
 
         with mock.patch.object(ub, "read_tag", return_value={}), mock.patch.object(ub, "read_optional_tag", return_value={}):
@@ -81,25 +81,25 @@ class ManifestTestleri(unittest.TestCase):
         self.assertEqual(manifest["version"], "1.0.0-rc.1")
         self.assertEqual(manifest["exemptions"], [])
 
-    def test_kaynak_verilmezse_surumun_etiketi_okunur_verilirse_o_baslangic(self):
+    def test_the_tag_of_the_version_is_read_without_a_source_and_the_source_otherwise(self):
         with mock.patch.object(ub, "read_tag", return_value={}) as read, mock.patch.object(ub, "read_optional_tag", return_value={}):
             ub.build_manifest(ROOT, "1.0.0-rc.1", None, None)
             ub.build_manifest(ROOT, "1.0.0-rc.1", "HEAD", None)
 
         self.assertEqual([call.args[1] for call in read.call_args_list], ["v1.0.0-rc.1", "HEAD"])
 
-    def test_depodaki_manifest_uc_saglayiciyi_ve_ayni_etiketi_tasir(self):
+    def test_the_manifest_in_the_repository_holds_three_providers_and_a_matching_tag(self):
         manifest = json.loads((ROOT / ub.MANIFEST).read_text(encoding="utf-8"))
 
         self.assertEqual(sorted(manifest["providers"]), ["postgresql", "sqlite", "sqlserver"])
         self.assertEqual(manifest["tag"], "v" + manifest["version"])
 
-    def test_opsiyonel_kumeler_yalniz_yayinda_olan_dosyalari_tasir(self):
+    def test_optional_sets_hold_only_the_files_the_release_has(self):
         manifest = json.loads((ROOT / ub.MANIFEST).read_text(encoding="utf-8"))
         optional = manifest["optionalSets"]
 
         self.assertEqual(sorted(optional), ["postgresql", "sqlite", "sqlserver"])
-        # `views` üç sağlayıcıda, `knowledge` yalnız PostgreSQL'de vardır; her kümenin dosyaları sıralı ve benzersizdir.
+        # `views` exists for all three providers, `knowledge` only for PostgreSQL; the files of every set are ordered and unique.
         self.assertEqual(sorted(optional["postgresql"]), ["knowledge", "views"])
         self.assertEqual(sorted(optional["sqlite"]), ["views"])
         self.assertEqual(sorted(optional["sqlserver"]), ["views"])
@@ -108,7 +108,7 @@ class ManifestTestleri(unittest.TestCase):
                 ids = [entry["id"] for entry in entries]
                 self.assertEqual(ids, sorted(set(ids)))
 
-    def test_opsiyonel_kume_dosyasi_etiketten_bugune_degisince_bildirilir(self):
+    def test_a_changed_optional_set_file_is_reported(self):
         manifest = {
             "providers": {},
             "optionalSets": {"sqlite": {"views": [{"name": "0001_read_views", "statements": "0" * 64}]}},
@@ -122,7 +122,8 @@ class ManifestTestleri(unittest.TestCase):
 class OutputLanguageTests(unittest.TestCase):
     """Everything the script prints is English: a contributor of the public repository reads it."""
 
-    TURKISH_LETTERS = re.compile("[çğıöşüÇĞİÖŞÜ]")
+    # Written as code points so that this source file holds no Turkish letter itself.
+    TURKISH_LETTERS = re.compile("[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]")
 
     def test_the_help_text_names_the_english_flags_only(self):
         output = io.StringIO()

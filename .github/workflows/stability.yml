@@ -43,7 +43,7 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   CI: true
-  # The gate scripts write Turkish; the default code page of a runner may not hold every letter.
+  # The scripts and their tests handle non-ASCII text; the default code page of a runner may not hold every character.
   PYTHONUTF8: 1
 
 jobs:

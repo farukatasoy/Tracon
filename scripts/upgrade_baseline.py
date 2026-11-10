@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
-"""Yükseltme kapısının taban manifestini son yayının etiketinden yazar.
+"""Writes the baseline manifest of the upgrade gate from the tag of the last release.
 
-Kapı (`tests/Shared/Upgrade/`), son yayınlanmış sürümün veritabanını kurar ve bugünkü
-migration'larla yükseltir. Taban manifesti o yayının her migration dosyasını iki sayıyla
-tanımlar: ham sağlama toplamı (veritabanındaki `__migrations` satırı bunu taşır) ve
-yorumsuz, boşluksuz deyim özeti (yorum düzeltmesi bunu değiştirmez, deyim değişikliği
-değiştirir). Manifest depoda dosyadır; kapı ağa ve git'e ihtiyaç duymaz.
+The gate (`tests/Shared/Upgrade/`) builds the database of the last published version and
+upgrades it with today's migrations. The baseline manifest describes every migration file of
+that release with two values: the raw checksum (the `__migrations` row in the database carries
+it) and a digest of the statements without comments and whitespace (a comment fix does not
+change it, a statement change does). The manifest is a file in the repository, so the gate
+needs neither the network nor git.
 
-Taban her yayında ilerler. Kesim commit'inde etiket henüz yoktur; migration dosyaları
-etiketin işaret edeceği commit'te (`HEAD`) okunur:
+The baseline advances with every release. The tag does not exist yet in the cut commit, so the
+migration files are read from the commit the tag will point to (`HEAD`):
 
     python3 scripts/upgrade_baseline.py --write --package-version 1.0.0-rc.1 --source HEAD
 
-Yayından sonra aynı manifest etiketten yeniden üretilebilir (`--source` verilmezse `v<sürüm>`
-etiketi okunur; `--package-version` verilmezse son yayın `breaking_changes.resolve_baseline` ile çözülür).
-`gate.py scan`, manifestin sürümü CHANGELOG'daki son yayından farklıysa kırmızıdır.
+After the release the same manifest can be rebuilt from the tag (without `--source` the
+`v<version>` tag is read; without `--package-version` the last release is resolved with
+`breaking_changes.resolve_baseline`). `gate.py scan` is red when the version of the manifest
+differs from the last release in the changelog.
 
-Deyim özetinin algoritması `tests/Shared/Upgrade/UpgradeBaseline.cs` içindeki
-`StatementDigest` ile birebir aynıdır; biri değişirse öteki de değişir (kapı ilk
-koşuda her dosyada kırmızı olur, sessiz kalmaz).
+The digest algorithm is identical to `StatementDigest` in
+`tests/Shared/Upgrade/UpgradeBaseline.cs`; when one changes, the other must change too (the
+gate turns red on every file at its first run, so a mismatch cannot stay silent).
 """
 from __future__ import annotations
 
@@ -41,8 +43,9 @@ PROVIDER_DIRECTORIES = {
     "sqlserver": "src/Tracon.SqlServer/Migrations",
 }
 
-# Opsiyonel migration kümeleri (`views`, `knowledge`): çekirdek kümeden ayrı dizinlerde yaşar, ledger'da kendi
-# `set_name`'iyle yazılır. Kapı, yayının opsiyonel kümeleri açık veritabanını da yükseltir.
+# Optional migration sets (`views`, `knowledge`): they live in directories apart from the core set and the
+# ledger records them under their own `set_name`. The gate also upgrades a database of the release that
+# has the optional sets enabled.
 OPTIONAL_DIRECTORIES = {
     "sqlite": {"views": "src/Tracon.Sqlite/MigrationsViews"},
     "postgresql": {
@@ -59,17 +62,17 @@ _FILE_NAME = re.compile(r"^(?P<id>\d{4})_(?P<name>.+)\.sql$")
 
 
 def read_text(data: bytes) -> str:
-    """Okur gibi çöz: UTF-8, başındaki BOM atılır (gömülü kaynağı okuyan `StreamReader` de atar)."""
+    """Decodes the way the runtime reads it: UTF-8, a leading BOM is dropped (the `StreamReader` that reads the embedded resource drops it too)."""
     return data.decode("utf-8-sig")
 
 
 def raw_checksum(text: str) -> str:
-    """`MigrationDescriptor.ComputeChecksum` ile aynı: satır sonu LF'ye çevrilir, SHA-256, büyük harf onaltılık."""
+    """Same as `MigrationDescriptor.ComputeChecksum`: line endings become LF, SHA-256, upper-case hexadecimal."""
     return hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest().upper()
 
 
 def statement_digest(text: str) -> str:
-    """Yorumları ve boşluk farkını silip deyimlerin SHA-256 özetini verir (küçük harf onaltılık)."""
+    """SHA-256 digest of the statements after comments and whitespace differences are removed (lower-case hexadecimal)."""
     text = text.replace("\r\n", "\n")
     text = _BLOCK_COMMENT.sub(" ", text)
     text = _LINE_COMMENT.sub(" ", text)
@@ -78,7 +81,7 @@ def statement_digest(text: str) -> str:
 
 
 def describe(file_name: str, data: bytes) -> dict[str, object]:
-    """Bir migration dosyasının manifest girdisi."""
+    """The manifest entry of one migration file."""
     match = _FILE_NAME.match(file_name)
     if match is None:
         raise ValueError(f"the migration file name does not match the pattern: {file_name}")
@@ -99,7 +102,7 @@ def _git(root: pathlib.Path, *args: str, binary: bool = False) -> bytes | str:
 
 
 def read_tag(root: pathlib.Path, tag: str) -> dict[str, list[dict[str, object]]]:
-    """Etiketteki her sağlayıcının migration dosyaları."""
+    """The migration files of every provider at the tag."""
     providers: dict[str, list[dict[str, object]]] = {}
     for provider, directory in PROVIDER_DIRECTORIES.items():
         names = sorted(
@@ -115,7 +118,7 @@ def read_tag(root: pathlib.Path, tag: str) -> dict[str, list[dict[str, object]]]
 
 
 def read_optional_tag(root: pathlib.Path, tag: str) -> dict[str, dict[str, list[dict[str, object]]]]:
-    """Etiketteki her sağlayıcının opsiyonel kümelerinin migration dosyaları. Yayında olmayan küme yazılmaz."""
+    """The migration files of the optional sets of every provider at the tag. A set the release does not have is not written."""
     providers: dict[str, dict[str, list[dict[str, object]]]] = {}
     for provider, sets in OPTIONAL_DIRECTORIES.items():
         found: dict[str, list[dict[str, object]]] = {}
@@ -134,9 +137,9 @@ def read_optional_tag(root: pathlib.Path, tag: str) -> dict[str, dict[str, list[
 
 def build_manifest(
         root: pathlib.Path, version: str, source: str | None, previous: dict[str, object] | None) -> dict[str, object]:
-    """Yeni manifest. Aynı sürümün muafiyet listesi korunur; sürüm değişince boşalır.
+    """The new manifest. The exemption list of the same version is kept; it is emptied when the version changes.
 
-    `source` migration dosyalarının okunacağı git başvurusudur (varsayılan: `v<sürüm>` etiketi).
+    `source` is the git reference the migration files are read from (default: the `v<version>` tag).
     """
     tag = f"{TAG_PREFIX}{version}"
     kept = previous.get("exemptions", []) if previous and previous.get("version") == version else []
@@ -150,7 +153,7 @@ def build_manifest(
 
 
 def differing_from_head(root: pathlib.Path, manifest: dict[str, object]) -> list[str]:
-    """Etiketten bugüne deyimi değişmiş migration dosyaları (kapı bunları muafiyet listesinde bekler)."""
+    """Migration files whose statements changed between the tag and now (the gate expects each one in the exemption list)."""
     changed: list[str] = []
     providers = manifest["providers"]
     assert isinstance(providers, dict)

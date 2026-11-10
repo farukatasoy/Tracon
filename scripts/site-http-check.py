@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Yerel nginx örneğinin redirect, hata ve preview indeksleme sözleşmesini ölçer."""
+"""Measures the redirect, error and preview-indexing contract of a local nginx instance."""
 import argparse
 import http.client
 import subprocess
@@ -16,10 +16,10 @@ site = subprocess.check_output(['node', '--input-type=module', '-e',
     "import {site} from './docs-site/site.config.mjs'; process.stdout.write(site)"], cwd=root, text=True)
 host = urlsplit(site).hostname
 errors = []
-# Üçüncü alan: beklenen Content-Type öneki. Markdown kopyası burada denetlenir çünkü
-# tipi dosya değil nginx belirler: stok mime.types'ta .md yoktur ve eksik bir
-# default_type kopyayı application/octet-stream olarak yollar — dist'e bakan hiçbir
-# kapı bunu göremez.
+# Third field: the expected Content-Type prefix. The Markdown copies are checked here
+# because nginx, not the file, decides their type: the stock mime.types has no .md, and a
+# missing default_type serves the copy as application/octet-stream - a check that only
+# looks at dist cannot see that.
 checks = [('/', 200, 'text/html'), ('/getting-started/', 200, 'text/html'),
           ('/getting-started?ref=seo', 301, None),
           ('/getting-started/index.html', 200, 'text/html'),
@@ -45,15 +45,14 @@ for path, expected, content_type in checks:
             errors.append(f'{path}: error HTML or noindex is missing')
         if content_type and not (response.getheader('Content-Type') or '').startswith(content_type):
             errors.append(f'{path}: Content-Type {response.getheader("Content-Type")} != {content_type}*')
-        # Markdown kopyaları sayfanın near-duplicate'idir ve sitemap'te yoktur; sahibi
-        # HTML sayfadır. Bunu söyleyen tek şey bu header'dır — kopyanın gövdesi
-        # söyleyemez. `add_header` kullanmak miras alınan X-Robots-Tag'i düşürdüğü
-        # için ikisi BİRLİKTE denetlenir: biri eklenip diğeri unutulursa preview
-        # host'u indekslenebilir markdown sunar.
+        # A Markdown copy is a near-duplicate of its page and is not in the sitemap; the HTML
+        # page owns it. Only this header can say so - the copy's body cannot. Because
+        # `add_header` drops the inherited X-Robots-Tag, both headers are checked TOGETHER:
+        # if one is added and the other forgotten, the preview host serves indexable Markdown.
         if path.endswith('/index.md'):
-            beklenen = f'<{site.rstrip("/")}{path[:-len("index.md")]}>; rel="canonical", </llms.txt>; rel="describedby"'
-            if response.getheader('Link') != beklenen:
-                errors.append(f'{path}: Link {response.getheader("Link")} != {beklenen}')
+            expected_link = f'<{site.rstrip("/")}{path[:-len("index.md")]}>; rel="canonical", </llms.txt>; rel="describedby"'
+            if response.getheader('Link') != expected_link:
+                errors.append(f'{path}: Link {response.getheader("Link")} != {expected_link}')
         connection.close()
 print(f'HTTP: {len(checks) * 2} responses checked; {len(errors)} error(s).')
 for error in errors:

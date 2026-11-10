@@ -15,7 +15,7 @@ public sealed class RetentionTargetsTests
     [InlineData(RetentionTargets.Attachments)]
     [InlineData(RetentionTargets.Sessions)]
     [InlineData(RetentionTargets.Conversations)]
-    public void Taninan_hedefler_All_icinde(string target)
+    public void Known_targets_are_in_All(string target)
     {
         RetentionTargets.IsKnown(target).ShouldBeTrue();
         RetentionTargets.All.ShouldContain(target, StringComparer.Ordinal);
@@ -26,13 +26,13 @@ public sealed class RetentionTargetsTests
     [InlineData("")]
     [InlineData("run_events; DROP TABLE runs;")]
     [InlineData(null)]
-    public void Bilinmeyen_hedefler_reddedilir(string? target)
+    public void Unknown_targets_are_rejected(string? target)
     {
         RetentionTargets.IsKnown(target).ShouldBeFalse();
     }
 
     [Fact]
-    public void Audit_log_beyaz_listede_asla_yoktur()
+    public void Audit_log_is_never_on_the_allow_list()
     {
         RetentionTargets.All.ShouldNotContain("audit_log", StringComparer.Ordinal);
     }

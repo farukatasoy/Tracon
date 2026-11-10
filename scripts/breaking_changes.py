@@ -634,8 +634,8 @@ API_FILE = re.compile(r"^src/(?P<package>[^/]+)/PublicAPI\.(?:Shipped|Unshipped)
 REMOVED_PREFIX = "*REMOVED*"
 CONTRACT_PACKAGE = "Tracon.Testing.Contracts.Xunit"
 REQUIRED_SNAPSHOT = pathlib.PurePosixPath("docs", "contracts", "required-members.txt")
-# Tags up to `v1.0.0-preview.8` hold the snapshot under its earlier name. The mapping stays for good: history does not change.
-REQUIRED_SNAPSHOT_LEGACY = pathlib.PurePosixPath("docs", "sozlesme", "required-uyeler.txt")
+# A tag up to `v1.0.0-preview.8` keeps the snapshot under the old directory name. The mapping stays for good: history does not change.
+REQUIRED_SNAPSHOT_LEGACY = pathlib.PurePosixPath("docs", "sozlesme", "required-uyeler.txt")  # legacy-name
 MAX_LISTED = 8
 
 
@@ -675,7 +675,7 @@ def effective_api(shipped: str, unshipped: str) -> set[str]:
 def _show(root: pathlib.Path, tag: str, path: str) -> str | None:
     """A file as it was at `tag`, None when the tag has no such path.
 
-    "No such path" and "cannot be read" are different answers (audit finding): a missing file is a first record,
+    "No such path" and "cannot be read" are different answers: a missing file is a first record,
     an unreadable one is a hole, and a gate that treats the hole as a first record turns green on a broken
     baseline. `ls-tree` tells them apart; a failure of either git call raises BaselineError."""
     listing = _git(root, "ls-tree", tag, "--", path)
@@ -694,7 +694,7 @@ def _show(root: pathlib.Path, tag: str, path: str) -> str | None:
 def _show_first(root: pathlib.Path, tag: str, paths: Sequence[str]) -> str | None:
     """The first of `paths` that `tag` holds, None when it holds none of them.
 
-    A snapshot file was moved once (`docs/sozlesme/` became `docs/contracts/`), and an old tag keeps the old path.
+    The snapshot files were moved once to `docs/contracts/`, and a tag up to `v1.0.0-preview.8` keeps them under the old directory name.
     The current path comes first and wins; the old one is tried only when the tag has no file at the current one.
     An unreadable path raises at once: it never falls through to the next."""
     for path in paths:

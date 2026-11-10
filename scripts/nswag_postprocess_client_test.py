@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""`nswag-postprocess-client.py` testleri — stdlib `unittest`, yeni bağımlılık yok.
+"""Tests for `nswag-postprocess-client.py` — stdlib `unittest`, no new dependency.
 
-Dosya adı alt çizgi taşır (`nswag-postprocess-client_test.py` DEĞİL):
-`unittest discover` tire taşıyan
-dosyaları sessizce atlar. Kaynak dosya yine de tire taşır (CLI script
-konvansiyonu); bu yüzden aşağıda `importlib` ile yüklenir.
+The file name carries an underscore (NOT `nswag-postprocess-client_test.py`): `unittest discover`
+silently skips files whose names contain a hyphen. The source file still carries a hyphen (the
+CLI script convention), so it is loaded below with `importlib`.
 
-Koşum: python3 -m unittest discover -s scripts -p "*_test.py"
+Run: python3 -m unittest discover -s scripts -p "*_test.py"
 """
 from __future__ import annotations
 

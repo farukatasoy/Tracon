@@ -57,8 +57,8 @@ def _write_clean_tree(root: pathlib.Path) -> None:
     _write_compatibility_page(root)
 
 
-class ReleaseExtensionSamplesTestleri(unittest.TestCase):
-    def test_temiz_agac_sifir_hata_uretir(self):
+class ReleaseExtensionSamplesTests(unittest.TestCase):
+    def test_a_clean_tree_produces_no_errors(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -67,9 +67,9 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
-    def test_saglayici_aot_vaadi_smoke_olmadan_reddedilir(self):
-        # "Native AOT: Yes" yalnız smoke'un kanıtladığı
-        # paket için verilir. Anthropic'i "Yes" yapmak smoke'a eklemeden geçmemeli.
+    def test_a_provider_aot_promise_without_a_smoke_is_rejected(self):
+        # "Native AOT: Yes" is given only to a package the smoke proves. Flipping
+        # Anthropic to "Yes" must not pass without adding it to the smoke.
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -80,7 +80,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("Tracon.Anthropic" in error and "no smoke behind it" in error for error in errors), errors)
 
-    def test_saglayici_aot_vaadi_geri_cekilince_smoke_zorunlu_olmaz(self):
+    def test_a_withdrawn_provider_aot_promise_needs_no_smoke(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -89,8 +89,8 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
-    def test_listede_olmayan_yes_satiri_reddedilir(self):
-        # Yeni bir paket "Yes" yazıp iki listeden de dışarıda kalamaz.
+    def test_a_yes_row_in_neither_list_is_rejected(self):
+        # A new package cannot claim "Yes" and stay out of both lists.
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -100,7 +100,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("Tracon.NewProvider" in error and "neither" in error for error in errors), errors)
 
-    def test_saglayici_satiri_tablodan_silinirse_reddedilir(self):
+    def test_a_provider_row_removed_from_the_table_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -111,7 +111,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("no Native AOT row for Tracon.Google" in error for error in errors), errors)
 
-    def test_uyumluluk_sayfasi_yoksa_reddedilir(self):
+    def test_a_missing_compatibility_page_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -121,7 +121,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("cannot be checked" in error for error in errors), errors)
 
-    def test_native_aot_sutunu_basliga_gore_okunur(self):
+    def test_the_native_aot_column_is_read_by_its_header(self):
         promises = release_extension_samples.native_aot_promises(
             "intro\n\n" + COMPATIBILITY_TABLE + "\n| Other | Native |\n|---|---|\n| `Tracon.X` | Yes |\n")
 
@@ -129,13 +129,13 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
         self.assertEqual(promises["Tracon.Anthropic"], "No")
         self.assertNotIn("Tracon.X", promises)
 
-    def test_gercek_agac_saglayici_aot_vaatlerini_smoke_ile_tutar(self):
+    def test_the_real_tree_keeps_provider_aot_promises_in_step_with_the_smoke(self):
         # The real site table against the real smoke project. Red here means a
         # package was promised AOT (or the smoke lost a package) without the
         # other half being updated.
         self.assertEqual(release_extension_samples.validate_provider_aot_promises(ROOT), [])
 
-    def test_bos_surum_reddedilir(self):
+    def test_an_empty_version_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -144,7 +144,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("exact Tracon sample package version" in error for error in errors))
 
-    def test_wildcard_surum_reddedilir(self):
+    def test_a_wildcard_version_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -153,7 +153,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("exact Tracon sample package version" in error for error in errors))
 
-    def test_eksik_sample_listesi_ogesi_yakalanir(self):
+    def test_a_missing_sample_project_is_caught(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -166,7 +166,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any(f"missing release sample project: {missing}" in error for error in errors))
 
-    def test_wildcard_version_override_yakalanir(self):
+    def test_a_wildcard_version_override_is_caught(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -183,7 +183,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("wildcard VersionOverride" in error for error in errors))
 
-    def test_tracon_kaynak_projectreference_yakalanir(self):
+    def test_a_project_reference_to_tracon_source_is_caught(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -200,7 +200,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("references Tracon source" in error for error in errors))
 
-    def test_stale_feed_paketi_reddedilir(self):
+    def test_a_stale_feed_package_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -212,23 +212,23 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertEqual(result, 1)
 
-    def test_envanterden_sarkan_yeni_sample_yakalanir(self):
+    def test_a_new_sample_missing_from_the_inventory_is_caught(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
             # A new sample test project directory exists but was never added
             # to SAMPLE_TEST_PROJECTS or SAMPLE_TEST_EXCLUSIONS — the exact
-            # drift that let CustomJobHandler.Tests go unrun for three phases.
-            stray = root / "samples" / "Tracon.Samples.Deneme.Tests"
+            # drift that once let CustomJobHandler.Tests go unrun.
+            stray = root / "samples" / "Tracon.Samples.Stray.Tests"
             stray.mkdir(parents=True)
-            (stray / "Tracon.Samples.Deneme.Tests.csproj").write_text(
+            (stray / "Tracon.Samples.Stray.Tests.csproj").write_text(
                 '<Project Sdk="Microsoft.NET.Sdk" />', encoding="utf-8")
 
             errors = release_extension_samples.validate_sample_inventory(root)
 
-        self.assertTrue(any("Tracon.Samples.Deneme.Tests" in error for error in errors))
+        self.assertTrue(any("Tracon.Samples.Stray.Tests" in error for error in errors))
 
-    def test_var_olmayan_sample_listede_kalirsa_yakalanir(self):
+    def test_a_listed_sample_that_does_not_exist_is_caught(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
@@ -240,17 +240,17 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any(missing in error for error in errors))
 
-    def test_gerekcesiz_disleme_yakalanir(self):
+    def test_an_exclusion_without_a_reason_is_caught(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             _write_clean_tree(root)
-            extra = root / "samples" / "Tracon.Samples.Muaf.Tests"
+            extra = root / "samples" / "Tracon.Samples.Exempt.Tests"
             extra.mkdir(parents=True)
-            (extra / "Tracon.Samples.Muaf.Tests.csproj").write_text(
+            (extra / "Tracon.Samples.Exempt.Tests.csproj").write_text(
                 '<Project Sdk="Microsoft.NET.Sdk" />', encoding="utf-8")
 
             original = dict(release_extension_samples.SAMPLE_TEST_EXCLUSIONS)
-            release_extension_samples.SAMPLE_TEST_EXCLUSIONS["Tracon.Samples.Muaf.Tests"] = "   "
+            release_extension_samples.SAMPLE_TEST_EXCLUSIONS["Tracon.Samples.Exempt.Tests"] = "   "
             try:
                 errors = release_extension_samples.validate_sample_inventory(root)
             finally:
@@ -259,7 +259,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
         self.assertTrue(any("has no reason" in error for error in errors))
 
-    def test_kuresel_nuget_cache_kullanilmaz(self):
+    def test_the_global_nuget_cache_is_not_used(self):
         # The isolation contract itself: `verify` must set NUGET_PACKAGES to a
         # fresh temp directory, never the developer's global cache.
         source = pathlib.Path(release_extension_samples.__file__).read_text(encoding="utf-8")
@@ -267,7 +267,7 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
         self.assertIn('environment["NUGET_PACKAGES"] = str(package_cache)', source)
         self.assertNotIn(".nuget/packages", source)
 
-    def test_ana_solution_packed_consumer_samplelarini_icermez(self):
+    def test_the_main_solution_excludes_the_packed_consumer_samples(self):
         solution = ElementTree.parse(ROOT / "Tracon.slnx")
         projects = {node.attrib["Path"] for node in solution.iter("Project")}
 
@@ -284,12 +284,12 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class TraconBagimlilikKapanisiTestleri(unittest.TestCase):
-    """`release-dryrun` restore etmez; sözleşme paketinin grafiği paketlerden okunur (2026-09-24)."""
+class TraconDependencyClosureTests(unittest.TestCase):
+    """`release-dryrun` does not restore; the dependency graph of the contracts package is read from the packages."""
 
     VERSION = "1.0.0-preview.3"
 
-    def _paket(self, directory: pathlib.Path, package_id: str, *dependencies: str) -> None:
+    def _write_package(self, directory: pathlib.Path, package_id: str, *dependencies: str) -> None:
         import zipfile
         deps = "".join(
             f'<dependency id="{dependency}" version="[{self.VERSION}]" exclude="Build,Analyzers" />'
@@ -300,31 +300,31 @@ class TraconBagimlilikKapanisiTestleri(unittest.TestCase):
         with zipfile.ZipFile(directory / f"{package_id}.{self.VERSION}.nupkg", "w") as archive:
             archive.writestr(f"{package_id}.nuspec", nuspec)
 
-    def test_gecisli_tracon_bagimliligi_bulunur(self):
+    def test_a_transitive_tracon_dependency_is_found(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            self._paket(root, "Tracon.Testing.Contracts.Xunit", "Tracon.Abstractions")
-            self._paket(root, "Tracon.Abstractions", "Tracon.Core")
-            self._paket(root, "Tracon.Core")
+            self._write_package(root, "Tracon.Testing.Contracts.Xunit", "Tracon.Abstractions")
+            self._write_package(root, "Tracon.Abstractions", "Tracon.Core")
+            self._write_package(root, "Tracon.Core")
 
             closure = release_extension_samples.tracon_dependency_closure(
                 root, "Tracon.Testing.Contracts.Xunit", self.VERSION)
 
         self.assertEqual(closure, {"Tracon.Abstractions", "Tracon.Core"})
 
-    def test_ucuncu_taraf_bagimlilik_kapanisa_girmez(self):
+    def test_a_third_party_dependency_stays_out_of_the_closure(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            self._paket(root, "Tracon.Testing.Contracts.Xunit", "Tracon.Abstractions")
-            self._paket(root, "Tracon.Abstractions")
+            self._write_package(root, "Tracon.Testing.Contracts.Xunit", "Tracon.Abstractions")
+            self._write_package(root, "Tracon.Abstractions")
 
             closure = release_extension_samples.tracon_dependency_closure(
                 root, "Tracon.Testing.Contracts.Xunit", self.VERSION)
 
         self.assertEqual(closure, {"Tracon.Abstractions"})
 
-    def test_kaynak_projenin_obj_dizinini_okumaz(self):
-        """Kusurun kendisi: `verify` sözleşme paketi için artifacts/obj'e bakıyordu."""
+    def test_the_source_projects_obj_directory_is_not_read(self):
+        """Regression guard: `verify` used to read artifacts/obj for the contracts package."""
         source = pathlib.Path(release_extension_samples.__file__).read_text(encoding="utf-8")
         self.assertNotIn('_project_assets_json(root, "Tracon.Testing.Contracts.Xunit")', source)
 
@@ -344,4 +344,7 @@ class OutputLanguageTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertIn("The extension sample contract is violated", output.getvalue())
         self.assertIn("release feed contains stale Tracon packages", output.getvalue())
-        self.assertIsNone(re.search("[çğıöşüÇĞİÖŞÜ]", output.getvalue()), output.getvalue())
+        # Written as code points so that this source file holds no Turkish letter itself.
+        self.assertIsNone(
+            re.search("[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]", output.getvalue()),
+            output.getvalue())

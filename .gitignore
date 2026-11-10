@@ -1,7 +1,7 @@
 ## ---------------------------------------------------------------------------
-## Sirlar - ASLA commit edilmez
-## Baglanti dizeleri ve API anahtarlari icin `dotnet user-secrets` kullanilir.
-## Bkz. README.md > Kurulum
+## Secrets - NEVER committed
+## Use `dotnet user-secrets` for connection strings and API keys.
+## See README.md > Installation
 ## ---------------------------------------------------------------------------
 *.env
 .env
@@ -20,7 +20,7 @@ secrets.json
 .playwright-mcp/
 
 ## ---------------------------------------------------------------------------
-## .NET build ciktilari
+## .NET build outputs
 ## ---------------------------------------------------------------------------
 artifacts/
 [Bb]in/
@@ -36,10 +36,10 @@ project.lock.json
 project.fragment.lock.json
 .packages/
 
-## CI, NUGET_PACKAGES'i is alani ICINE alir (.github/workflows/ci.yml, `env`):
-## `${{ github.workspace }}/.nuget/packages`. Paket onbellegi kaynak degildir ve
-## ignore EDILMEZSE `dotnet pack`'in temiz-agac kapisi (TRACON0004) her
-## paketi durdurur - kapi untracked dosyayi da kirli sayar.
+## CI places NUGET_PACKAGES INSIDE the workspace (.github/workflows/ci.yml, `env`):
+## `${{ github.workspace }}/.nuget/packages`. The package cache is not source, and
+## if it is NOT ignored, the clean-tree gate of `dotnet pack` (TRACON0004) stops
+## every package - the gate counts an untracked file as dirty too.
 .nuget/
 BenchmarkDotNet.Artifacts/
 TestResults/
@@ -64,18 +64,18 @@ playwright-report/
 playwright/.cache/
 test-results/
 
-## Vite build ciktisi. Pakete gomulur, kaynak agacinda tutulmaz.
+## Vite build output. Embedded in the package, not kept in the source tree.
 src/Tracon.UI/wwwroot/
 
 ## ---------------------------------------------------------------------------
 ## packages/ (npm packages)
-## `tsc` ciktisi - npm'e o yayinlanir, kaynak agacinda tutulmaz. `src/schema.ts`
-## URETILIR ama commit'lidir (surukleme kapisi); dist/ commit'siz kalir.
+## `tsc` output - it is published to npm, not kept in the source tree. `src/schema.ts`
+## is GENERATED but committed (a schema-drift test checks it); dist/ stays uncommitted.
 ## ---------------------------------------------------------------------------
 packages/*/dist/
 
 ## ---------------------------------------------------------------------------
-## IDE ve editor
+## IDE and editor
 ## ---------------------------------------------------------------------------
 .vs/
 .vscode/*
@@ -92,7 +92,7 @@ packages/*/dist/
 *~
 
 ## ---------------------------------------------------------------------------
-## Isletim sistemi
+## Operating system
 ## ---------------------------------------------------------------------------
 .DS_Store
 .DS_Store?
@@ -102,9 +102,9 @@ ehthumbs.db
 Desktop.ini
 
 ## ---------------------------------------------------------------------------
-## Dokuman sitesi (docs-site/) ve API referansi (docfx/)
-## Site AYRI bir yayin hattidir; `dotnet build`'e baglanmaz.
-## Uretilen icerik commit EDILMEZ - kaynak assembly'ler ve OpenAPI snapshot'idir.
+## Documentation site (docs-site/) and API reference (docfx/)
+## The site is a SEPARATE publishing pipeline; it is not tied to `dotnet build`.
+## Generated content is NOT committed - its sources are the assemblies and the OpenAPI snapshot.
 ## ---------------------------------------------------------------------------
 docs-site/dist/
 docs-site/.astro/

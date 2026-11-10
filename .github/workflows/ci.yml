@@ -11,11 +11,11 @@ on:
 permissions:
   contents: read
 
-# Ayni dalin (veya PR'in) eski kosumu, yenisi gelince iptal edilir: eski commit'in
-# sonucu kimseyi ilgilendirmez ve runner dakikasi yanmaz. Etiket kosumu ASLA iptal
-# edilmez - yayin yari yolda kesilmemeli. Elle tetiklemenin grubu `run_id` icerir:
-# olcum icin birbiri ardindan tetiklenen kosumlar birbirini iptal etmez. Iptal
-# edilen kosumun karari yoktur (`remote_state` iptal edilmis kosumu atlar).
+# A newer run of the same branch (or pull request) cancels the older one: the result of the
+# older commit interests nobody and no runner minutes burn. A tag run is NEVER cancelled - a
+# release must not be cut halfway. The group of a manual trigger contains `run_id`, so runs
+# triggered one after another for a measurement do not cancel each other. A cancelled run has
+# no verdict (`remote_state` skips a cancelled run).
 concurrency:
   group: ci-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/') }}
@@ -26,74 +26,66 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   CI: true
-  # Python betikleri Türkçe yazar. Windows runner'ında hem `sys.stdout` hem de
-  # `subprocess(text=True)` çözümlemesi varsayılan olarak **cp1252**'dir ve
-  # `ş`/`ğ`/`İ` o kod sayfasında YOKTUR: ilk `print` `UnicodeEncodeError`
-  # fırlatır, kapı kırmızı olur ama sebep dokümanla ilgisizdir. UTF-8 modu
-  # ikisini birden çevirir (ölçüldü: `getpreferredencoding` de `utf-8` olur),
-  # bu yüzden `PYTHONIOENCODING`'den geniştir. İş düzeyinde durur çünkü
-  # `unittest` koşumu da Türkçe docstring yazar -- betik içi bir düzeltme o
-  # adımı kapsayamazdı. Doğrulama: `PYTHONIOENCODING=cp1252` ile aynı komutlar
-  # Linux'ta da patlar (16 test hatası).
+  # Python on a Windows runner decodes `sys.stdout` and `subprocess(text=True)` output with the
+  # default code page (**cp1252**), which lacks some letters the scripts and their tests handle
+  # (for example the Turkish s-cedilla, g-breve and dotted capital I): the first `print` of such a
+  # character raises `UnicodeEncodeError` and the gate goes red for a reason that has nothing to
+  # do with the change. UTF-8 mode switches both decoders at once (measured: `getpreferredencoding`
+  # also becomes `utf-8`), so it is wider than `PYTHONIOENCODING`. It sits at the workflow level
+  # because the `unittest` run prints such text too - a fix inside one script could not cover
+  # that step.
   PYTHONUTF8: 1
 
 # ---------------------------------------------------------------------------
-# Zaman sinirlari (2026-09-23). Her is `timeout-minutes`
-# tasir. Sinir yoksa GitHub'in 360 dk varsayilani gecerlidir: asilan bir test
-# uygulamasi iki runner'i alti saat yakar ve log hangi uygulamanin asildigini
-# soylemez. Bir kapi, siniri olmayan her isi kirmizi sayar.
+# Time limits (measured 2026-09-23). Every job carries `timeout-minutes`. Without a limit
+# GitHub's default of 360 minutes applies: a hung test app burns two runners for six hours and
+# the log does not say which app hung. A check fails any job that has no limit.
 #
-# Kural: sinir = olculen en uzun surenin ~2 kati, 5 dk'ya yukari yuvarlanir.
-# Bir dakikanin altindaki islerde taban 10 dk'dir: kurulum adimlarinin ag
-# gecikmesi yanlis bir kirmizi uretmesin. Olcum: GitHub Actions API, 16 kosum
-# (2026-09-06..21), is ve adim sureleri.
-# Bir is sinirinin yarisini
-# gecerse once yeniden olc, sonra yukselt. `--max-parallel-test-modules 1` yalniz
-# kultur isinin `--solution` kosumu icindir (moduller seri kosar); diger her test
-# isi `--project` ile tek modul kosar ve o bayragi tasimaz.
+# Rule: limit = about twice the longest measured duration, rounded up to 5 min. Jobs under a
+# minute get a floor of 10 min, so network latency in the setup steps does not produce a
+# false red. Measurement: GitHub Actions API, 16 runs (2026-09-06..21), job and step
+# durations. If a job passes half its limit, re-measure first, then raise it.
+# `--max-parallel-test-modules 1` belongs only to the `--solution` run of the culture job
+# (its modules run serially); every other test job runs one module with `--project` and does
+# not carry that flag.
 #
-# Adim siniri yalniz kapasite adimindadir. Her test modulu ayri bir adimdir; bir
-# modul takilirsa is siniri isi keser ve log takilan adimin adini soyler. Adim
-# siniri yalniz o adimi kirar; sonraki `if: always()` yukleme adimlari yine kosar
-# ve biten test uygulamalarinin TRX'i artifact'ta kalir. Is siniri ise isin
-# tamamini iptal eder.
+# A step limit exists only on the capacity step. Every test module is a separate step; if a
+# module hangs, the job limit cuts the job and the log names the hung step. A step limit
+# breaks only its own step: the following `if: always()` upload steps still run and the TRX
+# of the finished test apps stays in the artifact. A job limit cancels the whole job.
 # ---------------------------------------------------------------------------
 jobs:
   # ---------------------------------------------------------------------------
-  # Kesilmis zincir
+  # Single build chain
   #
-  # `build` derler, paketler ve derlenen cikti agacini TEK bir tar dosyasina
-  # koyar (`bin-<os>`). Her test isi `needs: build` ile AYNI kosumun bu tar'ini
-  # indirir, acar ve modullerini onunla kosar; hicbiri derlemez ya da
-  # paketlemez. Bir `v*` etiketinin ittigi dosyalar ile testlerin kostugu
-  # ikililer boylece tek derlemeden gelir. `publish` her test isine baglidir:
-  # kirmizi bir modul, hangi isin icinde olursa olsun, yayini durdurur.
+  # `build` compiles, packs and puts the compiled output tree into ONE tar file
+  # (`bin-<os>`). Every test job downloads THIS run's tar through `needs: build`, unpacks it and
+  # runs its modules with it; none of them compiles or packs. So the files a `v*` tag pushes
+  # and the binaries the tests ran come from one build. `publish` depends on every test job: a
+  # red module stops the release, whichever job it sits in.
   #
-  # Neden tar: `upload-artifact` dizini zip'ler ve calistirma bitini kaybeder;
-  # test ikilileri (apphost, WorkerHarness) calistirilabilir olmalidir. Tar
-  # onceden sikistirilir, bu yuzden yukleme `compression-level: 0` ile yapilir.
+  # Why a tar: `upload-artifact` zips a directory and loses the execute bit; the test binaries
+  # (apphost, WorkerHarness) must be executable. The tar is already compressed, so the upload
+  # uses `compression-level: 0`.
   #
-  # Neden her test isinde `dotnet restore`: `dotnet test --no-build` proje
-  # degerlendirmesi icin `project.assets.json` ister. Tar yalniz `artifacts/bin`
-  # tasir; geri yukleme NuGet onbelleginden saniyeler surer ve derleme ara
-  # ciktilarini (obj) tasimaktan ucuz ve guvenlidir.
+  # Why `dotnet restore` in every test job: `dotnet test --no-build` needs `project.assets.json`
+  # to evaluate the project. The tar carries only `artifacts/bin`; restoring from the NuGet
+  # cache takes seconds and is cheaper and safer than carrying the build intermediates (obj).
   #
-  # Is sirasi bir kuyruk ipucudur: uzun isler dosyada onde durur. Esamanli is
-  # siniri asilirsa GitHub hangi isi once baslatacagina kendisi karar verir.
+  # Job order is a queue hint: long jobs come first in the file. When the concurrent job limit
+  # is exceeded, GitHub decides which job starts first.
   # ---------------------------------------------------------------------------
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # CI yalniz kanonik repo'da kosar. Kod ayni dal ve etiketlerle ikinci bir
-    # uzaga da itilir (ikinci bir uzak); orada hicbir is
-    # kosmaz. Kosul YALNIZ burada durur: diger her is `needs` ile `build`'e
-    # (dogrudan veya zincirle) baglidir ve atlanan bir bagimlilik onlari da
-    # atlar. `release-dryrun` zaten `if:` tasiyamaz. `needs: build`
-    # tasimayan yeni bir is eklenirse ayni kosulu kendisi tasir. Izin
-    # listesidir: fork'lar da kosmaz. Repo tasinirsa bu satir guncellenir.
+    # CI runs only in the canonical repository: forks and any other copy of the tree skip every
+    # job. The condition lives ONLY here: every other job depends on `build` through `needs`
+    # (directly or through a chain) and a skipped dependency skips them too. `release-dryrun`
+    # must not carry an `if:` (it runs on every push), so it relies on this chain. A new job that
+    # does not carry `needs: build` must carry the same condition itself. It is an allow list, so
+    # forks do not run either. If the repository moves, update this line.
     if: github.repository == 'farukatasoy/Tracon'
-    # Testler artik burada kosmaz. Tahmin: ubuntu ~9 dk, windows ~12 dk; ilk
-    # kosumlardan sonra olculenin ~2 kati ile guncellenir.
+    # Tests do not run in this job. Estimate: ubuntu ~9 min, windows ~12 min.
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -104,7 +96,7 @@ jobs:
       - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          # MinVer surumu git etiketlerinden uretir; tum gecmis gerekir.
+          # MinVer derives the version from git tags; the whole history is needed.
           fetch-depth: 0
 
       - name: Set up the .NET SDK
@@ -112,8 +104,8 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Arayuz derlemesi icin. jsdom 30 Node ^22.22.2 (veya ^24.15, >=26) ister.
-      # npm onbellegi package-lock.json uzerinden anahtarlanir.
+      # For the UI build. jsdom 30 needs Node ^22.22.2 (or ^24.15, >=26). The npm cache is keyed on
+      # package-lock.json.
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -132,7 +124,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Tek OS yeterli; bu bir dosya sistemi kontroludur.
+      # One OS is enough; this is a file-system check.
       - name: Run the repository scan
         if: matrix.os == 'ubuntu-latest'
         run: python3 scripts/gate.py scan
@@ -147,29 +139,27 @@ jobs:
       - name: Restore the dependencies
         run: dotnet restore Tracon.slnx
 
-      # Agent haritasi (buildTransitive/Tracon.AgentMap.md) capabilities.md'den
-      # URETILIR ama COMMIT edilir: `dotnet pack` onu okur, bu yuzden Node zinciri
-      # `dotnet build`e baglanmaz. Bedeli sudur - kaynak degisip uretec kosulmazsa
-      # dort kapinin dordu de yesil kalir ve nupkg BAYAT harita sevk eder. Bu adim
-      # o bosluktur; hicbir npm bagimliligi istemez.
+      # The agent map (buildTransitive/Tracon.AgentMap.md) is GENERATED from capabilities.md but
+      # COMMITTED: `dotnet pack` reads it, so the Node chain is not tied to `dotnet build`. The cost:
+      # if the source changes and the generator is not run, every other gate stays green and the
+      # nupkg ships a STALE map. This step closes that gap; it needs no npm dependency.
       #
-      # `reference/changelog.md` ve surum basina sayfalar (`reference/releases/`)
-      #.gitignore'dadir (CHANGELOG.md'den uretilir, kaynagiyla iki kopya
-      # olmasin diye) ama build-agent-map.mjs onlari hala `reference/` dizininden
-      # okur - llmsBudgetBytes yorumu bu sayfanin llms.txt'ten DUSURULEMEYECEGINI
-      # acikca soyler. Taze bir checkout'ta dosya
-      # yokken --check calisirsa harita bu sayfayi dislar ve COMMIT edilmis
-      # (sayfayi iceren) surumle sonsuza dek uyusmaz; build-changelog.mjs de npm
-      # bagimliligi istemedigi icin buraya eklemek yukaridaki yorumu bozmaz.
+      # `reference/changelog.md` and the per-release pages (`reference/releases/`) are in
+      # `.gitignore` (generated from CHANGELOG.md, so there are not two copies), but
+      # build-agent-map.mjs still reads them from `reference/` - the comment on `llmsBudgetBytes`
+      # says plainly that this page cannot be dropped from llms.txt. On a fresh checkout `--check`
+      # would leave the page out of the map and never agree with the committed version that holds
+      # it. build-changelog.mjs needs no npm dependency either, so running it first does not
+      # contradict the paragraph above.
       - name: Check the agent map matches its source
         run: |
           node docs-site/scripts/build-changelog.mjs
           node docs-site/scripts/build-agent-map.mjs --check
 
-      # Icerik ve sunum kapilari. `pages` isi PULL REQUEST'te kosmaz, bu yuzden bu
-      # adim ORADA degil BURADA durur - yoksa kapinin kirmizi olmasi hicbir PR'i
-      # durdurmaz. Betik yalnizca node: yerlesikleri ve yerel dosyalar okur; olculdu:
-      # node_modules silinmisken de kosuyor, bu yuzden `npm ci` istemez.
+      # Content and presentation gates. The `site` job does NOT run on pull requests, so this step
+      # lives HERE, not there - otherwise a red gate would stop no PR. The script uses only Node
+      # built-ins and local files; measured: it runs with node_modules removed, so it needs no
+      # `npm ci`.
       - name: Content and presentation gates
         working-directory: docs-site
         run: node scripts/check-content.mjs
@@ -179,10 +169,9 @@ jobs:
       - name: Script tests
         run: python3 -m unittest discover -s scripts -p "*_test.py" -v
 
-      # @tracon/client'in kendi kapisi:
-      # schema-drift + paths-coverage + error-mapping + prefix +
-      # client testleri. `npm test`'e baglidir, `dotnet test`'e degil -- dort
-      # kapinin suresi uretec/paket surumune baglanmaz.
+      # The client's own gate: schema drift, paths coverage, error mapping, prefix and client tests.
+      # It hangs on `npm test`, not on `dotnet test`, so the duration of the .NET jobs does not
+      # depend on the generator or package version.
       - name: Install the TypeScript client dependencies
         working-directory: packages/tracon-client
         run: npm ci
@@ -195,32 +184,31 @@ jobs:
         run: dotnet build Tracon.slnx -c Release --no-restore
 
       # ---------------------------------------------------------------------
-      # Tek derleme zinciri. Bir `v*` etiketinin nuget.org'a ittigi
-      # dosyalar BU adimin urettigi dosyalardir: derleme `--no-build` ile
-      # paketlenir, test isleri ayni derlemenin tar'ini kosar, `release-dryrun`
-      # paketleri paketlemeden dogrular, `publish` ayni baytlari iter.
+      # Single build chain. The files a `v*` tag pushes to nuget.org are the files THIS step
+      # produces: the build is packed with `--no-build`, the test jobs run the tar of the same
+      # build, `release-dryrun` verifies the packages without repacking, and `publish` pushes the
+      # same bytes.
       #
-      # 🚨 Sira bir sozlesmedir: bu adim `Build`'in HEMEN ardindadir.
-      # Performans kapisi, kapasite smoke'u ve Tracon.Package.Tests'in
-      # fiksturleri src'yi yeniden derler (ReleaseArtifactFixture baska bir
-      # surumle; olculdu 2026-09-24: Tracon.Core.dll SHA-256'si degisti). Artik
-      # hicbiri bu isin calisma alaninda kosmaz; sira yine de korunur, cunku
-      # araya giren bir adim derlemeyi yeniden damgalayabilir. Yalniz ubuntu
-      # bacagi paketler; Windows platform farkini olcer.
+      # 🚨 The order is a contract: this step comes right after `Build`. The performance gate, the
+      # capacity smoke and the fixtures of Tracon.Package.Tests rebuild src (ReleaseArtifactFixture
+      # with another version; measured 2026-09-24: the SHA-256 of Tracon.Core.dll changed). None of
+      # them runs in this job's workspace any more; the order stays anyway, because a step that
+      # slips in between can re-stamp the build. Only the ubuntu leg packs; Windows measures the
+      # platform difference.
       #
-      # Taban dogrulamasi pack aninin isidir: son `v*` etiketinin
-      # paketleri izole bir cache'e nuget.org'dan restore edilir. Ag gerekir.
+      # The baseline check belongs to the pack moment: the packages of the last `v*` tag are
+      # restored from nuget.org into an isolated cache. It needs the network.
       # ---------------------------------------------------------------------
       - name: Pack the packages
         if: matrix.os == 'ubuntu-latest'
         run: python3 scripts/gate.py pack --output artifacts/ci-packages
 
-      # Kume `Pack the packages` aninda manifest SHA-256'lariyla dondu. Bu adim kumenin
-      # paketleme ile yukleme arasinda degismedigini yuklemeden hemen once
-      # kanitlar. Testler bu isin calisma alaninda kosmaz; yukleme, kirmizi bir
-      # test isinden once olur ama etiket yolunda kimseyi korumasiz birakmaz:
-      # `publish` her test isine, `release-dryrun` PR'de kosan her test isine
-      # baglidir ve `nuget-verified` yalniz onlar yesilken yuklenir.
+      # The set was frozen at `Pack the packages` with the manifest SHA-256s. This step proves,
+      # right before the upload, that the set did not change between packing and upload. Tests do
+      # not run in this job's workspace; the upload happens before a red test job, but it leaves
+      # nobody unprotected on the tag path: `publish` depends on every test job, `release-dryrun`
+      # on every test job that runs on pull requests, and `nuget-verified` is uploaded only when
+      # they are green.
       - name: Verify the packages
         if: matrix.os == 'ubuntu-latest'
         run: python3 scripts/gate.py verify-packages artifacts/ci-packages
@@ -237,11 +225,11 @@ jobs:
             artifacts/ci-packages/api-compat/*.xml
           if-no-files-found: error
 
-      # Test islerinin kosacagi ikililer. `artifacts/bin` her projenin kendi
-      # cikti dizinini tasir (testler, ornekler, WorkerHarness, E2E'nin
-      # playwright.ps1'i); `obj` tasinmaz. Tar, calistirma bitini korur. Sikistirma
-      # bir boru hattidir (`gzip -1`): GNU ve bsd tar'in ikisinde de ayni calisir.
-      # Boyut ozete yazilir; sure adimin kendi suresinden okunur.
+      # The binaries the test jobs will run. `artifacts/bin` carries each project's own output
+      # directory (tests, samples, WorkerHarness, the playwright.ps1 of the E2E project); `obj` is
+      # not carried. The tar keeps the execute bit. Compression is a pipeline (`gzip -1`): it works
+      # the same with GNU tar and bsd tar. The size is written to the summary; the duration is read
+      # from the step's own time.
       - name: Archive the build output
         shell: bash
         run: |
@@ -258,35 +246,34 @@ jobs:
         with:
           name: bin-${{ matrix.os }}
           path: artifacts/ci-bin/bin.tar.gz
-          # Tar zaten sikistirilmis; ikinci bir zip yalniz sure harcar.
+          # The tar is already compressed; a second zip only costs time.
           compression-level: 0
-          # Yalniz bu kosumun test isleri okur.
+          # Only the test jobs of this run read it.
           retention-days: 1
           if-no-files-found: error
-          # `overwrite` BILINCLI olarak yok. Bu isi yeniden kosmak ayni adla ikinci
-          # bir yukleme dener ve 409 ile kirilir: onceki test islerinin kosmus oldugu
-          # tar'in baytlari sessizce degistirilemez. Yeni bir derleme icin tum kosum
-          # bastan baslatilir. Ayni kural `nuget-packages` yuklemesi icin de gecerlidir.
+          # `overwrite` is deliberately absent. Re-running this job tries a second upload under the same
+          # name and fails with 409: the bytes of a tar that earlier test jobs already ran cannot be
+          # replaced silently. A new build restarts the whole run. The same rule applies to the
+          # `nuget-packages` upload.
 
   # ---------------------------------------------------------------------------
-  # Kultur ve saat dilimi: .NET `LC_ALL` ve `TZ`'yi Linux'ta okur, yerel ayarin
-  # kurulu olmasini istemez. Yerelde olculen komut aynidir: tam cozumde iki bacak
-  # 16 275 testle yesildi. Burada Docker istemeyen projeler kosar (Windows
-  # bacaklariyla ayni solution filter); veritabani bacaklarinin kendi yerel ayari
-  # asagidaki matris islerindedir.
+  # Culture and time zone: .NET reads `LC_ALL` and `TZ` on Linux and does not need the locale
+  # to be installed. The command is the one measured locally: on the full solution both legs
+  # were green with 16,275 tests. The projects that need no Docker run here (the same solution
+  # filter as the Windows legs); the database legs have their own locale in the matrix jobs
+  # below.
   #
-  # Kosul `build` ile ayni zincir: her bacak `needs: build` tasir. PR'de kosmaz
-  # (her PR on bacak yakmasin); `main`, etiket ve elle tetiklemede kosar. En
-  # uzun is budur (modullerin tamami tek isin icinde, bir modul bir anda), bu
-  # yuzden dosyada onde durur.
+  # The condition is the same chain as `build`: every leg carries `needs: build`. It does not
+  # run on pull requests (so no PR burns ten legs); it runs on `main`, tags and manual triggers.
+  # This is the longest job (all modules in one job, one module at a time), so it comes first
+  # in the file.
   # ---------------------------------------------------------------------------
   culture-matrix:
     name: Culture (${{ matrix.name }})
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # Tahmin: ~19 dk (kurulum 3 + moduller 15,8). Ilk kosumdan sonra olculenin
-    # ~2 kati ile guncellenir; onceki degeri derleme dahil 30,9 dk idi.
+    # Estimate: ~19 min (setup 3 + modules 15.8). Its previous value was 30.9 min, build included.
     timeout-minutes: 50
     strategy:
       fail-fast: false
@@ -309,8 +296,7 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Tracon.Package.Tests kendi pack'ini kosar ve arayuz zinciri (npm) o pack'te
-      # soguk baslar.
+      # Tracon.Package.Tests runs its own pack, and the UI chain (npm) starts cold in that pack.
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -351,8 +337,8 @@ jobs:
         run: |
           pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
 
-      # Degiskenler yalniz test surecine verilir: kurulu olmayan bir yerel ayar
-      # restore ve apt adimlarina uyari bastirmasin.
+      # The variables go only to the test process: a locale that is not installed must not print
+      # warnings on the restore and apt steps.
       - name: Run tests (no Docker needed)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         env:
@@ -370,29 +356,27 @@ jobs:
           overwrite: true
 
   # ---------------------------------------------------------------------------
-  # Ubuntu test isleri (her biri bir sepet; sepet icinde bir modul bir anda)
+  # Ubuntu test jobs (each is a basket; one module at a time inside a basket)
   #
-  # Ortak adimlar her isin basinda tekrarlanir (checkout, SDK, onbellek, tar,
-  # geri yukleme); bir moduldeki kirmizi sonraki modulleri DURDURMAZ: her test
-  # adimi `!cancelled()` ile kosar ve is yine de kirmizi biter. Bir test adimi
-  # yalniz geri yukleme basarisizsa atlanir.
+  # The common steps repeat at the start of every job (checkout, SDK, cache, tar, restore). A
+  # red module does NOT stop the following modules: every test step runs with `!cancelled()`
+  # and the job still ends red. A test step is skipped only when the restore failed.
   #
-  # Tum solution'u kosan eski adimin yerine her test projesi AYRI bir adimdir.
-  # Yeni bir test projesi eklenirse buraya bir adim eklenmelidir; kapi testi
-  # (gate_test.py) her test projesinin tam bir ubuntu ve (Docker'siz ise) tam bir
-  # windows isinde kostugunu denetler.
+  # In place of the old step that ran the whole solution, every test project is a SEPARATE
+  # step. When a new test project is added, a step must be added here; the gate test
+  # (gate_test.py) checks that every test project runs in exactly one ubuntu job and (if it
+  # needs no Docker) in exactly one windows job.
   #
-  # Sinirlar: sinir = tahmin edilen surenin ~2 kati, 5 dk'ya yukari yuvarlanir
-  # (taban 10 dk). Tahminler eski seri kosumun modul sureleridir (ubuntu:
-  # TwoNode 460 sn, SqlServer 361, Package 278, AspNetCore 154, PostgreSql 150,
-  # Sqlite 91, Workflows 65, Core 64, E2E 56, Generators 40) ve ilk kosumdan
-  # sonra olculenle degistirilir.
+  # Limits: limit = about twice the estimated duration, rounded up to 5 min (floor 10 min).
+  # The estimates are the module durations of the old serial run (ubuntu: TwoNode 460 s,
+  # SqlServer 361, Package 278, AspNetCore 154, PostgreSql 150, Sqlite 91, Workflows 65,
+  # Core 64, E2E 56, Generators 40); replace them with runner measurements.
   # ---------------------------------------------------------------------------
   test-twonode:
     name: Test (TwoNode)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~10,5 dk (kurulum 2,7 + modul 7,7).
+    # Estimate ~10.5 min (setup 2.7 + module 7.7).
     timeout-minutes: 25
     steps:
       - name: Check out the source
@@ -426,9 +410,8 @@ jobs:
         id: restore
         run: dotnet restore Tracon.slnx
 
-      # Yerel kosum SQL Server'da workflow iptal taramasinin yarisini kosar;
-      # CI iki saglayicida da tam matrisi kosar. Degisken yalniz bu modul tarafindan
-      # okunur.
+      # A local run covers half of the workflow cancellation sweep on SQL Server; CI runs the full
+      # matrix on both providers. The variable is read only by this module.
       - name: Run tests (Tracon.TwoNode.IntegrationTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         env:
@@ -448,8 +431,8 @@ jobs:
     name: Test (Package, E2E)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~10,5 dk (kurulum 3 + Package 6,1 + E2E 0,9). Package'in fiksturleri
-    # kendi pack'ini kosar; arayuz zinciri (npm) o pack'te soguk baslar.
+    # Estimate ~10.5 min (setup 3 + Package 6.1 + E2E 0.9). The fixtures of Package run their own
+    # pack; the UI chain (npm) starts cold in that pack.
     timeout-minutes: 25
     steps:
       - name: Check out the source
@@ -492,9 +475,9 @@ jobs:
         id: restore
         run: dotnet restore Tracon.slnx
 
-      # Playwright'in tarayici ikilileri NuGet paketiyle gelmez. Test fixture'i
-      # eksikse indirir, ancak Linux'ta sistem bagimliliklari ayri bir adim ister
-      # ve o adim sudo gerektirir. Onbellek isabetinde indirme atlanir.
+      # Playwright's browser binaries do not come with the NuGet package. The test fixture downloads
+      # them when missing, but on Linux the system dependencies need a separate step and that step
+      # needs sudo. On a cache hit the download is skipped.
       - name: Cache the Playwright browser
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -522,15 +505,15 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # SQL Server ve PostgreSQL varsayilan imaj bacaklari: eski tum-proje bacaginin
-  # veritabani modulleri. Bacak `matrix` degil sabit bir istir ve PR'de de kosar;
-  # imaj ortam degiskeni VERILMEZ, fikstur kendi varsayilan imajini kullanir.
-  # Diger surumler ve yerel ayarlar asagidaki `*-matrix` islerindedir (PR'de kosmaz).
+  # SQL Server and PostgreSQL default-image legs: the database modules of the old all-project
+  # leg. The leg is a fixed job, not a `matrix`, and it also runs on pull requests; the image
+  # environment variable is NOT given, the fixture uses its own default image. The other
+  # versions and locales are in the `*-matrix` jobs below (they do not run on PRs).
   test-sqlserver:
     name: Test (SQL Server, default image)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~9,5 dk (kurulum 2,7 + modul 6 + imaj indirme 0,7).
+    # Estimate ~9.5 min (setup 2.7 + module 6 + image pull 0.7).
     timeout-minutes: 15
     steps:
       - name: Check out the source
@@ -581,7 +564,7 @@ jobs:
     name: Test (PostgreSQL, default image)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~5,5 dk (kurulum 2,7 + modul 2,5 + imaj indirme 0,3).
+    # Estimate ~5.5 min (setup 2.7 + module 2.5 + image pull 0.3).
     timeout-minutes: 15
     steps:
       - name: Check out the source
@@ -632,7 +615,7 @@ jobs:
     name: Test (AspNetCore)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~5,5 dk (kurulum 2,7 + modul 2,6).
+    # Estimate ~5.5 min (setup 2.7 + module 2.6).
     timeout-minutes: 15
     steps:
       - name: Check out the source
@@ -683,7 +666,7 @@ jobs:
     name: Test (SQLite, Workflows)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~5,5 dk (kurulum 2,7 + moduller 2,6).
+    # Estimate ~5.5 min (setup 2.7 + modules 2.6).
     timeout-minutes: 15
     steps:
       - name: Check out the source
@@ -734,13 +717,12 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Hizli moduller ve Core. Core ilk siradadir: kirmizisi isin ilk dakikalarinda
-  # gorunur.
+  # Fast modules and Core. Core comes first: its red shows in the first minutes of the job.
   test-fast:
     name: Test (Core and fast modules)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~7 dk (kurulum 2,7 + moduller 4,1).
+    # Estimate ~7 min (setup 2.7 + modules 4.1).
     timeout-minutes: 15
     steps:
       - name: Check out the source
@@ -852,22 +834,22 @@ jobs:
           overwrite: true
 
   # ---------------------------------------------------------------------------
-  # Windows test isleri
+  # Windows test jobs
   #
-  # `windows-latest` runner'inin Docker kurulumu Windows container icindir -
-  # Linux image baslatamaz. TwoNode, PostgreSql ve SqlServer burada kosmaz;
-  # `Tracon.no-docker.slnf` ayni kumeyi tanimlar. Sandbox script testleri
-  # `/bin/bash` yoklugunda Windows'ta SKIPPED gorunur (Assert.SkipWhen); ubuntu
-  # isleri onlari kosar. Sepetler Windows modul sureleriyle dengelenir
-  # (Sqlite 541 sn, Workflows 297, AspNetCore 233, Package 203, Core 48, E2E 40,
-  # Generators 28) ve ilk kosumdan sonra olculenle degistirilir. Windows'ta
-  # Docker adimi, ubuntu'da Playwright sistem bagimliligi adimi yoktur.
+  # The Docker installation of the `windows-latest` runner is for Windows containers - it
+  # cannot start a Linux image. TwoNode, PostgreSql and SqlServer do not run here;
+  # `Tracon.no-docker.slnf` defines the same set. The sandbox script tests show as SKIPPED on
+  # Windows when `/bin/bash` is missing (Assert.SkipWhen); the ubuntu jobs run them. The baskets
+  # are balanced with the Windows module durations (Sqlite 541 s, Workflows 297, AspNetCore 233,
+  # Package 203, Core 48, E2E 40, Generators 28); replace them with runner measurements. The
+  # Windows jobs have no Docker step and no Playwright system-dependency step (the ubuntu jobs
+  # have the latter).
   # ---------------------------------------------------------------------------
   test-windows-sqlite:
     name: Test (windows, SQLite)
     needs: build
     runs-on: windows-latest
-    # Tahmin ~12 dk (kurulum 3 + modul 9).
+    # Estimate ~12 min (setup 3 + module 9).
     timeout-minutes: 40
     steps:
       - name: Check out the source
@@ -918,7 +900,7 @@ jobs:
     name: Test (windows, AspNetCore, Package, E2E)
     needs: build
     runs-on: windows-latest
-    # Tahmin ~11 dk (kurulum 3,2 + moduller 7,9 + arayuz zincirinin soguk baslangici).
+    # Estimate ~11 min (setup 3.2 + modules 7.9 + cold start of the UI chain).
     timeout-minutes: 45
     steps:
       - name: Check out the source
@@ -931,8 +913,7 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Tracon.Package.Tests kendi pack'ini kosar ve arayuz zinciri (npm) o pack'te
-      # soguk baslar.
+      # Tracon.Package.Tests runs its own pack, and the UI chain (npm) starts cold in that pack.
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -963,8 +944,8 @@ jobs:
         id: restore
         run: dotnet restore Tracon.slnx
 
-      # Windows'ta sistem bagimliligi adimi yoktur; Test fixture'i tarayiciyi
-      # eksikse indirir. Onbellek isabetinde indirme atlanir.
+      # Windows needs no system-dependency step; the test fixture downloads the browser when it is
+      # missing. On a cache hit the download is skipped.
       - name: Cache the Playwright browser
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -996,7 +977,7 @@ jobs:
     name: Test (windows, Core and unit modules)
     needs: build
     runs-on: windows-latest
-    # Tahmin ~11 dk (kurulum 3 + moduller 7,5).
+    # Estimate ~11 min (setup 3 + modules 7.5).
     timeout-minutes: 35
     steps:
       - name: Check out the source
@@ -1112,45 +1093,42 @@ jobs:
           overwrite: true
 
   # ---------------------------------------------------------------------------
-  # Platform matrisi (2026-11-04) -- BU ISLER GITHUB'DA HENUZ KOSULMADI
+  # Platform matrix
   #
-  # Sitedeki `reference/compatibility.md` platform tablosunun her satiri bir
-  # bacakla kanitlanir. Bu bolumdeki bacaklarin KOMUTLARI yerelde kosuldu
-  # (ayni ortam degiskenleri, ayni test projesi); isin kendisi -- YAML, runner,
-  # sure siniri -- bir kez bile calismadi: gelistirme deposunda CI `skipped`
-  # kalir ve kanonik depo okunamiyor. Ilk kosumdan sonra sure siniri olculenle
-  # guncellenir ve bu uyari silinir.
+  # Every row of the platform table in the site's `reference/compatibility.md` is proved by one
+  # leg. The commands of the legs are the ones first run locally (the same environment
+  # variables, the same test project).
   #
-  # Kosul `build` ile ayni: yalniz kanonik repo. Her bacak `needs: build` tasir,
-  # cunku depo korumasi yalniz `build`'de durur ve atlanan bir bagimlilik onlari
-  # da atlatir; kapi testi bu zinciri zorunlu kilar. PR'de kosmaz (her PR on bacak
-  # yakmasin), `main`, etiket ve elle tetiklemede kosar. Varsayilan imaj bacaklari
-  # (`test-postgres`, `test-sqlserver`) PR'de de kosar ve bu matrislerin disindadir.
+  # The condition is the same as `build`: the canonical repository only. Every leg carries
+  # `needs: build`, because the repository guard sits only in `build` and a skipped dependency
+  # skips them too; a gate test enforces this chain. They do not run on pull requests (so no PR
+  # burns ten legs); they run on `main`, tags and manual triggers. The default-image legs
+  # (`test-postgres`, `test-sqlserver`) also run on PRs and are outside these matrices.
   #
-  # Bacak = bir ortam degiskeni seti. Test sinifi degismez: `SqlServerFixture` ve
-  # `PostgresFixture` degiskenleri okur; bos deger varsayilani korur. Bacaklar
-  # `build` isinin tar'ini kullanir; derlemez.
+  # A leg is a set of environment variables. The test class does not change: `SqlServerFixture`
+  # and `PostgresFixture` read the variables; an empty value keeps the default. The legs use the
+  # tar of the `build` job; they do not compile.
   # ---------------------------------------------------------------------------
   sqlserver-matrix:
     name: SQL Server (${{ matrix.name }})
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # Tahmin ~9,5 dk (eski seri kosumda modul 361 sn; yerelde olculen en uzun
-    # kosum 14 dk, amd64 emulasyonunda). Runner olcumu yok.
+    # Estimate ~9.5 min (module 361 s in the old serial run; the longest local run was 14 min,
+    # under amd64 emulation).
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         include:
-          # En dusuk sunucu surumu: `src/Tracon.SqlServer/README.md` 2019+ der.
+          # Lowest server version: `src/Tracon.SqlServer/README.md` says 2019+.
           - name: '2019'
             image: mcr.microsoft.com/mssql/server:2019-latest
             collation: ''
             lcid: ''
-          # Turkce collation: `Turkish_CI_AS` ve `MSSQL_LCID=1055` BIRLIKTE verilir;
-          # yalniz collation verilirse sunucu dili Ingilizce kalir ve havuzdan donen
-          # baglanti sifirlanirken duser.
+          # Turkish collation: `Turkish_CI_AS` and `MSSQL_LCID=1055` are given TOGETHER; if only the
+          # collation is given the server language stays English and a connection returned from the
+          # pool fails when it is reset.
           - name: '2022, Turkish_CI_AS'
             image: mcr.microsoft.com/mssql/server:2022-latest
             collation: Turkish_CI_AS
@@ -1209,8 +1187,8 @@ jobs:
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # Tahmin ~5,5 dk (eski seri kosumda modul 150 sn; yerelde olculen en uzun
-    # kosum 7 dk, yuklu makine, 1594 test, imaj hazir). Runner olcumu yok.
+    # Estimate ~5.5 min (module 150 s in the old serial run; the longest local run was 7 min on
+    # a loaded machine, 1594 tests, image ready).
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -1234,8 +1212,8 @@ jobs:
           - name: '17'
             image: pgvector/pgvector:pg17
             icu: ''
-          # Varsayilan imaj (18) Turkce ICU yerel ayariyla: `lower()` ve karsilastirma
-          # davranisi bu bacakta degisir.
+          # Default image (18) with a Turkish ICU locale: the behaviour of `lower()` and comparison
+          # changes on this leg.
           - name: '18, ICU tr-TR'
             image: ''
             icu: tr-TR
@@ -1287,17 +1265,17 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # SQLite surucusu yerel bir kutuphane tasir; surum o kutuphanenin surumudur.
-  # Bacak, `Microsoft.Data.Sqlite`'in paketledigi kutuphanenin yerine ayni
-  # ailenin (`SQLitePCLRaw.lib.e_sqlite3`) eski bir surumunu koyar ve ayni test
-  # projesini kosar. `SqliteEngineVersionTests` motorun gercekten istenen surum
-  # oldugunu dogrular: degistirme sessizce basarisiz olursa bacak kirmizidir.
+  # The SQLite driver carries a native library; the version is that library's version. The leg
+  # replaces the library packaged by `Microsoft.Data.Sqlite` with an older version of the same
+  # family (`SQLitePCLRaw.lib.e_sqlite3`) and runs the same test project.
+  # `SqliteEngineVersionTests` verifies that the engine really is the requested version: if the
+  # replacement fails silently, the leg is red.
   sqlite-floor:
     name: SQLite ${{ matrix.sqlite }}
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # Tahmin ~5,5 dk (eski seri kosumda modul 91 sn). Yerelde 1,5 dk (macOS, sicak onbellek).
+    # Estimate ~5.5 min (module 91 s in the old serial run). 1.5 min locally (macOS, warm cache).
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -1343,7 +1321,7 @@ jobs:
         env:
           NATIVE_VERSION: ${{ matrix.native }}
         run: |
-          # Repo'nun disinda: Directory.Packages.props (merkezi surum yonetimi) bu projeyi de bagliyor olurdu.
+          # The project sits outside the repo: Directory.Packages.props (central package management) would otherwise apply to it too.
           mkdir -p "${RUNNER_TEMP}/sqlite-native"
           cat > "${RUNNER_TEMP}/sqlite-native/Fetch.csproj" <<EOF
           <Project Sdk="Microsoft.NET.Sdk">
@@ -1368,15 +1346,15 @@ jobs:
           overwrite: true
 
   # ---------------------------------------------------------------------------
-  # Test olmayan kapilar. `build` isinden ayrildilar: derleme zincirini
-  # geciktirmeden paralel kosarlar ve `release-dryrun` her birini bekler, yani
-  # kirmizi bir kapi onceki gibi provayi ve yayini durdurur.
+  # Non-test gates. They were split from `build` so they run in parallel without delaying the
+  # build chain, and `release-dryrun` waits for each of them: a red gate stops the rehearsal
+  # and the release as before.
   # ---------------------------------------------------------------------------
   format:
     name: Code format (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
-    # Tahmin ~7 dk (eski seri kosumda ubuntu adimi 223 sn). Windows olcumu yok.
+    # Estimate ~7 min (the ubuntu step took 223 s in the old serial run).
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -1393,8 +1371,8 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Eski adimin ortami korunur: biçim denetimi Node kurulu bir runner'da,
-      # node_modules olmadan kosardi.
+      # The environment of the old step is kept: the format check ran on a runner with Node
+      # installed, without node_modules.
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -1415,30 +1393,27 @@ jobs:
         run: dotnet restore Tracon.slnx
 
       - name: Verify the code format
-        # Bicim sapmasi build'i kirar. Duzeltmek icin: dotnet format Tracon.slnx
+        # A format deviation breaks the build. To fix it: dotnet format Tracon.slnx
         run: dotnet format Tracon.slnx --verify-no-changes --no-restore
 
-  # Tahsis kapisi yalniz dort sicak yoldan biri (veya bench/ kendisi)
-  # degistiyse kosar - `gate.py perf`'in kendi mantigi
-  # (`performance_gate_triggered`) yeniden kullanilir, CI kendi diff
-  # tabanini hesaplar (PR'de taban dal, push'ta onceki commit).
+  # The allocation gate runs only when one of the four hot paths (or bench/ itself) changed - it
+  # reuses the logic of `gate.py perf` (`performance_gate_triggered`); CI computes its own diff
+  # base (the base branch on a PR, the previous commit on a push).
   #
-  # 🚨 Bir ETIKET push'unda `github.event.before` KIRK SIFIRDIR - o commit
-  # yoktur, diff hesaplanamaz. Eskiden bu, asagidaki "taban cozulemedi"
-  # dalina duser ve kapiyi KAZARA kosulsuz tetiklerdi. Sonuc olculdu
-  # (2026-09-20): kapi 21 push boyunca `skipped` kaldi, ilk gercek kosumu
-  # ilk `v*` etiketi oldu ve orada dustu - yani yalniz yayin yolunda kosan,
-  # hic denenmemis bir kapiydi. Etiket artik ACIKCA ele alinir: etiketin
-  # gosterdigi commit main'de zaten derlenip olculmustur, bu yuzden kapi
-  # etikette kosmaz. Karari sifir SHA'nin yan etkisine birakmiyoruz.
+  # 🚨 On a TAG push `github.event.before` is forty zeros - that commit does not exist, so no
+  # diff can be computed. This used to fall into the "base could not be resolved" branch below
+  # and trigger the gate unconditionally BY ACCIDENT. The result was measured (2026-09-20): the
+  # gate stayed `skipped` across 21 pushes, its first real run was the first `v*` tag, and it
+  # failed there - a gate that ran only on the release path and had never been tried. A tag is
+  # now handled EXPLICITLY: the commit the tag points to was already built and measured on main,
+  # so the gate does not run on a tag. The decision is not left to a side effect of the zero SHA.
   #
-  # Kapi src'yi yeniden derler; bu yuzden `build` isinin calisma alaninda
-  # degil, kendi isinde kosar.
+  # The gate rebuilds src; so it runs in its own job, not in the workspace of `build`.
   performance:
     name: Performance gate (allocation)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~2 dk tetiklenmediginde, ~8 dk tetiklendiginde (`close` kapisinda ~220 sn).
+    # Estimate ~2 min when not triggered, ~8 min when triggered (~220 s inside `gate.py close`).
     timeout-minutes: 30
     steps:
       - name: Check out the source
@@ -1484,27 +1459,25 @@ jobs:
         if: steps.perf-trigger.outputs.triggered == 'true'
         run: python3 scripts/gate.py perf
 
-  # Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
-  # DEGIL. Uc HTTP yolu, iki kiraci, gercek TCP, gercek SQL ve packed
-  # tuketici provenance'i kontrol edilir; hicbir sure esige baglanmaz
-  # Agir profiller (sweep/arrival/workers/soak/nodes) CI'a GIRMEZ.
+  # A short validity run of the capacity HARNESS - not a load measurement. It checks three HTTP
+  # paths, two tenants, real TCP, real SQL and the provenance of the packed consumer; no
+  # duration is tied to a threshold. The heavy profiles (sweep/arrival/workers/soak/nodes) do
+  # NOT enter CI.
   #
-  # Aparat kendi paketini uretir (izole feed, kendi surumu) ve src'yi yeniden
-  # derler; bu yuzden `build` isinin calisma alaninda degil kendi isinde kosar.
+  # The harness builds its own package (isolated feed, its own version) and rebuilds src; so it
+  # runs in its own job, not in the workspace of `build`.
   #
-  # 🚨 Yalniz Linux: kendi PostgreSQL container'ini baslatir ve
-  # `windows-latest` runner'i Linux image calistiramaz - ayni sebep
-  # Tracon.no-docker.slnf'in var olma sebebi.
+  # 🚨 Linux only: it starts its own PostgreSQL container and the `windows-latest` runner cannot
+  # run a Linux image - the same reason `Tracon.no-docker.slnf` exists.
   #
-  # 🚨 Eksik Docker veya hazirlanmamis paket SESSIZ SKIP degil BASARISIZ
-  # onkosuldur: atlanmis bir provenance kontrolu CI log'unda gecmis bir
-  # kontrolden ayirt edilemez.
+  # 🚨 Missing Docker or an unprepared package is a FAILED precondition, not a SILENT SKIP: a
+  # skipped provenance check cannot be told apart from a passed one in the CI log.
   capacity:
     name: Capacity smoke (packed consumer)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~9 dk (kurulum 2 + pack 3 + smoke 2,4; onceki en uzun adim 4,2 dk,
-    # pack olmadan). Runner olcumu yok.
+    # Estimate ~9 min (setup 2 + pack 3 + smoke 2.4; the longest earlier step was 4.2 min, without
+    # the pack).
     timeout-minutes: 15
     steps:
       - name: Check out the source
@@ -1517,7 +1490,7 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Aparatin pack'i arayuz varliklarini (TRACON0003) derler.
+      # The pack of the harness builds the UI assets (TRACON0003).
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -1556,33 +1529,31 @@ jobs:
           overwrite: true
 
   # ---------------------------------------------------------------------------
-  # Yayın provası
+  # Release rehearsal
   #
-  # Kendi `dotnet pack`'ini KOSMAZ. `build` isinin ubuntu bacaginin
-  # paketledigi `nuget-packages` artifact'ini indirir ve `gate.py release --dry-run
-  # --package-directory` ile dogrular: manifest SHA-256'lari, commit ve taban
-  # esitligi, on surum siniri, paket icerik sozlesmesi, kirici degisiklik raporu
-  # dis sample'lar ve AOT smoke. Dogrulanan kume SHA-256
-  # manifest'iyle `nuget-verified` olarak yuklenir; `publish` YALNIZ onu iter.
-  # Bayt esitligi her push'ta (PR dahil) sinanir - etiket yolunda yeni mantik
-  # yoktur.
+  # It does NOT run its own `dotnet pack`. It downloads the `nuget-packages` artifact packed by
+  # the ubuntu leg of `build` and verifies it with `gate.py release --dry-run
+  # --package-directory`: manifest SHA-256s, commit and base equality, the pre-release limit,
+  # the package content contract, the breaking-change report, external samples and the AOT
+  # smoke. The verified set is uploaded as `nuget-verified` with its SHA-256 manifest; `publish`
+  # pushes ONLY that. Byte equality is checked on every push (PRs included) - there is no new
+  # logic on the tag path.
   #
-  # Is, `build`'e ve PR'de de kosan HER test ve kapi isine baglidir: kirmizi bir
-  # modul provayi ve dolayisiyla yayini durdurur. PR'de atlanan isler (matrisler,
-  # kultur) buraya GIRMEZ - atlanan bir bagimlilik bu isi de atlatir ve prova her
-  # push'ta (PR dahil) kosmalidir. O isler `publish`'in bagimliligidir.
+  # The job depends on `build` and on EVERY test and gate job that also runs on PRs: a red
+  # module stops the rehearsal and therefore the release. Jobs skipped on PRs (the matrices,
+  # culture) do NOT belong here - a skipped dependency would skip this job too, and the
+  # rehearsal must run on every push (PRs included). Those jobs are dependencies of `publish`.
   #
-  # `--package-version` GECILMEZ: bu is her push'ta (PR dahil) kosar ve o an bir etiket
-  # olmayabilir. Zorlanmis bir surum yalniz INSANIN gercek etiketten ONCE
-  # yerelde kostugu provada anlamlidir. Bir GERCEK `v*` etiketinde
-  # MinVer'in kendi hesapladigi surum zaten hedeftir - zorlamaya gerek yoktur.
+  # `--package-version` is NOT passed: this job runs on every push (PRs included) and there may
+  # be no tag at that moment. A forced version is meaningful only in the rehearsal a PERSON runs
+  # locally BEFORE the real tag. On a REAL `v*` tag the version MinVer computes itself is already
+  # the target - no forcing is needed.
   # ---------------------------------------------------------------------------
   release-dryrun:
     name: Release rehearsal (gate.py release --dry-run --package-directory)
     runs-on: ubuntu-latest
     needs: [build, format, performance, capacity, test-fast, test-aspnetcore, test-sqlite, test-twonode, test-package, test-postgres, test-sqlserver, test-windows-sqlite, test-windows-core, test-windows-web]
-    # Olculen en uzun 5,7 dk (kendi pack'iyle). Pack artik
-    # bu iste degil; sinir ilk yeni kosumda yeniden olculur.
+    # Longest measured 5.7 min (when it packed on its own). The pack no longer happens in this job.
     timeout-minutes: 10
 
     steps:
@@ -1596,8 +1567,8 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Yalniz `npm publish --dry-run` icin (gate.py'nin npm adimi). Bu is
-      # paketlemez; arayuz varliklari (TRACON0003) `build` isinde gerekir.
+      # Only for `npm publish --dry-run` (the npm step of gate.py). This job does not pack; the UI
+      # assets (TRACON0003) are needed in `build`.
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -1605,8 +1576,8 @@ jobs:
           cache: npm
           cache-dependency-path: packages/tracon-client/package-lock.json
 
-      # `npm publish --dry-run`'in kendi `prepublishOnly` -> `npm run build`
-      # adimi icin gerekir; gate.py'nin npm adimi bu dizinde kosar.
+      # Needed for the `prepublishOnly` -> `npm run build` step of `npm publish --dry-run` itself;
+      # the npm step of gate.py runs in this directory.
       - name: Install the TypeScript client dependencies
         working-directory: packages/tracon-client
         run: npm ci
@@ -1616,8 +1587,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      # `artifacts/` .gitignore'dadir: indirilen dizin erken git denetimini
-      # kirletmez (WorkflowWorkspacePathsTests).
+      # `artifacts/` is in .gitignore: the downloaded directory does not dirty an early git check
+      # (WorkflowWorkspacePathsTests).
       - name: Download the packages
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -1638,39 +1609,37 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
-  # `npm-publish`'ten SONRA kosar. Iki kanal PARALEL kostugu surece
-  # npm tarafi kirilirsa 20 NuGet paketi KALICI olarak yayinlanmis olur ve
-  # sevk edilen dokuman (`docs-site` -> `npm install @tracon/client`) var
-  # olmayan bir paketi tarif eder. NuGet'te geri donus yoktur; npm'in kisitli
-  # bir unpublish penceresi vardir -- bu yuzden ucuz olan kanal ONCE basar ve
-  # basarisiz olursa NuGet HIC basmaz. `npm-publish` var olan surumu atlar,
-  # yani ayni etiket yeniden itildiginde bu bagimlilik zinciri KIRMAZ.
+  # Runs AFTER `npm-publish`. If the two channels ran in PARALLEL and the npm side broke, the
+  # NuGet packages would be published PERMANENTLY and the shipped documentation (`docs-site` ->
+  # `npm install @tracon/client`) would describe a package that does not exist. NuGet has no way
+  # back; npm has a limited unpublish window - so the cheap channel goes FIRST, and if it fails
+  # NuGet does not publish AT ALL. `npm-publish` skips a version that already exists, so
+  # re-pushing the same tag does not break this dependency chain.
   #
-  # `publish` AYNI kosumdaki HER test isine ve matris bacagina dogrudan baglidir
-  # (kapi: `dokuman-bakim.py` tek derleme zinciri): kirmizi bir modul, bir
-  # veritabani surumu ya da bir kultur bacagi, hangi isin icinde olursa olsun,
-  # nuget.org'a yazmayi durdurur. `site` bu listede YOKTUR: etikette kosmaz ve
-  # atlanan bir bagimlilik `publish`'i de atlatirdi.
+  # `publish` depends DIRECTLY on EVERY test job and matrix leg of the SAME run (a repository
+  # check enforces this single build chain): a red module, database version or culture leg,
+  # whichever job it sits in, stops the write to nuget.org. `site` is NOT in this list: it does
+  # not run on tags and a skipped dependency would skip `publish` too.
   # ---------------------------------------------------------------------------
   publish:
     name: Publish to NuGet.org
     runs-on: ubuntu-latest
     needs: [release-dryrun, npm-publish, test-fast, test-aspnetcore, test-sqlite, test-twonode, test-package, test-postgres, test-sqlserver, test-windows-sqlite, test-windows-core, test-windows-web, postgres-matrix, sqlserver-matrix, sqlite-floor, culture-matrix]
-    # Olculen en uzun 0,5 dk; taban 10 dk. Sinir push'un ortasinda keserse bir
-    # kisim paket yayinda kalir; `--skip-duplicate` isi yeniden kosmayi guvenli yapar.
-    # Checkout + Python + dogrulama eklendi (her biri saniyeler).
+    # Longest measured 0.5 min; floor 10 min. If the limit cuts in the middle of a push, part of
+    # the packages stay published; `--skip-duplicate` makes re-running the job safe. Checkout,
+    # Python and verification were added (each takes seconds).
     timeout-minutes: 10
     permissions:
       contents: read
       id-token: write
-    # Yalnizca 'v' ile baslayan etiketlerde calisir. Ornek: v1.0.0-preview.1
+    # Runs only on tags that start with 'v'. Example: v1.0.0-preview.1
     if: startsWith(github.ref, 'refs/tags/v')
     environment: nuget
 
-    # Bu is DERLEMEZ ve PAKETLEMEZ. `release-dryrun`'in dogruladigi
-    # `nuget-verified` kumesini indirir, provanin kullandigi AYNI komutla
-    # (`gate.py verify-packages`) yeniden sinar ve tam o baytlari iter.
-    # Dogrulama login'den ONCE kosar: repo kodu calisirken API anahtari yoktur.
+    # This job does NOT build or pack. It downloads the `nuget-verified` set that `release-dryrun`
+    # verified, re-checks it with the SAME command the rehearsal used (`gate.py verify-packages`)
+    # and pushes exactly those bytes. The verification runs BEFORE the login: while repository
+    # code runs, there is no API key.
     steps:
       - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -1680,8 +1649,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      # 🚨 `artifacts/` altina: repo izlenen `packages/tracon-client/`'i
-      # tasir; eski indirme yolu `packages` checkout'la cakisirdi.
+      # 🚨 Under `artifacts/`: the repo tracks `packages/tracon-client/`; the old download path
+      # `packages` would collide with the checkout.
       - name: Download the packages
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -1700,22 +1669,18 @@ jobs:
         id: nuget_login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         with:
-          # 🚨 The nuget.org PROFILE NAME of the person who CREATED the policy,
-          # not the owner it applies to, and not an email. These are different
-          # things and the previous value confused them: the policy is OWNED by
-          # the Tracon organization, so `Tracon` looked like the right answer and
-          # the comment here even argued for it. Measured 2026-09-20 on the first
-          # tag that reached this step:
+          # 🚨 The nuget.org PROFILE NAME of the person who CREATED the policy, not the owner it applies
+          # to, and not an email. The policy is OWNED by the Tracon organization, but passing `Tracon`
+          # here fails. Measured 2026-09-20 on the first tag that reached this step:
           #
           #   Token exchange failed (HTTP 401) ... Make sure you are using the
           #   username of the policy creator, not the policy owner: No matching
           #   trust policy owned by user 'Tracon' was found.
           #
-          # nuget.org's own documentation says the same in fewer words: this is
-          # "your nuget.org username (profile name)" - the account that signs in
-          # and holds the policy. Policy OWNERSHIP (an individual or an org) only
-          # decides which packages the policy may publish; it never changes who
-          # exchanges the token.
+          # nuget.org's own documentation says the same: this is "your nuget.org username (profile
+          # name)" - the account that signs in and holds the policy. Policy OWNERSHIP (an individual or
+          # an org) only decides which packages the policy may publish; it never changes who exchanges
+          # the token.
           user: farukatasoy
 
       - name: Push the packages to NuGet.org
@@ -1728,27 +1693,28 @@ jobs:
   # ---------------------------------------------------------------------------
   # @tracon/client -> npm.org
   #
-  # NuGet yayiniyla AYNI 'v*' etiketinde tetiklenir ve surumu AYNI etiketten
-  # turetir -- iki kanal boylece YAPISAL olarak eslesir, ayri bir surum dosyasi
-  # yoktur. Bu is `publish`'ten ONCE kosar ve `publish` buna baglidir: geri donusu
-  # olmayan kanal (NuGet) en son basar. Testler artik `build` icinde kosmaz; bu is
-  # `release-dryrun` uzerinden PR'de de kosan her test isine, ayrica matris
-  # bacaklarina baglidir: kirmizi bir bacak varken npm'e de yazilmaz, yoksa
-  # surum yarim kalirdi (npm yayinlandi, NuGet durdu).
+  # Triggered on the SAME 'v*' tag as the NuGet release and derives its version from the SAME
+  # tag - the two channels match STRUCTURALLY; there is no separate version file. This job runs
+  # BEFORE `publish` and `publish` depends on it: the channel with no way back (NuGet)
+  # publishes last. Tests no longer run inside `build`; this job depends, through
+  # `release-dryrun`, on every test job that also runs on PRs, and on the matrix legs as well:
+  # while any leg is red npm is not written either, otherwise the release would be left half
+  # done (npm published, NuGet stopped).
   # ---------------------------------------------------------------------------
   npm-publish:
     name: Publish to npm
     runs-on: ubuntu-latest
     needs: [build, release-dryrun, postgres-matrix, sqlserver-matrix, sqlite-floor, culture-matrix]
-    # Olculen en uzun 0,3 dk; taban 10 dk. Yeniden kosum guvenlidir: var olan
-    # surum atlanir ("Surum zaten yayinlanmis mi").
+    # Longest measured 0.3 min; floor 10 min. Re-running is safe: an existing version is skipped
+    # ("Check whether the version is already published").
     timeout-minutes: 10
     if: startsWith(github.ref, 'refs/tags/v')
     environment: npm
 
-    # `id-token: write` npm'in trusted publishing'idir (OIDC): runner kisa omurlu bir kimlik belirteci alir ve
-    # npm onu `Tracon` repo'su, `ci.yml` ve `npm` ortami ile eslestirir. `contents: read` ayri yazilir: bir is
-    # `permissions` verince yazilmayanlar kapanir ve checkout okuyamazdi.
+    # `id-token: write` is npm trusted publishing (OIDC): the runner gets a short-lived identity
+    # token and npm matches it to the `Tracon` repository, `ci.yml` and the `npm` environment.
+    # `contents: read` is written separately: when a job sets `permissions`, everything not
+    # written is closed and checkout could not read.
     permissions:
       contents: read
       id-token: write
@@ -1765,8 +1731,9 @@ jobs:
           cache: npm
           cache-dependency-path: packages/tracon-client/package-lock.json
 
-      # Node 22 npm 10.9'u getirir; OIDC ile `npm publish` 11.5.1'den, dist-tag islemi 11.21.0'dan beri calisir
-      # (docs.npmjs.com/trusted-publishers). Surum SABITTIR: `latest` bir gun yayin aninda degisirdi.
+      # Node 22 ships npm 10.9; `npm publish` with OIDC works from 11.5.1 and the dist-tag operation
+      # from 11.21.0 (docs.npmjs.com/trusted-publishers). The version is PINNED: `latest` would
+      # change one day at publish time.
       - name: Upgrade npm to the trusted publishing version
         run: |
           npm install --global npm@11.21.2
@@ -1776,8 +1743,8 @@ jobs:
         working-directory: packages/tracon-client
         run: npm ci
 
-      # MinVer.NET surumunu ayni etiketten turetir; npm'in boyle
-      # bir mekanizmasi yoktur, o yuzden ayni etiketten elle turetilir.
+      # MinVer derives the .NET version from the tag; npm has no such mechanism, so the version is
+      # derived by hand from the same tag.
       - name: Derive the version from the tag
         id: version
         run: echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
@@ -1786,15 +1753,15 @@ jobs:
         working-directory: packages/tracon-client
         run: npm version "${{ steps.version.outputs.value }}" --no-git-tag-version --allow-same-version
 
-      # `npm run generate` burada KOSMAZ -- src/schema.ts commit'lidir ve
-      # `build` isindeki schema-drift testi onu zaten dogruladi. Yalniz derleme.
+      # `npm run generate` does NOT run here - src/schema.ts is committed and the schema-drift test
+      # in `build` already verified it. Build only.
       - name: Build the npm package
         working-directory: packages/tracon-client
         run: npm run build
 
-      # npm'de NuGet'in --skip-duplicate karsiligi yoktur; ayni surum ikinci kez
-      # yayinlanirsa `npm publish` HATA ile durur. Var olan surum onceden
-      # kontrol edilir; bulunursa yayinlama adimi ATLANIR, is KIRILMAZ.
+      # npm has no counterpart of NuGet's --skip-duplicate; publishing the same version twice makes
+      # `npm publish` stop with an ERROR. An existing version is checked beforehand; if found, the
+      # publish step is SKIPPED and the job does NOT fail.
       - name: Check whether the version is already published
         id: exists
         working-directory: packages/tracon-client
@@ -1806,8 +1773,8 @@ jobs:
             echo "value=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # @tracon kapsamli bir paket varsayilan PRIVATE'tir; --access public
-      # unutulursa paket yayinlanir ama kimse kuramaz (Kabul case 8).
+      # A scoped @tracon package is PRIVATE (restricted) by default; if --access public is
+      # forgotten the package publishes but nobody can install it.
       - name: Publish to npm
         if: steps.exists.outputs.value == 'false'
         working-directory: packages/tracon-client
@@ -1818,30 +1785,29 @@ jobs:
           else
             npm publish --access public --tag latest
           fi
-        # Yedek: ilk OIDC yayini dogrulanana kadar token kalir. npm once OIDC'yi dener; OIDC yayini provenance
-        # uretir, token yayini uretmez. Logda ve paketin surum sayfasinda provenance gorulunce bu satir
-        # (ve asagidaki ikincisi) kaldirilir.
+        # Fallback: the token stays until the first OIDC publish is verified. npm tries OIDC first; an
+        # OIDC publish produces provenance, a token publish does not. When provenance shows in the log
+        # and on the version page of the package, this line (and the second one below) is removed.
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Preview surumleri ciplak `npm install` ile sessizce kurulmamalidir --
-      # ama npm `latest` etiketini SILDIRMEZ: DELETE .../dist-tags/latest 403
-      # doner ve bir paketin ILK yayini, --tag ne olursa olsun, `latest`i o
-      # surume baglar. Canlidaki latest=1.0.0-preview.1 boyle olustu ve
-      # preview.2 yayininda `dist-tag rm` 403 ile isi kirdi. Bu yuzden hedef
-      # "latest'i kaldirmak" degil, "latest'i en az zararli surume
-      # baktirmak"tir:
-      #   stable VARSA -> latest'e DOKUNULMAZ; preview yalniz `next` alir
-      #   stable YOKSA -> latest en yeni preview'e alinir. Silemedigimize gore
-      #                   eski bir preview'de takili kalmasi, duzeltmeleri
-      #                   iceren yenisinden kotudur; kurulum metni yine `@next`
-      #                   der ve ilk stable yayinda latest oraya gecer.
-      # Adim yayin zaten varken de kosar; dist-tag'i duzeltir, immutable
-      # package byte'larina dokunmaz. Yeniden kosulan ESKI bir etiket dist-tag'i
-      # GERI ALMAMALIDIR, o yuzden once "daha yeni yayin var mi" sorulur.
-      # Sinir: npm'in `>` araligi farkli major/minor/patch'in prerelease'lerini
-      # gormez (`>1.0.0-preview.2` sorgusu 1.0.1-preview.1'i bulmaz), koruma o
-      # kosede tam degildir.
+      # Preview versions must not be installed silently by a bare `npm install` - but npm does NOT
+      # let the `latest` tag be deleted: DELETE .../dist-tags/latest returns 403, and the FIRST
+      # publish of a package binds `latest` to that version whatever --tag says. That is how the
+      # live latest=1.0.0-preview.1 came about, and on the preview.2 publish `dist-tag rm` broke the
+      # job with 403. So the goal is not "remove latest" but "make latest point to the least harmful
+      # version":
+      #   a stable exists  -> `latest` is NOT touched; a preview gets only `next`
+      #   no stable exists -> `latest` moves to the newest preview. Since it cannot be deleted,
+      #                       being stuck on an old preview is worse than the newer one that carries
+      #                       the fixes; the install text still says `@next` and at the first
+      #                       stable publish `latest` moves there.
+      # The step also runs when the version is already published; it fixes the dist-tag and does not
+      # touch the immutable package bytes. Re-running an OLD tag must NOT move the dist-tag BACK, so
+      # it first asks "is there a newer release?".
+      # Limit: npm's `>` range does not see prereleases of a different major/minor/patch
+      # (`>1.0.0-preview.2` does not find 1.0.1-preview.1), so the guard is not complete in that
+      # corner.
       - name: Align the npm dist-tags
         working-directory: packages/tracon-client
         run: |
@@ -1867,20 +1833,19 @@ jobs:
   # ---------------------------------------------------------------------------
   # GitHub release
   #
-  # `publish` VE `npm-publish`'ten SONRA kosar: paket yayini bu ise bagli
-  # KALMAZ, yalniz release sayfasi eksik kalir GitHub API erisilemezse.
-  # Govde CHANGELOG.md'nin o surume ait bolumudur --
-  # `scripts/changelog.py` gate.py'nin surum-notu kapisiyla AYNI ayrıştırıcıdır,
-  # iki ayri parser yazmak drift uretirdi. Surum bolumu yoksa `## [Unreleased]`
-  # okunur: bolum ETIKET aninda yazilir, yani bu is kosarken heniz yazilmamis
-  # olabilir. Iki taraf ayni fallback'i kullanmazsa prova yesil,
-  # release govdesi bos olurdu.
+  # Runs AFTER `publish` AND `npm-publish`: the package release does not depend on this job - if
+  # the GitHub API is unreachable, only the release page is missing. The body is the section of
+  # CHANGELOG.md for that version - `scripts/changelog.py` is the SAME parser as the
+  # release-notes gate of gate.py; writing two separate parsers would produce drift. If the
+  # version section does not exist, `## [Unreleased]` is read: the section is written AT TAG
+  # time, so it may not be written yet when this job runs. If the two sides do not use the same
+  # fallback, the rehearsal would be green and the release body empty.
   # ---------------------------------------------------------------------------
   github-release:
     name: Create GitHub release
     runs-on: ubuntu-latest
     needs: [publish, npm-publish]
-    # Olculen en uzun 0,1 dk; taban 10 dk.
+    # Longest measured 0.1 min; floor 10 min.
     timeout-minutes: 10
     if: startsWith(github.ref, 'refs/tags/v')
 
@@ -1896,13 +1861,12 @@ jobs:
         with:
           python-version: '3.12'
 
-      # GitHub 125 000 karakterden uzun release govdesini reddeder (HTTP 422,
-      # v1.0.0-preview.4); uzun notlar butun `###` gruplariyla kesilir ve
-      # gerisi sitedeki tam nota baglanir (`changelog.github_release_body`).
-      # Etiket adindan 'v' onekini dusurmek CHANGELOG basligindaki surumle
-      # eslesir (`## [1.0.0-preview.1]`, `v` onceki degil). Etiket adi ortam
-      # degiskeniyle tasinir - bir YAML ifadesini Python string literaline
-      # gommek yerine (tag adinda `'` teorik olarak yasak degildir).
+      # GitHub rejects a release body longer than 125,000 characters (HTTP 422, v1.0.0-preview.4);
+      # long notes are cut at whole `###` groups and the rest links to the full note on the site
+      # (`changelog.github_release_body`). Dropping the 'v' prefix of the tag name matches the
+      # version in the CHANGELOG heading (`## [1.0.0-preview.1]`, no `v` before it). The tag name is
+      # carried in an environment variable - instead of embedding a YAML expression in a Python
+      # string literal (a `'` in a tag name is theoretically not forbidden).
       - name: Extract the release notes from CHANGELOG.md
         env:
           TAG_NAME: ${{ github.ref_name }}
@@ -1925,8 +1889,8 @@ jobs:
           pathlib.Path('release-notes.md').write_text(release_body, encoding='utf-8')
           "
 
-      # Ayni etiket yeniden itilirse is KIRILMAZ - npm-publish'in "already
-      # published" deseniyle ayni fikir: var olan release atlanir.
+      # Re-pushing the same tag does NOT fail the job - the same idea as the "already published"
+      # pattern of npm-publish: an existing release is skipped.
       - name: Check whether the release already exists
         id: exists
         env:
@@ -1956,33 +1920,32 @@ jobs:
             "${args[@]}"
 
   # ---------------------------------------------------------------------------
-  # Dokuman sitesi (docs-site/) kapilari
+  # Documentation site (docs-site/) gates
   #
-  # Bu is YAYINLAMAZ. Site kendi sunucumuzda barinir ve yayini
-  # bakimcinin deploy betigi yapar -- ozel repo'da GitHub Pages ucretli plan
-  # ister. Burada kalan sey, siteyi DERLEYIP kapilarini kosmaktir:
-  # derlenmeyen bir site yayin gunune kadar sessiz kalmasin.
+  # This job does NOT publish. The site is served from the maintainers' own server and is
+  # published from there, not from a workflow; the publisher runs all the site checks again
+  # before anything goes live. What this job does is build the site and run its gates, so a
+  # site that does not build does not stay quiet until publication day.
   #
-  # Site AYRI bir yayin hattidir: `dotnet build`'e baglanmaz ve pakete girmez.
-  # Yine de .NET derlemesine ihtiyac duyar -- API referansi DocFX ile derlenmis
-  # assembly + XML dokumanindan uretilir (MSBuild devrede degil, K-4xx).
-  # Arayuz varliklari gerekmez, bu yuzden TraconFrontendEnabled=false ile
-  # npm/Vite adimlari atlanir.
+  # The site is a SEPARATE publication pipeline: it is not tied to `dotnet build` and does not
+  # enter a package. It still needs the .NET build - the API reference is generated by DocFX
+  # from the compiled assembly and its XML documentation (DocFX does not load the projects
+  # through MSBuild). The UI assets are not needed, so TraconFrontendEnabled=false skips the
+  # npm/Vite steps.
   #
-  # Ekran goruntuleri docs-site/public/screenshots altinda COMMIT'LIDIR; E2E
-  # kosumundan uretilirler (DocumentationScreenshotTests). Bu is Playwright
-  # calistirmaz.
+  # The screenshots under docs-site/public/screenshots are COMMITTED; they are produced by the
+  # E2E run (DocumentationScreenshotTests). This job does not run Playwright.
   #
-  # 🚨 Is PR'de KOSMAZ ve bu bilincli bir bosluktur: ozel repo'nun Actions
-  # dakikasi sinirlidir ve deploy betigi dort kapiyi yayindan once zaten
-  # kosar. Bir PR'i durdurmasi gereken kapi `build` isine konur -- oradaki
-  # `check-content.mjs` adimi tam olarak bu sebeple oradadir.
+  # 🚨 The job does NOT run on PRs and that is a deliberate gap: it takes about eight minutes
+  # and the publisher runs the same gates before publishing anyway. A gate that must stop a PR
+  # goes into the `build` job - the `check-content.mjs` step there is placed for exactly this
+  # reason.
   # ---------------------------------------------------------------------------
   site:
     name: Docs site gates
     runs-on: ubuntu-latest
     needs: build
-    # Olculen en uzun 7,9 dk.
+    # Longest measured 7.9 min.
     timeout-minutes: 20
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
 
@@ -2000,8 +1963,8 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Astro 7.4 >= 22.22 ister; arayuzun jsdom 30'u ^22.22.2 ister.
-      # Iki hat ayni surumu kullanir.
+      # Astro 7.4 needs >= 22.22; the jsdom 30 of the UI needs ^22.22.2. Both pipelines use the
+      # same version.
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -2032,15 +1995,13 @@ jobs:
         working-directory: docs-site
         run: npm run build
 
-      # Uretilen sitede kirik ic baglanti olmamalidir. API referansi uid'lerden,
-      # HTTP API sayfalari etiketlerden baglanti kurar; bir yeniden adlandirma
-      # sessizce baglanti kirar.
+      # The generated site must have no broken internal links. The API reference links from uids and
+      # the HTTP API pages link from tags; a rename silently breaks links.
       - name: Check the internal links
         working-directory: docs-site
         run: npm run check:links
 
-      # Sayfa agirligi taban cizgisi. Uretilen dist/ uzerinden olculur, bu yuzden
-      # derlemeden SONRA kosar.
+      # Page-weight baseline. It is measured on the generated dist/, so it runs AFTER the build.
       - name: Check the page weight
         working-directory: docs-site
         run: npm run check:weight

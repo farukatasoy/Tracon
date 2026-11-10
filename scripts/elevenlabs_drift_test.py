@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""`elevenlabs-drift.py` testleri.
+"""Tests for `elevenlabs-drift.py`.
 
-Betik canli belgeye karsi agdan koşar ve CI'da kosmaz; mantigi (`$ref` cozumu, birlesim
-duzlestirme, alan yolu ve tip karsilastirmasi) ise yalnizca elle bir negatif kontrolle
-(manuel kabul adimi) sinaniyordu. Burada kucuk bir OpenAPI parcasi uzerinde sinanir.
+The script runs over the network against the live document and not in CI; its logic (`$ref`
+resolution, union flattening, field path and type comparison) is tested here on a small
+OpenAPI fragment.
 """
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location("elevenlabs_drift", ROOT / "scripts" / "elevenlabs-drift.py")
-kayma = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = kayma
-spec.loader.exec_module(kayma)
+drift = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = drift
+spec.loader.exec_module(drift)
 
 
-BELGE = {
+DOCUMENT = {
     "openapi": "3.1.0",
     "paths": {
         "/v1/speak": {
@@ -69,8 +69,8 @@ BELGE = {
 }
 
 
-def beyan(**degisiklik):
-    """Belgeyle uyumlu bir beyan; `degisiklik` ilk operasyonun alanlarini ezer."""
+def declaration(**overrides):
+    """A declaration that matches the document; `overrides` replaces fields of the first operation."""
     speak = {
         "method": "POST",
         "path": "/v1/speak",
@@ -85,107 +85,107 @@ def beyan(**degisiklik):
             "response": {"items[]": "array", "items[].id": "string", "total": "integer", "mystery": "string"},
         },
     }
-    speak.update(copy.deepcopy(degisiklik))
+    speak.update(copy.deepcopy(overrides))
     return {"operations": [speak]}
 
 
-class AlanYoluTestleri(unittest.TestCase):
-    def test_uyumlu_beyan_sorunsuzdur(self):
-        self.assertEqual(kayma.check(BELGE, beyan()), [])
+class FieldPathTests(unittest.TestCase):
+    def test_a_matching_declaration_has_no_problems(self):
+        self.assertEqual(drift.check(DOCUMENT, declaration()), [])
 
-    def test_olmayan_operasyon_raporlanir(self):
-        sorunlar = kayma.check(BELGE, beyan(path="/v1/yok"))
-        self.assertEqual(sorunlar, ["POST /v1/yok: the operation is gone"])
+    def test_a_missing_operation_is_reported(self):
+        problems = drift.check(DOCUMENT, declaration(path="/v1/missing"))
+        self.assertEqual(problems, ["POST /v1/missing: the operation is gone"])
 
-    def test_kaybolan_sorgu_parametresi_raporlanir(self):
-        sorunlar = kayma.check(BELGE, beyan(query=["output_format", "gone"]))
-        self.assertEqual(sorunlar, ["POST /v1/speak: query parameter 'gone' is gone"])
+    def test_a_missing_query_parameter_is_reported(self):
+        problems = drift.check(DOCUMENT, declaration(query=["output_format", "gone"]))
+        self.assertEqual(problems, ["POST /v1/speak: query parameter 'gone' is gone"])
 
-    def test_operasyon_duzeyindeki_ve_ref_ile_gelen_sorgu_parametresi_bulunur(self):
+    def test_query_parameters_declared_on_the_operation_or_through_a_ref_are_found(self):
         listen = {"method": "POST", "path": "/v1/listen", "query": ["page_token"], "request": ["file"], "response": ["total"]}
-        self.assertEqual(kayma.check(BELGE, {"operations": [listen]}), [])
+        self.assertEqual(drift.check(DOCUMENT, {"operations": [listen]}), [])
 
-    def test_kaybolan_alan_raporlanir_ic_ice_olan_dahil(self):
-        sorunlar = kayma.check(BELGE, beyan(request=["text", "settings.gone", "items[].gone"], types={}))
-        self.assertEqual(sorunlar, [
+    def test_a_missing_field_is_reported_including_nested_ones(self):
+        problems = drift.check(DOCUMENT, declaration(request=["text", "settings.gone", "items[].gone"], types={}))
+        self.assertEqual(problems, [
             "POST /v1/speak: request field 'settings.gone' is gone",
             "POST /v1/speak: request field 'items[].gone' is gone",
         ])
 
-    def test_dizi_ogesinin_alani_birlesim_ve_ref_icinden_bulunur(self):
-        liste = kayma.alternatives(BELGE, BELGE["components"]["schemas"]["Reply"]["properties"]["items"])
-        self.assertTrue(any(secenek.get("type") == "array" for secenek in liste))
-        self.assertTrue(kayma.has_path(BELGE, BELGE["components"]["schemas"]["Reply"], ["items[]", "id"]))
-        self.assertFalse(kayma.has_path(BELGE, BELGE["components"]["schemas"]["Reply"], ["items", "id"]))
+    def test_an_array_item_field_is_found_through_unions_and_refs(self):
+        alternative_list = drift.alternatives(DOCUMENT, DOCUMENT["components"]["schemas"]["Reply"]["properties"]["items"])
+        self.assertTrue(any(option.get("type") == "array" for option in alternative_list))
+        self.assertTrue(drift.has_path(DOCUMENT, DOCUMENT["components"]["schemas"]["Reply"], ["items[]", "id"]))
+        self.assertFalse(drift.has_path(DOCUMENT, DOCUMENT["components"]["schemas"]["Reply"], ["items", "id"]))
 
-    def test_govdesi_olmayan_taraf_alan_beklerse_raporlanir(self):
-        belge = copy.deepcopy(BELGE)
-        del belge["paths"]["/v1/speak"]["post"]["requestBody"]
-        sorunlar = kayma.check(belge, beyan(types={}))
-        self.assertEqual(sorunlar, ["POST /v1/speak: has no request body schema but Tracon relies on 6 field(s)"])
+    def test_a_side_without_a_body_is_reported_when_fields_are_expected(self):
+        document = copy.deepcopy(DOCUMENT)
+        del document["paths"]["/v1/speak"]["post"]["requestBody"]
+        problems = drift.check(document, declaration(types={}))
+        self.assertEqual(problems, ["POST /v1/speak: has no request body schema but Tracon relies on 6 field(s)"])
 
-    def test_ref_dongusu_sonsuza_gitmez(self):
-        belge = {"a": {"$ref": "#/a"}}
+    def test_a_ref_cycle_does_not_loop_forever(self):
+        document = {"a": {"$ref": "#/a"}}
         with self.assertRaises(ValueError):
-            kayma.resolve(belge, belge["a"])
+            drift.resolve(document, document["a"])
 
 
-class TipTestleri(unittest.TestCase):
-    def test_tip_degisimi_adi_ayni_olsa_da_raporlanir(self):
-        belge = copy.deepcopy(BELGE)
-        belge["components"]["schemas"]["Body"]["properties"]["text"] = {"type": "integer"}
-        sorunlar = kayma.check(belge, beyan())
-        self.assertEqual(sorunlar, ["POST /v1/speak: request field 'text' is integer but Tracon declares string"])
+class TypeTests(unittest.TestCase):
+    def test_a_type_change_is_reported_even_when_the_name_is_unchanged(self):
+        document = copy.deepcopy(DOCUMENT)
+        document["components"]["schemas"]["Body"]["properties"]["text"] = {"type": "integer"}
+        problems = drift.check(document, declaration())
+        self.assertEqual(problems, ["POST /v1/speak: request field 'text' is integer but Tracon declares string"])
 
-    def test_null_ile_birlesen_tip_tipi_bozmaz(self):
-        # `seed`: anyOf [integer, null] ve `settings.boost`: ["boolean", "null"].
-        self.assertEqual(kayma.find_types(BELGE, BELGE["components"]["schemas"]["Body"], ["seed"]), {"integer"})
+    def test_a_type_unioned_with_null_keeps_its_type(self):
+        # `seed`: anyOf [integer, null] and `settings.boost`: ["boolean", "null"].
+        self.assertEqual(drift.find_types(DOCUMENT, DOCUMENT["components"]["schemas"]["Body"], ["seed"]), {"integer"})
         self.assertEqual(
-            kayma.find_types(BELGE, BELGE["components"]["schemas"]["Body"], ["settings", "boost"]), {"boolean"})
+            drift.find_types(DOCUMENT, DOCUMENT["components"]["schemas"]["Body"], ["settings", "boost"]), {"boolean"})
 
-    def test_tam_sayi_beyani_number_alana_uyar_number_beyani_integer_alana_uymaz(self):
-        belge = copy.deepcopy(BELGE)
-        belge["components"]["schemas"]["Body"]["properties"]["seed"] = {"type": "number"}
-        self.assertEqual(kayma.check(belge, beyan()), [])
+    def test_an_integer_declaration_fits_a_number_field_but_not_the_reverse(self):
+        document = copy.deepcopy(DOCUMENT)
+        document["components"]["schemas"]["Body"]["properties"]["seed"] = {"type": "number"}
+        self.assertEqual(drift.check(document, declaration()), [])
 
-        belge["components"]["schemas"]["Settings"]["properties"]["speed"] = {"type": "integer"}
+        document["components"]["schemas"]["Settings"]["properties"]["speed"] = {"type": "integer"}
         self.assertEqual(
-            kayma.check(belge, beyan()),
+            drift.check(document, declaration()),
             ["POST /v1/speak: request field 'settings.speed' is integer but Tracon declares number"])
 
-    def test_dizi_ve_nesne_tipleri_ayristirilir(self):
-        belge = copy.deepcopy(BELGE)
-        belge["components"]["schemas"]["Body"]["properties"]["ids"] = {"type": "string"}
-        belge["components"]["schemas"]["Body"]["properties"]["settings"] = {"type": "array", "items": {"type": "string"}}
-        sorunlar = kayma.check(belge, beyan(request=["ids[]", "settings"], types={"request": {"ids[]": "array", "settings": "object"}}))
-        self.assertEqual(sorunlar, [
+    def test_array_and_object_types_are_told_apart(self):
+        document = copy.deepcopy(DOCUMENT)
+        document["components"]["schemas"]["Body"]["properties"]["ids"] = {"type": "string"}
+        document["components"]["schemas"]["Body"]["properties"]["settings"] = {"type": "array", "items": {"type": "string"}}
+        problems = drift.check(document, declaration(request=["ids[]", "settings"], types={"request": {"ids[]": "array", "settings": "object"}}))
+        self.assertEqual(problems, [
             "POST /v1/speak: request field 'ids[]' is string but Tracon declares array",
             "POST /v1/speak: request field 'settings' is array but Tracon declares object",
         ])
 
-    def test_belgenin_tip_vermedigi_alan_her_beyana_uyar(self):
-        # `mystery: {}`: sema tipsiz. Karsilastirilacak bir sey yok; alan varsa yeter.
-        self.assertEqual(kayma.find_types(BELGE, BELGE["components"]["schemas"]["Reply"], ["mystery"]), set())
-        self.assertTrue(kayma.type_matches("string", set()))
+    def test_a_field_the_document_gives_no_type_fits_any_declaration(self):
+        # `mystery: {}`: the schema has no type. There is nothing to compare; the field existing is enough.
+        self.assertEqual(drift.find_types(DOCUMENT, DOCUMENT["components"]["schemas"]["Reply"], ["mystery"]), set())
+        self.assertTrue(drift.type_matches("string", set()))
 
-    def test_tipi_beyan_edilmeyen_alan_yalniz_varlik_icin_denetlenir(self):
-        # Multipart form alanlari tip beyan etmez (tel uzerinde hepsi metindir).
+    def test_a_field_without_a_declared_type_is_checked_for_existence_only(self):
+        # Multipart form fields declare no type (on the wire they are all text).
         listen = {"method": "POST", "path": "/v1/listen", "query": [], "request": ["file"], "response": [], "types": {"request": {}, "response": {}}}
-        self.assertEqual(kayma.check(BELGE, {"operations": [listen]}), [])
+        self.assertEqual(drift.check(DOCUMENT, {"operations": [listen]}), [])
 
-    def test_bildirim_dosyasindaki_her_json_alani_tip_tasir(self):
-        # Gercek beyan: forma ozgu istek (speech-to-text) disinda her alanin tipi yazili.
+    def test_every_json_field_in_the_declaration_file_carries_a_type(self):
+        # The real declaration: every field has a type except the form request (speech-to-text).
         import json
-        beyan_dosyasi = json.loads(kayma.FIXTURE.read_text(encoding="utf-8"))
-        for operasyon in beyan_dosyasi["operations"]:
-            etiket = f"{operasyon['method']} {operasyon['path']}"
-            for taraf in ("request", "response"):
-                tipler = operasyon["types"][taraf]
-                if operasyon["path"] == "/v1/speech-to-text" and taraf == "request":
-                    self.assertEqual(tipler, {}, f"{etiket}: bir form tip beyan etmez")
+        declaration_file = json.loads(drift.FIXTURE.read_text(encoding="utf-8"))
+        for operation in declaration_file["operations"]:
+            label = f"{operation['method']} {operation['path']}"
+            for side in ("request", "response"):
+                types = operation["types"][side]
+                if operation["path"] == "/v1/speech-to-text" and side == "request":
+                    self.assertEqual(types, {}, f"{label}: a form declares no types")
                     continue
-                self.assertEqual(sorted(tipler), sorted(operasyon[taraf]), f"{etiket}: {taraf}")
-                self.assertTrue(set(tipler.values()) <= {"string", "integer", "number", "boolean", "array", "object"})
+                self.assertEqual(sorted(types), sorted(operation[side]), f"{label}: {side}")
+                self.assertTrue(set(types.values()) <= {"string", "integer", "number", "boolean", "array", "object"})
 
 
 class CommandLineTests(unittest.TestCase):
@@ -195,7 +195,7 @@ class CommandLineTests(unittest.TestCase):
         with mock.patch.object(sys, "argv", ["elevenlabs-drift.py", *argv]):
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
                 with self.assertRaises(SystemExit) as raised:
-                    kayma.main()
+                    drift.main()
 
         return raised.exception.code, out.getvalue() + err.getvalue()
 
@@ -203,11 +203,11 @@ class CommandLineTests(unittest.TestCase):
         code, text = self._exit_code_and_text("--help")
 
         self.assertEqual(code, 0)
-        self.assertIsNone(re.search("[çğıöşüÇĞİÖŞÜ]", text))
+        self.assertIsNone(re.search("[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]", text))  # Turkish letters
         self.assertIn("--file", text)
 
     def test_the_old_turkish_flag_is_refused(self):
-        code, _ = self._exit_code_and_text("--dosya", "x.json")
+        code, _ = self._exit_code_and_text("--dosya", "x.json")  # legacy-name
 
         self.assertEqual(code, 2)
 

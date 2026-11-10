@@ -1,42 +1,42 @@
 #!/usr/bin/env python3
-"""Public API yüzey envanteri — her public tipin dış kanıtı.
+"""Public API surface inventory — the outside evidence for every public type.
 
-`PublicAPI.Unshipped.txt` bir üye listesidir; bir tipin NEDEN public olduğunu
-söylemez. Bu betik her public TİPİ (üye değil) dört sınıftan birine koyar:
+`PublicAPI.Unshipped.txt` is a list of members; it does not say WHY a type is
+public. This script puts every public TYPE (not member) in one of four classes:
 
-  tüketici   — tüketici onu görür: site sayfası, sample, şablon çıktısı, paket
-               README'si, XML `<example>`/`<code>` bloğu veya kayıt giriş noktası
-  seam       — genişleme noktası: public arayüz (bugün
-               `SeamContractDocumentationTests`'in taradığı küme), abstract sınıf
-               veya `Tracon.Testing.Contracts.Xunit` sözleşme paketi
-  gerekçeli  — kanıtı yok ama bilinçli olarak public; gerekçesi
-               `scripts/public-surface-reasons.tsv` dosyasındadır
-  kanıtsız   — hiçbiri; varsayılan kaderi `internal`'dır
+  consumer   — a consumer sees it: a site page, a sample, template output, a package
+               README, an XML `<example>`/`<code>` block, or a registration entry point
+  seam       — an extension point: a public interface (today the set that
+               `SeamContractDocumentationTests` scans), an abstract class, or the
+               `Tracon.Testing.Contracts.Xunit` contract package
+  justified  — no evidence, but public on purpose; the reason is written in
+               `scripts/public-surface-reasons.tsv`
+  unproven   — none of the above; its default fate is `internal`
 
-Bir tip kalırsa, public imzasında geçen her tip de kalmak ZORUNDADIR — aksi
-hâlde derleyici `CS0050`/`CS0051`/`CS0053` verir. Bu yüzden kanıt tek tipte
-durmaz: kök tiplerden imza kapanışı (`imza:`) hesaplanır ve kapanışa giren tip
-kökünün sınıfını alır. Kalan bir tipin XML dokümanı `<exception cref>` ile bir
-istisna adlandırıyorsa o istisna da sözleşmenin parçasıdır (`istisna:`) —
-tüketici onu yakalar, seam'i uygulayan onu fırlatır; derleyici bunu zorlamaz.
-GA freeze turu aynı betiği koşar: `kanıtsız` sütunu o turun iş
-listesidir.
+If a type stays, every type in its public signature MUST stay too — otherwise the
+compiler reports `CS0050`/`CS0051`/`CS0053`. So evidence does not stop at one type:
+the signature closure (`signature:`) is computed from the root types, and a type that
+enters the closure takes the class of its root. When a surviving type's XML
+documentation names an exception with `<exception cref>`, that exception is part of
+the contract too (`exception:`) — the consumer catches it and the implementer of a
+seam throws it; the compiler does not enforce this.
+The GA freeze pass runs the same script: the `unproven` column is that pass's work list.
 
-Kullanım:
-    python3 scripts/public-surface-inventory.py                   # paket tablosu
-    python3 scripts/public-surface-inventory.py --list unproven   # adaylar
+Usage:
+    python3 scripts/public-surface-inventory.py                   # package table
+    python3 scripts/public-surface-inventory.py --list unproven   # candidates
     python3 scripts/public-surface-inventory.py --type Tracon.RunRecord
-    python3 scripts/public-surface-inventory.py --json            # makine çıktısı
-    python3 scripts/public-surface-inventory.py --check           # kanıtsız > 0 → 1
+    python3 scripts/public-surface-inventory.py --json            # machine output
+    python3 scripts/public-surface-inventory.py --check           # unproven > 0 → 1
 
-OpenAPI şeması kanıt DEĞİLDİR: .NET tüketicisi bir HTTP DTO'suna
-dokunmaz, `Tracon.Client` kendi DTO'larını üretir. HTTP istek/yanıt DTO'su
-`internal` doğar; sevk edilen OpenAPI açıklaması `[Description]` ile taşınır.
+An OpenAPI schema is NOT evidence: a .NET consumer never touches an HTTP DTO,
+`Tracon.Client` generates its own DTOs. An HTTP request/response DTO is born
+`internal`; the shipped OpenAPI description is carried by `[Description]`.
 
-Ölçüt tip ADIDIR, üye değil. Bir ad eşleşmesi yanlış pozitif üretebilir
-(bir tipin adı başka bir tipin özellik adıyla aynıysa) — yanlış pozitif tipi
-TUTAR, yani güvenli yöndedir. Yanlış negatifi (tüketicinin gerçekten
-kullandığı tipi `internal` yapmak) paketlenmiş sample'lar yakalar:
+The measure is the type NAME, not the member. A name match can give a false positive
+(a type's name equal to another type's property name) — a false positive KEEPS the
+type, so it errs on the safe side. A false negative (making a type `internal` that a
+consumer really uses) is caught by the packaged samples:
 `python3 scripts/gate.py release --dry-run`.
 """
 from __future__ import annotations
@@ -51,524 +51,526 @@ import sys
 from collections import deque
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-GEREKCE_YOLU = pathlib.Path("scripts") / "public-surface-reasons.tsv"
+REASONS_PATH = pathlib.Path("scripts") / "public-surface-reasons.tsv"
 
-# Karar: sözleşme paketi bu dalgaya girmez. Sözleşme
-# sınıfları tüketicinin TÜRETECEĞİ yüzeydir; tanım gereği "seam" sınıfındadır.
-SOZLESME_PAKETLERI = frozenset({"Tracon.Testing.Contracts.Xunit"})
+# The contract package never counts as consumer evidence: its classes are the surface a
+# consumer DERIVES from, so by definition they are in the "seam" class.
+CONTRACT_PACKAGES = frozenset({"Tracon.Testing.Contracts.Xunit"})
 
-# Kayıt giriş noktası kuralı `capability_entry_points.py`'dedir;
-# bir geliştirme kontrolü aynı modülü kullanır, C# kopyası
-# `CapabilityEntryPoints.cs`'tir. Kayıt giriş noktası tüketicinin bir yeteneği
-# açtığı üyedir; kapsama kapısı her birinin site haritasında ve örnekte
-# göründüğünü zaten zorlar.
+# The registration entry-point rule lives in `capability_entry_points.py`; its C# copy is
+# `CapabilityEntryPoints.cs`. A registration entry point is a member a consumer calls to
+# switch a capability on; the coverage gate already forces each one to be named in the
+# capability map and shown in an example.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from capability_entry_points import UZANTI_METODU, kayit_uzantisi_mi  # noqa: E402
+from capability_entry_points import EXTENSION_METHOD, is_registration_extension  # noqa: E402
 
-# Bir Unshipped satırı tip bildirimi değilse ya imza `(` ya da tip ` -> ` taşır
-# (`PublicSurfaceBaselineTests` ile aynı süzgeç).
-UYE_ISARETI = re.compile(r"\(| -> ")
-# Üye satırlarının başındaki değiştiriciler (`static`, `override` ...). `~`
-# (nullable-oblivious işareti) boşluksuz yapışır: `~Tracon.X.Y`, `~override Tracon.X`.
-DEGISTIRICI = re.compile(r"^~?(?:[a-z]+\s+)*")
-GENERIK = re.compile(r"<[^<>]*>")
-TRACON_ADI = re.compile(r"Tracon(?:\.[A-Za-z_][A-Za-z0-9_]*)+")
-TANIMLAYICI = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-BILDIRIM = re.compile(
-    r"(?P<degistiriciler>(?:\b(?:public|internal|protected|private|static|sealed|abstract|"
+# A line that is not a type declaration carries either a signature `(` or a type ` -> `
+# (the same filter as `PublicSurfaceBaselineTests`).
+MEMBER_MARKER = re.compile(r"\(| -> ")
+# Modifiers at the start of member lines (`static`, `override` ...). `~` (the
+# nullable-oblivious marker) sticks on without a space: `~Tracon.X.Y`, `~override Tracon.X`.
+MODIFIERS = re.compile(r"^~?(?:[a-z]+\s+)*")
+GENERIC_PARAMETERS = re.compile(r"<[^<>]*>")
+TRACON_NAME = re.compile(r"Tracon(?:\.[A-Za-z_][A-Za-z0-9_]*)+")
+IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+DECLARATION = re.compile(
+    r"(?P<modifiers>(?:\b(?:public|internal|protected|private|static|sealed|abstract|"
     r"partial|readonly|ref|unsafe|new|file)\s+)*)"
-    r"\b(?P<tur>class|interface|struct|enum|record\s+struct|record\s+class|record)\s+"
-    r"(?P<ad>[A-Za-z_][A-Za-z0-9_]*)\b")
-DELEGE = re.compile(
-    r"(?P<degistiriciler>(?:\b(?:public|internal|protected|private|unsafe|new)\s+)*)"
-    r"\bdelegate\s+[^;(]+?\s(?P<ad>[A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>]*>)?\s*\(")
-XML_ORNEK = re.compile(r"<(example|code)>(?P<govde>.*?)</\1>", re.DOTALL)
-BELGE_ISTISNASI = re.compile(r'///.*?<exception\s+cref="(?:T:)?(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?P<ad>[A-Za-z_][A-Za-z0-9_]*)"')
-BAGLI_KAYNAK = re.compile(r'<Compile\s+Include="\.\./(?P<dizin>[^/"]+)/\*\*/\*\.cs"')
+    r"\b(?P<kind>class|interface|struct|enum|record\s+struct|record\s+class|record)\s+"
+    r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b")
+DELEGATE = re.compile(
+    r"(?P<modifiers>(?:\b(?:public|internal|protected|private|unsafe|new)\s+)*)"
+    r"\bdelegate\s+[^;(]+?\s(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>]*>)?\s*\(")
+XML_EXAMPLE = re.compile(r"<(example|code)>(?P<body>.*?)</\1>", re.DOTALL)
+DOCUMENTED_EXCEPTION = re.compile(
+    r'///.*?<exception\s+cref="(?:T:)?(?:[A-Za-z_][A-Za-z0-9_]*\.)*(?P<name>[A-Za-z_][A-Za-z0-9_]*)"')
+LINKED_SOURCE = re.compile(r'<Compile\s+Include="\.\./(?P<directory>[^/"]+)/\*\*/\*\.cs"')
 
-KORPUS_UZANTILARI = frozenset({".md", ".mdx", ".cs", ".razor", ".cshtml"})
+CORPUS_EXTENSIONS = frozenset({".md", ".mdx", ".cs", ".razor", ".cshtml"})
 
-SINIFLAR = ("consumer", "seam", "justified", "unproven")
+CLASSES = ("consumer", "seam", "justified", "unproven")
 
-Anahtar = tuple[str, str]  # (paket, tam ad) — aynı tam ad birden çok pakette public olabilir
+Key = tuple[str, str]  # (package, full name) — the same full name can be public in several packages
 
-# `--json` çıktısındaki alan adları.
-JSON_ALANLARI = {
-    "paket": "package", "ad": "name", "uyeler": "members", "tur": "kind", "kaynak": "source",
-    "baslik_adlari": "header_names", "belge_istisnalari": "documented_exceptions",
-    "sinif": "class", "gerekce": "reason",
+# The field names of `--json`. They are a contract and are listed explicitly, so a
+# dataclass field can be renamed without changing the output.
+JSON_FIELDS = {
+    "package": "package", "name": "name", "members": "members", "kind": "kind", "source": "source",
+    "header_names": "header_names", "documented_exceptions": "documented_exceptions",
+    "evidence_class": "class", "reason": "reason",
 }
 
 
 # --------------------------------------------------------------------------
-# Veri modeli
+# Data model
 # --------------------------------------------------------------------------
 
 @dataclasses.dataclass
-class Tip:
-    paket: str
-    ad: str                      # generic parametre listesi atılmış tam ad
-    uyeler: list[str] = dataclasses.field(default_factory=list)
-    tur: str = "?"               # interface · class · static · abstract · record · struct · enum · delegate
-    kaynak: str | None = None    # bildirimin repo-göreli yolu
-    baslik_adlari: set[str] = dataclasses.field(default_factory=set)  # taban/kısıt tam adları
-    belge_istisnalari: set[str] = dataclasses.field(default_factory=set)  # `<exception cref>` tam adları
-    sinif: str = "unproven"
-    gerekce: str = ""            # ilk kanıt: `site:<yol>`, `imza:<tip>`, `istisna:<tip>`, `seam:arayuz` ...
+class PublicType:
+    package: str
+    name: str                    # full name with the generic parameter list dropped
+    members: list[str] = dataclasses.field(default_factory=list)
+    kind: str = "?"              # interface · class · static · abstract · record · struct · enum · delegate
+    source: str | None = None    # repository-relative path of the declaration
+    header_names: set[str] = dataclasses.field(default_factory=set)  # full names of the bases and constraints
+    documented_exceptions: set[str] = dataclasses.field(default_factory=set)  # full names from `<exception cref>`
+    evidence_class: str = "unproven"
+    reason: str = ""             # first evidence: `site:<path>`, `signature:<type>`, `exception:<type>`, `seam:interface` ...
 
     @property
-    def anahtar(self) -> Anahtar:
-        return (self.paket, self.ad)
+    def key(self) -> Key:
+        return (self.package, self.name)
 
     @property
-    def basit(self) -> str:
-        return self.ad.rsplit(".", 1)[-1]
+    def simple_name(self) -> str:
+        return self.name.rsplit(".", 1)[-1]
 
 
 @dataclasses.dataclass
-class Korpus:
-    """Tüketiciye açık metin: dosya → o dosyadaki tanımlayıcılar."""
-    dosyalar: list[tuple[str, str, frozenset[str]]]  # (etiket, yol, tanımlayıcılar)
-    metinler: dict[str, str]                        # yol → metin (öznitelik araması için)
+class Corpus:
+    """Text a consumer can see: file → the identifiers in that file."""
+    files: list[tuple[str, str, frozenset[str]]]  # (label, path, identifiers)
+    texts: dict[str, str]                        # path → text (for the attribute search)
 
     @classmethod
-    def kur(cls, girdiler: list[tuple[str, str, str]]) -> "Korpus":
+    def build(cls, entries: list[tuple[str, str, str]]) -> "Corpus":
         return cls(
-            [(etiket, yol, frozenset(TANIMLAYICI.findall(metin))) for etiket, yol, metin in girdiler],
-            {yol: metin for _, yol, metin in girdiler},
+            [(label, path, frozenset(IDENTIFIER.findall(text))) for label, path, text in entries],
+            {path: text for _, path, text in entries},
         )
 
-    def bul(self, ad: str) -> str | None:
-        for etiket, yol, adlar in self.dosyalar:
-            if ad in adlar:
-                return f"{etiket}:{yol}"
+    def find(self, name: str) -> str | None:
+        for label, path, names in self.files:
+            if name in names:
+                return f"{label}:{path}"
         return None
 
-    def oznitelik_bul(self, kisa_ad: str) -> str | None:
-        """`[Kisa]`, `[Kisa(...)]`, `[A, Kisa]` — `Attribute` son eki olmadan kullanım."""
-        desen = re.compile(rf"[\[,]\s*(?:[A-Za-z_][A-Za-z0-9_.]*\.)?{re.escape(kisa_ad)}\s*[\](,]")
-        for etiket, yol, adlar in self.dosyalar:
-            if kisa_ad in adlar and desen.search(self.metinler[yol]):
-                return f"{etiket}:{yol}"
+    def find_attribute(self, short_name: str) -> str | None:
+        """`[Short]`, `[Short(...)]`, `[A, Short]` — use without the `Attribute` suffix."""
+        pattern = re.compile(rf"[\[,]\s*(?:[A-Za-z_][A-Za-z0-9_.]*\.)?{re.escape(short_name)}\s*[\](,]")
+        for label, path, names in self.files:
+            if short_name in names and pattern.search(self.texts[path]):
+                return f"{label}:{path}"
         return None
 
 
 # --------------------------------------------------------------------------
-# Ayrıştırma
+# Parsing
 # --------------------------------------------------------------------------
 
-def _imzadan_once(govde: str) -> str:
-    kes = len(govde)
-    for isaret in ("(", " -> ", " = "):
-        konum = govde.find(isaret)
-        if konum >= 0:
-            kes = min(kes, konum)
-    return govde[:kes]
+def _before_signature(body: str) -> str:
+    cut = len(body)
+    for marker in ("(", " -> ", " = "):
+        position = body.find(marker)
+        if position >= 0:
+            cut = min(cut, position)
+    return body[:cut]
 
 
-def _yol(satir: str) -> str:
-    """Bir satırın sahip-yolu: değiştiricisiz, generic parametresiz, imzadan önceki kısım."""
-    yol = _imzadan_once(DEGISTIRICI.sub("", satir))
+def _owner_path(line: str) -> str:
+    """The owner path of a line: without modifiers, without generic parameters, the part before the signature."""
+    path = _before_signature(MODIFIERS.sub("", line))
     while True:
-        sade = GENERIK.sub("", yol)
-        if sade == yol:
-            return yol
-        yol = sade
+        plain = GENERIC_PARAMETERS.sub("", path)
+        if plain == path:
+            return path
+        path = plain
 
 
-def _en_uzun_onek(yol: str, adlar) -> str | None:
-    parcalar = yol.split(".")
-    for uzunluk in range(len(parcalar), 0, -1):
-        aday = ".".join(parcalar[:uzunluk])
-        if aday in adlar:
-            return aday
+def _longest_prefix(path: str, names) -> str | None:
+    parts = path.split(".")
+    for length in range(len(parts), 0, -1):
+        candidate = ".".join(parts[:length])
+        if candidate in names:
+            return candidate
     return None
 
 
-def unshipped_ayristir(paket: str, metin: str) -> dict[str, Tip]:
-    """Bir paketin Unshipped metninden tipler ve üyeleri (anahtar: tam ad)."""
-    tipler: dict[str, Tip] = {}
-    uyeler: list[str] = []
-    for satir in metin.splitlines():
-        satir = satir.strip()
-        if not satir or satir.startswith("#"):
+def parse_unshipped(package: str, text: str) -> dict[str, PublicType]:
+    """The types and their members from a package's Unshipped text (key: full name)."""
+    types: dict[str, PublicType] = {}
+    members: list[str] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
             continue
-        if UYE_ISARETI.search(satir):
-            uyeler.append(satir)
+        if MEMBER_MARKER.search(line):
+            members.append(line)
             continue
-        ad = _yol(satir)
-        tipler[ad] = Tip(paket, ad)
-    for satir in uyeler:
-        sahip = _en_uzun_onek(_yol(satir), tipler)
-        if sahip is not None:
-            tipler[sahip].uyeler.append(satir)
-    return tipler
+        name = _owner_path(line)
+        types[name] = PublicType(package, name)
+    for line in members:
+        owner = _longest_prefix(_owner_path(line), types)
+        if owner is not None:
+            types[owner].members.append(line)
+    return types
 
 
-def ad_indeksi(tipler: dict[Anahtar, Tip]) -> dict[str, list[Anahtar]]:
-    indeks: dict[str, list[Anahtar]] = {}
-    for anahtar in sorted(tipler):
-        indeks.setdefault(anahtar[1], []).append(anahtar)
-    return indeks
+def name_index(types: dict[Key, PublicType]) -> dict[str, list[Key]]:
+    index: dict[str, list[Key]] = {}
+    for key in sorted(types):
+        index.setdefault(key[1], []).append(key)
+    return index
 
 
-def istisna_referanslari(tip: Tip, indeks: dict[str, list[Anahtar]]) -> set[Anahtar]:
-    """Tipin XML dokümanının `<exception cref>` ile adlandırdığı public istisnalar."""
-    return {anahtar for ad in tip.belge_istisnalari - {tip.ad} for anahtar in indeks.get(ad, [])}
+def exception_references(public_type: PublicType, index: dict[str, list[Key]]) -> set[Key]:
+    """The public exceptions that the type's XML documentation names with `<exception cref>`."""
+    return {key for name in public_type.documented_exceptions - {public_type.name} for key in index.get(name, [])}
 
 
-def imza_referanslari(tip: Tip, indeks: dict[str, list[Anahtar]]) -> set[Anahtar]:
-    """Tipin public üyelerinin imzasında, taban listesinde ve kapsayıcısında geçen tipler."""
-    adlar: set[str] = set()
-    for satir in tip.uyeler:
-        govde = DEGISTIRICI.sub("", satir)
-        # Sahip yolu tipin kendisini adlandırır; referans imzadan başlar.
-        for ad in TRACON_ADI.findall(govde[len(_imzadan_once(govde)):]):
-            hedef = _en_uzun_onek(ad, indeks)
-            if hedef is not None:
-                adlar.add(hedef)
-    adlar |= tip.baslik_adlari
-    # İç içe public tip, kapsayıcısı public değilse dışarıdan görünmez.
-    kapsayici = tip.ad.rsplit(".", 1)[0]
-    if kapsayici in indeks:
-        adlar.add(kapsayici)
-    adlar.discard(tip.ad)
-    return {anahtar for ad in adlar for anahtar in indeks[ad]}
+def signature_references(public_type: PublicType, index: dict[str, list[Key]]) -> set[Key]:
+    """The types in the signatures of the type's public members, in its base list, and its container."""
+    names: set[str] = set()
+    for line in public_type.members:
+        body = MODIFIERS.sub("", line)
+        # The owner path names the type itself; references start at the signature.
+        for name in TRACON_NAME.findall(body[len(_before_signature(body)):]):
+            target = _longest_prefix(name, index)
+            if target is not None:
+                names.add(target)
+    names |= public_type.header_names
+    # A nested public type is invisible from outside when its container is not public.
+    container = public_type.name.rsplit(".", 1)[0]
+    if container in index:
+        names.add(container)
+    names.discard(public_type.name)
+    return {key for name in names for key in index[name]}
 
 
-def bildirimleri_tara(tipler: dict[Anahtar, Tip], kaynaklar: dict[str, list[tuple[str, str]]]) -> None:
-    """Tür, kaynak dosya ve bildirim başlığındaki (taban, kısıt) tip adlarını doldurur.
+def scan_declarations(types: dict[Key, PublicType], sources: dict[str, list[tuple[str, str]]]) -> None:
+    """Fills in the kind, the source file, and the (base, constraint) type names in the declaration header.
 
-    `kaynaklar`: paket → [(repo-göreli yol, metin)]; bağlı kaynak ağaçları
-    (`*.Shared`) derlendikleri her paketin listesindedir. Başlık, adın bittiği
-    yerden derinlik sıfırdaki ilk `{` veya `;` karakterine kadardır.
+    `sources`: package → [(repository-relative path, text)]; linked source trees
+    (`*.Shared`) are in the list of every package that compiles them. The header runs from
+    where the name ends to the first `{` or `;` at depth zero.
 
-    `<exception cref>` dosya düzeyinde toplanır: dosyada bildirilen her public
-    tip dosyanın bütün belgelenmiş istisnalarını alır. Üye düzeyinde eşlemek
-    bildirim sınırlarını ayrıştırmayı gerektirirdi; dosya çoğunlukla tek tip
-    ve yardımcı kayıtlarını taşıdığı için yaklaşım güvenli yönde (tutan) hata yapar.
+    `<exception cref>` is collected at file level: every public type declared in the file
+    takes all the documented exceptions of the file. Matching at member level would need
+    parsing declaration boundaries; since a file mostly carries one type and its helper
+    records, the approach errs on the safe side (it keeps).
     """
-    basit_adlar: dict[str, set[str]] = {}
-    for _, ad in tipler:
-        basit_adlar.setdefault(ad.rsplit(".", 1)[-1], set()).add(ad)
+    simple_names: dict[str, set[str]] = {}
+    for _, name in types:
+        simple_names.setdefault(name.rsplit(".", 1)[-1], set()).add(name)
 
-    for paket, dosyalar in kaynaklar.items():
-        paket_tipleri = {tip.basit: tip for tip in tipler.values() if tip.paket == paket}
-        if not paket_tipleri:
+    for package, files in sources.items():
+        package_types = {item.simple_name: item for item in types.values() if item.package == package}
+        if not package_types:
             continue
-        for yol, metin in dosyalar:
-            istisnalar = {hedef for eslesme in BELGE_ISTISNASI.finditer(metin)
-                          for hedef in basit_adlar.get(eslesme.group("ad"), set())}
-            for eslesme in BILDIRIM.finditer(metin):
-                tip = paket_tipleri.get(eslesme.group("ad"))
-                degistiriciler = eslesme.group("degistiriciler")
-                if tip is None or "public" not in degistiriciler:
+        for path, text in files:
+            exceptions = {target for match in DOCUMENTED_EXCEPTION.finditer(text)
+                          for target in simple_names.get(match.group("name"), set())}
+            for match in DECLARATION.finditer(text):
+                public_type = package_types.get(match.group("name"))
+                modifiers = match.group("modifiers")
+                if public_type is None or "public" not in modifiers:
                     continue
-                tur = re.sub(r"\s+", " ", eslesme.group("tur"))
-                if tur == "class" and "static" in degistiriciler:
-                    tur = "static"
-                elif tur == "class" and "abstract" in degistiriciler:
-                    tur = "abstract"
-                elif tur.startswith("record"):
-                    tur = "record"
-                if tip.tur in ("?", "class", "record"):
-                    tip.tur = tur
-                tip.kaynak = tip.kaynak or yol
-                tip.belge_istisnalari |= istisnalar
-                for kimlik in TANIMLAYICI.findall(_baslik(metin, eslesme.end())):
-                    tip.baslik_adlari |= basit_adlar.get(kimlik, set())
-            for eslesme in DELEGE.finditer(metin):
-                tip = paket_tipleri.get(eslesme.group("ad"))
-                if tip is not None and "public" in eslesme.group("degistiriciler"):
-                    tip.tur = "delegate"
-                    tip.kaynak = tip.kaynak or yol
+                kind = re.sub(r"\s+", " ", match.group("kind"))
+                if kind == "class" and "static" in modifiers:
+                    kind = "static"
+                elif kind == "class" and "abstract" in modifiers:
+                    kind = "abstract"
+                elif kind.startswith("record"):
+                    kind = "record"
+                if public_type.kind in ("?", "class", "record"):
+                    public_type.kind = kind
+                public_type.source = public_type.source or path
+                public_type.documented_exceptions |= exceptions
+                for identifier in IDENTIFIER.findall(_header(text, match.end())):
+                    public_type.header_names |= simple_names.get(identifier, set())
+            for match in DELEGATE.finditer(text):
+                public_type = package_types.get(match.group("name"))
+                if public_type is not None and "public" in match.group("modifiers"):
+                    public_type.kind = "delegate"
+                    public_type.source = public_type.source or path
 
 
-def _baslik(metin: str, baslangic: int) -> str:
-    derinlik = 0
-    son = min(len(metin), baslangic + 4000)
-    for konum in range(baslangic, son):
-        karakter = metin[konum]
-        if karakter in "(<[":
-            derinlik += 1
-        elif karakter in ")>]":
-            derinlik -= 1
-        elif karakter in "{;" and derinlik <= 0:
-            return metin[baslangic:konum]
-    return metin[baslangic:son]
+def _header(text: str, start: int) -> str:
+    depth = 0
+    end = min(len(text), start + 4000)
+    for position in range(start, end):
+        character = text[position]
+        if character in "(<[":
+            depth += 1
+        elif character in ")>]":
+            depth -= 1
+        elif character in "{;" and depth <= 0:
+            return text[start:position]
+    return text[start:end]
 
 
-def xml_ornekleri(metin: str) -> str:
-    """`///` yorumlarındaki `<example>` ve `<code>` blokları — sevk edilen kullanım örneği."""
-    yorum = "\n".join(
-        satir.strip()[3:] for satir in metin.splitlines() if satir.strip().startswith("///"))
-    return "\n".join(eslesme.group("govde") for eslesme in XML_ORNEK.finditer(yorum))
+def xml_examples(text: str) -> str:
+    """The `<example>` and `<code>` blocks in `///` comments — the shipped usage examples."""
+    comment = "\n".join(
+        line.strip()[3:] for line in text.splitlines() if line.strip().startswith("///"))
+    return "\n".join(match.group("body") for match in XML_EXAMPLE.finditer(comment))
 
 
-def gerekceleri_oku(metin: str) -> dict[str, str]:
-    """`<tam ad>\\t<gerekçe>` satırları. Gerekçesiz satır hatadır."""
-    gerekceler: dict[str, str] = {}
-    for numara, satir in enumerate(metin.splitlines(), start=1):
-        if not satir.strip() or satir.startswith("#"):
+def read_reasons(text: str) -> dict[str, str]:
+    """`<full name>\\t<reason>` lines. A line without a reason is an error."""
+    reasons: dict[str, str] = {}
+    for number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip() or line.startswith("#"):
             continue
-        ad, _, gerekce = satir.partition("\t")
-        if not gerekce.strip():
-            raise ValueError(f"{GEREKCE_YOLU}:{numara}: '{ad.strip()}' has no reason")
-        gerekceler[ad.strip()] = gerekce.strip()
-    return gerekceler
+        name, _, reason = line.partition("\t")
+        if not reason.strip():
+            raise ValueError(f"{REASONS_PATH}:{number}: '{name.strip()}' has no reason")
+        reasons[name.strip()] = reason.strip()
+    return reasons
 
 
 # --------------------------------------------------------------------------
-# Sınıflandırma
+# Classification
 # --------------------------------------------------------------------------
 
-def siniflandir(
-    tipler: dict[Anahtar, Tip],
-    korpus: Korpus,
-    gerekceler: dict[str, str],
+def classify(
+    types: dict[Key, PublicType],
+    corpus: Corpus,
+    reasons: dict[str, str],
 ) -> None:
-    """Kökleri bulur, imza kapanışını yayar. Öncelik: tüketici > seam > gerekçeli."""
-    kokler: dict[str, list[tuple[Anahtar, str]]] = {sinif: [] for sinif in SINIFLAR[:3]}
-    for tip in tipler.values():
-        tip.sinif, tip.gerekce = "unproven", ""
-        kanit = _tuketici_kaniti(tip, korpus)
-        if kanit:
-            kokler["consumer"].append((tip.anahtar, kanit))
+    """Finds the roots and spreads the signature closure. Priority: consumer > seam > justified."""
+    roots: dict[str, list[tuple[Key, str]]] = {evidence_class: [] for evidence_class in CLASSES[:3]}
+    for public_type in types.values():
+        public_type.evidence_class, public_type.reason = "unproven", ""
+        evidence = _consumer_evidence(public_type, corpus)
+        if evidence:
+            roots["consumer"].append((public_type.key, evidence))
             continue
-        kanit = _seam_kaniti(tip)
-        if kanit:
-            kokler["seam"].append((tip.anahtar, kanit))
+        evidence = _seam_evidence(public_type)
+        if evidence:
+            roots["seam"].append((public_type.key, evidence))
             continue
-        if tip.ad in gerekceler:
-            kokler["justified"].append((tip.anahtar, f"reason:{gerekceler[tip.ad]}"))
+        if public_type.name in reasons:
+            roots["justified"].append((public_type.key, f"reason:{reasons[public_type.name]}"))
 
-    indeks = ad_indeksi(tipler)
-    atanmis: set[Anahtar] = set()
-    for sinif in SINIFLAR[:3]:
-        kuyruk: deque[Anahtar] = deque()
-        for anahtar, kanit in kokler[sinif]:
-            if anahtar not in atanmis:
-                atanmis.add(anahtar)
-                tipler[anahtar].sinif, tipler[anahtar].gerekce = sinif, kanit
-                kuyruk.append(anahtar)
-        while kuyruk:
-            kaynak = tipler[kuyruk.popleft()]
-            for tur, hedefler in (("signature", imza_referanslari(kaynak, indeks)),
-                                  ("exception", istisna_referanslari(kaynak, indeks))):
-                for hedef in sorted(hedefler):
-                    if hedef not in atanmis:
-                        atanmis.add(hedef)
-                        tipler[hedef].sinif, tipler[hedef].gerekce = sinif, f"{tur}:{kaynak.ad}"
-                        kuyruk.append(hedef)
+    index = name_index(types)
+    assigned: set[Key] = set()
+    for evidence_class in CLASSES[:3]:
+        queue: deque[Key] = deque()
+        for key, evidence in roots[evidence_class]:
+            if key not in assigned:
+                assigned.add(key)
+                types[key].evidence_class, types[key].reason = evidence_class, evidence
+                queue.append(key)
+        while queue:
+            origin = types[queue.popleft()]
+            for step, targets in (("signature", signature_references(origin, index)),
+                                  ("exception", exception_references(origin, index))):
+                for target in sorted(targets):
+                    if target not in assigned:
+                        assigned.add(target)
+                        types[target].evidence_class, types[target].reason = evidence_class, f"{step}:{origin.name}"
+                        queue.append(target)
 
 
-def _tuketici_kaniti(tip: Tip, korpus: Korpus) -> str | None:
-    if tip.paket in SOZLESME_PAKETLERI:
+def _consumer_evidence(public_type: PublicType, corpus: Corpus) -> str | None:
+    if public_type.package in CONTRACT_PACKAGES:
         return None
-    kanit = korpus.bul(tip.basit)
-    if kanit:
-        return kanit
-    if tip.basit.endswith("Attribute") and len(tip.basit) > len("Attribute"):
-        kanit = korpus.oznitelik_bul(tip.basit[: -len("Attribute")])
-        if kanit:
-            return kanit
-    for satir in tip.uyeler:
-        uzanti = UZANTI_METODU.match(satir)
-        if uzanti is None:
+    evidence = corpus.find(public_type.simple_name)
+    if evidence:
+        return evidence
+    if public_type.simple_name.endswith("Attribute") and len(public_type.simple_name) > len("Attribute"):
+        evidence = corpus.find_attribute(public_type.simple_name[: -len("Attribute")])
+        if evidence:
+            return evidence
+    for line in public_type.members:
+        extension = EXTENSION_METHOD.match(line)
+        if extension is None:
             continue
-        if kayit_uzantisi_mi(uzanti.group("ad"), uzanti.group("alici")):
-            return f"entry-point:{uzanti.group('ad')}"
-        # Uzantı metodunu çağıran tüketici sınıfın ADINI yazmaz, metodun adını yazar.
-        kanit = korpus.bul(uzanti.group("ad"))
-        if kanit:
-            return f"extension:{uzanti.group('ad')}@{kanit}"
-    # OpenAPI şeması kanıt değildir: açıklama `[Description]` ile taşınır,
-    # tip `internal` kalabilir.
+        if is_registration_extension(extension.group("name"), extension.group("receiver")):
+            return f"entry-point:{extension.group('name')}"
+        # A consumer calling an extension method writes the METHOD's name, not the class's.
+        evidence = corpus.find(extension.group("name"))
+        if evidence:
+            return f"extension:{extension.group('name')}@{evidence}"
+    # An OpenAPI schema is not evidence: the description is carried by `[Description]`,
+    # and the type can stay `internal`.
     return None
 
 
-def _seam_kaniti(tip: Tip) -> str | None:
-    if tip.paket in SOZLESME_PAKETLERI:
+def _seam_evidence(public_type: PublicType) -> str | None:
+    if public_type.package in CONTRACT_PACKAGES:
         return "seam:contract-package"
-    if tip.tur == "interface":
+    if public_type.kind == "interface":
         return "seam:interface"
-    if tip.tur == "abstract":
+    if public_type.kind == "abstract":
         return "seam:abstract-class"
     return None
 
 
-def bayat_gerekceler(tipler: dict[Anahtar, Tip], gerekceler: dict[str, str]) -> list[str]:
-    """Artık public olmayan ya da kendi kanıtı olan tipe yazılmış gerekçe."""
-    siniflar: dict[str, list[Tip]] = {}
-    for tip in tipler.values():
-        siniflar.setdefault(tip.ad, []).append(tip)
-    sorunlar: list[str] = []
-    for ad in sorted(gerekceler):
-        eslesen = siniflar.get(ad)
-        if not eslesen:
-            sorunlar.append(f"{ad}: not public (or renamed) — delete the line")
-        elif all(tip.sinif != "justified" for tip in eslesen):
-            tip = eslesen[0]
-            sorunlar.append(f"{ad}: now '{tip.sinif}' ({tip.gerekce}) — the reason is not needed, delete the line")
-    return sorunlar
+def stale_reasons(types: dict[Key, PublicType], reasons: dict[str, str]) -> list[str]:
+    """A reason written for a type that is no longer public or that has evidence of its own."""
+    by_name: dict[str, list[PublicType]] = {}
+    for public_type in types.values():
+        by_name.setdefault(public_type.name, []).append(public_type)
+    problems: list[str] = []
+    for name in sorted(reasons):
+        matching = by_name.get(name)
+        if not matching:
+            problems.append(f"{name}: not public (or renamed) — delete the line")
+        elif all(item.evidence_class != "justified" for item in matching):
+            public_type = matching[0]
+            problems.append(
+                f"{name}: now '{public_type.evidence_class}' ({public_type.reason}) — the reason is not needed, delete the line")
+    return problems
 
 
 # --------------------------------------------------------------------------
-# Repo okuması
+# Reading the repository
 # --------------------------------------------------------------------------
 
-def _git_dosyalari(root: pathlib.Path, *yollar: str) -> list[str]:
-    cikti = subprocess.run(
-        ["git", "ls-files", "--", *yollar], cwd=root, check=True, capture_output=True, text=True)
-    return [satir for satir in cikti.stdout.splitlines() if satir]
+def _git_files(root: pathlib.Path, *paths: str) -> list[str]:
+    output = subprocess.run(
+        ["git", "ls-files", "--", *paths], cwd=root, check=True, capture_output=True, text=True)
+    return [line for line in output.stdout.splitlines() if line]
 
 
-def _oku(root: pathlib.Path, yol: str) -> str:
-    return (root / yol).read_text(encoding="utf-8", errors="replace")
+def _read(root: pathlib.Path, path: str) -> str:
+    return (root / path).read_text(encoding="utf-8", errors="replace")
 
 
-def korpus_topla(root: pathlib.Path) -> Korpus:
-    girdiler: list[tuple[str, str, str]] = []
+def collect_corpus(root: pathlib.Path) -> Corpus:
+    entries: list[tuple[str, str, str]] = []
 
-    def ekle(etiket: str, yollar: list[str]) -> None:
-        for yol in yollar:
-            if pathlib.PurePosixPath(yol).suffix in KORPUS_UZANTILARI and (root / yol).is_file():
-                girdiler.append((etiket, yol, _oku(root, yol)))
+    def add(label: str, paths: list[str]) -> None:
+        for path in paths:
+            if pathlib.PurePosixPath(path).suffix in CORPUS_EXTENSIONS and (root / path).is_file():
+                entries.append((label, path, _read(root, path)))
 
-    # `api/` ve `http-api/` üretilir ve izlenmez: her public tipi listeler, kanıt değildir.
-    ekle("site", _git_dosyalari(root, "docs-site/src/content/docs"))
-    ekle("sample", _git_dosyalari(root, "samples"))
-    ekle("template", _git_dosyalari(root, "src/Tracon.Templates/content"))
-    src = _git_dosyalari(root, "src")
-    ekle("readme", ["README.md"] + [
-        yol for yol in src if re.fullmatch(r"src/[^/]+/README\.md", yol) and ".Shared/" not in yol])
-    for yol in src:
-        if yol.endswith(".cs") and ".Shared/" not in yol:
-            ornek = xml_ornekleri(_oku(root, yol))
-            if ornek:
-                girdiler.append(("example", yol, ornek))
-    return Korpus.kur(girdiler)
+    # `api/` and `http-api/` are generated and untracked: they list every public type, so they are not evidence.
+    add("site", _git_files(root, "docs-site/src/content/docs"))
+    add("sample", _git_files(root, "samples"))
+    add("template", _git_files(root, "src/Tracon.Templates/content"))
+    src = _git_files(root, "src")
+    add("readme", ["README.md"] + [
+        path for path in src if re.fullmatch(r"src/[^/]+/README\.md", path) and ".Shared/" not in path])
+    for path in src:
+        if path.endswith(".cs") and ".Shared/" not in path:
+            example = xml_examples(_read(root, path))
+            if example:
+                entries.append(("example", path, example))
+    return Corpus.build(entries)
 
 
-def kaynaklari_topla(root: pathlib.Path, paket: str) -> list[tuple[str, str]]:
-    """Paketin kendi `.cs` dosyaları ve csproj'un bağladığı `*.Shared` ağaçları."""
-    dizinler = [f"src/{paket}"]
-    csproj = root / "src" / paket / f"{paket}.csproj"
+def collect_sources(root: pathlib.Path, package: str) -> list[tuple[str, str]]:
+    """The package's own `.cs` files and the `*.Shared` trees its csproj links."""
+    directories = [f"src/{package}"]
+    csproj = root / "src" / package / f"{package}.csproj"
     if csproj.is_file():
-        dizinler += [f"src/{eslesme.group('dizin')}"
-                     for eslesme in BAGLI_KAYNAK.finditer(csproj.read_text(encoding="utf-8"))]
-    return [(yol, _oku(root, yol)) for yol in _git_dosyalari(root, *dizinler) if yol.endswith(".cs")]
+        directories += [f"src/{match.group('directory')}"
+                        for match in LINKED_SOURCE.finditer(csproj.read_text(encoding="utf-8"))]
+    return [(path, _read(root, path)) for path in _git_files(root, *directories) if path.endswith(".cs")]
 
 
-def envanter_olustur(root: pathlib.Path = ROOT) -> tuple[dict[Anahtar, Tip], dict[str, str]]:
-    tipler: dict[Anahtar, Tip] = {}
-    kaynaklar: dict[str, list[tuple[str, str]]] = {}
-    for dosya in sorted((root / "src").glob("*/PublicAPI.Unshipped.txt")):
-        paket = dosya.parent.name
-        for tip in unshipped_ayristir(paket, dosya.read_text(encoding="utf-8")).values():
-            tipler[tip.anahtar] = tip
-        kaynaklar[paket] = kaynaklari_topla(root, paket)
-    bildirimleri_tara(tipler, kaynaklar)
+def build_inventory(root: pathlib.Path = ROOT) -> tuple[dict[Key, PublicType], dict[str, str]]:
+    types: dict[Key, PublicType] = {}
+    sources: dict[str, list[tuple[str, str]]] = {}
+    for file in sorted((root / "src").glob("*/PublicAPI.Unshipped.txt")):
+        package = file.parent.name
+        for public_type in parse_unshipped(package, file.read_text(encoding="utf-8")).values():
+            types[public_type.key] = public_type
+        sources[package] = collect_sources(root, package)
+    scan_declarations(types, sources)
 
-    gerekceler = gerekceleri_oku(_oku(root, GEREKCE_YOLU.as_posix())) if (root / GEREKCE_YOLU).is_file() else {}
+    reasons = read_reasons(_read(root, REASONS_PATH.as_posix())) if (root / REASONS_PATH).is_file() else {}
 
-    siniflandir(tipler, korpus_topla(root), gerekceler)
-    return tipler, gerekceler
+    classify(types, collect_corpus(root), reasons)
+    return types, reasons
 
 
 # --------------------------------------------------------------------------
-# Rapor
+# Report
 # --------------------------------------------------------------------------
 
-def paket_tablosu(tipler: dict[Anahtar, Tip]) -> list[tuple[str, dict[str, int]]]:
-    sayim: dict[str, dict[str, int]] = {}
-    for tip in tipler.values():
-        satir = sayim.setdefault(tip.paket, {sinif: 0 for sinif in SINIFLAR})
-        satir[tip.sinif] += 1
-    return sorted(sayim.items())
+def package_table(types: dict[Key, PublicType]) -> list[tuple[str, dict[str, int]]]:
+    counts: dict[str, dict[str, int]] = {}
+    for public_type in types.values():
+        row = counts.setdefault(public_type.package, {evidence_class: 0 for evidence_class in CLASSES})
+        row[public_type.evidence_class] += 1
+    return sorted(counts.items())
 
 
-def tablo_yaz(tipler: dict[Anahtar, Tip]) -> str:
-    satirlar = [
+def render_table(types: dict[Key, PublicType]) -> str:
+    rows = [
         "| Package | Total | Consumer | Seam | Justified | Unproven |",
         "|---|---:|---:|---:|---:|---:|",
     ]
-    toplam = {sinif: 0 for sinif in SINIFLAR}
-    for paket, sayim in paket_tablosu(tipler):
-        for sinif in SINIFLAR:
-            toplam[sinif] += sayim[sinif]
-        satirlar.append(
-            f"| `{paket}` | {sum(sayim.values())} | "
-            + " | ".join(str(sayim[sinif]) for sinif in SINIFLAR) + " |")
-    satirlar.append(
-        f"| **Total** | **{sum(toplam.values())}** | "
-        + " | ".join(f"**{toplam[sinif]}**" for sinif in SINIFLAR) + " |")
-    return "\n".join(satirlar)
+    totals = {evidence_class: 0 for evidence_class in CLASSES}
+    for package, counts in package_table(types):
+        for evidence_class in CLASSES:
+            totals[evidence_class] += counts[evidence_class]
+        rows.append(
+            f"| `{package}` | {sum(counts.values())} | "
+            + " | ".join(str(counts[evidence_class]) for evidence_class in CLASSES) + " |")
+    rows.append(
+        f"| **Total** | **{sum(totals.values())}** | "
+        + " | ".join(f"**{totals[evidence_class]}**" for evidence_class in CLASSES) + " |")
+    return "\n".join(rows)
 
 
-def kanit_zinciri(tipler: dict[Anahtar, Tip], ad: str) -> list[str]:
-    """Bir tipin neden kaldığını köke kadar izler (`signature:` ve `exception:` adımları)."""
-    indeks = ad_indeksi(tipler)
-    satirlar: list[str] = []
-    for anahtar in indeks.get(ad, []):
-        adim, gorulen = tipler[anahtar], set()
-        while adim.anahtar not in gorulen:
-            gorulen.add(adim.anahtar)
-            satirlar.append(f"{adim.ad} [{adim.paket}, {adim.tur}] → {adim.sinif}: {adim.gerekce}")
-            tur, _, ust = adim.gerekce.partition(":")
-            if tur not in ("signature", "exception"):
+def evidence_chain(types: dict[Key, PublicType], name: str) -> list[str]:
+    """Traces why a type stays, up to its root (the `signature:` and `exception:` steps)."""
+    index = name_index(types)
+    lines: list[str] = []
+    for key in index.get(name, []):
+        step, seen = types[key], set()
+        while step.key not in seen:
+            seen.add(step.key)
+            lines.append(f"{step.name} [{step.package}, {step.kind}] → {step.evidence_class}: {step.reason}")
+            kind, _, parent = step.reason.partition(":")
+            if kind not in ("signature", "exception"):
                 break
-            adim = tipler[indeks[ust][0]]
-        satirlar.append("")
-    return satirlar
+            step = types[index[parent][0]]
+        lines.append("")
+    return lines
 
 
 def main(argv: list[str] | None = None) -> int:
-    ayristirici = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         description="Public API surface inventory: the outside evidence for every public type.")
-    ayristirici.add_argument("--list", choices=SINIFLAR + ("all",), help="list the types of one class")
-    ayristirici.add_argument("--package", help="only this package")
-    ayristirici.add_argument("--type", help="show the evidence chain of one type (full name)")
-    ayristirici.add_argument("--json", action="store_true", help="write the whole inventory as JSON")
-    ayristirici.add_argument("--check", action="store_true",
-                             help="exit with code 1 when a type has no evidence or a reason is stale")
-    args = ayristirici.parse_args(argv)
+    parser.add_argument("--list", choices=CLASSES + ("all",), help="list the types of one class")
+    parser.add_argument("--package", help="only this package")
+    parser.add_argument("--type", help="show the evidence chain of one type (full name)")
+    parser.add_argument("--json", action="store_true", help="write the whole inventory as JSON")
+    parser.add_argument("--check", action="store_true",
+                        help="exit with code 1 when a type has no evidence or a reason is stale")
+    args = parser.parse_args(argv)
 
-    tipler, gerekceler = envanter_olustur()
-    sorunlar = bayat_gerekceler(tipler, gerekceler)
+    types, reasons = build_inventory()
+    problems = stale_reasons(types, reasons)
     if args.package:
-        tipler = {anahtar: tip for anahtar, tip in tipler.items() if tip.paket == args.package}
-    sirali = sorted(tipler.values(), key=lambda tip: tip.anahtar)
+        types = {key: item for key, item in types.items() if item.package == args.package}
+    ordered = sorted(types.values(), key=lambda item: item.key)
 
     if args.json:
         print(json.dumps(
-            [{JSON_ALANLARI[alan]: (sorted(deger) if isinstance(deger, set) else deger)
-              for alan, deger in dataclasses.asdict(tip).items()}
-             for tip in sirali],
+            [{JSON_FIELDS[field]: (sorted(value) if isinstance(value, set) else value)
+              for field, value in dataclasses.asdict(item).items()}
+             for item in ordered],
             ensure_ascii=False, indent=1))
         return 0
 
     if args.type:
-        zincir = kanit_zinciri(tipler, args.type)
-        if not zincir:
+        chain = evidence_chain(types, args.type)
+        if not chain:
             print(f"{args.type}: not in the inventory (the type is not public or the name is wrong)", file=sys.stderr)
             return 2
-        print("\n".join(zincir).rstrip())
+        print("\n".join(chain).rstrip())
         return 0
 
     if args.list:
-        for tip in sirali:
-            if args.list == "all" or tip.sinif == args.list:
-                print("\t".join((tip.paket, tip.ad, tip.tur, tip.sinif, tip.gerekce, tip.kaynak or "-")))
+        for item in ordered:
+            if args.list == "all" or item.evidence_class == args.list:
+                print("\t".join((item.package, item.name, item.kind, item.evidence_class, item.reason, item.source or "-")))
         return 0
 
-    print(tablo_yaz(tipler))
-    for sorun in sorunlar:
-        print(f"stale reason: {sorun}", file=sys.stderr)
-    kanitsiz = sum(1 for tip in sirali if tip.sinif == "unproven")
-    if args.check and (kanitsiz or sorunlar):
-        print(f"check failed: {kanitsiz} type(s) without evidence, {len(sorunlar)} stale reason(s)", file=sys.stderr)
-        if kanitsiz:
+    print(render_table(types))
+    for problem in problems:
+        print(f"stale reason: {problem}", file=sys.stderr)
+    unproven = sum(1 for item in ordered if item.evidence_class == "unproven")
+    if args.check and (unproven or problems):
+        print(f"check failed: {unproven} type(s) without evidence, {len(problems)} stale reason(s)", file=sys.stderr)
+        if unproven:
             print("hint: if the type is an HTTP request or response DTO, make it `internal` and write the "
                   "description with `[Description]`; otherwise show the type in a site page, a sample or an "
                   "`<example>`, or write a reason in scripts/public-surface-reasons.tsv.",

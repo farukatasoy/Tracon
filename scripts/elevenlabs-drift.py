@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""ElevenLabs'in yayimlanan OpenAPI belgesini Tracon.Voice'in bagimlilik beyaniyla karsilastirir.
+"""Compares the OpenAPI document ElevenLabs publishes with the dependency declaration of Tracon.Voice.
 
-`Tracon.Voice` ElevenLabs'e ham `HttpClient` ile konusur; resmi bir .NET
-SDK'si yoktur. Bu yuzden sağlayicinin sozlesme degisikligini derleyici gormez.
-`tests/Tracon.Voice.UnitTests/Fixtures/elevenlabs-operations.json` Tracon'un
-kullandigi operasyonlari, sorgu parametrelerini, alan yollarini ve her alanin JSON
-tipini BEYAN eder;
-birim testi (`ElevenLabsOperationDriftTests`) o beyanin KODLA birebir ayni
-oldugunu kanitlar. Bu betik beyanin CANLI belgede hala gecerli olup olmadigini
-sorar. Agdan etkilenir, bu yuzden CI'da kosmaz: yayin oncesi kontrolde ve
-kusur turlarinda elle kosulur.
+`Tracon.Voice` talks to ElevenLabs through a raw `HttpClient`; there is no official .NET
+SDK. The compiler therefore cannot see the provider changing its contract.
+`tests/Tracon.Voice.UnitTests/Fixtures/elevenlabs-operations.json` DECLARES the operations
+Tracon uses, their query parameters, their field paths and the JSON type of every field;
+a unit test (`ElevenLabsOperationDriftTests`) proves the declaration matches the code
+exactly. This script asks whether the declaration still holds in the LIVE document.
+It depends on the network, so it does not run in CI: run it by hand before a release and
+during defect rounds.
 
-Kullanim:
-    python3 scripts/elevenlabs-drift.py                 # canli belgeyi indirir
-    python3 scripts/elevenlabs-drift.py --file x.json    # yerel belgeyle (test)
+Usage:
+    python3 scripts/elevenlabs-drift.py                 # downloads the live document
+    python3 scripts/elevenlabs-drift.py --file x.json    # with a local document (tests)
 
-Cikis kodu 0: beyan canli belgede gecerli. 1: kayma var (liste basilir). 2: belge indirilemedi.
+Exit code 0: the declaration holds in the live document. 1: drift found (the list is printed).
+2: the document could not be downloaded.
 """
 
 from __future__ import annotations
@@ -192,11 +192,11 @@ def main() -> int:
         document = json.loads(pathlib.Path(arguments.file).read_text(encoding="utf-8"))
     else:
         try:
-            with urllib.request.urlopen(LIVE_DOCUMENT, timeout=60) as response:  # noqa: S310 - sabit https adres
+            with urllib.request.urlopen(LIVE_DOCUMENT, timeout=60) as response:  # noqa: S310 - fixed https address
                 document = json.loads(response.read())
         except urllib.error.URLError as error:
-            # Sertifika dogrulamasi ASLA kapatilmaz. python.org kurulumunun CA paketi
-            # yoksa (macOS) belgeyi curl indirir ve --file ile verilir.
+            # Certificate verification is NEVER switched off. When a python.org install has no
+            # CA bundle (macOS), download the document with curl and pass it with --file.
             print(f"❌ Could not download the live document: {error.reason}", file=sys.stderr)
             print(f"   curl -s {LIVE_DOCUMENT} -o openapi.json && "
                   "python3 scripts/elevenlabs-drift.py --file openapi.json", file=sys.stderr)

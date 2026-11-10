@@ -1,25 +1,25 @@
 <Project>
 
   <!--
-    Kok seviyesi ortak ayarlar. Tum projeler bunu miras alir.
-    Paketleme metadata'si src/Directory.Build.props icinde; test ve ornek
-    projelerinin kendi Directory.Build.props dosyalari vardir.
+    Root-level shared settings. Every project inherits them.
+    Packaging metadata lives in src/Directory.Build.props; the test and sample
+    projects have their own Directory.Build.props files.
   -->
 
-  <PropertyGroup Label="Repo yollari">
+  <PropertyGroup Label="Repository paths">
     <RepositoryRootPath>$(MSBuildThisFileDirectory)</RepositoryRootPath>
     <ArtifactsPath>$(RepositoryRootPath)artifacts</ArtifactsPath>
     <UseArtifactsOutput>true</UseArtifactsOutput>
   </PropertyGroup>
 
-  <PropertyGroup Label="Dil ve derleyici">
+  <PropertyGroup Label="Language and compiler">
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
   </PropertyGroup>
 
-  <PropertyGroup Label="Kalite kapilari">
+  <PropertyGroup Label="Quality gates">
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors></WarningsNotAsErrors>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
@@ -28,7 +28,7 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
-  <PropertyGroup Label="Deterministik build">
+  <PropertyGroup Label="Deterministic build">
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition=" '$(CI)' == 'true' ">true</ContinuousIntegrationBuild>
     <DebugType>portable</DebugType>
@@ -36,23 +36,23 @@
   </PropertyGroup>
 
   <!--
-    Gecisli sabitleme (transitive pinning) bilerek KAPALI.
-    Acik oldugunda NuGet, gecisli bagimliliklari uretilen .nuspec dosyasina
-    DOGRUDAN bagimlilik olarak yazar. Bir uygulamada bu istenen davranistir
-    (guvenlik yamalarini zorlamak icin), ancak bir kutuphanede tuketicinin
-    bagimlilik grafigini kirletir ve onu bizim sabitledigimiz surumlere baglar.
-    Gecisli bir surumu zorlamamiz gerekirse bilincli bir PackageReference ekleriz.
+    Transitive pinning is OFF on purpose.
+    When it is on, NuGet writes transitive dependencies into the generated .nuspec
+    as DIRECT dependencies. In an application that is the wanted behavior (it forces
+    security patches), but in a library it pollutes the consumer's dependency graph
+    and ties the consumer to the versions we pinned.
+    If we ever need to force a transitive version, we add an explicit PackageReference.
   -->
-  <PropertyGroup Label="Merkezi paket yonetimi">
+  <PropertyGroup Label="Central package management">
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
-  <ItemGroup Label="Tum projelerde gecerli analyzer'lar">
+  <ItemGroup Label="Analyzers applied to all projects">
     <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>
 
-  <ItemGroup Label="Ortak dosyalar">
+  <ItemGroup Label="Shared files">
     <None Include="$(RepositoryRootPath).editorconfig" Link=".editorconfig" Visible="false" />
   </ItemGroup>
 

@@ -11,7 +11,7 @@ public sealed class SkillCrudTests
     private static readonly Uri Skills = new("/tracon/api/skills", UriKind.Relative);
 
     [Fact]
-    public async Task Skill_olusturulur_guncellenir_ve_silinir()
+    public async Task A_skill_is_created_updated_and_deleted()
     {
         await using var host = await TraconTestHost.StartAsync();
         var request = Request();
@@ -41,7 +41,7 @@ public sealed class SkillCrudTests
     }
 
     [Fact]
-    public async Task MAFin_gecersiz_saydigini_skill_adi_reddedilir()
+    public async Task A_skill_name_that_MAF_rejects_is_rejected()
     {
         await using var host = await TraconTestHost.StartAsync();
 

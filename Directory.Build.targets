@@ -1,42 +1,43 @@
 <Project>
 
   <!--
-    Kok seviyesi ortak hedefler. Props dosyasindan SONRA, proje dosyasindan sonra yuklenir.
-    Bu yuzden projelerin belirledigi ozelliklere gore kosul yazabiliriz.
+    Root-level shared targets. Loaded AFTER the props file and AFTER the project file,
+    so conditions can depend on properties the projects set.
   -->
 
   <!--
-    Trim / AOT bayragi. Bu turetme BILEREK targets icindedir: src/Directory.Build.props
-    csproj govdesinden once yuklenir, dolayisiyla orada IsAotCompatible atamak
-    csproj'un <TraconAotCompatible>false</...> tercihini gormezdi ve bayrak
-    geri alinamaz bicimde true kalirdi. Olculdu: Tracon.AspNetCore false yazmasina
-    ragmen minimal API yonlendirmesi icin IL2026/IL3050 uretiyordu.
+    Trim / AOT flag. This derivation is deliberately in targets: src/Directory.Build.props
+    is loaded before the csproj body, so assigning IsAotCompatible there would not see a
+    csproj's <TraconAotCompatible>false</...> choice and the flag would stay true with
+    no way back. Measured: Tracon.AspNetCore produced IL2026/IL3050 for minimal API
+    routing even though it set false.
   -->
   <PropertyGroup Condition=" '$(TraconAotCompatible)' == 'true' ">
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <!--
-    Taban dogrulamasi - yalniz yayin paketi. `scripts/gate.py release`
-    ve CI build isindeki `scripts/gate.py pack` ayni pack
-    kurucusuyla son yayinlanmis surumun paketlerini IZOLE bir cache'e restore
-    eder ve uc ozellik gecirir: TraconPackageBaselineRoot, TraconPackageBaselineVersion,
-    TraconApiCompatReportDir. Kok bossa hicbir sey turetilmez; gunluk pack
-    agdan taban okumaz.
+    Baseline validation - release package only. `scripts/gate.py release` and the
+    `scripts/gate.py pack` of the CI build job restore the packages of the last published
+    version into an ISOLATED cache, using the same pack builder, and pass three properties:
+    TraconPackageBaselineRoot, TraconPackageBaselineVersion, TraconApiCompatReportDir.
+    When the root is empty nothing is derived; a day-to-day pack reads no baseline from
+    the network.
 
-    Turetme BILEREK burada: kosul csproj govdesine bakar (IncludeBuildOutput,
-    PackAsTool, TraconPackageFirstRelease), src/Directory.Build.props ise
-    govdeden once yuklenir. Kimlik $(MSBuildProjectName)'dir: depo sozlesmesi
-    proje adi = paket kimligi.
+    The derivation is here DELIBERATELY: the condition looks at the csproj body
+    (IncludeBuildOutput, PackAsTool, TraconPackageFirstRelease), while
+    src/Directory.Build.props is loaded before the body. The package id is
+    $(MSBuildProjectName): the repository convention is project name = package id.
 
-    PackageValidationBaselinePath dolu oldugu icin SDK PackageDownload
-    eklemez; taban gelistirici cache'inden OKUNMAZ.
+    Because PackageValidationBaselinePath is set, the SDK adds no PackageDownload;
+    the baseline is NOT read from the developer's cache.
 
-    🚨 Rapor yolu hep bayrakla BIRLIKTE ve proje adindan turetilir. Yol bos
-    kalsaydi SDK raporu kaynak agacina (CompatibilitySuppressions.xml) yazar
-    ve sonraki her pack onu bastirma girdisi olarak okurdu - kirilma kalici
-    gizlenirdi. Uretim bayragi strict hatalari da dosyaya cevirir; kapi
-    IsBaselineSuppression tasimayan kaydi hata sayar (scripts/breaking_changes.py).
+    🚨 The report path is always set TOGETHER with the flag and derived from the project
+    name. If the path stayed empty, the SDK would write the report into the source tree
+    (CompatibilitySuppressions.xml) and every later pack would read it as a suppression
+    input - the break would be hidden for good. The generation flag also turns strict
+    errors into a file; the gate counts any entry that does not carry
+    IsBaselineSuppression as an error (scripts/breaking_changes.py).
   -->
   <PropertyGroup Condition=" '$(TraconPackageBaselineRoot)' != '' AND '$(TraconPackageBaselineVersion)' != '' AND '$(TraconApiCompatReportDir)' != '' AND '$(IsPackable)' == 'true' AND '$(IncludeBuildOutput)' != 'false' AND '$(PackAsTool)' != 'true' AND '$(TraconPackageFirstRelease)' != 'true' ">
     <_TraconPackageBaselineId>$(MSBuildProjectName.ToLowerInvariant())</_TraconPackageBaselineId>
@@ -47,8 +48,9 @@
   </PropertyGroup>
 
   <!--
-    Uc ozellik birlikte gelir. Yalniz kok verilip rapor dizini unutulursa
-    turetme sessizce atlanirdi ve pack tabansiz "yesil" donerdi.
+    The three properties come together. If only the root were given and the report
+    directory forgotten, the derivation would be skipped silently and pack would
+    return "green" with no baseline.
   -->
   <Target Name="TraconValidatePackageBaselineInputs" BeforeTargets="GenerateNuspec"
           Condition=" '$(IsPackable)' == 'true' AND '$(TraconPackageBaselineRoot)' != '' ">
@@ -58,9 +60,9 @@
   </Target>
 
   <!--
-    Yayinlanabilir her paket icin Public API takip dosyalari. Analyzer bu dosyalari
-    AdditionalFiles olarak bekler; analyzer'in kendisi src/Directory.Build.props'ta
-    TraconPublicApiTrackingEnabled ile eklenir (proje basina kapatma).
+    Public API tracking files for every packable package. The analyzer expects these
+    files as AdditionalFiles; the analyzer itself is added in src/Directory.Build.props
+    through TraconPublicApiTrackingEnabled (switch off per project).
   -->
   <ItemGroup Condition=" '$(IsPackable)' == 'true' ">
     <AdditionalFiles Include="PublicAPI.Shipped.txt" Condition="Exists('PublicAPI.Shipped.txt')" />
@@ -69,9 +71,9 @@
   </ItemGroup>
 
   <!--
-    Yayinlanabilir paketlerde README.md zorunludur. NuGet.org paket sayfasinda
-    gorunur ve eksikse NU5039 uyarisi build'i kirar. Bu hedef eksikligi
-    anlasilir bir mesajla erken yakalar.
+    A README.md is mandatory in packable packages. NuGet.org shows it on the package
+    page, and if it is missing, the NU5039 warning breaks the build. This target catches
+    the omission early with a clear message.
   -->
   <Target Name="TraconValidatePackageReadme" BeforeTargets="GenerateNuspec" Condition=" '$(IsPackable)' == 'true' ">
     <Error Condition="!Exists('$(MSBuildProjectDirectory)/README.md')"
@@ -101,11 +103,10 @@
     of git state. It exists ONLY for Tracon's own iteration-loop tooling -
     `scripts/gate.py close`'s pack step and the `dotnet pack` calls inside
     Tracon.Package.Tests' ReleaseArtifactFixture/TemplateFixture - which
-    validate the PACKAGING CONTRACT (README, icon, template
-    installability) during normal development and are never the source of a
-    published artifact (without this, the closing
-    gate could never pass on an uncommitted tree, and this repo's own workflow
-    is "commit only when asked", not "commit before every local test run").
+    validate the PACKAGING CONTRACT (README, icon, template installability) during
+    normal development and are never the source of a published artifact (without
+    this, the closing gate could never pass on an uncommitted tree, and every local
+    test run would first need a commit).
     A real release candidate NEVER sets this property: `scripts/gate.py release`
     (the release rehearsal) and `scripts/gate.py pack` - the build job's
     pack whose files a `v*` tag actually publishes - both leave it
@@ -132,8 +133,7 @@
       The porcelain flag intentionally is NOT paired with -uno: an untracked
       file is just as unaccountable as a modified tracked one, and the SDK's default
       `Compile` glob (`**/*.cs`) can silently pull an untracked .cs file INTO
-      the packed assembly ("Untracked
-      dosyalar da bloke eder").
+      the packed assembly.
     -->
     <Exec Condition=" '$(TraconInsideGitWorkTree)' == 'true' "
           Command="git status --porcelain"

@@ -19,10 +19,11 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <c>TRACON_SOURCE_LANGUAGE_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release</c>.
 /// </para>
 /// <para>
-/// Development tooling stays Turkish and is out of scope: <c>docs/</c> and the
-/// root <c>scripts/</c> are never scanned (the site's own <c>docs-site/scripts</c> are). The user-facing
-/// translation dictionary <c>locales/tr.ts</c> is excluded for the same reason,
-/// and the language-picker label in <c>locales/en.ts</c> is allowed by line.
+/// The tooling in the public tree is English too: <c>scripts/</c>, <c>.github/workflows</c>
+/// and the root build and editor configuration are scanned, comments and test names included.
+/// The development record that does not ship stays Turkish and is never scanned.
+/// The user-facing translation dictionary <c>locales/tr.ts</c> is excluded because it is a
+/// translation dictionary, and the language-picker label in <c>locales/en.ts</c> is allowed by line.
 /// </para>
 /// <para>
 /// Reads project sources from disk rather than compiled assemblies — the same
@@ -36,12 +37,12 @@ public sealed class SourceLanguageTests
     private const string RefreshEnvVar = "TRACON_SOURCE_LANGUAGE_REFRESH";
 
     private static readonly string[] ScanRoots =
-        ["src", "tests", "samples", "bench", "packages", ".github/ISSUE_TEMPLATE", "docs-site/src", "docs-site/public", "docs-site/scripts"];
+        ["src", "tests", "samples", "bench", "packages", "scripts", ".github", "docs-site/src", "docs-site/public", "docs-site/scripts"];
 
     private static readonly HashSet<string> ScannedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs", ".sql", ".csproj", ".props", ".targets", ".json", ".ts", ".tsx",
-        ".md", ".mdx", ".astro", ".mjs", ".yml", ".yaml", ".txt",
+        ".md", ".mdx", ".astro", ".mjs", ".yml", ".yaml", ".txt", ".py", ".tsv", ".sh",
     };
 
     /// <summary>
@@ -69,7 +70,11 @@ public sealed class SourceLanguageTests
     /// them shipped artifacts in the same sense a package README is.
     /// </remarks>
     private static readonly string[] ScannedRootFiles =
-        ["README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md", "ARCHITECTURE.md", "LICENSE.md", "LICENSE-MIT.md"];
+        [
+        "README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md", "ARCHITECTURE.md", "LICENSE.md", "LICENSE-MIT.md",
+        ".editorconfig", ".gitattributes", ".gitignore", "Directory.Build.props", "Directory.Build.targets",
+        "Directory.Packages.props", "NuGet.config", "global.json",
+    ];
 
     private static readonly string[] SkippedDirectorySegments =
         ["obj", "bin", "node_modules", "artifacts", "dist", "wwwroot"];
@@ -98,6 +103,9 @@ public sealed class SourceLanguageTests
     [
         "tests/Tracon.Core.UnitTests/Architecture/SourceLanguageTests.cs",
         "tests/Tracon.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs",
+        // The mirror workflow runs in the development repository only and never enters the public tree;
+        // it calls the Turkish command line of the private mirror script.
+        ".github/workflows/ayna.yml",
         "src/Tracon.UI/frontend/src/locales/tr.ts",
         // The monolithic tr.ts was split into domain fragments. It keeps its status as
         // the Turkish dictionary but is now an aggregate-only file with no dictionary text
@@ -118,10 +126,13 @@ public sealed class SourceLanguageTests
     /// <summary>
     /// The language picker labels its own entry in its own language, and the
     /// localization end-to-end test asserts the actual translated heading
-    /// text from <c>locales/tr.ts</c> — both are legitimate Turkish.
+    /// text from <c>locales/tr.ts</c> — both are legitimate Turkish. The third form is an
+    /// explicit, line-bound exception: a test that proves a RENAMED command or flag is rejected
+    /// has to contain the old Turkish name, and so does the table that lets a release gate read a tag cut
+    /// before a rename; both say so with the marker in a comment on that line.
     /// </summary>
     private static readonly Regex AllowedLinePattern = new(
-        @"shell\.language\.tr|Gösterge Paneli",
+        @"shell\.language\.tr|Gösterge Paneli|legacy-name",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -138,7 +149,7 @@ public sealed class SourceLanguageTests
     /// the pointer a reader cannot follow, and hiding it hid the sentence around it too.
     /// </remarks>
     private static readonly Regex IdentifierMaskPattern = new(
-        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:py|sh)\b",
+        @"HATA[-_][A-Za-z0-9_-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:py|sh)\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -150,7 +161,9 @@ public sealed class SourceLanguageTests
 
     /// <summary>
     /// Turkish words written without Turkish letters — the dominant form in this
-    /// repository. Matching is whole-word and case-insensitive.
+    /// repository. Matching is whole-word and case-insensitive. A letter or digit of any script
+    /// bounds a word, an underscore or hyphen does not: <c>test_gercek_ci</c> is judged word by word,
+    /// while <c>naïve</c> is not split at the accented letter.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -232,11 +245,15 @@ public sealed class SourceLanguageTests
     [InlineData("See kayit-defteri.md for the reason", true)]
     [InlineData("python3 scripts/kayit-tara.py --check", false)]
     [InlineData("The reason is written in English", false)]
+    [InlineData("def test_gercek_ci_yml_mutasyonlari(self):", true)]
+    [InlineData("def test_scan_reports_a_sync_copy(self):", false)]
+    [InlineData("public async Task Shell_still_loads_HATA_S4_003()", false)]
+    [InlineData("var text = \"naïve café\";", false)]
     public void A_line_is_offending_unless_only_a_masked_identifier_is_Turkish(string line, bool offending)
         => IsOffending(line).ShouldBe(offending);
 
     [Fact]
-    public void The_scan_reaches_the_bench_the_site_scripts_and_text_files_but_not_the_root_scripts()
+    public void The_scan_reaches_the_bench_the_site_scripts_the_tooling_and_text_files()
     {
         var root = Directory.CreateTempSubdirectory("tracon-source-language-").FullName;
 
@@ -250,6 +267,10 @@ public sealed class SourceLanguageTests
                 ("docs-site/scripts/check.mjs", $"// {Turkish}"),
                 ("tests/Tracon.Package.Tests/Baselines/graph.txt", $"# {Turkish}"),
                 ("scripts/tool.py", $"# {Turkish}"),
+                (".github/workflows/ci.yml", $"# {Turkish}"),
+                ("Directory.Build.props", $"<!-- {Turkish} -->"),
+                (Path.Combine("docs", "notes.md"), Turkish),
+                (Path.Combine(".agents", "betikler", "tool.py"), $"# {Turkish}"),
                 ("docs-site/src/content/docs/guides/clean.md", "Everything here is English."),
             })
             {
@@ -260,8 +281,11 @@ public sealed class SourceLanguageTests
 
             Scan(root).Keys.ShouldBe(
             [
+                ".github/workflows/ci.yml",
+                "Directory.Build.props",
                 "bench/capacity/Notes.md",
                 "docs-site/scripts/check.mjs",
+                "scripts/tool.py",
                 "tests/Tracon.Package.Tests/Baselines/graph.txt",
             ]);
         }
@@ -436,7 +460,7 @@ public sealed class SourceLanguageTests
             .ThenBy(word => word, StringComparer.Ordinal);
 
         return new Regex(
-            $@"\b(?:{string.Join('|', alternatives)})\b",
+            $@"(?<![\p{{L}}\p{{N}}])(?:{string.Join('|', alternatives)})(?![\p{{L}}\p{{N}}])",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
             TimeSpan.FromSeconds(5));
     }

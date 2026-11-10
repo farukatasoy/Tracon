@@ -129,14 +129,14 @@ def _cli_ident(line: str) -> str:
 
 
 def _surface(label: str, name: str, legacy_name: str, ident: Callable[[str], str]) -> NameSurface:
-    """The snapshot `docs/contracts/<name>` and the name it had under `docs/sozlesme/` before the move.
+    """The snapshot `docs/contracts/<name>` and the name it had in the directory it was moved out of.
 
-    Tags up to `v1.0.0-preview.8` hold the old paths. The mapping stays for good: history does not change,
-    so a gate that reads a tag must keep asking for the old path."""
+    A tag up to `v1.0.0-preview.8` keeps the snapshots under the old directory name. The mapping stays for
+    good: history does not change, so a gate that reads a tag must keep asking for the old path."""
     return NameSurface(
         label,
         pathlib.PurePosixPath("docs", "contracts", name),
-        pathlib.PurePosixPath("docs", "sozlesme", legacy_name),
+        pathlib.PurePosixPath("docs", "sozlesme", legacy_name),  # legacy-name
         ident)
 
 
@@ -145,8 +145,8 @@ NAME_SURFACES = (
     _surface("SSE", "sse-events.txt", "sse-olaylari.txt", _last_token),
     # `instrument tracon.runs Counter<long> …` -> `tracon.runs`; `attribute tracon.tenant.id` -> `tracon.tenant.id`
     _surface("telemetry", "telemetry.txt", "telemetri.txt", _second_token),
-    _surface("configuration", "configuration.txt", "yapilandirma.txt", _whole_line),
-    _surface("error code", "error-codes.txt", "hata-kodlari.txt", _whole_line),
+    _surface("configuration", "configuration.txt", "yapilandirma.txt", _whole_line),  # legacy-name
+    _surface("error code", "error-codes.txt", "hata-kodlari.txt", _whole_line),  # legacy-name
     _surface("validation code", "validation-codes.txt", "dogrulama-kodlari.txt", _whole_line),
     _surface("CLI", "cli.txt", "cli.txt", _cli_ident),
 )

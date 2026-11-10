@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Tracon HTTP capacity measurement.
 
-Bu script ÖLÇÜMÜN dış kabuğudur: paketleri exact sürümle üretir, repo dışındaki
-geçici bir dizinde izole feed'den tüketen bir host kurar, her hücre için temiz
-bir veritabanı ve temiz process'ler açar, driver'ı koşturur ve sonunda raporu
-üretir.
+This script is the outer shell of the MEASUREMENT: it builds the packages with an exact
+version, sets up a host that consumes them from an isolated feed in a temporary directory
+outside the repository, opens a clean database and clean processes for every cell, runs the
+driver and writes the report at the end.
 
-🚨 Ölçüm opt-in'dir. Standart kapanışa, PR yoluna veya release hattına
-otomatik eklenmez; yalnız `smoke` profili CI'da açık bir adım olarak koşar.
+🚨 The measurement is opt-in. It is not added to the standard close, the PR path or the
+release pipeline; only the `smoke` profile runs in CI, as an explicit step.
 
-🚨 Bağlantı dizesi hiçbir process argümanında geçmez (secret sınırının aparata
-uygulanması): yalnız environment ile taşınır ve manifest'e yazılmaz.
+🚨 The connection string never appears in a process argument (the secret boundary applied to
+the harness): it travels only in the environment and is not written to the manifest.
 """
 
 from __future__ import annotations
@@ -37,8 +37,8 @@ PROFILE_DIR = CAPACITY_DIR / "profiles"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "capacity"
 PACKABLE_SOLUTION_FILTER = ROOT / "Tracon.src.slnf"
 
-# Ölçümün tükettiği exact sürüm. Kayan sürüm (`*`, `*-*`) REDDEDİLİR: hangi
-# baytların ölçüldüğü bilinmeyen bir kapasite raporunun kanıt değeri yoktur.
+# The exact version the measurement consumes. A floating version (`*`, `*-*`) is REJECTED: a
+# capacity report that cannot say which bytes were measured has no evidential value.
 EXACT_VERSION = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 
 POSTGRES_IMAGE = "pgvector/pgvector:pg18"
@@ -48,20 +48,20 @@ READY_TIMEOUT_SECONDS = 120
 HOST_PROJECT = "Tracon.CapacityHost"
 DRIVER_PROJECT = "Tracon.CapacityDriver"
 
-# Host ve worker process'lerinin kendi execution kaydını yazdığı dizinin adı.
+# Name of the directory where the host and worker processes write their own execution records.
 EXECUTIONS_DIR = "executions"
 
 
 class CapacityError(Exception):
-    """Ölçüm başlayamaz veya güvenilir biçimde sürdürülemez."""
+    """The measurement cannot start or cannot continue reliably."""
 
 
 # --------------------------------------------------------------------------
-# Profil
+# Profile
 # --------------------------------------------------------------------------
 
 def load_profile(name: str, profile_dir: pathlib.Path = PROFILE_DIR) -> dict[str, Any]:
-    """Profili okur ve ölçülebilirliğini doğrular."""
+    """Reads the profile and validates that it can be measured."""
     path = profile_dir / f"{name}.json"
 
     if not path.exists():
@@ -78,11 +78,11 @@ def load_profile(name: str, profile_dir: pathlib.Path = PROFILE_DIR) -> dict[str
 
 
 def validate_profile(profile: dict[str, Any]) -> list[str]:
-    """Profilin ölçülemez olmasının her sebebi.
+    """Every reason the profile cannot be measured.
 
-    🚨 Sıfır veya negatif süre, boş senaryo listesi ve sıfır tekrar burada
-    reddedilir. Hiç istek göndermeyen bir profil HIZLI bir profil değildir;
-    sessizce boş bir rapor üretmesi kapasite raporunu yalancı yapar."""
+    🚨 A zero or negative duration, an empty scenario list and zero repeats are rejected here.
+    A profile that sends no request is not a FAST profile; silently producing an empty report
+    would make the capacity report a lie."""
     problems: list[str] = []
 
     if not profile.get("scenarios"):
@@ -100,7 +100,7 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
     ramp = profile.get("tenantRamp")
 
     if ramp is not None:
-        # Tenant rampası ölçümün sınırının KENDİSİDİR: süre ya da run sayısı ayrıca verilirse iki sınır olurdu.
+        # The tenant ramp IS the limit of the measurement: a duration or a run count on top of it would make two limits.
         if measure > 0 or runs_per_tenant > 0:
             problems.append("tenantRamp is the measurement limit itself; measureSeconds and runsPerTenant must be zero")
 
@@ -131,8 +131,8 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
         if value <= 0:
             problems.append(f"apiHostCounts must be greater than zero: {value}")
 
-    # Üç eksen (worker sayısı, host sayısı, varış hızı) birbirini çaprazlamaz: her biri kendi sabit
-    # yüküyle ölçülür. Birlikte verilirse plan_cells yalnız birini koşar ve diğeri sessizce düşerdi.
+    # The three axes (worker count, host count, arrival rate) are not crossed with each other: each is
+    # measured with its own fixed load. Given together, plan_cells would run only one and silently drop the others.
     axes = [name for name in ("workerCounts", "apiHostCounts", "arrivalRates") if profile.get(name)]
 
     if len(axes) > 1:
@@ -152,10 +152,10 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
 
 
 def validate_tenant_ramp(ramp: Any) -> list[str]:
-    """Tenant rampasının ölçülemez olmasının her sebebi.
+    """Every reason the tenant ramp cannot be measured.
 
-    🚨 Sürücü aynı kuralları kendi tarafında tekrar doğrular; burası yalnız saatler süren bir koşumun
-    paketleme ve derleme adımlarından SONRA, ilk hücrede reddedilmesini önler."""
+    🚨 The driver validates the same rules again on its side; this check only keeps a run that takes
+    hours from being rejected in the first cell, AFTER the packing and build steps."""
     if not isinstance(ramp, dict):
         return ["tenantRamp must be an object"]
 
@@ -192,8 +192,8 @@ def validate_tenant_ramp(ramp: Any) -> list[str]:
 
 
 def tenant_tag_requested(ramp: dict[str, Any] | None) -> bool:
-    """Host'un kiracıyı metrik etiketlerine yazıp yazmayacağı: profilin `tenantTag` alanı ya da
-    `TRACON_CAPACITY_TENANT_TAG=1` ortam değişkeni. Değişken yalnız bir rampa koşusunda anlamlıdır."""
+    """Whether the host writes the tenant into metric labels: the `tenantTag` field of the profile or the
+    `TRACON_CAPACITY_TENANT_TAG=1` environment variable. The variable matters only in a ramp run."""
     if ramp is None:
         return False
 
@@ -201,7 +201,7 @@ def tenant_tag_requested(ramp: dict[str, Any] | None) -> bool:
 
 
 def driver_ramp(ramp: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Profildeki rampayı sürücünün `TenantRampSpec`'ine çevirir; host'a ait anahtarlar (`tenantTag`) sürücüye gitmez."""
+    """Converts the ramp of the profile into the `TenantRampSpec` of the driver; keys that belong to the host (`tenantTag`) do not go to the driver."""
     if ramp is None:
         return None
 
@@ -209,11 +209,11 @@ def driver_ramp(ramp: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 def plan_cells(profile: dict[str, Any], run_id: str) -> list[dict[str, Any]]:
-    """Profili ölçülecek hücrelere açar.
+    """Expands the profile into the cells to measure.
 
-    Worker sayısı AYRI bir eksendir: sweep basamaklarıyla çaprazlanmaz. Bu
-    fonksiyon o ayrımı yapıda zorlar - `workerCounts` dolu bir profil
-    concurrency listesinden yalnız TEK bir değer alır."""
+    The worker count is a SEPARATE axis: it is not crossed with the sweep steps. This
+    function enforces that separation in its structure - a profile with `workerCounts`
+    takes only ONE value from the concurrency list."""
     cells: list[dict[str, Any]] = []
     scenarios = profile["scenarios"]
     repeats = profile["repeats"]
@@ -245,8 +245,8 @@ def plan_cells(profile: dict[str, Any], run_id: str) -> list[dict[str, Any]]:
         return cells
 
     if profile.get("apiHostCounts"):
-        # Host sayısı da AYRI bir eksendir: sabit yükte yalnız HTTP host'larının sayısı değişir.
-        # Her host kendi worker'ıyla kira alır - iki replika böyle çalışır.
+        # The host count is a SEPARATE axis too: at a fixed load only the number of HTTP hosts changes.
+        # Each host takes its lease with its own worker - that is how two replicas behave.
         concurrency = profile["fixedConcurrency"]
         for group in groups:
             name = group[0] if len(group) == 1 else "mixed"
@@ -284,16 +284,16 @@ def plan_cells(profile: dict[str, Any], run_id: str) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------
-# Süreç yardımcıları
+# Process helpers
 # --------------------------------------------------------------------------
 
 def run(command: list[str], *, cwd: pathlib.Path | None = None,
         env: dict[str, str] | None = None, check: bool = True,
         capture: bool = False) -> subprocess.CompletedProcess[str]:
-    """Bir komutu koşturur. MSBuild düğüm yeniden kullanımı KAPALIDIR.
+    """Runs a command. MSBuild node reuse is DISABLED.
 
-    🚨 Öksüz MSBuild düğümleri yönlendirilmiş boruyu açık tutar ve bekleyen
-    process dakikalarca asılı kalır (ölçüldü)."""
+    🚨 Orphaned MSBuild nodes keep the redirected pipe open and the waiting
+    process hangs for minutes (measured)."""
     environment = dict(os.environ)
     environment["MSBUILDDISABLENODEREUSE"] = "1"
 
@@ -308,17 +308,16 @@ def run(command: list[str], *, cwd: pathlib.Path | None = None,
 
 def wait_for_line(process: subprocess.Popen[str], line: str, timeout: float,
                   label: str) -> None:
-    """Process belirtilen SATIRI yazana kadar bekler.
+    """Waits until the process writes the given LINE.
 
-    🚨 Sabit bir `sleep` DEĞİL: yüklü bir makinede sabit bekleme process
-    testini kırılgan yapar ve açılış süresini ölçüm penceresine sokar."""
+    🚨 NOT a fixed `sleep`: on a loaded machine a fixed wait makes the process
+    test fragile and lets the startup time into the measurement window."""
     deadline = time.monotonic() + timeout
 
-    # 🚨 Tüketilen satırlar SAKLANIR. Bu döngü process'in çıktısını okuduğu için
-    # ölüm anında geriye bir şey kalmıyordu ve hata mesajı BOŞ çıkıyordu —
-    # ölçüldü: ikinci worker'ın port çakışması "kod -6:" diye, tek kelime
-    # açıklama olmadan raporlandı. Sebebi bulmak süreci baştan elle koşturmayı
-    # gerektirdi.
+    # 🚨 The consumed lines are KEPT. This loop reads the output of the process, so
+    # nothing was left when it died and the error message came out EMPTY - measured:
+    # the port conflict of the second worker was reported as "code -6:" without a
+    # word of explanation, and finding the cause meant running the process by hand.
     seen: list[str] = []
 
     while time.monotonic() < deadline:
@@ -349,10 +348,10 @@ def wait_for_line(process: subprocess.Popen[str], line: str, timeout: float,
 
 
 def stop(process: subprocess.Popen[str] | None, label: str) -> None:
-    """Bir process'i önce nazikçe, sonra kesin olarak durdurur.
+    """Stops a process politely first, then for certain.
 
-    Sahip olunmayan hiçbir process'e dokunulmaz: yalnız bu koşumun başlattığı
-    handle'lar kapatılır."""
+    No process this run does not own is touched: only the handles this run
+    started are closed."""
     if process is None or process.poll() is not None:
         return
 
@@ -368,7 +367,7 @@ def stop(process: subprocess.Popen[str] | None, label: str) -> None:
 
 
 # --------------------------------------------------------------------------
-# Paket ve izole tüketici
+# Package and isolated consumer
 # --------------------------------------------------------------------------
 
 def git(*args: str) -> str:
@@ -377,7 +376,7 @@ def git(*args: str) -> str:
 
 
 def working_tree_state() -> tuple[str, bool, str | None]:
-    """Commit, kirlilik ve kirliyse diff'in hash'i."""
+    """Commit, dirtiness and, when dirty, the hash of the diff."""
     commit = git("rev-parse", "HEAD") or "unknown"
     status = git("status", "--porcelain")
     dirty = bool(status)
@@ -392,16 +391,16 @@ def working_tree_state() -> tuple[str, bool, str | None]:
 
 
 def extra_msbuild_arguments() -> list[str]:
-    """`TRACON_CAPACITY_MSBUILD_ARGS` ortam değişkenindeki ek MSBuild argümanları (boşlukla ayrılmış).
+    """Extra MSBuild arguments from the `TRACON_CAPACITY_MSBUILD_ARGS` environment variable (separated by spaces).
 
-    Paylaşılan bir makinede paketleme ve derleme `-m:3` ile sınırlanır; aparatı geliştirirken ön yüz derlemesi
-    `-p:TraconFrontendEnabled=false` ile atlanır. 🚨 Değer manifest'e yazılır: ön yüzü derlenmemiş bir paketin
-    ölçümü, ön yüzü derlenmiş olandan ayırt edilebilir kalmalı."""
+    On a shared machine packing and building are limited with `-m:3`; while developing the harness the front-end
+    build is skipped with `-p:TraconFrontendEnabled=false`. 🚨 The value is written to the manifest: the
+    measurement of a package built without its front end must stay distinguishable from one built with it."""
     return os.environ.get("TRACON_CAPACITY_MSBUILD_ARGS", "").split()
 
 
 def pack(version: str, feed: pathlib.Path, *, dirty: bool) -> None:
-    """Exact sürümle paketleri üretir ve izole feed'e koyar."""
+    """Builds the packages with an exact version and puts them in the isolated feed."""
     if feed.exists():
         shutil.rmtree(feed)
 
@@ -411,8 +410,8 @@ def pack(version: str, feed: pathlib.Path, *, dirty: bool) -> None:
     command = ["dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release", "-o", str(feed)]
 
     if dirty:
-        # Repo'nun kendi kapısı: kirli bir pack'in provenance'ı yoktur, bu
-        # yüzden sürüm 'dirty' taşımak ZORUNDADIR ve CI'da hiç üretilemez.
+        # The repository's own gate: a dirty pack has no provenance, so the version
+        # MUST carry 'dirty' and can never be produced in CI.
         command.append("-p:TraconAllowDirtyPack=true")
 
     command.extend(extra_msbuild_arguments())
@@ -422,11 +421,11 @@ def pack(version: str, feed: pathlib.Path, *, dirty: bool) -> None:
 
 
 def reusable_feed(version: str, reuse_feed: pathlib.Path) -> pathlib.Path:
-    """Daha önce üretilmiş bir feed'i yeniden kullanmanın şartı.
+    """The condition for reusing a feed built earlier.
 
-    🚨 Yalnız aparatı geliştirirken: `src/` değişmediyse paketler birebir aynıdır ve her denemede 17 paketi
-    yeniden üretmek dakikalarca sürer. Kirli olmayan bir koşum bunu KULLANAMAZ: yayımlanacak her sayının
-    provenance'ı kendi `pack`'inden gelir."""
+    🚨 Only while developing the harness: when `src/` has not changed the packages are identical, and rebuilding
+    17 packages on every attempt takes minutes. A run that is not dirty CANNOT use this: the provenance of every
+    number to be published comes from its own `pack`."""
     if "dirty" not in version:
         raise CapacityError("--ready-feed works only with a 'dirty' version; a publishable run builds its own packages")
 
@@ -446,7 +445,7 @@ def package_hashes(feed: pathlib.Path) -> dict[str, str]:
 
 
 def prepare_consumer(workspace: pathlib.Path, feed: pathlib.Path, version: str) -> pathlib.Path:
-    """Repo DIŞINDA izole bir tüketici kurar ve derler."""
+    """Sets up and builds an isolated consumer OUTSIDE the repository."""
     consumer = workspace / "capacity"
     shutil.copytree(
         CAPACITY_DIR, consumer,
@@ -493,10 +492,10 @@ def prepare_consumer(workspace: pathlib.Path, feed: pathlib.Path, version: str) 
 
 
 def verify_isolation(consumer: pathlib.Path, cache: pathlib.Path, version: str) -> None:
-    """Host'un GERÇEKTEN izole feed'den ve exact sürümden çözdüğünü kanıtlar.
+    """Proves that the host REALLY resolved from the isolated feed and at the exact version.
 
-    🚨 Bu adım olmadan ölçüm sessizce global cache'teki eski bir paketi
-    tüketebilir ve rapor hangi baytları ölçtüğünü bilemez."""
+    🚨 Without this step the measurement could silently consume an old package from the
+    global cache and the report could not tell which bytes it measured."""
     assets = consumer / HOST_PROJECT / "obj" / "project.assets.json"
 
     if not assets.exists():
@@ -520,11 +519,11 @@ def verify_isolation(consumer: pathlib.Path, cache: pathlib.Path, version: str) 
 
 
 # --------------------------------------------------------------------------
-# Veritabanı
+# Database
 # --------------------------------------------------------------------------
 
 class Database:
-    """Koşuma özel PostgreSQL. Yalnız bu koşumun yarattığı şey temizlenir."""
+    """A PostgreSQL private to the run. Only what this run created is cleaned up."""
 
     def __init__(self, external: str | None) -> None:
         self.external = external
@@ -556,12 +555,11 @@ class Database:
             "Username=capacity;Password=capacity;Include Error Detail=true"  # SYNTHETIC-CREDENTIAL
         )
 
-        # 🚨 `pg_isready` TEK BAŞINA yetmez: resmî imaj önce yalnız UNIX
-        # soketinde dinleyen geçici bir sunucu açar, init script'lerini koşar ve
-        # onu KAPATIR. O pencerede pg_isready başarı döner, sonraki ilk sorgu
-        # "the database system is shutting down" alır - ölçüldü. Bu yüzden
-        # hazırlık TCP üzerinden gerçek bir sorguyla ve ÜST ÜSTE üç kez
-        # doğrulanır; geçici sunucu TCP'de hiç dinlemez.
+        # 🚨 `pg_isready` ALONE is not enough: the official image first starts a temporary
+        # server that listens only on the UNIX socket, runs the init scripts and then SHUTS
+        # it down. In that window pg_isready succeeds and the next query gets "the database
+        # system is shutting down" - measured. So readiness is verified with a real query
+        # over TCP, THREE times in a row; the temporary server never listens on TCP.
         deadline = time.monotonic() + READY_TIMEOUT_SECONDS
         consecutive = 0
 
@@ -626,7 +624,7 @@ class Database:
 
 
 # --------------------------------------------------------------------------
-# Host process'leri
+# Host processes
 # --------------------------------------------------------------------------
 
 def host_executable(consumer: pathlib.Path, project: str) -> pathlib.Path:
@@ -645,11 +643,11 @@ def host_environment(*, connection: str, schema: str, mode: str, name: str,
                      max_jobs: int = 8, pool: int = 100,
                      seed_runs: int = 0, open_tenants: bool = False,
                      tenant_tag: bool = False) -> dict[str, str]:
-    """Bir host process'inin environment'ı.
+    """The environment of one host process.
 
-    🚨 Bağlantı dizesi yalnız BURADA, environment ile taşınır. Bir process
-    argümanı `ps` çıktısında görünür; kapasite koşumunun canlı bir credential'ı
-    ölçüm boyunca elinde tutması bunu gerçek bir sızıntı yoluna çevirirdi."""
+    🚨 The connection string travels ONLY HERE, in the environment. A process argument
+    shows up in the `ps` output; since a capacity run holds a live credential for the
+    whole measurement, that would be a real leak path."""
     return {
         "TRACON_CAPACITY_MODE": mode,
         "TRACON_CAPACITY_CONNECTION": connection,
@@ -709,7 +707,7 @@ def free_port() -> int:
 
 
 # --------------------------------------------------------------------------
-# Şablon veritabanı
+# Template database
 # --------------------------------------------------------------------------
 
 def template_name(shape: str, run_id: str) -> str:
@@ -718,15 +716,15 @@ def template_name(shape: str, run_id: str) -> str:
 
 def build_templates(database: Database, consumer: pathlib.Path, profile: dict[str, Any],
                     run_id: str, schema: str, executions: pathlib.Path) -> dict[str, dict[str, Any]]:
-    """Her seed şekli için bir ŞABLON veritabanı kurar.
+    """Builds one TEMPLATE database per seed shape.
 
-    🚨 İlk tasarım hücre başına izole
-    *schema* diyordu. Ölçüldü - `full` fixture'ı public store yolundan yazmak
-    10.000 run × 21 store çağrısıdır; 36 dolu hücrenin her birinde tekrarlamak
-    seed'i saatlerce kritik yola koyardı. Bunun yerine şekil başına BİR şablon
-    veritabanı kurulur ve her hücre ondan `CREATE DATABASE ... TEMPLATE ...`
-    ile kendi veritabanını alır. Yalıtım zayıflamaz, GÜÇLENİR (schema değil
-    veritabanı sınırı) ve seed süresi hiçbir ölçüm penceresine girmez."""
+    🚨 Isolating every cell with its own *schema* is too slow. Measured: writing the
+    `full` fixture through the public store path is 10,000 runs x 21 store calls, and
+    repeating that in each of the 36 full cells would put the seed on the critical path
+    for hours. Instead ONE template database is built per shape and every cell takes its
+    own database from it with `CREATE DATABASE ... TEMPLATE ...`. Isolation does not
+    weaken, it gets STRONGER (a database boundary instead of a schema one) and the seed
+    time never enters a measurement window."""
     executable = host_executable(consumer, HOST_PROJECT)
     templates: dict[str, dict[str, Any]] = {}
 
@@ -766,8 +764,8 @@ def build_templates(database: Database, consumer: pathlib.Path, profile: dict[st
 
             seeded = {"runs": int(match.group(1)), "events": int(match.group(2))}
 
-        # 🚨 Beyan edilen değil GERÇEK satır sayıları doğrulanır. Yazdığından
-        # fazlasını iddia eden bir seed, "dolu veritabanı" hücresini kurgu yapar.
+        # 🚨 The ACTUAL row counts are verified, not the declared ones. A seed that
+        # claims more than it wrote turns the "full database" cell into fiction.
         actual_runs = int(database.psql(name, f'SELECT COUNT(*) FROM "{schema}".runs'))
         actual_events = int(database.psql(name, f'SELECT COUNT(*) FROM "{schema}".run_events'))
 
@@ -793,13 +791,13 @@ def build_templates(database: Database, consumer: pathlib.Path, profile: dict[st
 
 
 # --------------------------------------------------------------------------
-# Hücre koşumu
+# Running a cell
 # --------------------------------------------------------------------------
 
 def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Database,
              consumer: pathlib.Path, templates: dict[str, dict[str, Any]],
              schema: str, output: pathlib.Path) -> dict[str, Any]:
-    """Bir hücreyi temiz veritabanı ve temiz process'lerle koşturur."""
+    """Runs one cell with a clean database and clean processes."""
     cell_dir = output / "cells" / cell["cellId"]
     cell_dir.mkdir(parents=True, exist_ok=True)
     executions = cell_dir / EXECUTIONS_DIR
@@ -839,8 +837,8 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
             "host",
         )
 
-        # Host ekseni: ilk host'tan sonraki her HTTP host'u kendi portunda ve kendi in-process worker'ıyla
-        # açılır, aynı veritabanını paylaşır. Ölçüm penceresinden ÖNCE hazırdırlar, aşağıdaki worker'lar gibi.
+        # Host axis: every HTTP host after the first one starts on its own port with its own in-process
+        # worker and shares the same database. They are ready BEFORE the measurement window, like the workers below.
         for index in range(1, api_host_count or 1):
             extra_port = free_port()
             extra_ports.append(extra_port)
@@ -857,9 +855,9 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
                 f"host-{index + 1}",
             ))
 
-        # 🚨 Worker process'leri ÖLÇÜM PENCERESİNDEN ÖNCE ayağa kalkar ve
-        # hazır satırını yazar. Devir notu bunu açıkça ister:
-        # açılış yarışı pencereye girerse ölçtüğün şey process başlatmadır.
+        # 🚨 The worker processes come up BEFORE THE MEASUREMENT WINDOW and write their
+        # ready line. If the startup race entered the window, what you measured would
+        # be process startup.
         for index in range(worker_count or 0):
             workers.append(start_host(
                 executable,
@@ -937,8 +935,8 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
 
         stop(host, "host")
 
-        # Yalnız bu koşumun yarattığı veritabanı düşürülür; şablon ve başka
-        # hiçbir veritabanı etkilenmez.
+        # Only the database this run created is dropped; neither the template nor any
+        # other database is affected.
         try:
             database.psql("capacity", f'DROP DATABASE IF EXISTS "{name}"')
         except CapacityError as error:
@@ -946,7 +944,7 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
 
 
 # --------------------------------------------------------------------------
-# Manifest ve rapor
+# Manifest and report
 # --------------------------------------------------------------------------
 
 def physical_memory_bytes() -> int | None:
@@ -964,12 +962,12 @@ def physical_memory_bytes() -> int | None:
 
 
 def telemetry_coverage(output: pathlib.Path) -> dict[str, Any]:
-    """Koşumun hücrelerinden birleştirilmiş telemetry kapsamı.
+    """Telemetry coverage merged from the cells of the run.
 
-    🚨 Manifest'in bu alanı boş kalıyordu ve kapsam yalnız izlenmeyen
-    `cell.json` dosyalarında duruyordu — yayımlanan bir sayının "hangi ölçümler
-    mevcuttu" cevabı makineyle birlikte kayboluyordu. Hücreler koşum
-    ilerledikçe yazıldığı için bu fonksiyon manifest YENİDEN yazılırken çağrılır.
+    🚨 The coverage is part of the manifest because it used to live only in the untracked
+    `cell.json` files, and the answer to "which measurements were available" for a published
+    number disappeared together with the machine. The cells are written as the run progresses,
+    so this function is called when the manifest is written AGAIN.
     """
     available: set[str] = set()
     unavailable: dict[str, str] = {}
@@ -993,9 +991,9 @@ def telemetry_coverage(output: pathlib.Path) -> dict[str, Any]:
     }
 
     if host_run_worker:
-        # 🚨 Worker ekseninin kapısı: host'un KENDİ worker'ı kapalı olmalıdır,
-        # yoksa "1 worker" iki worker'dır. Değer çalışma anında okundu; saklanan
-        # kayıt onu taşımazsa kanıt yalnız izlenmeyen dosyada kalırdı.
+        # 🚨 Gate of the worker axis: the host's OWN worker must be off, otherwise
+        # "1 worker" is two workers. The value is read at run time; if the stored
+        # record did not carry it, the evidence would stay only in the untracked file.
         coverage["hostRunWorker"] = sorted(host_run_worker)
 
     return coverage
@@ -1004,11 +1002,11 @@ def telemetry_coverage(output: pathlib.Path) -> dict[str, Any]:
 def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any],
                    version: str, feed: pathlib.Path, database: Database,
                    templates: dict[str, dict[str, Any]], schema: str) -> None:
-    """Koşumun karşılaştırılabilirlik kimliği.
+    """The comparability identity of the run.
 
-    🚨 İçinde bağlantı dizesi, credential, ham environment dökümü ve kullanıcı
-    içeriği YOKTUR. Sayının koşulları olmadan seyahat etmesini durduran şey
-    budur."""
+    🚨 It holds NO connection string, credential, raw environment dump or user
+    content. That is what keeps a number from travelling without the conditions
+    it was measured under."""
     commit, dirty, diff_hash = working_tree_state()
 
     manifest = {
@@ -1069,20 +1067,20 @@ def write_manifest(*, output: pathlib.Path, run_id: str, profile: dict[str, Any]
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
-# 🚨 Sentetik bir canary credential. Gerçek bir secret DEĞİLDİR ve hiçbir yere
-# bağlanmaz; amacı redaction taramasının GERÇEKTEN baktığını kanıtlamaktır.
-# Hiç credential görmeyen bir tarama, bakmayan bir taramadan ayırt edilemez.
-CANARY_CREDENTIAL = "Password=canary-166-not-a-real-secret"  # SYNTHETIC-CREDENTIAL
+# 🚨 A synthetic canary credential. It is NOT a real secret and connects to nothing; its
+# purpose is to prove that the redaction scan REALLY looks. A scan that never sees a
+# credential cannot be told apart from a scan that does not look.
+CANARY_CREDENTIAL = "Password=canary-not-a-real-secret"  # SYNTHETIC-CREDENTIAL
 
 
 def run_acceptance(consumer: pathlib.Path, database: Database, profile: dict[str, Any],
                    templates: dict[str, dict[str, Any]], schema: str,
                    output: pathlib.Path, version: str) -> int:
-    """Packed host'a karşı kısa kabul koşumu.
+    """A short acceptance run against the packed host.
 
-    🚨 Yalnız `smoke` profilinde koşar ve önkoşul eksikse SESSİZ SKIP değil
-    BAŞARISIZ olur: atlanmış bir provenance kontrolü CI log'unda geçmiş bir
-    kontrolden ayırt edilemez."""
+    🚨 It runs only in the `smoke` profile and, when a precondition is missing, it FAILS
+    instead of skipping SILENTLY: a skipped provenance check cannot be told apart from
+    a passed one in the CI log."""
     executable = consumer / "Tracon.Capacity.Acceptance" / "bin" / "Release" / "net10.0" / (
         "Tracon.Capacity.Acceptance" + (".exe" if platform.system() == "Windows" else "")
     )
@@ -1145,7 +1143,7 @@ def build_report(consumer: pathlib.Path, output: pathlib.Path) -> int:
 
 
 # --------------------------------------------------------------------------
-# Giriş
+# Entry point
 # --------------------------------------------------------------------------
 
 def measure(profile_name: str, version: str, output_root: pathlib.Path,
@@ -1202,9 +1200,9 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
         for index, cell in enumerate(cells, start=1):
             axis = (tuple(cell["scenarios"]), cell["seedShape"])
 
-            # 🚨 Bir basamak yarım kaldıysa DAHA YÜKSEK basamaklar otomatik
-            # koşulmaz: doygunluğa ulaşmış bir eksende üst basamağı koşmak
-            # yalnız makineyi daha çok doyurur, yeni bilgi vermez.
+            # 🚨 When a step is left incomplete, HIGHER steps are not run automatically:
+            # running the upper step on an axis that already reached saturation only
+            # saturates the machine further and gives no new information.
             if axis in stopped_axes:
                 print(f"  [{index}/{len(cells)}] {cell['cellId']} skipped "
                       "(a lower step on the same axis did not finish)", flush=True)
@@ -1231,8 +1229,8 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
             if status == "invalid":
                 failures += 1
 
-        # Manifest hücrelerden SONRA tazelenir: telemetry kapsamı ancak
-        # hücreler yazıldıktan sonra bilinir.
+        # The manifest is refreshed AFTER the cells: the telemetry coverage is
+        # known only once the cells are written.
         write_manifest(output=output, run_id=run_id, profile=profile, version=version,
                        feed=feed, database=database, templates=templates, schema=schema)
 
@@ -1279,7 +1277,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"❌ {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        # 🚨 Kullanıcı kesintisi de PARTIAL rapor üretir; başarıya çevrilmez.
+        # 🚨 A user interruption also yields a PARTIAL report; it is not turned into success.
         print("\n⚠️ interrupted - completed cells are kept", file=sys.stderr)
         return 130
 

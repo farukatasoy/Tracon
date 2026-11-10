@@ -26,7 +26,7 @@ SAMPLE_TEST_PROJECTS = (
 # WHY. Empty by default - a project that lands here without a reason string
 # fails validate_sample_inventory just as loudly as one that is missing
 # entirely (a bare tuple update once let a real sample
-# go unrun for three phases because nothing compared the tuple
+# go unrun because nothing compared the tuple
 # against the samples/ directory it claims to enumerate).
 SAMPLE_TEST_EXCLUSIONS: dict[str, str] = {}
 
@@ -285,7 +285,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
             restore = ["dotnet", "restore", str(csproj), "--configfile", str(nuget_config), property_arg]
             if _run(restore, root=root, environment=environment):
                 return 1
-            # MTP kipinde hedef `--project` ile verilir (konumsal biçim eski kipten kalma).
+            # In MTP mode the target is passed with `--project` (the positional form is left over from the old mode).
             test = ["dotnet", "test", "--project", str(csproj), "-c", "Release", "--no-restore", property_arg]
             if _run(test, root=root, environment=environment):
                 return 1

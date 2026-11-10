@@ -12,7 +12,7 @@ namespace Tracon.Package.Tests;
 /// <remarks>
 /// <c>scripts/gate.py release</c>'s own early-reject step and the
 /// staging/promote/manifest behavior it adds are pure-Python logic, covered
-/// by <c>scripts/gate_test.py</c>'s <c>YayinTestleri</c> - not here.
+/// by <c>scripts/gate_test.py</c>'s <c>ReleaseTests</c> - not here.
 /// </remarks>
 [Collection(RepositoryTreeGate.Name)]
 public sealed class PackCleanlinessGateTests

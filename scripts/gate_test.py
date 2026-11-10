@@ -31,7 +31,7 @@ spec.loader.exec_module(gate)
 
 
 def _write_src_build_props(root: pathlib.Path, frameworks: str = "net10.0") -> None:
-    """Paketlerin varsayilan TFM listesi; `_target_frameworks` onu buradan okur."""
+    """Writes the default TFM list of the packages; `_target_frameworks` reads it from here."""
     props = root / "src" / "Directory.Build.props"
     props.parent.mkdir(parents=True, exist_ok=True)
     props.write_text(
@@ -39,225 +39,225 @@ def _write_src_build_props(root: pathlib.Path, frameworks: str = "net10.0") -> N
         encoding="utf-8")
 
 
-def _ci_isleri(metin: str) -> dict[str, dict]:
-    """`ci.yml` işleri: {ad: {"if": değer | None, "needs": [işler]}}. YAML kütüphanesi gerekmez.
+def _ci_jobs(text: str) -> dict[str, dict]:
+    """The jobs of `ci.yml`: {name: {"if": value | None, "needs": [jobs]}}. No YAML library is needed.
 
-    Blok biçimli `if: >-` değeri izleyen daha derin girintili satırlardan toplanır.
+    A block-style `if: >-` value is gathered from the more deeply indented lines that follow.
     """
-    isler: dict[str, dict] = {}
-    simdiki = None
-    icinde = False
-    blok_if = False
-    for satir in metin.splitlines():
-        if re.match(r"^jobs:\s*$", satir):
-            icinde = True
+    jobs: dict[str, dict] = {}
+    current = None
+    inside = False
+    block_if = False
+    for line in text.splitlines():
+        if re.match(r"^jobs:\s*$", line):
+            inside = True
             continue
-        if not icinde:
+        if not inside:
             continue
-        if blok_if:
-            if not satir.strip() or re.match(r"^ {5,}", satir):
-                isler[simdiki]["if"] = f"{isler[simdiki]['if']} {satir.strip()}".strip()
+        if block_if:
+            if not line.strip() or re.match(r"^ {5,}", line):
+                jobs[current]["if"] = f"{jobs[current]['if']} {line.strip()}".strip()
                 continue
-            blok_if = False
-        is_satiri = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", satir)
-        if is_satiri:
-            simdiki = is_satiri.group(1)
-            isler[simdiki] = {"if": None, "needs": []}
+            block_if = False
+        job_line = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line)
+        if job_line:
+            current = job_line.group(1)
+            jobs[current] = {"if": None, "needs": []}
             continue
-        if simdiki is None:
+        if current is None:
             continue
-        ozellik = re.match(r"^    (if|needs):\s*(.*?)\s*$", satir)
-        if not ozellik:
+        prop = re.match(r"^    (if|needs):\s*(.*?)\s*$", line)
+        if not prop:
             continue
-        if ozellik.group(1) == "if":
-            blok_if = re.fullmatch(r"[|>][+-]?", ozellik.group(2)) is not None
-            isler[simdiki]["if"] = "" if blok_if else ozellik.group(2)
+        if prop.group(1) == "if":
+            block_if = re.fullmatch(r"[|>][+-]?", prop.group(2)) is not None
+            jobs[current]["if"] = "" if block_if else prop.group(2)
         else:
-            isler[simdiki]["needs"] = [ad for ad in re.findall(r"[A-Za-z0-9_-]+", ozellik.group(2))]
-    return isler
+            jobs[current]["needs"] = [name for name in re.findall(r"[A-Za-z0-9_-]+", prop.group(2))]
+    return jobs
 
 
-KANONIK_REPO_KOSULU = "github.repository == 'farukatasoy/Tracon'"
-# Bu fonksiyonlardan biri iş düzeyindeki `if:`'te durursa atlanan bir bağımlılık işi atlatmaz.
-DURUM_FONKSIYONU = re.compile(r"\b(?:always|failure|cancelled)\(\)")
+CANONICAL_REPO_CONDITION = "github.repository == 'farukatasoy/Tracon'"
+# When one of these functions sits in a job-level `if:`, a skipped dependency does not skip the job.
+STATUS_FUNCTION = re.compile(r"\b(?:always|failure|cancelled)\(\)")
 
 
-def _korumasiz_isler(isler: dict[str, dict]) -> list[str]:
-    """Özel depoda ve fork'larda koşabilecek işler, sebebiyle.
+def _unguarded_jobs(jobs: dict[str, dict]) -> list[str]:
+    """Jobs that could run on forks or other repositories, with the reason.
 
-    Koşul YALNIZ `build`'de durur; diğer her iş ona (doğrudan ya da zincirle) `needs` ile
-    bağlıdır ve atlanan bir bağımlılık onları da atlatır. Durum fonksiyonu bu zinciri deler:
-    öyle bir iş depo koşulunu kendisi taşımalıdır.
+    The condition sits ONLY in `build`; every other job depends on it (directly or through a chain)
+    with `needs`, and a skipped dependency skips them too. A status function breaks that chain:
+    such a job must carry the repository condition itself.
     """
-    sorunlar = []
-    for ad, is_ in isler.items():
-        if ad == "build":
+    problems = []
+    for name, job in jobs.items():
+        if name == "build":
             continue
-        bekleyenler, ziyaret = [ad], set()
-        while bekleyenler:
-            simdiki = bekleyenler.pop()
-            if simdiki in ziyaret:
+        pending, visited = [name], set()
+        while pending:
+            current = pending.pop()
+            if current in visited:
                 continue
-            ziyaret.add(simdiki)
-            bekleyenler.extend(isler[simdiki]["needs"])
-        if "build" not in ziyaret:
-            sorunlar.append(f"`{ad}` işi `build`'e bağlı değil; koşulsuz koşar")
-        kosul = is_["if"] or ""
-        # `||` ile bağlanan koşul korumayı deler: `always() || <koşul>` her depoda doğrudur.
-        if DURUM_FONKSIYONU.search(kosul) and (KANONIK_REPO_KOSULU not in kosul or "||" in kosul):
-            sorunlar.append(
-                f"`{ad}` işinin `if:`'i durum fonksiyonu taşıyor; `needs` zinciri onu atlatmayabilir, "
-                "depo koşulunu kendisi taşımalı")
-    return sorunlar
+            visited.add(current)
+            pending.extend(jobs[current]["needs"])
+        if "build" not in visited:
+            problems.append(f"`{name}` job does not depend on `build`; it runs unconditionally")
+        condition = job["if"] or ""
+        # A condition joined with `||` bypasses the guard: `always() || <condition>` is true in every repository.
+        if STATUS_FUNCTION.search(condition) and (CANONICAL_REPO_CONDITION not in condition or "||" in condition):
+            problems.append(
+                f"`{name}` job's `if:` carries a status function; the `needs` chain may not skip it, "
+                "so it must carry the repository condition itself")
+    return problems
 
 
-# `ci.yml` işleri depo koşulunu `build` üzerinden miras alır (`_korumasiz_isler`). Zincire bağlı olmayan
-# her iş dosyası -- haftalık fuzz, SDK uyum işi -- koşulu işin kendisinde taşımalıdır.
-ZINCIRSIZ_DOSYA_DISI = {"ci.yml", "ayna.yml"}
+# The jobs of `ci.yml` inherit the repository condition through `build` (`_unguarded_jobs`). Every job of a
+# workflow file that is not chained to it -- the weekly fuzz, the SDK conformance job -- must carry the condition itself.
+UNCHAINED_EXCLUDED_FILES = {"ci.yml", "ayna.yml"}
 
 
-def _zincirsiz_korumasiz_isler(isler: dict[str, dict]) -> list[str]:
-    """Depo koşulunu kendisi taşımayan işler. `||` korumayı deler: her depoda doğrudur."""
-    sorunlar = []
-    for ad, is_ in isler.items():
-        kosul = is_["if"] or ""
-        if KANONIK_REPO_KOSULU not in kosul or "||" in kosul:
-            sorunlar.append(f"`{ad}` işi kanonik depo koşulunu kendisi taşımıyor")
-    return sorunlar
+def _unchained_unguarded_jobs(jobs: dict[str, dict]) -> list[str]:
+    """Jobs that do not carry the repository condition themselves. `||` bypasses the guard: it is true in every repository."""
+    problems = []
+    for name, job in jobs.items():
+        condition = job["if"] or ""
+        if CANONICAL_REPO_CONDITION not in condition or "||" in condition:
+            problems.append(f"`{name}` job does not carry the canonical repository condition itself")
+    return problems
 
 
 
-def _is_blogu(metin: str, ad: str) -> str:
-    """`ad` işinin satırları: iki boşluk girintili iş başlığından sonraki iş başlığına kadar."""
-    satirlar = metin.splitlines()
-    baslangic = next(i for i, satir in enumerate(satirlar) if re.match(rf"^  {re.escape(ad)}:\s*$", satir))
+def _job_block(text: str, name: str) -> str:
+    """The lines of job `ad`: from its two-space-indented job header up to the next job header."""
+    lines = text.splitlines()
+    start = next(i for i, line in enumerate(lines) if re.match(rf"^  {re.escape(name)}:\s*$", line))
     son = next(
-        (i for i in range(baslangic + 1, len(satirlar)) if re.match(r"^  [A-Za-z0-9_-]+:\s*$", satirlar[i])),
-        len(satirlar))
-    return "\n".join(satirlar[baslangic:son])
+        (i for i in range(start + 1, len(lines)) if re.match(r"^  [A-Za-z0-9_-]+:\s*$", lines[i])),
+        len(lines))
+    return "\n".join(lines[start:son])
 
 
-def _matris_girdileri(blok: str) -> list[dict[str, str]]:
-    """Bir işin `include:` girdileri: [{anahtar: değer}]. Yorum satırları ve tırnaklar atılır."""
-    girdiler: list[dict[str, str]] = []
-    icinde = False
-    for satir in blok.splitlines():
-        if re.match(r"^\s+include:\s*$", satir):
-            icinde = True
+def _matrix_entries(block: str) -> list[dict[str, str]]:
+    """The `include:` entries of a job: [{key: value}]. Comment lines and quotes are dropped."""
+    entries: list[dict[str, str]] = []
+    inside = False
+    for line in block.splitlines():
+        if re.match(r"^\s+include:\s*$", line):
+            inside = True
             continue
-        if not icinde or not satir.strip() or satir.lstrip().startswith("#"):
+        if not inside or not line.strip() or line.lstrip().startswith("#"):
             continue
-        if not re.match(r"^ {10,}", satir):
+        if not re.match(r"^ {10,}", line):
             break
-        girdi = re.match(r"^\s*(-\s+)?([A-Za-z_][\w-]*):\s*(.*?)\s*$", satir)
-        if not girdi:
+        entry = re.match(r"^\s*(-\s+)?([A-Za-z_][\w-]*):\s*(.*?)\s*$", line)
+        if not entry:
             continue
-        deger = girdi.group(3)
-        deger = deger[1:-1] if len(deger) >= 2 and deger[0] == deger[-1] and deger[0] in "'\"" else deger
-        if girdi.group(1):
-            girdiler.append({})
-        girdiler[-1][girdi.group(2)] = deger
-    return girdiler
+        value = entry.group(3)
+        value = value[1:-1] if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"" else value
+        if entry.group(1):
+            entries.append({})
+        entries[-1][entry.group(2)] = value
+    return entries
 
 
-def _matris_bag_sorunlari(metin: str, varsayilan_imaj: dict[str, str]) -> list[str]:
-    """Platform bacaklarının adı, ortam değişkeni ve imajı birbirine bağlı mı.
+def _matrix_link_problems(text: str, default_image: dict[str, str]) -> list[str]:
+    """Whether the name, environment variable and image of the platform legs are tied to each other.
 
-    Bir bacak yalnız bir ortam değişkeni setidir. Bağ kopunca (yazım hatası, silinmiş anahtar, yanlış imaj)
-    bacak varsayılan imajla koşar ve adının söylediği sürümü sınamadan yeşil kalır.
+    A leg is only a set of environment variables. When the tie breaks (a typo, a deleted key, a wrong image)
+    the leg runs with the default image and stays green without testing the version its name claims.
     """
-    sorunlar = []
-    for is_adi in ("postgres-matrix", "sqlserver-matrix", "sqlite-floor", "culture-matrix"):
-        blok = _is_blogu(metin, is_adi)
-        girdiler = _matris_girdileri(blok)
-        if not girdiler:
-            sorunlar.append(f"`{is_adi}` işinin matrisi okunamadı")
+    problems = []
+    for job_name in ("postgres-matrix", "sqlserver-matrix", "sqlite-floor", "culture-matrix"):
+        block = _job_block(text, job_name)
+        entries = _matrix_entries(block)
+        if not entries:
+            problems.append(f"the matrix of job `{job_name}` could not be read")
             continue
-        for anahtar in sorted(set(re.findall(r"\$\{\{\s*matrix\.([A-Za-z_][\w-]*)\s*\}\}", blok))):
-            for girdi in girdiler:
-                if anahtar not in girdi:
-                    sorunlar.append(
-                        f"`{is_adi}`: `matrix.{anahtar}` kullanılıyor ama {girdi} girdisinde `{anahtar}` yok")
-        for girdi in girdiler:
-            ad = girdi.get("name", "")
-            imaj = girdi.get("image", "")
-            if is_adi == "postgres-matrix":
-                beklenen = int(re.match(r"\d+", ad).group())
-                etkin = imaj or varsayilan_imaj["postgres"]
-                bulunan = re.search(r"[:-]pg(\d+)(?:-|$)", etkin)
-                if not bulunan or int(bulunan.group(1)) != beklenen:
-                    sorunlar.append(f"`{is_adi}` hücresi `{ad}`: imaj `{etkin}` {beklenen} sürümünü söylemiyor")
-            elif is_adi == "sqlserver-matrix":
-                beklenen = int(ad[:4])
-                etkin = imaj or varsayilan_imaj["sqlserver"]
-                bulunan = re.search(r":(\d{4})(?:-|$)", etkin)
-                if not bulunan or int(bulunan.group(1)) != beklenen:
-                    sorunlar.append(f"`{is_adi}` hücresi `{ad}`: imaj `{etkin}` {beklenen} sürümünü söylemiyor")
-            elif is_adi == "sqlite-floor" and not girdi.get("sqlite"):
-                sorunlar.append(f"`{is_adi}`: `sqlite` sürümü boş; sürüm testi boş değişkende atlanır")
-    return sorunlar
+        for key in sorted(set(re.findall(r"\$\{\{\s*matrix\.([A-Za-z_][\w-]*)\s*\}\}", block))):
+            for entry in entries:
+                if key not in entry:
+                    problems.append(
+                        f"`{job_name}`: `matrix.{key}` is used but entry {entry} has no `{key}`")
+        for entry in entries:
+            name = entry.get("name", "")
+            image = entry.get("image", "")
+            if job_name == "postgres-matrix":
+                expected = int(re.match(r"\d+", name).group())
+                effective = image or default_image["postgres"]
+                matched = re.search(r"[:-]pg(\d+)(?:-|$)", effective)
+                if not matched or int(matched.group(1)) != expected:
+                    problems.append(f"`{job_name}` cell `{name}`: image `{effective}` does not name version {expected}")
+            elif job_name == "sqlserver-matrix":
+                expected = int(name[:4])
+                effective = image or default_image["sqlserver"]
+                matched = re.search(r":(\d{4})(?:-|$)", effective)
+                if not matched or int(matched.group(1)) != expected:
+                    problems.append(f"`{job_name}` cell `{name}`: image `{effective}` does not name version {expected}")
+            elif job_name == "sqlite-floor" and not entry.get("sqlite"):
+                problems.append(f"`{job_name}`: the `sqlite` version is empty; the version test is skipped on an empty variable")
+    return problems
 
 
-def _ci_adimlari(blok: str) -> list[str]:
-    """Bir iş bloğunun adımları: altı boşluk girintili `- ` satırlarından bölünmüş metinler."""
-    return re.split(r"(?m)^(?=      - )", blok)[1:]
+def _ci_steps(block: str) -> list[str]:
+    """The steps of a job block: texts split at the six-space-indented lines that start with `- `."""
+    return re.split(r"(?m)^(?=      - )", block)[1:]
 
 
-def _ci_sessiz_yesil_sorunlari(metin: str) -> list[str]:
-    """Kırmızı ya da hiç test koşmayan bir koşunun yeşil görünebileceği üç yer.
+def _ci_silent_green_problems(text: str) -> list[str]:
+    """The three places where a red run, or a run that executed no tests, could look green.
 
-    1. `steps.restore` kullanan iş, kullanımdan ÖNCE `id: restore` adımını tanımlar. Tanımsızsa
-       `steps.restore.outcome` boş kalır, her test adımı sessizce atlanır ve iş yeşil biter.
-    2. TRX yüklemesi `if-no-files-found: error` taşır (test adımları atlanırsa iş kırmızı olur) ve
-       `overwrite: true` taşır (altyapı yeniden denemesi ikinci yüklemede 409 almasın).
-    3. `nuget-packages` ve `bin-*` yüklemeleri `overwrite` TAŞIMAZ: işi yeniden koşmak ikinci yüklemede
-       409 ile kırılmalı; aksi halde önceki işlerin test ettiği baytlar sessizce değişir.
+    1. A job that uses `steps.restore` defines the `id: restore` step BEFORE the first use. If it is not
+       defined, `steps.restore.outcome` stays empty, every test step is silently skipped and the job ends green.
+    2. The TRX upload carries `if-no-files-found: error` (the job turns red if the test steps are skipped) and
+       `overwrite: true` (so an infrastructure retry does not get a 409 on the second upload).
+    3. The `nuget-packages` and `bin-*` uploads do NOT carry `overwrite`: re-running the job must fail with a
+       409 on the second upload; otherwise the bytes the earlier jobs tested would change silently.
     """
-    sorunlar = []
-    for ad in _ci_isleri(metin):
-        adimlar = _ci_adimlari(_is_blogu(metin, ad))
-        ilk_kullanim = next(
-            (i for i, adim in enumerate(adimlar) if re.search(r"(?m)^\s+if:.*steps\.restore", adim)), None)
-        if ilk_kullanim is not None:
-            tanim = next(
-                (i for i, adim in enumerate(adimlar) if re.search(r"(?m)^\s+id:\s*restore\s*$", adim)), None)
-            if tanim is None or tanim > ilk_kullanim:
-                sorunlar.append(f"`{ad}`: `steps.restore` kullanılıyor ama öncesinde `id: restore` adımı yok")
-        for adim in adimlar:
-            if "actions/upload-artifact@" not in adim:
+    problems = []
+    for name in _ci_jobs(text):
+        steps = _ci_steps(_job_block(text, name))
+        first_use = next(
+            (i for i, step in enumerate(steps) if re.search(r"(?m)^\s+if:.*steps\.restore", step)), None)
+        if first_use is not None:
+            definition = next(
+                (i for i, step in enumerate(steps) if re.search(r"(?m)^\s+id:\s*restore\s*$", step)), None)
+            if definition is None or definition > first_use:
+                problems.append(f"`{name}`: `steps.restore` is used but no `id: restore` step precedes it")
+        for step in steps:
+            if "actions/upload-artifact@" not in step:
                 continue
-            artifact = re.search(r"(?m)^\s+name:\s*(.+?)\s*$", adim)
-            yol = re.search(r"(?m)^\s+path:\s*(\S+)\s*$", adim)
-            if yol and yol.group(1).endswith(".trx"):
-                if not re.search(r"(?m)^\s+if-no-files-found:\s*error\s*$", adim):
-                    sorunlar.append(f"`{ad}`: TRX yüklemesi `if-no-files-found: error` taşımıyor")
-                if not re.search(r"(?m)^\s+overwrite:\s*true\s*$", adim):
-                    sorunlar.append(f"`{ad}`: TRX yüklemesi `overwrite: true` taşımıyor")
+            artifact = re.search(r"(?m)^\s+name:\s*(.+?)\s*$", step)
+            path = re.search(r"(?m)^\s+path:\s*(\S+)\s*$", step)
+            if path and path.group(1).endswith(".trx"):
+                if not re.search(r"(?m)^\s+if-no-files-found:\s*error\s*$", step):
+                    problems.append(f"`{name}`: the TRX upload does not carry `if-no-files-found: error`")
+                if not re.search(r"(?m)^\s+overwrite:\s*true\s*$", step):
+                    problems.append(f"`{name}`: the TRX upload does not carry `overwrite: true`")
             if artifact and (artifact.group(1) == "nuget-packages" or artifact.group(1).startswith("bin-")):
-                if re.search(r"(?m)^\s+overwrite:", adim):
-                    sorunlar.append(f"`{ad}`: `{artifact.group(1)}` yüklemesi `overwrite` taşıyor")
-    return sorunlar
+                if re.search(r"(?m)^\s+overwrite:", step):
+                    problems.append(f"`{name}`: the `{artifact.group(1)}` upload carries `overwrite`")
+    return problems
 
 
-def _varsayilan_imajlar() -> dict[str, str]:
-    """Fikstürlerin boş değişkende kullandığı imaj: bacağın boş `image:` değeri bu imajı söyler."""
-    okunan = {}
-    for ad, yol in (
+def _default_images() -> dict[str, str]:
+    """The image the fixtures use when the variable is empty: an empty `image:` value of a leg means this image."""
+    read_images = {}
+    for name, path in (
         ("postgres", ROOT / "tests" / "Tracon.PostgreSql.IntegrationTests" / "Infrastructure" / "PostgresFixture.cs"),
         ("sqlserver", ROOT / "tests" / "Tracon.SqlServer.IntegrationTests" / "Infrastructure" / "SqlServerFixture.cs"),
     ):
-        eslesme = re.search(r'const string DefaultImage = "([^"]+)";', yol.read_text(encoding="utf-8"))
-        okunan[ad] = eslesme.group(1) if eslesme else ""
-    return okunan
+        hit = re.search(r'const string DefaultImage = "([^"]+)";', path.read_text(encoding="utf-8"))
+        read_images[name] = hit.group(1) if hit else ""
+    return read_images
 
 
-class KapiTestleri(unittest.TestCase):
-    def test_git_tum_metin_dosyalarini_lf_olarak_checkout_eder(self):
+class GateTests(unittest.TestCase):
+    def test_git_checks_out_all_text_files_with_lf(self):
         attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8")
 
         self.assertIn("* text=auto eol=lf", attributes.splitlines())
 
-    def test_first_failure_stops_pahali_kapilari(self):
+    def test_first_failure_stops_expensive_gates(self):
         commands = [gate.Command(("first",)), gate.Command(("second",))]
         runner = mock.Mock(side_effect=[mock.Mock(returncode=1), mock.Mock(returncode=0)])
         with tempfile.TemporaryDirectory() as directory:
@@ -267,31 +267,31 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(runner.call_count, 1)
 
-    def test_sinif_bayragi_tekrarlaninca_desenler_birikir(self):
-        """`--class A --class B` yalnız B'yi koşuyordu (argparse ikinciyi
-        birincinin yerine yazar); iki mimari testinin ikisi de koştu sanıldı."""
-        with mock.patch.object(gate, "test_commands", side_effect=ValueError("dur")) as commands:
+    def test_repeated_class_flag_accumulates_patterns(self):
+        """`--class A --class B` ran only B (argparse writes the second over the
+        first); both architecture tests were believed to have run."""
+        with mock.patch.object(gate, "test_commands", side_effect=ValueError("stop")) as commands:
             with contextlib.redirect_stdout(io.StringIO()):
                 gate.main(["test", "--project", "Tracon.Core.UnitTests", "--class", "*A*", "--class", "*B*", "*C*"])
 
         self.assertEqual(commands.call_args.args[1], ["*A*", "*B*", "*C*"])
 
-    def test_mtp_filtresi_filter_class_uretir(self):
+    def test_mtp_filter_emits_filter_class(self):
         commands = gate.test_commands("Tracon.Generators.UnitTests", ["*Capability*"], environ={})
 
         self.assertEqual(len(commands), 1)
         self.assertIn("--filter-class", commands[0].args)
         self.assertNotIn("--filter", commands[0].args)
-        # Ayraçla DEĞİL parçayla karşılaştırılır: Windows'ta `pathlib` ters eğik
-        # çizgi üretir, `endswith("/...")` orada HER ZAMAN False döner ve kapı
-        # yalnız `windows-latest` ayağında kırmızı olur (üretim kodu doğruydu).
+        # Compared by parts, NOT by separator: on Windows `pathlib` produces a backslash,
+        # `endswith("/...")` ALWAYS returns False there and the gate turned red only on the
+        # `windows-latest` leg (the production code was right).
         parts = pathlib.PurePath(commands[0].args[0]).parts[-3:]
         self.assertEqual(
             parts, ("Tracon.Generators.UnitTests", "release", "Tracon.Generators.UnitTests"))
 
-    def test_coklu_tfm_projesi_her_bacagi_ayri_kosar(self):
-        # Cok hedefli projenin ciktisi release/ DEGIL release_<tfm>/'dir. Paketler
-        # bugun tek TFM hedefler; altyapi ikinci bir TFM'i ortam degiskeniyle sinar.
+    def test_multi_tfm_project_runs_each_leg_separately(self):
+        # The output of a multi-target project is release_<tfm>/, NOT release/. The packages
+        # target a single TFM today; the infrastructure exercises a second TFM through an environment variable.
         self.assertEqual(
             [pathlib.PurePath(command.args[0]).parts[-2]
              for command in gate.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={})],
@@ -301,7 +301,7 @@ class KapiTestleri(unittest.TestCase):
              for command in gate.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})],
             ["release_net10.0", "release_net11.0"])
 
-    def test_tfm_secimi_tek_bacagi_kosar(self):
+    def test_tfm_selection_runs_a_single_leg(self):
         commands = gate.test_commands("Tracon.Core.UnitTests", ["*X*"], "net11.0", environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})
 
         self.assertEqual(len(commands), 1)
@@ -309,15 +309,15 @@ class KapiTestleri(unittest.TestCase):
             pathlib.PurePath(commands[0].args[0]).parts[-3:],
             ("Tracon.Core.UnitTests", "release_net11.0", "Tracon.Core.UnitTests"))
 
-    def test_derlenmeyen_tfm_istenirse_sessiz_gecmez(self):
+    def test_requesting_an_unbuilt_tfm_is_not_skipped_silently(self):
         with self.assertRaises(ValueError):
             gate.test_commands("Tracon.Core.UnitTests", ["*X*"], "net7.0", environ={})
         with self.assertRaises(ValueError):
-            # Tek hedefli proje yalniz net10.0 derlenir; baska bir TFM istemek
-            # bayat ya da var olmayan bir ikiliyi kosturmak olurdu.
+            # A single-target project builds only net10.0; asking for another TFM
+            # would run a stale or non-existent binary.
             gate.test_commands("Tracon.Generators.UnitTests", ["*X*"], "net11.0", environ={})
 
-    def test_temsilci_kume_ve_tfm_listesi_props_dosyasindan_okunur(self):
+    def test_representative_set_and_tfm_list_are_read_from_the_props_file(self):
         self.assertEqual(gate.test_target_frameworks(environ={}), ("net10.0",))
         self.assertEqual(gate.single_test_target_framework(), "net10.0")
         self.assertEqual(
@@ -332,39 +332,39 @@ class KapiTestleri(unittest.TestCase):
                 "Tracon.Sqlite.IntegrationTests",
                 "Tracon.Testing.Contracts.Xunit.UnitTests",
             ]))
-        # Kume disindaki her ad gercek bir test projesidir - yazim hatasi
-        # MSBuild'de sessizce "kosul yanlis" olur ve proje net10'da kalir.
+        # Every name outside the set is a real test project - a typo
+        # silently makes the MSBuild condition false and the project stays on net10.
         for project in gate.multi_target_test_projects():
             csproj = ROOT / "tests" / project / f"{project}.csproj"
             self.assertTrue(csproj.exists(), project)
-            # Denetim bulgusu: csproj govdesi props'tan SONRA okunur;
-            # oraya yazilan tekil <TargetFramework> projeyi sessizce net10'a
-            # indirir ve runtime nobetcisi net10'da yine gecer.
+            # The csproj body is read AFTER the props; a single <TargetFramework>
+            # written there silently drops the project to net10 and the runtime
+            # sentinel still passes on net10.
             self.assertNotIn("<TargetFramework", csproj.read_text(encoding="utf-8"), project)
 
-    def test_tfm_listesi_ortam_degiskeninden_okunur(self):
-        # Ayni adli ortam degiskeni MSBuild'e baslangic ozelligi olarak gider;
-        # betik de ayni ciktilari aramalidir.
+    def test_tfm_list_is_read_from_the_environment_variable(self):
+        # The environment variable of the same name reaches MSBuild as an initial property;
+        # the script must look for the same outputs.
         self.assertEqual(gate.test_target_frameworks(environ={"TraconTestTargetFrameworks": "net10.0;net11.0"}), ("net10.0", "net11.0"))
         self.assertEqual(
             [path.name for path in gate.test_output_directories("Tracon.Core.UnitTests", environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})],
             ["release_net10.0", "release_net11.0"])
 
-    def test_bayat_tek_hedef_klasoru_secilmez(self):
-        # Proje cok hedefli olduktan sonra eski release/ klasoru diskte kalir;
-        # cozum DISKTEN degil BEYANDAN yapilir.
+    def test_stale_single_target_folder_is_not_selected(self):
+        # After a project becomes multi-target, the old release/ folder stays on disk;
+        # resolution goes by the DECLARATION, not by the DISK.
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            (kok / "tests").mkdir()
-            (kok / "tests" / "Directory.Build.props").write_text(
+            root = pathlib.Path(directory)
+            (root / "tests").mkdir()
+            (root / "tests" / "Directory.Build.props").write_text(
                 (ROOT / "tests" / "Directory.Build.props").read_text(encoding="utf-8"), encoding="utf-8")
-            (kok / "artifacts" / "bin" / "Tracon.Core.UnitTests" / "release").mkdir(parents=True)
+            (root / "artifacts" / "bin" / "Tracon.Core.UnitTests" / "release").mkdir(parents=True)
 
-            outputs = gate.test_output_directories("Tracon.Core.UnitTests", root=kok, environ={})
+            outputs = gate.test_output_directories("Tracon.Core.UnitTests", root=root, environ={})
 
         self.assertNotIn("release", [path.name for path in outputs])
 
-    def test_sync_taramasi_dosya_ve_dizin_kopyasini_bulur(self):
+    def test_sync_scan_finds_file_and_directory_copies(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "tests").mkdir()
@@ -375,7 +375,7 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertEqual({path.name for path in found}, {"Example 2.cs", "resources 2"})
 
-    def test_secret_taramasi_deger_satirini_bulur(self):
+    def test_secret_scan_finds_a_value_line(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "sample.txt").write_text(
@@ -387,29 +387,28 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("sample.txt:1", found[0])
         self.assertEqual(skipped, 0)
 
-    def test_bayat_dokuman_referansi_bulunur(self):
+    def test_stale_doc_reference_is_found(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "docs").mkdir()
-            (root / "docs" / "VAR.md").write_text("", encoding="utf-8")
+            (root / "docs" / "HERE.md").write_text("", encoding="utf-8")
             (root / "src").mkdir()
-            # Parcali yazilir: bu dosya `scripts/` altindadir ve kapinin KENDI
-            # taramasina girer; duz yazilan bir fixture yolu kapiyi kendi test
-            # kaynagi uzerinde kirmizi yapardi (`find_secrets` testindeki ayni
-            # sebep, ayni yontem).
-            missing = "docs/" + "YOK.md"
-            present = "docs/" + "VAR.md"
+            # Written in pieces: this file lives under `scripts/` and falls into the gate's OWN
+            # scan; a fixture path written plainly would turn the gate red on its own test
+            # source (the same reason and the same method as in the `find_secrets` test).
+            missing = "docs/" + "GONE.md"
+            present = "docs/" + "HERE.md"
             (root / "src" / "Thing.cs").write_text(
-                f"// Bkz. {missing} ve {present}\n", encoding="utf-8")
+                f"// See {missing} and {present}\n", encoding="utf-8")
 
             found = gate.find_stale_doc_references(root)
 
         self.assertEqual(len(found), 1)
         self.assertIn(missing, found[0])
 
-    def test_site_yolu_bayat_referans_sayilmaz(self):
-        # `docs-site/src/content/docs/...` bir SITE yoludur, `docs/` agacina ait
-        # degildir. Ayrilmazsa kapi 40+ yanlis pozitif uretir ve kapatilir.
+    def test_site_path_is_not_a_stale_reference(self):
+        # `docs-site/src/content/docs/...` is a SITE path and does not belong to the `docs/` tree.
+        # If it were not told apart, the gate would produce 40+ false positives and be switched off.
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "src").mkdir()
@@ -418,40 +417,40 @@ class KapiTestleri(unittest.TestCase):
 
             self.assertEqual(gate.find_stale_doc_references(root), [])
 
-    def test_yer_tutucu_referansi_bayat_sayilmaz(self):
-        # Arsivleme scripti ve faz sablonu ornek yol yazar; bunlar hicbir zaman
-        # var olmaz ve bir kusur degildir.
+    def test_placeholder_reference_is_not_stale(self):
+        # Scripts and templates write example paths; these never exist
+        # and are not a defect.
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "scripts").mkdir()
-            (root / "scripts" / "ornek.py").write_text(
-                "# docs" "/X.md -> docs" "/arsiv/Y.md; sablon: docs" "/NN-BUYUK-HARFLI-AD.md\n",
+            (root / "scripts" / "example.py").write_text(
+                "# docs" "/X.md -> docs" "/old/Y.md; template: docs" "/NN-UPPER-CASE-NAME.md\n",
                 encoding="utf-8")
 
             self.assertEqual(gate.find_stale_doc_references(root), [])
 
-    def test_arsivlenen_faz_referansi_repoda_kalmaz(self):
-        # SINIF KAPISI: bu repoda gercek olan tarama. Bir dokuman silindiginde
-        # (once arsive tasiniyordu) onu anan baska dosyalar bir donem
-        # guncellenmiyordu (43 bayat referans olculdu).
+    def test_repo_has_no_stale_doc_references(self):
+        # CLASS GATE: the scan that is real in this repository. When a document was deleted
+        # (it used to move to an archive first), other files that mentioned it were once left
+        # un-updated (43 stale references were measured).
         self.assertEqual(gate.find_stale_doc_references(), [])
 
-    def test_kanitsiz_public_tip_tarama_kapisini_kirar(self):
-        # `public-surface-inventory.py --check` hicbir kapida kosmuyordu; kuralin
-        # cirkirligi iki kez sessizce gevsedi (iki kanitsiz istisna).
+    def test_unproven_public_type_breaks_the_scan_gate(self):
+        # `public-surface-inventory.py --check` ran in no gate; the strictness of the rule
+        # loosened silently twice (two unproven exceptions).
         runner = mock.Mock(side_effect=[
             mock.Mock(returncode=1, stdout="", stderr="audit: 1 unproven type, 0 stale reasons\n"),
-            mock.Mock(returncode=0, stdout="Tracon.Abstractions\tTracon.OrnekTip\tclass\tunproven\n", stderr=""),
+            mock.Mock(returncode=0, stdout="Tracon.Abstractions\tTracon.SampleType\tclass\tunproven\n", stderr=""),
         ])
         with mock.patch.object(gate.subprocess, "run", runner):
             found = gate.public_surface_violations()
 
-        self.assertTrue(any("Tracon.OrnekTip" in line for line in found), found)
+        self.assertTrue(any("Tracon.SampleType" in line for line in found), found)
         self.assertIn("public type without evidence", "\n".join(found))
 
     def test_the_inventory_gets_flags_and_a_class_it_accepts(self):
         # The real script must accept the exact class name. The `--check` call runs for real in
-        # `test_public_yuzey_repoda_kanitsiz_tip_icermez`; the `--list` call runs only when the audit is red.
+        # `test_repo_public_surface_has_no_unproven_type`; the `--list` call runs only when the audit is red.
         runner = mock.Mock(side_effect=[
             mock.Mock(returncode=1, stdout="", stderr="audit: 1 unproven type, 0 stale reasons\n"),
             mock.Mock(returncode=0, stdout="", stderr=""),
@@ -464,28 +463,28 @@ class KapiTestleri(unittest.TestCase):
         real = subprocess.run(commands[1], capture_output=True, text=True, encoding="utf-8", check=False)
         self.assertNotEqual(real.returncode, 2, real.stderr)
 
-    def test_temiz_envanter_tarama_kapisini_kirmaz(self):
+    def test_clean_inventory_does_not_break_the_scan_gate(self):
         runner = mock.Mock(return_value=mock.Mock(returncode=0, stdout="", stderr=""))
         with mock.patch.object(gate.subprocess, "run", runner):
             self.assertEqual(gate.public_surface_violations(), [])
 
-    def test_scan_kanitsiz_public_tipte_kirmizi_doner(self):
+    def test_scan_returns_red_for_an_unproven_public_type(self):
         with tempfile.TemporaryDirectory() as directory, \
-                mock.patch.object(gate, "public_surface_violations", return_value=["Tracon.OrnekTip: kanitsiz"]), \
+                mock.patch.object(gate, "public_surface_violations", return_value=["Tracon.SampleType: unproven"]), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             result = gate.scan(pathlib.Path(directory))
 
         self.assertEqual(result, 1)
-        self.assertIn("Tracon.OrnekTip", output.getvalue())
+        self.assertIn("Tracon.SampleType", output.getvalue())
 
-    def test_public_yuzey_repoda_kanitsiz_tip_icermez(self):
-        # SINIF KAPISI: bu repoda gercek olan denetim.
+    def test_repo_public_surface_has_no_unproven_type(self):
+        # CLASS GATE: the check that is real in this repository.
         self.assertEqual(gate.public_surface_violations(), [])
 
-    # Context7 surumlu kimligi `previousVersions` ilk etiketinden uretir. Etiket son yayindan
-    # geride kalirsa ajanlar kurulu paketin degil eski bir surumun metnini okur.
+    # The Context7 versioned identity is derived from the first tag of `previousVersions`. If the tag falls
+    # behind the latest release, agents read the text of an old version instead of the installed package's.
 
-    def _context7_koku(self, directory: str, config: object, changelog_text: str | None) -> pathlib.Path:
+    def _context7_root(self, directory: str, config: object, changelog_text: str | None) -> pathlib.Path:
         root = pathlib.Path(directory)
         text = config if isinstance(config, str) else json.dumps(config)
         (root / "context7.json").write_text(text, encoding="utf-8")
@@ -493,24 +492,24 @@ class KapiTestleri(unittest.TestCase):
             (root / "CHANGELOG.md").write_text(changelog_text, encoding="utf-8")
         return root
 
-    _CHANGELOG = "## [Unreleased]\n\n### Added\n- devam eden\n\n## [1.0.0-preview.6] - 2026-10-27\n"
+    _CHANGELOG = "## [Unreleased]\n\n### Added\n- in progress\n\n## [1.0.0-preview.6] - 2026-10-27\n"
 
-    def test_context7_etiketi_son_yayinla_ayniysa_temiz(self):
+    def test_context7_tag_equal_to_latest_release_is_clean(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._context7_koku(
+            root = self._context7_root(
                 directory, {"previousVersions": [{"tag": "v1.0.0-preview.6"}]}, self._CHANGELOG)
 
             self.assertEqual(gate.context7_version_drift(root), [])
 
-    def test_context7_etiketi_dize_olarak_da_okunur(self):
+    def test_context7_tag_is_also_read_as_a_string(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._context7_koku(directory, {"previousVersions": ["v1.0.0-preview.6"]}, self._CHANGELOG)
+            root = self._context7_root(directory, {"previousVersions": ["v1.0.0-preview.6"]}, self._CHANGELOG)
 
             self.assertEqual(gate.context7_version_drift(root), [])
 
-    def test_context7_etiketi_son_yayindan_geride_kalirsa_kirar(self):
+    def test_context7_tag_behind_latest_release_breaks(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._context7_koku(
+            root = self._context7_root(
                 directory, {"previousVersions": [{"tag": "v1.0.0-preview.5"}]}, self._CHANGELOG)
 
             found = gate.context7_version_drift(root)
@@ -519,21 +518,21 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("v1.0.0-preview.5", found[0])
         self.assertIn("v1.0.0-preview.6", found[0])
 
-    def test_context7_bos_surum_listesi_kirar(self):
+    def test_context7_empty_version_list_breaks(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._context7_koku(directory, {"previousVersions": []}, self._CHANGELOG)
+            root = self._context7_root(directory, {"previousVersions": []}, self._CHANGELOG)
 
             self.assertEqual(len(gate.context7_version_drift(root)), 1)
 
-    def test_context7_bozuk_json_kirar(self):
+    def test_context7_malformed_json_breaks(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._context7_koku(directory, "{ bozuk", self._CHANGELOG)
+            root = self._context7_root(directory, "{ broken", self._CHANGELOG)
 
             self.assertEqual(len(gate.context7_version_drift(root)), 1)
 
-    # Yukseltme kapisinin tabani son yayin olmali: kapi son yayinin veritabanini bugunun migration'larina tasir.
+    # The upgrade gate's baseline must be the latest release: the gate moves the latest release's database to today's migrations.
 
-    def _taban_koku(self, directory: str, manifest: object, changelog_text: str | None) -> pathlib.Path:
+    def _baseline_root(self, directory: str, manifest: object, changelog_text: str | None) -> pathlib.Path:
         root = pathlib.Path(directory)
         target = root / gate.UPGRADE_BASELINE_MANIFEST
         target.parent.mkdir(parents=True)
@@ -542,15 +541,15 @@ class KapiTestleri(unittest.TestCase):
             (root / "CHANGELOG.md").write_text(changelog_text, encoding="utf-8")
         return root
 
-    def test_yukseltme_tabani_son_yayinla_ayniysa_temiz(self):
+    def test_upgrade_baseline_equal_to_latest_release_is_clean(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._taban_koku(directory, {"version": "1.0.0-preview.6"}, self._CHANGELOG)
+            root = self._baseline_root(directory, {"version": "1.0.0-preview.6"}, self._CHANGELOG)
 
             self.assertEqual(gate.upgrade_baseline_drift(root), [])
 
-    def test_yukseltme_tabani_son_yayindan_geride_kalirsa_kirar(self):
+    def test_upgrade_baseline_behind_latest_release_breaks(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._taban_koku(directory, {"version": "1.0.0-preview.5"}, self._CHANGELOG)
+            root = self._baseline_root(directory, {"version": "1.0.0-preview.5"}, self._CHANGELOG)
 
             found = gate.upgrade_baseline_drift(root)
 
@@ -558,126 +557,126 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("1.0.0-preview.5", found[0])
         self.assertIn("1.0.0-preview.6", found[0])
 
-    def test_yukseltme_tabani_bozuk_ya_da_surumsuzse_kirar(self):
+    def test_upgrade_baseline_malformed_or_versionless_breaks(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._taban_koku(directory, "{ bozuk", self._CHANGELOG)
+            root = self._baseline_root(directory, "{ broken", self._CHANGELOG)
             self.assertEqual(len(gate.upgrade_baseline_drift(root)), 1)
 
         with tempfile.TemporaryDirectory() as directory:
-            root = self._taban_koku(directory, {"tag": "v1"}, self._CHANGELOG)
+            root = self._baseline_root(directory, {"tag": "v1"}, self._CHANGELOG)
             self.assertEqual(len(gate.upgrade_baseline_drift(root)), 1)
 
-    def test_yukseltme_tabani_tarihli_yayin_yoksa_kirar(self):
+    def test_upgrade_baseline_without_a_dated_release_breaks(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._taban_koku(directory, {"version": "1.0.0-preview.6"}, "## [Unreleased]\n")
+            root = self._baseline_root(directory, {"version": "1.0.0-preview.6"}, "## [Unreleased]\n")
 
             self.assertEqual(len(gate.upgrade_baseline_drift(root)), 1)
 
-    def test_yukseltme_tabani_repoda_son_yayindir(self):
-        # SINIF KAPISI: bu repoda gercek olan denetim.
+    def test_repo_upgrade_baseline_is_the_latest_release(self):
+        # CLASS GATE: the check that is real in this repository.
         self.assertEqual(gate.upgrade_baseline_drift(), [])
 
-    def test_context7_tarihli_yayin_yoksa_kirar(self):
+    def test_context7_without_a_dated_release_breaks(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self._context7_koku(
+            root = self._context7_root(
                 directory, {"previousVersions": [{"tag": "v1.0.0-preview.6"}]}, "## [Unreleased]\n")
 
             self.assertEqual(len(gate.context7_version_drift(root)), 1)
 
-    def test_context7_dosyasi_yoksa_kontrol_atlanir(self):
+    def test_missing_context7_file_skips_the_check(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(gate.context7_version_drift(pathlib.Path(directory)), [])
 
-    def test_scan_yalniz_context7_kaymasiyla_kirmiziya_doner(self):
-        # Ötekiler boş: sonucu yalnız etiket ayırt eder; taklit edilmezse `scan` her iki durumda da 1 döner
-        # ve test bir şey kanıtlamaz.
-        bos = {
+    def test_scan_turns_red_on_context7_drift_alone(self):
+        # The others are empty: only the tag tells the outcomes apart; if they were not mocked, `scan` would
+        # return 1 in both cases and the test would prove nothing.
+        empty = {
             "find_sync_copies": [], "find_secrets": ([], 0), "find_stale_doc_references": [],
             "public_surface_violations": [],
         }
-        for tag, beklenen in (("v1.0.0-preview.6", 0), ("v1.0.0-preview.5", 1)):
+        for tag, expected in (("v1.0.0-preview.6", 0), ("v1.0.0-preview.5", 1)):
             with self.subTest(tag=tag), tempfile.TemporaryDirectory() as directory, \
                     contextlib.ExitStack() as stack, contextlib.redirect_stdout(io.StringIO()) as output:
-                for ad, deger in bos.items():
-                    stack.enter_context(mock.patch.object(gate, ad, return_value=deger))
-                root = self._context7_koku(directory, {"previousVersions": [{"tag": tag}]}, self._CHANGELOG)
+                for name, value in empty.items():
+                    stack.enter_context(mock.patch.object(gate, name, return_value=value))
+                root = self._context7_root(directory, {"previousVersions": [{"tag": tag}]}, self._CHANGELOG)
                 result = gate.scan(root)
 
-            self.assertEqual(result, beklenen, output.getvalue())
-            self.assertEqual("v1.0.0-preview.5" in output.getvalue(), beklenen == 1)
+            self.assertEqual(result, expected, output.getvalue())
+            self.assertEqual("v1.0.0-preview.5" in output.getvalue(), expected == 1)
 
-    def _bos_tarama(self, stack: contextlib.ExitStack, directory: str) -> pathlib.Path:
-        """`scan`'in public bulgu sınıflarını boşaltır; geriye yalnız uzantının kontrolü sonucu belirler."""
-        for ad, deger in {
+    def _empty_scan(self, stack: contextlib.ExitStack, directory: str) -> pathlib.Path:
+        """Empties the public finding classes of `scan`; only the extension's check then decides the result."""
+        for name, value in {
             "find_sync_copies": [], "find_secrets": ([], 0), "find_stale_doc_references": [],
             "public_surface_violations": [], "context7_version_drift": [], "upgrade_baseline_drift": [],
         }.items():
-            stack.enter_context(mock.patch.object(gate, ad, return_value=deger))
+            stack.enter_context(mock.patch.object(gate, name, return_value=value))
         return pathlib.Path(directory)
 
-    def test_scan_uzantinin_bulgu_sinifi_basligi_ve_ihlaliyle_kirmiziya_doner(self):
-        uzanti = gate.Extension(scan_checks=(
-            gate.ScanCheck("temiz sınıf", lambda kok: []),
-            gate.ScanCheck("kirli sınıf", lambda kok: ["a.cs:3: iz", "b.cs:4: iz"]),
+    def test_scan_turns_red_with_the_extension_finding_class_title_and_violations(self):
+        extension = gate.Extension(scan_checks=(
+            gate.ScanCheck("clean class", lambda root: []),
+            gate.ScanCheck("dirty class", lambda root: ["a.cs:3: trace", "b.cs:4: trace"]),
         ))
         with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
-            sonuc = gate.scan(self._bos_tarama(stack, directory), uzanti)
+            result = gate.scan(self._empty_scan(stack, directory), extension)
 
-        self.assertEqual(1, sonuc)
-        self.assertIn("Scan: ❌ kirli sınıf", output.getvalue())
-        self.assertIn("  a.cs:3: iz", output.getvalue())
-        self.assertNotIn("temiz sınıf", output.getvalue())
+        self.assertEqual(1, result)
+        self.assertIn("Scan: ❌ dirty class", output.getvalue())
+        self.assertIn("  a.cs:3: trace", output.getvalue())
+        self.assertNotIn("clean class", output.getvalue())
 
-    def test_scan_uzantinin_kontrolleri_temizse_yesil_doner_ve_kok_dizinini_alir(self):
-        gorulen = []
-        uzanti = gate.Extension(scan_checks=(gate.ScanCheck("sınıf", lambda kok: gorulen.append(kok) or []),))
+    def test_scan_is_green_when_extension_checks_are_clean_and_passes_the_root(self):
+        observed = []
+        extension = gate.Extension(scan_checks=(gate.ScanCheck("class", lambda root: observed.append(root) or []),))
         with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
-            kok = self._bos_tarama(stack, directory)
-            sonuc = gate.scan(kok, uzanti)
+            root = self._empty_scan(stack, directory)
+            result = gate.scan(root, extension)
 
-        self.assertEqual(0, sonuc, output.getvalue())
-        self.assertEqual([kok], gorulen)
+        self.assertEqual(0, result, output.getvalue())
+        self.assertEqual([root], observed)
 
-    def test_scan_uzantisiz_public_kok_ozel_bulgu_sinifi_calistirmaz(self):
+    def test_public_root_without_extension_runs_no_extension_finding_class(self):
         self.assertEqual((), gate.PUBLIC.scan_checks)
 
-    def test_scan_uzantinin_uzun_ihlal_listesi_yirmide_kesilir(self):
-        uzanti = gate.Extension(scan_checks=(gate.ScanCheck("sınıf", lambda kok: [f"d{i}.cs" for i in range(25)]),))
+    def test_scan_truncates_a_long_extension_violation_list_at_twenty(self):
+        extension = gate.Extension(scan_checks=(gate.ScanCheck("class", lambda root: [f"d{i}.cs" for i in range(25)]),))
         with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
-            gate.scan(self._bos_tarama(stack, directory), uzanti)
+            gate.scan(self._empty_scan(stack, directory), extension)
 
         self.assertIn("  d19.cs", output.getvalue())
         self.assertNotIn("d20.cs", output.getvalue())
         self.assertIn("… +5", output.getvalue())
 
-    def test_context7_surumu_repoda_son_yayinla_ayni(self):
-        # SINIF KAPISI: bu repoda gercek olan denetim.
+    def test_repo_context7_version_matches_the_latest_release(self):
+        # CLASS GATE: the check that is real in this repository.
         self.assertEqual(gate.context7_version_drift(), [])
 
-    def test_harita_eksigi_tam_test_kosumuna_duser(self):
+    def test_map_gap_falls_back_to_the_full_test_run(self):
         projects, full = gate.affected_test_projects(["src/Unknown.Package/Thing.cs"])
 
         self.assertEqual(projects, ["Tracon.Generators.UnitTests"])
         self.assertTrue(full)
 
-    def test_her_src_degisikligi_ornek_derleyen_projeyi_secer(self):
-        # KACIS ef9c8ee1: src/Tracon.Core'a eklenen bir XML <example>
-        # blogu Tracon.Generators.UnitTests'i DERLENMEZ hale getirdi;
-        # ic dongu Core.UnitTests + AspNetCore.FunctionalTests seciyordu ve
-        # gercekte dusen projeyi HIC kosmuyordu. ExampleExtractor
-        # src/**/*.cs'in tamamini okur, yalniz Generators'i degil.
+    def test_every_src_change_selects_the_example_compiling_project(self):
+        # ESCAPE: an XML <example> block added to src/Tracon.Core made
+        # Tracon.Generators.UnitTests fail to BUILD; the inner loop selected
+        # Core.UnitTests + AspNetCore.FunctionalTests and never ran the project
+        # that was actually failing. ExampleExtractor reads all of
+        # src/**/*.cs, not only the Generators.
         projects, full = gate.affected_test_projects(
             ["src/Tracon.Core/Builder/ITraconBuilder.cs"])
 
         self.assertIn("Tracon.Generators.UnitTests", projects)
         self.assertFalse(full)
 
-    def test_paylasimli_saglayici_kaynagi_dort_saglayici_projesini_secer(self):
-        # src/Tracon.Providers.Shared bir paket degildir; haritada
-        # olmasa her degisiklik tam kosuma duserdi. Etki alani dort projedir.
+    def test_shared_provider_source_selects_the_four_provider_projects(self):
+        # src/Tracon.Providers.Shared is not a package; without a map entry
+        # every change would fall back to a full run. Its blast radius is four projects.
         for path in ("src/Tracon.Providers.Shared/ModelProviderCore.cs",
                      "tests/Shared/Providers/ModelProviderCoreTests.cs"):
             projects, full = gate.affected_test_projects([path])
@@ -686,11 +685,11 @@ class KapiTestleri(unittest.TestCase):
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
-    def test_paketlere_derlenen_paylasimli_kaynak_seceneklerin_proje_kapisini_da_secer(self):
-        # Tracon.PackageOptions.UnitTests her saglayici, Mcp, ses, is akisi ve SQL paketinin ayar bolumunu
-        # gercek kapsayicidan yurutur. Tracon.Providers.Shared ve Tracon.Sql.Shared bu paketlere derlenen paylasimli
-        # kaynaktir; haritada o proje yokken bir kayit ya da dogrulama degisikligi seceneklerin kapisini
-        # yalniz tam kosumda calistirirdi.
+    def test_shared_source_compiled_into_packages_also_selects_the_options_project(self):
+        # Tracon.PackageOptions.UnitTests drives the settings section of every provider, Mcp, audio, workflow and SQL
+        # package through the real container. Tracon.Providers.Shared and Tracon.Sql.Shared are shared source
+        # compiled into those packages; with that project missing from the map, a registration or validation change
+        # would run the options gate only in a full run.
         for path in ("src/Tracon.Providers.Shared/ModelProviderCore.cs",
                      "src/Tracon.Sql.Shared/Stores/SqlJobStore.cs"):
             projects, full = gate.affected_test_projects([path])
@@ -698,7 +697,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("Tracon.PackageOptions.UnitTests", projects, path)
             self.assertFalse(full, path)
 
-    def test_yukseltme_kapisinin_paylasimli_kaynagi_dort_projeyi_secer_tam_kosuma_dusmez(self):
+    def test_upgrade_gate_shared_source_selects_four_projects_without_a_full_run(self):
         for path in ("tests/Shared/Upgrade/UpgradeSeed.json", "tests/Shared/Upgrade/UpgradeProbes.cs"):
             projects, full = gate.affected_test_projects([path])
 
@@ -706,9 +705,9 @@ class KapiTestleri(unittest.TestCase):
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
-    def test_openai_ortak_kaynagi_iki_saglayici_projesini_secer(self):
-        # src/Tracon.OpenAI.Shared paket degildir; OpenAI ve Azure
-        # paketlerine derlenir. Haritada olmasa her degisiklik tam kosuma duserdi.
+    def test_openai_shared_source_selects_the_two_provider_projects(self):
+        # src/Tracon.OpenAI.Shared is not a package; it is compiled into the OpenAI and Azure
+        # packages. Without a map entry every change would fall back to a full run.
         projects, full = gate.affected_test_projects(
             ["src/Tracon.OpenAI.Shared/OpenAIPipelineImageGenerator.cs"])
 
@@ -716,12 +715,12 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("Tracon.Azure.UnitTests", projects)
         self.assertFalse(full)
 
-    def test_sozlesme_paketi_ve_sql_ortak_kaynagi_tam_kosuma_dusmez(self):
-        # 2026-10-13: Tracon.Testing.Contracts.Xunit ve
-        # Tracon.Sql.Shared haritada yoktu; iki faz da ic donguyu her
-        # degisiklikte tam kosuma genisletti ve kosum UI'siz derlendigi icin
-        # E2E'nin tamami dustu. Etki alani, paketi derleyen ya da
-        # sozlesmeyi tureten test projeleridir.
+    def test_contracts_package_and_sql_shared_source_do_not_fall_back_to_a_full_run(self):
+        # 2026-10-13: Tracon.Testing.Contracts.Xunit and
+        # Tracon.Sql.Shared were missing from the map; the inner loop widened to a full run on
+        # every change, and because that run was built without the UI, all of
+        # E2E dropped out. The blast radius is the test projects that compile the package or
+        # derive the contract.
         sql_tests = ("Tracon.PostgreSql.IntegrationTests",
                      "Tracon.SqlServer.IntegrationTests",
                      "Tracon.Sqlite.IntegrationTests")
@@ -740,12 +739,11 @@ class KapiTestleri(unittest.TestCase):
                 self.assertIn(project, projects, path)
                 self.assertTrue((ROOT / "tests" / project / f"{project}.csproj").exists(), project)
 
-    def test_sql_saglayicisi_ortak_parite_kapilarini_secer(self):
-        # Kayit paritesi (SqlProviderRegistrationParityTests), migration
-        # paritesi ve SQL metni snapshot'i Tracon.Sql.Shared.UnitTests'te
-        # yasar. Yalniz bir Use* dosyasina dokunan degisiklikte ic dongu
-        # bugune kadar yalniz o saglayicinin IntegrationTests projesini
-        # seciyordu; unutulan bir kayit satiri orada sessiz kalir.
+    def test_sql_provider_selects_the_shared_parity_gates(self):
+        # The registration parity (SqlProviderRegistrationParityTests), the migration
+        # parity and the SQL text snapshot live in Tracon.Sql.Shared.UnitTests.
+        # For a change touching a single Use* file the inner loop used to select only that
+        # provider's IntegrationTests project; a forgotten registration line stays silent there.
         for package in ("Tracon.PostgreSql", "Tracon.SqlServer", "Tracon.Sqlite"):
             path = f"src/{package}/{package.replace('.', '')}BuilderExtensions.cs"
             projects, full = gate.affected_test_projects([path])
@@ -754,11 +752,11 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn(f"{package}.IntegrationTests", projects, path)
             self.assertFalse(full, path)
 
-    def test_cekirdek_degisikligi_sql_kayit_kapisini_da_secer(self):
-        # Kayit kapisinin yakaladigi iki vaka yalniz Core/Abstractions'ta
-        # dogar: uc saglayicida birden unutulan yeni bir store sozlesmesi ve
-        # yalniz AddTracon'a eklenen bir Auditing* dekoratoru. Ic dongu o
-        # degisiklikte kapiyi kosmazsa bulgu ancak tam kosumda gorunur.
+    def test_core_change_also_selects_the_sql_registration_gate(self):
+        # The two cases the registration gate catches arise only in Core/Abstractions:
+        # a new store contract forgotten in all three providers at once, and an Auditing*
+        # decorator added only to AddTracon. If the inner loop does not run the gate on such a
+        # change, the finding shows up only in a full run.
         for path in ("src/Tracon.Core/TraconServiceCollectionExtensions.Registration.Storage.cs",
                      "src/Tracon.Abstractions/Runs/IRunStore.cs"):
             projects, full = gate.affected_test_projects([path])
@@ -766,21 +764,21 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("Tracon.Sql.Shared.UnitTests", projects, path)
             self.assertFalse(full, path)
 
-    def test_test_agaci_kok_dosyasi_tam_kosum_ister(self):
-        # tests/Directory.Build.props HER test projesine ulasir. Bir onceki degisikliğe
-        # kadar bu yol HICBIR proje secmiyordu ve ic dongu sessizce bos kalirdi.
+    def test_test_tree_root_file_requires_a_full_run(self):
+        # tests/Directory.Build.props reaches EVERY test project. Before this change
+        # this path selected NO project and the inner loop would silently stay empty.
         projects, full = gate.affected_test_projects(["tests/Directory.Build.props"])
 
         self.assertTrue(full)
 
-    def test_tfm_nobetcisi_yalniz_temsilci_kumeyi_secer(self):
+    def test_tfm_sentinel_selects_only_the_representative_set(self):
         projects, full = gate.affected_test_projects(
             ["tests/Shared/TargetFramework/RuntimeMatchesTargetFrameworkTests.cs"])
 
         self.assertEqual(sorted(projects), sorted(gate.multi_target_test_projects()))
         self.assertFalse(full)
 
-    def test_cok_hedefli_projeye_ulasan_test_komutu_taninir(self):
+    def test_test_command_reaching_a_multi_target_project_is_recognised(self):
         self.assertTrue(gate.runs_multi_target_tests([gate.full_solution_test_command()]))
         self.assertTrue(gate.runs_multi_target_tests(
             [gate.Command(("dotnet", "test", "--project", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))]))
@@ -792,9 +790,9 @@ class KapiTestleri(unittest.TestCase):
             [gate.Command(("dotnet", "test", "tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj"))]))
         self.assertFalse(gate.runs_multi_target_tests([gate.Command(("dotnet", "build", "Tracon.slnx"))]))
 
-    def test_eksik_runtime_dotnet_root_altindan_bulunur(self):
-        # Olculdu: test apphost'u runtime'i DOTNET_ROOT'tan cozer,
-        # PATH'teki muxer'dan degil.
+    def test_missing_runtime_is_found_under_dotnet_root(self):
+        # Measured: the test apphost resolves the runtime from DOTNET_ROOT,
+        # not from the muxer on PATH.
         with tempfile.TemporaryDirectory() as directory:
             shared = pathlib.Path(directory) / "shared" / "Microsoft.NETCore.App"
             for version in ("9.0.10", "10.0.0"):
@@ -807,43 +805,43 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(missing, ["net11.0"])
         runner.assert_not_called()
 
-    def test_mimariye_ozel_dotnet_root_once_gelir(self):
-        # Apphost DOTNET_ROOT_<ARCH>'i DOTNET_ROOT'tan ONCE okur.
-        environ = {"DOTNET_ROOT": "/genel", "DOTNET_ROOT_ARM64": "/arm64"}
+    def test_architecture_specific_dotnet_root_comes_first(self):
+        # The apphost reads DOTNET_ROOT_<ARCH> BEFORE DOTNET_ROOT.
+        environ = {"DOTNET_ROOT": "/general", "DOTNET_ROOT_ARM64": "/arm64"}
 
         self.assertEqual(gate._apphost_dotnet_root(environ, "arm64"), "/arm64")
-        self.assertEqual(gate._apphost_dotnet_root(environ, "x86_64"), "/genel")
+        self.assertEqual(gate._apphost_dotnet_root(environ, "x86_64"), "/general")
         self.assertEqual(gate._apphost_dotnet_root({}, "arm64"), "")
 
-    def test_eksik_runtime_global_kurulum_konumundan_bulunur(self):
-        # Denetim bulgusu: DOTNET_ROOT yokken apphost PATH'teki
-        # muxer'i DEGIL global kurulumu okur. PATH'e net11'li ozel bir SDK
-        # konsa bile on kontrol global kokte net11 yoksa durdurmalidir.
+    def test_missing_runtime_is_found_from_the_global_install_location(self):
+        # With no DOTNET_ROOT the apphost reads the global install, NOT the
+        # muxer on PATH. Even if a custom SDK with net11 is put on PATH, the
+        # pre-check must stop when the global root has no net11.
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            (kok / "etc").mkdir()
-            (kok / "etc" / "install_location").write_text(str(kok / "x64") + "\n", encoding="utf-8")
-            (kok / "etc" / "install_location_arm64").write_text(str(kok / "global") + "\n", encoding="utf-8")
+            root = pathlib.Path(directory)
+            (root / "etc").mkdir()
+            (root / "etc" / "install_location").write_text(str(root / "x64") + "\n", encoding="utf-8")
+            (root / "etc" / "install_location_arm64").write_text(str(root / "global") + "\n", encoding="utf-8")
             for version in ("9.0.10", "10.0.0"):
-                (kok / "global" / "shared" / "Microsoft.NETCore.App" / version).mkdir(parents=True)
+                (root / "global" / "shared" / "Microsoft.NETCore.App" / version).mkdir(parents=True)
             runner = mock.Mock()
 
             missing = gate.missing_test_runtimes(
                 ("net10.0", "net11.0"), environ={}, runner=runner,
-                system="Darwin", machine="arm64", install_location_dir=kok / "etc")
+                system="Darwin", machine="arm64", install_location_dir=root / "etc")
 
         self.assertEqual(missing, ["net11.0"])
         runner.assert_not_called()
 
-    def test_global_kurulum_dosyasi_yoksa_varsayilan_kok_kullanilir(self):
+    def test_missing_global_install_file_falls_back_to_the_default_root(self):
         with tempfile.TemporaryDirectory() as directory:
-            yok = pathlib.Path(directory) / "etc"
+            absent = pathlib.Path(directory) / "etc"
 
-            self.assertEqual(gate._global_dotnet_root("Linux", "x86_64", yok), "/usr/share/dotnet")
-            self.assertEqual(gate._global_dotnet_root("Darwin", "arm64", yok), "/usr/local/share/dotnet")
-            self.assertIsNone(gate._global_dotnet_root("Windows", "amd64", yok))
+            self.assertEqual(gate._global_dotnet_root("Linux", "x86_64", absent), "/usr/share/dotnet")
+            self.assertEqual(gate._global_dotnet_root("Darwin", "arm64", absent), "/usr/local/share/dotnet")
+            self.assertIsNone(gate._global_dotnet_root("Windows", "amd64", absent))
 
-    def test_windowsta_list_runtimes_ciktisindan_bulunur(self):
+    def test_windows_finds_runtimes_from_list_runtimes_output(self):
         stdout = (
             "Microsoft.AspNetCore.App 11.0.0 [/usr/share/dotnet/shared/Microsoft.AspNetCore.App]\n"
             "Microsoft.NETCore.App 9.0.20 [/usr/share/dotnet/shared/Microsoft.NETCore.App]\n"
@@ -853,17 +851,17 @@ class KapiTestleri(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             ok = gate.require_test_runtimes(("net10.0", "net11.0"), environ={}, runner=runner, system="Windows")
 
-        # ASP.NET Core 11 runtime'i NETCore 11 yerine SAYILMAZ.
+        # The ASP.NET Core 11 runtime does NOT count in place of NETCore 11.
         self.assertFalse(ok)
         self.assertIn("net11.0", output.getvalue())
-        # Denetim bulgusu: ayrac ile DEGIL platformun kendi yol
-        # bicimiyle karsilastirilir - windows-latest'te PurePath ters egik
-        # cizgi uretir (test_mtp_filtresi_filter_class_uretir ile ayni sinif).
+        # Compared in the platform's own path form, NOT by separator - on
+        # windows-latest PurePath produces a backslash (the same class as
+        # test_mtp_filter_emits_filter_class).
         self.assertIn(str(pathlib.PurePath("/usr/share/dotnet")), output.getvalue())
 
-    def test_runtime_listesi_okunamazsa_engellemez(self):
-        # dotnet yoksa asil komut zaten 127 ile durur; on kontrol ikinci bir
-        # yaniltici hata uretmez. Global kok bulunamazsa da ayni kural.
+    def test_unreadable_runtime_list_does_not_block(self):
+        # Without dotnet the real command already stops with 127; the pre-check
+        # adds no second misleading error. The same rule applies when no global root is found.
         runner = mock.Mock(side_effect=FileNotFoundError("dotnet"))
 
         self.assertEqual(
@@ -871,29 +869,29 @@ class KapiTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(
                 gate.missing_test_runtimes(
-                    ("net11.0",), environ={"DOTNET_ROOT": str(pathlib.Path(directory) / "yok")}, runner=runner),
+                    ("net11.0",), environ={"DOTNET_ROOT": str(pathlib.Path(directory) / "missing")}, runner=runner),
                 [])
 
-    def test_diger_paylasimli_test_kaynagi_hala_tam_kosum_ister(self):
+    def test_other_shared_test_source_still_requires_a_full_run(self):
         projects, full = gate.affected_test_projects(["tests/Shared/Infrastructure/ProcessRunner.cs"])
 
         self.assertTrue(full)
 
-    def test_embedded_ornegi_kendi_test_projesini_secer(self):
-        # KACIS 6e9cc8f6: altinci genisleme noktasini ekledi,
-        # samples/Tracon.Embedded geride kaldi. O gun bir samples/
-        # degisikligi HICBIR test projesi secmiyordu; Embedded.Tests ise
-        # ProjectReference ile tam o ornege bagli.
+    def test_embedded_sample_selects_its_own_test_project(self):
+        # ESCAPE: the sixth extension point was added while
+        # samples/Tracon.Embedded was left behind. On that day a change under samples/
+        # selected NO test project, although Embedded.Tests references exactly that
+        # sample through a ProjectReference.
         projects, full = gate.affected_test_projects(
             ["samples/Tracon.Embedded/Program.cs"])
 
         self.assertEqual(projects, ["Tracon.Embedded.Tests"])
         self.assertFalse(full)
 
-    def test_yayin_ornekleri_sessiz_gecmez(self):
-        # samples/Tracon.Samples.* cozumde DEGILDIR: hicbir kapanis
-        # kosumu onlari kapsamaz, yalniz `gate.py release`. Secim bos kalir
-        # ama bu ARTIK sessiz degildir.
+    def test_release_samples_are_not_skipped_silently(self):
+        # samples/Tracon.Samples.* is NOT in the solution: no closing
+        # run covers them, only `gate.py release`. The selection stays empty
+        # but this is NO LONGER silent.
         with contextlib.redirect_stdout(io.StringIO()) as output:
             projects, full = gate.affected_test_projects(
                 ["samples/Tracon.Samples.CustomJobHandler/Program.cs"])
@@ -902,9 +900,9 @@ class KapiTestleri(unittest.TestCase):
         self.assertFalse(full)
         self.assertIn("gate.py release", output.getvalue())
 
-    def test_tam_kosum_komutu_mtp_bayraklarini_tasir(self):
-        # `dotnet test` MTP kipindedir. `-maxcpucount` bu kipte HIC TEST
-        # KOSTURMADAN cikis kodu 5 verir; `--` ayiricisi da artik yoktur.
+    def test_full_run_command_carries_the_mtp_flags(self):
+        # `dotnet test` is in MTP mode. In this mode `-maxcpucount` exits with code 5 WITHOUT
+        # RUNNING ANY TEST; the `--` separator no longer exists either.
         command = gate.full_solution_test_command()
         args = command.args
 
@@ -916,26 +914,26 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(args[args.index("--results-directory") + 1], gate.TEST_RESULTS_DIRECTORY)
         self.assertEqual(args[args.index("--results-directory-layout") + 1], "per-module")
 
-    def test_ci_ve_kapi_ayni_trx_yolunu_ve_bayraklari_kullanir(self):
-        # Kapi (gate.py) ile CI (ci.yml) AYRI yazilmis iki komuttur ve bir tarafin
-        # TRX yolunu degistirmek digerini sessizce bosaltir: CI yuklemesi artifact
-        # bulamaz (`if-no-files-found: ignore`) ve kimse fark etmez.
+    def test_ci_and_gate_use_the_same_trx_path_and_flags(self):
+        # The gate (gate.py) and CI (ci.yml) are two SEPARATELY written commands, and changing the
+        # TRX path on one side silently empties the other: the CI upload finds no artifact
+        # (`if-no-files-found: ignore`) and nobody notices.
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         test_lines = [
             line.strip() for line in ci.splitlines()
             if line.strip().startswith("run: dotnet test ") and "Tracon" in line
         ]
 
-        # Test isleri modul basina bir adimdir (`--project`); cozum komutu yalniz kultur isinde kalir
-        # (Docker'siz solution filter). Hepsi ayni TRX bayraklarini tasir ve derlemez (`--no-build`).
+        # Test jobs are one step per module (`--project`); the solution command remains only in the culture job
+        # (a solution filter without Docker). All of them carry the same TRX flags and do not build (`--no-build`).
         self.assertGreaterEqual(len([line for line in test_lines if "--solution" in line]), 1, test_lines)
-        projeler = {re.search(r"--project tests/([\w.]+)/", line).group(1) for line in test_lines if "--project" in line}
-        self.assertGreaterEqual(len(projeler), 25, projeler)  # ayristirici bayatlarsa sessiz sifira dusmesin
+        projects = {re.search(r"--project tests/([\w.]+)/", line).group(1) for line in test_lines if "--project" in line}
+        self.assertGreaterEqual(len(projects), 25, projects)  # so the parser cannot silently fall to zero if it goes stale
         for line in test_lines:
             self.assertNotIn("-maxcpucount", line)
             self.assertIn(" --no-build", line)
             if "--solution" in line:
-                # Cozum komutu modulleri tek tek kosar; tek projeli komutun paralel modulu yoktur.
+                # The solution command runs the modules one by one; a single-project command has no parallel modules.
                 self.assertIn("--max-parallel-test-modules 1", line)
             self.assertIn("--report-trx", line)
             self.assertIn(f"--results-directory {gate.TEST_RESULTS_DIRECTORY}", line)
@@ -943,96 +941,96 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn(f"path: {gate.TEST_RESULTS_DIRECTORY}/**/*.trx", ci)
         self.assertNotIn("TestResults/*.trx", ci)
 
-    def test_ci_test_isleri_kirmizi_ya_da_bos_kosuyu_yesil_gostermez(self):
-        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    def test_ci_test_jobs_do_not_show_a_red_or_empty_run_as_green(self):
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
-        self.assertEqual(_ci_sessiz_yesil_sorunlari(metin), [])
-        # Ayrıştırıcı gerçekten okuyor (sessizce sıfır iş görmesin): restore kullanan on üç iş, on dört iş restore
-        # tanımlar, on dört TRX yüklemesi.
-        kullananlar = [ad for ad in _ci_isleri(metin) if "steps.restore" in _is_blogu(metin, ad)]
-        self.assertGreaterEqual(len(kullananlar), 13, kullananlar)
-        self.assertGreaterEqual(metin.count("        id: restore\n"), 14)
-        self.assertGreaterEqual(metin.count("path: artifacts/test-results/**/*.trx\n"), 14)
+        self.assertEqual(_ci_silent_green_problems(text), [])
+        # The parser really reads (it must not silently see zero jobs): thirteen jobs use restore, fourteen jobs
+        # define restore, fourteen TRX uploads.
+        users = [name for name in _ci_jobs(text) if "steps.restore" in _job_block(text, name)]
+        self.assertGreaterEqual(len(users), 13, users)
+        self.assertGreaterEqual(text.count("        id: restore\n"), 14)
+        self.assertGreaterEqual(text.count("path: artifacts/test-results/**/*.trx\n"), 14)
 
-        def bozulmus(eski: str, yeni: str) -> list[str]:
-            self.assertIn(eski, metin)
-            return _ci_sessiz_yesil_sorunlari(metin.replace(eski, yeni, 1))
+        def mutated(old: str, replacement: str) -> list[str]:
+            self.assertIn(old, text)
+            return _ci_silent_green_problems(text.replace(old, replacement, 1))
 
         restore = "      - name: Restore the dependencies\n        id: restore\n"
-        self.assertEqual(len(bozulmus(restore, "      - name: Restore the dependencies\n")), 1)
-        self.assertEqual(len(bozulmus(restore, "      - name: Restore the dependencies\n        id: restor\n")), 1)
-        trx_sonu = "          if-no-files-found: error\n          overwrite: true\n"
-        self.assertEqual(len(bozulmus(trx_sonu, "          if-no-files-found: ignore\n          overwrite: true\n")), 1)
-        self.assertEqual(len(bozulmus(trx_sonu, "          if-no-files-found: error\n")), 1)
+        self.assertEqual(len(mutated(restore, "      - name: Restore the dependencies\n")), 1)
+        self.assertEqual(len(mutated(restore, "      - name: Restore the dependencies\n        id: restor\n")), 1)
+        trx_tail = "          if-no-files-found: error\n          overwrite: true\n"
+        self.assertEqual(len(mutated(trx_tail, "          if-no-files-found: ignore\n          overwrite: true\n")), 1)
+        self.assertEqual(len(mutated(trx_tail, "          if-no-files-found: error\n")), 1)
         self.assertEqual(
-            len(bozulmus("          name: nuget-packages\n", "          name: nuget-packages\n          overwrite: true\n")), 1)
+            len(mutated("          name: nuget-packages\n", "          name: nuget-packages\n          overwrite: true\n")), 1)
         self.assertEqual(
-            len(bozulmus("          name: bin-${{ matrix.os }}\n", "          name: bin-${{ matrix.os }}\n          overwrite: true\n")), 1)
+            len(mutated("          name: bin-${{ matrix.os }}\n", "          name: bin-${{ matrix.os }}\n          overwrite: true\n")), 1)
 
-    def _trx(self, kok: pathlib.Path, proje: str, sonuclar: list[tuple[str, str]], cikti: str = "release") -> None:
-        # MTP 2 `--results-directory-layout per-module`: <proje>/<tfm>_<mimari>/*.trx.
-        # `codeBase` testin kosan ikilisinin yolunu tasir; Windows'ta ters egik cizgiyle gelir.
-        tfm = "net10.0" if cikti == "release" else cikti.removeprefix("release_")
-        dizin = kok / gate.TEST_RESULTS_DIRECTORY / proje / f"{tfm}_arm64"
-        dizin.mkdir(parents=True, exist_ok=True)
-        satirlar = "".join(
-            f'<UnitTestResult testName="{ad}" outcome="{durum}" />' for ad, durum in sonuclar)
-        (dizin / "r.trx").write_text(
+    def _trx(self, root: pathlib.Path, project: str, results: list[tuple[str, str]], output_dir: str = "release") -> None:
+        # MTP 2 `--results-directory-layout per-module`: <project>/<tfm>_<architecture>/*.trx.
+        # `codeBase` carries the path of the binary the test ran from; on Windows it comes with backslashes.
+        tfm = "net10.0" if output_dir == "release" else output_dir.removeprefix("release_")
+        folder = root / gate.TEST_RESULTS_DIRECTORY / project / f"{tfm}_arm64"
+        folder.mkdir(parents=True, exist_ok=True)
+        lines = "".join(
+            f'<UnitTestResult testName="{name}" outcome="{outcome}" />' for name, outcome in results)
+        (folder / "r.trx").write_text(
             '<?xml version="1.0"?><TestRun xmlns='
             '"http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
-            f"<Results>{satirlar}</Results>"
-            f'<TestDefinitions><UnitTest><TestMethod codeBase="C:\\r\\artifacts\\bin\\{proje}\\{cikti}\\{proje}.dll"'
+            f"<Results>{lines}</Results>"
+            f'<TestDefinitions><UnitTest><TestMethod codeBase="C:\\r\\artifacts\\bin\\{project}\\{output_dir}\\{project}.dll"'
             ' className="C" name="M" /></UnitTest></TestDefinitions></TestRun>',
             encoding="utf-8")
 
-    def test_eski_trx_yeri_artik_taranmaz(self):
-        # TRX ikilinin yanindaki TestResults/'a degil `--results-directory`'ye
-        # yazilir. Eski yoldaki bir dosya DUSEN TEST SAYILMAZ - yoksa taranan yer ile
-        # yazilan yer ayrisir ve teshis sessizce bos kalir.
+    def test_old_trx_location_is_no_longer_scanned(self):
+        # The TRX is written to `--results-directory`, not to the TestResults/ next to the binary.
+        # A file at the old path does NOT COUNT AS A FAILED TEST - otherwise the scanned place and
+        # the written place diverge and the diagnosis silently stays empty.
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            eski = kok / "artifacts" / "bin" / "P" / "release" / "TestResults"
-            eski.mkdir(parents=True)
-            (eski / "r.trx").write_text(
+            root = pathlib.Path(directory)
+            old = root / "artifacts" / "bin" / "P" / "release" / "TestResults"
+            old.mkdir(parents=True)
+            (old / "r.trx").write_text(
                 '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>'
-                '<UnitTestResult testName="N.S.Dusen" outcome="Failed" /></Results></TestRun>',
+                '<UnitTestResult testName="N.S.Failing" outcome="Failed" /></Results></TestRun>',
                 encoding="utf-8")
 
-            self.assertEqual(gate.failed_tests_from_trx(0, kok), [])
+            self.assertEqual(gate.failed_tests_from_trx(0, root), [])
 
-    def test_trx_cikti_klasoru_codebase_ten_okunur_yoksa_tek_hedefli_release_varsayilir(self):
-        # `codeBase` olmayan dal testsizdi. Cok hedefli bacak klasorunu TRX soyler;
-        # `codeBase` yoksa tek hedefli projenin `release` klasoru varsayilir.
-        def agac(metot: str):
+    def test_trx_output_folder_is_read_from_codebase_else_single_target_release_is_assumed(self):
+        # The branch without `codeBase` was untested. For a multi-target leg the TRX names the folder;
+        # without `codeBase` the `release` folder of a single-target project is assumed.
+        def tree(method: str):
             return ElementTree.ElementTree(ElementTree.fromstring(
                 '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
-                f"<TestDefinitions><UnitTest>{metot}</UnitTest></TestDefinitions></TestRun>"))
+                f"<TestDefinitions><UnitTest>{method}</UnitTest></TestDefinitions></TestRun>"))
 
         self.assertEqual(
-            gate._trx_output_directory(agac('<TestMethod codeBase="C:\\r\\bin\\P\\release_net10.0\\P.dll" name="M" />')),
+            gate._trx_output_directory(tree('<TestMethod codeBase="C:\\r\\bin\\P\\release_net10.0\\P.dll" name="M" />')),
             "release_net10.0")
         self.assertEqual(
-            gate._trx_output_directory(agac('<TestMethod codeBase="/r/bin/P/release/P.dll" name="M" />')),
+            gate._trx_output_directory(tree('<TestMethod codeBase="/r/bin/P/release/P.dll" name="M" />')),
             "release")
-        self.assertEqual(gate._trx_output_directory(agac('<TestMethod name="M" />')), "release")
-        self.assertEqual(gate._trx_output_directory(agac('<TestMethod codeBase="P.dll" name="M" />')), "release")
+        self.assertEqual(gate._trx_output_directory(tree('<TestMethod name="M" />')), "release")
+        self.assertEqual(gate._trx_output_directory(tree('<TestMethod codeBase="P.dll" name="M" />')), "release")
 
-    def test_sifir_test_koşan_yesil_kosum_kirmizi_sayilir(self):
-        # NEGATIF KONTROL: cikis kodu 0 "test kostu" demek degildir. TRX yoksa
-        # ya da bossa kapi YESIL donmez.
+    def test_green_run_with_zero_tests_counts_as_red(self):
+        # NEGATIVE CHECK: exit code 0 does not mean "tests ran". If there is no TRX
+        # or it is empty, the gate does not return GREEN.
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
+            root = pathlib.Path(directory)
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                self.assertEqual(gate.require_executed_tests(0, kok), gate.ZERO_TESTS_EXIT_CODE)
+                self.assertEqual(gate.require_executed_tests(0, root), gate.ZERO_TESTS_EXIT_CODE)
             self.assertIn("no executed test exists", output.getvalue())
 
-            self._trx(kok, "P", [("N.S.Gecen", "Passed"), ("N.S.Dusen", "Failed")])
-            self._trx(kok, "Q", [("N.S.Gecen", "Passed")], cikti="release_net10.0")
+            self._trx(root, "P", [("N.S.Passing", "Passed"), ("N.S.Failing", "Failed")])
+            self._trx(root, "Q", [("N.S.Passing", "Passed")], output_dir="release_net10.0")
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                self.assertEqual(gate.require_executed_tests(0, kok), 0)
+                self.assertEqual(gate.require_executed_tests(0, root), 0)
             self.assertIn("3 tests, 2 modules", output.getvalue())
 
-    def test_run_commands_cikis_kodu_sifir_ama_test_yoksa_durur(self):
+    def test_run_commands_stops_when_exit_code_is_zero_but_no_tests_ran(self):
         runner = mock.Mock(return_value=mock.Mock(returncode=0))
         with tempfile.TemporaryDirectory() as directory, \
                 mock.patch.object(gate, "executed_tests_from_trx", return_value=(0, 0)), \
@@ -1043,8 +1041,8 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertEqual(result, gate.ZERO_TESTS_EXIT_CODE)
 
-    def test_run_commands_trx_istemeyen_komutu_sifir_test_diye_kirmaz(self):
-        # `dotnet build` ya da tek proje komutu TRX uretmez; kapi onlara sayi sormaz.
+    def test_run_commands_does_not_fail_a_command_that_wants_no_trx_for_zero_tests(self):
+        # `dotnet build` or a single-project command produces no TRX; the gate does not ask them for a count.
         runner = mock.Mock(return_value=mock.Mock(returncode=0))
         with tempfile.TemporaryDirectory() as directory, \
                 mock.patch.object(gate, "executed_tests_from_trx", return_value=(0, 0)), \
@@ -1055,265 +1053,265 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertEqual(result, 0)
 
-    def test_contract_paketi_xunit_alt_sinirini_korur(self):
-        # Iki alt paketin `PackageVersion`'i 4.x'e cikarsa paket
-        # xunit.v3 3.x tuketicisini sessizce zorlar. Kapi nuspec'e bakar.
-        proje = "Tracon.Testing.Contracts.Xunit"
-        iyi = ('<dependency id="xunit.v3.extensibility.core" version="3.2.2" exclude="Build,Analyzers" />'
+    def test_contract_package_keeps_the_xunit_lower_bound(self):
+        # If the `PackageVersion` of the two sub-packages rises to 4.x, the package
+        # silently forces an xunit.v3 3.x consumer. The gate looks at the nuspec.
+        project = "Tracon.Testing.Contracts.Xunit"
+        good = ('<dependency id="xunit.v3.extensibility.core" version="3.2.2" exclude="Build,Analyzers" />'
                '<dependency id="xunit.v3.assert" version="3.2.2" />')
-        self.assertEqual(gate.dependency_floor_errors(proje, iyi + iyi), [])
+        self.assertEqual(gate.dependency_floor_errors(project, good + good), [])
         self.assertEqual(gate.dependency_floor_errors("Tracon.Core", ""), [])
 
-        yukseltilmis = iyi.replace('"xunit.v3.assert" version="3.2.2"', '"xunit.v3.assert" version="4.0.2"')
-        hatalar = gate.dependency_floor_errors(proje, yukseltilmis)
-        self.assertEqual(len(hatalar), 1)
-        self.assertIn("the xunit.v3.assert lower bound is 4.0.2", hatalar[0])
+        raised = good.replace('"xunit.v3.assert" version="3.2.2"', '"xunit.v3.assert" version="4.0.2"')
+        errors = gate.dependency_floor_errors(project, raised)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("the xunit.v3.assert lower bound is 4.0.2", errors[0])
 
-        eksik = gate.dependency_floor_errors(proje, '<dependency id="xunit.v3.assert" version="3.2.2" />')
-        self.assertEqual(len(eksik), 1)
-        self.assertIn("the xunit.v3.extensibility.core dependency is missing from the nuspec", eksik[0])
+        missing = gate.dependency_floor_errors(project, '<dependency id="xunit.v3.assert" version="3.2.2" />')
+        self.assertEqual(len(missing), 1)
+        self.assertIn("the xunit.v3.extensibility.core dependency is missing from the nuspec", missing[0])
 
-    def test_depodaki_xunit_alt_siniri_props_ile_ayni(self):
+    def test_repo_xunit_lower_bound_matches_the_props_file(self):
         props = (ROOT / "Directory.Packages.props").read_text(encoding="utf-8")
-        for paket, alt_sinir in gate.SHIPPED_DEPENDENCY_FLOORS["Tracon.Testing.Contracts.Xunit"].items():
-            self.assertIn(f'<PackageVersion Include="{paket}" Version="{alt_sinir}" />', props)
+        for package, lower_bound in gate.SHIPPED_DEPENDENCY_FLOORS["Tracon.Testing.Contracts.Xunit"].items():
+            self.assertIn(f'<PackageVersion Include="{package}" Version="{lower_bound}" />', props)
 
-    def test_tek_proje_komutu_project_bayragini_kullanir(self):
+    def test_single_project_command_uses_the_project_flag(self):
         self.assertEqual(
             gate._dotnet_test_project("P").args,
             ("dotnet", "test", "--project", "tests/P/P.csproj", "-c", "Release", "--no-build"))
 
-    def test_trx_yalniz_dusen_testi_verir(self):
+    def test_trx_yields_only_the_failed_test(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._trx(kok, "Tracon.Ui.E2ETests", [
-                ("Tracon.Ui.E2ETests.UiTests.Gecen", "Passed"),
-                ("Tracon.Ui.E2ETests.UiTests.Dusen", "Failed"),
-                ("Tracon.Ui.E2ETests.UiTests.Atlanan", "NotExecuted"),
+            root = pathlib.Path(directory)
+            self._trx(root, "Tracon.Ui.E2ETests", [
+                ("Tracon.Ui.E2ETests.UiTests.Passing", "Passed"),
+                ("Tracon.Ui.E2ETests.UiTests.Failing", "Failed"),
+                ("Tracon.Ui.E2ETests.UiTests.Skipped", "NotExecuted"),
             ])
 
-            dusenler = gate.failed_tests_from_trx(0, kok)
+            failed = gate.failed_tests_from_trx(0, root)
 
         self.assertEqual(
-            dusenler, [gate.FailedTest("Tracon.Ui.E2ETests", "release", "Tracon.Ui.E2ETests.UiTests.Dusen")])
+            failed, [gate.FailedTest("Tracon.Ui.E2ETests", "release", "Tracon.Ui.E2ETests.UiTests.Failing")])
 
-    def test_coklu_tfm_trx_i_bacagiyla_bulunur(self):
-        # Yalniz release/ taransaydi net11.0 bacaginda dusen test
-        # hic raporlanmaz, izole kosum da tetiklenmezdi.
+    def test_multi_tfm_trx_is_found_with_its_leg(self):
+        # Had only release/ been scanned, a test failing on the net11.0 leg
+        # would never be reported and the isolated run would not trigger either.
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._trx(kok, "Tracon.Core.UnitTests", [("N.S.Dusen", "Failed")], cikti="release_net11.0")
-            self._trx(kok, "Tracon.Core.UnitTests", [("N.S.Dusen", "Passed")], cikti="release_net10.0")
+            root = pathlib.Path(directory)
+            self._trx(root, "Tracon.Core.UnitTests", [("N.S.Failing", "Failed")], output_dir="release_net11.0")
+            self._trx(root, "Tracon.Core.UnitTests", [("N.S.Failing", "Passed")], output_dir="release_net10.0")
 
-            dusenler = gate.failed_tests_from_trx(0, kok)
+            failed = gate.failed_tests_from_trx(0, root)
 
-        self.assertEqual(dusenler, [gate.FailedTest("Tracon.Core.UnitTests", "release_net11.0", "N.S.Dusen")])
-        self.assertEqual(dusenler[0].label, "Tracon.Core.UnitTests (net11.0)")
+        self.assertEqual(failed, [gate.FailedTest("Tracon.Core.UnitTests", "release_net11.0", "N.S.Failing")])
+        self.assertEqual(failed[0].label, "Tracon.Core.UnitTests (net11.0)")
 
-    def test_bayat_trx_sayilmaz(self):
-        # Onceki kosumun TRX'i bu kosumun dusen testi degildir.
+    def test_stale_trx_is_not_counted(self):
+        # The TRX of the previous run is not a failed test of this run.
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._trx(kok, "Tracon.Core.UnitTests", [("X.Y.Eski", "Failed")])
+            root = pathlib.Path(directory)
+            self._trx(root, "Tracon.Core.UnitTests", [("X.Y.Old", "Failed")])
 
-            self.assertEqual(gate.failed_tests_from_trx(time.time() + 60, kok), [])
+            self.assertEqual(gate.failed_tests_from_trx(time.time() + 60, root), [])
 
-    def test_izole_kosum_cikis_kodunu_degistirmez_ama_hukum_verir(self):
-        # SINIF: "tam kosumda duser, izole gecer" YEDI kez kayda gecti ve her
-        # seferinde ayirt etme elle yapildi (cogu kez TAM paketi ikinci kez
-        # kosarak, ~9 dk). Kapi GEVSEMEZ: bu yalnizca bir sonraki adimi soyler.
+    def test_isolated_run_keeps_the_exit_code_but_gives_a_verdict(self):
+        # CLASS: "fails in the full run, passes in isolation" was recorded SEVEN times and each
+        # time the distinction was made by hand (usually by running the FULL suite a second time,
+        # ~9 min). The gate does NOT loosen: this only names the next step.
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            ikili = kok / "artifacts" / "bin" / "P" / "release"
-            ikili.mkdir(parents=True)
-            (ikili / "P").write_text("", encoding="utf-8")
+            root = pathlib.Path(directory)
+            binary = root / "artifacts" / "bin" / "P" / "release"
+            binary.mkdir(parents=True)
+            (binary / "P").write_text("", encoding="utf-8")
             runner = mock.Mock(return_value=mock.Mock(returncode=0))
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                hukumler = gate.isolate_failed_tests(
-                    [gate.FailedTest("P", "release", "N.S.Dusen")], runner=runner, root=kok)
+                verdicts = gate.isolate_failed_tests(
+                    [gate.FailedTest("P", "release", "N.S.Failing")], runner=runner, root=root)
 
-        self.assertEqual(hukumler, [("P", "N.S.Dusen", True)])
+        self.assertEqual(verdicts, [("P", "N.S.Failing", True)])
         self.assertIn("--filter-method", runner.call_args.args[0])
-        self.assertIn("*Dusen*", runner.call_args.args[0])
+        self.assertIn("*Failing*", runner.call_args.args[0])
         self.assertIn("PASSED in isolation", output.getvalue())
         self.assertIn("do not rerun the suite", output.getvalue())
         self.assertIn("root cause", output.getvalue())
         self.assertIn("product race", output.getvalue())
         self.assertNotIn("RERUN", output.getvalue())
 
-    def _sureli_trx(self, kok: pathlib.Path, proje: str, sonuclar: list[tuple[str, str]]) -> None:
-        dizin = kok / gate.TEST_RESULTS_DIRECTORY / proje / "net10.0_arm64"
-        dizin.mkdir(parents=True)
-        satirlar = "".join(
-            f'<UnitTestResult testName="{ad}" duration="{sure}" outcome="Passed" />' for ad, sure in sonuclar)
-        (dizin / "sonuc.trx").write_text(
+    def _trx_with_durations(self, root: pathlib.Path, project: str, results: list[tuple[str, str]]) -> None:
+        folder = root / gate.TEST_RESULTS_DIRECTORY / project / "net10.0_arm64"
+        folder.mkdir(parents=True)
+        lines = "".join(
+            f'<UnitTestResult testName="{name}" duration="{duration}" outcome="Passed" />' for name, duration in results)
+        (folder / "result.trx").write_text(
             '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
-            f"<Results>{satirlar}</Results></TestRun>",
+            f"<Results>{lines}</Results></TestRun>",
             encoding="utf-8")
 
-    def test_sure_kaydi_test_basina_milisaniye_yazar(self):
+    def test_duration_record_writes_milliseconds_per_test(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._sureli_trx(kok, "P", [("N.S.A", "00:00:01.5000000"), ("N.S.B", "00:01:00.0100000")])
+            root = pathlib.Path(directory)
+            self._trx_with_durations(root, "P", [("N.S.A", "00:00:01.5000000"), ("N.S.B", "00:01:00.0100000")])
 
             with contextlib.redirect_stdout(io.StringIO()):
-                yol = gate.record_test_durations(0.0, root=kok)
+                path = gate.record_test_durations(0.0, root=root)
 
-            with gzip.open(yol, "rt", encoding="utf-8") as dosya:
-                kayit = json.load(dosya)
+            with gzip.open(path, "rt", encoding="utf-8") as file:
+                record = json.load(file)
 
-        self.assertEqual(kayit["modules"], {"P/net10.0_arm64": {"N.S.A": 1500, "N.S.B": 60010}})
+        self.assertEqual(record["modules"], {"P/net10.0_arm64": {"N.S.A": 1500, "N.S.B": 60010}})
 
-    def test_sure_kaydi_ayni_adli_testin_en_uzununu_tutar(self):
+    def test_duration_record_keeps_the_longest_of_same_named_tests(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.1000000"), ("N.S.A", "00:00:00.3000000")])
+            root = pathlib.Path(directory)
+            self._trx_with_durations(root, "P", [("N.S.A", "00:00:00.1000000"), ("N.S.A", "00:00:00.3000000")])
 
             with contextlib.redirect_stdout(io.StringIO()):
-                yol = gate.record_test_durations(0.0, root=kok)
+                path = gate.record_test_durations(0.0, root=root)
 
-            with gzip.open(yol, "rt", encoding="utf-8") as dosya:
-                kayit = json.load(dosya)
+            with gzip.open(path, "rt", encoding="utf-8") as file:
+                record = json.load(file)
 
-        self.assertEqual(kayit["modules"]["P/net10.0_arm64"], {"N.S.A": 300})
+        self.assertEqual(record["modules"]["P/net10.0_arm64"], {"N.S.A": 300})
 
-    def test_sure_kaydi_trx_yoksa_dosya_yazmaz(self):
+    def test_duration_record_without_trx_writes_no_file(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
+            root = pathlib.Path(directory)
 
-            self.assertIsNone(gate.record_test_durations(0.0, root=kok))
-            self.assertFalse((kok / gate.TEST_DURATIONS_DIRECTORY).exists())
+            self.assertIsNone(gate.record_test_durations(0.0, root=root))
+            self.assertFalse((root / gate.TEST_DURATIONS_DIRECTORY).exists())
 
-    def test_sure_kaydi_cozulemeyen_sureyi_atlar(self):
+    def test_duration_record_skips_an_unparseable_duration(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._sureli_trx(kok, "P", [("N.S.A", "bozuk"), ("N.S.B", "00:00:00.0020000")])
+            root = pathlib.Path(directory)
+            self._trx_with_durations(root, "P", [("N.S.A", "garbled"), ("N.S.B", "00:00:00.0020000")])
 
             with contextlib.redirect_stdout(io.StringIO()):
-                yol = gate.record_test_durations(0.0, root=kok)
+                path = gate.record_test_durations(0.0, root=root)
 
-            with gzip.open(yol, "rt", encoding="utf-8") as dosya:
-                kayit = json.load(dosya)
+            with gzip.open(path, "rt", encoding="utf-8") as file:
+                record = json.load(file)
 
-        self.assertEqual(kayit["modules"]["P/net10.0_arm64"], {"N.S.B": 2})
+        self.assertEqual(record["modules"]["P/net10.0_arm64"], {"N.S.B": 2})
 
-    def test_sure_kaydi_bozuk_trx_ile_kapiyi_kirmaz(self):
+    def test_duration_record_does_not_break_the_gate_on_a_malformed_trx(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            dizin = kok / gate.TEST_RESULTS_DIRECTORY / "P" / "net10.0_arm64"
-            dizin.mkdir(parents=True)
-            (dizin / "sonuc.trx").write_text("<TestRun", encoding="utf-8")
+            root = pathlib.Path(directory)
+            folder = root / gate.TEST_RESULTS_DIRECTORY / "P" / "net10.0_arm64"
+            folder.mkdir(parents=True)
+            (folder / "result.trx").write_text("<TestRun", encoding="utf-8")
 
-            self.assertIsNone(gate.record_test_durations(0.0, root=kok))
+            self.assertIsNone(gate.record_test_durations(0.0, root=root))
 
-    def test_sure_kaydi_bos_trx_ile_kapiyi_kirmaz(self):
+    def test_duration_record_does_not_break_the_gate_on_an_empty_trx(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._sureli_trx(kok, "P", [])
+            root = pathlib.Path(directory)
+            self._trx_with_durations(root, "P", [])
 
             with contextlib.redirect_stdout(io.StringIO()):
-                yol = gate.record_test_durations(0.0, root=kok)
+                path = gate.record_test_durations(0.0, root=root)
 
-            with gzip.open(yol, "rt", encoding="utf-8") as dosya:
-                kayit = json.load(dosya)
+            with gzip.open(path, "rt", encoding="utf-8") as file:
+                record = json.load(file)
 
-        self.assertEqual(kayit["modules"], {"P/net10.0_arm64": {}})
+        self.assertEqual(record["modules"], {"P/net10.0_arm64": {}})
 
-    def test_sure_kaydi_yazilamazsa_uyarir_ve_kapiyi_kirmaz(self):
+    def test_duration_record_warns_when_unwritable_and_does_not_break_the_gate(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.0010000")])
+            root = pathlib.Path(directory)
+            self._trx_with_durations(root, "P", [("N.S.A", "00:00:00.0010000")])
 
-            with mock.patch.object(gate.gzip, "open", side_effect=OSError("disk dolu")), \
+            with mock.patch.object(gate.gzip, "open", side_effect=OSError("disk full")), \
                     contextlib.redirect_stdout(io.StringIO()) as output:
-                self.assertIsNone(gate.record_test_durations(0.0, root=kok))
+                self.assertIsNone(gate.record_test_durations(0.0, root=root))
 
         self.assertIn("could not be written", output.getvalue())
 
-    def test_sure_kaydi_eski_dosyalari_siler(self):
+    def test_duration_record_deletes_old_files(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.0010000")])
-            kayitlar = kok / gate.TEST_DURATIONS_DIRECTORY
-            kayitlar.mkdir(parents=True)
-            for sira in range(gate.TEST_DURATIONS_KEEP + 3):
-                (kayitlar / f"20000101T0000{sira:02d}Z.json.gz").write_bytes(b"")
+            root = pathlib.Path(directory)
+            self._trx_with_durations(root, "P", [("N.S.A", "00:00:00.0010000")])
+            records = root / gate.TEST_DURATIONS_DIRECTORY
+            records.mkdir(parents=True)
+            for order in range(gate.TEST_DURATIONS_KEEP + 3):
+                (records / f"20000101T0000{order:02d}Z.json.gz").write_bytes(b"")
 
             with contextlib.redirect_stdout(io.StringIO()):
-                gate.record_test_durations(0.0, root=kok)
+                gate.record_test_durations(0.0, root=root)
 
-            kalan = sorted(path.name for path in kayitlar.glob("*.json.gz"))
+            remaining = sorted(path.name for path in records.glob("*.json.gz"))
 
-        self.assertEqual(len(kalan), gate.TEST_DURATIONS_KEEP)
-        self.assertNotIn("20000101T000000Z.json.gz", kalan)
+        self.assertEqual(len(remaining), gate.TEST_DURATIONS_KEEP)
+        self.assertNotIn("20000101T000000Z.json.gz", remaining)
 
-    def _zamanli_trx(self, kok: pathlib.Path, proje: str, baslangic: str, bitis: str) -> None:
-        dizin = kok / gate.TEST_RESULTS_DIRECTORY / proje / "net10.0_arm64"
-        dizin.mkdir(parents=True)
-        (dizin / "sonuc.trx").write_text(
+    def _trx_with_times(self, root: pathlib.Path, project: str, start: str, finish: str) -> None:
+        folder = root / gate.TEST_RESULTS_DIRECTORY / project / "net10.0_arm64"
+        folder.mkdir(parents=True)
+        (folder / "result.trx").write_text(
             '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
-            f'<Times creation="{baslangic}" queuing="{baslangic}" start="{baslangic}" finish="{bitis}" />'
+            f'<Times creation="{start}" queuing="{start}" start="{start}" finish="{finish}" />'
             '<Results><UnitTestResult testName="N.S.A" duration="00:00:01" outcome="Passed" /></Results></TestRun>',
             encoding="utf-8")
 
-    def test_modul_suresi_siniri_asarsa_kapi_kirmizi(self):
+    def test_gate_is_red_when_a_module_exceeds_its_time_limit(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._zamanli_trx(kok, "P", "2026-11-09T11:03:40.3574990Z", "2026-11-09T11:12:25.866393Z")
+            root = pathlib.Path(directory)
+            self._trx_with_times(root, "P", "2026-11-09T11:03:40.3574990Z", "2026-11-09T11:12:25.866393Z")
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"P": 500})
+                code = gate.enforce_module_time_limits(0.0, root=root, limits={"P": 500})
 
-        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
         self.assertIn("P/net10.0_arm64 526 s > 500 s", output.getvalue())
         self.assertIn("measure", output.getvalue())
 
-    def test_modul_suresi_sinirin_altindaysa_yesil_ve_basilir(self):
+    def test_module_under_its_time_limit_is_green_and_printed(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._zamanli_trx(kok, "P", "2026-11-09T11:00:00Z", "2026-11-09T11:03:59.9Z")
+            root = pathlib.Path(directory)
+            self._trx_with_times(root, "P", "2026-11-09T11:00:00Z", "2026-11-09T11:03:59.9Z")
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"P": 240})
+                code = gate.enforce_module_time_limits(0.0, root=root, limits={"P": 240})
 
-        self.assertEqual(kod, 0)
+        self.assertEqual(code, 0)
         self.assertIn("P/net10.0_arm64: 240 s · limit 240 s · left 0 s (0%)", output.getvalue())
 
-    def test_siniri_olmayan_modul_kapiyi_kirmaz_ama_suresi_raporlanir(self):
+    def test_module_without_a_limit_does_not_break_the_gate_but_its_time_is_reported(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._zamanli_trx(kok, "Q", "2026-11-09T11:00:00Z", "2026-11-09T13:00:00Z")
+            root = pathlib.Path(directory)
+            self._trx_with_times(root, "Q", "2026-11-09T11:00:00Z", "2026-11-09T13:00:00Z")
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"P": 1})
+                code = gate.enforce_module_time_limits(0.0, root=root, limits={"P": 1})
 
-        self.assertEqual(kod, 0)
+        self.assertEqual(code, 0)
         self.assertIn("Q/net10.0_arm64: 7200 s · no limit", output.getvalue())
 
-    def test_suresi_okunamayan_trx_uyarir_ve_kapiyi_kirmaz(self):
+    def test_trx_with_an_unreadable_duration_warns_and_does_not_break_the_gate(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._sureli_trx(kok, "P", [("N.S.A", "00:00:01")])
+            root = pathlib.Path(directory)
+            self._trx_with_durations(root, "P", [("N.S.A", "00:00:01")])
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"P": 1})
+                code = gate.enforce_module_time_limits(0.0, root=root, limits={"P": 1})
 
-        self.assertEqual(kod, 0)
+        self.assertEqual(code, 0)
         self.assertIn("could not be read", output.getvalue())
 
-    def test_trx_zaman_damgasi_yedi_haneli_kesri_ve_saat_dilimini_okur(self):
+    def test_trx_timestamp_reads_a_seven_digit_fraction_and_the_time_zone(self):
         self.assertAlmostEqual(
             gate._trx_instant("2026-11-09T11:00:01.1234567+01:00") - gate._trx_instant("2026-11-09T10:00:00Z"),
             1.123456, places=5)
-        self.assertIsNone(gate._trx_instant("dun"))
+        self.assertIsNone(gate._trx_instant("yesterday"))
         self.assertIsNone(gate._trx_instant(None))
 
-    def test_modul_sure_butceleri_yalniz_duser_ve_gercek_modullere_aittir(self):
-        # Butceler yalniz duser; bu test bugunku degerleri sabitler ki bir
-        # yukseltme ya da butcenin silinmesi gozden kacmasin (gate.py yorumundaki kural).
-        # Yeni giris eklemek bu tabloya da satir eklemektir; mevcut satir yalniz kucultulebilir.
-        sabit = {
+    def test_module_time_budgets_only_fall_and_belong_to_real_modules(self):
+        # Budgets only fall; this test pins today's values so that a raise
+        # or a deletion of a budget cannot go unnoticed (the rule stated in the gate.py comment).
+        # Adding a new entry means adding a row to this table too; an existing row can only be lowered.
+        pinned = {
             "Tracon.SqlServer.IntegrationTests": 400,
             "Tracon.TwoNode.IntegrationTests": 540,
             "Tracon.Ui.E2ETests": 40,
@@ -1325,99 +1323,99 @@ class KapiTestleri(unittest.TestCase):
             "Tracon.Generators.UnitTests": 30,
             "Tracon.Sqlite.IntegrationTests": 90,
         }
-        butceler = gate.TEST_MODULE_TIME_LIMITS_SECONDS
+        budgets = gate.TEST_MODULE_TIME_LIMITS_SECONDS
 
-        for modul, sinir in sabit.items():
-            with self.subTest(modul=modul):
-                self.assertIn(modul, butceler, "butce silinemez")
-                self.assertLessEqual(butceler[modul], sinir, "butce yukseltilemez")
-        moduller = set(_slnx_test_modulleri())
-        self.assertEqual(sorted(set(butceler) - moduller), [], "butce bir test modulune ait olmali")
-        self.assertTrue(all(isinstance(sinir, int) and sinir > 0 for sinir in butceler.values()))
+        for module, limit in pinned.items():
+            with self.subTest(module=module):
+                self.assertIn(module, budgets, "a budget cannot be deleted")
+                self.assertLessEqual(budgets[module], limit, "a budget cannot be raised")
+        modules = set(_slnx_test_modules())
+        self.assertEqual(sorted(set(budgets) - modules), [], "a budget must belong to a test module")
+        self.assertTrue(all(isinstance(limit, int) and limit > 0 for limit in budgets.values()))
 
-    def test_yesil_tam_kosum_sure_sinirini_denetler(self):
-        komut = gate.full_solution_test_command()
+    def test_green_full_run_enforces_the_time_limit(self):
+        command = gate.full_solution_test_command()
         with mock.patch.object(gate, "require_executed_tests", return_value=0), \
-                mock.patch.object(gate, "enforce_module_time_limits", return_value=gate.MODULE_TIME_LIMIT_EXIT_CODE) as sinir, \
+                mock.patch.object(gate, "enforce_module_time_limits", return_value=gate.MODULE_TIME_LIMIT_EXIT_CODE) as limit, \
                 mock.patch.object(gate, "record_test_durations"), \
                 mock.patch.object(gate, "isolate_failed_tests", return_value=[]), \
                 mock.patch.object(gate, "failed_tests_from_trx", return_value=[]), \
                 mock.patch.object(gate, "_record_measurement"), \
                 contextlib.redirect_stdout(io.StringIO()):
-            kod = gate.run_commands("test", [komut], runner=mock.Mock(return_value=mock.Mock(returncode=0)))
+            code = gate.run_commands("test", [command], runner=mock.Mock(return_value=mock.Mock(returncode=0)))
 
-        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
-        sinir.assert_called_once()
+        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        limit.assert_called_once()
 
-    def _sure_sinirli_kosum(self, komut, *, cikis):
+    def _time_limited_run(self, command, *, exit_code):
         with mock.patch.object(gate, "require_executed_tests", return_value=0), \
-                mock.patch.object(gate, "enforce_module_time_limits", return_value=gate.MODULE_TIME_LIMIT_EXIT_CODE) as sinir, \
+                mock.patch.object(gate, "enforce_module_time_limits", return_value=gate.MODULE_TIME_LIMIT_EXIT_CODE) as limit, \
                 mock.patch.object(gate, "record_test_durations"), \
                 mock.patch.object(gate, "isolate_failed_tests", return_value=[]), \
                 mock.patch.object(gate, "failed_tests_from_trx", return_value=[]), \
                 mock.patch.object(gate, "_record_measurement"), \
                 contextlib.redirect_stdout(io.StringIO()):
-            kod = gate.run_commands("test", [komut], runner=mock.Mock(return_value=mock.Mock(returncode=cikis)))
-        return kod, sinir
+            code = gate.run_commands("test", [command], runner=mock.Mock(return_value=mock.Mock(returncode=exit_code)))
+        return code, limit
 
-    def test_kirmizi_tam_kosum_cikis_kodunu_korur_ve_sure_sinirini_denetlemez(self):
-        # Dusen bir test sure siniri kodu 9 ile ezilmemeli: kirmizinin sebebi test.
-        kod, sinir = self._sure_sinirli_kosum(gate.full_solution_test_command(), cikis=2)
+    def test_red_full_run_keeps_its_exit_code_and_does_not_enforce_the_time_limit(self):
+        # A failing test must not be overridden by the time-limit code 9: the reason for the red is the test.
+        code, limit = self._time_limited_run(gate.full_solution_test_command(), exit_code=2)
 
-        self.assertEqual(kod, 2)
-        sinir.assert_not_called()
+        self.assertEqual(code, 2)
+        limit.assert_not_called()
 
-    def test_trx_istemeyen_dotnet_test_sure_sinirini_denetlemez(self):
-        komut = gate.Command(("dotnet", "test", "--project", "P.csproj"))
-        self.assertFalse(gate.reports_trx(komut))
+    def test_dotnet_test_that_wants_no_trx_does_not_enforce_the_time_limit(self):
+        command = gate.Command(("dotnet", "test", "--project", "P.csproj"))
+        self.assertFalse(gate.reports_trx(command))
 
-        kod, sinir = self._sure_sinirli_kosum(komut, cikis=0)
+        code, limit = self._time_limited_run(command, exit_code=0)
 
-        self.assertEqual(kod, 0)
-        sinir.assert_not_called()
+        self.assertEqual(code, 0)
+        limit.assert_not_called()
 
-    def test_izole_kosum_dusen_bacagin_ikilisini_kosar(self):
+    def test_isolated_run_executes_the_binary_of_the_failing_leg(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            for cikti in ("release_net10.0", "release_net11.0"):
-                ikili = kok / "artifacts" / "bin" / "P" / cikti
-                ikili.mkdir(parents=True)
-                (ikili / "P").write_text("", encoding="utf-8")
+            root = pathlib.Path(directory)
+            for output_dir in ("release_net10.0", "release_net11.0"):
+                binary = root / "artifacts" / "bin" / "P" / output_dir
+                binary.mkdir(parents=True)
+                (binary / "P").write_text("", encoding="utf-8")
             runner = mock.Mock(return_value=mock.Mock(returncode=1))
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                hukumler = gate.isolate_failed_tests(
-                    [gate.FailedTest("P", "release_net11.0", "N.S.Dusen")], runner=runner, root=kok)
+                verdicts = gate.isolate_failed_tests(
+                    [gate.FailedTest("P", "release_net11.0", "N.S.Failing")], runner=runner, root=root)
 
         self.assertEqual(pathlib.PurePath(runner.call_args.args[0][0]).parts[-2], "release_net11.0")
-        self.assertEqual(hukumler, [("P (net11.0)", "N.S.Dusen", False)])
-        self.assertIn("P (net11.0) · N.S.Dusen", output.getvalue())
+        self.assertEqual(verdicts, [("P (net11.0)", "N.S.Failing", False)])
+        self.assertIn("P (net11.0) · N.S.Failing", output.getvalue())
 
-    def test_izole_de_dusen_test_gercek_regresyondur(self):
+    def test_test_failing_in_isolation_too_is_a_real_regression(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            ikili = kok / "artifacts" / "bin" / "P" / "release"
-            ikili.mkdir(parents=True)
-            (ikili / "P").write_text("", encoding="utf-8")
+            root = pathlib.Path(directory)
+            binary = root / "artifacts" / "bin" / "P" / "release"
+            binary.mkdir(parents=True)
+            (binary / "P").write_text("", encoding="utf-8")
             runner = mock.Mock(return_value=mock.Mock(returncode=1))
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                hukumler = gate.isolate_failed_tests(
-                    [gate.FailedTest("P", "release", "N.S.Dusen")], runner=runner, root=kok)
+                verdicts = gate.isolate_failed_tests(
+                    [gate.FailedTest("P", "release", "N.S.Failing")], runner=runner, root=root)
 
-        self.assertEqual(hukumler, [("P", "N.S.Dusen", False)])
+        self.assertEqual(verdicts, [("P", "N.S.Failing", False)])
         self.assertIn("REAL regression", output.getvalue())
 
-    def test_frontend_degisikligi_ic_dongude_frontendi_acar(self):
+    def test_frontend_change_opens_the_frontend_in_the_inner_loop(self):
         self.assertTrue(gate.frontend_changed(["src/Tracon.UI/frontend/src/app.tsx"]))
         self.assertFalse(gate.frontend_changed(["src/Tracon.Core/Thing.cs"]))
 
-    def test_e2e_kosan_ic_dongu_arayuzlu_derler(self):
-        # Haritası eksik bir yol iç döngüyü tam
-        # koşuma genişletti ama derleme `-p:TraconFrontendEnabled=false` ile
-        # kaldı; gömülü varlık olmadan E2E'nin tamamı düştü ve gerçek bir
-        # regresyon o gürültünün içinde kayboldu. E2E'yi seçen her yol (tam
-        # koşum ya da E2E projesinin kendisi) arayüzlü derlemelidir.
+    def test_inner_loop_that_runs_e2e_builds_with_the_ui(self):
+        # A path missing from the map widened the inner loop to a full
+        # run, but the build stayed on `-p:TraconFrontendEnabled=false`;
+        # without the embedded assets all of E2E failed and a real
+        # regression was lost in that noise. Every path that selects E2E (a full
+        # run or the E2E project itself) must build with the UI.
         for path in ("src/Unknown.Package/Thing.cs",
                      "tests/Shared/Infrastructure/ProcessRunner.cs",
                      "tests/Tracon.Ui.E2ETests/RunsPageTests.cs"):
@@ -1427,15 +1425,15 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(build.args[:2], ("dotnet", "build"), path)
             self.assertNotIn("-p:TraconFrontendEnabled=false", build.args, path)
 
-    def test_e2e_kosmayan_ic_dongu_arayuzsuz_derler(self):
+    def test_inner_loop_that_skips_e2e_builds_without_the_ui(self):
         build = gate.inner_loop_commands(["src/Tracon.Core/Thing.cs"])[0]
 
         self.assertIn("-p:TraconFrontendEnabled=false", build.args)
 
-    def test_ic_dongu_tabani_commit_edilen_isi_de_gorur(self):
-        # Iş commit edildikten sonra `inner-loop` HEAD'e karşı hiçbir şey
-        # görmüyor, yalnız build koşup "yeşil" diyordu (iki derlenmeyen
-        # <example> bu yüzden bir commit boyunca görünmedi). `--base` aralığı verir.
+    def test_inner_loop_base_also_sees_committed_work(self):
+        # Once the work was committed, `inner-loop` saw nothing against HEAD,
+        # ran only the build and said "green" (two non-compiling
+        # <example> blocks stayed invisible for one commit because of this). `--base` supplies the range.
         with mock.patch.object(gate, "changed_paths", return_value=["src/Tracon.Core/Thing.cs"]) as paths, \
                 contextlib.redirect_stdout(io.StringIO()):
             code = gate.main(["--print-commands", "inner-loop", "--base", "abc123"])
@@ -1443,21 +1441,21 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(code, 0)
         paths.assert_called_once_with("abc123")
 
-    def test_ic_dongu_bos_degisiklikte_tabani_hatirlatir(self):
+    def test_inner_loop_with_no_changes_reminds_about_the_base(self):
         with mock.patch.object(gate, "changed_paths", return_value=[]), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             gate.main(["--print-commands", "inner-loop"])
 
         self.assertIn("--base", output.getvalue())
 
-    def test_kapanis_komutlari_dort_net_kapisini_tasir(self):
+    def test_closing_commands_carry_the_four_net_gates(self):
         commands = gate.closing_commands("abc123", site=False)
         rendered = [command.display for command in commands]
 
         self.assertIn("dotnet build Tracon.slnx -c Release", rendered)
-        # Tam test koşumu tek `--solution Tracon.slnx` komutu değil, aşamalıdır (AsamaliTestKosumuTestleri).
-        for asama in gate.staged_test_commands():
-            self.assertIn(asama.display, rendered)
+        # The full test run is not a single `--solution Tracon.slnx` command; it is staged (StagedTestRunTests).
+        for stage in gate.staged_test_commands():
+            self.assertIn(stage.display, rendered)
         self.assertNotIn(gate.full_solution_test_command().display, rendered)
         # TraconSkipCleanWorkingTreeCheck: this pack validates the
         # packaging CONTRACT during iteration, not a release candidate - it must
@@ -1467,52 +1465,52 @@ class KapiTestleri(unittest.TestCase):
             rendered)
         self.assertIn("dotnet format Tracon.slnx --verify-no-changes", rendered)
 
-    def test_kapanis_uretimle_baslar_ve_tam_testle_biter(self):
-        # Ekim 2026: 42 kırmızı kapanışın 11'i bayat agent haritasında, 11'i
-        # testlerden SONRA koşan bir adımda düştü. Üretim ilk, en pahalı adım son.
+    def test_closing_starts_with_generation_and_ends_with_the_full_tests(self):
+        # October 2026: of 42 red closings, 11 failed on a stale agent map and 11 on a step
+        # that ran AFTER the tests. Generation goes first, the most expensive step last.
         rendered = [c.display for c in gate.closing_commands("abc123", site=True, performance=True)]
-        uretim = [c.display for c in gate.generation_commands()]
+        generation = [c.display for c in gate.generation_commands()]
 
-        self.assertEqual(rendered[:len(uretim)], uretim)
-        # Testler en sonda ve bitişik: aşamalı koşumun her komutu `dotnet test`, başka hiçbir adım değil.
-        testler = [c.display for c in gate.staged_test_commands()]
-        self.assertEqual(rendered[-len(testler):], testler)
-        self.assertEqual(sum(1 for c in rendered if c.startswith("dotnet test")), len(testler))
-        test_sirasi = len(rendered) - len(testler)
-        for ucuz in (
+        self.assertEqual(rendered[:len(generation)], generation)
+        # The tests come last and contiguous: every command of the staged run is `dotnet test`, no other step.
+        tests = [c.display for c in gate.staged_test_commands()]
+        self.assertEqual(rendered[-len(tests):], tests)
+        self.assertEqual(sum(1 for c in rendered if c.startswith("dotnet test")), len(tests))
+        tests_start = len(rendered) - len(tests)
+        for cheap in (
             "dotnet format Tracon.slnx --verify-no-changes",
             "dotnet pack Tracon.slnx -c Release --no-build -p:TraconSkipCleanWorkingTreeCheck=true",
             "(cd docs-site && npm run check)",
             "python3 scripts/gate.py perf",
         ):
-            self.assertLess(rendered.index(ucuz), test_sirasi, ucuz)
-        # DocFX derlemenin yazdığı XML dokümanını okur: site kapısı derlemeden sonra.
+            self.assertLess(rendered.index(cheap), tests_start, cheap)
+        # DocFX reads the XML documentation the build writes: the site gate comes after the build.
         self.assertLess(rendered.index("dotnet build Tracon.slnx -c Release"),
                         rendered.index("(cd docs-site && npm run check)"))
-        # Site (~35 sn, geç kırmızıların 6/11'i) format'tan (~2 dk) önce.
+        # The site (~35 s, 6 of 11 late reds) comes before format (~2 min).
         self.assertLess(rendered.index("(cd docs-site && npm run check)"),
                         rendered.index("dotnet format Tracon.slnx --verify-no-changes"))
 
-    def test_kapanis_restore_u_zorlar_ve_derlemeden_once_kosar(self):
-        # önbellekli restore yeni yayımlanan güvenlik uyarısını görmez
-        # (`NU1902`/`NU1903` yalnız soğuk ya da zorlanmış restore'da çıkar). Kapanış
-        # sıfır uyarıyı ancak denetimi gerçekten koşturursa kanıtlar.
+    def test_closing_forces_restore_and_runs_it_before_the_build(self):
+        # A cached restore does not see a newly published security advisory
+        # (`NU1902`/`NU1903` appear only on a cold or forced restore). The closing
+        # proves zero warnings only if it really runs the audit.
         rendered = [c.display for c in gate.closing_commands("abc123", site=False)]
 
         self.assertIn("dotnet restore Tracon.slnx --force", rendered)
         self.assertLess(rendered.index("dotnet restore Tracon.slnx --force"),
                         rendered.index("dotnet build Tracon.slnx -c Release"))
 
-    def test_kapanis_agent_haritasini_uretir_denetlemez(self):
-        # Yerelde üretim denetimi gereksiz kılar; `--check` CI'da kalır (ci.yml).
+    def test_closing_generates_the_agent_map_without_checking_it(self):
+        # Generating locally makes the check redundant; `--check` stays in CI (ci.yml).
         rendered = [c.display for c in gate.closing_commands("abc123", site=False)]
 
         self.assertIn("node docs-site/scripts/build-agent-map.mjs", rendered)
         self.assertNotIn("node docs-site/scripts/build-agent-map.mjs --check", rendered)
 
-    def test_public_komut_listeleri_ozel_betik_cagirmaz(self):
-        # Public ağaç yalnız kendi dosyalarıyla koşar: sevk edilen kapı özel bir
-        # betiği çağırırsa süzülmüş ağaçta ilk adımda düşer.
+    def test_public_command_lists_call_no_script_outside_the_public_tree(self):
+        # The public tree runs with its own files only: a shipped gate that called a
+        # script outside it would fail at its first step.
         for rendered in (
             [c.display for c in gate.closing_commands("abc123", site=True, performance=True)],
             [c.display for c in gate.generation_commands()],
@@ -1524,205 +1522,206 @@ class KapiTestleri(unittest.TestCase):
                 if command.args[0] == "python3" and command.args[1].endswith(".py"):
                     self.assertTrue((ROOT / command.args[1]).is_file(), command.args[1])
 
-    def test_genisletme_adimlari_public_listeye_eklenir(self):
-        ek = gate.Extension(
-            program="ozel/giris.py",
-            generation=(gate.Command(("echo", "uret")),),
-            after_scan=lambda taban: (gate.Command(("echo", taban)),),
+    def test_extension_steps_are_added_to_the_public_list(self):
+        extension = gate.Extension(
+            program="custom/entry.py",
+            generation=(gate.Command(("echo", "generate")),),
+            after_scan=lambda base: (gate.Command(("echo", base)),),
         )
 
-        rendered = [c.display for c in gate.closing_commands("abc123", site=False, extension=ek)]
+        rendered = [c.display for c in gate.closing_commands("abc123", site=False, extension=extension)]
 
-        self.assertEqual(rendered[0], "echo uret")
-        self.assertEqual(rendered[rendered.index("python3 ozel/giris.py scan") + 1], "echo abc123")
+        self.assertEqual(rendered[0], "echo generate")
+        self.assertEqual(rendered[rendered.index("python3 custom/entry.py scan") + 1], "echo abc123")
         self.assertNotIn("python3 scripts/gate.py scan", rendered)
 
-    def test_tarama_kokleri_ozel_dizin_olmadan_calisir(self):
-        # Süzülmüş ağaçta `docs/` yalnız iki sözleşme dizini taşır ve başka kök yoktur.
-        with tempfile.TemporaryDirectory() as gecici:
-            kok = pathlib.Path(gecici)
-            (kok / "src").mkdir()
-            (kok / "docs" / "sozlesme").mkdir(parents=True)
-            (kok / "docs" / "sozlesme" / "error-codes.txt").write_text("x", encoding="utf-8")
+    def test_scan_roots_work_without_the_optional_directories(self):
+        # In the public tree `docs/` carries only two contract directories and there is no other root.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / "src").mkdir()
+            (root / "docs" / "contracts").mkdir(parents=True)
+            (root / "docs" / "contracts" / "error-codes.txt").write_text("x", encoding="utf-8")
 
-            self.assertEqual(gate.find_sync_copies(kok), [])
-            self.assertEqual(gate.find_stale_doc_references(kok), [])
-            self.assertEqual(gate.find_secrets(kok), ([], 0))
+            self.assertEqual(gate.find_sync_copies(root), [])
+            self.assertEqual(gate.find_stale_doc_references(root), [])
+            self.assertEqual(gate.find_secrets(root), ([], 0))
 
-    def test_ci_her_is_kanonik_repo_korumasina_baglidir(self):
-        # Özel depoda ve fork'larda hiçbir iş dakika harcamamalı.
-        isler = _ci_isleri((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+    def test_every_ci_job_is_tied_to_the_canonical_repo_guard(self):
+        # No job may spend minutes on forks or other copies of the repository.
+        jobs = _ci_jobs((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
 
-        self.assertEqual(isler["build"]["if"], KANONIK_REPO_KOSULU)
-        self.assertEqual(_korumasiz_isler(isler), [])
+        self.assertEqual(jobs["build"]["if"], CANONICAL_REPO_CONDITION)
+        self.assertEqual(_unguarded_jobs(jobs), [])
 
-    def test_ci_korumasi_zinciri_delen_isi_yakalar(self):
-        metin = (
+    def test_ci_guard_catches_a_job_that_breaks_the_chain(self):
+        text = (
             "jobs:\n"
             "  build:\n"
             "    if: github.repository == 'farukatasoy/Tracon'\n"
-            "  rapor:\n"
+            "  report:\n"
             "    needs: build\n"
             "    if: always()\n"
-            "  ozet:\n"
+            "  summary:\n"
             "    needs: [build]\n"
             "    if: >-\n"
             "      github.ref == 'refs/heads/main' &&\n"
             "      !cancelled()\n"
             "    runs-on: ubuntu-latest\n"
-            "  guvenli:\n"
+            "  safe:\n"
             "    needs: build\n"
             "    if: always() && github.repository == 'farukatasoy/Tracon'\n"
-            "  basarisiz:\n"
+            "  failed:\n"
             "    needs: build\n"
             "    if: failure()\n"
-            "  delik:\n"
+            "  leaky:\n"
             "    needs: build\n"
             "    if: always() || github.repository == 'farukatasoy/Tracon'\n"
-            "  kopuk:\n"
+            "  detached:\n"
             "    runs-on: ubuntu-latest\n"
         )
 
-        isler = _ci_isleri(metin)
-        sorunlu = sorted({sorun.split("`")[1] for sorun in _korumasiz_isler(isler)})
+        jobs = _ci_jobs(text)
+        flagged = sorted({problem.split("`")[1] for problem in _unguarded_jobs(jobs)})
 
-        self.assertEqual(isler["ozet"]["if"], "github.ref == 'refs/heads/main' && !cancelled()")
-        self.assertEqual(sorunlu, ["basarisiz", "delik", "kopuk", "ozet", "rapor"])
+        self.assertEqual(jobs["summary"]["if"], "github.ref == 'refs/heads/main' && !cancelled()")
+        self.assertEqual(flagged, ["detached", "failed", "leaky", "report", "summary"])
 
-    def test_zincirsiz_is_akislarinin_her_isi_kanonik_repo_korumasini_kendisi_tasir(self):
-        # Özel depoda ve fork'larda haftalık işler de dakika harcamamalı. `ayna.yml` özel depoda koşar ve
-        # public ağaca girmez; `ci.yml` korumayı `build` üzerinden miras alır.
-        dosyalar = sorted(
-            p for p in (ROOT / ".github" / "workflows").glob("*.yml") if p.name not in ZINCIRSIZ_DOSYA_DISI)
+    def test_every_job_of_the_unchained_workflows_carries_the_canonical_repo_guard_itself(self):
+        # Weekly jobs must not spend minutes on forks or other copies either. `ci.yml` inherits the guard
+        # through `build`, and the other excluded workflow is not part of the public tree; every remaining
+        # workflow file must carry the guard itself.
+        files = sorted(
+            p for p in (ROOT / ".github" / "workflows").glob("*.yml") if p.name not in UNCHAINED_EXCLUDED_FILES)
 
-        self.assertIn("sdk-conformance.yml", [p.name for p in dosyalar])
-        self.assertIn("openapi-fuzz.yml", [p.name for p in dosyalar])
-        for dosya in dosyalar:
-            isler = _ci_isleri(dosya.read_text(encoding="utf-8"))
-            with self.subTest(dosya=dosya.name):
-                self.assertTrue(isler, "iş bulunamadı: ayrıştırıcı dosyayı okuyamadı")
-                self.assertEqual(_zincirsiz_korumasiz_isler(isler), [])
+        self.assertIn("sdk-conformance.yml", [p.name for p in files])
+        self.assertIn("openapi-fuzz.yml", [p.name for p in files])
+        for file in files:
+            jobs = _ci_jobs(file.read_text(encoding="utf-8"))
+            with self.subTest(file=file.name):
+                self.assertTrue(jobs, "no job found: the parser could not read the file")
+                self.assertEqual(_unchained_unguarded_jobs(jobs), [])
 
-    def test_zincirsiz_koruma_kontrolu_eksik_ve_delik_korumayi_yakalar(self):
-        gercek = (ROOT / ".github" / "workflows" / "sdk-conformance.yml").read_text(encoding="utf-8")
-        korumali = f"    if: {KANONIK_REPO_KOSULU}\n"
-        self.assertIn(korumali, gercek)
+    def test_unchained_guard_check_catches_a_missing_and_a_leaky_guard(self):
+        genuine = (ROOT / ".github" / "workflows" / "sdk-conformance.yml").read_text(encoding="utf-8")
+        guarded = f"    if: {CANONICAL_REPO_CONDITION}\n"
+        self.assertIn(guarded, genuine)
 
-        korumasiz = _ci_isleri(gercek.replace(korumali, ""))
-        delik = _ci_isleri(gercek.replace(korumali, f"    if: always() || {KANONIK_REPO_KOSULU}\n"))
+        unguarded = _ci_jobs(genuine.replace(guarded, ""))
+        leaky = _ci_jobs(genuine.replace(guarded, f"    if: always() || {CANONICAL_REPO_CONDITION}\n"))
 
-        self.assertEqual(_zincirsiz_korumasiz_isler(_ci_isleri(gercek)), [])
-        self.assertEqual(len(_zincirsiz_korumasiz_isler(korumasiz)), 1)
-        self.assertEqual(len(_zincirsiz_korumasiz_isler(delik)), 1)
+        self.assertEqual(_unchained_unguarded_jobs(_ci_jobs(genuine)), [])
+        self.assertEqual(len(_unchained_unguarded_jobs(unguarded)), 1)
+        self.assertEqual(len(_unchained_unguarded_jobs(leaky)), 1)
 
-    def test_platform_bacaklari_ad_ortam_degiskeni_ve_imaj_birbirine_bagli(self):
-        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        imajlar = _varsayilan_imajlar()
+    def test_platform_legs_tie_name_environment_variable_and_image_together(self):
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        images = _default_images()
 
-        self.assertTrue(all(imajlar.values()), imajlar)
-        self.assertEqual(_matris_bag_sorunlari(metin, imajlar), [])
-        # Ayrıştırıcı gerçekten okuyor: yedi PostgreSQL hücresi, iki SQL Server hücresi.
+        self.assertTrue(all(images.values()), images)
+        self.assertEqual(_matrix_link_problems(text, images), [])
+        # The parser really reads: seven PostgreSQL cells, two SQL Server cells.
         self.assertEqual(
-            [g["name"] for g in _matris_girdileri(_is_blogu(metin, "postgres-matrix"))],
+            [g["name"] for g in _matrix_entries(_job_block(text, "postgres-matrix"))],
             ["12", "13", "14", "15", "16", "17", "18, ICU tr-TR"])
         self.assertEqual(
-            [g["name"] for g in _matris_girdileri(_is_blogu(metin, "sqlserver-matrix"))],
+            [g["name"] for g in _matrix_entries(_job_block(text, "sqlserver-matrix"))],
             ["2019", "2022, Turkish_CI_AS"])
-        self.assertEqual([g["sqlite"] for g in _matris_girdileri(_is_blogu(metin, "sqlite-floor"))], ["3.44.0"])
+        self.assertEqual([g["sqlite"] for g in _matrix_entries(_job_block(text, "sqlite-floor"))], ["3.44.0"])
 
-    def test_platform_bacagi_bagi_kopunca_kirmizi(self):
-        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        imajlar = _varsayilan_imajlar()
+    def test_platform_leg_turns_red_when_the_tie_breaks(self):
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        images = _default_images()
 
-        yazim = metin.replace("TRACON_TEST_POSTGRES_IMAGE: ${{ matrix.image }}", "TRACON_TEST_POSTGRES_IMAGE: ${{ matrix.imge }}")
-        yanlis_imaj = metin.replace("image: pgvector/pgvector:pg13", "image: pgvector/pgvector:pg14")
-        imajsiz = metin.replace("          - name: '13'\n            image: pgvector/pgvector:pg13\n", "          - name: '13'\n            image: ''\n")
-        sql_yil = metin.replace("image: mcr.microsoft.com/mssql/server:2019-latest", "image: mcr.microsoft.com/mssql/server:2022-latest")
-        bos_surum = metin.replace("sqlite: '3.44.0'", "sqlite: ''")
-        for degisen in (yazim, yanlis_imaj, imajsiz, sql_yil, bos_surum):
-            self.assertNotEqual(degisen, metin)
+        typo = text.replace("TRACON_TEST_POSTGRES_IMAGE: ${{ matrix.image }}", "TRACON_TEST_POSTGRES_IMAGE: ${{ matrix.imge }}")
+        wrong_image = text.replace("image: pgvector/pgvector:pg13", "image: pgvector/pgvector:pg14")
+        no_image = text.replace("          - name: '13'\n            image: pgvector/pgvector:pg13\n", "          - name: '13'\n            image: ''\n")
+        sql_year = text.replace("image: mcr.microsoft.com/mssql/server:2019-latest", "image: mcr.microsoft.com/mssql/server:2022-latest")
+        empty_version = text.replace("sqlite: '3.44.0'", "sqlite: ''")
+        for changed in (typo, wrong_image, no_image, sql_year, empty_version):
+            self.assertNotEqual(changed, text)
 
-        self.assertTrue(any("matrix.imge" in s for s in _matris_bag_sorunlari(yazim, imajlar)))
-        self.assertEqual(len(_matris_bag_sorunlari(yanlis_imaj, imajlar)), 1)
-        self.assertIn("13", _matris_bag_sorunlari(yanlis_imaj, imajlar)[0])
-        self.assertEqual(len(_matris_bag_sorunlari(imajsiz, imajlar)), 1)  # boş imaj = pg18, hücre 13
-        self.assertEqual(len(_matris_bag_sorunlari(sql_yil, imajlar)), 1)
-        self.assertEqual(len(_matris_bag_sorunlari(bos_surum, imajlar)), 1)
+        self.assertTrue(any("matrix.imge" in s for s in _matrix_link_problems(typo, images)))
+        self.assertEqual(len(_matrix_link_problems(wrong_image, images)), 1)
+        self.assertIn("13", _matrix_link_problems(wrong_image, images)[0])
+        self.assertEqual(len(_matrix_link_problems(no_image, images)), 1)  # empty image = pg18, cell 13
+        self.assertEqual(len(_matrix_link_problems(sql_year, images)), 1)
+        self.assertEqual(len(_matrix_link_problems(empty_version, images)), 1)
 
-    def test_varsayilan_imaj_bacaklari_pr_de_kosar_ve_imaj_degiskeni_vermez(self):
-        # PostgreSQL ve SQL Server tum-proje bacaginin disindadir; matrisler yalniz varsayilan olmayan surum
-        # ve yerel ayarlari tasir ve PR'de kosmaz. Varsayilan imaj bu iki modulun PR'de de kosan tek yeridir.
-        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        isler = _ci_isleri(metin)
+    def test_default_image_legs_run_on_pull_requests_and_pass_no_image_variable(self):
+        # PostgreSQL and SQL Server are outside the all-projects leg; the matrices carry only non-default versions
+        # and locales and do not run on PRs. The default image is the only place where these two modules run on PRs as well.
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = _ci_jobs(text)
 
-        for is_adi, degisken in (
+        for job_name, variable in (
             ("test-postgres", "TRACON_TEST_POSTGRES_IMAGE"),
             ("test-sqlserver", "TRACON_TEST_SQLSERVER_IMAGE"),
         ):
-            self.assertIsNone(isler[is_adi]["if"], f"`{is_adi}` PR dahil her olayda koşmalı")
-            self.assertNotIn(degisken, _is_blogu(metin, is_adi), f"`{is_adi}` fikstürün varsayılan imajını kullanır")
-            self.assertNotIn("matrix.", _is_blogu(metin, is_adi))
-        for is_adi in ("postgres-matrix", "sqlserver-matrix", "sqlite-floor", "culture-matrix"):
-            self.assertEqual(isler[is_adi]["if"], "github.event_name != 'pull_request'", is_adi)
+            self.assertIsNone(jobs[job_name]["if"], f"`{job_name}` must run on every event, pull requests included")
+            self.assertNotIn(variable, _job_block(text, job_name), f"`{job_name}` uses the fixture's default image")
+            self.assertNotIn("matrix.", _job_block(text, job_name))
+        for job_name in ("postgres-matrix", "sqlserver-matrix", "sqlite-floor", "culture-matrix"):
+            self.assertEqual(jobs[job_name]["if"], "github.event_name != 'pull_request'", job_name)
 
-    def test_ci_her_test_projesi_kendi_isletim_sisteminde_tam_bir_kez_kosar(self):
-        # Solution komutu her projeyi kendiliginden kosardi; modul basina adimlar yeni bir test projesini
-        # sessizce disarida birakir. `test-*` isleri tum-proje bacaklaridir: ubuntu'dakiler Tracon.slnx'in,
-        # windows'takiler Tracon.no-docker.slnf'in test projelerini TAM BIR KEZ kosar. Matrisler (veritabani
-        # surumleri, kultur) ayri bacaklardir ve burada sayilmaz.
-        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        isler = _ci_isleri(metin)
-        # WorkerHarness test degil, ikinci surecin konusudur.
+    def test_ci_runs_every_test_project_exactly_once_on_its_own_operating_system(self):
+        # The solution command ran every project on its own; per-module steps silently leave a new test project
+        # out. The `test-*` jobs are the all-projects legs: those on ubuntu run the test projects of Tracon.slnx,
+        # those on windows run the ones of Tracon.no-docker.slnf EXACTLY ONCE. The matrices (database
+        # versions, culture) are separate legs and are not counted here.
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = _ci_jobs(text)
+        # WorkerHarness is not a test; it belongs to the second process.
         slnx = (ROOT / "Tracon.slnx").read_text(encoding="utf-8")
-        ubuntu_beklenen = set(re.findall(r'Path="tests/([\w.]+)/[\w.]+\.csproj"', slnx)) - {"Tracon.WorkerHarness"}
-        filtre = json.loads((ROOT / "Tracon.no-docker.slnf").read_text(encoding="utf-8"))
-        windows_beklenen = {
-            eslesme.group(1) for yol in filtre["solution"]["projects"]
-            if (eslesme := re.match(r"tests/([\w.]+)/", yol))} - {"Tracon.WorkerHarness"}
+        ubuntu_expected = set(re.findall(r'Path="tests/([\w.]+)/[\w.]+\.csproj"', slnx)) - {"Tracon.WorkerHarness"}
+        solution_filter = json.loads((ROOT / "Tracon.no-docker.slnf").read_text(encoding="utf-8"))
+        windows_expected = {
+            hit.group(1) for path in solution_filter["solution"]["projects"]
+            if (hit := re.match(r"tests/([\w.]+)/", path))} - {"Tracon.WorkerHarness"}
 
-        kosan: dict[str, dict[str, int]] = {"ubuntu-latest": {}, "windows-latest": {}}
-        for ad in isler:
-            if not ad.startswith("test-"):
+        running: dict[str, dict[str, int]] = {"ubuntu-latest": {}, "windows-latest": {}}
+        for name in jobs:
+            if not name.startswith("test-"):
                 continue
-            blok = _is_blogu(metin, ad)
-            isletim = re.search(r"(?m)^    runs-on:\s*(\S+)", blok).group(1)
-            for modul in re.findall(r"(?m)^\s+run: dotnet test --project tests/([\w.]+)/", blok):
-                kosan[isletim][modul] = kosan[isletim].get(modul, 0) + 1
+            block = _job_block(text, name)
+            os_name = re.search(r"(?m)^    runs-on:\s*(\S+)", block).group(1)
+            for module in re.findall(r"(?m)^\s+run: dotnet test --project tests/([\w.]+)/", block):
+                running[os_name][module] = running[os_name].get(module, 0) + 1
 
-        self.assertGreaterEqual(len(ubuntu_beklenen), 25)
-        self.assertEqual(sorted(kosan["ubuntu-latest"].items()), [(m, 1) for m in sorted(ubuntu_beklenen)])
-        self.assertEqual(sorted(kosan["windows-latest"].items()), [(m, 1) for m in sorted(windows_beklenen)])
+        self.assertGreaterEqual(len(ubuntu_expected), 25)
+        self.assertEqual(sorted(running["ubuntu-latest"].items()), [(m, 1) for m in sorted(ubuntu_expected)])
+        self.assertEqual(sorted(running["windows-latest"].items()), [(m, 1) for m in sorted(windows_expected)])
 
-    def test_ci_is_grafi_tutarli_ve_iptal_kurallari_yerinde(self):
-        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        isler = _ci_isleri(metin)
+    def test_ci_job_graph_is_consistent_and_cancel_rules_are_in_place(self):
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        jobs = _ci_jobs(text)
 
-        for ad, is_ in isler.items():
-            for bagimlilik in is_["needs"]:
-                self.assertIn(bagimlilik, isler, f"`{ad}` var olmayan `{bagimlilik}` işini bekliyor")
-        # Dongu yok: bagimliliksiz isten baslayarak her is siralanabilir.
-        siralanan: set[str] = set()
-        while len(siralanan) < len(isler):
-            hazir = [ad for ad, is_ in isler.items() if ad not in siralanan and set(is_["needs"]) <= siralanan]
-            self.assertTrue(hazir, f"bağımlılık döngüsü: {sorted(set(isler) - siralanan)}")
-            siralanan.update(hazir)
+        for name, job in jobs.items():
+            for dependency in job["needs"]:
+                self.assertIn(dependency, jobs, f"`{name}` waits for the non-existent job `{dependency}`")
+        # No cycle: starting from a job without dependencies, every job can be ordered.
+        ordered: set[str] = set()
+        while len(ordered) < len(jobs):
+            ready = [name for name, job in jobs.items() if name not in ordered and set(job["needs"]) <= ordered]
+            self.assertTrue(ready, f"dependency cycle: {sorted(set(jobs) - ordered)}")
+            ordered.update(ready)
 
-        # Iptal: PR ve main'de eski kosum iptal edilir; etiket kosumu ASLA; elle tetiklemenin grubu `run_id`
-        # icerir (olcum icin ardisik tetiklenen kosumlar birbirini iptal etmez).
-        blok = re.search(r"(?m)^concurrency:\n((?:  .*\n)+)", metin)
-        self.assertIsNotNone(blok, "ci.yml'de iş akışı düzeyinde `concurrency:` yok")
-        grup = re.search(r"(?m)^  group: (.*)$", blok.group(1)).group(1)
-        iptal = re.search(r"(?m)^  cancel-in-progress: (.*)$", blok.group(1)).group(1)
-        self.assertIn("github.event_name == 'workflow_dispatch'", grup)
-        self.assertIn("github.run_id", grup)
-        self.assertIn("github.ref", grup)
-        self.assertIn("!startsWith(github.ref, 'refs/tags/')", iptal)
-        self.assertIn("github.event_name != 'workflow_dispatch'", iptal)
-        # Kapilar belge degisikligi diye atlanmaz.
-        self.assertNotIn("paths-ignore", metin)
-        self.assertIn("PYTHONUTF8: 1", metin)
+        # Cancellation: on PRs and main the older run is cancelled; a tag run NEVER; the group of a manual trigger
+        # contains `run_id` (so runs triggered one after another for measurement do not cancel each other).
+        block = re.search(r"(?m)^concurrency:\n((?:  .*\n)+)", text)
+        self.assertIsNotNone(block, "ci.yml has no workflow-level `concurrency:`")
+        group = re.search(r"(?m)^  group: (.*)$", block.group(1)).group(1)
+        cancel = re.search(r"(?m)^  cancel-in-progress: (.*)$", block.group(1)).group(1)
+        self.assertIn("github.event_name == 'workflow_dispatch'", group)
+        self.assertIn("github.run_id", group)
+        self.assertIn("github.ref", group)
+        self.assertIn("!startsWith(github.ref, 'refs/tags/')", cancel)
+        self.assertIn("github.event_name != 'workflow_dispatch'", cancel)
+        # The gates are not skipped because a change is documentation-only.
+        self.assertNotIn("paths-ignore", text)
+        self.assertIn("PYTHONUTF8: 1", text)
 
-    def test_uret_alt_komutu_yalniz_ureticileri_kosar(self):
+    def test_generate_command_runs_only_the_generators(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             result = gate.main(["--print-commands", "generate"])
 
@@ -1731,14 +1730,14 @@ class KapiTestleri(unittest.TestCase):
             [line[2:] for line in output.getvalue().splitlines() if line.startswith("$ ")],
             [c.display for c in gate.generation_commands()])
 
-    def test_kapanis_performans_adimini_kosullu_ekler(self):
+    def test_closing_adds_the_performance_step_conditionally(self):
         with_it = [c.display for c in gate.closing_commands("abc123", site=False, performance=True)]
         without_it = [c.display for c in gate.closing_commands("abc123", site=False, performance=False)]
 
         self.assertIn("python3 scripts/gate.py perf", with_it)
         self.assertNotIn("python3 scripts/gate.py perf", without_it)
 
-    def test_sicak_yol_degisikligi_performans_kapisini_tetikler(self):
+    def test_hot_path_change_triggers_the_performance_gate(self):
         self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Core/Recording/RunEventWriter.cs"]))
         self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Core/Compilation/CompiledAgentCache.cs"]))
         self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Core/Diagnostics/ChatTelemetryLanes.cs"]))
@@ -1749,21 +1748,21 @@ class KapiTestleri(unittest.TestCase):
         self.assertFalse(gate.performance_gate_triggered(["src/Tracon.Core/TraconOptions.cs"]))
         self.assertFalse(gate.performance_gate_triggered([]))
 
-    def test_tam_test_kosumu_kaynak_cekismesini_sinirlar(self):
-        # Aynı anda en çok TEST_MAX_CPU_COUNT test modülü: hafif aşamalar o kadar modülü bir komutta koşar,
-        # ağır modüller o kadar hatta ve hat başına tek modül koşar.
-        asamalar = gate.staged_test_commands()
-        hafif = [komut for komut in asamalar if komut.group is None]
-        agir = [komut for komut in asamalar if komut.group is not None]
+    def test_full_test_run_limits_resource_contention(self):
+        # At most TEST_MAX_CPU_COUNT test modules at the same time: light stages run that many modules in one command,
+        # heavy modules run on that many lanes with a single module per lane.
+        stages = gate.staged_test_commands()
+        light = [command for command in stages if command.group is None]
+        heavy = [command for command in stages if command.group is not None]
 
-        for komut in hafif:
+        for command in light:
             self.assertEqual(
-                komut.args[komut.args.index("--max-parallel-test-modules") + 1], str(gate.TEST_MAX_CPU_COUNT))
-        for komut in agir:
-            self.assertEqual(komut.args[komut.args.index("--max-parallel-test-modules") + 1], "1")
-        self.assertEqual(len({komut.lane for komut in agir}), gate.TEST_MAX_CPU_COUNT)
+                command.args[command.args.index("--max-parallel-test-modules") + 1], str(gate.TEST_MAX_CPU_COUNT))
+        for command in heavy:
+            self.assertEqual(command.args[command.args.index("--max-parallel-test-modules") + 1], "1")
+        self.assertEqual(len({command.lane for command in heavy}), gate.TEST_MAX_CPU_COUNT)
 
-    def test_dry_run_komut_calistirmaz(self):
+    def test_dry_run_runs_no_command(self):
         runner = mock.Mock()
         result = gate.run_commands(
             "test", [gate.Command(("would-not-run",))], runner=runner, dry_run=True)
@@ -1771,7 +1770,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(result, 0)
         runner.assert_not_called()
 
-    def test_komut_bulunamazsa_127_ile_durur(self):
+    def test_missing_command_stops_with_127(self):
         commands = [gate.Command(("dotnet",)), gate.Command(("second",))]
         runner = mock.Mock(side_effect=FileNotFoundError(2, "No such file or directory", "dotnet"))
         with tempfile.TemporaryDirectory() as directory:
@@ -1781,535 +1780,535 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(result, 127)
         self.assertEqual(runner.call_count, 1)
 
-    def test_alt_sistem_hatasi_126_ile_durur(self):
+    def test_subsystem_error_stops_with_126(self):
         commands = [gate.Command(("dotnet",))]
-        runner = mock.Mock(side_effect=OSError("boru kırıldı"))
+        runner = mock.Mock(side_effect=OSError("broken pipe"))
         with tempfile.TemporaryDirectory() as directory:
             result = gate.run_commands(
                 "test", commands, runner=runner, measurement_path=pathlib.Path(directory) / "m.jsonl")
 
         self.assertEqual(result, 126)
 
-    def test_git_yoksa_traceback_yerine_none_doner(self):
-        """Denetim: `_git()` `subprocess.run`'ın FileNotFoundError'ını
-        yakalamıyordu; git PATH'te yoksa `changed_paths()` traceback ile çöküyordu."""
+    def test_missing_git_returns_none_instead_of_a_traceback(self):
+        """`_git()` did not catch the FileNotFoundError of `subprocess.run`;
+        without git on PATH, `changed_paths()` crashed with a traceback."""
         with mock.patch("subprocess.run", side_effect=FileNotFoundError("git")):
             self.assertIsNone(gate.changed_paths())
 
 
-def _slnx_test_modulleri(kok: pathlib.Path = ROOT) -> list[str]:
-    """Tracon.slnx'in tuttuğu test modullerinin proje adları.
+def _slnx_test_modules(root: pathlib.Path = ROOT) -> list[str]:
+    """The project names of the test modules that Tracon.slnx holds.
 
-    Kural: `tests/` altındaki her proje bir test modülüdür, `tests/Directory.Build.props`'un xunit/MTP
-    bağını `IsTestHarnessProject=true` ile reddedenler hariç (`Tracon.WorkerHarness`: iki süreçli
-    kanıtın öznesi; test ana makinesi değildir ve `dotnet test` onu koşamaz)."""
-    moduller = []
-    for proje in ElementTree.parse(kok / "Tracon.slnx").getroot().iter("Project"):
-        yol = pathlib.PurePosixPath(proje.get("Path", ""))
-        if yol.parts[:1] != ("tests",):
+    Rule: every project under `tests/` is a test module, except those that reject the xunit/MTP
+    binding of `tests/Directory.Build.props` with `IsTestHarnessProject=true` (`Tracon.WorkerHarness`: the
+    subject of a two-process proof; it is not a test host and `dotnet test` cannot run it)."""
+    modules = []
+    for project in ElementTree.parse(root / "Tracon.slnx").getroot().iter("Project"):
+        path = pathlib.PurePosixPath(project.get("Path", ""))
+        if path.parts[:1] != ("tests",):
             continue
-        csproj = (kok / yol).read_text(encoding="utf-8")
+        csproj = (root / path).read_text(encoding="utf-8")
         if re.search(r"<IsTestHarnessProject>\s*true\s*</IsTestHarnessProject>", csproj):
             continue
-        moduller.append(yol.stem)
-    return sorted(moduller)
+        modules.append(path.stem)
+    return sorted(modules)
 
 
-def _slnf_projeleri(yol: pathlib.Path) -> list[str]:
-    return list(json.loads(yol.read_text(encoding="utf-8"))["solution"]["projects"])
+def _slnf_projects(path: pathlib.Path) -> list[str]:
+    return list(json.loads(path.read_text(encoding="utf-8"))["solution"]["projects"])
 
 
-def _bolum_sorunlari(
-    moduller: list[str], core: str, hafif: list[str], agir: dict[str, tuple[str, ...]],
+def _section_problems(
+    modules: list[str], core: str, light: list[str], heavy: dict[str, tuple[str, ...]],
 ) -> list[str]:
-    """Her test modülü Core, hafif süzgeç ve ağır hatlar arasında TAM BİR yerde mi? Sorun listesi; boşsa tamam."""
-    yerler: dict[str, list[str]] = {core: ["core"]}
-    for ad in hafif:
-        yerler.setdefault(ad, []).append("hafif süzgeç")
-    for hat, adlar in agir.items():
-        for ad in adlar:
-            yerler.setdefault(ad, []).append(f"ağır hat {hat}")
-    sorunlar = [f"{ad}: hiçbir aşamada yok" for ad in moduller if ad not in yerler]
-    sorunlar += [f"{ad}: birden çok yerde ({', '.join(y)})" for ad, y in sorted(yerler.items()) if len(y) > 1]
-    sorunlar += [f"{ad}: Tracon.slnx'te test modülü değil" for ad in sorted(yerler) if ad not in moduller]
-    return sorunlar
+    """Is every test module in EXACTLY ONE place among Core, the light filter and the heavy lanes? A list of problems; empty means fine."""
+    places: dict[str, list[str]] = {core: ["core"]}
+    for name in light:
+        places.setdefault(name, []).append("light filter")
+    for lane, names in heavy.items():
+        for name in names:
+            places.setdefault(name, []).append(f"heavy lane {lane}")
+    problems = [f"{name}: not in any stage" for name in modules if name not in places]
+    problems += [f"{name}: in more than one place ({', '.join(y)})" for name, y in sorted(places.items()) if len(y) > 1]
+    problems += [f"{name}: not a test module in Tracon.slnx" for name in sorted(places) if name not in modules]
+    return problems
 
 
-class GrupKosucuTestleri(unittest.TestCase):
-    """`Command.group` / `Command.lane`: bağımsız adımlar aynı anda koşar; çıktı, ölçüm ve karar liste sırasında kalır."""
+class GroupRunnerTests(unittest.TestCase):
+    """`Command.group` / `Command.lane`: independent steps run at the same time; output, measurement and verdict stay in list order."""
 
     @staticmethod
-    def _kos(komutlar, davranis, *, olcum_yamasi=None):
-        """`davranis(ad)` -> (çıkış kodu, çıktı). Dönüş: (sonuç, ekran, başlama sırası, ölçüm satırları)."""
-        basladi: list[str] = []
-        kilit = threading.Lock()
+    def _execute(commands, behavior, *, measurement_patch=None):
+        """`behavior(name)` -> (exit code, output). Returns: (result, screen, start order, measurement lines)."""
+        started_names: list[str] = []
+        lock = threading.Lock()
 
         def runner(args, **kwargs):
-            with kilit:
-                basladi.append(args[0])
-            kod, cikti = davranis(args[0])
-            return mock.Mock(returncode=kod, stdout=cikti)
+            with lock:
+                started_names.append(args[0])
+            code, output_dir = behavior(args[0])
+            return mock.Mock(returncode=code, stdout=output_dir)
 
-        with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()) as ekran:
-            yol = pathlib.Path(dizin) / "m.jsonl"
-            if olcum_yamasi is None:
-                sonuc = gate.run_commands("test", komutlar, runner=runner, measurement_path=yol)
+        with tempfile.TemporaryDirectory() as folder, contextlib.redirect_stdout(io.StringIO()) as screen:
+            path = pathlib.Path(folder) / "m.jsonl"
+            if measurement_patch is None:
+                result = gate.run_commands("test", commands, runner=runner, measurement_path=path)
             else:
-                with mock.patch.object(gate, "_record_measurement", side_effect=olcum_yamasi):
-                    sonuc = gate.run_commands("test", komutlar, runner=runner, measurement_path=yol)
-            satirlar = [json.loads(s) for s in yol.read_text(encoding="utf-8").splitlines()] if yol.exists() else []
-        return sonuc, ekran.getvalue(), basladi, satirlar
+                with mock.patch.object(gate, "_record_measurement", side_effect=measurement_patch):
+                    result = gate.run_commands("test", commands, runner=runner, measurement_path=path)
+            lines = [json.loads(s) for s in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
+        return result, screen.getvalue(), started_names, lines
 
     @staticmethod
-    def _grup(*adlar, grup="g"):
-        return [gate.Command((ad,), group=grup) for ad in adlar]
+    def _group(*names, group="g"):
+        return [gate.Command((name,), group=group) for name in names]
 
-    def test_cikti_liste_sirasiyla_basilir_bitis_sirasiyla_degil(self):
-        bitti = {ad: threading.Event() for ad in ("c1", "c2")}
-        bitis_sirasi: list[str] = []
+    def test_output_is_printed_in_list_order_not_finish_order(self):
+        finished = {name: threading.Event() for name in ("c1", "c2")}
+        finish_order: list[str] = []
 
-        def davranis(ad):
-            if ad == "c0":
-                for olay in bitti.values():
-                    olay.wait(5)
+        def behavior(name):
+            if name == "c0":
+                for event in finished.values():
+                    event.wait(5)
             else:
-                bitti[ad].set()
-            bitis_sirasi.append(ad)
-            return 0, f"CIKTI-{ad}\n"
+                finished[name].set()
+            finish_order.append(name)
+            return 0, f"OUTPUT-{name}\n"
 
-        sonuc, ekran, _, _ = self._kos(self._grup("c0", "c1", "c2"), davranis)
+        result, screen, _, _ = self._execute(self._group("c0", "c1", "c2"), behavior)
 
-        self.assertEqual(sonuc, 0)
-        self.assertEqual(bitis_sirasi[-1], "c0", "c0 öbürlerini beklemedi: komutlar aynı anda koşmuyor")
-        self.assertLess(ekran.index("CIKTI-c0"), ekran.index("CIKTI-c1"))
-        self.assertLess(ekran.index("CIKTI-c1"), ekran.index("CIKTI-c2"))
+        self.assertEqual(result, 0)
+        self.assertEqual(finish_order[-1], "c0", "c0 did not wait for the others: the commands do not run at the same time")
+        self.assertLess(screen.index("OUTPUT-c0"), screen.index("OUTPUT-c1"))
+        self.assertLess(screen.index("OUTPUT-c1"), screen.index("OUTPUT-c2"))
 
-    def test_gruptaki_komutlar_gercekten_ayri_thread_lerde_kosar(self):
-        thread_ler: set[int] = set()
+    def test_commands_in_a_group_really_run_on_separate_threads(self):
+        threads: set[int] = set()
 
-        def davranis(ad):
-            thread_ler.add(threading.get_ident())
+        def behavior(name):
+            threads.add(threading.get_ident())
             return 0, ""
 
-        self._kos(self._grup("c0", "c1", "c2"), davranis)
+        self._execute(self._group("c0", "c1", "c2"), behavior)
 
-        self.assertNotIn(threading.get_ident(), thread_ler)
+        self.assertNotIn(threading.get_ident(), threads)
 
-    def test_liste_sirasindaki_ilk_kirmizi_karar_verir_once_biten_degil(self):
-        c1_bitti = threading.Event()
+    def test_first_red_in_list_order_decides_not_the_first_to_finish(self):
+        c1_finished = threading.Event()
 
-        def davranis(ad):
-            if ad == "c0":
-                c1_bitti.wait(5)
+        def behavior(name):
+            if name == "c0":
+                c1_finished.wait(5)
                 return 3, ""
-            if ad == "c1":
-                c1_bitti.set()
+            if name == "c1":
+                c1_finished.set()
                 return 5, ""
             return 0, ""
 
-        sonuc, ekran, _, satirlar = self._kos(self._grup("c0", "c1", "c2"), davranis)
+        result, screen, _, lines = self._execute(self._group("c0", "c1", "c2"), behavior)
 
-        self.assertEqual(sonuc, 3)
-        self.assertEqual([(s["command"], s["exit_code"]) for s in satirlar], [("c0", 3), ("c1", 5), ("c2", 0)])
-        self.assertIn("Exit 5", ekran)  # kardeşin kırmızısı da görünür, kararı değiştirmez
+        self.assertEqual(result, 3)
+        self.assertEqual([(s["command"], s["exit_code"]) for s in lines], [("c0", 3), ("c1", 5), ("c2", 0)])
+        self.assertIn("Exit 5", screen)  # the sibling's red is visible too, but it does not change the verdict
 
-    def test_kirmizi_adim_kardeslerini_yetim_birakmaz(self):
-        serbest = threading.Event()
-        bitenler: list[str] = []
-        threading.Timer(0.3, serbest.set).start()
+    def test_red_step_does_not_orphan_its_siblings(self):
+        released = threading.Event()
+        completed: list[str] = []
+        threading.Timer(0.3, released.set).start()
 
-        def davranis(ad):
-            if ad == "c0":
+        def behavior(name):
+            if name == "c0":
                 return 1, ""
-            serbest.wait(10)
-            bitenler.append(ad)
+            released.wait(10)
+            completed.append(name)
             return 0, ""
 
-        sonuc, _, basladi, satirlar = self._kos(self._grup("c0", "c1", "c2"), davranis)
+        result, _, started_names, lines = self._execute(self._group("c0", "c1", "c2"), behavior)
 
-        self.assertEqual(sonuc, 1)
-        self.assertCountEqual(basladi, ["c0", "c1", "c2"])
-        self.assertCountEqual(bitenler, ["c1", "c2"], "kırmızı adımdan sonra dönüldü ama kardeşler bitmemişti")
-        self.assertEqual(len(satirlar), 3)
+        self.assertEqual(result, 1)
+        self.assertCountEqual(started_names, ["c0", "c1", "c2"])
+        self.assertCountEqual(completed, ["c1", "c2"], "returned after the red step but the siblings had not finished")
+        self.assertEqual(len(lines), 3)
 
-    def test_olcum_satirlari_ana_thread_ten_ve_liste_sirasiyla_yazilir(self):
-        yazanlar: list[tuple[str, bool]] = []
+    def test_measurement_lines_are_written_from_the_main_thread_in_list_order(self):
+        writers: list[tuple[str, bool]] = []
 
-        def kaydet(stage, command, started, exit_code, path, *, finished=None):
-            yazanlar.append((command.args[0], threading.current_thread() is threading.main_thread()))
+        def record(stage, command, started, exit_code, path, *, finished=None):
+            writers.append((command.args[0], threading.current_thread() is threading.main_thread()))
 
-        def davranis(ad):
-            time.sleep({"c0": 0.2, "c1": 0.0, "c2": 0.1}[ad])
+        def behavior(name):
+            time.sleep({"c0": 0.2, "c1": 0.0, "c2": 0.1}[name])
             return 0, ""
 
-        self._kos(self._grup("c0", "c1", "c2"), davranis, olcum_yamasi=kaydet)
+        self._execute(self._group("c0", "c1", "c2"), behavior, measurement_patch=record)
 
-        self.assertEqual(yazanlar, [("c0", True), ("c1", True), ("c2", True)])
+        self.assertEqual(writers, [("c0", True), ("c1", True), ("c2", True)])
 
-    def test_olcum_satiri_komutun_kendi_suresini_tasir_siranin_bekleyisini_degil(self):
-        def davranis(ad):
-            time.sleep(0.4 if ad == "c0" else 0.0)
+    def test_measurement_line_carries_the_commands_own_duration_not_its_wait_in_line(self):
+        def behavior(name):
+            time.sleep(0.4 if name == "c0" else 0.0)
             return 0, ""
 
-        _, _, _, satirlar = self._kos(self._grup("c0", "c1"), davranis)
+        _, _, _, lines = self._execute(self._group("c0", "c1"), behavior)
 
-        sureler = {s["command"]: s["duration_seconds"] for s in satirlar}
-        self.assertGreaterEqual(sureler["c0"], 0.3)
-        self.assertLess(sureler["c1"], 0.2)  # c1 c0'ın ardından basıldı ama kendi süresini yazar
+        durations = {s["command"]: s["duration_seconds"] for s in lines}
+        self.assertGreaterEqual(durations["c0"], 0.3)
+        self.assertLess(durations["c1"], 0.2)  # c1 was printed after c0 but writes its own duration
 
-    def test_hat_icindeki_komutlar_sirayla_hatlar_ayni_anda_kosar(self):
-        kilit = threading.Lock()
-        gunluk: list[str] = []
-        b1_basladi = threading.Event()
+    def test_commands_in_a_lane_run_in_order_while_lanes_run_at_the_same_time(self):
+        lock = threading.Lock()
+        log: list[str] = []
+        b1_started = threading.Event()
 
-        def davranis(ad):
-            with kilit:
-                gunluk.append(f"basla {ad}")
-            if ad == "a1":
-                b1_basladi.wait(5)  # a1 ancak b1 başlayınca biter: hatlar aynı anda koşuyor
-            if ad == "b1":
-                b1_basladi.set()
-            with kilit:
-                gunluk.append(f"bitti {ad}")
+        def behavior(name):
+            with lock:
+                log.append(f"start {name}")
+            if name == "a1":
+                b1_started.wait(5)  # a1 finishes only after b1 has started: the lanes run at the same time
+            if name == "b1":
+                b1_started.set()
+            with lock:
+                log.append(f"finish {name}")
             return 0, ""
 
-        komutlar = [
+        commands = [
             gate.Command(("a1",), group="g", lane="a"), gate.Command(("a2",), group="g", lane="a"),
             gate.Command(("b1",), group="g", lane="b"), gate.Command(("b2",), group="g", lane="b"),
         ]
-        sonuc, _, _, _ = self._kos(komutlar, davranis)
+        result, _, _, _ = self._execute(commands, behavior)
 
-        self.assertEqual(sonuc, 0)
-        self.assertLess(gunluk.index("basla b1"), gunluk.index("bitti a1"))
-        self.assertLess(gunluk.index("bitti a1"), gunluk.index("basla a2"))
-        self.assertLess(gunluk.index("bitti b1"), gunluk.index("basla b2"))
+        self.assertEqual(result, 0)
+        self.assertLess(log.index("start b1"), log.index("finish a1"))
+        self.assertLess(log.index("finish a1"), log.index("start a2"))
+        self.assertLess(log.index("finish b1"), log.index("start b2"))
 
-    def test_kirmizi_hat_sonraki_komutlari_baslatmaz_ama_her_hattin_ilki_baslar(self):
-        a1_kaydedildi = threading.Event()
+    def test_red_lane_does_not_start_later_commands_but_every_lane_starts_its_first(self):
+        a1_recorded = threading.Event()
 
-        def kaydet(stage, command, started, exit_code, path, *, finished=None):
+        def record(stage, command, started, exit_code, path, *, finished=None):
             if command.args[0] == "a1":
-                a1_kaydedildi.set()
+                a1_recorded.set()
 
-        def davranis(ad):
-            if ad == "a1":
+        def behavior(name):
+            if name == "a1":
                 return 4, ""
-            if ad == "b1":
-                a1_kaydedildi.wait(5)  # a1 kırmızı sayıldıktan sonra biter
+            if name == "b1":
+                a1_recorded.wait(5)  # b1 finishes only after a1 has been counted red
             return 0, ""
 
-        komutlar = [
+        commands = [
             gate.Command(("a1",), group="g", lane="a"), gate.Command(("b1",), group="g", lane="b"),
             gate.Command(("b2",), group="g", lane="b"), gate.Command(("a2",), group="g", lane="a"),
         ]
-        sonuc, ekran, basladi, satirlar = self._kos(komutlar, davranis, olcum_yamasi=kaydet)
+        result, screen, started_names, lines = self._execute(commands, behavior, measurement_patch=record)
 
-        self.assertEqual(sonuc, 4)
-        self.assertCountEqual(basladi, ["a1", "b1"])
-        self.assertEqual(ekran.count("skipped"), 2)
-        self.assertEqual(satirlar, [])  # yama satır yazmaz; ölçümün kendisi ayrı sınanır
+        self.assertEqual(result, 4)
+        self.assertCountEqual(started_names, ["a1", "b1"])
+        self.assertEqual(screen.count("skipped"), 2)
+        self.assertEqual(lines, [])  # the patch writes no line; the measurement itself is tested separately
 
-    def test_uzun_suren_grup_sessiz_kalmaz_hangi_komutlar_surdugunu_yazar(self):
-        def davranis(ad):
-            time.sleep(0.4 if ad == "yavas" else 0.0)
+    def test_long_running_group_is_not_silent_and_names_the_commands_still_running(self):
+        def behavior(name):
+            time.sleep(0.4 if name == "slow" else 0.0)
             return 0, ""
 
         with mock.patch.object(gate, "GROUP_HEARTBEAT_SECONDS", 0.05):
-            sonuc, ekran, _, _ = self._kos(self._grup("yavas", "hizli"), davranis)
+            result, screen, _, _ = self._execute(self._group("slow", "fast"), behavior)
 
-        self.assertEqual(sonuc, 0)
-        self.assertRegex(ekran, r"… still running \(\d+ s\): yavas")
+        self.assertEqual(result, 0)
+        self.assertRegex(screen, r"… still running \(\d+ s\): slow")
 
-    def test_komut_bulunamazsa_grupta_127_olur_ve_kimse_beklemede_kalmaz(self):
+    def test_missing_command_in_a_group_gives_127_and_nobody_is_left_waiting(self):
         def runner(args, **kwargs):
             if args[0] == "c1":
                 raise FileNotFoundError(2, "No such file or directory", "c1")
             return mock.Mock(returncode=0, stdout="")
 
-        with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()):
-            sonuc = gate.run_commands(
-                "test", self._grup("c0", "c1"), runner=runner, measurement_path=pathlib.Path(dizin) / "m.jsonl")
+        with tempfile.TemporaryDirectory() as folder, contextlib.redirect_stdout(io.StringIO()):
+            result = gate.run_commands(
+                "test", self._group("c0", "c1"), runner=runner, measurement_path=pathlib.Path(folder) / "m.jsonl")
 
-        self.assertEqual(sonuc, 127)
+        self.assertEqual(result, 127)
 
-    def test_kosucu_cokerse_grup_asili_kalmaz(self):
+    def test_group_does_not_hang_when_the_runner_crashes(self):
         def runner(args, **kwargs):
             if args[0] == "c1":
-                raise ValueError("beklenmeyen")
+                raise ValueError("unexpected")
             return mock.Mock(returncode=0, stdout="")
 
-        with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()) as ekran:
-            sonuc = gate.run_commands(
-                "test", self._grup("c0", "c1"), runner=runner, measurement_path=pathlib.Path(dizin) / "m.jsonl")
+        with tempfile.TemporaryDirectory() as folder, contextlib.redirect_stdout(io.StringIO()) as screen:
+            result = gate.run_commands(
+                "test", self._group("c0", "c1"), runner=runner, measurement_path=pathlib.Path(folder) / "m.jsonl")
 
-        self.assertEqual(sonuc, gate.INTERNAL_ERROR_EXIT_CODE)
-        self.assertIn("beklenmeyen", ekran.getvalue())
+        self.assertEqual(result, gate.INTERNAL_ERROR_EXIT_CODE)
+        self.assertIn("unexpected", screen.getvalue())
 
-    def test_grup_komutun_gorunumunu_degistirmez(self):
+    def test_group_does_not_change_the_commands_display(self):
         self.assertEqual(gate.Command(("x", "y"), group="g", lane="a").display, gate.Command(("x", "y")).display)
 
-    def test_ayni_grup_adi_ancak_bitisikse_tek_blok_olur(self):
-        komutlar = [
-            *self._grup("g1", "g2"), gate.Command(("duz",)), *self._grup("g3", "g4"),
-            gate.Command(("tek",), group="baska"),
+    def test_same_group_name_forms_one_block_only_when_adjacent(self):
+        commands = [
+            *self._group("g1", "g2"), gate.Command(("plain",)), *self._group("g3", "g4"),
+            gate.Command(("single",), group="other"),
         ]
 
         self.assertEqual(
-            [[komut.args[0] for komut in blok] for blok in gate._blocks(komutlar)],
-            [["g1", "g2"], ["duz"], ["g3", "g4"], ["tek"]])
+            [[command.args[0] for command in block] for block in gate._blocks(commands)],
+            [["g1", "g2"], ["plain"], ["g3", "g4"], ["single"]])
 
-    def test_gruplanmamis_komutlar_eskisi_gibi_sirayla_ve_ilk_kirmizida_durur(self):
-        sonuc, _, basladi, _ = self._kos(
-            [gate.Command((ad,)) for ad in ("s0", "s1", "s2")], lambda ad: (7 if ad == "s1" else 0, ""))
+    def test_ungrouped_commands_run_in_order_and_stop_at_the_first_red_as_before(self):
+        result, _, started_names, _ = self._execute(
+            [gate.Command((name,)) for name in ("s0", "s1", "s2")], lambda name: (7 if name == "s1" else 0, ""))
 
-        self.assertEqual(sonuc, 7)
-        self.assertEqual(basladi, ["s0", "s1"])
+        self.assertEqual(result, 7)
+        self.assertEqual(started_names, ["s0", "s1"])
 
-    def test_kuru_listede_grup_ve_hat_isaretleri_yorum_satiridir(self):
-        komutlar = [
-            gate.Command(("once",)),
+    def test_dry_listing_marks_groups_and_lanes_as_comment_lines(self):
+        commands = [
+            gate.Command(("before",)),
             gate.Command(("a1",), group="g", lane="a"), gate.Command(("b1",), group="g", lane="b"),
             gate.Command(("a2",), group="g", lane="a"),
-            gate.Command(("sonra",)),
+            gate.Command(("after",)),
         ]
         runner = mock.Mock()
-        with contextlib.redirect_stdout(io.StringIO()) as ekran:
-            sonuc = gate.run_commands("test", komutlar, runner=runner, dry_run=True)
+        with contextlib.redirect_stdout(io.StringIO()) as screen:
+            result = gate.run_commands("test", commands, runner=runner, dry_run=True)
 
-        satirlar = ekran.getvalue().splitlines()
-        self.assertEqual(sonuc, 0)
+        lines = screen.getvalue().splitlines()
+        self.assertEqual(result, 0)
         runner.assert_not_called()
         self.assertEqual(
-            [satir[2:] for satir in satirlar if satir.startswith("$ ")],
-            [komut.display for komut in komutlar])
-        self.assertTrue(any(satir.startswith("# parallel group") for satir in satirlar))
-        self.assertTrue(any(satir.startswith("# group end") for satir in satirlar))
-        # Hat işareti, listede hat değiştiği yerde yazılır (a1, b1, a2 -> a, b, a).
+            [line[2:] for line in lines if line.startswith("$ ")],
+            [command.display for command in commands])
+        self.assertTrue(any(line.startswith("# parallel group") for line in lines))
+        self.assertTrue(any(line.startswith("# group end") for line in lines))
+        # A lane marker is written where the lane changes in the list (a1, b1, a2 -> a, b, a).
         self.assertEqual(
-            [satir for satir in satirlar if satir.startswith("# lane ")], ["# lane a", "# lane b", "# lane a"])
+            [line for line in lines if line.startswith("# lane ")], ["# lane a", "# lane b", "# lane a"])
 
 
-class AsamaliTestKosumuTestleri(unittest.TestCase):
-    """Kapanışın test koşumu: Core tek başına, hafif süzgeç, iki ağır hat; tek TRX denetimi; ilk kırmızıda durma."""
+class StagedTestRunTests(unittest.TestCase):
+    """The closing's test run: Core alone, the light filter, two heavy lanes; a single TRX check; stop at the first red."""
 
-    def _kos(self, komutlar, kod_veren=lambda args: 0, *, sifir_test=0, sinir_kodu=0):
-        cagrilar: list[tuple[tuple[str, ...], float]] = []
-        kilit = threading.Lock()
+    def _execute(self, commands, exit_code_for=lambda args: 0, *, zero_tests=0, limit_code=0):
+        calls: list[tuple[tuple[str, ...], float]] = []
+        lock = threading.Lock()
 
         def runner(args, **kwargs):
-            with kilit:
-                cagrilar.append((tuple(args), time.time()))
-            return mock.Mock(returncode=kod_veren(tuple(args)), stdout="")
+            with lock:
+                calls.append((tuple(args), time.time()))
+            return mock.Mock(returncode=exit_code_for(tuple(args)), stdout="")
 
-        with mock.patch.object(gate, "require_executed_tests", return_value=sifir_test) as zorunlu, \
-                mock.patch.object(gate, "enforce_module_time_limits", return_value=sinir_kodu) as sinir, \
-                mock.patch.object(gate, "record_test_durations") as sure, \
-                mock.patch.object(gate, "isolate_failed_tests", return_value=[]) as izole, \
-                mock.patch.object(gate, "failed_tests_from_trx", return_value=[]) as dusenler, \
-                tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()):
-            yol = pathlib.Path(dizin) / "m.jsonl"
-            sonuc = gate.run_commands("test", komutlar, runner=runner, measurement_path=yol)
-            satirlar = [json.loads(s) for s in yol.read_text(encoding="utf-8").splitlines()] if yol.exists() else []
+        with mock.patch.object(gate, "require_executed_tests", return_value=zero_tests) as required, \
+                mock.patch.object(gate, "enforce_module_time_limits", return_value=limit_code) as limit, \
+                mock.patch.object(gate, "record_test_durations") as duration, \
+                mock.patch.object(gate, "isolate_failed_tests", return_value=[]) as isolate, \
+                mock.patch.object(gate, "failed_tests_from_trx", return_value=[]) as failed, \
+                tempfile.TemporaryDirectory() as folder, contextlib.redirect_stdout(io.StringIO()):
+            path = pathlib.Path(folder) / "m.jsonl"
+            result = gate.run_commands("test", commands, runner=runner, measurement_path=path)
+            lines = [json.loads(s) for s in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
         return types.SimpleNamespace(
-            sonuc=sonuc, cagrilar=cagrilar, satirlar=satirlar, zorunlu=zorunlu, sinir=sinir, sure=sure,
-            izole=izole, dusenler=dusenler)
+            result=result, calls=calls, lines=lines, required=required, limit=limit, duration=duration,
+            isolate=isolate, failed=failed)
 
     @staticmethod
-    def _ad_iceren(*parcalar):
-        return lambda args: 2 if any(parca in " ".join(args) for parca in parcalar) else 0
+    def _name_containing(*pieces):
+        return lambda args: 2 if any(piece in " ".join(args) for piece in pieces) else 0
 
-    # --- sıra ve yapı -------------------------------------------------------------
+    # --- order and structure -------------------------------------------------------
 
-    def test_core_tek_basina_ilk_komuttur_sonra_hafif_sonra_agir(self):
-        komutlar = gate.staged_test_commands()
+    def test_core_alone_is_the_first_command_then_light_then_heavy(self):
+        commands = gate.staged_test_commands()
 
         self.assertEqual(
-            komutlar[0].args[:4],
+            commands[0].args[:4],
             ("dotnet", "test", "--project", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))
-        self.assertEqual(komutlar[1].args[:4], ("dotnet", "test", "--solution", "Tracon.fast.slnf"))
-        self.assertIsNone(komutlar[0].group)
-        self.assertIsNone(komutlar[1].group)
-        self.assertTrue(all(komut.group == gate.HEAVY_TEST_GROUP for komut in komutlar[2:]))
-        self.assertEqual(len(komutlar), 2 + sum(len(adlar) for adlar in gate.HEAVY_TEST_LANES.values()))
+        self.assertEqual(commands[1].args[:4], ("dotnet", "test", "--solution", "Tracon.fast.slnf"))
+        self.assertIsNone(commands[0].group)
+        self.assertIsNone(commands[1].group)
+        self.assertTrue(all(command.group == gate.HEAVY_TEST_GROUP for command in commands[2:]))
+        self.assertEqual(len(commands), 2 + sum(len(names) for names in gate.HEAVY_TEST_LANES.values()))
 
-    def test_docker_modulleri_en_sonda_agir_hatlarda_kosar(self):
-        komutlar = gate.staged_test_commands()
-        for modul in ("TwoNode", "SqlServer", "PostgreSql"):
-            with self.subTest(modul=modul):
-                yer = [i for i, komut in enumerate(komutlar) if f"Tracon.{modul}.IntegrationTests" in komut.display]
-                self.assertEqual(len(yer), 1)
-                self.assertGreaterEqual(yer[0], 2)
-        self.assertNotIn("Tracon.fast.slnf", " ".join(" ".join(k.args) for k in komutlar[2:]))
+    def test_docker_modules_run_last_on_the_heavy_lanes(self):
+        commands = gate.staged_test_commands()
+        for module in ("TwoNode", "SqlServer", "PostgreSql"):
+            with self.subTest(module=module):
+                place = [i for i, command in enumerate(commands) if f"Tracon.{module}.IntegrationTests" in command.display]
+                self.assertEqual(len(place), 1)
+                self.assertGreaterEqual(place[0], 2)
+        self.assertNotIn("Tracon.fast.slnf", " ".join(" ".join(k.args) for k in commands[2:]))
 
-    def test_sql_server_ve_two_node_ayni_hattadir_boylece_asla_ayni_anda_kosmaz(self):
-        hat_of = {
-            ad: hat for hat, adlar in gate.HEAVY_TEST_LANES.items() for ad in adlar}
+    def test_sql_server_and_two_node_share_a_lane_so_they_never_run_at_the_same_time(self):
+        lane_of = {
+            name: lane for lane, names in gate.HEAVY_TEST_LANES.items() for name in names}
 
-        self.assertEqual(hat_of["Tracon.SqlServer.IntegrationTests"], hat_of["Tracon.TwoNode.IntegrationTests"])
-        komutlar = {k.display: k for k in gate.staged_test_commands() if k.group}
-        for komut in komutlar.values():
-            proje = pathlib.PurePath(gate._test_target(komut.args)).stem
-            self.assertEqual(komut.lane, hat_of[proje], proje)
+        self.assertEqual(lane_of["Tracon.SqlServer.IntegrationTests"], lane_of["Tracon.TwoNode.IntegrationTests"])
+        commands = {k.display: k for k in gate.staged_test_commands() if k.group}
+        for command in commands.values():
+            project = pathlib.PurePath(gate._test_target(command.args)).stem
+            self.assertEqual(command.lane, lane_of[project], project)
 
-    def test_hat_sayisi_ayni_anda_kosan_modul_sayisidir(self):
+    def test_lane_count_is_the_number_of_modules_running_at_the_same_time(self):
         self.assertEqual(len(gate.HEAVY_TEST_LANES), gate.TEST_MAX_CPU_COUNT)
 
-    def test_her_asama_trx_bayraklarini_tasir(self):
-        for komut in gate.staged_test_commands():
-            with self.subTest(komut=komut.display):
-                args = komut.args
-                self.assertTrue(gate.reports_trx(komut))
+    def test_every_stage_carries_the_trx_flags(self):
+        for command in gate.staged_test_commands():
+            with self.subTest(command=command.display):
+                args = command.args
+                self.assertTrue(gate.reports_trx(command))
                 self.assertNotIn("--", args)
                 self.assertEqual(args[args.index("-c") + 1], "Release")
                 self.assertIn("--no-build", args)
                 self.assertEqual(args[args.index("--results-directory") + 1], gate.TEST_RESULTS_DIRECTORY)
                 self.assertEqual(args[args.index("--results-directory-layout") + 1], "per-module")
 
-    def test_ic_dongu_tam_kosum_komutu_tek_cozum_komutu_olarak_kalir(self):
+    def test_inner_loop_full_run_command_stays_a_single_solution_command(self):
         with contextlib.redirect_stdout(io.StringIO()):
-            komutlar = gate.inner_loop_commands(["src/Unknown.Package/Thing.cs"])[1:]
+            commands = gate.inner_loop_commands(["src/Unknown.Package/Thing.cs"])[1:]
 
-        self.assertEqual([k.display for k in komutlar], [gate.full_solution_test_command().display])
+        self.assertEqual([k.display for k in commands], [gate.full_solution_test_command().display])
 
-    def test_kapanis_testleri_listenin_sonunda_bitisiktir_ve_oncesinde_testsiz_adimlar_vardir(self):
-        komutlar = gate.closing_commands("abc123", site=True, performance=True)
-        testler = gate.staged_test_commands()
+    def test_closing_tests_are_contiguous_at_the_end_of_the_list_with_test_free_steps_before_them(self):
+        commands = gate.closing_commands("abc123", site=True, performance=True)
+        tests = gate.staged_test_commands()
 
-        self.assertEqual(komutlar[-len(testler):], testler)
-        self.assertFalse(any(k.display.startswith("dotnet test") for k in komutlar[:-len(testler)]))
+        self.assertEqual(commands[-len(tests):], tests)
+        self.assertFalse(any(k.display.startswith("dotnet test") for k in commands[:-len(tests)]))
 
-    # --- bölüm koruması -------------------------------------------------------------
+    # --- section guard -------------------------------------------------------------
 
-    def test_slnf_ve_agir_liste_ve_core_her_test_modulunu_tam_bir_kez_kapsar(self):
-        hafif = _slnf_projeleri(ROOT / gate.FAST_TEST_SOLUTION_FILTER)
+    def test_slnf_heavy_list_and_core_cover_every_test_module_exactly_once(self):
+        light = _slnf_projects(ROOT / gate.FAST_TEST_SOLUTION_FILTER)
 
-        self.assertTrue(all(yol.startswith("tests/") for yol in hafif), "hafif süzgeç yalnız test projesi tutar")
-        for yol in hafif:
-            self.assertTrue((ROOT / yol).is_file(), yol)
+        self.assertTrue(all(path.startswith("tests/") for path in light), "the light filter holds only test projects")
+        for path in light:
+            self.assertTrue((ROOT / path).is_file(), path)
         self.assertEqual(
             json.loads((ROOT / gate.FAST_TEST_SOLUTION_FILTER).read_text(encoding="utf-8"))["solution"]["path"],
             "Tracon.slnx")
         self.assertEqual(
-            _bolum_sorunlari(
-                _slnx_test_modulleri(), gate.CORE_TEST_PROJECT,
-                [pathlib.PurePosixPath(yol).stem for yol in hafif], gate.HEAVY_TEST_LANES),
+            _section_problems(
+                _slnx_test_modules(), gate.CORE_TEST_PROJECT,
+                [pathlib.PurePosixPath(path).stem for path in light], gate.HEAVY_TEST_LANES),
             [])
 
-    def test_bolum_korumasi_hicbir_yerde_listelenmeyen_yeni_modulde_kirmizi_olur(self):
-        moduller = ["Tracon.A.Tests", "Tracon.B.Tests", "Tracon.Yeni.Tests"]
+    def test_section_guard_turns_red_for_a_new_module_listed_nowhere(self):
+        modules = ["Tracon.A.Tests", "Tracon.B.Tests", "Tracon.New.Tests"]
 
-        sorunlar = _bolum_sorunlari(moduller, "Tracon.A.Tests", ["Tracon.B.Tests"], {"a": ()})
+        problems = _section_problems(modules, "Tracon.A.Tests", ["Tracon.B.Tests"], {"a": ()})
 
-        self.assertEqual(sorunlar, ["Tracon.Yeni.Tests: hiçbir aşamada yok"])
+        self.assertEqual(problems, ["Tracon.New.Tests: not in any stage"])
 
-    def test_bolum_korumasi_iki_yerde_listelenen_ve_bilinmeyen_modulu_yakalar(self):
-        moduller = ["Tracon.A.Tests", "Tracon.B.Tests"]
+    def test_section_guard_catches_a_module_listed_twice_and_an_unknown_one(self):
+        modules = ["Tracon.A.Tests", "Tracon.B.Tests"]
 
-        sorunlar = _bolum_sorunlari(
-            moduller, "Tracon.A.Tests", ["Tracon.B.Tests", "Tracon.Yazim.Tests"], {"a": ("Tracon.B.Tests",)})
+        problems = _section_problems(
+            modules, "Tracon.A.Tests", ["Tracon.B.Tests", "Tracon.Typo.Tests"], {"a": ("Tracon.B.Tests",)})
 
         self.assertEqual(
-            sorunlar,
-            ["Tracon.B.Tests: birden çok yerde (hafif süzgeç, ağır hat a)",
-             "Tracon.Yazim.Tests: Tracon.slnx'te test modülü değil"])
+            problems,
+            ["Tracon.B.Tests: in more than one place (light filter, heavy lane a)",
+             "Tracon.Typo.Tests: not a test module in Tracon.slnx"])
 
-    def test_yardimci_proje_test_modulu_sayilmaz(self):
-        moduller = _slnx_test_modulleri()
+    def test_helper_project_is_not_a_test_module(self):
+        modules = _slnx_test_modules()
 
-        self.assertNotIn("Tracon.WorkerHarness", moduller)
-        self.assertIn(gate.CORE_TEST_PROJECT, moduller)
+        self.assertNotIn("Tracon.WorkerHarness", modules)
+        self.assertIn(gate.CORE_TEST_PROJECT, modules)
 
-    # --- koşum: tek TRX denetimi, ilk kırmızıda durma ------------------------------------
+    # --- run: a single TRX check, stop at the first red ------------------------------
 
-    def test_yesil_kosumda_trx_kancalari_bir_kez_ve_ilk_komuttan_once_baslayan_zamanla_calisir(self):
-        sonuc = self._kos(gate.staged_test_commands())
+    def test_green_run_calls_the_trx_hooks_once_with_a_time_from_before_the_first_command(self):
+        result = self._execute(gate.staged_test_commands())
 
-        self.assertEqual(sonuc.sonuc, 0)
-        self.assertEqual(len(sonuc.cagrilar), len(gate.staged_test_commands()))
-        for kanca in (sonuc.zorunlu, sonuc.sinir, sonuc.sure):
-            kanca.assert_called_once()
-        since = sonuc.sure.call_args.args[0]
-        self.assertEqual(sonuc.zorunlu.call_args.args[0], since)
-        self.assertEqual(sonuc.sinir.call_args.args[0], since)
-        self.assertLessEqual(since, min(zaman for _, zaman in sonuc.cagrilar))
-        sonuc.izole.assert_not_called()
-        self.assertEqual([s["exit_code"] for s in sonuc.satirlar], [0] * len(gate.staged_test_commands()))
+        self.assertEqual(result.result, 0)
+        self.assertEqual(len(result.calls), len(gate.staged_test_commands()))
+        for hook in (result.required, result.limit, result.duration):
+            hook.assert_called_once()
+        since = result.duration.call_args.args[0]
+        self.assertEqual(result.required.call_args.args[0], since)
+        self.assertEqual(result.limit.call_args.args[0], since)
+        self.assertLessEqual(since, min(timestamp for _, timestamp in result.calls))
+        result.isolate.assert_not_called()
+        self.assertEqual([s["exit_code"] for s in result.lines], [0] * len(gate.staged_test_commands()))
 
-    def test_kirmizi_core_sonraki_asamalari_baslatmaz_ama_teshis_kancalari_calisir(self):
-        sonuc = self._kos(gate.staged_test_commands(), self._ad_iceren("Tracon.Core.UnitTests"))
+    def test_red_core_does_not_start_later_stages_but_the_diagnosis_hooks_run(self):
+        result = self._execute(gate.staged_test_commands(), self._name_containing("Tracon.Core.UnitTests"))
 
-        self.assertEqual(sonuc.sonuc, 2)
-        self.assertEqual(len(sonuc.cagrilar), 1)
-        self.assertIn("Tracon.Core.UnitTests", " ".join(sonuc.cagrilar[0][0]))
-        sonuc.zorunlu.assert_not_called()
-        sonuc.sinir.assert_not_called()
-        sonuc.sure.assert_called_once()
-        sonuc.izole.assert_called_once()
-        # Ölçüm: yalnız Core satırı, kendi çıkış koduyla; ağır aşama için satır yok.
-        self.assertEqual(len(sonuc.satirlar), 1)
-        self.assertEqual(sonuc.satirlar[0]["exit_code"], 2)
-        self.assertIn("Tracon.Core.UnitTests", sonuc.satirlar[0]["command"])
+        self.assertEqual(result.result, 2)
+        self.assertEqual(len(result.calls), 1)
+        self.assertIn("Tracon.Core.UnitTests", " ".join(result.calls[0][0]))
+        result.required.assert_not_called()
+        result.limit.assert_not_called()
+        result.duration.assert_called_once()
+        result.isolate.assert_called_once()
+        # Measurement: only the Core line, with its own exit code; no line for the heavy stage.
+        self.assertEqual(len(result.lines), 1)
+        self.assertEqual(result.lines[0]["exit_code"], 2)
+        self.assertIn("Tracon.Core.UnitTests", result.lines[0]["command"])
 
-    def test_kirmizi_hafif_asama_agir_hatlari_baslatmaz(self):
-        sonuc = self._kos(gate.staged_test_commands(), self._ad_iceren("Tracon.fast.slnf"))
+    def test_red_light_stage_does_not_start_the_heavy_lanes(self):
+        result = self._execute(gate.staged_test_commands(), self._name_containing("Tracon.fast.slnf"))
 
-        self.assertEqual(sonuc.sonuc, 2)
-        self.assertEqual(len(sonuc.cagrilar), 2)
-        sonuc.sure.assert_called_once()
-        sonuc.izole.assert_called_once()
+        self.assertEqual(result.result, 2)
+        self.assertEqual(len(result.calls), 2)
+        result.duration.assert_called_once()
+        result.isolate.assert_called_once()
 
-    def test_kirmizi_agir_modul_hatti_durdurur_cikis_kodunu_korur_ve_sure_sinirini_ezmez(self):
-        sonuc = self._kos(
-            gate.staged_test_commands(), self._ad_iceren("Tracon.SqlServer.IntegrationTests"), sinir_kodu=90)
+    def test_red_heavy_module_stops_its_lane_and_keeps_the_exit_code_the_time_limit_does_not_override_it(self):
+        result = self._execute(
+            gate.staged_test_commands(), self._name_containing("Tracon.SqlServer.IntegrationTests"), limit_code=90)
 
-        calisan = [" ".join(args) for args, _ in sonuc.cagrilar]
-        self.assertEqual(sonuc.sonuc, 2)
-        self.assertFalse(any("Tracon.Ui.E2ETests" in satir for satir in calisan), "kırmızı hattın sonraki komutu başladı")
-        sonuc.sinir.assert_not_called()
-        sonuc.sure.assert_called_once()
-        sonuc.izole.assert_called_once()
+        executed = [" ".join(args) for args, _ in result.calls]
+        self.assertEqual(result.result, 2)
+        self.assertFalse(any("Tracon.Ui.E2ETests" in line for line in executed), "the next command of the red lane started")
+        result.limit.assert_not_called()
+        result.duration.assert_called_once()
+        result.isolate.assert_called_once()
 
-    def test_asamalar_yesilken_modul_sure_siniri_cikis_kodu_verir_ve_tek_satir_yazar(self):
-        sonuc = self._kos(gate.staged_test_commands(), sinir_kodu=gate.MODULE_TIME_LIMIT_EXIT_CODE)
+    def test_module_time_limit_gives_its_exit_code_and_writes_one_line_when_the_stages_are_green(self):
+        result = self._execute(gate.staged_test_commands(), limit_code=gate.MODULE_TIME_LIMIT_EXIT_CODE)
 
-        self.assertEqual(sonuc.sonuc, gate.MODULE_TIME_LIMIT_EXIT_CODE)
-        sonuc.sinir.assert_called_once()
-        sonuc.sure.assert_called_once()
-        kontrol = [s for s in sonuc.satirlar if s["command"] == gate.TRX_CHECK.display]
-        self.assertEqual([s["exit_code"] for s in kontrol], [gate.MODULE_TIME_LIMIT_EXIT_CODE])
+        self.assertEqual(result.result, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        result.limit.assert_called_once()
+        result.duration.assert_called_once()
+        checks = [s for s in result.lines if s["command"] == gate.TRX_CHECK.display]
+        self.assertEqual([s["exit_code"] for s in checks], [gate.MODULE_TIME_LIMIT_EXIT_CODE])
         self.assertEqual(
-            [s["exit_code"] for s in sonuc.satirlar if s["command"] != gate.TRX_CHECK.display],
+            [s["exit_code"] for s in result.lines if s["command"] != gate.TRX_CHECK.display],
             [0] * len(gate.staged_test_commands()))
 
-    def test_sifir_test_kosan_yesil_asamalar_kirmizi_sayilir(self):
-        sonuc = self._kos(gate.staged_test_commands(), sifir_test=gate.ZERO_TESTS_EXIT_CODE)
+    def test_green_stages_that_ran_zero_tests_count_as_red(self):
+        result = self._execute(gate.staged_test_commands(), zero_tests=gate.ZERO_TESTS_EXIT_CODE)
 
-        self.assertEqual(sonuc.sonuc, gate.ZERO_TESTS_EXIT_CODE)
-        sonuc.zorunlu.assert_called_once()
-        sonuc.sinir.assert_not_called()
+        self.assertEqual(result.result, gate.ZERO_TESTS_EXIT_CODE)
+        result.required.assert_called_once()
+        result.limit.assert_not_called()
 
-    def test_testsiz_adim_iki_test_kosumunu_ayirir_ve_her_kosum_kendi_kancalarini_calistirir(self):
+    def test_a_step_without_tests_separates_two_test_runs_and_each_run_calls_its_own_hooks(self):
         trx = gate.full_solution_test_command()
-        sonuc = self._kos([trx, gate.Command(("dotnet", "build", "Tracon.slnx")), trx])
+        result = self._execute([trx, gate.Command(("dotnet", "build", "Tracon.slnx")), trx])
 
-        self.assertEqual(sonuc.sonuc, 0)
-        self.assertEqual(sonuc.zorunlu.call_count, 2)
-        self.assertEqual(sonuc.sure.call_count, 2)
+        self.assertEqual(result.result, 0)
+        self.assertEqual(result.required.call_count, 2)
+        self.assertEqual(result.duration.call_count, 2)
 
-    def test_trx_istemeyen_grup_test_kancalarini_calistirmaz(self):
-        sonuc = self._kos([gate.Command((ad,), group="g") for ad in ("c0", "c1")])
+    def test_group_that_wants_no_trx_does_not_call_the_test_hooks(self):
+        result = self._execute([gate.Command((name,), group="g") for name in ("c0", "c1")])
 
-        self.assertEqual(sonuc.sonuc, 0)
-        sonuc.zorunlu.assert_not_called()
-        sonuc.sure.assert_not_called()
+        self.assertEqual(result.result, 0)
+        result.required.assert_not_called()
+        result.duration.assert_not_called()
 
 
-class PerformansKapisiTestleri(unittest.TestCase):
-    """`scripts/gate.py perf` - karşılaştırma ve taban çizgisi
-    okuma mantığının SAF Python testleri. `dotnet run` gerektiren gerçek
-    benchmark koşumu ve kasıtlı gerileme koşumu manuel kabul case'lerindedir."""
+class PerformanceGateTests(unittest.TestCase):
+    """`scripts/gate.py perf` - PURE Python tests of the comparison and baseline
+    reading logic. The real benchmark run that needs `dotnet run` and the
+    deliberate-regression run are not covered here."""
 
-    def test_artan_tahsis_kirmizi_olur_ve_metodu_bayti_adlandirir(self):
+    def test_growing_allocation_turns_red_and_names_the_method_and_bytes(self):
         baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
         current = {"A": {"allocatedBytes": 132, "meanNanoseconds": 1.0}}
 
@@ -2318,7 +2317,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         self.assertTrue(any("A" in message and "132" in message and "+32" in message for message in messages))
 
-    def test_azalan_tahsis_kirmizi_olmaz_ama_guncelleme_uyarisi_verir(self):
+    def test_shrinking_allocation_stays_green_but_warns_to_update(self):
         baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
         current = {"A": {"allocatedBytes": 80, "meanNanoseconds": 1.0}}
 
@@ -2327,7 +2326,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertTrue(any("update the baseline" in message for message in messages))
 
-    def test_ayni_tahsis_gecer(self):
+    def test_equal_allocation_passes(self):
         baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
         current = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
 
@@ -2335,17 +2334,17 @@ class PerformansKapisiTestleri(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
 
-    def test_taban_cizgisinde_olmayan_benchmark_kirmizi_olur(self):
-        exit_code, messages = gate.compare_allocations({}, {"Yeni": {"allocatedBytes": 10, "meanNanoseconds": 1.0}})
+    def test_benchmark_missing_from_the_baseline_turns_red(self):
+        exit_code, messages = gate.compare_allocations({}, {"New": {"allocatedBytes": 10, "meanNanoseconds": 1.0}})
 
         self.assertEqual(exit_code, 1)
-        self.assertTrue(any("Yeni" in message and "not in the baseline" in message for message in messages))
+        self.assertTrue(any("New" in message and "not in the baseline" in message for message in messages))
 
-    def test_olcum_uretmeyen_benchmark_anlasilir_kirmizi_olur(self):
-        # 2026-10-11: BenchmarkDotNet aynı ada sahip ikinci bir .csproj bulunca
-        # (.claude/worktrees altındaki agent worktree'leri) boilerplate'i
-        # üretemedi; rapor `BytesAllocatedPerOperation: null` taşıdı ve kapı
-        # anlamlı bir mesaj yerine TypeError ile çöktü.
+    def test_benchmark_that_produced_no_measurement_turns_red_with_a_clear_message(self):
+        # 2026-10-11: when BenchmarkDotNet found a second .csproj with the same name
+        # (a copy of the repository inside the tree, such as a git worktree) it could not produce
+        # the boilerplate; the report carried `BytesAllocatedPerOperation: null` and the gate
+        # crashed with a TypeError instead of a meaningful message.
         report = {"Benchmarks": [{"FullName": "A", "Statistics": None,
                                   "Memory": {"BytesAllocatedPerOperation": None}}]}
         current = gate.parse_benchmark_report(report)
@@ -2355,20 +2354,20 @@ class PerformansKapisiTestleri(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         self.assertTrue(any("A" in message and "produced no measurement" in message for message in messages))
 
-    def test_bu_kosumda_uretilmeyen_benchmark_kirmizi_olur(self):
-        exit_code, messages = gate.compare_allocations({"Eski": {"allocatedBytes": 10, "meanNanoseconds": 1.0}}, {})
+    def test_benchmark_not_produced_in_this_run_turns_red(self):
+        exit_code, messages = gate.compare_allocations({"Old": {"allocatedBytes": 10, "meanNanoseconds": 1.0}}, {})
 
         self.assertEqual(exit_code, 1)
-        self.assertTrue(any("Eski" in message and "not produced" in message for message in messages))
+        self.assertTrue(any("Old" in message and "not produced" in message for message in messages))
 
-    def test_eksik_taban_cizgisi_dosyasi_anlasilir_hata_verir(self):
+    def test_missing_baseline_file_gives_a_clear_error(self):
         with tempfile.TemporaryDirectory() as directory:
             missing = pathlib.Path(directory) / "does-not-exist.json"
 
             with self.assertRaises(gate.BaselineError):
                 gate.load_baseline(missing)
 
-    def test_bozuk_taban_cizgisi_dosyasi_anlasilir_hata_verir(self):
+    def test_malformed_baseline_file_gives_a_clear_error(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "baseline.json"
             path.write_text("{ this is not valid json", encoding="utf-8")
@@ -2376,7 +2375,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
             with self.assertRaises(gate.BaselineError):
                 gate.load_baseline(path)
 
-    def test_benchmarks_anahtari_eksik_taban_cizgisi_anlasilir_hata_verir(self):
+    def test_baseline_without_the_benchmarks_key_gives_a_clear_error(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "baseline.json"
             path.write_text('{"somethingElse": true}', encoding="utf-8")
@@ -2384,7 +2383,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
             with self.assertRaises(gate.BaselineError):
                 gate.load_baseline(path)
 
-    def test_benchmarkdotnet_json_raporundan_tahsis_ve_sure_cikarilir(self):
+    def test_allocation_and_duration_are_extracted_from_the_benchmarkdotnet_json_report(self):
         report = {
             "Benchmarks": [
                 {
@@ -2401,9 +2400,9 @@ class PerformansKapisiTestleri(unittest.TestCase):
             parsed["Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent"],
             {"allocatedBytes": 176, "meanNanoseconds": 123.4})
 
-    def test_birden_fazla_benchmark_sinifinin_raporu_birlesir(self):
-        """BenchmarkDotNet HER benchmark SINIFI için ayrı bir *-report-full.json
-        yazar, tüm koşum için tek dosya değil - ikisi de okunmalı."""
+    def test_reports_of_several_benchmark_classes_are_merged(self):
+        """BenchmarkDotNet writes a separate *-report-full.json for EVERY benchmark CLASS,
+        not a single file for the whole run - both must be read."""
         with tempfile.TemporaryDirectory() as directory:
             report_dir = pathlib.Path(directory) / "results"
             report_dir.mkdir()
@@ -2418,7 +2417,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
 
         self.assertEqual([path.name for path in found], ["A-report-full.json", "B-report-full.json"])
 
-    def test_taban_cizgisi_yazma_ve_okuma_gidip_gelir(self):
+    def test_baseline_write_and_read_round_trip(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "baseline.json"
             benchmarks = {"A": {"allocatedBytes": 42, "meanNanoseconds": 3.5}}
@@ -2438,10 +2437,10 @@ class PerformansKapisiTestleri(unittest.TestCase):
             }],
         }), encoding="utf-8")
 
-    def test_performans_kapisi_dotnet_run_basarisiz_olursa_onun_cikis_kodunu_doner(self):
-        """Denetim bulgusu: orkestrasyon fonksiyonunun kendisi hiç
-        test edilmiyordu, yalnız saf karşılaştırma mantığı. `runner` zaten
-        enjekte edilebilir - `run_commands` testlerindeki desenin aynısı."""
+    def test_performance_gate_returns_the_exit_code_of_a_failing_dotnet_run(self):
+        """The orchestration function itself was never tested, only the pure
+        comparison logic. `runner` can already be injected - the same pattern as in
+        the `run_commands` tests."""
         with tempfile.TemporaryDirectory() as directory:
             baseline_path = pathlib.Path(directory) / "baseline.json"
             gate.write_baseline({"A": {"allocatedBytes": 1, "meanNanoseconds": 1.0}}, baseline_path)
@@ -2455,7 +2454,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         runner.assert_called_once()
 
-    def test_performans_kapisi_rapor_uretilmezse_anlasilir_hata_verir(self):
+    def test_performance_gate_gives_a_clear_error_when_no_report_is_produced(self):
         with tempfile.TemporaryDirectory() as directory:
             baseline_path = pathlib.Path(directory) / "baseline.json"
             gate.write_baseline({"A": {"allocatedBytes": 1, "meanNanoseconds": 1.0}}, baseline_path)
@@ -2468,7 +2467,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
 
         self.assertEqual(exit_code, 1)
 
-    def test_performans_kapisi_ucdan_uca_karsilastirir_gercek_dotnet_calistirmadan(self):
+    def test_performance_gate_compares_end_to_end_without_running_a_real_dotnet(self):
         with tempfile.TemporaryDirectory() as directory:
             baseline_path = pathlib.Path(directory) / "baseline.json"
             report_dir = pathlib.Path(directory) / "results"
@@ -2483,7 +2482,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
 
         self.assertEqual(exit_code, 1)
 
-    def test_performans_kapisi_guncelle_taban_cizgisini_yazar(self):
+    def test_performance_gate_update_writes_the_baseline(self):
         with tempfile.TemporaryDirectory() as directory:
             baseline_path = pathlib.Path(directory) / "baseline.json"
             report_dir = pathlib.Path(directory) / "results"
@@ -2500,10 +2499,9 @@ class PerformansKapisiTestleri(unittest.TestCase):
         self.assertEqual(written["benchmarks"]["A.M"]["allocatedBytes"], 55)
 
 
-class YayinTestleri(unittest.TestCase):
-    """`scripts/gate.py release` - saf Python mantığı. `dotnet
-    pack`'e ihtiyaç duyan uçtan uca davranış `ReleaseArtifactTests.cs`'te ve bu
-    fazın manuel kabul case'lerinde."""
+class ReleaseTests(unittest.TestCase):
+    """`scripts/gate.py release` - the pure Python logic. The end-to-end behavior that
+    needs `dotnet pack` lives in `ReleaseArtifactTests.cs`."""
 
     def _write_csproj(self, root: pathlib.Path, project_id: str, body: str = "") -> None:
         directory = root / "src" / project_id
@@ -2512,7 +2510,7 @@ class YayinTestleri(unittest.TestCase):
             f'<Project Sdk="Microsoft.NET.Sdk">\n{body}\n</Project>\n', encoding="utf-8")
         _write_src_build_props(root)
 
-    def test_paketlenebilir_proje_kimlikleri_isPackable_false_olani_disler(self):
+    def test_packable_project_ids_exclude_ispackable_false(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_csproj(root, "Tracon.Core")
@@ -2520,7 +2518,7 @@ class YayinTestleri(unittest.TestCase):
 
             self.assertEqual(gate.packable_project_ids(root), ["Tracon.Core"])
 
-    def test_paket_profili_arac_icerik_meta_ve_kutuphaneyi_ayirir(self):
+    def test_package_profile_tells_tool_content_meta_and_library_apart(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_csproj(root, "Tracon.Cli", "<PropertyGroup><PackAsTool>true</PackAsTool></PropertyGroup>")
@@ -2535,14 +2533,14 @@ class YayinTestleri(unittest.TestCase):
             self.assertEqual(gate._package_profile(root, "Tracon"), "meta")
             self.assertEqual(gate._package_profile(root, "Tracon.Core"), "library")
 
-    def test_kendi_surumunu_adlandirma_baska_paketi_karistirmiyor(self):
-        """'Tracon.' önekiyle başlayan başka bir paketin dosyasını
-        ("Tracon.Core...") kendi paketiymiş gibi almamalı."""
+    def test_naming_own_version_does_not_mix_up_another_package(self):
+        """The file of another package whose id starts with the 'Tracon.' prefix
+        ("Tracon.Core...") must not be taken as the package's own."""
         self.assertTrue(gate._names_own_version("Tracon", "Tracon.1.0.0-preview.1.nupkg"))
         self.assertFalse(gate._names_own_version("Tracon", "Tracon.Core.1.0.0-preview.1.nupkg"))
         self.assertTrue(gate._names_own_version("Tracon.Core", "Tracon.Core.1.0.0-preview.1.nupkg"))
 
-    def test_surum_istenmisse_tam_dosya_adi_aranir(self):
+    def test_when_a_version_is_requested_the_exact_file_name_is_looked_up(self):
         with tempfile.TemporaryDirectory() as directory:
             release_dir = pathlib.Path(directory)
             (release_dir / "Tracon.Core.1.0.0-preview.1.nupkg").write_bytes(b"")
@@ -2553,12 +2551,12 @@ class YayinTestleri(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertIsNone(missing)
 
-    def test_surum_istenmemisse_en_son_yazilan_kendi_dosyasi_secilir(self):
-        """Denetim: eski bir 'en son yazılan' seçimi, ÖNCEKİ bir
-        --package-version koşumundan kalan bayat dosyayı seçebiliyordu, çünkü artımlı
-        `dotnet pack` değişmeyen bir projenin çıktısını yeniden üretmeyebilir.
-        `_clean_stale_packages` bu testin varsaydığı ön koşulu sağlar; burada
-        yalnız kalan iki adaydan DOĞRU (en yeni) olanın seçildiği ölçülüyor."""
+    def test_when_no_version_is_requested_the_most_recently_written_own_file_is_chosen(self):
+        """An older "most recently written" selection could pick a stale file left over from an
+        EARLIER --package-version run, because an incremental `dotnet pack` may not regenerate the
+        output of an unchanged project. Keeping stale files out of the directory is the job of the
+        staging step; here only the choice of the CORRECT (newest) one of the two remaining
+        candidates is measured."""
         with tempfile.TemporaryDirectory() as directory:
             release_dir = pathlib.Path(directory)
             old = release_dir / "Tracon.Core.1.0.0-preview.1.nupkg"
@@ -2572,7 +2570,7 @@ class YayinTestleri(unittest.TestCase):
 
         self.assertEqual(found, new)
 
-    def test_hedef_frameworkler_tekil_override_okur(self):
+    def test_target_frameworks_read_the_single_project_override(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_csproj(root, "Tracon.Testing", "<PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks></PropertyGroup>")
@@ -2580,7 +2578,7 @@ class YayinTestleri(unittest.TestCase):
             _write_src_build_props(root, "net10.0;net11.0")
 
             self.assertEqual(gate._target_frameworks(root, "Tracon.Testing"), ("net10.0",))
-            # Varsayilan props'tan OKUNUR, betikte tekrar yazilmaz.
+            # The default is READ from the props; it is not repeated in the script.
             self.assertEqual(gate._target_frameworks(root, "Tracon.Core"), ("net10.0", "net11.0"))
 
             (root / "src" / "Directory.Build.props").write_text("<Project />\n", encoding="utf-8")
@@ -2597,12 +2595,12 @@ class YayinTestleri(unittest.TestCase):
             archive.writestr("_rels/.rels", f"<Relationships><Relationship Target=\"/package/services/metadata/core-properties/{psmdcp_guid}.psmdcp\" /></Relationships>")
             archive.writestr(f"package/services/metadata/core-properties/{psmdcp_guid}.psmdcp", "<coreProperties />")
 
-    # "bayat paket temizlenir" iddiası (eski `_clean_stale_packages`,
-    # koşumdan ÖNCE aynı kimlikteki her şeyi sessizce siliyordu) yerini "farklı
-    # içerikli aynı kimlik promote edilmez" iddiasına bırakır - staging'den
-    # release_dir'e taşıma artık içerik parmak izi karşılaştırmasından
-    # geçmeden olmaz (ham SHA-256 değil - bkz. `_content_fingerprint`).
-    def test_yeni_paket_staging_dizininden_release_dizinine_tasinir(self):
+    # The "a stale package is cleaned" claim (the old `_clean_stale_packages` silently
+    # deleted everything with the same identity BEFORE the run) gave way to the claim
+    # "the same identity with different content is not promoted" - moving from staging to
+    # release_dir now requires passing a content-fingerprint comparison
+    # (not the raw SHA-256 - see `_content_fingerprint`).
+    def test_new_package_moves_from_the_staging_directory_to_the_release_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             staging_dir, release_dir = root / "staging", root / "release"
@@ -2616,7 +2614,7 @@ class YayinTestleri(unittest.TestCase):
             self.assertTrue((release_dir / name).exists())
             self.assertFalse((staging_dir / name).exists())
 
-    def test_ayni_icerik_parmak_izi_deterministik_no_op_olarak_gecer(self):
+    def test_same_content_fingerprint_passes_as_a_deterministic_no_op(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             staging_dir, release_dir = root / "staging", root / "release"
@@ -2630,14 +2628,13 @@ class YayinTestleri(unittest.TestCase):
 
             self.assertEqual(conflicts, [])
 
-    def test_farkli_opc_rastgele_adi_tek_basina_konflikt_saymaz(self):
-        """🚨 Ölçüldü (2026-09-03): NuGet, HER `dotnet pack` koşumunda
-        `package/services/metadata/core-properties/<rastgele>.psmdcp` dosyasını
-        YENİ bir GUID ile yazar ve `_rels/.rels` o adı taşır - aynı commit'i
-        art arda iki kez paketlemek bile FARKLI ham SHA-256 üretir. Ham dosya
-        hash'i karşılaştırılsaydı bu, bir manuel case'in kanıtlamak istediği
-        senaryonun TAM TERSİNİ üretirdi: değişmeyen bir sürümün İKİNCİ koşumu
-        her seferinde 'farklı artifact' diye reddedilirdi."""
+    def test_different_random_opc_name_alone_is_not_a_conflict(self):
+        """🚨 Measured (2026-09-03): on EVERY `dotnet pack` run NuGet writes
+        `package/services/metadata/core-properties/<random>.psmdcp` with a
+        NEW GUID and `_rels/.rels` carries that name - even packing the same commit
+        twice in a row produces a DIFFERENT raw SHA-256. Had the raw file hash
+        been compared, the SECOND run of an unchanged version would have been
+        rejected every time as a 'different artifact'."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             staging_dir, release_dir = root / "staging", root / "release"
@@ -2652,10 +2649,10 @@ class YayinTestleri(unittest.TestCase):
 
             self.assertEqual(conflicts, [])
 
-    def test_farkli_icerik_koşumu_durdurur_ve_mevcut_artifacti_korur(self):
-        """Aynı kimlikte (id+sürüm) GERÇEKTEN farklı içerik: hiçbir dosya
-        promote edilmez - konfilktsiz olan bile - ve mevcut release_dir olduğu
-        gibi kalır."""
+    def test_different_content_stops_the_run_and_keeps_the_existing_artifact(self):
+        """Genuinely different content under the same identity (id+version): no file is
+        promoted - not even the non-conflicting one - and the existing release_dir stays
+        as it is."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             staging_dir, release_dir = root / "staging", root / "release"
@@ -2677,14 +2674,14 @@ class YayinTestleri(unittest.TestCase):
             self.assertFalse((release_dir / clean).exists())
             self.assertTrue((staging_dir / clean).exists())
 
-    def test_manifest_her_paket_icin_id_dosya_ve_sha256_tasir(self):
+    def test_manifest_carries_id_file_and_sha256_for_every_package(self):
         with tempfile.TemporaryDirectory() as directory:
             release_dir = pathlib.Path(directory)
 
             manifest_path = gate._write_manifest(
                 release_dir,
                 version="1.0.0-preview.1",
-                commit="691dfbe17061bd6932576e892f4eeffe044468df",
+                commit="0123456789abcdef0123456789abcdef01234567",
                 packages=[
                     {"id": "Tracon.Core", "file": "Tracon.Core.1.0.0-preview.1.nupkg", "sha256": "abc",
                      "symbolsFile": "Tracon.Core.1.0.0-preview.1.snupkg", "symbolsSha256": "def"},
@@ -2697,7 +2694,7 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(manifest["packages"][0]["id"], "Tracon.Core")
         self.assertEqual(manifest["packages"][0]["sha256"], "abc")
 
-    def test_yayin_kirli_agacta_erken_reddeder_pack_denenmez(self):
+    def test_release_rejects_a_dirty_tree_early_and_tries_no_pack(self):
         with mock.patch.object(gate, "_git", return_value=[" M src/Directory.Build.props"]):
             with mock.patch("subprocess.run") as run:
                 result = gate.release_rehearsal(None)
@@ -2705,10 +2702,10 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         run.assert_not_called()
 
-    def test_yayin_tarama_kirmiziysa_pack_denenmez(self):
-        """Etiket koşusu `scan`'i koşar ve yayınlanmış bir etiket geri alınamaz.
-        Taramanın düşüreceği her şey (sürüm etiketi kayması dahil) etiketten ÖNCE,
-        provada görünmeli; pack'e hiç girilmez."""
+    def test_release_tries_no_pack_when_the_scan_is_red(self):
+        """The tag run executes `scan` and a published tag cannot be taken back.
+        Everything the scan would fail on (version-tag drift included) must show up BEFORE the tag,
+        in the rehearsal; pack is never entered."""
         with mock.patch.object(gate, "_git", return_value=[]), \
                 mock.patch.object(gate, "scan", return_value=1) as scan, \
                 mock.patch.object(gate, "_pack_release", return_value=1) as pack:
@@ -2718,10 +2715,10 @@ class YayinTestleri(unittest.TestCase):
         scan.assert_called_once()
         pack.assert_not_called()
 
-    def test_yayin_git_bulunamazsa_taban_cozulemez_pack_denenmez(self):
-        """Git yoksa temizlik denetimi uyarıyla atlanır (MSBuild kapısı
-        ikinci hattır). taban adımının ikinci hattı yoktur - sessiz
-        atlama yerine kırmızı, pack hiç denenmez."""
+    def test_release_without_git_cannot_resolve_the_baseline_and_tries_no_pack(self):
+        """Without git the cleanliness check is skipped with a warning (the MSBuild gate
+        is the second line of defence). The baseline step has no second line - red
+        instead of a silent skip, and pack is never tried."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "src").mkdir()
@@ -2729,7 +2726,7 @@ class YayinTestleri(unittest.TestCase):
 
             with mock.patch.object(gate, "_git", return_value=None), \
                     mock.patch.object(gate, "scan", return_value=0):
-                with mock.patch("subprocess.run", side_effect=OSError("git yok")) as run:
+                with mock.patch("subprocess.run", side_effect=OSError("no git")) as run:
                     with contextlib.redirect_stdout(output):
                         result = gate.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
 
@@ -2737,12 +2734,12 @@ class YayinTestleri(unittest.TestCase):
         self.assertIn("The baseline could not be resolved", output.getvalue())
         self.assertFalse(any(call.args[0][0] == "dotnet" for call in run.call_args_list))
 
-    # --- Taban, izole restore ve kırıcı kapının sırası -------------
+    # --- Baseline, isolated restore and the order of the breaking gate -------------
 
     @staticmethod
     def _breaking_changes_module():
-        # gate.py modülü `import breaking_changes` ile alır; testler aynı nesneyi
-        # (sys.modules girdisi) yamalamalı, kopyasını değil.
+        # The gate.py module picks it up with `import breaking_changes`; the tests must patch the same
+        # object (the sys.modules entry), not a copy.
         sys.path.insert(0, str(ROOT / "scripts"))
         return importlib.import_module("breaking_changes")
 
@@ -2779,7 +2776,7 @@ class YayinTestleri(unittest.TestCase):
         self._write_csproj(root, "Tracon", "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup>")
         return root
 
-    def test_taban_cozulemezse_pack_denenmez(self):
+    def test_unresolvable_baseline_tries_no_pack(self):
         bc = self._breaking_changes_module()
         with tempfile.TemporaryDirectory() as directory:
             root = self._library_root(directory)
@@ -2792,11 +2789,11 @@ class YayinTestleri(unittest.TestCase):
         finish.assert_not_called()
         self.assertIn("❌ The baseline could not be resolved: no 'v*' tag is reachable from HEAD", output)
 
-    def test_restore_hatasi_paketi_adiyla_bildirir_pack_denenmez(self):
+    def test_restore_error_names_the_package_and_tries_no_pack(self):
         bc = self._breaking_changes_module()
 
         def failing_restore(ids, version, work):
-            raise bc.RestoreError(f"taban paketleri nuget.org'dan alınamadı (v{version}; {', '.join(ids)})")
+            raise bc.RestoreError(f"baseline packages could not be fetched from nuget.org (v{version}; {', '.join(ids)})")
 
         with tempfile.TemporaryDirectory() as directory:
             root = self._library_root(directory)
@@ -2806,10 +2803,10 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(pack_calls, [])
         finish.assert_not_called()
-        # Yalnız library paketinin tabanı istenir; meta paketin tabanı yoktur.
+        # Only the baseline of the library package is requested; the meta package has no baseline.
         self.assertIn("(v1.0.0-preview.2; Tracon.Core)", output)
 
-    def test_pack_taban_ozelliklerini_ve_rapor_dizinini_alir(self):
+    def test_pack_receives_the_baseline_properties_and_the_report_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._library_root(directory)
 
@@ -2827,7 +2824,7 @@ class YayinTestleri(unittest.TestCase):
             self.assertIn("Baseline: v1.0.0-preview.2 (git describe)", output)
             self.assertIn("Baseline packages from the isolated cache (source api.nuget.org): 1", output)
 
-    def test_rapor_dizini_kosum_basina_benzersiz(self):
+    def test_report_directory_is_unique_per_run(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._library_root(directory)
 
@@ -2837,7 +2834,7 @@ class YayinTestleri(unittest.TestCase):
             self.assertNotEqual(first.call_args.kwargs["breaking_gate"].report_dir,
                                 second.call_args.kwargs["breaking_gate"].report_dir)
 
-    def test_istisnada_gecici_dizinler_silinir_promote_yok(self):
+    def test_temporary_directories_are_deleted_on_an_exception_and_nothing_is_promoted(self):
         seen: dict[str, pathlib.Path] = {}
 
         def exploding_finish(**kwargs):
@@ -2860,15 +2857,15 @@ class YayinTestleri(unittest.TestCase):
             self.assertFalse(seen["work"].exists())
             self.assertFalse((root / "artifacts" / "package" / "release").exists())
 
-    def test_prova_varsayilanda_surum_ve_commit_dizinine_yazar_release_dizinine_dokunmaz(self):
-        """`release/` geliştirme feed'idir; oradaki eski sürümler provanın sample
-        kapısını dakikalarca paketlemeden SONRA düşürüyordu (2026-09-24)."""
+    def test_rehearsal_writes_to_the_version_and_commit_directory_by_default_and_leaves_release_alone(self):
+        """`release/` is the development feed; old versions there used to fail the rehearsal's sample
+        gate AFTER minutes of packing (2026-09-24)."""
         with tempfile.TemporaryDirectory() as directory:
             root = self._library_root(directory)
             package_root = root / "artifacts" / "package"
             (package_root / "release").mkdir(parents=True)
             stale = package_root / "release" / "Tracon.Core.1.0.0-preview.2.82.nupkg"
-            stale.write_bytes(b"eski")
+            stale.write_bytes(b"old")
 
             with mock.patch.object(gate, "PACKAGE_RELEASE_DIR", package_root / "release"), \
                     mock.patch.object(gate, "PACKAGE_REHEARSAL_ROOT", package_root / "rehearsal"), \
@@ -2879,19 +2876,19 @@ class YayinTestleri(unittest.TestCase):
             self.assertEqual(result, 0, output)
             self.assertEqual(finish.call_args.kwargs["release_dir"], package_root / "rehearsal" / "1.0.0-preview.3")
             self.assertEqual(finish.call_args.kwargs["staging_dir"].parent, package_root / "staging")
-            self.assertEqual(stale.read_bytes(), b"eski")
+            self.assertEqual(stale.read_bytes(), b"old")
             self.assertIn("Rehearsal output:", output)
 
-    def test_prova_dizini_surum_basinadir(self):
-        """Dizinin İÇİNDE geçerli kalır: aynı sürümün yeni commit'i aynı
-        dizine düşer ve farklı içerik reddedilir."""
+    def test_rehearsal_directory_is_per_version(self):
+        """Still holds INSIDE the directory: a new commit of the same version lands in the same
+        directory and different content is rejected."""
         root = pathlib.Path("/x")
 
         self.assertEqual(gate.rehearsal_release_dir("1.0.0-preview.3", root), root / "1.0.0-preview.3")
         self.assertNotEqual(gate.rehearsal_release_dir("1.0.0-preview.3", root),
                             gate.rehearsal_release_dir("1.0.0-preview.2", root))
 
-    def test_bayat_ilk_yayin_bayragi_pack_denenmez(self):
+    def test_stale_first_release_flag_tries_no_pack(self):
         bc = self._breaking_changes_module()
         with tempfile.TemporaryDirectory() as directory:
             root = self._library_root(directory)
@@ -2944,7 +2941,7 @@ class YayinTestleri(unittest.TestCase):
         staging_dir = root / "staging"
         staging_dir.mkdir()
         release_dir = root / "release"
-        # Etiket biçiminde olmayan sürüm: CHANGELOG kapısı bu testlerin konusu değil.
+        # A version that is not in tag form: the CHANGELOG gate is not the subject of these tests.
         version = "1.0.0-preview.2.47"
         for project_id, (dependencies, extra) in packages.items():
             project_dir = root / "src" / project_id
@@ -2977,9 +2974,9 @@ class YayinTestleri(unittest.TestCase):
 
     HOSTING = '<dependency id="Microsoft.Agents.AI.Hosting" version="{0}" exclude="Build,Analyzers" />'
 
-    def test_on_surum_ucuncu_taraf_bagimlilik_acik_alt_sinirsa_kirmizi(self):
-        """`version="x"` = `>= x`; yayınlanmış preview.2 Hosting 1.22 ile
-        uyarısız restore olup çalışma anında düştü."""
+    def test_prerelease_third_party_dependency_with_an_open_lower_bound_turns_red(self):
+        """`version="x"` means `>= x`; the published preview.2 restored without a warning
+        against Hosting 1.22 and then failed at run time."""
         with tempfile.TemporaryDirectory() as directory:
             result, output = self._finish_packages(pathlib.Path(directory), {
                 "Tracon.AspNetCore": (self.HOSTING.format("1.20.0-preview.260831.1"), {})})
@@ -2987,7 +2984,7 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1, output)
         self.assertIn("is not an exact range: Microsoft.Agents.AI.Hosting 1.20.0-preview.260831.1", output)
 
-    def test_on_surum_ucuncu_taraf_bagimlilik_tam_araliksa_gecer(self):
+    def test_prerelease_third_party_dependency_with_an_exact_range_passes(self):
         with tempfile.TemporaryDirectory() as directory:
             result, output = self._finish_packages(pathlib.Path(directory), {
                 "Tracon.AspNetCore": (
@@ -2997,7 +2994,7 @@ class YayinTestleri(unittest.TestCase):
 
         self.assertEqual(result, 0, output)
 
-    def test_on_surum_farkli_iki_sinirli_aralik_tam_sayilmaz(self):
+    def test_prerelease_range_with_two_different_bounds_is_not_exact(self):
         self.assertIsNone(gate.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1, 1.0.0-preview.2]"))
         self.assertIsNone(gate.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1, )"))
         self.assertIsNotNone(gate.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1]"))
@@ -3007,8 +3004,8 @@ class YayinTestleri(unittest.TestCase):
         source.parent.mkdir(parents=True, exist_ok=True)
         source.write_bytes(text)
 
-    def test_ui_paketi_lisans_bildirimi_tasimiyorsa_kirmizi(self):
-        """gömülü React/TanStack paketlenir, MIT bildirimi kopyayla gider."""
+    def test_ui_package_without_the_license_notice_turns_red(self):
+        """The embedded React/TanStack is packed, and the MIT notice travels with the copy."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._ui_notice(root, b"react\n")
@@ -3017,17 +3014,17 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1, output)
         self.assertIn("THIRD-PARTY-NOTICES.txt is not at the package root", output)
 
-    def test_ui_bildirimi_kaynaktan_farkliysa_kirmizi(self):
+    def test_ui_notice_that_differs_from_the_source_turns_red(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._ui_notice(root, b"react\n")
             result, output = self._finish_packages(
-                root, {"Tracon.UI": ("", {"THIRD-PARTY-NOTICES.txt": b"eski\n"})})
+                root, {"Tracon.UI": ("", {"THIRD-PARTY-NOTICES.txt": b"old\n"})})
 
         self.assertEqual(result, 1, output)
         self.assertIn("differs from", output)
 
-    def test_ui_bildirimi_kaynakla_ayniysa_gecer(self):
+    def test_ui_notice_equal_to_the_source_passes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._ui_notice(root, b"react\n")
@@ -3036,7 +3033,7 @@ class YayinTestleri(unittest.TestCase):
 
         self.assertEqual(result, 0, output)
 
-    def test_kirici_kapi_kirmiziyken_promote_yok(self):
+    def test_nothing_is_promoted_while_the_breaking_gate_is_red(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_csproj(root, "Tracon.Core")
@@ -3046,9 +3043,9 @@ class YayinTestleri(unittest.TestCase):
             self.assertEqual(result, 1, output)
             self.assertFalse(release_dir.exists())
 
-    def test_kirici_kapi_yesilken_promote_edilir(self):
-        """Kontrol: sahte paket kapıdan önceki her denetimi geçer - yukarıdaki
-        kırmızı sonucu kapı verir, metaveri denetimi değil."""
+    def test_packages_are_promoted_when_the_breaking_gate_is_green(self):
+        """Control: the fake package passes every check before the gate - the red result
+        above comes from the gate, not from the metadata check."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_csproj(root, "Tracon.Core")
@@ -3058,8 +3055,8 @@ class YayinTestleri(unittest.TestCase):
             self.assertEqual(result, 0, output)
             self.assertTrue((release_dir / "Tracon.Core.1.0.0-preview.2.47.nupkg").exists())
 
-    def test_surum_tabana_esitse_kapi_kirmizi(self):
-        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+    def test_gate_is_red_when_the_version_equals_the_baseline(self):
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/missing"))
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             result = gate._check_breaking_changes(ROOT, breaking_gate, "1.0.0-preview.2")
@@ -3067,9 +3064,9 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("is not above the baseline (v1.0.0-preview.2)", output.getvalue())
 
-    def test_kapi_depoyu_yuzey_okuyucularina_verir(self):
+    def test_gate_hands_the_repository_to_the_surface_readers(self):
         """The PublicAPI, `required` and contract readers need the repo whose tag is the baseline."""
-        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/missing"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
 
@@ -3083,26 +3080,26 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(checked.call_args.kwargs["repo"], ROOT)
         self.assertEqual(checked.call_args.kwargs["version"], "1.0.0-preview.3")
 
-    def test_kapi_sozlesme_yuzeylerini_apicompat_kapisindan_sonra_okur(self):
+    def test_gate_reads_the_contract_surfaces_after_the_apicompat_gate(self):
         """The non-.NET surfaces are read after ApiCompat, with the same baseline, version and repo."""
-        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/missing"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
         import contract_breaks
 
         order: list[str] = []
         with mock.patch.object(breaking_changes, "check", side_effect=lambda **_: order.append("apicompat") or 0), \
-                mock.patch.object(contract_breaks, "check", side_effect=lambda **_: order.append("sozlesme") or 0) as surfaces:
+                mock.patch.object(contract_breaks, "check", side_effect=lambda **_: order.append("contract") or 0) as surfaces:
             result = gate._check_breaking_changes(ROOT, breaking_gate, "1.0.0-preview.3")
 
         self.assertEqual(result, 0)
-        self.assertEqual(order, ["apicompat", "sozlesme"])
+        self.assertEqual(order, ["apicompat", "contract"])
         self.assertEqual(surfaces.call_args.kwargs["repo"], ROOT)
         self.assertEqual(surfaces.call_args.kwargs["baseline"], "1.0.0-preview.2")
         self.assertEqual(surfaces.call_args.kwargs["version"], "1.0.0-preview.3")
 
-    def test_apicompat_kirmizisi_sozlesme_okuyucusunu_calistirmaz(self):
-        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+    def test_apicompat_red_does_not_run_the_contract_reader(self):
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/missing"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
         import contract_breaks
@@ -3114,8 +3111,8 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         surfaces.assert_not_called()
 
-    def test_sozlesme_okuyucusunun_kirmizisi_provayi_kirmizi_yapar(self):
-        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+    def test_contract_reader_red_turns_the_rehearsal_red(self):
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/missing"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
         import contract_breaks
@@ -3127,11 +3124,11 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
 
 
-class TekDerlemeZinciriTestleri(unittest.TestCase):
+class BuildOnceChainTests(unittest.TestCase):
     """`pack` · `verify-packages` · `release --package-directory`.
 
-    Sahte bir repo kökü iki paket taşır: `Tracon.Core` (library, taban
-    doğrulaması var) ve `Tracon` (meta, `.snupkg` yok)."""
+    A fake repository root carries two packages: `Tracon.Core` (library, with baseline
+    validation) and `Tracon` (meta, no `.snupkg`)."""
 
     COMMIT = "0123456789abcdef0123456789abcdef01234567"
     VERSION = "1.0.0-preview.2.47"
@@ -3233,7 +3230,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
     def _packed(self, directory: str, **kwargs) -> tuple[pathlib.Path, pathlib.Path]:
         root = self._root(directory)
-        output = pathlib.Path(directory) / "ci-paket"
+        output = pathlib.Path(directory) / "ci-packages"
         result, _, text = self._pack(root, output, **kwargs)
         self.assertEqual(result, 0, text)
         return root, output
@@ -3256,10 +3253,10 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
     # --- pack ------------------------------------------------------------------
 
-    def test_paketle_no_build_ile_tek_pack_ve_manifest_yazar(self):
+    def test_pack_writes_a_single_pack_with_no_build_and_a_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
-            output = pathlib.Path(directory) / "ci-paket"
+            output = pathlib.Path(directory) / "ci-packages"
 
             result, calls, text = self._pack(root, output)
             manifest = self._manifest(output)
@@ -3278,8 +3275,8 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             "id": "Tracon.Core", "report": "api-compat/Tracon.Core.xml",
             "sha256": manifest["apiCompat"][0]["sha256"], "validationRan": True}])
 
-    def test_paketle_farksiz_pakette_rapor_yok_mesru_kayittir(self):
-        """Farksız pakette SDK rapor yazmaz."""
+    def test_pack_of_an_unchanged_package_without_a_report_is_a_legitimate_record(self):
+        """For an unchanged package the SDK writes no report."""
         with tempfile.TemporaryDirectory() as directory:
             _, output = self._packed(directory, report=False)
 
@@ -3287,11 +3284,11 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
         self.assertEqual(records, [{"id": "Tracon.Core", "report": None, "sha256": None, "validationRan": True}])
 
-    def test_paketle_bypass_bayragi_tasimaz(self):
-        """`pack` iç araç listesine girmez."""
+    def test_pack_carries_no_bypass_flag(self):
+        """`pack` is a public command: it offers no way to bypass the cleanliness check."""
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
-            _, calls, _ = self._pack(root, pathlib.Path(directory) / "ci-paket")
+            _, calls, _ = self._pack(root, pathlib.Path(directory) / "ci-packages")
         help_text = io.StringIO()
         with contextlib.redirect_stdout(help_text), self.assertRaises(SystemExit):
             gate.main(["pack", "--help"])
@@ -3299,49 +3296,49 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         for flag in ("TraconSkipCleanWorkingTreeCheck", "TraconAllowDirtyPack"):
             self.assertFalse(any(flag in argument for argument in calls[0]), flag)
             self.assertNotIn(flag, help_text.getvalue())
-        self.assertNotIn("--izin", help_text.getvalue())
+        self.assertNotIn("--izin", help_text.getvalue())  # legacy-name
         self.assertNotIn("--allow", help_text.getvalue())
 
-    def test_paketle_kirli_agacta_pack_denenmez(self):
+    def test_pack_tries_no_pack_on_a_dirty_tree(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
-            output = pathlib.Path(directory) / "ci-paket"
+            output = pathlib.Path(directory) / "ci-packages"
 
-            result, calls, text = self._pack(root, output, status=["?? notlar.txt"])
+            result, calls, text = self._pack(root, output, status=["?? notes.txt"])
 
             self.assertFalse(output.exists())
         self.assertEqual(result, 1)
         self.assertEqual(calls, [])
-        self.assertIn("?? notlar.txt", text)
+        self.assertIn("?? notes.txt", text)
 
-    def test_paketle_git_yoksa_reddeder(self):
+    def test_pack_rejects_when_git_is_missing(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
             text = io.StringIO()
             with mock.patch.object(gate, "_git", return_value=None), \
                     mock.patch("subprocess.run") as run, contextlib.redirect_stdout(text):
-                result = gate.pack_for_ci(pathlib.Path(directory) / "ci-paket", root=root)
+                result = gate.pack_for_ci(pathlib.Path(directory) / "ci-packages", root=root)
 
         self.assertEqual(result, 1)
         run.assert_not_called()
 
-    def test_paketle_dolu_dizini_reddeder_silmez(self):
+    def test_pack_rejects_a_non_empty_directory_without_deleting_it(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
-            output = pathlib.Path(directory) / "ci-paket"
+            output = pathlib.Path(directory) / "ci-packages"
             output.mkdir()
             leftover = output / "Tracon.Core.1.0.0-preview.2.46.nupkg"
-            leftover.write_bytes(b"yarim kalmis")
+            leftover.write_bytes(b"half written")
 
             result, calls, text = self._pack(root, output)
 
             self.assertTrue(leftover.exists())
-            self.assertEqual(leftover.read_bytes(), b"yarim kalmis")
+            self.assertEqual(leftover.read_bytes(), b"half written")
         self.assertEqual(result, 1)
         self.assertEqual(calls, [])
         self.assertIn("The output directory is not empty", text)
 
-    def test_paketle_ikinci_kosum_ayni_dizine_reddedilir(self):
+    def test_pack_rejects_a_second_run_into_the_same_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             before = self._snapshot(output)
@@ -3352,12 +3349,12 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(calls, [])
 
-    def test_paketle_dogrulama_kosmadiysa_manifest_yazilmaz(self):
-        """Semaphore pack aşamasındadır; kırmızıysa yarım dizin manifest'siz kalır
-        ve sonraki koşum onu reddeder."""
+    def test_pack_writes_no_manifest_when_the_validation_did_not_run(self):
+        """The semaphore lives in the pack stage; if it is red, the half-written directory stays without
+        a manifest and the next run rejects it."""
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
-            output = pathlib.Path(directory) / "ci-paket"
+            output = pathlib.Path(directory) / "ci-packages"
 
             result, _, text = self._pack(root, output, not_run=["Tracon.Core: package validation did not run in this pack"])
 
@@ -3368,13 +3365,13 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
     # --- verify-packages --------------------------------------------------------
 
-    def test_paket_dogrula_yesil(self):
+    def test_verify_packages_green(self):
         with tempfile.TemporaryDirectory() as directory:
             _, output = self._packed(directory)
 
             self.assertEqual(gate.package_directory_problems(output), [])
 
-    def test_paket_dogrula_tek_bayt_farki_dosya_adiyla(self):
+    def test_verify_packages_reports_a_single_byte_difference_with_the_file_name(self):
         with tempfile.TemporaryDirectory() as directory:
             _, output = self._packed(directory)
             with (output / f"Tracon.Core.{self.VERSION}.nupkg").open("ab") as handle:
@@ -3384,7 +3381,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
         self.assertEqual(problems, [f"SHA-256 differs: Tracon.Core.{self.VERSION}.nupkg"])
 
-    def test_paket_dogrula_eksik_ve_fazla_dosya(self):
+    def test_verify_packages_reports_a_missing_and_an_extra_file(self):
         with tempfile.TemporaryDirectory() as directory:
             _, output = self._packed(directory)
             (output / f"Tracon.Core.{self.VERSION}.snupkg").unlink()
@@ -3397,27 +3394,27 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertIn("file not in the manifest: Tracon.Extra.1.0.0.nupkg", problems)
         self.assertIn("file not in the manifest: api-compat/Tracon.Extra.xml", problems)
 
-    def test_paket_dogrula_bos_yok_ve_bozuk_manifest(self):
+    def test_verify_packages_reports_an_empty_a_missing_and_a_malformed_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             base = pathlib.Path(directory)
-            (base / "bos").mkdir()
-            (base / "manifestsiz").mkdir()
-            (base / "manifestsiz" / "Tracon.Core.1.nupkg").write_bytes(b"x")
-            (base / "bozuk").mkdir()
-            (base / "bozuk" / "package-manifest.json").write_text("{", encoding="utf-8")
-            (base / "sema").mkdir()
-            (base / "sema" / "package-manifest.json").write_text(
+            (base / "empty").mkdir()
+            (base / "no-manifest").mkdir()
+            (base / "no-manifest" / "Tracon.Core.1.nupkg").write_bytes(b"x")
+            (base / "malformed").mkdir()
+            (base / "malformed" / "package-manifest.json").write_text("{", encoding="utf-8")
+            (base / "schema").mkdir()
+            (base / "schema" / "package-manifest.json").write_text(
                 json.dumps({"dirty": False, "packages": [{"id": "X", "file": "../X.nupkg", "sha256": "0" * 64}]}),
                 encoding="utf-8")
 
-            self.assertEqual(gate.package_directory_problems(base / "yok"), [f"{base / 'yok'}: directory not found"])
-            self.assertEqual(gate.package_directory_problems(base / "bos"), [f"{base / 'bos'}: directory is empty"])
-            self.assertEqual(gate.package_directory_problems(base / "manifestsiz"), ["package-manifest.json is missing"])
-            self.assertTrue(gate.package_directory_problems(base / "bozuk")[0].startswith("package-manifest.json could not be read"))
+            self.assertEqual(gate.package_directory_problems(base / "absent"), [f"{base / 'absent'}: directory not found"])
+            self.assertEqual(gate.package_directory_problems(base / "empty"), [f"{base / 'empty'}: directory is empty"])
+            self.assertEqual(gate.package_directory_problems(base / "no-manifest"), ["package-manifest.json is missing"])
+            self.assertTrue(gate.package_directory_problems(base / "malformed")[0].startswith("package-manifest.json could not be read"))
             self.assertIn("package-manifest.json: X carries an invalid file/SHA-256 record",
-                          gate.package_directory_problems(base / "sema"))
+                          gate.package_directory_problems(base / "schema"))
 
-    def test_paket_dogrula_komutu_cikis_kodu(self):
+    def test_verify_packages_command_exit_code(self):
         with tempfile.TemporaryDirectory() as directory:
             _, output = self._packed(directory)
             text = io.StringIO()
@@ -3431,7 +3428,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
     # --- release --dry-run --package-directory ---------------------------------------
 
-    def test_paket_dizini_modu_pack_ve_semaphore_cagirmaz_ortak_yolu_kosar(self):
+    def test_package_directory_mode_calls_no_pack_and_no_semaphore_and_runs_the_shared_path(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
 
@@ -3446,7 +3443,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(finish.call_args.kwargs["breaking_gate"].report_dir, output / "api-compat")
         self.assertIsNotNone(finish.call_args.kwargs["input_manifest"])
 
-    def test_paket_dizini_modu_yesil_girdi_degismez_manifest_esit(self):
+    def test_package_directory_mode_green_input_unchanged_and_manifest_equal(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             before = self._snapshot(output)
@@ -3454,7 +3451,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             result, release_dir, text, run, not_run, check = self._rehearse(root, output)
 
             self.assertEqual(result, 0, text)
-            # Pack anı kanıtı ortak yolda da çağrılmaz.
+            # The pack-time evidence is not called on the shared path either.
             not_run.assert_not_called()
             self.assertEqual(self._snapshot(output), before)
             written = self._manifest(release_dir)
@@ -3466,7 +3463,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         run.assert_not_called()
         self.assertIn("The manifest matches the input", text)
 
-    def test_paket_dizini_modu_kirici_kapi_kirmiziyken_kopya_yok(self):
+    def test_package_directory_mode_makes_no_copy_while_the_breaking_gate_is_red(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
 
@@ -3475,7 +3472,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             self.assertFalse(release_dir.exists())
         self.assertEqual(result, 1)
 
-    def test_paket_dizini_modu_rapor_kaydi_yoksa_rapor_eksik(self):
+    def test_package_directory_mode_reports_a_missing_report_when_there_is_no_report_record(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             (output / "api-compat" / "Tracon.Core.xml").unlink()
@@ -3486,8 +3483,8 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("report missing: Tracon.Core", text)
 
-    def test_paket_dizini_modu_rapor_dosyasi_yoksa_kirmizi(self):
-        """Kayıt rapor diyor ama `api-compat/` boş: 'kırıcı değişiklik yok' sayılmaz."""
+    def test_package_directory_mode_is_red_when_the_report_file_is_missing(self):
+        """The record claims a report but `api-compat/` is empty: it does not count as 'no breaking change'."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             (output / "api-compat" / "Tracon.Core.xml").unlink()
@@ -3497,7 +3494,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("missing: api-compat/Tracon.Core.xml", text)
 
-    def test_paket_dizini_modu_dogrulama_kostu_kaydi_yoksa_kirmizi(self):
+    def test_package_directory_mode_is_red_without_a_record_that_validation_ran(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory, report=False)
             self._rewrite_manifest(output, lambda manifest: manifest["apiCompat"][0].update(validationRan=False))
@@ -3507,7 +3504,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("report missing: Tracon.Core (no record that validation ran)", text)
 
-    def test_paket_dizini_modu_baska_commit_reddedilir(self):
+    def test_package_directory_mode_rejects_another_commit(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
 
@@ -3517,8 +3514,8 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("The packages come from another commit", text)
 
-    def test_nuspec_commit_head_degilse_kirmizi(self):
-        """Manifest commit'i doğru ama paketin kendisi başka commit'i adlandırıyor."""
+    def test_nuspec_commit_that_is_not_head_turns_red(self):
+        """The manifest commit is right but the package itself names another commit."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             self._write_package(output, "Tracon.Core", commit="e" * 40)
@@ -3531,7 +3528,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn(f"the repository commit '{'e' * 40}' is not HEAD", text)
 
-    def test_paket_dizini_modu_baska_taban_reddedilir(self):
+    def test_package_directory_mode_rejects_another_baseline(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
 
@@ -3540,7 +3537,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("validated against another baseline", text)
 
-    def test_paket_dizini_modu_iki_surum_hatti_reddedilir(self):
+    def test_package_directory_mode_rejects_two_version_lines(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             self._write_package(output, "Tracon", version="1.0.0-preview.2.48")
@@ -3555,8 +3552,8 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("not on one version line", text)
 
-    def test_paket_dizini_modu_surum_beklenen_surum_olarak_denetlenir(self):
-        """--package-version ile --package-directory birlikte izinlidir."""
+    def test_package_directory_mode_checks_the_version_as_the_expected_version(self):
+        """--package-version together with --package-directory is allowed."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
 
@@ -3565,14 +3562,14 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("Package not produced", text)
 
-    def test_paket_dizini_modu_release_dirde_girdi_disi_paket_reddedilir(self):
-        """Ret, dosya silinmez."""
+    def test_package_directory_mode_rejects_a_package_outside_the_input_in_release_dir(self):
+        """Rejection only; no file is deleted."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             release_dir = root / "artifacts" / "package" / "release"
             release_dir.mkdir(parents=True)
             old = release_dir / "Tracon.Core.1.0.0-preview.2.10.nupkg"
-            old.write_bytes(b"eski")
+            old.write_bytes(b"old")
 
             result, _, text, *_ = self._rehearse(root, output)
 
@@ -3582,15 +3579,15 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertIn("holds packages outside the input (1): Tracon.Core.1.0.0-preview.2.10.nupkg", text)
         self.assertIn(f"rm -rf {release_dir}", text)
 
-    def test_paket_dizini_modu_ayni_kimlik_farkli_icerik_korunur(self):
-        """Kopya yolunda da: aynı ad, farklı içerik -> hiçbir dosya kopyalanmaz."""
+    def test_package_directory_mode_protects_the_same_identity_with_different_content(self):
+        """On the copy path too: same name, different content -> no file is copied."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             release_dir = root / "artifacts" / "package" / "release"
             release_dir.mkdir(parents=True)
             name = f"Tracon.Core.{self.VERSION}.nupkg"
             with zipfile.ZipFile(release_dir / name, "w") as archive:
-                archive.writestr("lib/net10.0/Tracon.Core.dll", "baska")
+                archive.writestr("lib/net10.0/Tracon.Core.dll", "other")
 
             result, _, text, *_ = self._rehearse(root, output)
 
@@ -3598,8 +3595,8 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("but DIFFERENT content already exists", text)
 
-    def test_release_dirde_kesik_paket_dosya_adiyla_cikis_1(self):
-        """`_content_fingerprint` BadZipFile izi değil, dosya adı verir."""
+    def test_truncated_package_in_release_dir_exits_1_with_the_file_name(self):
+        """`_content_fingerprint` gives the file name, not a BadZipFile traceback."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             release_dir = root / "artifacts" / "package" / "release"
@@ -3612,9 +3609,9 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn(f"❌ {name}: the package could not be read", text)
 
-    def test_ayni_parmak_izi_farkli_bayt_manifest_esitsizligi_verir(self):
-        """Eski bir kopya aynı içeriği farklı OPC baytlarıyla taşır: no-op promote
-        ham SHA-256'yı değiştirmez, manifest karşılaştırması yakalar."""
+    def test_same_fingerprint_with_different_bytes_gives_a_manifest_mismatch(self):
+        """An old copy carries the same content with different OPC bytes: a no-op promote
+        does not change the raw SHA-256, and the manifest comparison catches it."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             release_dir = root / "artifacts" / "package" / "release"
@@ -3623,21 +3620,21 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             with zipfile.ZipFile(output / name) as source, zipfile.ZipFile(release_dir / name, "w") as target:
                 for entry in source.namelist():
                     target.writestr(entry, source.read(entry))
-                target.writestr("package/services/metadata/core-properties/" + "a" * 32 + ".psmdcp", "rastgele")
+                target.writestr("package/services/metadata/core-properties/" + "a" * 32 + ".psmdcp", "random")
 
             result, _, text, *_ = self._rehearse(root, output)
 
         self.assertEqual(result, 1)
         self.assertIn("differs from the input manifest: packages", text)
 
-    def test_kopya_yarida_kesilirse_asil_adla_dosya_kalmaz(self):
+    def test_interrupted_copy_leaves_no_file_under_the_final_name(self):
         with tempfile.TemporaryDirectory() as directory:
             base = pathlib.Path(directory)
-            source = base / "girdi"
+            source = base / "input"
             release_dir = base / "release"
             source.mkdir()
             name = "Tracon.Core.1.0.0.nupkg"
-            TekDerlemeZinciriTestleri._zip(source / name)
+            BuildOnceChainTests._zip(source / name)
 
             with mock.patch("os.replace", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
                 gate._promote_staged_packages(source, release_dir, [name], copy=True)
@@ -3645,14 +3642,14 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             self.assertEqual(list(release_dir.iterdir()), [])
             self.assertTrue((source / name).exists())
 
-    def test_kopya_modu_girdiyi_tasimaz(self):
+    def test_copy_mode_does_not_move_the_input(self):
         with tempfile.TemporaryDirectory() as directory:
             base = pathlib.Path(directory)
-            source = base / "girdi"
+            source = base / "input"
             release_dir = base / "release"
             source.mkdir()
             name = "Tracon.Core.1.0.0.nupkg"
-            TekDerlemeZinciriTestleri._zip(source / name)
+            BuildOnceChainTests._zip(source / name)
 
             conflicts = gate._promote_staged_packages(source, release_dir, [name], copy=True)
 
@@ -3665,7 +3662,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr("lib/net10.0/Tracon.Core.dll", "dll")
 
-    def test_manifest_disi_paketi_girdi_dizininde_reddeder(self):
+    def test_package_outside_the_manifest_in_the_input_directory_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
             (output / "Tracon.Sneaky.1.0.0.nupkg").write_bytes(b"x")
@@ -3677,18 +3674,17 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertIn("file not in the manifest: Tracon.Sneaky.1.0.0.nupkg", text)
 
 
-# Bu iki sabit PARÇALI yazılır: tam metin kaynakta görünseydi taramanın kendi
-# kapısını kırardı. Aynı teknik test_secret_taramasi_deger_satirini_bulur'da da
-# kullanılıyor.
-SECRET_LINE = 'var x = "Pass' + 'word=uydurma-bir-deger";'
+# These two constants are written in PIECES: if the full text appeared in the source, it would break
+# the scan's own gate. The same technique is used in test_secret_scan_finds_a_value_line.
+SECRET_LINE = 'var x = "Pass' + 'word=made-up-credential-value";'
 MARKER = "SYNTHETIC" + "-CREDENTIAL"
 
 
-class SentetikCredentialTestleri(unittest.TestCase):
-    """Bir secret tarayıcısını doğrulamanın tek yolu ona sahte bir
-    credential göstermektir; istisna GİZLENMEZ, İŞARETLENİR."""
+class SyntheticCredentialTests(unittest.TestCase):
+    """The only way to verify a secret scanner is to show it a fake
+    credential; an exception is not HIDDEN, it is MARKED."""
 
-    def test_isaretsiz_credential_yakalanir(self):
+    def test_unmarked_credential_is_caught(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             (root / "src").mkdir()
@@ -3699,7 +3695,7 @@ class SentetikCredentialTestleri(unittest.TestCase):
         self.assertEqual(len(found), 1)
         self.assertEqual(skipped, 0)
 
-    def test_isaretli_satir_atlanir_ve_sayilir(self):
+    def test_marked_line_is_skipped_and_counted(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             (root / "src").mkdir()
@@ -3710,9 +3706,9 @@ class SentetikCredentialTestleri(unittest.TestCase):
         self.assertEqual(found, [])
         self.assertEqual(skipped, 1)
 
-    def test_isaret_ayni_satirda_olmali(self):
-        # 🚨 Bir üst satırdaki yorum yetmez: istisna, istisnayı taşıyan
-        # SATIRDA görünmelidir, yoksa incelemede kaybolur.
+    def test_marker_must_be_on_the_same_line(self):
+        # 🚨 A comment on the line above is not enough: the exception must appear on the
+        # LINE that carries it, otherwise it gets lost in review.
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             (root / "src").mkdir()
@@ -3724,1122 +3720,1124 @@ class SentetikCredentialTestleri(unittest.TestCase):
         self.assertEqual(skipped, 0)
 
 
-class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
-    """2026-09-19. Kapı YEŞİL derken `arsiv` altında gerçek bir
-    `ApiKeyGenerator` çıktısı duruyordu. İki bağımsız boşluk vardı: desen ürünün
-    kendi anahtar formatını tanımıyordu, ve kapsam gerçek koşum çıktısı taşıyan
-    iki ağacı (`arsiv`, `manuel-test`) hiç yürümüyordu."""
+class TwoLayerSecretScanTests(unittest.TestCase):
+    """2026-09-19. While the gate was GREEN, a real `ApiKeyGenerator` output sat in the archive
+    tree. There were two independent gaps: the pattern did not recognise the product's own
+    key format, and the scope never walked the two trees that carry real run output
+    (the archive and the manual-test records)."""
 
-    # Gerçek format: `ap_` + kiracı eki + `_` + base64url(32 bayt) = 43 karakter.
-    URETILMIS_ANAHTAR = "ap_default_" + ("2zKqRNjJ6MVXcwtTxPKuXkouy85tReMOhGAgYr9MGzo")
+    # Real format: `ap_` + tenant suffix + `_` + base64url(32 bytes) = 43 characters.
+    GENERATED_KEY = "ap_default_" + ("2zKqRNjJ6MVXcwtTxPKuXkouy85tReMOhGAgYr9MGzo")
+    # The directories that hold records of past runs are configured by the extension, not by the public gate.
+    EXTENSION = gate.Extension(record_dirs=("archive", "manual-records"))
 
-    def _tara(self, relative_path, line):
+    def _scan_path(self, relative_path, line):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             path = root / relative_path
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(line + "\n", encoding="utf-8")
-            return gate.find_secrets(root)
+            return gate.find_secrets(root, self.EXTENSION)
 
-    def test_uretilmis_anahtar_arsivde_yakalanir(self):
-        # 🚨 Bu tam olarak kaçırılan vakadır. Arşivlenmiş faz kaydı GERÇEK koşum
-        # çıktısı taşır - üretilmiş bir credential'ın yapışacağı tek yer orasıdır.
-        found, _ = self._tara("arsiv/fazlar/99-X.md", self.URETILMIS_ANAHTAR)
-
-        self.assertEqual(len(found), 1)
-
-    def test_uretilmis_anahtar_manuel_testte_yakalanir(self):
-        found, _ = self._tara("manuel-test/99-X.md", self.URETILMIS_ANAHTAR)
+    def test_generated_key_is_caught_in_the_archive_tree(self):
+        # 🚨 This is exactly the case that was missed. An archived record carries REAL run
+        # output - it is the one place a generated credential would get pasted.
+        found, _ = self._scan_path("archive/past/99-X.md", self.GENERATED_KEY)
 
         self.assertEqual(len(found), 1)
 
-    def test_yerel_kurulum_deyimi_arsivde_kapiyi_kirmaz(self):
-        # Arşiv ve manuel test kaydında bir docker parolası kusur değil, tekrar
-        # üretilebilirlik talimatıdır. Kapsamı tüm desenlere açmak 48 satırı
-        # işaretletirdi ve istisna listesi kapının kendisini anlamsızlaştırırdı.
-        found, skipped = self._tara("arsiv/fazlar/99-Y.md", SECRET_LINE)
+    def test_generated_key_is_caught_in_the_manual_test_tree(self):
+        found, _ = self._scan_path("manual-records/99-X.md", self.GENERATED_KEY)
+
+        self.assertEqual(len(found), 1)
+
+    def test_local_setup_statement_in_the_archive_does_not_break_the_gate(self):
+        # In an archived or manual-test record a docker password is not a defect but a
+        # reproducibility instruction. Opening the scope to every pattern would have flagged 48 lines,
+        # and the exception list would have made the gate itself meaningless.
+        found, skipped = self._scan_path("archive/past/99-Y.md", SECRET_LINE)
 
         self.assertEqual(found, [])
         self.assertEqual(skipped, 0)
 
-    def test_yerel_kurulum_deyimi_kod_agacinda_yakalanir(self):
-        found, _ = self._tara("src/b.cs", SECRET_LINE)
+    def test_local_setup_statement_in_the_code_tree_is_caught(self):
+        found, _ = self._scan_path("src/b.cs", SECRET_LINE)
 
         self.assertEqual(len(found), 1)
 
-    def test_snake_case_metin_anahtar_sanilmaz(self):
-        # 🚨 `{43,}` yazmak snake_case İngilizce metni yakalar; ölçüldü, 70+
-        # yanlış pozitif. Uzunluk TAM verilmelidir.
-        found, _ = self._tara(
+    def test_snake_case_text_is_not_mistaken_for_a_key(self):
+        # 🚨 Writing `{43,}` would catch snake_case English text; measured, 70+
+        # false positives. The length must be given EXACTLY.
+        found, _ = self._scan_path(
             "src/c.cs",
             "ap_on_total_source_code_size_for_JavaScript_files_in_the_TypeScript_x")
 
         self.assertEqual(found, [])
 
-    def test_kisa_gorunum_oneki_anahtar_sanilmaz(self):
-        # `KeyPrefix` ürünün kendi tasarladığı 12 karakterlik görüntü önekidir
-        # ve kayıtlarda meşru olarak durur.
-        found, _ = self._tara("arsiv/fazlar/99-Y.md", 'keyPrefix":"ap_default_2"')
+    def test_short_display_prefix_is_not_mistaken_for_a_key(self):
+        # `KeyPrefix` is the 12-character display prefix the product designed itself
+        # and it legitimately appears in records.
+        found, _ = self._scan_path("archive/past/99-Y.md", 'keyPrefix":"ap_default_2"')
 
         self.assertEqual(found, [])
 
-    def test_arsivdeki_isaretli_satir_atlanir_ve_sayilir(self):
-        found, skipped = self._tara(
-            "arsiv/fazlar/99-X.md", self.URETILMIS_ANAHTAR + " <!-- " + MARKER + " -->")
+    def test_marked_line_in_the_archive_is_skipped_and_counted(self):
+        found, skipped = self._scan_path(
+            "archive/past/99-X.md", self.GENERATED_KEY + " <!-- " + MARKER + " -->")
 
         self.assertEqual(found, [])
         self.assertEqual(skipped, 1)
 
 
-class KapasiteKomutuTestleri(unittest.TestCase):
-    """Kapasite ölçümü bir KAPI DEĞİLDİR."""
+class CapacityCommandTests(unittest.TestCase):
+    """Capacity measurement is NOT a GATE."""
 
-    def test_kapasite_komutu_kapanisa_eklenmez(self):
-        # 🚨 Ağır bir yük koşumu standart kapanışa sızarsa her faz saatler
-        # sürer ve kapılar koşulmaz hale gelir.
+    def test_capacity_command_is_not_added_to_the_closing(self):
+        # 🚨 If a heavy load run leaks into the standard closing, every change takes hours
+        # and the gates stop being run.
         commands = [c.display for c in gate.closing_commands("abc123", site=True, performance=True)]
 
         self.assertFalse(any("capacity" in command for command in commands))
 
-    def test_kapasite_komutu_ic_donguye_de_eklenmez(self):
+    def test_capacity_command_is_not_added_to_the_inner_loop_either(self):
         commands = [c.display for c in gate.inner_loop_commands(["src/Tracon.Core/Foo.cs"])]
 
         self.assertFalse(any("capacity" in command for command in commands))
 
-    def test_kapasite_exact_surum_ister(self):
+    def test_capacity_requires_an_exact_version(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            code = gate.capacity_measurement("smoke", "*-*", pathlib.Path("/tmp/kapasite-test"))
+            code = gate.capacity_measurement("smoke", "*-*", pathlib.Path("/tmp/capacity-test"))
 
         self.assertEqual(code, 1)
         self.assertIn("exact", output.getvalue())
 
-    def test_kapasite_bilinmeyen_profili_reddeder(self):
+    def test_capacity_rejects_an_unknown_profile(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            code = gate.capacity_measurement("yok", "1.0.0", pathlib.Path("/tmp/kapasite-test"))
+            code = gate.capacity_measurement("absent", "1.0.0", pathlib.Path("/tmp/capacity-test"))
 
         self.assertEqual(code, 1)
         self.assertIn("does not exist", output.getvalue())
 
 
-class ModulSureButcesiTestleri(unittest.TestCase):
-    """Her test modulu mutlak bir duvar suresi butcesi tasiyabilir; kapanista butcesi olan modul denetlenir."""
+class ModuleTimeBudgetTests(unittest.TestCase):
+    """Every test module may carry an absolute wall-time budget; in the closing, a module that has a budget is checked."""
 
     @staticmethod
-    def _trx(kok: pathlib.Path, proje: str, saniye: float, tfm: str = "net10.0_arm64") -> None:
-        dizin = kok / gate.TEST_RESULTS_DIRECTORY / proje / tfm
-        dizin.mkdir(parents=True, exist_ok=True)
-        (dizin / "sonuc.trx").write_text(
+    def _trx(root: pathlib.Path, project: str, seconds: float, tfm: str = "net10.0_arm64") -> None:
+        folder = root / gate.TEST_RESULTS_DIRECTORY / project / tfm
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "result.trx").write_text(
             '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
-            f'<Times start="2026-11-09T11:00:00Z" finish="{_saat(saniye)}" />'
+            f'<Times start="2026-11-09T11:00:00Z" finish="{_clock_stamp(seconds)}" />'
             '<Results><UnitTestResult testName="N.S.A" duration="00:00:01" outcome="Passed" /></Results></TestRun>',
             encoding="utf-8")
 
-    def _kos(self, sureler: dict[str, float], limits: dict[str, int]) -> tuple[int, str]:
+    def _execute(self, durations: dict[str, float], limits: dict[str, int]) -> tuple[int, str]:
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            for proje, saniye in sureler.items():
-                self._trx(kok, proje, saniye)
+            root = pathlib.Path(directory)
+            for project, seconds in durations.items():
+                self._trx(root, project, seconds)
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = gate.enforce_module_time_limits(0.0, root=kok, limits=limits)
-        return kod, output.getvalue()
+                code = gate.enforce_module_time_limits(0.0, root=root, limits=limits)
+        return code, output.getvalue()
 
-    def test_rapor_her_modulu_suresi_ve_butce_payiyla_listeler_en_yavas_ustte(self):
-        kod, metin = self._kos({"A": 100, "B": 300, "C": 50}, {"A": 200, "B": 400})
+    def test_report_lists_every_module_with_its_time_and_budget_share_slowest_first(self):
+        code, text = self._execute({"A": 100, "B": 300, "C": 50}, {"A": 200, "B": 400})
 
-        self.assertEqual(kod, 0)
-        satirlar = [satir.strip() for satir in metin.splitlines() if "net10.0_arm64" in satir]
-        self.assertEqual(satirlar, [
+        self.assertEqual(code, 0)
+        lines = [line.strip() for line in text.splitlines() if "net10.0_arm64" in line]
+        self.assertEqual(lines, [
             "B/net10.0_arm64: 300 s · limit 400 s · left 100 s (25%)",
             "A/net10.0_arm64: 100 s · limit 200 s · left 100 s (50%)",
             "C/net10.0_arm64: 50 s · no limit",
         ])
 
-    def test_butcesi_olmayan_yavas_modul_kapiyi_kirmaz_butcesi_olan_asan_kirar(self):
-        kod, metin = self._kos({"Yavas": 5000, "Sinirli": 61}, {"Sinirli": 60})
+    def test_slow_module_without_a_budget_does_not_break_the_gate_but_one_over_its_budget_does(self):
+        code, text = self._execute({"Slow": 5000, "Limited": 61}, {"Limited": 60})
 
-        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
-        self.assertIn("Sinirli/net10.0_arm64: 61 s · limit 60 s · EXCEEDED by 1 s", metin)
-        self.assertIn("Sinirli/net10.0_arm64 61 s > 60 s", metin)
-        self.assertNotIn("Yavas/net10.0_arm64 5000 s >", metin)
+        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertIn("Limited/net10.0_arm64: 61 s · limit 60 s · EXCEEDED by 1 s", text)
+        self.assertIn("Limited/net10.0_arm64 61 s > 60 s", text)
+        self.assertNotIn("Slow/net10.0_arm64 5000 s >", text)
 
-    def test_butce_sinirin_tam_ustunde_gecer_bir_saniye_ustunde_kirar(self):
-        self.assertEqual(self._kos({"A": 60}, {"A": 60})[0], 0)
-        self.assertEqual(self._kos({"A": 61}, {"A": 60})[0], gate.MODULE_TIME_LIMIT_EXIT_CODE)
+    def test_budget_passes_exactly_at_the_limit_and_breaks_one_second_over(self):
+        self.assertEqual(self._execute({"A": 60}, {"A": 60})[0], 0)
+        self.assertEqual(self._execute({"A": 61}, {"A": 60})[0], gate.MODULE_TIME_LIMIT_EXIT_CODE)
 
-    def test_butce_modul_basinadir_her_tfm_bacagi_ayri_denetlenir(self):
+    def test_budget_is_per_module_and_each_tfm_leg_is_checked_separately(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._trx(kok, "A", 30, "net10.0_arm64")
-            self._trx(kok, "A", 90, "net9.0_arm64")
+            root = pathlib.Path(directory)
+            self._trx(root, "A", 30, "net10.0_arm64")
+            self._trx(root, "A", 90, "net9.0_arm64")
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"A": 60})
+                code = gate.enforce_module_time_limits(0.0, root=root, limits={"A": 60})
 
-        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
         self.assertIn("A/net9.0_arm64 90 s > 60 s", output.getvalue())
         self.assertNotIn("A/net10.0_arm64 30 s >", output.getvalue())
 
-    def test_suresi_okunamayan_butcesiz_modul_uyarir_kapiyi_kirmaz(self):
+    def test_module_without_a_budget_and_an_unreadable_duration_warns_and_does_not_break_the_gate(self):
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            dizin = kok / gate.TEST_RESULTS_DIRECTORY / "Q" / "net10.0_arm64"
-            dizin.mkdir(parents=True)
-            (dizin / "sonuc.trx").write_text(
+            root = pathlib.Path(directory)
+            folder = root / gate.TEST_RESULTS_DIRECTORY / "Q" / "net10.0_arm64"
+            folder.mkdir(parents=True)
+            (folder / "result.trx").write_text(
                 '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results/></TestRun>',
                 encoding="utf-8")
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={})
+                code = gate.enforce_module_time_limits(0.0, root=root, limits={})
 
-        self.assertEqual(kod, 0)
+        self.assertEqual(code, 0)
         self.assertIn("Q/net10.0_arm64: the TRX duration could not be read", output.getvalue())
 
-    def test_gercek_butce_tablosu_gercek_modul_adlarini_kullanir_ve_kapanista_calisir(self):
-        # Tablo tek yerdedir; kapanis test adimi onu varsayilan olarak okur.
+    def test_real_budget_table_uses_real_module_names_and_runs_in_the_closing(self):
+        # The table lives in one place; the closing test step reads it by default.
         with tempfile.TemporaryDirectory() as directory:
-            kok = pathlib.Path(directory)
-            self._trx(kok, "Tracon.TwoNode.IntegrationTests", gate.TEST_MODULE_TIME_LIMITS_SECONDS[
+            root = pathlib.Path(directory)
+            self._trx(root, "Tracon.TwoNode.IntegrationTests", gate.TEST_MODULE_TIME_LIMITS_SECONDS[
                 "Tracon.TwoNode.IntegrationTests"] + 1)
             with contextlib.redirect_stdout(io.StringIO()):
-                kod = gate.enforce_module_time_limits(0.0, root=kok)
+                code = gate.enforce_module_time_limits(0.0, root=root)
 
-        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
 
-    def test_sure_degiskenligi_kapanista_denetlenmez(self):
-        # Varyans denetimi dedektordedir (`stability`); kapanis yalniz mutlak butceyi bilir.
-        komutlar = [komut.display for komut in gate.closing_commands("abc123", site=True, performance=True)]
+    def test_duration_variability_is_not_checked_in_the_closing(self):
+        # Variance checking belongs to the detector (`stability`); the closing knows only the absolute budget.
+        commands = [command.display for command in gate.closing_commands("abc123", site=True, performance=True)]
 
-        self.assertFalse(any("stability" in komut for komut in komutlar))
-        self.assertFalse(any("stability" in komut.display for komut in gate.staged_test_commands()))
-        self.assertFalse(any("stability" in komut.display for komut in gate.inner_loop_commands(["src/Tracon.Core/A.cs"])))
-
-
-def _saat(saniye: float) -> str:
-    """`2026-11-09T11:00:00Z`'den `saniye` sonrasi, TRX damgasi olarak."""
-    ani = datetime.datetime(2026, 11, 9, 11, 0, 0, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=saniye)
-    return ani.strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
+        self.assertFalse(any("stability" in command for command in commands))
+        self.assertFalse(any("stability" in command.display for command in gate.staged_test_commands()))
+        self.assertFalse(any("stability" in command.display for command in gate.inner_loop_commands(["src/Tracon.Core/A.cs"])))
 
 
-def _trx_suresi(milisaniye: int) -> str:
-    return f"{milisaniye // 3600000:02d}:{milisaniye // 60000 % 60:02d}:{(milisaniye % 60000) / 1000:010.7f}"
+def _clock_stamp(seconds: float) -> str:
+    """`seconds` after `2026-11-09T11:00:00Z`, as a TRX timestamp."""
+    instant = datetime.datetime(2026, 11, 9, 11, 0, 0, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=seconds)
+    return instant.strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
-def _kosum_trx(
-    dizin: pathlib.Path, testler: dict[str, tuple[int, str]], duvar_saniye: float = 10.0, ad: str = "result.trx",
+def _trx_duration_text(milliseconds: int) -> str:
+    return f"{milliseconds // 3600000:02d}:{milliseconds // 60000 % 60:02d}:{(milliseconds % 60000) / 1000:010.7f}"
+
+
+def _write_run_trx(
+    folder: pathlib.Path, tests: dict[str, tuple[int, str]], wall_seconds: float = 10.0, name: str = "result.trx",
 ) -> pathlib.Path:
-    """Sentetik TRX: `testler` sirasi baslama sirasidir, her test 10 ms sonra baslar."""
-    dizin.mkdir(parents=True, exist_ok=True)
-    temel = datetime.datetime(2026, 11, 9, 11, 0, 0, tzinfo=datetime.timezone.utc)
-    satirlar = []
-    for sira, (test, (milisaniye, durum)) in enumerate(testler.items()):
-        basladi = (temel + datetime.timedelta(milliseconds=10 * sira)).isoformat()
-        satirlar.append(
-            f'<UnitTestResult testName="{test}" duration="{_trx_suresi(milisaniye)}" startTime="{basladi}"'
-            f' outcome="{durum}" />')
-    yol = dizin / ad
-    yol.write_text(
+    """Synthetic TRX: the order of `tests` is the start order, each test starts 10 ms after the previous one."""
+    folder.mkdir(parents=True, exist_ok=True)
+    base_time = datetime.datetime(2026, 11, 9, 11, 0, 0, tzinfo=datetime.timezone.utc)
+    lines = []
+    for order, (test, (milliseconds, outcome)) in enumerate(tests.items()):
+        started_names = (base_time + datetime.timedelta(milliseconds=10 * order)).isoformat()
+        lines.append(
+            f'<UnitTestResult testName="{test}" duration="{_trx_duration_text(milliseconds)}" startTime="{started_names}"'
+            f' outcome="{outcome}" />')
+    path = folder / name
+    path.write_text(
         '<?xml version="1.0"?><TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
-        f'<Times start="{_saat(0)}" finish="{_saat(duvar_saniye)}" />'
-        f"<Results>{''.join(satirlar)}</Results></TestRun>",
+        f'<Times start="{_clock_stamp(0)}" finish="{_clock_stamp(wall_seconds)}" />'
+        f"<Results>{''.join(lines)}</Results></TestRun>",
         encoding="utf-8")
-    return yol
+    return path
 
 
-def _kosum(
-    etiket: str = "M", sira: int = 1, *, baski: bool = False, cikis: int = 0, duvar: float | None = 10.0,
-    testler: dict[str, tuple[int, str]] | None = None, baslama_sirasi: list[str] | None = None, sorun: str = "",
-    tohum: int | None = None,
+def _module_run(
+    label: str = "M", order: int = 1, *, pressure: bool = False, exit_code: int = 0, wall: float | None = 10.0,
+    tests: dict[str, tuple[int, str]] | None = None, start_order: list[str] | None = None, problem: str = "",
+    seed: int | None = None,
 ) -> "gate.ModuleRun":
-    testler = {"N.A": (100, "Passed"), "N.B": (50, "Passed")} if testler is None else testler
+    tests = {"N.A": (100, "Passed"), "N.B": (50, "Passed")} if tests is None else tests
     return gate.ModuleRun(
-        etiket, sira, baski, tohum, cikis, (duvar or 0) + 1, duvar,
-        {ad: sure for ad, (sure, _) in testler.items()},
-        {ad: (durum,) for ad, (_, durum) in testler.items()},
-        tuple(testler if baslama_sirasi is None else baslama_sirasi), sorun)
+        label, order, pressure, seed, exit_code, (wall or 0) + 1, wall,
+        {name: duration for name, (duration, _) in tests.items()},
+        {name: (outcome,) for name, (_, outcome) in tests.items()},
+        tuple(tests if start_order is None else start_order), problem)
 
 
-class KararlilikKarsilastirmaTestleri(unittest.TestCase):
-    """Sayilar esikte: hemen icinde yesil, hemen disinda kirmizi. Sonuc kimligi ve cikis kodu onceligi."""
+class StabilityComparisonTests(unittest.TestCase):
+    """Numbers at the threshold: green just inside, red just outside. Result identity and exit-code precedence."""
 
-    # --- esikler ---------------------------------------------------------------------
+    # --- thresholds ------------------------------------------------------------------
 
-    def test_esikler_yalniz_sikilasir(self):
-        # Bugunku degerleri sabitler: bir gevsetme gozden kacmasin (gate.py yorumundaki kural).
+    def test_thresholds_only_tighten(self):
+        # Pins today's values so that a loosening cannot go unnoticed (the rule stated in the gate.py comment).
         self.assertLessEqual(gate.STABILITY_TEST_FLOOR_MS, 200)
         self.assertLessEqual(gate.STABILITY_TEST_MEDIAN_FACTOR, 1)
         self.assertLessEqual(gate.STABILITY_MODULE_WALL_PERCENT, 15)
         self.assertLessEqual(gate.STABILITY_MODULE_WALL_FLOOR_MS, 200)
         self.assertGreaterEqual(gate.STABILITY_DEFAULT_REPEAT, 5)
 
-    def test_cikis_kodlari_ayridir_ve_mtp_ile_kapi_kodlariyla_cakismaz(self):
-        kodlar = {
+    def test_exit_codes_are_distinct_and_do_not_collide_with_mtp_or_gate_codes(self):
+        codes = {
             gate.STABILITY_TIME_EXIT_CODE, gate.STABILITY_RESULT_EXIT_CODE, gate.STABILITY_USAGE_EXIT_CODE,
             gate.MODULE_TIME_LIMIT_EXIT_CODE}
 
-        self.assertEqual(len(kodlar), 4)
-        self.assertTrue(all(kod > 12 for kod in (gate.STABILITY_TIME_EXIT_CODE, gate.STABILITY_RESULT_EXIT_CODE)))
+        self.assertEqual(len(codes), 4)
+        self.assertTrue(all(code > 12 for code in (gate.STABILITY_TIME_EXIT_CODE, gate.STABILITY_RESULT_EXIT_CODE)))
 
-    def test_modul_duvar_farki_tam_yuzde_15te_gecer_hemen_ustunde_kirmizi(self):
-        icinde, yuzde = gate.wall_spread_exceeded([100.0, 115.0, 108.0])
-        disinda, _ = gate.wall_spread_exceeded([100.0, 115.001])
+    def test_module_wall_spread_passes_at_exactly_15_percent_and_is_red_just_above(self):
+        inside, percent = gate.wall_spread_exceeded([100.0, 115.0, 108.0])
+        outside, _ = gate.wall_spread_exceeded([100.0, 115.001])
 
-        self.assertFalse(icinde)
-        self.assertEqual(yuzde, 15.0)
-        self.assertTrue(disinda)
+        self.assertFalse(inside)
+        self.assertEqual(percent, 15.0)
+        self.assertTrue(outside)
 
-    def test_modul_duvar_farki_kisa_modulde_200_ms_tabana_yaslanir(self):
-        # 0,5 sn'lik modulde %15 = 75 ms: zamanlayici gurultusu. Taban 200 ms.
+    def test_module_wall_spread_relies_on_the_200_ms_floor_for_a_short_module(self):
+        # In a 0.5 s module 15% = 75 ms: timer noise. The floor is 200 ms.
         self.assertFalse(gate.wall_spread_exceeded([0.5, 0.7])[0])
         self.assertTrue(gate.wall_spread_exceeded([0.5, 0.701])[0])
-        self.assertFalse(gate.wall_spread_exceeded([0.5, 0.58])[0], "%16 ama 80 ms: taban altinda")
+        self.assertFalse(gate.wall_spread_exceeded([0.5, 0.58])[0], "16% but 80 ms: below the floor")
 
-    def test_modul_duvar_farki_uzun_modulde_yuzde_belirler_taban_degil(self):
+    def test_module_wall_spread_is_decided_by_the_percentage_for_a_long_module_not_the_floor(self):
         self.assertFalse(gate.wall_spread_exceeded([400.0, 460.0])[0])
         self.assertTrue(gate.wall_spread_exceeded([400.0, 460.1])[0])
 
-    def test_test_suresi_farki_200_ms_tabaninda_gecer_hemen_ustunde_kirmizi(self):
-        icinde = gate.duration_spreads([_kosum(testler={"N.T": (10, "Passed")}), _kosum(sira=2, testler={"N.T": (210, "Passed")})])
-        disinda = gate.duration_spreads([_kosum(testler={"N.T": (10, "Passed")}), _kosum(sira=2, testler={"N.T": (211, "Passed")})])
+    def test_test_duration_spread_passes_at_the_200_ms_floor_and_is_red_just_above(self):
+        inside = gate.duration_spreads([_module_run(tests={"N.T": (10, "Passed")}), _module_run(order=2, tests={"N.T": (210, "Passed")})])
+        outside = gate.duration_spreads([_module_run(tests={"N.T": (10, "Passed")}), _module_run(order=2, tests={"N.T": (211, "Passed")})])
 
-        self.assertEqual((icinde[0].span_ms, icinde[0].allowed_ms, icinde[0].exceeded), (200, 200, False))
-        self.assertTrue(disinda[0].exceeded)
+        self.assertEqual((inside[0].span_ms, inside[0].allowed_ms, inside[0].exceeded), (200, 200, False))
+        self.assertTrue(outside[0].exceeded)
 
-    def test_test_suresi_farki_medyanin_bir_katinda_gecer_hemen_ustunde_kirmizi(self):
-        def spreads(*sureler):
+    def test_test_duration_spread_passes_at_one_times_the_median_and_is_red_just_above(self):
+        def spreads(*durations):
             return gate.duration_spreads(
-                [_kosum(sira=i + 1, testler={"N.T": (sure, "Passed")}) for i, sure in enumerate(sureler)])
+                [_module_run(order=i + 1, tests={"N.T": (duration, "Passed")}) for i, duration in enumerate(durations)])
 
-        self.assertFalse(spreads(500, 1000, 1500)[0].exceeded, "aralik 1000 = medyan 1000")
+        self.assertFalse(spreads(500, 1000, 1500)[0].exceeded, "spread 1000 = median 1000")
         self.assertTrue(spreads(500, 1000, 1501)[0].exceeded)
 
-    def test_test_suresi_yalniz_her_kosumda_olculen_testler_icin_karsilastirilir(self):
-        kosumlar = [
-            _kosum(testler={"N.A": (10, "Passed"), "N.Sadece1": (9999, "Passed")}),
-            _kosum(sira=2, testler={"N.A": (20, "Passed")}),
+    def test_test_duration_is_compared_only_for_tests_measured_in_every_run(self):
+        runs = [
+            _module_run(tests={"N.A": (10, "Passed"), "N.Only1": (9999, "Passed")}),
+            _module_run(order=2, tests={"N.A": (20, "Passed")}),
         ]
 
-        self.assertEqual([spread.name for spread in gate.duration_spreads(kosumlar)], ["N.A"])
+        self.assertEqual([spread.name for spread in gate.duration_spreads(runs)], ["N.A"])
 
-    # --- sure hukmu -------------------------------------------------------------------
+    # --- duration verdict -------------------------------------------------------------
 
-    def test_tek_testin_suresi_kayarsa_modul_sure_kirmizisi_olur_ve_testi_adlandirir(self):
-        kosumlar = [
-            _kosum(sira=1, testler={"N.A": (100, "Passed"), "N.Yavas": (100, "Passed")}),
-            _kosum(sira=2, testler={"N.A": (100, "Passed"), "N.Yavas": (900, "Passed")}),
-            _kosum(sira=3, testler={"N.A": (100, "Passed"), "N.Yavas": (100, "Passed")}),
+    def test_a_drifting_single_test_duration_turns_the_module_time_red_and_names_the_test(self):
+        runs = [
+            _module_run(order=1, tests={"N.A": (100, "Passed"), "N.Slow": (100, "Passed")}),
+            _module_run(order=2, tests={"N.A": (100, "Passed"), "N.Slow": (900, "Passed")}),
+            _module_run(order=3, tests={"N.A": (100, "Passed"), "N.Slow": (100, "Passed")}),
         ]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "time")
-        self.assertEqual(karsilastirma.result_problems, [])
-        self.assertEqual(len(karsilastirma.time_problems), 1)
-        self.assertIn("N.Yavas", karsilastirma.time_problems[0])
-        self.assertIn("800 ms > 200 ms", karsilastirma.time_problems[0])
-        self.assertEqual(karsilastirma.worst_test.name, "N.Yavas")
-        self.assertEqual(gate.stability_exit_code([karsilastirma]), gate.STABILITY_TIME_EXIT_CODE)
+        self.assertEqual(comparison.verdict, "time")
+        self.assertEqual(comparison.result_problems, [])
+        self.assertEqual(len(comparison.time_problems), 1)
+        self.assertIn("N.Slow", comparison.time_problems[0])
+        self.assertIn("800 ms > 200 ms", comparison.time_problems[0])
+        self.assertEqual(comparison.worst_test.name, "N.Slow")
+        self.assertEqual(gate.stability_exit_code([comparison]), gate.STABILITY_TIME_EXIT_CODE)
 
-    def test_modul_duvar_suresi_kayarsa_sure_kirmizisi_olur(self):
-        kosumlar = [_kosum(sira=1, duvar=100.0), _kosum(sira=2, duvar=116.0), _kosum(sira=3, duvar=101.0)]
+    def test_a_drifting_module_wall_time_turns_the_time_red(self):
+        runs = [_module_run(order=1, wall=100.0), _module_run(order=2, wall=116.0), _module_run(order=3, wall=101.0)]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "time")
-        self.assertIn("module wall time", karsilastirma.time_problems[0])
-        self.assertEqual(karsilastirma.wall_spread_percent, 16.0)
+        self.assertEqual(comparison.verdict, "time")
+        self.assertIn("module wall time", comparison.time_problems[0])
+        self.assertEqual(comparison.wall_spread_percent, 16.0)
 
-    def test_sureleri_sinir_icindeyse_yesil(self):
-        kosumlar = [_kosum(sira=1, duvar=100.0), _kosum(sira=2, duvar=114.0), _kosum(sira=3, duvar=103.0)]
+    def test_durations_within_the_limit_are_green(self):
+        runs = [_module_run(order=1, wall=100.0), _module_run(order=2, wall=114.0), _module_run(order=3, wall=103.0)]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "green")
-        self.assertEqual(gate.stability_exit_code([karsilastirma]), 0)
+        self.assertEqual(comparison.verdict, "green")
+        self.assertEqual(gate.stability_exit_code([comparison]), 0)
 
-    def test_cpu_baskili_kosumun_suresi_raporlanir_ama_kirmizi_saymaz(self):
-        kosumlar = [
-            _kosum(sira=1, duvar=100.0), _kosum(sira=2, duvar=102.0), _kosum(sira=3, duvar=101.0),
-            _kosum(sira=4, baski=True, duvar=300.0, testler={"N.A": (5000, "Passed"), "N.B": (50, "Passed")}),
+    def test_duration_of_a_cpu_pressured_run_is_reported_but_not_counted_red(self):
+        runs = [
+            _module_run(order=1, wall=100.0), _module_run(order=2, wall=102.0), _module_run(order=3, wall=101.0),
+            _module_run(order=4, pressure=True, wall=300.0, tests={"N.A": (5000, "Passed"), "N.B": (50, "Passed")}),
         ]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "green")
-        self.assertEqual(karsilastirma.judged_runs, 3)
-        self.assertEqual(karsilastirma.pressured_wall_seconds, (300.0,))
-        self.assertEqual(karsilastirma.pressured_runs, 1)
+        self.assertEqual(comparison.verdict, "green")
+        self.assertEqual(comparison.judged_runs, 3)
+        self.assertEqual(comparison.pressured_wall_seconds, (300.0,))
+        self.assertEqual(comparison.pressured_runs, 1)
 
-    def test_baskisiz_temiz_kosum_ikiden_azsa_sure_karsilastirilmaz_ve_not_dusulur(self):
-        kosumlar = [_kosum(sira=1), _kosum(sira=2, baski=True, duvar=500.0)]
+    def test_fewer_than_two_clean_runs_without_pressure_skips_the_time_comparison_and_adds_a_note(self):
+        runs = [_module_run(order=1), _module_run(order=2, pressure=True, wall=500.0)]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "green")
-        self.assertIn("time could not be compared", karsilastirma.notes[0])
+        self.assertEqual(comparison.verdict, "green")
+        self.assertIn("time could not be compared", comparison.notes[0])
 
-    # --- sonuc kimligi ------------------------------------------------------------------
+    # --- result identity ------------------------------------------------------------------
 
-    def test_bir_kosumda_eksik_test_sonuc_kirmizisidir_ve_testi_adlandirir(self):
-        kosumlar = [
-            _kosum(sira=1), _kosum(sira=2, testler={"N.A": (100, "Passed")}), _kosum(sira=3),
+    def test_a_test_missing_in_one_run_is_a_result_red_and_names_the_test(self):
+        runs = [
+            _module_run(order=1), _module_run(order=2, tests={"N.A": (100, "Passed")}), _module_run(order=3),
         ]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "result")
-        self.assertEqual(len(karsilastirma.result_problems), 1)
-        self.assertIn("N.B — result changed", karsilastirma.result_problems[0])
-        self.assertIn("run 2: missing", karsilastirma.result_problems[0])
+        self.assertEqual(comparison.verdict, "result")
+        self.assertEqual(len(comparison.result_problems), 1)
+        self.assertIn("N.B — result changed", comparison.result_problems[0])
+        self.assertIn("run 2: missing", comparison.result_problems[0])
 
-    def test_bir_kosumda_fazladan_test_sonuc_kirmizisidir(self):
-        kosumlar = [
-            _kosum(sira=1), _kosum(sira=2, testler={"N.A": (100, "Passed"), "N.B": (50, "Passed"), "N.Yeni": (1, "Passed")}),
+    def test_an_extra_test_in_one_run_is_a_result_red(self):
+        runs = [
+            _module_run(order=1), _module_run(order=2, tests={"N.A": (100, "Passed"), "N.B": (50, "Passed"), "N.New": (1, "Passed")}),
         ]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "result")
-        self.assertIn("N.Yeni", karsilastirma.result_problems[0])
+        self.assertEqual(comparison.verdict, "result")
+        self.assertIn("N.New", comparison.result_problems[0])
 
-    def test_sonuc_degisen_test_adlandirilir_ve_sonuc_sure_kirmizisini_ezer(self):
-        kosumlar = [
-            _kosum(sira=1, testler={"N.A": (100, "Passed"), "N.B": (50, "Passed")}),
-            _kosum(sira=2, testler={"N.A": (100, "Passed"), "N.B": (900, "Failed")}),
+    def test_a_test_whose_result_changed_is_named_and_the_result_red_overrides_the_time_red(self):
+        runs = [
+            _module_run(order=1, tests={"N.A": (100, "Passed"), "N.B": (50, "Passed")}),
+            _module_run(order=2, tests={"N.A": (100, "Passed"), "N.B": (900, "Failed")}),
         ]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "result")
-        self.assertIn("N.B — result changed (run 1: Passed, run 2: Failed)", karsilastirma.result_problems[0])
-        self.assertEqual(gate.stability_exit_code([karsilastirma]), gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(comparison.verdict, "result")
+        self.assertIn("N.B — result changed (run 1: Passed, run 2: Failed)", comparison.result_problems[0])
+        self.assertEqual(gate.stability_exit_code([comparison]), gate.STABILITY_RESULT_EXIT_CODE)
 
-    def test_her_kosumda_dusen_test_de_sonuc_kirmizisidir(self):
-        kosumlar = [_kosum(sira=i, testler={"N.A": (100, "Failed"), "N.B": (50, "Passed")}, cikis=2) for i in (1, 2, 3)]
+    def test_a_test_failing_in_every_run_is_also_a_result_red(self):
+        runs = [_module_run(order=i, tests={"N.A": (100, "Failed"), "N.B": (50, "Passed")}, exit_code=2) for i in (1, 2, 3)]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "result")
-        self.assertEqual(karsilastirma.result_problems, ["N.A — failed in every run (Failed)"])
+        self.assertEqual(comparison.verdict, "result")
+        self.assertEqual(comparison.result_problems, ["N.A — failed in every run (Failed)"])
 
-    def test_atlanan_test_her_kosumda_atlaniyorsa_sonuc_aynidir(self):
-        kosumlar = [_kosum(sira=i, testler={"N.A": (0, "NotExecuted"), "N.B": (50, "Passed")}) for i in (1, 2)]
+    def test_a_skipped_test_that_is_skipped_in_every_run_has_the_same_result(self):
+        runs = [_module_run(order=i, tests={"N.A": (0, "NotExecuted"), "N.B": (50, "Passed")}) for i in (1, 2)]
 
-        self.assertEqual(gate.compare_module("M", kosumlar).verdict, "green")
+        self.assertEqual(gate.compare_module("M", runs).verdict, "green")
 
-    def test_atlanan_test_bir_kosumda_kosarsa_sonuc_degismistir(self):
-        kosumlar = [
-            _kosum(sira=1, testler={"N.A": (0, "NotExecuted")}),
-            _kosum(sira=2, testler={"N.A": (10, "Passed")}),
+    def test_a_skipped_test_that_runs_in_one_run_has_a_changed_result(self):
+        runs = [
+            _module_run(order=1, tests={"N.A": (0, "NotExecuted")}),
+            _module_run(order=2, tests={"N.A": (10, "Passed")}),
         ]
 
-        self.assertEqual(gate.compare_module("M", kosumlar).verdict, "result")
+        self.assertEqual(gate.compare_module("M", runs).verdict, "result")
 
-    def test_cikis_kodu_sifir_degilse_ve_raporda_dusen_yoksa_sonuc_kirmizisi(self):
-        kosumlar = [_kosum(sira=1), _kosum(sira=2, cikis=8)]
+    def test_non_zero_exit_code_without_a_failure_in_the_report_is_a_result_red(self):
+        runs = [_module_run(order=1), _module_run(order=2, exit_code=8)]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "result")
-        self.assertIn("run 2: exit code 8", karsilastirma.result_problems[0])
+        self.assertEqual(comparison.verdict, "result")
+        self.assertIn("run 2: exit code 8", comparison.result_problems[0])
 
-    def test_raporu_olmayan_kosum_sonuc_kirmizisidir(self):
-        kosumlar = [_kosum(sira=1), _kosum(sira=2, cikis=1, duvar=None, testler={}, sorun="the TRX report is missing or unreadable (exit 1)")]
+    def test_a_run_without_a_report_is_a_result_red(self):
+        runs = [_module_run(order=1), _module_run(order=2, exit_code=1, wall=None, tests={}, problem="the TRX report is missing or unreadable (exit 1)")]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "result")
-        self.assertIn("run 2: the TRX report is missing", karsilastirma.result_problems[0])
+        self.assertEqual(comparison.verdict, "result")
+        self.assertIn("run 2: the TRX report is missing", comparison.result_problems[0])
 
-    def test_cpu_baskili_kosumda_sonuc_degisirse_kirmizi(self):
-        kosumlar = [
-            _kosum(sira=1), _kosum(sira=2),
-            _kosum(sira=3, baski=True, testler={"N.A": (100, "Passed"), "N.B": (50, "Failed")}, cikis=2),
+    def test_a_result_change_in_a_cpu_pressured_run_is_red(self):
+        runs = [
+            _module_run(order=1), _module_run(order=2),
+            _module_run(order=3, pressure=True, tests={"N.A": (100, "Passed"), "N.B": (50, "Failed")}, exit_code=2),
         ]
 
-        karsilastirma = gate.compare_module("M", kosumlar)
+        comparison = gate.compare_module("M", runs)
 
-        self.assertEqual(karsilastirma.verdict, "result")
-        self.assertIn("N.B", karsilastirma.result_problems[0])
+        self.assertEqual(comparison.verdict, "result")
+        self.assertIn("N.B", comparison.result_problems[0])
 
-    def test_ayni_adli_theory_satirlari_cokluk_olarak_karsilastirilir(self):
-        ayni = _kosum(sira=1)
-        ayni_iki_satir = dataclasses.replace(ayni, outcomes={"N.A": ("Passed", "Passed"), "N.B": ("Passed",)})
-        eksik_satir = dataclasses.replace(ayni, index=2, outcomes={"N.A": ("Passed",), "N.B": ("Passed",)})
+    def test_same_named_theory_rows_are_compared_as_a_multiset(self):
+        same = _module_run(order=1)
+        same_two_rows = dataclasses.replace(same, outcomes={"N.A": ("Passed", "Passed"), "N.B": ("Passed",)})
+        missing_row = dataclasses.replace(same, index=2, outcomes={"N.A": ("Passed",), "N.B": ("Passed",)})
 
-        self.assertEqual(gate.compare_module("M", [ayni_iki_satir, eksik_satir]).verdict, "result")
+        self.assertEqual(gate.compare_module("M", [same_two_rows, missing_row]).verdict, "result")
 
-    # --- cikis kodu onceligi ----------------------------------------------------------------
+    # --- exit-code precedence ----------------------------------------------------------------
 
-    def test_sonuc_kirmizisi_sure_kirmizisindan_once_gelir_hicbiri_yoksa_sifir(self):
-        yesil = gate.compare_module("Y", [_kosum("Y", 1), _kosum("Y", 2)])
-        sure = gate.compare_module("S", [_kosum("S", 1, duvar=100.0), _kosum("S", 2, duvar=200.0)])
-        sonuc = gate.compare_module("R", [_kosum("R", 1), _kosum("R", 2, testler={"N.A": (1, "Failed")}, cikis=2)])
+    def test_result_red_takes_precedence_over_time_red_and_neither_gives_zero(self):
+        green = gate.compare_module("Y", [_module_run("Y", 1), _module_run("Y", 2)])
+        duration = gate.compare_module("S", [_module_run("S", 1, wall=100.0), _module_run("S", 2, wall=200.0)])
+        result = gate.compare_module("R", [_module_run("R", 1), _module_run("R", 2, tests={"N.A": (1, "Failed")}, exit_code=2)])
 
-        self.assertEqual(gate.stability_exit_code([yesil]), 0)
-        self.assertEqual(gate.stability_exit_code([yesil, sure]), gate.STABILITY_TIME_EXIT_CODE)
-        self.assertEqual(gate.stability_exit_code([yesil, sonuc]), gate.STABILITY_RESULT_EXIT_CODE)
-        self.assertEqual(gate.stability_exit_code([sure, sonuc]), gate.STABILITY_RESULT_EXIT_CODE)
-        self.assertEqual(gate.stability_exit_code([sonuc, sure]), gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([green]), 0)
+        self.assertEqual(gate.stability_exit_code([green, duration]), gate.STABILITY_TIME_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([green, result]), gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([duration, result]), gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([result, duration]), gate.STABILITY_RESULT_EXIT_CODE)
 
-    # --- siralama kaniti -----------------------------------------------------------------------
+    # --- order evidence -----------------------------------------------------------------------
 
-    def test_siralama_benzerligi_ayni_sira_bir_ters_sira_sifir(self):
+    def test_order_similarity_is_one_for_the_same_order_and_zero_for_the_reverse(self):
         self.assertEqual(gate.order_similarity(["a", "b", "c", "d"], ["a", "b", "c", "d"]), 1.0)
         self.assertEqual(gate.order_similarity(["a", "b", "c", "d"], ["d", "c", "b", "a"]), 0.0)
         self.assertEqual(gate.order_similarity(["a", "b", "c"], ["a", "c", "b"]), 0.5)
         self.assertIsNone(gate.order_similarity(["a"], ["a"]))
         self.assertIsNone(gate.order_similarity(["a", "b"], ["x", "y"]))
 
-    def test_karistirilmis_modulde_baslama_sirasi_ayniysa_etkisiz_notu_dusulur(self):
-        testler = {f"N.T{i:02d}": (10, "Passed") for i in range(30)}
-        kosumlar = [_kosum(sira=1, testler=testler), _kosum(sira=2, testler=testler)]
+    def test_a_shuffled_module_with_the_same_start_order_gets_a_no_effect_note(self):
+        tests = {f"N.T{i:02d}": (10, "Passed") for i in range(30)}
+        runs = [_module_run(order=1, tests=tests), _module_run(order=2, tests=tests)]
 
-        karistirilmis = gate.compare_module("M", kosumlar, shuffled=True)
-        karistirilmamis = gate.compare_module("M", kosumlar, shuffled=False)
+        with_shuffle = gate.compare_module("M", runs, shuffled=True)
+        without_shuffle = gate.compare_module("M", runs, shuffled=False)
 
-        self.assertTrue(any("no visible effect" in not_ for not_ in karistirilmis.notes))
-        self.assertFalse(any("no visible effect" in not_ for not_ in karistirilmamis.notes))
+        self.assertTrue(any("no visible effect" in not_ for not_ in with_shuffle.notes))
+        self.assertFalse(any("no visible effect" in not_ for not_ in without_shuffle.notes))
 
-    def test_baslama_sirasi_gercekten_degistiyse_etkisiz_notu_yok(self):
-        adlar = [f"N.T{i:02d}" for i in range(30)]
-        testler = {ad: (10, "Passed") for ad in adlar}
-        kosumlar = [
-            _kosum(sira=1, testler=testler, baslama_sirasi=adlar),
-            _kosum(sira=2, testler=testler, baslama_sirasi=adlar[::-1]),
+    def test_no_no_effect_note_when_the_start_order_really_changed(self):
+        names = [f"N.T{i:02d}" for i in range(30)]
+        tests = {name: (10, "Passed") for name in names}
+        runs = [
+            _module_run(order=1, tests=tests, start_order=names),
+            _module_run(order=2, tests=tests, start_order=names[::-1]),
         ]
 
-        karsilastirma = gate.compare_module("M", kosumlar, shuffled=True)
+        comparison = gate.compare_module("M", runs, shuffled=True)
 
-        self.assertEqual(karsilastirma.order_similarity, [0.0])
-        self.assertEqual(karsilastirma.notes, [])
+        self.assertEqual(comparison.order_similarity, [0.0])
+        self.assertEqual(comparison.notes, [])
 
-    def test_kisa_modulde_siralama_notu_dusulmez(self):
-        kosumlar = [_kosum(sira=1), _kosum(sira=2)]
+    def test_no_order_note_for_a_short_module(self):
+        runs = [_module_run(order=1), _module_run(order=2)]
 
-        self.assertEqual(gate.compare_module("M", kosumlar, shuffled=True).notes, [])
+        self.assertEqual(gate.compare_module("M", runs, shuffled=True).notes, [])
 
-    # --- TRX okuma -----------------------------------------------------------------------------
+    # --- TRX reading -----------------------------------------------------------------------------
 
-    def test_trx_raporu_sure_sonuc_ve_baslama_sirasini_okur(self):
+    def test_trx_report_reads_duration_result_and_start_order(self):
         with tempfile.TemporaryDirectory() as directory:
-            dizin = pathlib.Path(directory)
-            _kosum_trx(dizin, {"N.B": (1500, "Passed"), "N.A": (20, "Failed")}, duvar_saniye=12.5)
+            folder = pathlib.Path(directory)
+            _write_run_trx(folder, {"N.B": (1500, "Passed"), "N.A": (20, "Failed")}, wall_seconds=12.5)
 
-            rapor = gate.read_module_report(dizin)
+            report = gate.read_module_report(folder)
 
-        self.assertEqual(rapor.wall_seconds, 12.5)
-        self.assertEqual(rapor.durations_ms, {"N.B": 1500, "N.A": 20})
-        self.assertEqual(rapor.outcomes, {"N.B": ("Passed",), "N.A": ("Failed",)})
-        self.assertEqual(rapor.order, ("N.B", "N.A"))
+        self.assertEqual(report.wall_seconds, 12.5)
+        self.assertEqual(report.durations_ms, {"N.B": 1500, "N.A": 20})
+        self.assertEqual(report.outcomes, {"N.B": ("Passed",), "N.A": ("Failed",)})
+        self.assertEqual(report.order, ("N.B", "N.A"))
 
-    def test_trx_raporu_ayni_adli_satirlarda_en_uzun_sureyi_ve_tum_sonuclari_tutar(self):
+    def test_trx_report_keeps_the_longest_duration_and_all_results_of_same_named_rows(self):
         with tempfile.TemporaryDirectory() as directory:
-            dizin = pathlib.Path(directory)
-            (dizin / "result.trx").write_text(
+            folder = pathlib.Path(directory)
+            (folder / "result.trx").write_text(
                 '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>'
                 '<UnitTestResult testName="N.T" duration="00:00:00.1000000" outcome="Passed" />'
                 '<UnitTestResult testName="N.T" duration="00:00:00.3000000" outcome="Failed" />'
                 "</Results></TestRun>", encoding="utf-8")
 
-            rapor = gate.read_module_report(dizin)
+            report = gate.read_module_report(folder)
 
-        self.assertEqual(rapor.durations_ms, {"N.T": 300})
-        self.assertEqual(rapor.outcomes, {"N.T": ("Failed", "Passed")})
-        self.assertIsNone(rapor.wall_seconds)
-        self.assertEqual(rapor.order, ())
+        self.assertEqual(report.durations_ms, {"N.T": 300})
+        self.assertEqual(report.outcomes, {"N.T": ("Failed", "Passed")})
+        self.assertIsNone(report.wall_seconds)
+        self.assertEqual(report.order, ())
 
-    def test_trx_raporu_yoksa_ya_da_bozuksa_none(self):
+    def test_trx_report_missing_or_malformed_gives_none(self):
         with tempfile.TemporaryDirectory() as directory:
-            dizin = pathlib.Path(directory)
-            self.assertIsNone(gate.read_module_report(dizin))
-            self.assertIsNone(gate.read_module_report(dizin / "yok"))
-            (dizin / "result.trx").write_text("<TestRun", encoding="utf-8")
-            self.assertIsNone(gate.read_module_report(dizin))
+            folder = pathlib.Path(directory)
+            self.assertIsNone(gate.read_module_report(folder))
+            self.assertIsNone(gate.read_module_report(folder / "absent"))
+            (folder / "result.trx").write_text("<TestRun", encoding="utf-8")
+            self.assertIsNone(gate.read_module_report(folder))
 
 
-class _SahteBaskici:
-    """`CpuBurner` yerine gecer: baslat/durdur olaylarini bir ortak olay listesine yazar."""
+class _FakeBurner:
+    """Replaces `CpuBurner`: writes the start/stop events to a shared event list."""
 
-    def __init__(self, sayi: int, olaylar: list[str]) -> None:
-        self.count = sayi
-        self.olaylar = olaylar
+    def __init__(self, count: int, events: list[str]) -> None:
+        self.count = count
+        self.events = events
         self.running = False
 
     def start(self) -> None:
         self.running = True
-        self.olaylar.append("baski basladi")
+        self.events.append("pressure started")
 
     def stop(self) -> None:
         if self.running:
-            self.olaylar.append("baski durdu")
+            self.events.append("pressure stopped")
         self.running = False
 
     def alive(self) -> int:
         return self.count if self.running else 0
 
 
-class KararlilikKosumTestleri(unittest.TestCase):
-    """`stability_check`: sentetik TRX yazan sahte kosucu ile uctan uca; hicbir dotnet cagrilmaz."""
+class StabilityRunTests(unittest.TestCase):
+    """`stability_check`: end to end with a fake runner that writes synthetic TRX; no dotnet is called."""
 
     def setUp(self):
-        self._gecici = tempfile.TemporaryDirectory()
-        self.addCleanup(self._gecici.cleanup)
-        self.kok = pathlib.Path(self._gecici.name)
-        self.olaylar: list[str] = []
-        self.cagrilar: list[list[str]] = []
-        self._kilit = threading.Lock()
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp_dir.cleanup)
+        self.root = pathlib.Path(self._temp_dir.name)
+        self.events: list[str] = []
+        self.calls: list[list[str]] = []
+        self._lock = threading.Lock()
 
     CORE = gate.StabilityUnit(
         "Tracon.Core.UnitTests", "release_net10.0", "core", None, pathlib.Path("/b/Tracon.Core.UnitTests"))
-    HAFIF = gate.StabilityUnit("Tracon.Voice.UnitTests", "release", "light", None, pathlib.Path("/b/Tracon.Voice.UnitTests"))
-    AGIR = gate.StabilityUnit(
+    LIGHT = gate.StabilityUnit("Tracon.Voice.UnitTests", "release", "light", None, pathlib.Path("/b/Tracon.Voice.UnitTests"))
+    HEAVY = gate.StabilityUnit(
         "Tracon.AspNetCore.FunctionalTests", "release", "heavy", "b", pathlib.Path("/b/Tracon.AspNetCore.FunctionalTests"))
-    VARSAYILAN = {"N.A": (100, "Passed"), "N.B": (50, "Passed")}
+    DEFAULT_TESTS = {"N.A": (100, "Passed"), "N.B": (50, "Passed")}
 
-    def _kosucu(self, davranis=None):
-        """`davranis(proje, kosum_no)` -> None (varsayilan) | dict | (cikis, dict | None, duvar_s)."""
-        def kos(args, **kwargs):
-            dizin = pathlib.Path(args[args.index("--results-directory") + 1])
-            proje = pathlib.Path(args[0]).name
-            kosum_no = int(dizin.parent.name.removeprefix("run-"))
-            with self._kilit:
-                self.cagrilar.append(list(args))
-                self.olaylar.append(f"{proje} koşum {kosum_no}")
-            sonuc = davranis(proje, kosum_no) if davranis else None
-            cikis, testler, duvar = 0, self.VARSAYILAN, 10.0
-            if isinstance(sonuc, dict):
-                testler = sonuc
-            elif sonuc is not None:
-                cikis, testler, duvar = sonuc
-            if testler is not None:
-                _kosum_trx(dizin, testler, duvar)
-            return mock.Mock(returncode=cikis)
-        return kos
+    def _runner(self, behavior=None):
+        """`behavior(project, run_number)` -> None (default) | dict | (exit code, dict | None, wall_s)."""
+        def fake_run(args, **kwargs):
+            folder = pathlib.Path(args[args.index("--results-directory") + 1])
+            project = pathlib.Path(args[0]).name
+            run_number = int(folder.parent.name.removeprefix("run-"))
+            with self._lock:
+                self.calls.append(list(args))
+                self.events.append(f"{project} run {run_number}")
+            result = behavior(project, run_number) if behavior else None
+            exit_code, tests, wall = 0, self.DEFAULT_TESTS, 10.0
+            if isinstance(result, dict):
+                tests = result
+            elif result is not None:
+                exit_code, tests, wall = result
+            if tests is not None:
+                _write_run_trx(folder, tests, wall)
+            return mock.Mock(returncode=exit_code)
+        return fake_run
 
-    def _kos(self, units, repeat=5, davranis=None, **secenekler):
-        fabrika = secenekler.pop("burner_factory", lambda sayi: _SahteBaskici(sayi, self.olaylar))
-        rapor = self.kok / "rapor"
-        with contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = gate.stability_check(
-                units, repeat, root=self.kok, runner=self._kosucu(davranis), burner_factory=fabrika,
-                report_directory=rapor, measurement_path=self.kok / "olcum.jsonl", stamp="20261109T000000Z",
-                cpu_count=8, **secenekler)
-        return types.SimpleNamespace(kod=kod, ekran=ekran.getvalue(), rapor=rapor)
+    def _execute(self, units, repeat=5, behavior=None, **options):
+        factory = options.pop("burner_factory", lambda count: _FakeBurner(count, self.events))
+        report = self.root / "reports"
+        with contextlib.redirect_stdout(io.StringIO()) as screen:
+            code = gate.stability_check(
+                units, repeat, root=self.root, runner=self._runner(behavior), burner_factory=factory,
+                report_directory=report, measurement_path=self.root / "measurement.jsonl", stamp="20261109T000000Z",
+                cpu_count=8, **options)
+        return types.SimpleNamespace(code=code, screen=screen.getvalue(), report=report)
 
-    def _rapor_json(self, sonuc):
-        return json.loads((sonuc.rapor / "20261109T000000Z.json").read_text(encoding="utf-8"))
+    def _report_json(self, result):
+        return json.loads((result.report / "20261109T000000Z.json").read_text(encoding="utf-8"))
 
-    # --- yesil yol, komut bicimi, sira ------------------------------------------------------------
+    # --- green path, command shape, order ---------------------------------------------------------
 
-    def test_ayni_sonuc_ve_sure_yesil_cikis_sifir_rapor_ve_olcum_satiri_yazar(self):
-        sonuc = self._kos([self.CORE, self.HAFIF, self.AGIR])
+    def test_same_result_and_duration_is_green_exit_zero_and_writes_the_report_and_measurement_line(self):
+        result = self._execute([self.CORE, self.LIGHT, self.HEAVY])
 
-        self.assertEqual(sonuc.kod, 0)
-        self.assertEqual(len(self.cagrilar), 15)
-        rapor = self._rapor_json(sonuc)
-        self.assertEqual(rapor["exit_code"], 0)
-        self.assertEqual(rapor["repeat"], 5)
+        self.assertEqual(result.code, 0)
+        self.assertEqual(len(self.calls), 15)
+        report = self._report_json(result)
+        self.assertEqual(report["exit_code"], 0)
+        self.assertEqual(report["repeat"], 5)
         self.assertEqual(
-            sorted(rapor["modules"]),
+            sorted(report["modules"]),
             ["Tracon.AspNetCore.FunctionalTests", "Tracon.Core.UnitTests (net10.0)", "Tracon.Voice.UnitTests"])
-        modul = rapor["modules"]["Tracon.Voice.UnitTests"]
-        self.assertEqual(modul["verdict"], "green")
-        self.assertEqual([kosum["index"] for kosum in modul["runs"]], [1, 2, 3, 4, 5])
-        self.assertEqual(modul["runs"][0]["tests"], 2)
+        module = report["modules"]["Tracon.Voice.UnitTests"]
+        self.assertEqual(module["verdict"], "green")
+        self.assertEqual([run["index"] for run in module["runs"]], [1, 2, 3, 4, 5])
+        self.assertEqual(module["runs"][0]["tests"], 2)
         self.assertEqual(
-            rapor["thresholds"],
+            report["thresholds"],
             {"test_floor_ms": 200, "test_median_factor": 1, "module_wall_percent": 15, "module_wall_floor_ms": 200})
-        self.assertEqual(set(rapor), {"utc", "repeat", "shuffled", "base_seed", "pressure", "thresholds", "exit_code", "modules"})
-        satir = json.loads((self.kok / "olcum.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+        self.assertEqual(set(report), {"utc", "repeat", "shuffled", "base_seed", "pressure", "thresholds", "exit_code", "modules"})
+        line = json.loads((self.root / "measurement.jsonl").read_text(encoding="utf-8").splitlines()[-1])
         self.assertEqual(
-            (satir["stage"], satir["exit_code"], satir["command"]), ("stability", 0, "gate.py stability --repeat 5"))
-        self.assertIn("Stable", sonuc.ekran)
+            (line["stage"], line["exit_code"], line["command"]), ("stability", 0, "gate.py stability --repeat 5"))
+        self.assertIn("Stable", result.screen)
 
-    def test_komut_derlenmis_ikiliyi_trx_bayraklariyla_cagirir_ve_hicbir_seyi_derlemez(self):
-        self._kos([self.HAFIF], repeat=2)
+    def test_command_invokes_the_built_binary_with_the_trx_flags_and_builds_nothing(self):
+        self._execute([self.LIGHT], repeat=2)
 
-        for args in self.cagrilar:
-            self.assertEqual(args[0], str(self.HAFIF.executable))
+        for args in self.calls:
+            self.assertEqual(args[0], str(self.LIGHT.executable))
             self.assertIn("--report-trx", args)
             self.assertEqual(args[args.index("--report-trx-filename") + 1], gate.STABILITY_TRX_NAME)
             self.assertEqual(args[args.index("--timeout") + 1], f"{gate.STABILITY_MODULE_TIMEOUT_MINUTES}m")
             self.assertNotIn("dotnet", args[0])
             self.assertNotIn("build", args)
             self.assertNotIn("--seed", args)
-        dizinler = {args[args.index("--results-directory") + 1] for args in self.cagrilar}
-        self.assertEqual(len(dizinler), 2, "her koşum kendi dizinine yazar")
-        self.assertTrue(all("20261109T000000Z" in dizin for dizin in dizinler))
+        directories = {args[args.index("--results-directory") + 1] for args in self.calls}
+        self.assertEqual(len(directories), 2, "every run writes to its own directory")
+        self.assertTrue(all("20261109T000000Z" in folder for folder in directories))
 
-    def test_asamalar_core_once_sonra_hafif_sonra_agir_ve_her_kosum_bitmeden_sonrakine_gecilmez(self):
-        self._kos([self.AGIR, self.HAFIF, self.CORE], repeat=2)
+    def test_stages_go_core_then_light_then_heavy_and_no_run_starts_before_the_previous_one_finishes(self):
+        self._execute([self.HEAVY, self.LIGHT, self.CORE], repeat=2)
 
-        sira = [olay for olay in self.olaylar if "koşum" in olay]
-        self.assertEqual(sira[:3], [
-            "Tracon.Core.UnitTests koşum 1", "Tracon.Voice.UnitTests koşum 1", "Tracon.AspNetCore.FunctionalTests koşum 1"])
-        self.assertEqual(sira[3:], [
-            "Tracon.Core.UnitTests koşum 2", "Tracon.Voice.UnitTests koşum 2", "Tracon.AspNetCore.FunctionalTests koşum 2"])
+        order = [event for event in self.events if "run" in event]
+        self.assertEqual(order[:3], [
+            "Tracon.Core.UnitTests run 1", "Tracon.Voice.UnitTests run 1", "Tracon.AspNetCore.FunctionalTests run 1"])
+        self.assertEqual(order[3:], [
+            "Tracon.Core.UnitTests run 2", "Tracon.Voice.UnitTests run 2", "Tracon.AspNetCore.FunctionalTests run 2"])
 
-    def test_kirmizi_modul_kosumu_durdurmaz_cunku_kararlilik_her_kosumun_bitmesini_ister(self):
-        sonuc = self._kos([self.CORE, self.HAFIF], davranis=lambda proje, no: (2, {"N.A": (1, "Failed")}, 5.0)
-                          if proje == "Tracon.Core.UnitTests" else None)
+    def test_a_red_module_does_not_stop_the_run_because_stability_needs_every_run_to_finish(self):
+        result = self._execute([self.CORE, self.LIGHT], behavior=lambda project, no: (2, {"N.A": (1, "Failed")}, 5.0)
+                          if project == "Tracon.Core.UnitTests" else None)
 
-        self.assertEqual(len(self.cagrilar), 10)
-        self.assertEqual(sonuc.kod, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(len(self.calls), 10)
+        self.assertEqual(result.code, gate.STABILITY_RESULT_EXIT_CODE)
 
-    # --- sira karistirma ----------------------------------------------------------------------------
+    # --- order shuffling ----------------------------------------------------------------------------
 
-    def test_sira_karistir_her_kosuma_farkli_kayitli_tohum_verir(self):
-        sonuc = self._kos([self.HAFIF], repeat=3, shuffle=True, base_seed=1000)
+    def test_shuffle_gives_every_run_a_different_recorded_seed(self):
+        result = self._execute([self.LIGHT], repeat=3, shuffle=True, base_seed=1000)
 
-        tohumlar = sorted(int(args[args.index("--seed") + 1]) for args in self.cagrilar)
-        self.assertEqual(tohumlar, [1000, 1001, 1002])
-        rapor = self._rapor_json(sonuc)
-        self.assertEqual(rapor["base_seed"], 1000)
-        self.assertTrue(rapor["shuffled"])
-        self.assertEqual([kosum["seed"] for kosum in rapor["modules"]["Tracon.Voice.UnitTests"]["runs"]], [1000, 1001, 1002])
-        self.assertIn("seed 1000", sonuc.ekran)
+        seeds = sorted(int(args[args.index("--seed") + 1]) for args in self.calls)
+        self.assertEqual(seeds, [1000, 1001, 1002])
+        report = self._report_json(result)
+        self.assertEqual(report["base_seed"], 1000)
+        self.assertTrue(report["shuffled"])
+        self.assertEqual([run["seed"] for run in report["modules"]["Tracon.Voice.UnitTests"]["runs"]], [1000, 1001, 1002])
+        self.assertIn("seed 1000", result.screen)
 
-    def test_sira_karistirma_kapaliyken_tohum_verilmez_ve_raporlanmaz(self):
-        sonuc = self._kos([self.HAFIF], repeat=2, base_seed=1000)
+    def test_no_seed_is_given_or_reported_while_shuffling_is_off(self):
+        result = self._execute([self.LIGHT], repeat=2, base_seed=1000)
 
-        self.assertFalse(any("--seed" in args for args in self.cagrilar))
-        self.assertIsNone(self._rapor_json(sonuc)["base_seed"])
+        self.assertFalse(any("--seed" in args for args in self.calls))
+        self.assertIsNone(self._report_json(result)["base_seed"])
 
-    def test_tohum_verilmezse_saatten_turetilir_ve_rapora_yazilir(self):
-        sonuc = self._kos([self.HAFIF], repeat=2, shuffle=True)
+    def test_a_missing_seed_is_derived_from_the_clock_and_written_to_the_report(self):
+        result = self._execute([self.LIGHT], repeat=2, shuffle=True)
 
-        self.assertIsInstance(self._rapor_json(sonuc)["base_seed"], int)
+        self.assertIsInstance(self._report_json(result)["base_seed"], int)
 
-    # --- sonuc ve sure hatalari --------------------------------------------------------------------
+    # --- result and duration errors --------------------------------------------------------------------
 
-    def test_bir_kosumda_sonuc_degisirse_cikis_92_ve_testin_adi_ekranda(self):
-        sonuc = self._kos(
-            [self.HAFIF], davranis=lambda proje, no: {"N.A": (100, "Passed"), "N.B": (50, "Failed")} if no == 3 else None)
+    def test_a_result_change_in_one_run_gives_exit_92_and_the_test_name_on_screen(self):
+        result = self._execute(
+            [self.LIGHT], behavior=lambda project, no: {"N.A": (100, "Passed"), "N.B": (50, "Failed")} if no == 3 else None)
 
-        self.assertEqual(sonuc.kod, gate.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("N.B — result changed", sonuc.ekran)
-        self.assertEqual(self._rapor_json(sonuc)["exit_code"], 92)
-        satir = json.loads((self.kok / "olcum.jsonl").read_text(encoding="utf-8").splitlines()[-1])
-        self.assertEqual(satir["exit_code"], 92)
+        self.assertEqual(result.code, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("N.B — result changed", result.screen)
+        self.assertEqual(self._report_json(result)["exit_code"], 92)
+        line = json.loads((self.root / "measurement.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+        self.assertEqual(line["exit_code"], 92)
 
-    def test_yalniz_sure_degisirse_cikis_91(self):
-        sonuc = self._kos([self.HAFIF], davranis=lambda proje, no: (0, self.VARSAYILAN, 30.0) if no == 2 else None)
+    def test_a_duration_change_alone_gives_exit_91(self):
+        result = self._execute([self.LIGHT], behavior=lambda project, no: (0, self.DEFAULT_TESTS, 30.0) if no == 2 else None)
 
-        self.assertEqual(sonuc.kod, gate.STABILITY_TIME_EXIT_CODE)
-        self.assertIn("module wall time", sonuc.ekran)
+        self.assertEqual(result.code, gate.STABILITY_TIME_EXIT_CODE)
+        self.assertIn("module wall time", result.screen)
 
-    def test_sonuc_ve_sure_birlikte_degisirse_sonuc_kodu_kazanir(self):
-        def davranis(proje, no):
-            if proje == "Tracon.Voice.UnitTests" and no == 2:
-                return 0, self.VARSAYILAN, 30.0
-            if proje == "Tracon.Core.UnitTests" and no == 3:
+    def test_when_result_and_duration_change_together_the_result_code_wins(self):
+        def behavior(project, no):
+            if project == "Tracon.Voice.UnitTests" and no == 2:
+                return 0, self.DEFAULT_TESTS, 30.0
+            if project == "Tracon.Core.UnitTests" and no == 3:
                 return 2, {"N.A": (1, "Failed")}, 10.0
             return None
 
-        self.assertEqual(self._kos([self.CORE, self.HAFIF], davranis=davranis).kod, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(self._execute([self.CORE, self.LIGHT], behavior=behavior).code, gate.STABILITY_RESULT_EXIT_CODE)
 
-    def test_raporu_olmayan_kosum_kirmizidir_ve_kosum_cokmesi_digerlerini_engellemez(self):
-        sonuc = self._kos([self.CORE, self.HAFIF], davranis=lambda proje, no: (1, None, 0) if (proje, no) == ("Tracon.Voice.UnitTests", 2) else None)
+    def test_a_run_without_a_report_is_red_and_a_run_crash_does_not_block_the_others(self):
+        result = self._execute([self.CORE, self.LIGHT], behavior=lambda project, no: (1, None, 0) if (project, no) == ("Tracon.Voice.UnitTests", 2) else None)
 
-        self.assertEqual(sonuc.kod, gate.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("run 2: the TRX report is missing", sonuc.ekran)
-        self.assertEqual(len(self.cagrilar), 10)
+        self.assertEqual(result.code, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("run 2: the TRX report is missing", result.screen)
+        self.assertEqual(len(self.calls), 10)
 
-    def test_testsiz_rapor_kirmizidir(self):
-        sonuc = self._kos([self.HAFIF], repeat=2, davranis=lambda proje, no: {})
+    def test_a_report_without_tests_is_red(self):
+        result = self._execute([self.LIGHT], repeat=2, behavior=lambda project, no: {})
 
-        self.assertEqual(sonuc.kod, gate.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("the report holds no test", sonuc.ekran)
+        self.assertEqual(result.code, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("the report holds no test", result.screen)
 
-    def test_zaman_asimi_ve_baslatma_hatasi_kosum_sorunu_olur_cokme_degil(self):
-        def kos(args, **kwargs):
+    def test_timeout_and_start_failure_become_a_run_problem_not_a_crash(self):
+        def fake_run(args, **kwargs):
             raise subprocess.TimeoutExpired(args, 1)
-        rapor = self.kok / "rapor"
-        with contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = gate.stability_check(
-                [self.HAFIF], 2, root=self.kok, runner=kos, report_directory=rapor,
-                measurement_path=self.kok / "olcum.jsonl", stamp="s",
-                burner_factory=lambda sayi: _SahteBaskici(sayi, self.olaylar))
+        report = self.root / "reports"
+        with contextlib.redirect_stdout(io.StringIO()) as screen:
+            code = gate.stability_check(
+                [self.LIGHT], 2, root=self.root, runner=fake_run, report_directory=report,
+                measurement_path=self.root / "measurement.jsonl", stamp="s",
+                burner_factory=lambda count: _FakeBurner(count, self.events))
 
-        self.assertEqual(kod, gate.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("min", ekran.getvalue())
-        self.assertIn("did not finish within", ekran.getvalue())
+        self.assertEqual(code, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("min", screen.getvalue())
+        self.assertIn("did not finish within", screen.getvalue())
 
-    def test_kosucu_beklenmedik_hata_verirse_sonuc_kirmizisi_olur_ve_kosum_kilitlenmez(self):
-        def kos(args, **kwargs):
-            raise RuntimeError("patladi")
-        with contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = gate.stability_check(
-                [self.CORE, self.HAFIF], 2, root=self.kok, runner=kos, report_directory=self.kok / "r",
-                measurement_path=self.kok / "olcum.jsonl", stamp="s",
-                burner_factory=lambda sayi: _SahteBaskici(sayi, self.olaylar))
+    def test_an_unexpected_runner_error_is_a_result_red_and_the_run_does_not_hang(self):
+        def fake_run(args, **kwargs):
+            raise RuntimeError("exploded")
+        with contextlib.redirect_stdout(io.StringIO()) as screen:
+            code = gate.stability_check(
+                [self.CORE, self.LIGHT], 2, root=self.root, runner=fake_run, report_directory=self.root / "r",
+                measurement_path=self.root / "measurement.jsonl", stamp="s",
+                burner_factory=lambda count: _FakeBurner(count, self.events))
 
-        self.assertEqual(kod, gate.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("the runner crashed", ekran.getvalue())
+        self.assertEqual(code, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("the runner crashed", screen.getvalue())
 
-    # --- CPU baskisi ---------------------------------------------------------------------------------
+    # --- CPU pressure ---------------------------------------------------------------------------------
 
-    def test_baski_varsayilan_olarak_son_iki_kosumda_calisir_ve_bitince_durur(self):
-        sonuc = self._kos([self.HAFIF], repeat=5, pressure=True)
+    def test_pressure_runs_by_default_in_the_last_two_runs_and_stops_when_they_end(self):
+        result = self._execute([self.LIGHT], repeat=5, pressure=True)
 
-        olaylar = self.olaylar
-        self.assertEqual(olaylar.count("baski basladi"), 1)
-        self.assertEqual(olaylar.count("baski durdu"), 1)
-        baslangic = olaylar.index("baski basladi")
-        self.assertEqual(olaylar[:baslangic], [f"Tracon.Voice.UnitTests koşum {no}" for no in (1, 2, 3)])
-        self.assertEqual(olaylar[baslangic + 1:baslangic + 3], [f"Tracon.Voice.UnitTests koşum {no}" for no in (4, 5)])
-        self.assertEqual(olaylar[-1], "baski durdu")
-        rapor = self._rapor_json(sonuc)
-        self.assertEqual(rapor["pressure"], {"runs": [4, 5], "burners": 4})
-        kosumlar = rapor["modules"]["Tracon.Voice.UnitTests"]["runs"]
-        self.assertEqual([kosum["pressured"] for kosum in kosumlar], [False, False, False, True, True])
-        self.assertIn("(4 load processes)", sonuc.ekran)
+        events = self.events
+        self.assertEqual(events.count("pressure started"), 1)
+        self.assertEqual(events.count("pressure stopped"), 1)
+        start = events.index("pressure started")
+        self.assertEqual(events[:start], [f"Tracon.Voice.UnitTests run {no}" for no in (1, 2, 3)])
+        self.assertEqual(events[start + 1:start + 3], [f"Tracon.Voice.UnitTests run {no}" for no in (4, 5)])
+        self.assertEqual(events[-1], "pressure stopped")
+        report = self._report_json(result)
+        self.assertEqual(report["pressure"], {"runs": [4, 5], "burners": 4})
+        runs = report["modules"]["Tracon.Voice.UnitTests"]["runs"]
+        self.assertEqual([run["pressured"] for run in runs], [False, False, False, True, True])
+        self.assertIn("(4 load processes)", result.screen)
 
-    def test_baski_kosumlari_elle_secilir_ve_aralarinda_baski_durur(self):
-        self._kos([self.HAFIF], repeat=5, pressure=True, pressure_runs=[2, 4])
+    def test_pressure_runs_are_chosen_by_hand_and_pressure_stops_between_them(self):
+        self._execute([self.LIGHT], repeat=5, pressure=True, pressure_runs=[2, 4])
 
-        self.assertEqual(self.olaylar.count("baski basladi"), 2)
-        self.assertEqual(self.olaylar.count("baski durdu"), 2)
+        self.assertEqual(self.events.count("pressure started"), 2)
+        self.assertEqual(self.events.count("pressure stopped"), 2)
         self.assertEqual(
-            [o for o in self.olaylar if o in ("baski basladi", "baski durdu")],
-            ["baski basladi", "baski durdu", "baski basladi", "baski durdu"])
+            [o for o in self.events if o in ("pressure started", "pressure stopped")],
+            ["pressure started", "pressure stopped", "pressure started", "pressure stopped"])
 
-    def test_baski_istenmediyse_yuk_islemi_hic_baslamaz(self):
-        self._kos([self.HAFIF], repeat=3)
+    def test_no_load_process_starts_when_pressure_is_not_requested(self):
+        self._execute([self.LIGHT], repeat=3)
 
-        self.assertNotIn("baski basladi", self.olaylar)
+        self.assertNotIn("pressure started", self.events)
 
-    def test_gecersiz_baski_kosumu_ve_kisa_tekrar_hicbir_sey_kosmadan_reddedilir(self):
-        self.assertEqual(self._kos([self.HAFIF], repeat=3, pressure=True, pressure_runs=[4]).kod, gate.STABILITY_USAGE_EXIT_CODE)
-        self.assertEqual(self._kos([self.HAFIF], repeat=1).kod, gate.STABILITY_USAGE_EXIT_CODE)
-        self.assertEqual(self._kos([], repeat=3).kod, gate.STABILITY_USAGE_EXIT_CODE)
-        self.assertEqual(self.cagrilar, [])
+    def test_an_invalid_pressure_run_and_a_short_repeat_are_rejected_before_anything_runs(self):
+        self.assertEqual(self._execute([self.LIGHT], repeat=3, pressure=True, pressure_runs=[4]).code, gate.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(self._execute([self.LIGHT], repeat=1).code, gate.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(self._execute([], repeat=3).code, gate.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(self.calls, [])
 
-    def test_hata_yolunda_yuk_islemleri_temizlenir(self):
-        # Bir kosum ortasinda beklenmedik hata yukselirse baski `finally` ile durur.
-        with mock.patch.object(gate, "_execute_stability_run", side_effect=[[], RuntimeError("patladi")]):
+    def test_load_processes_are_cleaned_up_on_the_error_path(self):
+        # If an unexpected error rises in the middle of a run, the pressure is stopped by `finally`.
+        with mock.patch.object(gate, "_execute_stability_run", side_effect=[[], RuntimeError("exploded")]):
             with self.assertRaises(RuntimeError), contextlib.redirect_stdout(io.StringIO()):
                 gate.stability_check(
-                    [self.HAFIF], 5, pressure=True, pressure_runs=[2, 3], root=self.kok,
-                    runner=self._kosucu(), burner_factory=lambda sayi: _SahteBaskici(sayi, self.olaylar),
-                    report_directory=self.kok / "r", measurement_path=self.kok / "olcum.jsonl")
+                    [self.LIGHT], 5, pressure=True, pressure_runs=[2, 3], root=self.root,
+                    runner=self._runner(), burner_factory=lambda count: _FakeBurner(count, self.events),
+                    report_directory=self.root / "r", measurement_path=self.root / "measurement.jsonl")
 
-        self.assertEqual(self.olaylar[-2:], ["baski basladi", "baski durdu"])
+        self.assertEqual(self.events[-2:], ["pressure started", "pressure stopped"])
 
-    def test_baski_baslatilamazsa_kosum_baslamadan_cikis_2_ve_yuk_temizlenir(self):
-        class Bozuk(_SahteBaskici):
+    def test_when_pressure_cannot_start_exit_2_before_the_run_and_the_load_is_cleaned_up(self):
+        class Broken(_FakeBurner):
             def start(self):
                 super().start()
-                raise OSError("fork basarisiz")
+                raise OSError("fork failed")
 
-        sonuc = self._kos(
-            [self.HAFIF], repeat=3, pressure=True, burner_factory=lambda sayi: Bozuk(sayi, self.olaylar))
+        result = self._execute(
+            [self.LIGHT], repeat=3, pressure=True, burner_factory=lambda count: Broken(count, self.events))
 
-        self.assertEqual(sonuc.kod, gate.STABILITY_USAGE_EXIT_CODE)
-        self.assertEqual(self.olaylar[-1], "baski durdu")
-        self.assertIn("CPU pressure could not be set up", sonuc.ekran)
+        self.assertEqual(result.code, gate.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(self.events[-1], "pressure stopped")
+        self.assertIn("CPU pressure could not be set up", result.screen)
 
-    def test_baski_islemleri_baslar_baslamaz_olurse_kosum_baslamaz(self):
-        class Olu(_SahteBaskici):
+    def test_the_run_does_not_start_if_the_pressure_processes_die_right_after_starting(self):
+        class Dead(_FakeBurner):
             def alive(self):
                 return 0
 
-        sonuc = self._kos([self.HAFIF], repeat=3, pressure=True, burner_factory=lambda sayi: Olu(sayi, self.olaylar))
+        result = self._execute([self.LIGHT], repeat=3, pressure=True, burner_factory=lambda count: Dead(count, self.events))
 
-        self.assertEqual(sonuc.kod, gate.STABILITY_USAGE_EXIT_CODE)
-        self.assertEqual(self.olaylar[-1], "baski durdu")
+        self.assertEqual(result.code, gate.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(self.events[-1], "pressure stopped")
 
-    def test_rapor_dizini_eski_raporlari_ve_trx_dizinlerini_budar(self):
-        rapor = self.kok / "rapor"
+    def test_report_directory_prunes_old_reports_and_trx_directories(self):
+        report = self.root / "reports"
         for i in range(gate.STABILITY_REPORTS_KEEP + 3):
-            (rapor).mkdir(exist_ok=True)
-            (rapor / f"2020{i:04d}T000000Z.json").write_text("{}", encoding="utf-8")
-            (rapor / f"2020{i:04d}T000000Z").mkdir()
+            (report).mkdir(exist_ok=True)
+            (report / f"2020{i:04d}T000000Z.json").write_text("{}", encoding="utf-8")
+            (report / f"2020{i:04d}T000000Z").mkdir()
 
-        self._kos([self.HAFIF], repeat=2)
+        self._execute([self.LIGHT], repeat=2)
 
-        raporlar = sorted(rapor.glob("*.json"))
-        dizinler = sorted(p for p in rapor.iterdir() if p.is_dir())
-        self.assertEqual(len(raporlar), gate.STABILITY_REPORTS_KEEP)
-        self.assertEqual(len(dizinler), gate.STABILITY_TRX_DIRECTORIES_KEEP)
-        self.assertTrue((rapor / "20261109T000000Z.json").is_file())
-        self.assertTrue((rapor / "20261109T000000Z").is_dir())
+        reports = sorted(report.glob("*.json"))
+        directories = sorted(p for p in report.iterdir() if p.is_dir())
+        self.assertEqual(len(reports), gate.STABILITY_REPORTS_KEEP)
+        self.assertEqual(len(directories), gate.STABILITY_TRX_DIRECTORIES_KEEP)
+        self.assertTrue((report / "20261109T000000Z.json").is_file())
+        self.assertTrue((report / "20261109T000000Z").is_dir())
 
 
-class CpuYukIsleriTestleri(unittest.TestCase):
-    """`CpuBurner`: yuk islemleri ne olursa olsun geride kalmaz."""
+class CpuLoadJobTests(unittest.TestCase):
+    """`CpuBurner`: load processes are never left behind, whatever happens."""
 
     @staticmethod
-    def _sahte_popen(olusan: list[mock.Mock], *, ikinci_hata: bool = False):
+    def _fake_popen(spawned: list[mock.Mock], *, fail_second: bool = False):
         def popen(args, **kwargs):
-            if ikinci_hata and len(olusan) == 1:
-                raise OSError("fork basarisiz")
-            surec = mock.Mock()
-            surec.poll.return_value = None
-            olusan.append(surec)
-            return surec
+            if fail_second and len(spawned) == 1:
+                raise OSError("fork failed")
+            process = mock.Mock()
+            process.poll.return_value = None
+            spawned.append(process)
+            return process
         return popen
 
-    def test_yuk_islemi_sayisi_cpu_sayisinin_yarisidir_en_az_bir(self):
+    def test_load_process_count_is_half_the_cpu_count_and_at_least_one(self):
         self.assertEqual(
             [gate.stability_burner_count(n) for n in (1, 2, 3, 8, 10)], [1, 1, 1, 4, 5])
 
-    def test_baslat_sayi_kadar_islem_acar_durdur_hepsini_sonlandirir_ve_ikinci_durdurma_zararsizdir(self):
-        olusan: list[mock.Mock] = []
-        baski = gate.CpuBurner(3, popen=self._sahte_popen(olusan))
+    def test_start_opens_that_many_processes_stop_ends_them_all_and_a_second_stop_is_harmless(self):
+        spawned: list[mock.Mock] = []
+        pressure = gate.CpuBurner(3, popen=self._fake_popen(spawned))
 
-        baski.start()
-        baski.start()
-        self.assertEqual(len(olusan), 3)
-        self.assertEqual(baski.alive(), 3)
-        baski.stop()
-        baski.stop()
+        pressure.start()
+        pressure.start()
+        self.assertEqual(len(spawned), 3)
+        self.assertEqual(pressure.alive(), 3)
+        pressure.stop()
+        pressure.stop()
 
-        self.assertFalse(baski.running)
-        for surec in olusan:
-            surec.terminate.assert_called_once()
-            surec.wait.assert_called_once()
+        self.assertFalse(pressure.running)
+        for process in spawned:
+            process.terminate.assert_called_once()
+            process.wait.assert_called_once()
 
-    def test_with_blogunda_hata_olsa_da_islemler_durur(self):
-        olusan: list[mock.Mock] = []
+    def test_processes_stop_even_when_the_with_block_raises(self):
+        spawned: list[mock.Mock] = []
 
         with self.assertRaises(RuntimeError):
-            with gate.CpuBurner(2, popen=self._sahte_popen(olusan)):
-                raise RuntimeError("test patladi")
+            with gate.CpuBurner(2, popen=self._fake_popen(spawned)):
+                raise RuntimeError("test exploded")
 
-        for surec in olusan:
-            surec.terminate.assert_called_once()
+        for process in spawned:
+            process.terminate.assert_called_once()
 
-    def test_baslatma_ortada_cokerse_acilmis_islemler_durdurulur(self):
-        olusan: list[mock.Mock] = []
-        baski = gate.CpuBurner(3, popen=self._sahte_popen(olusan, ikinci_hata=True))
+    def test_processes_already_opened_are_stopped_when_start_fails_midway(self):
+        spawned: list[mock.Mock] = []
+        pressure = gate.CpuBurner(3, popen=self._fake_popen(spawned, fail_second=True))
 
         with self.assertRaises(OSError):
-            baski.start()
+            pressure.start()
 
-        self.assertEqual(len(olusan), 1)
-        olusan[0].terminate.assert_called_once()
-        self.assertFalse(baski.running)
+        self.assertEqual(len(spawned), 1)
+        spawned[0].terminate.assert_called_once()
+        self.assertFalse(pressure.running)
 
-    def test_sonlanmayan_islem_oldurulur(self):
-        olusan: list[mock.Mock] = []
-        baski = gate.CpuBurner(1, popen=self._sahte_popen(olusan))
-        baski.start()
-        olusan[0].wait.side_effect = [subprocess.TimeoutExpired("x", 5), None]
+    def test_a_process_that_does_not_exit_is_killed(self):
+        spawned: list[mock.Mock] = []
+        pressure = gate.CpuBurner(1, popen=self._fake_popen(spawned))
+        pressure.start()
+        spawned[0].wait.side_effect = [subprocess.TimeoutExpired("x", 5), None]
 
-        baski.stop()
+        pressure.stop()
 
-        olusan[0].kill.assert_called_once()
+        spawned[0].kill.assert_called_once()
 
-    def test_gercek_yuk_islemi_baslar_calisir_ve_durdurulunca_biter(self):
-        with gate.CpuBurner(1, lifetime_seconds=60) as baski:
-            surec = baski._processes[0]
+    def test_a_real_load_process_starts_runs_and_ends_when_stopped(self):
+        with gate.CpuBurner(1, lifetime_seconds=60) as pressure:
+            process = pressure._processes[0]
             time.sleep(0.2)
-            self.assertEqual(baski.alive(), 1)
-            self.assertIsNone(surec.poll())
+            self.assertEqual(pressure.alive(), 1)
+            self.assertIsNone(process.poll())
 
-        self.assertIsNotNone(surec.poll())
+        self.assertIsNotNone(process.poll())
 
-    def test_yuk_islemi_omru_dolunca_kendiliginden_biter(self):
-        baski = gate.CpuBurner(1, lifetime_seconds=0.3)
-        baski.start()
-        surec = baski._processes[0]
+    def test_a_load_process_ends_by_itself_when_its_lifetime_runs_out(self):
+        pressure = gate.CpuBurner(1, lifetime_seconds=0.3)
+        pressure.start()
+        process = pressure._processes[0]
         try:
-            surec.wait(timeout=20)
+            process.wait(timeout=20)
         finally:
-            baski.stop()
+            pressure.stop()
 
-        self.assertEqual(surec.returncode, 0)
+        self.assertEqual(process.returncode, 0)
 
 
-class KararlilikKomutuTestleri(unittest.TestCase):
-    """Modul secimi, komut satiri ve calisma onkosullari."""
+class StabilityCommandTests(unittest.TestCase):
+    """Module selection, the command line and the run preconditions."""
 
-    def test_plan_her_test_modulunu_tam_bir_kez_kapsar(self):
+    def test_plan_covers_every_test_module_exactly_once(self):
         plan = gate.stability_plan()
-        hafif = [proje for proje, asama, _ in plan if asama == "light"]
-        agir = {}
-        for proje, asama, hat in plan:
-            if asama == "heavy":
-                agir.setdefault(hat, []).append(proje)
+        light = [project for project, stage, _ in plan if stage == "light"]
+        heavy = {}
+        for project, stage, lane in plan:
+            if stage == "heavy":
+                heavy.setdefault(lane, []).append(project)
 
         self.assertEqual(
-            _bolum_sorunlari(_slnx_test_modulleri(), gate.CORE_TEST_PROJECT, hafif, {k: tuple(v) for k, v in agir.items()}), [])
+            _section_problems(_slnx_test_modules(), gate.CORE_TEST_PROJECT, light, {k: tuple(v) for k, v in heavy.items()}), [])
         self.assertEqual(plan[0], (gate.CORE_TEST_PROJECT, "core", None))
 
-    def test_birimler_ikili_yolunu_derlenmis_cikti_dizininden_cozer(self):
-        birimler = gate.stability_units(["Tracon.Voice.UnitTests", "Tracon.Core.UnitTests"])
+    def test_units_resolve_the_binary_path_from_the_built_output_directory(self):
+        units = gate.stability_units(["Tracon.Voice.UnitTests", "Tracon.Core.UnitTests"])
 
-        self.assertEqual([birim.project for birim in birimler], ["Tracon.Core.UnitTests", "Tracon.Voice.UnitTests"])
-        voice = birimler[1]
+        self.assertEqual([unit.project for unit in units], ["Tracon.Core.UnitTests", "Tracon.Voice.UnitTests"])
+        voice = units[1]
         self.assertEqual(voice.executable, ROOT / "artifacts" / "bin" / "Tracon.Voice.UnitTests" / "release" / "Tracon.Voice.UnitTests")
         self.assertEqual((voice.label, voice.stage, voice.lane), ("Tracon.Voice.UnitTests", "light", None))
-        core = birimler[0]
-        self.assertTrue(core.output.startswith("release_"), "Core çok hedefli: çıktı dizini TFM taşır")
+        core = units[0]
+        self.assertTrue(core.output.startswith("release_"), "Core is multi-target: the output directory carries the TFM")
         self.assertIn("(", core.label)
 
-    def test_haric_listesi_modulu_cikarir_proje_listesi_sinirlar_bilinmeyen_ad_hata(self):
-        hepsi = gate.stability_units()
-        haric = gate.stability_units(exclude=["Tracon.Package.Tests", "Tracon.Ui.E2ETests"])
-        sadece = gate.stability_units(["Tracon.Sqlite.IntegrationTests"])
+    def test_exclude_list_removes_a_module_project_list_narrows_and_an_unknown_name_is_an_error(self):
+        all_units = gate.stability_units()
+        excluded = gate.stability_units(exclude=["Tracon.Package.Tests", "Tracon.Ui.E2ETests"])
+        only_one = gate.stability_units(["Tracon.Sqlite.IntegrationTests"])
 
-        self.assertEqual(len(hepsi) - len(haric), 2)
-        self.assertNotIn("Tracon.Package.Tests", [birim.project for birim in haric])
-        self.assertEqual([birim.project for birim in sadece], ["Tracon.Sqlite.IntegrationTests"])
-        self.assertEqual(sadece[0].lane, "b")
-        with self.assertRaises(ValueError) as hata:
-            gate.stability_units(["Tracon.Yok"])
-        self.assertIn("Tracon.Yok", str(hata.exception))
+        self.assertEqual(len(all_units) - len(excluded), 2)
+        self.assertNotIn("Tracon.Package.Tests", [unit.project for unit in excluded])
+        self.assertEqual([unit.project for unit in only_one], ["Tracon.Sqlite.IntegrationTests"])
+        self.assertEqual(only_one[0].lane, "b")
+        with self.assertRaises(ValueError) as error:
+            gate.stability_units(["Tracon.Missing"])
+        self.assertIn("Tracon.Missing", str(error.exception))
         with self.assertRaises(ValueError):
-            gate.stability_units(exclude=["Tracon.Yazim"])
+            gate.stability_units(exclude=["Tracon.Typo"])
 
-    def _args(self, **degisen):
-        varsayilan = dict(
+    def _args(self, **changed):
+        default = dict(
             repeat=5, project=None, exclude=None, shuffle=False, pressure=False, pressure_runs=None, seed=None,
             output=None, print_commands=False)
-        varsayilan.update(degisen)
-        return types.SimpleNamespace(**varsayilan)
+        default.update(changed)
+        return types.SimpleNamespace(**default)
 
-    def test_derlenmis_ikili_yoksa_cikis_2_hicbir_sey_kosmadan_ve_derleme_onerilir(self):
-        with mock.patch.object(gate, "stability_check") as kontrol, \
+    def test_missing_built_binary_gives_exit_2_runs_nothing_and_suggests_a_build(self):
+        with mock.patch.object(gate, "stability_check") as checks, \
                 mock.patch.object(gate, "stability_units", return_value=[
-                    gate.StabilityUnit("P", "release", "light", None, pathlib.Path("/yok/P"))]), \
-                contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = gate.stability_from_arguments(self._args())
+                    gate.StabilityUnit("P", "release", "light", None, pathlib.Path("/absent/P"))]), \
+                contextlib.redirect_stdout(io.StringIO()) as screen:
+            code = gate.stability_from_arguments(self._args())
 
-        self.assertEqual(kod, gate.STABILITY_USAGE_EXIT_CODE)
-        kontrol.assert_not_called()
-        self.assertIn("does not build", ekran.getvalue())
-        self.assertIn("dotnet build", ekran.getvalue())
+        self.assertEqual(code, gate.STABILITY_USAGE_EXIT_CODE)
+        checks.assert_not_called()
+        self.assertIn("does not build", screen.getvalue())
+        self.assertIn("dotnet build", screen.getvalue())
 
-    def test_tekrar_en_az_iki_ve_bilinmeyen_modul_reddedilir(self):
+    def test_repeat_must_be_at_least_two_and_an_unknown_module_is_rejected(self):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(gate.stability_from_arguments(self._args(repeat=1)), gate.STABILITY_USAGE_EXIT_CODE)
-            self.assertEqual(gate.stability_from_arguments(self._args(project=["Tracon.Yok"])), gate.STABILITY_USAGE_EXIT_CODE)
+            self.assertEqual(gate.stability_from_arguments(self._args(project=["Tracon.Missing"])), gate.STABILITY_USAGE_EXIT_CODE)
 
-    def test_hazir_ikililer_varsa_secenekler_stability_check_a_gecer(self):
-        with tempfile.TemporaryDirectory() as dizin:
-            ikili = pathlib.Path(dizin) / "P"
-            ikili.write_text("", encoding="utf-8")
-            birim = gate.StabilityUnit("P", "release", "light", None, ikili)
-            with mock.patch.object(gate, "stability_check", return_value=0) as kontrol, \
-                    mock.patch.object(gate, "stability_units", return_value=[birim]):
-                kod = gate.stability_from_arguments(self._args(
-                    repeat=7, shuffle=True, pressure_runs=[2, 3], seed=42, output=dizin))
+    def test_ready_binaries_pass_the_options_to_stability_check(self):
+        with tempfile.TemporaryDirectory() as folder:
+            binary = pathlib.Path(folder) / "P"
+            binary.write_text("", encoding="utf-8")
+            unit = gate.StabilityUnit("P", "release", "light", None, binary)
+            with mock.patch.object(gate, "stability_check", return_value=0) as checks, \
+                    mock.patch.object(gate, "stability_units", return_value=[unit]):
+                code = gate.stability_from_arguments(self._args(
+                    repeat=7, shuffle=True, pressure_runs=[2, 3], seed=42, output=folder))
 
-        self.assertEqual(kod, 0)
-        kontrol.assert_called_once_with(
-            [birim], 7, shuffle=True, pressure=True, pressure_runs=[2, 3], base_seed=42,
-            report_directory=pathlib.Path(dizin))
+        self.assertEqual(code, 0)
+        checks.assert_called_once_with(
+            [unit], 7, shuffle=True, pressure=True, pressure_runs=[2, 3], base_seed=42,
+            report_directory=pathlib.Path(folder))
 
-    def test_komutlari_bas_hicbir_sey_kosmadan_komutlari_listeler(self):
-        with mock.patch.object(gate, "stability_check") as kontrol, contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = gate.stability_from_arguments(self._args(
+    def test_print_commands_lists_the_commands_without_running_anything(self):
+        with mock.patch.object(gate, "stability_check") as checks, contextlib.redirect_stdout(io.StringIO()) as screen:
+            code = gate.stability_from_arguments(self._args(
                 project=["Tracon.Voice.UnitTests"], print_commands=True, shuffle=True, pressure=True))
 
-        self.assertEqual(kod, 0)
-        kontrol.assert_not_called()
-        satirlar = ekran.getvalue().splitlines()
-        self.assertTrue(any(satir.startswith("# CPU pressure") for satir in satirlar))
-        komut = next(satir for satir in satirlar if satir.startswith("$ "))
-        self.assertIn("Tracon.Voice.UnitTests", komut)
-        self.assertIn("--seed 1", komut)
+        self.assertEqual(code, 0)
+        checks.assert_not_called()
+        lines = screen.getvalue().splitlines()
+        self.assertTrue(any(line.startswith("# CPU pressure") for line in lines))
+        command = next(line for line in lines if line.startswith("$ "))
+        self.assertIn("Tracon.Voice.UnitTests", command)
+        self.assertIn("--seed 1", command)
 
-    def test_komut_satiri_secenekleri_ayristirilir(self):
-        with mock.patch.object(gate, "stability_from_arguments", return_value=0) as komut:
-            kod = gate.main([
+    def test_command_line_options_are_parsed(self):
+        with mock.patch.object(gate, "stability_from_arguments", return_value=0) as command:
+            code = gate.main([
                 "stability", "--repeat", "4", "--project", "A", "B", "--project", "C", "--exclude", "D",
                 "--shuffle", "--pressure", "--pressure-runs", "2", "3", "--seed", "9", "--output", "x"])
 
-        self.assertEqual(kod, 0)
-        args = komut.call_args.args[0]
+        self.assertEqual(code, 0)
+        args = command.call_args.args[0]
         self.assertEqual(
             (args.repeat, args.project, args.exclude, args.shuffle, args.pressure, args.pressure_runs, args.seed, args.output),
             (4, ["A", "B", "C"], ["D"], True, True, [2, 3], 9, "x"))
 
-    def test_varsayilan_tekrar_bestir_ve_komut_ust_duzey_komutlari_bas_bayragini_taniyor(self):
-        with mock.patch.object(gate, "stability_from_arguments", return_value=0) as komut:
+    def test_default_repeat_is_five_and_the_command_accepts_the_top_level_print_commands_flag(self):
+        with mock.patch.object(gate, "stability_from_arguments", return_value=0) as command:
             gate.main(["--print-commands", "stability"])
 
-        args = komut.call_args.args[0]
+        args = command.call_args.args[0]
         self.assertEqual((args.repeat, args.print_commands), (5, True))
 
 
-class KararlilikIsAkisiTestleri(unittest.TestCase):
-    """`stability.yml`: public aynada haftalik koşum; ci.yml'in sözleşmelerini taşır."""
+class StabilityWorkflowTests(unittest.TestCase):
+    """`stability.yml`: the weekly stability run; it carries the contracts of ci.yml."""
 
     WORKFLOWS = ROOT / ".github" / "workflows"
 
     def setUp(self):
-        self.metin = (self.WORKFLOWS / "stability.yml").read_text(encoding="utf-8")
-        self.yorumsuz = "\n".join(satir for satir in self.metin.splitlines() if not satir.lstrip().startswith("#"))
+        self.text = (self.WORKFLOWS / "stability.yml").read_text(encoding="utf-8")
+        self.uncommented = "\n".join(line for line in self.text.splitlines() if not line.lstrip().startswith("#"))
 
-    def test_haftalik_ve_elle_tetiklenir_pull_request_ve_push_yok(self):
-        self.assertRegex(self.yorumsuz, r"(?m)^on:\n  schedule:\n    - cron: '\d+ \d+ \* \* \d'\n  workflow_dispatch:")
-        self.assertNotIn("pull_request", self.yorumsuz)
-        self.assertNotRegex(self.yorumsuz, r"(?m)^  push:")
+    def test_it_runs_weekly_and_by_hand_with_no_pull_request_and_no_push(self):
+        self.assertRegex(self.uncommented, r"(?m)^on:\n  schedule:\n    - cron: '\d+ \d+ \* \* \d'\n  workflow_dispatch:")
+        self.assertNotIn("pull_request", self.uncommented)
+        self.assertNotRegex(self.uncommented, r"(?m)^  push:")
 
-    def test_is_kanonik_depo_korumasi_zaman_siniri_ve_yalniz_ubuntu_tasir(self):
-        isler = _ci_isleri(self.metin)
+    def test_job_carries_the_canonical_repo_guard_a_time_limit_and_only_ubuntu(self):
+        jobs = _ci_jobs(self.text)
 
-        self.assertEqual(list(isler), ["stability"])
-        self.assertEqual(_zincirsiz_korumasiz_isler(isler), [])
-        self.assertRegex(self.yorumsuz, r"(?m)^    timeout-minutes: \d+$")
-        self.assertIn("runs-on: ubuntu-latest", self.yorumsuz)
-        self.assertNotIn("windows", self.yorumsuz.lower())
-        self.assertNotIn("macos", self.yorumsuz.lower())
+        self.assertEqual(list(jobs), ["stability"])
+        self.assertEqual(_unchained_unguarded_jobs(jobs), [])
+        self.assertRegex(self.uncommented, r"(?m)^    timeout-minutes: \d+$")
+        self.assertIn("runs-on: ubuntu-latest", self.uncommented)
+        self.assertNotIn("windows", self.uncommented.lower())
+        self.assertNotIn("macos", self.uncommented.lower())
 
-    def test_utf8_modu_ve_izinler_ci_yml_ile_aynidir(self):
-        self.assertRegex(self.yorumsuz, r"(?m)^  PYTHONUTF8: 1$")
-        self.assertRegex(self.yorumsuz, r"(?m)^permissions:\n  contents: read$")
-        self.assertRegex(self.yorumsuz, r"(?m)^concurrency:\n  group: stability\n  cancel-in-progress: false$")
+    def test_utf8_mode_and_permissions_match_ci_yml(self):
+        self.assertRegex(self.uncommented, r"(?m)^  PYTHONUTF8: 1$")
+        self.assertRegex(self.uncommented, r"(?m)^permissions:\n  contents: read$")
+        self.assertRegex(self.uncommented, r"(?m)^concurrency:\n  group: stability\n  cancel-in-progress: false$")
 
-    def test_her_eylem_ci_yml_deki_ayni_sha_ile_sabitlenmistir(self):
+    def test_every_action_is_pinned_to_the_same_sha_as_in_ci_yml(self):
         ci = (self.WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
-        ci_sabitleri = set(re.findall(r"uses:\s*(actions/[\w-]+@[0-9a-f]{40})", ci))
-        buradakiler = re.findall(r"uses:\s*(\S+)", self.yorumsuz)
+        ci_pins = set(re.findall(r"uses:\s*(actions/[\w-]+@[0-9a-f]{40})", ci))
+        local_actions = re.findall(r"uses:\s*(\S+)", self.uncommented)
 
-        self.assertTrue(buradakiler)
-        for eylem in buradakiler:
-            with self.subTest(eylem=eylem):
-                self.assertRegex(eylem, r"^actions/[\w-]+@[0-9a-f]{40}$")
-                self.assertIn(eylem, ci_sabitleri)
+        self.assertTrue(local_actions)
+        for action in local_actions:
+            with self.subTest(action=action):
+                self.assertRegex(action, r"^actions/[\w-]+@[0-9a-f]{40}$")
+                self.assertIn(action, ci_pins)
 
-    def test_bir_kez_derler_sonra_kararlilik_kosar_ve_rapor_her_durumda_yuklenir(self):
-        adimlar = [satir.strip() for satir in self.yorumsuz.splitlines() if satir.strip().startswith("- name:")]
-        derleme = self.yorumsuz.index("dotnet build Tracon.slnx -c Release --no-restore")
-        kararlilik = self.yorumsuz.index("scripts/gate.py stability")
+    def test_it_builds_once_then_runs_stability_and_always_uploads_the_report(self):
+        steps = [line.strip() for line in self.uncommented.splitlines() if line.strip().startswith("- name:")]
+        build_at = self.uncommented.index("dotnet build Tracon.slnx -c Release --no-restore")
+        stability_at = self.uncommented.index("scripts/gate.py stability")
 
-        self.assertEqual(self.yorumsuz.count("dotnet build"), 1)
-        self.assertLess(derleme, kararlilik)
-        self.assertIn("--repeat 5 --shuffle --pressure", self.yorumsuz)
-        self.assertEqual(adimlar[-1], "- name: Upload the report")
-        self.assertRegex(self.yorumsuz, r"- name: Upload the report\n        if: always\(\)")
-        self.assertIn("path: artifacts/stability/**", self.yorumsuz)
+        self.assertEqual(self.uncommented.count("dotnet build"), 1)
+        self.assertLess(build_at, stability_at)
+        self.assertIn("--repeat 5 --shuffle --pressure", self.uncommented)
+        self.assertEqual(steps[-1], "- name: Upload the report")
+        self.assertRegex(self.uncommented, r"- name: Upload the report\n        if: always\(\)")
+        self.assertIn("path: artifacts/stability/**", self.uncommented)
 
-    def test_haric_listesi_gercek_modullerdir_ve_konteyner_paket_ve_tarayici_modullerini_kapsar(self):
-        tek_satir = re.sub(r"\s+", " ", self.yorumsuz)
-        komut = re.search(r"stability --repeat 5 .*?--exclude ((?:Tracon\.[\w.]+ ?)+)", tek_satir)
-        haric = komut.group(1).split()
-        moduller = _slnx_test_modulleri()
+    def test_exclude_list_holds_real_modules_and_covers_the_container_package_and_browser_modules(self):
+        single_line = re.sub(r"\s+", " ", self.uncommented)
+        command = re.search(r"stability --repeat 5 .*?--exclude ((?:Tracon\.[\w.]+ ?)+)", single_line)
+        excluded = command.group(1).split()
+        modules = _slnx_test_modules()
 
-        self.assertEqual([ad for ad in haric if ad not in moduller], [])
-        self.assertEqual(len(set(haric)), len(haric))
+        self.assertEqual([name for name in excluded if name not in modules], [])
+        self.assertEqual(len(set(excluded)), len(excluded))
         self.assertEqual(
-            sorted(haric),
+            sorted(excluded),
             sorted(["Tracon.SqlServer.IntegrationTests", "Tracon.PostgreSql.IntegrationTests",
                     "Tracon.TwoNode.IntegrationTests", "Tracon.Package.Tests", "Tracon.Ui.E2ETests"]))
-        # Komut gercekten cozulur: hicbir bilinmeyen ad yok.
-        self.assertTrue(gate.stability_units(exclude=haric))
+        # The command really resolves: there is no unknown name.
+        self.assertTrue(gate.stability_units(exclude=excluded))
 
-    def test_dosya_adi_uzak_durum_okumasinin_aradigi_workflow_adidir(self):
+    def test_file_name_is_the_workflow_name_that_the_remote_state_reader_looks_for(self):
         self.assertEqual(gate.STABILITY_WORKFLOW, "stability.yml")
         self.assertTrue((self.WORKFLOWS / gate.STABILITY_WORKFLOW).is_file())
 
-    def test_zincirsiz_is_akislari_testi_bu_dosyayi_da_kapsar(self):
-        dosyalar = [p.name for p in self.WORKFLOWS.glob("*.yml") if p.name not in ZINCIRSIZ_DOSYA_DISI]
+    def test_the_unchained_workflows_test_also_covers_this_file(self):
+        files = [p.name for p in self.WORKFLOWS.glob("*.yml") if p.name not in UNCHAINED_EXCLUDED_FILES]
 
-        self.assertIn("stability.yml", dosyalar)
+        self.assertIn("stability.yml", files)
 
-    def test_kararlilik_komutu_ci_nin_testlerini_ve_kapanisi_degistirmez(self):
+    def test_stability_command_does_not_change_the_ci_tests_or_the_closing(self):
         ci = (self.WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
 
         self.assertNotRegex(ci, r"gate\.py\s+stability")
@@ -4855,7 +4853,7 @@ class CommandSurfaceTests(unittest.TestCase):
         "tarama": "scan", "uret": "generate", "uzak-durum": "remote-state", "ic-dongu": "inner-loop",
         "kapanis": "close", "performans": "perf", "kararlilik": "stability", "yayin": "release",
         "paketle": "pack", "paket-dogrula": "verify-packages", "kapasite": "capacity"}
-    TURKISH_LETTERS = r"[çğıöşüÇĞİÖŞÜ]"
+    TURKISH_LETTERS = r"[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]"
     WORKFLOWS = ROOT / ".github" / "workflows"
 
     @staticmethod
@@ -4900,8 +4898,8 @@ class CommandSurfaceTests(unittest.TestCase):
             "close": ["--" "taban", "--site-atla"], "inner-loop": ["--" "taban"], "perf": ["--guncelle"],
             "test": ["--" "sinif", "--" "proje"],
             "stability": ["--tekrar", "--haric", "--sira-karistir", "--baski", "--baski-kosumlari", "--tohum", "--cikti"],
-            "release": ["--kuru", "--surum", "--paket-dizini"], "pack": ["--cikti"],
-            "capacity": ["--profil", "--surum", "--cikti"]}
+            "release": ["--kuru", "--surum", "--paket-dizini"], "pack": ["--cikti"],  # legacy-name
+            "capacity": ["--profil", "--surum", "--cikti"]}  # legacy-name
         for command, flags in old_flags.items():
             for flag in flags:
                 with self.subTest(command=command, flag=flag):

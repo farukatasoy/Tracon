@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Skills;
 public sealed class AgentSkillCatalogTests
 {
     [Fact]
-    public async Task Bilinmeyen_skill_adi_derlemeyi_durdurur()
+    public async Task An_unknown_skill_name_stops_the_compilation()
     {
         var catalog = CreateCatalog();
         var definition = Definition(["missing-skill"]);

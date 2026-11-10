@@ -4,7 +4,7 @@
 Pure logic: OpenAPI documents as dictionaries, and a temp git repository for the
 name sets and the exit code. One red fixture and one green fixture per rule of
 the HTTP row; the rule table in `contract_breaks.py` and the table in
-`reference/versioning.md` are compared by hand in the phase audit.
+`reference/versioning.md` have to be compared by hand whenever a rule changes.
 """
 from __future__ import annotations
 
@@ -130,7 +130,7 @@ def _rules(changes: list) -> list[str]:
     return [change.rule for change in changes]
 
 
-class HttpKirilmaKurallari(unittest.TestCase):
+class HttpBreakRuleTests(unittest.TestCase):
     """Every rule in the 'only in a major' column is red."""
 
     def assert_break(self, mutate, expected_rule: str, ident: str | None = None) -> None:
@@ -141,72 +141,72 @@ class HttpKirilmaKurallari(unittest.TestCase):
         if ident is not None:
             self.assertTrue(any(ident in (change.ident, change.alt) for change in breaks), f"ident '{ident}' is missing")
 
-    def test_uc_silinirse_kirmizidir(self):
+    def test_a_removed_endpoint_is_red(self):
         self.assert_break(lambda d: d["paths"].pop("/api/runs"), "endpoint or method removed", "/api/runs")
 
-    def test_metot_silinirse_kirmizidir(self):
+    def test_a_removed_method_is_red(self):
         self.assert_break(lambda d: d["paths"]["/api/runs"].pop("post"), "endpoint or method removed")
 
-    def test_yanit_alani_silinirse_kirmizidir(self):
+    def test_a_removed_response_field_is_red(self):
         self.assert_break(lambda d: _run_record(d)["properties"].pop("agentName"), "response field removed", "agentName")
 
-    def test_yanit_alani_tur_degistirirse_kirmizidir(self):
+    def test_a_changed_response_field_type_is_red(self):
         self.assert_break(
             lambda d: _run_record(d)["properties"]["agentName"].update(type="integer"), "type changed")
 
-    def test_istekte_yeni_zorunlu_alan_kirmizidir(self):
+    def test_a_new_required_request_field_is_red(self):
         def mutate(d):
             _start_request(d)["properties"]["tenant"] = {"type": "string"}
             _start_request(d)["required"].append("tenant")
 
         self.assert_break(mutate, "new required field in the request", "tenant")
 
-    def test_opsiyonel_istek_alani_zorunlu_olursa_kirmizidir(self):
+    def test_an_optional_request_field_that_becomes_required_is_red(self):
         self.assert_break(lambda d: _start_request(d)["required"].append("message"), "optional request field became required")
 
-    def test_istek_enum_degeri_silinirse_kirmizidir(self):
+    def test_a_removed_request_enum_value_is_red(self):
         self.assert_break(
             lambda d: d["components"]["schemas"]["StartMode"]["enum"].remove("Async"), "request enum value removed")
 
-    def test_istek_alani_silinirse_kirmizidir(self):
+    def test_a_removed_request_field_is_red(self):
         self.assert_break(lambda d: _start_request(d)["properties"].pop("message"), "request field removed")
 
-    def test_basari_durum_kodu_degisirse_kirmizidir(self):
+    def test_a_changed_success_status_code_is_red(self):
         def mutate(d):
             responses = d["paths"]["/api/runs"]["post"]["responses"]
             responses["200"] = responses.pop("201")
 
         self.assert_break(mutate, "success status code removed: 201")
 
-    def test_zorunlu_yanit_alani_opsiyonel_olursa_kirmizidir(self):
+    def test_a_required_response_field_that_becomes_optional_is_red(self):
         self.assert_break(lambda d: _run_record(d)["required"].remove("status"), "required response field became optional")
 
-    def test_istekte_yeni_zorunlu_parametre_kirmizidir(self):
+    def test_a_new_required_request_parameter_is_red(self):
         def mutate(d):
             d["paths"]["/api/runs"]["get"]["parameters"].append(
                 {"name": "tenant", "in": "query", "required": True, "schema": {"type": "string"}})
 
         self.assert_break(mutate, "new required parameter in the request")
 
-    def test_opsiyonel_parametre_zorunlu_olursa_kirmizidir(self):
+    def test_an_optional_parameter_that_becomes_required_is_red(self):
         self.assert_break(
             lambda d: d["paths"]["/api/runs"]["get"]["parameters"][0].update(required=True),
             "optional parameter became required")
 
-    def test_parametre_silinirse_kirmizidir(self):
+    def test_a_removed_parameter_is_red(self):
         self.assert_break(lambda d: d["paths"]["/api/runs"]["get"]["parameters"].clear(), "request parameter removed")
 
-    def test_operation_id_degisirse_kirmizidir(self):
+    def test_a_changed_operation_id_is_red(self):
         """NSwag names the generated client method from it."""
         self.assert_break(
             lambda d: d["paths"]["/api/runs"]["get"].update(operationId="TraconListRunsV2"), "operationId changed")
 
-    def test_yanit_null_olabilir_hale_gelirse_kirmizidir(self):
+    def test_a_response_field_that_can_now_be_null_is_red(self):
         self.assert_break(
             lambda d: _run_record(d)["properties"]["agentName"].update(type=["string", "null"]),
             "response field can now be null")
 
-    def test_istek_alani_null_olamaz_hale_gelirse_kirmizidir(self):
+    def test_a_request_field_that_can_no_longer_be_null_is_red(self):
         def mutate(d):
             d["components"]["schemas"]["StartRunRequest"]["properties"]["message"] = {"type": "string"}
 
@@ -217,7 +217,7 @@ class HttpKirilmaKurallari(unittest.TestCase):
         breaks, _ = sk.compare_openapi(old, new)
         self.assertIn("request field can no longer be null", _rules(breaks))
 
-    def test_sema_baska_semaya_baglanirsa_kirmizidir(self):
+    def test_a_schema_that_points_to_another_schema_is_red(self):
         """A schema name becomes a client type name."""
         def mutate(d):
             d["components"]["schemas"]["RunStatus2"] = d["components"]["schemas"]["RunStatus"]
@@ -225,14 +225,14 @@ class HttpKirilmaKurallari(unittest.TestCase):
 
         self.assert_break(mutate, "schema now points to another schema")
 
-    def test_ortam_turu_kalkarsa_kirmizidir(self):
+    def test_a_removed_media_type_is_red(self):
         def mutate(d):
             content = d["paths"]["/api/runs/{runId}"]["get"]["responses"]["200"]["content"]
             content["text/plain"] = content.pop("application/json")
 
         self.assert_break(mutate, "media type removed")
 
-    def test_zorunlu_istek_govdesi_eklenirse_kirmizidir(self):
+    def test_a_new_required_request_body_is_red(self):
         def mutate(d):
             d["paths"]["/api/runs"]["get"]["requestBody"] = {
                 "required": True,
@@ -241,7 +241,7 @@ class HttpKirilmaKurallari(unittest.TestCase):
 
         self.assert_break(mutate, "new required body in the request")
 
-    def test_istek_govdesi_zorunlu_olursa_kirmizidir(self):
+    def test_an_optional_request_body_that_becomes_required_is_red(self):
         def mutate(d):
             d["paths"]["/api/runs"]["post"]["requestBody"]["required"] = False
 
@@ -253,7 +253,7 @@ class HttpKirilmaKurallari(unittest.TestCase):
         self.assertIn("optional request body became required", _rules(breaks))
 
 
-    def test_yanit_enum_degeri_silinirse_kirmizidir(self):
+    def test_a_removed_response_enum_value_is_red(self):
         """The generated .NET client loses a member; Tracon.Client is outside PublicAPI tracking."""
         self.assert_break(
             lambda d: d["components"]["schemas"]["RunStatus"]["enum"].remove("Failed"), "response enum value removed")
@@ -276,8 +276,8 @@ def _two_users_of_owner() -> dict:
     return document
 
 
-class HttpNullKaymasiTestleri(unittest.TestCase):
-    """The audit's red 2: the second use of a named schema must not hide a nullability change."""
+class HttpNullShiftTests(unittest.TestCase):
+    """The second use of a named schema must not hide a nullability change."""
 
     def _compare(self, mutate):
         old = _two_users_of_owner()
@@ -285,7 +285,7 @@ class HttpNullKaymasiTestleri(unittest.TestCase):
         mutate(new)
         return sk.compare_openapi(old, new)
 
-    def test_ikinci_kullanim_yerinde_istek_alani_null_olamaz_hale_gelirse_kirmizidir(self):
+    def test_a_request_field_that_can_no_longer_be_null_at_a_second_use_is_red(self):
         def mutate(d):
             d["components"]["schemas"]["Second"]["properties"]["owner"] = {"$ref": "#/components/schemas/Owner"}
 
@@ -293,7 +293,7 @@ class HttpNullKaymasiTestleri(unittest.TestCase):
         self.assertIn("request field can no longer be null", _rules(breaks))
         self.assertTrue(any(change.alt == "owner" for change in breaks), [c.ident for c in breaks])
 
-    def test_ikinci_kullanim_yerinde_yanit_alani_null_olabilir_hale_gelirse_kirmizidir(self):
+    def test_a_response_field_that_can_now_be_null_at_a_second_use_is_red(self):
         def mutate(d):
             d["components"]["schemas"]["Second"]["properties"]["owner"] = {"oneOf": [{"type": "null"}, {"$ref": "#/components/schemas/Owner"}]}
 
@@ -304,13 +304,13 @@ class HttpNullKaymasiTestleri(unittest.TestCase):
         breaks, _ = sk.compare_openapi(old, new)
         self.assertIn("response field can now be null", _rules(breaks))
 
-    def test_degismeyen_ortak_sema_temizdir(self):
+    def test_an_unchanged_shared_schema_is_clean(self):
         breaks, additions = self._compare(lambda d: None)
         self.assertEqual(([], []), (breaks, additions))
 
-    def test_gercek_belgede_istegin_ulastigi_her_null_olabilen_ref_yeri_kirmizi_olabilir(self):
+    def test_every_nullable_ref_place_a_request_reaches_in_the_real_document_can_turn_red(self):
         """Every `oneOf[null, $ref]` or `anyOf[null, $ref]` property a REQUEST reaches in the real document: making
-        any ONE of them non-null is red. The audit found three that were not (named schemas used a second time).
+        any ONE of them non-null is red. Three of them were once missed (named schemas used a second time).
         The published document spells a free-form member `anyOf` and every other nullable reference `oneOf`."""
         document = json.loads((ROOT / "docs" / "openapi" / "tracon.json").read_text(encoding="utf-8"))
         reachable = self._request_reachable(document)
@@ -365,8 +365,8 @@ class HttpNullKaymasiTestleri(unittest.TestCase):
         return seen
 
 
-class HttpBelgeDuzeyiTestleri(unittest.TestCase):
-    def test_guvenlik_gereksinimi_degisirse_kirmizidir(self):
+class HttpDocumentLevelTests(unittest.TestCase):
+    def test_a_changed_security_requirement_is_red(self):
         old = _document()
         old["security"] = [{"bearer": []}]
         new = copy.deepcopy(old)
@@ -374,7 +374,7 @@ class HttpBelgeDuzeyiTestleri(unittest.TestCase):
         breaks, _ = sk.compare_openapi(old, new)
         self.assertIn("document-level security requirement changed", _rules(breaks))
 
-    def test_guvenlik_gereksinimi_silinirse_kirmizidir(self):
+    def test_a_removed_security_requirement_is_red(self):
         old = _document()
         old["security"] = [{"bearer": []}]
         new = copy.deepcopy(old)
@@ -382,7 +382,7 @@ class HttpBelgeDuzeyiTestleri(unittest.TestCase):
         breaks, _ = sk.compare_openapi(old, new)
         self.assertIn("document-level security requirement changed", _rules(breaks))
 
-    def test_sunucu_adresi_ve_belge_surumu_degisirse_kirilma_degildir(self):
+    def test_a_changed_server_address_and_document_version_is_not_a_break(self):
         old = _document()
         old["servers"] = [{"url": "http://localhost:5081"}]
         new = copy.deepcopy(old)
@@ -391,11 +391,11 @@ class HttpBelgeDuzeyiTestleri(unittest.TestCase):
         new["info"]["title"] = "Other"
         self.assertEqual(([], []), sk.compare_openapi(old, new))
 
-    def test_taninmayan_components_anahtari_kirmizidir(self):
+    def test_an_unrecognized_components_key_is_red(self):
         breaks, _ = _compare(lambda d: d["components"].update(responses={"X": {"description": "x"}}))
         self.assertTrue(any("components.responses" in change.subject for change in breaks), _rules(breaks))
 
-    def test_istek_govdesi_ref_ile_yazilirsa_cozulur(self):
+    def test_a_request_body_written_as_a_ref_is_resolved(self):
         old = _document()
         body = old["paths"]["/api/runs"]["post"]["requestBody"]
         old["components"]["requestBodies"] = {"Start": body}
@@ -406,26 +406,26 @@ class HttpBelgeDuzeyiTestleri(unittest.TestCase):
         self.assertIn("optional request field became required", _rules(breaks))
 
 
-class HttpTanimaKurallari(unittest.TestCase):
+class HttpUnrecognizedChangeTests(unittest.TestCase):
     """A change the rules do not name is red: the gate fails closed."""
 
-    def test_taninmayan_sema_anahtari_kirmizidir(self):
+    def test_an_unrecognized_schema_key_is_red(self):
         breaks, _ = _compare(lambda d: _run_record(d)["properties"]["agentName"].update(minLength=3))
         self.assertTrue(any("unrecognized change: minLength" in rule for rule in _rules(breaks)), _rules(breaks))
 
-    def test_taninmayan_islem_anahtari_kirmizidir(self):
+    def test_an_unrecognized_operation_key_is_red(self):
         breaks, _ = _compare(lambda d: d["paths"]["/api/runs"]["get"].update(security=[{"bearer": []}]))
         self.assertTrue(any("unrecognized change: security" in rule for rule in _rules(breaks)), _rules(breaks))
 
-    def test_taninmayan_belge_anahtari_kirmizidir(self):
+    def test_an_unrecognized_document_key_is_red(self):
         breaks, _ = _compare(lambda d: d.update(webhooks={}))
         self.assertTrue(any("unrecognized change" in rule for rule in _rules(breaks)), _rules(breaks))
 
-    def test_desen_degisirse_kirmizidir(self):
+    def test_a_changed_pattern_is_red(self):
         breaks, _ = _compare(lambda d: _run_record(d)["properties"]["agentName"].update(pattern="^a+$"))
         self.assertIn("pattern changed", _rules(breaks))
 
-    def test_bilinmeyen_basari_yaniti_anahtari_kirmizidir(self):
+    def test_an_unknown_success_response_key_is_red(self):
         def mutate(d):
             d["paths"]["/api/runs"]["post"]["responses"]["201"]["headers"] = {"Location": {"schema": {"type": "string"}}}
 
@@ -433,7 +433,7 @@ class HttpTanimaKurallari(unittest.TestCase):
         self.assertTrue(any("unrecognized change: response 201 headers" in rule for rule in _rules(breaks)), _rules(breaks))
 
 
-class HttpEklemeKurallari(unittest.TestCase):
+class HttpAdditionRuleTests(unittest.TestCase):
     """Every rule in the 'free in a minor' column is green - and an addition, which a patch may not make."""
 
     def assert_green(self, mutate, expected_addition: str | None = None) -> None:
@@ -444,47 +444,47 @@ class HttpEklemeKurallari(unittest.TestCase):
                 any(expected_addition in rule for rule in _rules(additions)),
                 f"expected addition '{expected_addition}' not found: {_rules(additions)}")
 
-    def test_yeni_uc_ekleme_sayilir(self):
+    def test_a_new_endpoint_counts_as_an_addition(self):
         def mutate(d):
             d["paths"]["/api/agents"] = {"get": {"operationId": "TraconListAgents", "responses": {"200": {"description": "OK"}}}}
 
         self.assert_green(mutate, "new endpoint")
 
-    def test_yanita_yeni_alan_ekleme_sayilir(self):
+    def test_a_new_response_field_counts_as_an_addition(self):
         self.assert_green(
             lambda d: _run_record(d)["properties"].update(cost={"type": "number"}), "new field in the response")
 
-    def test_istekte_yeni_opsiyonel_alan_ekleme_sayilir(self):
+    def test_a_new_optional_request_field_counts_as_an_addition(self):
         self.assert_green(
             lambda d: _start_request(d)["properties"].update(label={"type": "string"}), "new optional field in the request")
 
-    def test_istekte_yeni_opsiyonel_parametre_ekleme_sayilir(self):
+    def test_a_new_optional_request_parameter_counts_as_an_addition(self):
         def mutate(d):
             d["paths"]["/api/runs"]["get"]["parameters"].append({"name": "skip", "in": "query", "schema": {"type": "integer"}})
 
         self.assert_green(mutate, "new optional parameter in the request")
 
-    def test_yanit_enum_degeri_ekleme_sayilir(self):
+    def test_a_new_response_enum_value_counts_as_an_addition(self):
         self.assert_green(
             lambda d: d["components"]["schemas"]["RunStatus"]["enum"].append("AwaitingInput"), "response enum value added")
 
-    def test_istek_enum_degeri_ekleme_sayilir(self):
+    def test_a_new_request_enum_value_counts_as_an_addition(self):
         self.assert_green(
             lambda d: d["components"]["schemas"]["StartMode"]["enum"].append("Queued"), "request enum value added")
 
-    def test_yeni_hata_yaniti_kirilma_degildir(self):
+    def test_a_new_error_response_is_not_a_break(self):
         self.assert_green(lambda d: d["paths"]["/api/runs"]["get"]["responses"].update({"429": {"description": "Too Many"}}))
 
-    def test_hata_yaniti_kalkarsa_kirilma_degildir(self):
+    def test_a_removed_error_response_is_not_a_break(self):
         self.assert_green(lambda d: d["paths"]["/api/runs/{runId}"]["get"]["responses"].pop("404"))
 
-    def test_zorunlu_istek_alani_opsiyonel_olursa_kirilma_degildir(self):
+    def test_a_required_request_field_that_becomes_optional_is_not_a_break(self):
         self.assert_green(lambda d: _start_request(d)["required"].remove("agentName"))
 
-    def test_opsiyonel_yanit_alani_zorunlu_olursa_kirilma_degildir(self):
+    def test_an_optional_response_field_that_becomes_required_is_not_a_break(self):
         self.assert_green(lambda d: _run_record(d)["required"].append("agentName"))
 
-    def test_belge_metni_degisirse_kirilma_degildir(self):
+    def test_changed_document_text_is_not_a_break(self):
         def mutate(d):
             d["info"]["version"] = "1.2.0"
             d["paths"]["/api/runs"]["get"]["summary"] = "Lists runs."
@@ -495,7 +495,7 @@ class HttpEklemeKurallari(unittest.TestCase):
 
         self.assert_green(mutate)
 
-    def test_yol_degiskeni_yeniden_adlandirilirsa_ayni_uctur(self):
+    def test_a_renamed_path_variable_is_the_same_endpoint(self):
         def mutate(d):
             item = d["paths"].pop("/api/runs/{runId}")
             operation = item["get"]
@@ -504,16 +504,16 @@ class HttpEklemeKurallari(unittest.TestCase):
 
         self.assert_green(mutate)
 
-    def test_ayni_belge_karsilastirilirsa_bos_doner(self):
+    def test_comparing_the_same_document_returns_nothing(self):
         breaks, additions = sk.compare_openapi(_document(), _document())
         self.assertEqual(([], []), (breaks, additions))
 
-    def test_kendine_donen_sema_biter(self):
+    def test_a_self_referencing_schema_terminates(self):
         """`RunRecord.parent` is a RunRecord: the walk must stop."""
         breaks, additions = sk.compare_openapi(_document(), _document())
         self.assertEqual(0, len(breaks) + len(additions))
 
-    def test_gercek_belge_kendisiyle_karsilastirilirsa_bos_doner(self):
+    def test_the_real_document_compared_with_itself_returns_nothing(self):
         document = json.loads((ROOT / "docs" / "openapi" / "tracon.json").read_text(encoding="utf-8"))
         breaks, additions = sk.compare_openapi(document, document)
         self.assertEqual(([], []), (breaks, additions))
@@ -578,8 +578,8 @@ def _check(repo: pathlib.Path, *, baseline: str = "1.0.0", version: str = "1.1.0
     return _quiet(lambda: sk.check(repo=repo, baseline=baseline, version=version, changelog=repo / "CHANGELOG.md"))
 
 
-class AdKumesiTestleri(unittest.TestCase):
-    def test_degismeyen_yuzey_temizdir(self):
+class NameSetTests(unittest.TestCase):
+    def test_an_unchanged_surface_is_clean(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             results = sk.surface_results(repo, "1.0.0")
@@ -587,7 +587,7 @@ class AdKumesiTestleri(unittest.TestCase):
             self.assertEqual(7, len(results))
             self.assertTrue(all(not r.breaks and not r.additions and r.note is None for r in results))
 
-    def test_silinen_satir_kirilmadir_eklenen_satir_degildir(self):
+    def test_a_removed_line_is_a_break_and_an_added_line_is_not(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             _write(repo, "docs/contracts/sse-events.txt", "# header\nrun-events run.started\nagent-stream done\nagent-stream extra\n")
@@ -598,7 +598,7 @@ class AdKumesiTestleri(unittest.TestCase):
             self.assertEqual("run.completed", sse.breaks[0].ident)
             self.assertEqual(["agent-stream extra"], [c.subject for c in sse.additions])
 
-    def test_degisen_satir_kirilmadir(self):
+    def test_a_changed_line_is_a_break(self):
         """A unit changed on an instrument is the old line gone."""
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
@@ -609,7 +609,7 @@ class AdKumesiTestleri(unittest.TestCase):
             self.assertEqual(1, len(telemetry.breaks))
             self.assertEqual("tracon.runs", telemetry.breaks[0].ident)
 
-    def test_cli_secenegi_ad_olarak_anilir(self):
+    def test_a_cli_option_is_named_by_its_name(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             _write(repo, "docs/contracts/cli.txt", "# header\ncommand eval\n")
@@ -618,7 +618,7 @@ class AdKumesiTestleri(unittest.TestCase):
 
             self.assertEqual("--timeout", cli.breaks[0].ident)
 
-    def test_taban_etiketinde_dosya_yoksa_preview_hattinda_not_yazar_hata_vermez(self):
+    def test_a_missing_file_at_the_baseline_tag_gives_a_note_on_the_preview_line_and_no_error(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory, tag="v1.0.0-preview.5", snapshots=False)
             results = sk.surface_results(repo, "1.0.0-preview.5")
@@ -628,7 +628,7 @@ class AdKumesiTestleri(unittest.TestCase):
             self.assertTrue(all(r.note is not None and "no baseline" in r.note for r in names))
             self.assertTrue(all(not r.breaks for r in names))
 
-    def test_donmus_tabanda_dosya_yoksa_hatadir(self):
+    def test_a_missing_file_in_a_frozen_baseline_is_an_error(self):
         """A frozen baseline was cut after the files existed: a missing one is a hole."""
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory, tag="v1.0.0", snapshots=False)
@@ -636,7 +636,7 @@ class AdKumesiTestleri(unittest.TestCase):
             with self.assertRaises(sk.SurfaceError):
                 sk.surface_results(repo, "1.0.0")
 
-    def test_taban_etiketi_yoksa_kirmizidir(self):
+    def test_a_missing_baseline_tag_is_red(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
 
@@ -648,7 +648,7 @@ class AdKumesiTestleri(unittest.TestCase):
             self.assertIn("baseline tag", output)
 
 
-    def test_dogrulama_kodu_silinirse_kirilmadir(self):
+    def test_a_removed_validation_code_is_a_break(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             _write(repo, "docs/contracts/validation-codes.txt", "# header\nunknown_model\n")
@@ -657,7 +657,7 @@ class AdKumesiTestleri(unittest.TestCase):
 
             self.assertEqual(["unknown_tool"], [c.ident for c in surface.breaks])
 
-    def test_taban_dosyasi_okunamazsa_kirmizidir_ilk_kayit_sayilmaz(self):
+    def test_an_unreadable_baseline_file_is_red_and_not_a_first_record(self):
         """A missing file is a first record; a file that exists and cannot be read is a hole."""
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
@@ -674,7 +674,7 @@ class AdKumesiTestleri(unittest.TestCase):
             self.assertEqual(1, code, output)
             self.assertIn("cannot read", output)
 
-    def test_taban_agaci_sorgulanamazsa_kirmizidir(self):
+    def test_a_baseline_tree_that_cannot_be_queried_is_red(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             real = sk.bc._git
@@ -694,10 +694,10 @@ class AdKumesiTestleri(unittest.TestCase):
 HTTP = "HTTP"
 
 
-class KapiTestleri(unittest.TestCase):
+class GateTests(unittest.TestCase):
     """`check`: repo + CHANGELOG -> exit code, as gate.py calls it."""
 
-    def test_temiz_yuzey_yesildir_ve_hat_satirini_yazar(self):
+    def test_a_clean_surface_is_green_and_prints_the_line(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             code, output = _check(repo)
@@ -707,7 +707,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("HTTP: 0 breaks", output)
             self.assertIn("CLI: 0 breaks", output)
 
-    def test_donmus_hatta_notta_adi_gecen_kirilma_yine_kirmizidir(self):
+    def test_a_break_named_in_the_notes_is_still_red_on_a_frozen_line(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             _write(repo, "docs/contracts/error-codes.txt", "# header\ncontent_blocked\n")
@@ -718,7 +718,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("on a frozen line", output)
             self.assertIn("error code: 1 break", output)
 
-    def test_manuel_case_3_donmus_hatta_iki_kirilma_kirmizidir(self):
+    def test_two_breaks_on_a_frozen_line_are_red(self):
         """A gone SSE name and a gone response field, baseline 1.0.0, release 1.1.0."""
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
@@ -734,7 +734,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("HTTP: 1 break", output)
             self.assertIn("SSE: 1 break", output)
 
-    def test_preview_hattinda_notta_adi_gecen_kirilma_yesildir(self):
+    def test_a_break_named_in_the_notes_is_green_on_the_preview_line(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory, tag="v1.0.0-preview.5")
             _write(repo, "docs/contracts/error-codes.txt", "# header\ncontent_blocked\n")
@@ -745,7 +745,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(0, code, output)
             self.assertIn("error code: 1 break (named in the notes)", output)
 
-    def test_preview_hattinda_notta_adi_gecmeyen_kirilma_kirmizidir(self):
+    def test_a_break_not_named_in_the_notes_is_red_on_the_preview_line(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory, tag="v1.0.0-preview.5")
             _write(repo, "docs/contracts/error-codes.txt", "# header\ncontent_blocked\n")
@@ -757,7 +757,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("The release notes do not name the break", output)
             self.assertIn("tool_timeout", output)
 
-    def test_preview_hattinda_not_yoksa_kirmizidir(self):
+    def test_missing_release_notes_are_red_on_the_preview_line(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory, tag="v1.0.0-preview.5")
             _write(repo, "docs/contracts/error-codes.txt", "# header\ncontent_blocked\n")
@@ -769,7 +769,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(1, code, output)
             self.assertIn("no release notes for", output)
 
-    def test_http_kirilmasi_alan_adiyla_anilabilir(self):
+    def test_an_http_break_can_be_named_by_its_field_name(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory, tag="v1.0.0-preview.5")
             document = _document()
@@ -782,7 +782,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(0, code, output)
             self.assertIn("HTTP: 1 break (named in the notes)", output)
 
-    def test_yama_surumunde_eklenen_yuzey_kirmizidir(self):
+    def test_an_added_surface_in_a_patch_release_is_red(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             _write(repo, "docs/contracts/error-codes.txt", "# header\ntool_timeout\ncontent_blocked\nnew_code\n")
@@ -793,7 +793,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("Line: frozen 1.x patch", output)
             self.assertIn("A patch release cannot grow", output)
 
-    def test_yama_surumunde_http_ekleme_kirmizidir(self):
+    def test_an_http_addition_in_a_patch_release_is_red(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             document = _document()
@@ -805,7 +805,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(1, code, output)
             self.assertIn("HTTP", output)
 
-    def test_minor_surumde_ekleme_yesildir(self):
+    def test_an_addition_in_a_minor_release_is_green(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             _write(repo, "docs/contracts/error-codes.txt", "# header\ntool_timeout\ncontent_blocked\nnew_code\n")
@@ -817,7 +817,7 @@ class KapiTestleri(unittest.TestCase):
 
             self.assertEqual(0, code, output)
 
-    def test_donmus_tabanda_surumsuz_hat_belirlenemez(self):
+    def test_the_line_of_an_unreleased_version_on_a_frozen_baseline_cannot_be_decided(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             code, output = _quiet(lambda: sk.check(
@@ -826,7 +826,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(1, code)
             self.assertIn("Cannot decide the release line", output)
 
-    def test_cli_komut_satiri_manuel_case_3_icin_calisir(self):
+    def test_the_command_line_reports_a_break_on_a_frozen_line(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             _write(repo, "docs/contracts/sse-events.txt", "# header\nrun-events run.started\nagent-stream done\n")
@@ -839,21 +839,21 @@ class KapiTestleri(unittest.TestCase):
 
 
 # -----------------------------------------------------------------------------
-# Tags from before the move: the snapshots sit under `docs/sozlesme/` there
+# Tags from before the move: the snapshots sit under the old directory name there
 # -----------------------------------------------------------------------------
 
 LEGACY_PATHS = {
-    "docs/contracts/sse-events.txt": "docs/sozlesme/sse-olaylari.txt",
-    "docs/contracts/telemetry.txt": "docs/sozlesme/telemetri.txt",
-    "docs/contracts/configuration.txt": "docs/sozlesme/yapilandirma.txt",
-    "docs/contracts/error-codes.txt": "docs/sozlesme/hata-kodlari.txt",
-    "docs/contracts/validation-codes.txt": "docs/sozlesme/dogrulama-kodlari.txt",
-    "docs/contracts/cli.txt": "docs/sozlesme/cli.txt",
+    "docs/contracts/sse-events.txt": "docs/sozlesme/sse-olaylari.txt",  # legacy-name
+    "docs/contracts/telemetry.txt": "docs/sozlesme/telemetri.txt",  # legacy-name
+    "docs/contracts/configuration.txt": "docs/sozlesme/yapilandirma.txt",  # legacy-name
+    "docs/contracts/error-codes.txt": "docs/sozlesme/hata-kodlari.txt",  # legacy-name
+    "docs/contracts/validation-codes.txt": "docs/sozlesme/dogrulama-kodlari.txt",  # legacy-name
+    "docs/contracts/cli.txt": "docs/sozlesme/cli.txt",  # legacy-name
 }
 
 
 def _repo_with_old_paths(directory: str, *, tag: str = "v1.0.0-preview.8") -> pathlib.Path:
-    """The move itself: the tag holds the snapshots under `docs/sozlesme/`, HEAD holds them under `docs/contracts/`."""
+    """The move itself: the tag holds the snapshots under the old directory name, HEAD holds them under `docs/contracts/`."""
     repo = pathlib.Path(directory) / "repo"
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "main")
@@ -922,7 +922,7 @@ class LegacyPathTests(unittest.TestCase):
     def test_the_current_path_wins_when_the_tag_holds_both(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory, tag="v1.0.0-preview.8")
-            _write(repo, "docs/sozlesme/hata-kodlari.txt", "# header\nstale_code\n")
+            _write(repo, "docs/sozlesme/hata-kodlari.txt", "# header\nstale_code\n")  # legacy-name
             _git(repo, "add", "-A")
             _git(repo, "commit", "-q", "-m", "an old copy that must stay unread")
             _git(repo, "tag", "-f", "v1.0.0-preview.8")
@@ -941,7 +941,7 @@ class LegacyPathTests(unittest.TestCase):
 
             self.assertIn("no baseline", error_codes.note)
             self.assertIn("docs/contracts/error-codes.txt", error_codes.note)
-            self.assertIn("docs/sozlesme/hata-kodlari.txt", error_codes.note)
+            self.assertIn("docs/sozlesme/hata-kodlari.txt", error_codes.note)  # legacy-name
 
     def test_a_frozen_baseline_with_neither_path_is_an_error_that_names_both(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -951,7 +951,7 @@ class LegacyPathTests(unittest.TestCase):
                 sk.surface_results(repo, "1.0.0")
 
             self.assertIn("docs/contracts/sse-events.txt", str(raised.exception))
-            self.assertIn("docs/sozlesme/sse-olaylari.txt", str(raised.exception))
+            self.assertIn("docs/sozlesme/sse-olaylari.txt", str(raised.exception))  # legacy-name
 
     def test_every_surface_maps_to_one_current_and_one_old_path(self):
         self.assertEqual(
@@ -962,7 +962,8 @@ class LegacyPathTests(unittest.TestCase):
 class OutputLanguageTests(unittest.TestCase):
     """Everything the gate prints is English: a contributor of the public repository reads it."""
 
-    TURKISH_LETTERS = re.compile("[çğıöşüÇĞİÖŞÜ]")
+    # Written as code points so that this source file holds no Turkish letter itself.
+    TURKISH_LETTERS = re.compile("[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]")
 
     def assert_english(self, output: str) -> None:
         self.assertIsNone(self.TURKISH_LETTERS.search(output), output)
@@ -1019,7 +1020,7 @@ class OutputLanguageTests(unittest.TestCase):
 
     def test_the_old_flag_names_are_gone(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
-            sk.main(["--depo", ".", "--" "taban", "1.0.0"])
+            sk.main(["--depo", ".", "--" "taban", "1.0.0"])  # legacy-name
 
         self.assertEqual(2, raised.exception.code)
 

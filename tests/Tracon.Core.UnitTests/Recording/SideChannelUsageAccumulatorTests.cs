@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Recording;
 public sealed class SideChannelUsageAccumulatorTests
 {
     [Fact]
-    public void Bos_toplayici_null_dondurur()
+    public void An_empty_accumulator_returns_null()
     {
         var accumulator = new SideChannelUsageAccumulator();
 
@@ -13,7 +13,7 @@ public sealed class SideChannelUsageAccumulatorTests
     }
 
     [Fact]
-    public void Null_kullanim_yok_sayilir()
+    public void Null_usage_is_ignored()
     {
         var accumulator = new SideChannelUsageAccumulator();
 
@@ -23,7 +23,7 @@ public sealed class SideChannelUsageAccumulatorTests
     }
 
     [Fact]
-    public void Birden_fazla_ekleme_toplanir()
+    public void Several_additions_are_summed()
     {
         var accumulator = new SideChannelUsageAccumulator();
 

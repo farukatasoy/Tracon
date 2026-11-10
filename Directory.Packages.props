@@ -1,26 +1,26 @@
 <Project>
 
   <!--
-    Merkezi Paket Yonetimi (Central Package Management).
-    Surumler yalnizca burada tanimlanir. Projeler <PackageReference Include="..." />
-    yazar, Version yazmaz. Boylece surum kaymasi imkansiz hale gelir.
+    Central Package Management.
+    Versions are defined only here. Projects write <PackageReference Include="..." />
+    without a Version, so version drift cannot happen.
 
-    Microsoft Agent Framework surum notu:
+    Microsoft Agent Framework version note:
       GA     -> Microsoft.Agents.AI, .Abstractions, .OpenAI, .Workflows, .Harness
       preview-> Microsoft.Agents.AI.Hosting
       alpha  -> Microsoft.Agents.AI.Hosting.OpenAI
-    Preview/alpha bagimliliklari yalnizca Tracon.AspNetCore icinde toplanir.
+    Preview/alpha dependencies are collected only in Tracon.AspNetCore.
   -->
 
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- Tum MAF GA paketleri ayni surumde ilerler. -->
+    <!-- All MAF GA packages move on the same version. -->
     <MicrosoftAgentsAIVersion>1.26.0</MicrosoftAgentsAIVersion>
     <!--
-      MEAI 10.11.0 System.Text.Json >= 10.0.13 ister (olculdu 2026-10-16:
-      nuspec); 10.0.11'de kalmak NU1605 (paket dusurme) verir ve
-      TreatWarningsAsErrors altinda restore'u kirar. Bu satir MEAI
-      yukseltmesinin ZORUNLU sonucudur, ayri bir secim degil.
+      MEAI 10.11.0 requires System.Text.Json >= 10.0.13 (measured 2026-10-16:
+      nuspec); staying on 10.0.11 gives NU1605 (package downgrade) and breaks
+      restore under TreatWarningsAsErrors. This line is a REQUIRED consequence of
+      the MEAI upgrade, not a separate choice.
     -->
     <MicrosoftExtensionsVersion>10.0.14</MicrosoftExtensionsVersion>
   </PropertyGroup>
@@ -33,46 +33,47 @@
     <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="$(MicrosoftAgentsAIVersion)" />
   </ItemGroup>
 
-  <ItemGroup Label="Microsoft.Extensions.AI degerlendirme - GA">
+  <ItemGroup Label="Microsoft.Extensions.AI evaluation - GA">
     <!--
-      Yeni paket gerekce ister. Bu bir EKLEME degil, var olan gecisli bir
-      bagimliligin ACIK hale getirilmesidir. `Microsoft.Extensions.AI.Evaluation`
-      10.11.0 `Core`/`AspNetCore`/`Cli` grafiginde ZATEN vardir; `Microsoft.Agents.AI`
-      1.26.0 onu alt sinir 10.10.0 ile getirir (olculdu 2026-10-28: nuspec).
-      `IEvaluator` koprusu (EvaluatorRunJudge) o arayuze DOGRUDAN baglandigi icin
-      gecisli bir referansa guvenmek kirilgandir - MAF bir gun onu birakabilir.
-      Net gecisli agirlik: 0.
+      A new package needs a justification. This is not an ADDITION; it makes an
+      existing transitive dependency EXPLICIT. `Microsoft.Extensions.AI.Evaluation`
+      10.11.0 is ALREADY in the Tracon.Core/AspNetCore/Cli graphs; `Microsoft.Agents.AI`
+      1.26.0 brings it with a 10.10.0 lower bound (measured 2026-10-28: nuspec).
+      The `IEvaluator` bridge (EvaluatorRunJudge) binds to that interface DIRECTLY, so
+      relying on a transitive reference is fragile - MAF may drop it one day.
+      Net transitive weight: 0.
 
-      `Microsoft.Extensions.AI.Evaluation.Quality` (kalibre edilmis evaluator
-      katalogu) BILEREK sevk edilen hicbir pakete girmez; onu yalniz test ve ornek
-      projeleri referanslar. Katalogu isteyen tuketici paketi kendisi ekler ve
-      `AddEvaluatorJudge` ile baglar. Kullanmayanin grafigi buyumez.
+      `Microsoft.Extensions.AI.Evaluation.Quality` (the calibrated evaluator catalog)
+      deliberately enters NO shipped package; only the test and sample projects
+      reference it. A consumer who wants the catalog adds it and wires it with
+      `AddEvaluatorJudge`. Whoever does not use it sees no growth in the graph.
     -->
     <PackageVersion Include="Microsoft.Extensions.AI.Evaluation" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="10.11.0" />
   </ItemGroup>
 
-  <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca Tracon.AspNetCore)">
+  <ItemGroup Label="Microsoft Agent Framework - prerelease (Tracon.AspNetCore only)">
     <!--
-      On surum ust akisin araligi TAMDIR ([x]). Acik alt sinir
-      (`>= x`) tuketicinin yukseltmesini uyarisiz restore edip calisma aninda
-      dusuruyordu: yayinlanmis 1.0.0-preview.2 + Hosting 1.22.0-preview ->
-      `Microsoft.Agents.AI.Hosting.AgentSessionStore` yok (baska derlemeye
-      forwarder'siz tasindi). Tam aralikta NuGet ayni durumu restore'da soyler
-      (NU1608 dogrudan, NU1107 gecisli). Kararli ucuncu taraf alt sinirda kalir.
-      Kapi: ReleaseArtifactTests.EveryPrereleaseThirdPartyDependencyIsExact ve
-      `gate.py release`. Yukseltme bu bes satiri BIRLIKTE degistirir.
+      A prerelease upstream range is EXACT ([x]). An open lower bound
+      (`>= x`) let a consumer's upgrade restore without a warning and fail at run
+      time: a published Tracon.AspNetCore 1.0.0-preview.2 running with Hosting
+      1.22.0-preview found no `Microsoft.Agents.AI.Hosting.AgentSessionStore` (it moved
+      to another assembly with no forwarder). With an exact range NuGet reports the same
+      situation at restore (NU1608 direct, NU1107 transitive). Stable third-party
+      packages stay on a lower bound. Guards: ReleaseArtifactTests.
+      EveryPrereleaseThirdPartyDependencyIsExact and `gate.py release`. An upgrade
+      changes these five lines TOGETHER.
     -->
     <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="[1.26.0-preview.261023.1]" />
     <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="[1.26.0-alpha.261023.1]" />
     <!--
-      Tracon'i disa acan A2A sunucusu. Ayni surum hatti
-      (1.26.0-preview.261023.1), yalnizca Tracon.AspNetCore.
-      `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslaginda OLCULMEMISTI;
-      `AddA2AServer` yalniz KAYIT yapar, HTTP ucunu `A2A.AspNetCore`'un
-      `MapA2A`/`MapHttpA2A` uzantilari acar. Olculen artimli maliyet: A2A, A2A.AspNetCore,
+      The A2A server that exposes Tracon. Same version line
+      (1.26.0-preview.261023.1), Tracon.AspNetCore only.
+      `Microsoft.Agents.AI.Hosting.AspNetCore` is needed too: `AddA2AServer` only
+      REGISTERS, and the HTTP endpoint is exposed by the `MapA2A`/`MapHttpA2A`
+      extensions of `A2A.AspNetCore`. Measured incremental cost: A2A, A2A.AspNetCore,
       Microsoft.Agents.AI.Hosting.A2A, Microsoft.Agents.AI.Hosting.AspNetCore
-      (4 paket, hepsi ayni SDK ailesi; yabanci bagimlilik yok).
+      (4 packages, all the same SDK family; no foreign dependency).
     -->
     <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="[1.26.0-preview.261023.1]" />
     <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="[1.26.0-preview.261023.1]" />
@@ -86,26 +87,26 @@
   </ItemGroup>
 
   <!--
-    On ucus token sayimi icin ACIK PackageReference
-    (secenek A). Bugune kadar `Microsoft.ML.Tokenizers` yalniz MAF'in gecisli
-    bagimliligiydi ve dogrudan cagrilmiyordu; burada CAGIRAN Tracon'dir,
-    bu yuzden gecisli surume guvenmek ust paket onu birakirsa derlemeyi kirar.
+    Explicit PackageReference for pre-flight token counting. Until now
+    `Microsoft.ML.Tokenizers` was only a transitive dependency of MAF and was not
+    called directly; here Tracon is the CALLER, so trusting the transitive version
+    would break the build if the upstream package drops it.
   -->
-  <ItemGroup Label="Ic ucus token sayimi">
+  <ItemGroup Label="Pre-flight token counting">
     <PackageVersion Include="Microsoft.ML.Tokenizers" Version="2.0.1" />
     <PackageVersion Include="Microsoft.ML.Tokenizers.Data.O200kBase" Version="2.0.1" />
   </ItemGroup>
 
-  <ItemGroup Label="Microsoft.Extensions - barindirma ve DI">
+  <ItemGroup Label="Microsoft.Extensions - hosting and DI">
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <!--
-      Sevk edilen hicbir paket bu satira bagli DEGILDIR - Tracon kutuphaneleri
-      Hosting.Abstractions ile yetinir. Tam generic host'u iki tuketici kullanir:
-      tests/Tracon.WorkerHarness (iki process ariza kanitinin OLDURULEN
-      worker'i) ve samples/Tracon.Samples.ExtensionAotSmoke (Native AOT altinda
-      gercek host baslatir; paket ailesi hizalama kontrolu orada kosar).
+      No shipped package depends on this line - the Tracon libraries make do with
+      Hosting.Abstractions. The full generic host is used by two consumers:
+      tests/Tracon.WorkerHarness (the worker KILLED by the two-process failure proof)
+      and samples/Tracon.Samples.ExtensionAotSmoke (starts a real host under Native
+      AOT; the package-family alignment check runs there).
     -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
@@ -116,16 +117,16 @@
   </ItemGroup>
 
   <!--
-    Saglayici SDK'lari. Ucu de RESMI birinci taraf paketidir; topluluk paketi
-    kullanilmadi. Ucu de kendi `AsIChatClient` adaptorunu tasir, bu yuzden
-    Tracon mesaj eslemesi/akis/tool cagrisi yazmaz.
+    Provider SDKs. All three are OFFICIAL first-party packages; no community package
+    was used. All three carry their own `AsIChatClient` adapter, so Tracon writes no
+    message mapping, streaming or tool-call code.
 
-    Google.GenAI'in gecisli agirligi bilinerek kabul edildi: Google.Apis.Auth
-    uzerinden Newtonsoft.Json, System.Management ve System.CodeDom gelir. Bagimlilik
-    yalnizca Tracon.Google paketindedir; Gemini kullanmayan tuketici hicbirini
-    almaz.
+    The transitive weight of Google.GenAI was accepted knowingly: Newtonsoft.Json,
+    System.Management and System.CodeDom arrive through Google.Apis.Auth. The
+    dependency is only in the Tracon.Google package; a consumer that does not use
+    Gemini gets none of them.
   -->
-  <ItemGroup Label="Saglayicilar">
+  <ItemGroup Label="Providers">
     <PackageVersion Include="Anthropic" Version="13.3.0" />
     <PackageVersion Include="Google.GenAI" Version="1.27.0" />
     <PackageVersion Include="OpenAI" Version="2.14.0" />
@@ -145,7 +146,7 @@
     <PackageVersion Include="Azure.Core" Version="1.64.0" />
   </ItemGroup>
 
-  <ItemGroup Label="Veri erisimi">
+  <ItemGroup Label="Data access">
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <!--
       Vector store connectors for the sample host and the tests only. No shipped package
@@ -160,67 +161,68 @@
     <PackageVersion Include="CommunityToolkit.VectorData.PgVector" Version="1.0.1" />
     <PackageVersion Include="CommunityToolkit.VectorData.InMemory" Version="1.0.1" />
     <!--
-      SQL Server surucusu. Kirpma/AOT icin isaretli DEGILDIR; bu yuzden
-      Tracon.SqlServer TraconAotCompatible=false yazar.
+      SQL Server driver. NOT marked for trimming/AOT; therefore
+      Tracon.SqlServer sets TraconAotCompatible=false.
     -->
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <!--
-      CVE zorlamasi. SqlClient'in her yayini (7.0.2'den 7.1.1'e, olculdu
-      2026-10-14) acik uyarili System.Security.Cryptography.Pkcs ceker: net8.0
-      8.0.1, net9.0/net10.0 9.0.13 ve 9.0.18 (GHSA-846f-f764-76mx yuksek,
-      GHSA-2fmv-rv2c-59x7 orta). Yeniden olculdu 2026-10-16 ve 2026-10-28 (SqlClient
-      7.1.1, hala en yenisi; bos bir proje, NuGetAudit): net8.0 8.0.1, net9.0/net10.0
-      9.0.18, iki uyari de duruyor (NU1902 + NU1903). Yeniden olculdu 2026-10-31
-      (SqlClient 7.1.1 hala en yenisi; bos net10.0 projesi, NuGetAudit): 9.0.18,
-      NU1902 + NU1903. Platform yamasi 10.0.14 bu paketi etkilemez, 10.0.13 yamali
-      taban olarak kalir. SqlClient'i yukseltmek bunu kapatmaz.
-      CentralPackageTransitivePinningEnabled kapali oldugu icin surum
-      Tracon.SqlServer'da dogrudan PackageReference ile zorlanir; bu, tuketicinin
-      grafiginde de SqlClient'in surumunun onune gecer. Paketler yalniz net10.0
-      hedefler, bu yuzden tek satir yeter. Surum hedef catiyla eslenir: yeni bir
-      cati eklenirse o cati kendi yamali surumunu alir (eski net8.0/net9.0
-      satirlari 8.0.2 ve 9.0.21'di; 10.0.13 onlara Microsoft.Bcl.Cryptography ile
-      System.Formats.Asn1'i de getirirdi). SqlClient yamali surumu kendisi
-      cektiginde bu satir kaldirilir.
+      CVE enforcement. Every SqlClient release (7.0.2 through 7.1.1, measured
+      2026-10-14) pulls a System.Security.Cryptography.Pkcs with open advisories:
+      net8.0 8.0.1, net9.0/net10.0 9.0.13 and 9.0.18 (GHSA-846f-f764-76mx high,
+      GHSA-2fmv-rv2c-59x7 medium). Re-measured 2026-10-16, 2026-10-28 and 2026-10-31
+      (SqlClient 7.1.1, still the latest; an empty project, NuGetAudit): net8.0 8.0.1,
+      net9.0/net10.0 9.0.18, and both warnings stand (NU1902 + NU1903). The platform
+      patch 10.0.14 does not affect this package; 10.0.13 stays as the patched floor.
+      Upgrading SqlClient does not close this.
+      CentralPackageTransitivePinningEnabled is off, so the version is forced with a
+      direct PackageReference in Tracon.SqlServer; this takes precedence over
+      SqlClient's version in the consumer's graph as well. The packages target only
+      net10.0, so one line is enough. The version follows the target framework: a new
+      framework gets its own patched version (the old net8.0/net9.0 lines were 8.0.2
+      and 9.0.21; 10.0.13 would have brought Microsoft.Bcl.Cryptography and
+      System.Formats.Asn1 to them as well). When SqlClient pulls a patched version
+      itself, this line is removed.
     -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <!--
-      SQLite surucusu. SQLitePCLRaw yerel kutuphane tasir; AOT/publish
-      etkisi olculur.
-      SQLitePCLRaw surumu Microsoft.Data.Sqlite'in bagimliligidir (10.0.14 ->
-      2.1.13, acik yok); eski CVE sabitleri kalkti.
+      SQLite driver. SQLitePCLRaw carries a native library; the AOT/publish
+      effect is measured.
+      The SQLitePCLRaw version is a dependency of Microsoft.Data.Sqlite (10.0.14 ->
+      2.1.13, no open advisory); the old CVE pins are gone.
     -->
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
   </ItemGroup>
 
   <!--
-    samples/Tracon.Embedded'in isteğe bağlı EF Core boyutu — iki
-    bağlantı düzleminin AYNI NpgsqlDataSource üzerinde buluştuğunu kanıtlar
-    (docs-site/.../guides/ef-core.md). Tracon EF Core kullanmaz (L16, L29);
-    bu bağımlılık yalnız samples/ altındadır, sevk edilen hiçbir pakete girmez.
-    Npgsql 10.0.3 ile aynı sürüm serisi.
+    The optional EF Core dimension of samples/Tracon.Embedded - it shows that two
+    connection planes meet on the SAME NpgsqlDataSource
+    (docs-site/src/content/docs/guides/ef-core.md). Tracon does not use EF Core;
+    this dependency lives only under samples/ and enters no shipped package.
+    Same version series as Npgsql 10.0.3.
   -->
   <ItemGroup Label="Sample-only: EF Core">
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
   <!--
-    samples/Tracon.Api'nin isteğe bağlı Redis önbelleği — iki süreçli kabul case'i
-    `Tracon:Mcp:OAuthTokenStore = DistributedCache` için
-    süreçler arasında paylaşılan bir `IDistributedCache` ister. Tracon Redis'e bağlı değildir; bu bağımlılık
-    yalnız samples/ altındadır, sevk edilen hiçbir pakete girmez.
+    The optional Redis cache of samples/Tracon.Api - the two-process run of
+    `Tracon:Mcp:OAuthTokenStore = DistributedCache` needs an `IDistributedCache`
+    shared between processes. Tracon does not depend on Redis; this dependency
+    lives only under samples/ and enters no shipped package.
   -->
   <ItemGroup Label="Sample-only: Redis distributed cache">
     <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.9" />
   </ItemGroup>
 
   <!--
-    samples/Tracon.AppHost (Aspire) ve samples/Tracon.Api'nin kosullu OTLP cikisi. Bu paketler yalniz
-    samples/ altindadir, sevk edilen hicbir paketin grafina girmez; Tracon kendi `ActivitySource` ve `Meter`
-    adini acar, disa aktarimi tuketicinin uygulamasi secer (docs-site guides/observability.md).
-    `Aspire.AppHost.Sdk` sürümü csproj'un `Sdk=` ozniteliginde yasar (13.6.4); buradaki hosting paketi ile ayni olmali.
+    Conditional OTLP export of samples/Tracon.AppHost (Aspire) and samples/Tracon.Api.
+    These packages live only under samples/ and enter the graph of no shipped package;
+    Tracon exposes its own `ActivitySource` and `Meter` names, and the consumer's
+    application chooses the export (docs-site guides/observability.md).
+    The `Aspire.AppHost.Sdk` version lives in the csproj's `Sdk=` attribute (13.6.4);
+    it must match the hosting package here.
   -->
-  <ItemGroup Label="Sample-only: Aspire ve OpenTelemetry">
+  <ItemGroup Label="Sample-only: Aspire and OpenTelemetry">
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
@@ -228,47 +230,49 @@
   </ItemGroup>
 
   <!--
-    MCP istemcisi. `ModelContextProtocol` DEGIL, `.Core`: tam paket
-    Microsoft.Extensions.Hosting.Abstractions ve Caching.Abstractions da ceker;
-    bunlar sunucu barindirma icindir ve Tracon yalnizca istemcidir.
-    `.Core` bagimliliklari (2.2.0 nuspec'i, olculdu 2026-08-21): Microsoft.Extensions.AI.Abstractions
+    MCP client. `.Core`, NOT `ModelContextProtocol`: the full package also pulls
+    Microsoft.Extensions.Hosting.Abstractions and Caching.Abstractions, which are for
+    server hosting, and Tracon.Mcp is only a client.
+    `.Core` dependencies (2.2.0 nuspec, measured 2026-08-21): Microsoft.Extensions.AI.Abstractions
     10.8.3, Logging.Abstractions 10.0.10, System.IO.Pipelines, System.Net.ServerSentEvents.
-    Ucu de TABANDIR; bizim pinlerimiz (10.11.0 ve 10.0.14) daha yuksek oldugu icin
-    NuGet bizimkini secer ve ek paket gelmez.
+    The two versioned ones are FLOORS; our pins (10.11.0 and 10.0.14) are higher, so
+    NuGet picks ours and no extra package arrives.
   -->
   <ItemGroup Label="Model Context Protocol">
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.3.0" />
     <!--
-      Tracon'i disa acan MCP sunucusu. Kosul degisti:
-      "Tracon yalnizca istemcidir" artik dogru degil. Yalnizca
-      Tracon.AspNetCore icine girer; Tracon.Mcp (istemci) `.Core`'da
-      kalir. Olculdu (2026-08-07): 13 gecisli paket, tumu Microsoft.Extensions.*
-      ailesinden. 2.2.0'da yeniden okundu (2026-08-21): `.AspNetCore` sabit surumle
-      `ModelContextProtocol` [2.2.0]'i, o da `.Core` [2.2.0] + Caching.Abstractions
-      10.0.10 + Hosting.Abstractions 10.0.10 ceker. Yabanci bagimlilik yok.
-      2.3.0 (2026-10-21): ayni paket listesi, yalniz taban surumler yukseldi; Tracon.Mcp
-      grafigi net10.0'da 32 paket (o gun net9.0/net8.0'da 38/38), degismedi. API farki: +1 uye
-      (`McpClientOptions.TimeProvider`), 0 kaldirma (API farki).
+      The MCP server that exposes Tracon. The `.Core` note above no longer covers
+      everything: Tracon is not only a client now. This package enters only
+      Tracon.AspNetCore; Tracon.Mcp (the client) stays on `.Core`. Measured (2026-08-07):
+      13 transitive packages, all from the Microsoft.Extensions.* family. Re-read at
+      2.2.0 (2026-08-21): `.AspNetCore` pulls `ModelContextProtocol` [2.2.0] with a
+      fixed version, which pulls `.Core` [2.2.0] + Caching.Abstractions 10.0.10 +
+      Hosting.Abstractions 10.0.10. No foreign dependency.
+      2.3.0 (2026-10-21): same package list, only the floor versions rose; the
+      Tracon.Mcp graph is 32 packages on net10.0 (38/38 on net9.0/net8.0 that day),
+      unchanged. API diff: +1 member (`McpClientOptions.TimeProvider`), 0 removals.
     -->
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
     <!--
-      MCP Tasks uzantisi (2026-07-28 spec). Yalnizca
-      Tracon.AspNetCore icine girer. Olculdu (2026-08-26, gercek restore,
-      net10.0, temiz proje): + ModelContextProtocol.AspNetCore -> 13 paket,
-      + bu paket -> 14 paket. Net yeni gecisli paket SIFIR - on iki gecisli
-      paketin tumu zaten .AspNetCore uzerinden grafikte. Tracon.Mcp
-      (istemci) bu paketi hic gormez, sinir bozulmaz.
+      MCP Tasks extension (2026-07-28 spec). Enters only Tracon.AspNetCore.
+      Measured (2026-08-26, real restore, net10.0, clean project): + ModelContextProtocol.AspNetCore
+      -> 13 packages, + this package -> 14 packages. Net new transitive packages: ZERO -
+      all twelve transitive packages are already in the graph through .AspNetCore.
+      Tracon.Mcp (the client) never sees this package, so the boundary holds.
     -->
     <PackageVersion Include="ModelContextProtocol.Extensions.Tasks" Version="2.3.0" />
   </ItemGroup>
 
   <!--
-    AG-UI ucu (Tracon.AGUI). Gerekce: AG-UI, CopilotKit gibi on yuzlerin konustugu bir protokoldur ve
-    olay donusturucusunu (MEAI akisi -> AG-UI olaylari) bu iki paket tasir; ayni donusturucuyu elle yazmak protokolun
-    tel bicimini kopyalamak olurdu. Yayinci "AG-UI Protocol" (Microsoft degil), MIT, nuget.org'da dogrulanmis sahip,
-    yazar imzasi gecerli (`dotnet nuget verify`, 2026-10-23). Bagimlilik yalniz Microsoft.Extensions.AI.Abstractions
-    >= 10.6.0 (Tracon 10.11.0'da). Yalnizca Tracon.AGUI icine girer;
-    Tracon.AspNetCore ve meta paketin grafigi degismez. Surum sabit; kararli oldugu icin ailede tek hatta cikar.
+    AG-UI endpoint (Tracon.AGUI). Reason: AG-UI is a protocol that front ends such as
+    CopilotKit speak, and its event converter (MEAI stream -> AG-UI events) is carried by
+    these two packages; writing the same converter by hand would mean copying the
+    protocol's wire format. Publisher "AG-UI Protocol" (not Microsoft), MIT, owner
+    verified on nuget.org, author signature valid (`dotnet nuget verify`, 2026-10-23).
+    The only dependency is Microsoft.Extensions.AI.Abstractions >= 10.6.0 (Tracon is on
+    10.11.0). Enters only Tracon.AGUI; the graphs of Tracon.AspNetCore and the meta
+    package do not change. The version is fixed; since it is stable, the whole family
+    ships on a single version line.
   -->
   <ItemGroup Label="AG-UI">
     <PackageVersion Include="AGUI.Server" Version="1.0.1" />
@@ -276,17 +280,19 @@
   </ItemGroup>
 
   <!--
-    AG-UI protocol'un resmi .NET istemcisi (ayni yayinci, ayni 1.0.1 hatti). YALNIZ test projesine girer
-    (tests/Tracon.AGUI.FunctionalTests): sevk edilen hicbir paket buna bagimli degildir. Gerekce: sunucu testleri
-    olayi protocol SDK'sinin serilestiricisiyle okur; bu istemci ise tel bicimini kendi ayristiricisiyle okur ve
-    olay dizisini kendi durum makinesinden gecirir (RUN_STARTED ... RUN_FINISHED), yani tuketicinin gordugunu gorur.
-    Bagimliliklari AGUI.Formatting 1.0.1 ve Microsoft.Extensions.AI (10.6.0; Tracon 10.11.0'da).
+    Official .NET client of the AG-UI protocol (same publisher, same 1.0.1 line). Enters
+    ONLY the test project (tests/Tracon.AGUI.FunctionalTests): no shipped package depends
+    on it. Reason: the server tests read the event with the protocol SDK's serializer;
+    this client reads the wire format with its own parser and runs the event sequence
+    through its own state machine (RUN_STARTED ... RUN_FINISHED), so it sees what a
+    consumer sees. Its dependencies are AGUI.Formatting 1.0.1 and
+    Microsoft.Extensions.AI (10.6.0; Tracon is on 10.11.0).
   -->
-  <ItemGroup Label="AG-UI istemcisi (yalnizca test)">
+  <ItemGroup Label="AG-UI client (test only)">
     <PackageVersion Include="AGUI.Client" Version="1.0.1" />
   </ItemGroup>
 
-  <ItemGroup Label="Analyzer'lar (PrivateAssets=all)">
+  <ItemGroup Label="Analyzers (PrivateAssets=all)">
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.303" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
@@ -294,34 +300,33 @@
   </ItemGroup>
 
   <!--
-    Tracon.Generators (tool kaynak ureteci). Tracon.Core icinde
-    Analyzer olarak tasinir, PrivateAssets=all + ReferenceOutputAssembly=false;
-    tuketicinin bagimlilik grafigine SIZMAZ (dotnet list package ile dogrulanir).
+    Tracon.Generators (tool source generator). It is carried inside Tracon.Core as an
+    Analyzer, PrivateAssets=all + ReferenceOutputAssembly=false; it does NOT LEAK into
+    the consumer's dependency graph (verified with `dotnet list package`).
 
-    🚨 Surum 5.0.0'dir, DAHA YENI DEGIL. Uretec, kendisini yukleyen
-    derleyicinin Roslyn'inden YENI olamaz - yeni olursa eski SDK'da SESSIZCE
-    yuklenmez. Paketler yalniz net10.0 hedefler; net10.0 projesini derleyebilen
-    en eski SDK 10.0.100'dur ve Roslyn 5.0.0 tasir (olculdu 2026-10-16:
-    10.0.100 -> 5.0.0 · 10.0.402 -> 5.9.0). Taban bu yuzden 5.0.0'dir; 5.9.0
-    SDK 10.0.100'de yuklenmez. Paketler net8.0'i da hedefledigi surece taban
-    4.8.0'di (.NET 8 SDK GA'nin Roslyn'i, dotnet/roslyn#70919).
+    🚨 The version is 5.0.0, NOT NEWER. A generator cannot be newer than the Roslyn of
+    the compiler that loads it - if it is, it silently fails to load on an older SDK.
+    The packages target net10.0 only; the oldest SDK that can compile a net10.0 project
+    is 10.0.100 and it carries Roslyn 5.0.0 (measured 2026-10-16:
+    10.0.100 -> 5.0.0 · 10.0.402 -> 5.9.0). The floor is therefore 5.0.0; 5.9.0 does
+    not load in SDK 10.0.100. While the packages also targeted net8.0 the floor was
+    4.8.0 (the Roslyn of the .NET 8 SDK GA, dotnet/roslyn#70919).
   -->
-  <ItemGroup Label="Kaynak Ureteci (Tracon.Generators, IsPackable=false)">
+  <ItemGroup Label="Source generator (Tracon.Generators, IsPackable=false)">
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
   </ItemGroup>
 
   <!--
-    Test yigini: xunit.v3 + Microsoft Testing Platform (MTP).
-    Microsoft.NET.Test.Sdk ve xunit.runner.visualstudio BILEREK YOK - bunlar VSTest icindir
-    ve xunit.v3 ile birlikte kullanildiklarinda `dotnet test` calismaz.
-    Microsoft.AspNetCore.Mvc.Testing ve Testcontainers.PostgreSql
-    surumleri simdiden sabitlenmistir; ilgili test projeleri o fazlarda eklenir.
+    Test stack: xunit.v3 + Microsoft Testing Platform (MTP).
+    Microsoft.NET.Test.Sdk and xunit.runner.visualstudio are deliberately ABSENT - they
+    are for VSTest, and `dotnet test` does not work when they are used together with
+    xunit.v3.
   -->
   <ItemGroup Label="Test">
     <!--
-      Microsoft.AspNetCore.Mvc.Testing DEGIL: WebApplicationFactory<T> bir giris
-      noktasi derlemesi ister ve Tracon bir kutuphanedir. TestHost, minimal
-      API uclarini kendi barindiricisinda ayaga kaldirmaya yeter.
+      The library tests use TestHost, NOT Microsoft.AspNetCore.Mvc.Testing:
+      WebApplicationFactory<T> needs an entry-point assembly and Tracon is a library.
+      TestHost is enough to start the minimal API endpoints in its own host.
     -->
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.14" />
     <!--
@@ -333,13 +338,13 @@
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <!--
-      Yalnizca UI paketi (SwaggerGen degil): dokuman zaten Microsoft.AspNetCore.OpenApi
-      ile uretiliyor (AddOpenApi/MapOpenApi), bu paket sadece /openapi/v1.json'u
-      interaktif bir sayfada gosterir. samples/Tracon.Api disinda kullanilmaz.
+      Only the UI package (not SwaggerGen): the document is already produced by
+      Microsoft.AspNetCore.OpenApi (AddOpenApi/MapOpenApi); this package only shows
+      /openapi/v1.json on an interactive page. Not used outside samples/Tracon.Api.
     -->
     <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.0" />
-    <!-- xunit.v3 4.x, Microsoft Testing Platform 2.x uzerine kuruludur; TrxReport ayni platform
-         surumunu ceker. 1.x ile birlikte calisma aninda TypeLoadException verir. -->
+    <!-- xunit.v3 4.x is built on Microsoft Testing Platform 2.x; TrxReport pulls the same
+         platform version. Running with 1.x gives TypeLoadException at run time. -->
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.1" />
     <!--
       Code coverage for the test projects, opt-in: only a build with
@@ -349,9 +354,9 @@
     -->
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
     <!--
-      Playwright arayuz E2E testleri icin. Tarayici ikilisi NuGet paketiyle
-      gelmez; test fixture'i eksikse kendisi indirir (bkz.
-      tests/Tracon.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
+      For the Playwright UI E2E tests. The browser binary does not come with the NuGet
+      package; the test fixture downloads it itself when it is missing (see
+      tests/Tracon.Ui.E2ETests/Infrastructure/BrowserFixture.cs).
     -->
     <PackageVersion Include="Microsoft.Playwright" Version="1.63.0" />
     <!--
@@ -362,9 +367,9 @@
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <!--
-      Testcontainers 4.16.0 yama surumu SSH.NET 2026.0.0'i dogrudan ceker
-      (GHSA-q939-rpr3-3284 kapanir); eski SSH.NET sabiti kalkti.
-      Sabit geri gerekirse once bos projede `NuGetAudit` ile olc.
+      The Testcontainers 4.16.0 patch version pulls SSH.NET 2026.0.0 directly
+      (GHSA-q939-rpr3-3284 is closed); the old SSH.NET pin is gone.
+      If the pin ever has to come back, measure first in an empty project with `NuGetAudit`.
     -->
     <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
@@ -399,12 +404,11 @@
     -->
     <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
     <!--
-      Tracon.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
-      (AzureOpenAIProviderOptions.CredentialFactory'nin gerekcesine bak): kimlik
-      bilgisi tipi tuketiciye birakilir. Sevk edilen `<example>` yine de
-      DefaultAzureCredential adlandiriyor; her ornegin derlendigini kanitlayan
-      kapinin gercek tipe ihtiyaci var - yalniz test icin, Tracon.Azure'un
-      kendi bagimlilik grafigi degismiyor.
+      Tracon.Azure deliberately does NOT depend on Azure.Identity (see the rationale of
+      AzureOpenAIProviderOptions.CredentialFactory): the credential type is left to the
+      consumer. The shipped `<example>` still names DefaultAzureCredential; the gate that
+      proves every example compiles needs the real type - for tests only, Tracon.Azure's
+      own dependency graph does not change.
     -->
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
   </ItemGroup>
@@ -416,7 +420,7 @@
     own disassembly/diagnostics stack) never reach a consumer's dependency
     graph. Line never reached 1.0; 0.15.8 is the latest published version.
   -->
-  <ItemGroup Label="Performans olcumu (bench/, IsPackable=false)">
+  <ItemGroup Label="Performance measurement (bench/, IsPackable=false)">
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
   </ItemGroup>
 

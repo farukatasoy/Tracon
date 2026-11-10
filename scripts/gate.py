@@ -36,10 +36,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"
 MEASUREMENTS = ARTIFACTS / "gate-timings.jsonl"
 PACKAGE_RELEASE_DIR = ARTIFACTS / "package" / "release"
-# `release --dry-run` (pack modu) çıktısı: sürüm başına AYRI bir dizin. `release/`
-# geliştirme döngüsünün feed'idir (`dotnet pack`, kapanış, paket testleri oraya
-# yazar); prova oraya promote ettiğinde her eski sürüm provanın sample kapısını
-# düşürüyordu ve hicbir dosya silinmez. Ayrı dizinde farklı sürüm hiç karışmaz.
+# Output of `release --dry-run` (pack mode): one SEPARATE directory per version. `release/`
+# is the feed of the development loop (`dotnet pack`, the close gate and the package tests
+# write there); when the rehearsal promoted into it, every old version failed the rehearsal's
+# sample gate, because no file is ever deleted. In a separate directory versions never mix.
 PACKAGE_REHEARSAL_ROOT = ARTIFACTS / "package" / "rehearsal"
 PACKABLE_SOLUTION_FILTER = ROOT / "Tracon.src.slnf"
 PACKAGE_MANIFEST_NAME = "package-manifest.json"
@@ -48,81 +48,86 @@ PACKAGE_FILE_SUFFIXES = (".nupkg", ".snupkg")
 NPM_CLIENT_PACKAGE_DIR = ROOT / "packages" / "tracon-client"
 RELEASE_VERSION_PATTERN = re.compile(r"^1\.0\.0-preview\.\d+$")
 PRERELEASE_DEPENDENCY_PATTERN = re.compile(r'id="(?P<id>[^"]+)" version="(?P<range>[^"]*-[^"]*)"')
-# `[v]` ya da `[v, v]` - NuGet'in iki tam aralık yazımı.
+# `[v]` or `[v, v]` - the two ways NuGet spells an exact range.
 EXACT_RANGE_PATTERN = re.compile(r"\[(?P<version>[^,\]\s]+)(?:\s*,\s*(?P=version))?\]")
 REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="(?P<commit>[0-9a-f]{7,})"[^>]*/>')
 RELEASE_NOTES_PATTERN = re.compile(r"<releaseNotes>(?P<url>[^<]*)</releaseNotes>")
-K008_EXEMPT_PACKAGE = "Tracon.AspNetCore"
-# Sevk edilen contract paketi xunit.v3 3.x tüketicisini zorlamaz.
-# Reponun kendi testleri xunit.v3 4.x'te koşar ve her tüketici bu repoda (örnekler dahil)
-# 4.x'tir; 3.x tüketicisini hiçbir koşum ölçmez. Alt sınırı nuspec'e bakan bu kapı sabitler.
+PRERELEASE_MAF_EXEMPT_PACKAGE = "Tracon.AspNetCore"
+# The shipped contract package does not force xunit.v3 3.x on its consumers.
+# The repository's own tests run on xunit.v3 4.x and every consumer in this repo (samples
+# included) is on 4.x; no run measures a 3.x consumer. This gate pins the lower bound by
+# reading the nuspec.
 SHIPPED_DEPENDENCY_FLOORS = {
     "Tracon.Testing.Contracts.Xunit": {"xunit.v3.extensibility.core": "3.2.2", "xunit.v3.assert": "3.2.2"},
 }
 NUSPEC_DEPENDENCY_PATTERN = re.compile(r'<dependency id="(?P<id>[^"]+)" version="(?P<range>[^"]*)"')
-# üçüncü taraf kodunu PAKETİN İÇİNDE taşıyan paket, o kodun lisans
-# bildirimini de taşır. Değer repo'daki kaynak dosyadır; paketteki kopya ona
-# bayt bayt eşit olmalı (paketleme kontrol edilen dosyayı mı aldı?).
+# A package that carries third-party code INSIDE the package also carries that code's
+# license notice. The value is the source file in the repo; the copy inside the package
+# must be byte-for-byte equal to it (did packing take the file that was checked?).
 THIRD_PARTY_NOTICE_NAME = "THIRD-PARTY-NOTICES.txt"
 THIRD_PARTY_NOTICE_PACKAGES = {"Tracon.UI": pathlib.PurePath("src", "Tracon.UI", THIRD_PARTY_NOTICE_NAME)}
 APPLIED_MIGRATION_DIRECTORIES = ("Migrations", "MigrationsKnowledge", "MigrationsViews")
-# Iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
-# timeout uretiyordu). Sabit beklemeler kosul-beklemeye donunce
-# olculdu, ayni makine, ayni kod (d0cdd2c2): 1 modul 863 ve 879 sn,
-# 2 modul 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
-# ci.yml her test isinde `--project` ile BIR modul kosar ve isler birbirine paralel
-# akar; runner donanimi olculmedi. `--max-parallel-test-modules 1` yalniz kultur
-# isinin `--solution` kosumunda (moduller seri) kullanilir. Izole kosumda gecen bir
-# kapanis kirmizisi sayiyi dusurmek icin sebep degildir: o test bir kaynak
-# ya da zaman varsayimi tasir ya da urun yarisini gosterir; duzeltilen odur.
+# Two test projects at the same time. It used to be 1 (three workers produced fake
+# timeouts for minutes). Once the fixed waits became condition waits it was measured on the
+# same machine with the same code: 1 module took 863 and 879 s, 2 modules took
+# 607 · 658 · 524 s, and all three runs had 0 red among 16,962 tests.
+# ci.yml runs ONE module per test job with `--project` and the jobs run in parallel with each
+# other; runner hardware was not measured. `--max-parallel-test-modules 1` is used only in the
+# culture job's `--solution` run (the modules run in series). A close-gate red that passes in
+# an isolated run is no reason to lower the number: that test either carries a resource or
+# timing assumption or shows a product race, and that is what gets fixed.
 #
-# `dotnet test` MTP kipindedir (global.json `test.runner`). Eski
-# `-maxcpucount:N` bu kipte HIC TEST KOSTURMADAN cikis kodu 5 verir; esdegeri
-# `--max-parallel-test-modules N`'dir. Sayi ayni kalir: bir "modul" bir test
-# ikilisidir (cok hedefli projede her TFM bacagi ayri modul).
+# `dotnet test` runs in MTP mode (`test.runner` in global.json). In this mode the old
+# `-maxcpucount:N` exits with code 5 WITHOUT RUNNING ANY TEST; the equivalent is
+# `--max-parallel-test-modules N`. The number stays the same: a "module" is one test
+# binary (in a multi-targeted project every TFM leg is a separate module).
 #
 # The closing test run keeps the same limit in two forms: a run of several light modules (the solution
 # filter) gets it as `--max-parallel-test-modules`, and the heavy modules run in exactly this many
 # lanes (`HEAVY_TEST_LANES`), one module per lane at a time. At most this many modules run at once.
 TEST_MAX_CPU_COUNT = 2
 
-# MTP 2 TRX'i test ikilisinin yanina degil `--results-directory`'ye
-# yazar; `per-module` dizilimi `<proje>/<tfm>_<mimari>/*.trx` verir. ci.yml
-# "Test et" adimlari ve "Test sonuclarini yukle" adimi AYNI yolu tasir
-# (`gate_test.py` ikisini birlikte denetler).
+# MTP 2 writes the TRX to `--results-directory`, not next to the test binary; the
+# `per-module` layout gives `<project>/<tfm>_<arch>/*.trx`. The test steps of ci.yml and
+# its upload-results step carry the SAME path (`gate_test.py` checks both together).
 TEST_RESULTS_DIRECTORY = "artifacts/test-results"
 TEST_DURATIONS_DIRECTORY = "artifacts/test-durations"
 TEST_DURATIONS_KEEP = 20
 
-# Modul basina mutlak duvar suresi butcesi, saniye: TRX'in `Times start` ile `finish` arasi,
-# container baslatma dahil. TRX raporlayan bir `dotnet test` (tam kosum) yesil biter ama
-# butcesi olan bir modul butcesini asarsa kapi KIRMIZIDIR (cikis kodu 90). Her test modulu bir butce
-# tasiyabilir; tablo tek yerdedir ve bu dosyadadir. Butcesi olmayan modulun suresi her kosumda
-# raporlanir ama kapiyi kirmaz. Butce yerel kapinin ayaridir (iki modul ayni anda, gelistirici
-# makinesi); CI bu komutu kosmaz, runner donanimi olculmedi.
+# Absolute wall-time budget per module, in seconds: the span between `Times start` and `finish`
+# in the TRX, container startup included. A `dotnet test` that reports TRX (a full run) ends
+# green, but if a module that has a budget exceeds it the gate is RED (exit code 90). Every
+# test module may carry a budget; the table lives in one place and it is this file. The time of
+# a module without a budget is reported on every run but never fails the gate. The budget is the
+# yardstick of the local gate (two modules at the same time, a developer machine); CI does not
+# run this command and runner hardware was not measured.
 #
-# Bir giris SU KURALLA eklenir: ayni kod boyutunda (test sayisi +-%5) en az UC yesil tam-modul
-# kosumunun TRX duvar suresi vardir; butce = en yavas kosum + %10, 10 sn'ye yukari yuvarlanir. Tahminle
-# ve tek kosumla butce konmaz. En yavas olcumu 10 sn'nin altindaki modulde butce konmaz: 10 sn'ye
-# yuvarlama olculenin katini verir ve bir sinir olmaz. Her girisin kaniti burada durur:
-#   SqlServer 400: tam kapida iki modul ayni anda, baska modullerle birlikte (bos makine degil);
-#     en yavas kosum 361 sn. Hedef 240 sn; butce hedefe iner.
-#   TwoNode 540: ayni olcum; en yavas kosum 489 sn. Hedef 500 sn.
-#   Ui.E2ETests 40: bes `stability` kosumu, 117 test, en yavas 32,3 sn x 1,10 = 35,5 sn -> 40 sn
-#     (onceki 60 sn, CI matrisinin 47,9 sn'lik olcumunden gelmisti: bu makinede degil).
-#   Asagidaki yedisi ayni bes `stability` kosumundan (ayni test sayisi; en yavas kosum, CPU baskili
-#   iki kosum DAHIL, yani butce kapinin normal kosumundan comerttir): AspNetCore 359,7 sn (4296 test)
-#   -> 400 · PostgreSql 149,4 sn (1805) -> 170 · Package 275,9 sn (139) -> 310 · Core 42,1 sn (7373;
-#   bir kosumu kirmizi, yesil kosumlarin en yavasi) -> 50 · Workflows 31,2 sn (703) -> 40 ·
-#   Generators 23,8 sn (414) -> 30 · Sqlite 75,1 sn (1880) -> 90. Butce konmayanlar: SqlServer
-#     ve TwoNode (en yavas olcum baskili kosumdan 387,7 ve 643,4 sn: yukseltme olurdu, tablo yalniz
-#     duser); Cli (10,2 sn: 20 sn'ye yuvarlama bir sinir olmaz) ve 10 sn altindaki moduller.
+# An entry is added by THIS rule: at the same code size (test count +-5%) there are at least
+# THREE green full-module runs with a TRX wall time; budget = slowest run + 10%, rounded up to
+# 10 s. A budget is never set from an estimate or from one run. No budget is set for a module
+# whose slowest measurement is under 10 s: rounding up to 10 s would give a multiple of the
+# measured time, which is no limit. The evidence for each entry stays here:
+#   SqlServer 400: in the full gate with two modules at the same time and other modules
+#     beside them (not an empty machine); slowest run 361 s. Target 240 s; the budget comes
+#     down to the target.
+#   TwoNode 540: same measurement; slowest run 489 s. Target 500 s.
+#   Ui.E2ETests 40: five `stability` runs, 117 tests, slowest 32.3 s x 1.10 = 35.5 s -> 40 s
+#     (the earlier 60 s came from the 47.9 s measurement of the CI matrix: not from this machine).
+#   The next seven come from the same five `stability` runs (same test count; slowest run, TWO
+#   runs under CPU pressure INCLUDED, so the budget is more generous than a normal run of the
+#   gate): AspNetCore 359.7 s (4296 tests) -> 400 · PostgreSql 149.4 s (1805) -> 170 ·
+#   Package 275.9 s (139) -> 310 · Core 42.1 s (7373; one run was red, slowest of the green
+#   runs) -> 50 · Workflows 31.2 s (703) -> 40 · Generators 23.8 s (414) -> 30 ·
+#   Sqlite 75.1 s (1880) -> 90. Not re-derived from these runs: SqlServer and TwoNode keep
+#   their entries above (the slowest measurements from the pressured runs, 387.7 and 643.4 s,
+#   would raise them and the table only goes down); Cli has no budget (10.2 s: rounding up to
+#   20 s would be no limit) and neither do the modules under 10 s.
 #
-# 🚨 Sayi yalniz DUSER. Asan modulde butce yukseltilmez: once sebep olculur
-# (`artifacts/test-durations/` test basina kayit). Tek istisna kanitli yavas
-# makinedir: hicbir assert dusmedi ve format ile derleme ayni gunun normal
-# kosumunun en az 4 kati surdu. O kosum bir kez tekrarlanir ve kaydedilir.
-# Sure DEGISKENLIGI kapida denetlenmez: onu `stability` komutu olcer.
+# 🚨 The number only goes DOWN. A budget is not raised when a module exceeds it: first the cause
+# is measured (`artifacts/test-durations/` keeps a record per test). The only exception is a
+# proven slow machine: no assert failed and format and build took at least 4 times as long as on
+# the same day's normal run. That run is repeated once and recorded.
+# Time VARIANCE is not checked by the gate: the `stability` command measures it.
 TEST_MODULE_TIME_LIMITS_SECONDS: dict[str, int] = {
     "Tracon.SqlServer.IntegrationTests": 400,
     "Tracon.TwoNode.IntegrationTests": 540,
@@ -141,7 +146,7 @@ TEST_MODULE_TIME_LIMITS_SECONDS: dict[str, int] = {
 SYNC_ROOTS = ("src", "tests", "samples", "docs")
 SCAN_EXCLUDED_DIRS = {
     ".git", "artifacts", "node_modules", "dist", ".astro", ".vite", "wwwroot",
-    "obj", "bin", "TestResults", "manuel-test", "arsiv", "manuel-test-kosumu",
+    "obj", "bin", "TestResults",
 }
 SYNC_NAME = re.compile(r".+ 2(?:\..+)?$")
 
@@ -151,8 +156,8 @@ SYNC_NAME = re.compile(r".+ 2(?:\..+)?$")
 # positives and gets switched off.
 DOC_REFERENCE = re.compile(r"(?<![\w/-])docs" r"/[A-Za-z0-9._/\-]+\.md")
 DOC_REFERENCE_ROOTS = ("src", "tests", "samples", "bench", "scripts", "docs-site", ".github")
-# Metavariable filenames: an illustrative path in a template or in the archiving
-# script's own comments. These never resolve and are not a defect.
+# Metavariable filenames: an illustrative path in a template or in a comment.
+# These never resolve and are not a defect.
 DOC_REFERENCE_PLACEHOLDER = re.compile(r"(^|[-/])(NN|X|Y)([-.]|$)")
 # A migration that already ran against a customer database is BYTE-FROZEN:
 # the publishing gate rejects any change to it, a comment included. A stale
@@ -160,44 +165,39 @@ DOC_REFERENCE_PLACEHOLDER = re.compile(r"(^|[-/])(NN|X|Y)([-.]|$)")
 # assumed. The gate must not demand the impossible, so those directories are
 # exempt; the comment stays true of the moment the migration shipped.
 DOC_REFERENCE_FROZEN_DIR = re.compile(r"(^|[\\/])Migrations[A-Za-z]*[\\/]")
-# 🚨 İki katman (2026-09-19). Tek desen tek kapsamla koşarken kapı yeşil derken
-# `arsiv` altinda GERÇEK bir `ApiKeyGenerator` çıktısı duruyordu.
-# İki bağımsız boşluk vardı ve ikisi de tek başına yeterliydi: desen ürünün KENDİ
-# anahtar formatını (`ap_*`) tanımıyordu, ve kapsam `arsiv` ile `manuel-test`
-# ağaçlarını hiç yürümüyordu — oysa üretilmiş bir credential'ın yapışacağı tek
-# yer gerçek koşum çıktısı taşıyan o iki ağaçtır.
+# 🚨 Two layers (2026-09-19). While a single pattern ran over a single scope, the gate was
+# green and a REAL `ApiKeyGenerator` output sat in a record of a past run.
+# There were two independent gaps and either one alone was enough: the pattern did not know
+# the product's OWN key format (`ap_*`), and the scope never walked the trees that hold
+# records of past runs - yet those are the only place where a generated credential
+# gets pasted, because they carry real run output.
 #
-# Kapsamı tüm desenler için açmak çözüm DEĞİLDİR: ölçüldü, 51 eşleşmenin 48'i
-# localhost docker parolasıdır ve hepsini işaretlemek aşağıdaki SYNTHETIC_MARKER
-# yorumunun yasakladığı şeyi üretir. Ayrım ŞEKİLDEDİR: bir credential şekli
-# dokümanda asla meşru değildir, yerel kurulum deyimi ise manuel testin kendisidir.
+# Opening the scope to every pattern is NOT the fix: measured, 48 of 51 matches
+# are localhost docker passwords, and flagging all of them would produce what the
+# SYNTHETIC_MARKER comment below forbids. The difference is the SHAPE: a credential shape
+# is never legitimate in a document, while a local setup phrase is the point of a run record.
 #
-# 🚨 Bu yorum deyimi düz yazamaz - dosya kapının KENDİ taramasına girer ve düz
-# yazılan bir örnek kapıyı kendi kaynağı üzerinde kırmızı yapar. `gate_test.py`
-# aynı sebeple fixture'ı parçalı yazar (`"Pass" + "word="`). Ölçüldü, yaşandı.
+# 🚨 This comment cannot spell the phrase out - the file goes through the gate's OWN scan and
+# an example written in plain text turns the gate red on its own source. `gate_test.py`
+# writes its fixture in pieces for the same reason (`"Pass" + "word="`). Measured, and it happened.
 CREDENTIAL_SHAPE_PATTERN = re.compile(
     r"sk-[a-z]+-[A-Za-z0-9_-]{24,}"
     r"|AVNS_[A-Za-z0-9]{12,}"
-    # `ApiKeyGenerator`: `ap_` + kiracı eki (≤12) + `_` + base64url(32 bayt) = 43 karakter.
-    # Uzunluk TAM verilir: `{43,}` yazmak `ap_on_total_source_code_size_for_...`
-    # gibi snake_case İngilizce metni yakalar - ölçüldü, 70+ yanlış pozitif.
+    # `ApiKeyGenerator`: `ap_` + tenant suffix (≤12) + `_` + base64url(32 bytes) = 43 characters.
+    # The length is given EXACTLY: writing `{43,}` catches snake_case English text such as
+    # `ap_on_total_source_code_size_for_...` - measured, 70+ false positives.
     r"|\bap_[a-z0-9]{1,12}_[A-Za-z0-9_-]{43}\b"
     r"|\bghp_[A-Za-z0-9]{36}\b"
     r"|\bAKIA[0-9A-Z]{16}\b"
     r"|\bAIza[A-Za-z0-9_-]{35}\b"
     r"|\bwhsec_[A-Za-z0-9]{24,}\b"
 )
-# Yerel kurulum deyimi. Yalnız kod ağacında aranır; `arsiv` ve `manuel-test`
-# kayıtlarında bir docker parolası kusur değil, tekrar üretilebilirlik talimatıdır.
+# The local setup phrase. It is searched for only in the code tree; in the records of past
+# runs a docker password is no defect, it is a reproduction instruction.
 LOCAL_CREDENTIAL_PATTERN = re.compile(r"(?:Password|pwd)=[^ \";']{6,}")
-# Yerel kurulum deyiminin meşru olduğu ağaçlar: arşivlenmiş faz kaydı, manuel
-# kabul seti ve onu koşan skill'in kurulum kaynağı. Burada yalnız
-# CREDENTIAL_SHAPE_PATTERN koşar - şekil taraması bu ağaçlara GİRER, çünkü
-# kaçırılan gerçek anahtar tam olarak burada duruyordu.
-RUN_RECORD_DIRS = {"arsiv", "manuel-test", "manuel-test-kosumu"}
-# Bir secret tarayıcısını doğrulamak için sahte bir credential gerekir.
-# İstisna GİZLENMEZ, İŞARETLENİR: bu belirteci taşıyan satır atlanır ve kaç
-# satırın atlandığı raporlanır.
+# Validating a secret scanner needs a fake credential.
+# The exception is not HIDDEN, it is MARKED: a line that carries this marker is skipped and
+# the number of skipped lines is reported.
 SYNTHETIC_MARKER = "SYNTHETIC-CREDENTIAL"
 
 
@@ -264,6 +264,9 @@ class Extension:
     doc_reference_roots: tuple[str, ...] = ()
     ci_remote: str = "origin"
     """The git remote whose CI run `remote-state` reads. A repository that mirrors its code elsewhere names the mirror."""
+    record_dirs: tuple[str, ...] = ()
+    """Directory names that hold records of past runs. The credential-shape scan walks them, but the local
+    setup phrase (a database password in a reproduction recipe) is legitimate there and is not searched for."""
 
 
 PUBLIC = Extension()
@@ -573,15 +576,15 @@ def reports_trx(command: Command) -> bool:
     return command.args[:2] == ("dotnet", "test") and "--report-trx" in command.args
 
 
-ZERO_TESTS_EXIT_CODE = 8  # MTP'nin kendi "sifir test" cikis kodu
+ZERO_TESTS_EXIT_CODE = 8  # MTP's own "zero tests" exit code
 
 
 def require_executed_tests(since: float, root: pathlib.Path = ROOT) -> int:
     """0 if the run left TRX reports with tests in them, else `ZERO_TESTS_EXIT_CODE`.
 
-    cikis kodu 0 "test kostu" demek degildir. Kosum ya hic TRX
-    yazmadiysa (yol degisti, bayrak yutuldu) ya da TRX'ler bos ise kapi YESIL
-    degil KIRMIZI doner; ayrintiyi basar ki "yesil" sayiyla okunsun."""
+    Exit code 0 does not mean "tests ran". If the run wrote no TRX at all
+    (the path changed, a flag was swallowed) or the TRX files are empty, the gate returns
+    RED, not green; it prints the detail so that "green" is read together with the count."""
     tests, modules = executed_tests_from_trx(since, root)
     if tests == 0:
         print(f"❌ The test run exited with code 0, but no executed test exists under {TEST_RESULTS_DIRECTORY}"
@@ -591,13 +594,13 @@ def require_executed_tests(since: float, root: pathlib.Path = ROOT) -> int:
     return 0
 
 
-MODULE_TIME_LIMIT_EXIT_CODE = 90  # MTP kodlarinin (0-12) disinda: gate kendi kirmizisini ayirt eder
+MODULE_TIME_LIMIT_EXIT_CODE = 90  # outside the MTP codes (0-12): the gate tells its own red apart
 
 
 def _trx_instant(value: str | None) -> float | None:
-    """TRX zaman damgasi (`2026-11-09T11:03:40.357499Z`) -> epoch saniye; cozulemezse `None`.
+    """TRX timestamp (`2026-11-09T11:03:40.357499Z`) -> epoch seconds; `None` if it cannot be parsed.
 
-    .NET kesri yedi haneye kadar yazabilir; `datetime` alti haneyi okur, fazlasi atilir."""
+    .NET can write up to seven fraction digits; `datetime` reads six, the rest is dropped."""
     match = re.fullmatch(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d+))?(Z|[+-]\d\d:\d\d)?", value or "")
     if match is None:
         return None
@@ -610,7 +613,7 @@ def _trx_instant(value: str | None) -> float | None:
 
 
 def trx_wall_seconds(tree: Any) -> float | None:
-    """Bir TRX'in duvar suresi: `Times start` ile `finish` arasi, saniye. Okunamazsa `None`."""
+    """Wall time of one TRX: the span between `Times start` and `finish`, in seconds. `None` if unreadable."""
     times = tree.getroot().find(TRX_NS + "Times")
     if times is None:
         return None
@@ -625,11 +628,11 @@ def enforce_module_time_limits(
     root: pathlib.Path = ROOT,
     limits: dict[str, int] | None = None,
 ) -> int:
-    """0, butcesi olan her modul butcesinin altindaysa; asan varsa `MODULE_TIME_LIMIT_EXIT_CODE`.
+    """0 if every module that has a budget is under it; `MODULE_TIME_LIMIT_EXIT_CODE` if one exceeds it.
 
-    Her modulun duvar suresi her kosumda basilir: butceye yaklasma kirmizidan once gorunur. Butcesi
-    olmayan modul yalniz raporlanir (`sinir yok`). Suresi okunamayan TRX uyarir, kapiyi kirmaz.
-    Sure degiskenligi burada denetlenmez; onu `stability` olcer."""
+    The wall time of every module is printed on every run: getting close to the budget shows up before
+    the red. A module without a budget is only reported (`no limit`). A TRX whose time cannot be read
+    warns and does not fail the gate. Time variance is not checked here; `stability` measures it."""
     limits = TEST_MODULE_TIME_LIMITS_SECONDS if limits is None else limits
     results = root / TEST_RESULTS_DIRECTORY
     measured: list[tuple[float, str, int | None]] = []
@@ -690,33 +693,34 @@ def find_sync_copies(
     return sorted(found)
 
 
-def find_secrets(root: pathlib.Path = ROOT) -> tuple[list[str], int]:
+def find_secrets(root: pathlib.Path = ROOT, extension: Extension | None = None) -> tuple[list[str], int]:
     """Return matching path/line records and how many marked fixtures were skipped.
 
-    🚨 Bir secret TARAYICISINI test etmenin tek yolu ona credential
-    şeklinde bir şey göstermektir; kapasite aparatı hem redaction testlerinde
-    hem de koştuğu her koşumda kasıtlı olarak SENTETİK bir canary kullanır
-    (hiçbir yere bağlanmaz). O satırlar bu kapıyı kırardı.
+    🚨 The only way to test a secret SCANNER is to show it something shaped like a
+    credential; the capacity harness deliberately uses a SYNTHETIC canary both in
+    its redaction tests and in every run it makes (it connects to nothing). Those
+    lines would turn this gate red.
 
-    Çözüm gizlemek DEĞİL işaretlemektir: satırın kendisi SYNTHETIC_MARKER
-    taşımalıdır, böylece istisna kod incelemesinde görünür kalır. Kaç satırın
-    atlandığı ayrıca raporlanır - sessizce büyüyen bir istisna listesi, kapının
-    olmamasıyla aynı şeydir.
+    The fix is to MARK, not to hide: the line itself must carry SYNTHETIC_MARKER, so
+    the exception stays visible in code review. The number of skipped lines is
+    reported too - an exception list that grows silently is the same as having no gate.
 
-    Tarama iki katmanlıdır (bkz. CREDENTIAL_SHAPE_PATTERN). Şekil taraması
-    `arsiv` ve `manuel-test` dahil her yerde koşar; yerel kurulum deyimi yalnız
-    kod ağacında aranır."""
+    The scan has two layers (see CREDENTIAL_SHAPE_PATTERN). The shape scan runs
+    everywhere, the trees of past-run records included; the local setup phrase is
+    searched for only in the code tree."""
     found: list[str] = []
     skipped = 0
-    shape_scope = SCAN_EXCLUDED_DIRS - RUN_RECORD_DIRS
-    for path in _walk_files(root, excluded_dirs=shape_scope):
+    # Records of past runs (the extension names them) carry the local setup phrase on purpose; only the
+    # credential shape is searched for there - a real key that was missed once sat in exactly such a tree.
+    record_dirs = frozenset((extension or PUBLIC).record_dirs)
+    for path in _walk_files(root, excluded_dirs=SCAN_EXCLUDED_DIRS):
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError):
             continue
         relative = path.relative_to(root)
         patterns = [CREDENTIAL_SHAPE_PATTERN]
-        if not RUN_RECORD_DIRS.intersection(relative.parts):
+        if not record_dirs.intersection(relative.parts):
             patterns.append(LOCAL_CREDENTIAL_PATTERN)
         for line_number, line in enumerate(lines, 1):
             if not any(pattern.search(line) for pattern in patterns):
@@ -733,18 +737,17 @@ def find_stale_doc_references(
 ) -> list[str]:
     """Return `path:line:reference` records for `docs/` targets that do not exist.
 
-    Closing a phase deletes its document (a private script, which
-    also rewrites references to it); archiving used to move it. Either way every
-    reference OUTSIDE `docs/` — a migration comment, an analyzer release note
-    that SHIPS in the package, a CI workflow — could be left pointing at a path
-    that no longer exists.
+    A document under `docs/` is deleted or moved when its work is done, and the tooling
+    that does it rewrites the references INSIDE `docs/`. Every reference OUTSIDE `docs/`
+    — a migration comment, an analyzer release note that SHIPS in the package, a CI
+    workflow — could be left pointing at a path that no longer exists.
     """
     found: list[str] = []
     for relative_root in roots:
         base = root / relative_root
         if not base.exists():
             continue
-        for path in _walk_files(base, excluded_dirs=SCAN_EXCLUDED_DIRS - {"arsiv"}):
+        for path in _walk_files(base, excluded_dirs=SCAN_EXCLUDED_DIRS):
             relative = path.relative_to(root)
             if DOC_REFERENCE_FROZEN_DIR.search(str(relative)):
                 continue
@@ -777,8 +780,8 @@ def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
     script = root / PUBLIC_SURFACE_AUDIT
     if not script.is_file():
         return []
-    # The audit prints Turkish type-class names; pin UTF-8 on both ends so a cp1252 console
-    # (Windows) cannot turn the audit itself into a crash.
+    # The audit's messages contain non-ASCII characters (`—`, `→`); pin UTF-8 on both ends
+    # so a cp1252 console (Windows) cannot turn the audit itself into a crash.
     run = dict(cwd=root, capture_output=True, text=True, encoding="utf-8", check=False,
                env={**os.environ, "PYTHONUTF8": "1"})
     result = subprocess.run([sys.executable, str(script), "--check"], **run)
@@ -869,7 +872,7 @@ def upgrade_baseline_drift(root: pathlib.Path = ROOT) -> list[str]:
 def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     """Run the synchronization-copy, secret, doc-reference, public-surface, Context7-version and upgrade-baseline scans, then the extension's own."""
     copies = find_sync_copies(root, (*SYNC_ROOTS, *extension.sync_roots))
-    secrets, synthetic = find_secrets(root)
+    secrets, synthetic = find_secrets(root, extension)
     stale_docs = find_stale_doc_references(root, (*DOC_REFERENCE_ROOTS, *extension.doc_reference_roots))
     public_surface = public_surface_violations(root)
     context7 = context7_version_drift(root)
@@ -1148,8 +1151,8 @@ def performance_gate(
     return exit_code
 
 
-# src/Tracon.Providers.Shared ve tests/Shared/Providers dort saglayici
-# test projesine birden baglanir (<Compile Include>); etki alani tam bu dortlu.
+# src/Tracon.Providers.Shared and tests/Shared/Providers are linked into all four provider
+# test projects at once (<Compile Include>); the blast radius is exactly these four.
 PROVIDER_TEST_PROJECTS: tuple[str, ...] = (
     "Tracon.OpenAI.UnitTests",
     "Tracon.Anthropic.UnitTests",
@@ -1157,8 +1160,8 @@ PROVIDER_TEST_PROJECTS: tuple[str, ...] = (
     "Tracon.Azure.UnitTests",
 )
 
-# tests/Shared/Upgrade yukseltme kapisinin kaynagidir; uc SQL saglayicisinin entegrasyon projesine
-# ve (veri dosyalari icin) Sql.Shared.UnitTests'e baglanir.
+# tests/Shared/Upgrade is the source of the upgrade gate; it is linked into the integration
+# projects of the three SQL providers and (for the data files) into Sql.Shared.UnitTests.
 UPGRADE_GATE_TEST_PROJECTS: tuple[str, ...] = (
     "Tracon.Sqlite.IntegrationTests",
     "Tracon.PostgreSql.IntegrationTests",
@@ -1167,21 +1170,21 @@ UPGRADE_GATE_TEST_PROJECTS: tuple[str, ...] = (
 )
 
 TEST_PROJECTS: dict[str, tuple[str, ...]] = {
-    # Tracon.Sql.Shared.UnitTests burada da secilir: kayit paritesi kapisinin
-    # (SqlProviderRegistrationParityTests) yakaladigi iki vaka -- uc
-    # saglayicida birden unutulan yeni store ve yalniz AddTracon'a eklenen
-    # Auditing* dekoratoru -- yalniz Core/Abstractions degisikliginde dogar.
+    # Tracon.Sql.Shared.UnitTests is selected here too: the two cases the registration parity
+    # gate (SqlProviderRegistrationParityTests) catches -- a new store forgotten in all three
+    # providers at once, and an Auditing* decorator added only to AddTracon -- are born
+    # only from a Core/Abstractions change.
     "Tracon.Abstractions": ("Tracon.Core.UnitTests", "Tracon.Sql.Shared.UnitTests", "Tracon.PackageOptions.UnitTests"),
     "Tracon.Core": (
         "Tracon.Core.UnitTests", "Tracon.AspNetCore.FunctionalTests", "Tracon.Sql.Shared.UnitTests",
         "Tracon.PackageOptions.UnitTests"),
     "Tracon.Generators": ("Tracon.Generators.UnitTests",),
-    # Uc SQL saglayicisinin ortak kapilari (kayit paritesi, migration paritesi,
-    # SQL metni snapshot'i) Tracon.Sql.Shared.UnitTests'te yasar. Tek bir Use*
-    # dosyasina dokunan degisiklik onlari da secmezse kayma yalniz tam kosumda
-    # gorunur.
-    # Iki dugumlu kabul seti her iki sunucu saglayicisinda calisir; bir saglayicinin sorgusu (sayac
-    # upsert'i, kira, iptal istegi) degisince onu da secer. Tracon.Sqlite secilmez: SQLite bu sette yoktur.
+    # The shared gates of the three SQL providers (registration parity, migration parity,
+    # SQL text snapshot) live in Tracon.Sql.Shared.UnitTests. If a change that touches a single
+    # Use* file does not select them too, drift shows up only in the full run.
+    # The two-node acceptance set runs on both server providers; when the query of one provider
+    # (counter upsert, lease, cancellation request) changes, it is selected too. Tracon.Sqlite is not
+    # selected: SQLite is not in this set.
     "Tracon.PostgreSql": (
         "Tracon.PostgreSql.IntegrationTests", "Tracon.Sql.Shared.UnitTests", "Tracon.TwoNode.IntegrationTests",
         "Tracon.PackageOptions.UnitTests"),
@@ -1193,31 +1196,32 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     "Tracon.Anthropic": ("Tracon.Anthropic.UnitTests", "Tracon.PackageOptions.UnitTests"),
     "Tracon.Google": ("Tracon.Google.UnitTests", "Tracon.PackageOptions.UnitTests"),
     "Tracon.Azure": ("Tracon.Azure.UnitTests", "Tracon.PackageOptions.UnitTests"),
-    # Paket DEGIL, dort saglayici paketine derlenen paylasimli kaynak.
-    # Haritada olmasa tam kosuma duserdi; oysa tam etki alani bu dort proje ve
-    # saglayici ayar bolumlerini gercek kapsayicidan yurutan PackageOptions projesidir.
+    # NOT a package: shared source compiled into the four provider packages.
+    # Without an entry here it would fall back to the full run; but the full blast radius is these
+    # four projects and the PackageOptions project, which drives the provider option sections
+    # through the real container.
     "Tracon.Providers.Shared": (*PROVIDER_TEST_PROJECTS, "Tracon.PackageOptions.UnitTests"),
-    # Paket DEGIL; OpenAI istemci kutuphanesini kullanan iki pakete
-    # (Tracon.OpenAI, Tracon.Azure) derlenen paylasimli kaynak.
+    # NOT a package; shared source compiled into the two packages that use the OpenAI
+    # client library (Tracon.OpenAI, Tracon.Azure).
     "Tracon.OpenAI.Shared": ("Tracon.OpenAI.UnitTests", "Tracon.Azure.UnitTests"),
     "Tracon.Voice": ("Tracon.Voice.UnitTests", "Tracon.PackageOptions.UnitTests"),
     "Tracon.Mcp": ("Tracon.Mcp.UnitTests", "Tracon.PackageOptions.UnitTests"),
     "Tracon.Workflows": ("Tracon.Workflows.UnitTests", "Tracon.PackageOptions.UnitTests"),
-    # AG-UI paylasir: tur kurulumu (AgentTurnService) AspNetCore'dadir, bu yuzden onun degisikligi AG-UI testlerini de secer.
+    # AG-UI shares it: turn setup (AgentTurnService) lives in AspNetCore, so a change there selects the AG-UI tests too.
     "Tracon.AspNetCore": ("Tracon.AspNetCore.FunctionalTests", "Tracon.AGUI.FunctionalTests"),
     "Tracon.AGUI": ("Tracon.AGUI.FunctionalTests",),
     "Tracon.UI": ("Tracon.Ui.E2ETests",),
     "Tracon.Testing": ("Tracon.Testing.UnitTests",),
-    # Sevk edilen sozlesme paketi: kendi birim testleri ve sozlesmeyi tureten
-    # her proje (bellek ici store'lar Core'da, saglayici ayar sozlesmesi dort
-    # saglayicida, store sozlesmeleri uc SQL saglayicisinda). Haritada yokken
-    # her degisiklik tam kosuma genisliyordu (2026-10-13).
+    # The shipped contract package: its own unit tests and every project that derives
+    # the contract (the in-memory stores in Core, the provider options contract in the four
+    # providers, the store contracts in the three SQL providers). While it was missing from
+    # this map every change widened to the full run (2026-10-13).
     "Tracon.Testing.Contracts.Xunit": (
         "Tracon.Testing.Contracts.Xunit.UnitTests", "Tracon.Core.UnitTests",
         *PROVIDER_TEST_PROJECTS,
         "Tracon.PostgreSql.IntegrationTests", "Tracon.SqlServer.IntegrationTests",
         "Tracon.Sqlite.IntegrationTests"),
-    # Paket DEGIL: uc SQL paketine derlenen paylasimli kaynak.
+    # NOT a package: shared source compiled into the three SQL packages.
     "Tracon.Sql.Shared": (
         "Tracon.Sql.Shared.UnitTests", "Tracon.PostgreSql.IntegrationTests",
         "Tracon.SqlServer.IntegrationTests", "Tracon.Sqlite.IntegrationTests",
@@ -1230,8 +1234,8 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
 # Every src/ change reaches this project, whatever the package: its
 # ExampleExtractor enumerates src/**/*.cs and COMPILES every <example> block it
 # finds, so an XML doc comment added anywhere under src/ can break it. Measured
-# escape: ef9c8ee1 ("caught only by the full solution test run, not by
-# Tracon.Core.UnitTests alone") - the inner loop selected Core.UnitTests +
+# escape: a change was caught only by the full solution test run, not by
+# Tracon.Core.UnitTests alone - the inner loop selected Core.UnitTests +
 # AspNetCore.FunctionalTests and never ran the project that actually failed.
 # Costs 2.4 s measured (2026-09-04 per-project profile).
 EXAMPLE_COMPILING_TEST_PROJECT = "Tracon.Generators.UnitTests"
@@ -1241,9 +1245,9 @@ EXAMPLE_COMPILING_TEST_PROJECT = "Tracon.Generators.UnitTests"
 UI_TEST_PROJECT = "Tracon.Ui.E2ETests"
 
 # A sample directory the solution really tests, and the project that tests it
-# (via ProjectReference). Measured escape: 6e9cc8f6 - a sixth
-# embedding point, samples/Tracon.Embedded fell behind, and `inner-loop`
-# selected NO test project at all for a samples/ change.
+# (via ProjectReference). Measured escape: a sixth embedding point,
+# samples/Tracon.Embedded, fell behind, and `inner-loop` selected NO test
+# project at all for a samples/ change.
 SAMPLE_TEST_PROJECTS: dict[str, str] = {
     "Tracon.Embedded": "Tracon.Embedded.Tests",
 }
@@ -1489,8 +1493,8 @@ def require_test_runtimes(
 def _test_target(args: Sequence[str]) -> str:
     """The project or solution a `dotnet test` command targets.
 
-    MTP kipi hedefi `--solution` / `--project` ile alir; ilk konumsal
-    arguman (eski bicim) hala kabul edilir."""
+    MTP mode takes the target with `--solution` / `--project`; the first positional
+    argument (the old form) is still accepted."""
     for flag in ("--solution", "--project"):
         if flag in args and args.index(flag) + 1 < len(args):
             return args[args.index(flag) + 1]
@@ -1652,17 +1656,17 @@ class FailedTest:
 
     @property
     def label(self) -> str:
-        """`Proje` for a single-framework project, `Proje (net10.0)` for one leg of a multi-targeted one."""
+        """`Project` for a single-framework project, `Project (net10.0)` for one leg of a multi-targeted one."""
         framework = self.output.removeprefix("release").removeprefix("_")
         return f"{self.project} ({framework})" if framework else self.project
 
 
 def _recent_trx_reports(since: float, root: pathlib.Path) -> Iterable[tuple[str, pathlib.Path, Any]]:
-    """`since`'ten sonra yazilmis her TRX: (proje, dosya, ayristirilmis agac).
+    """Every TRX written after `since`: (project, file, parsed tree).
 
-    dizilim `--results-directory-layout per-module`'dur,
-    `<TEST_RESULTS_DIRECTORY>/<proje>/<tfm>_<mimari>/*.trx`. Okunamayan dosya
-    atlanir; TRX hic yoksa bos doner (cagiran bunu "sifir test" olarak yorumlar)."""
+    The layout is `--results-directory-layout per-module`,
+    `<TEST_RESULTS_DIRECTORY>/<project>/<tfm>_<arch>/*.trx`. An unreadable file
+    is skipped; with no TRX at all it yields nothing (the caller reads that as "zero tests")."""
     import xml.etree.ElementTree as elementtree
 
     for trx in sorted((root / TEST_RESULTS_DIRECTORY).glob("*/*/*.trx")):
@@ -1676,14 +1680,14 @@ def _recent_trx_reports(since: float, root: pathlib.Path) -> Iterable[tuple[str,
 
 
 def _trx_output_directory(tree: Any) -> str:
-    """Test ikilisinin `artifacts/bin/<proje>/` altindaki cikti klasoru adi.
+    """Name of the output folder of the test binary under `artifacts/bin/<project>/`.
 
-    TRX her modulun DLL yolunu `codeBase` olarak tasir; klasor adi `release` ya
-    da cok hedefli projede `release_<tfm>`'dir. Yol DECLARED cerceveden degil
-    TRX'in kendisinden okunur: bayat bir `release/` klasoru yanlis ikiliyi
-    kosturmaz. `codeBase` yoksa tek hedefli projenin `release` klasoru varsayilir;
-    canli TRX'lerde `codeBase` her zaman vardir, bu dal cok hedefli bir bacaga
-    dusmez."""
+    The TRX carries each module's DLL path as `codeBase`; the folder name is `release` or,
+    in a multi-targeted project, `release_<tfm>`. The path is read from the TRX itself, not
+    from the DECLARED framework: a stale `release/` folder cannot make the wrong binary
+    run. Without `codeBase` the `release` folder of a single-target project is assumed;
+    `codeBase` is always present in live TRX files, so this branch never lands on a
+    multi-targeted leg."""
     for method in tree.getroot().iter(TRX_NS + "TestMethod"):
         code_base = method.get("codeBase")
         if code_base:
@@ -1694,15 +1698,15 @@ def _trx_output_directory(tree: Any) -> str:
 
 
 def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[FailedTest]:
-    """`since`'ten sonra yazilmis her TRX'teki dusen test.
+    """Every failed test in every TRX written after `since`.
 
-    cok hedefli bir projenin her TFM bacagi AYRI bir TRX'tir; bacagin
-    ikilisi (`release_<tfm>`) TRX'ten okunur, yoksa o projelerin dusen testi
-    SESSIZCE kaybolur ve izole yeniden kosum hic tetiklenmezdi.
+    Each TFM leg of a multi-targeted project is a SEPARATE TRX; the leg's
+    binary (`release_<tfm>`) is read from the TRX. Without that, the failed tests of those
+    projects would vanish SILENTLY and the isolated rerun would never trigger.
 
-    TRX artik ikilinin yaninda degil `TEST_RESULTS_DIRECTORY` altindadir.
-    Eski yolu taramak HIC dusen test bulmaz ve kapi "izole kosacak bir sey yok"
-    der - kirmizi kirmizi kalir ama teshis sessizce kaybolur."""
+    The TRX is no longer next to the binary, it lives under `TEST_RESULTS_DIRECTORY`.
+    Scanning the old path finds NO failed test at all and the gate says "nothing to run in
+    isolation" - red stays red, but the diagnosis disappears silently."""
     failures: list[FailedTest] = []
     for project, _, tree in _recent_trx_reports(since, root):
         output = _trx_output_directory(tree)
@@ -1715,11 +1719,11 @@ def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[Faile
 
 
 def executed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> tuple[int, int]:
-    """(koşulan test sayisi, modul sayisi): `since`'ten sonra yazilmis TRX'lerden.
+    """(executed test count, module count) from the TRX files written after `since`.
 
-    MTP kipinde yanlis bir bayrak (`-maxcpucount` gibi) cikis kodu
-    vererek HIC test kosturmeden de bitebilir; tersi de dogru - cikis kodu 0
-    ve TRX'siz bir kosum "yesil" gorunur. Bu sayi o sessizligin kapisidir."""
+    In MTP mode a wrong flag (such as `-maxcpucount`) can end with an exit code
+    WITHOUT running any test; the reverse is true too - a run with exit code 0
+    and no TRX looks "green". This count is the gate against that silence."""
     tests = 0
     modules = 0
     for _, _, tree in _recent_trx_reports(since, root):
@@ -1729,7 +1733,7 @@ def executed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> tuple[in
 
 
 def _trx_duration_ms(value: str | None) -> int | None:
-    """`SS:DD:ss.fffffff` biciminde bir TRX suresi; cozulemezse `None`."""
+    """A TRX duration in the form `HH:MM:ss.fffffff`; `None` if it cannot be parsed."""
     match = re.fullmatch(r"(\d+):(\d\d):(\d\d(?:\.\d+)?)", value or "")
     if match is None:
         return None
@@ -1738,14 +1742,14 @@ def _trx_duration_ms(value: str | None) -> int | None:
 
 
 def record_test_durations(since: float, root: pathlib.Path = ROOT) -> pathlib.Path | None:
-    """`since`'ten sonra yazilmis TRX'lerden test basina sureyi kaydeder.
+    """Record the time per test from the TRX files written after `since`.
 
-    Testlerin suresi iterasyonlar arasinda degismemeli; bunu olcmek icin her
-    tam kosumun test basina suresi gerekir. TRX bir sonraki kosumda ezilir, bu
-    kayit ezilmez: `artifacts/test-durations/<utc>.json.gz`, son 20 kosum.
+    Test times must not drift between iterations; measuring that needs the
+    per-test time of every full run. The TRX is overwritten by the next run, this
+    record is not: `artifacts/test-durations/<utc>.json.gz`, the last 20 runs.
 
-    Yalniz rapordur: CIKIS KODUNU DEGISTIRMEZ. Yazilamazsa uyarir. Ayni adli
-    iki sonuc (ayni gorunen ada sahip `[Theory]` satirlari) en uzunuyla kalir."""
+    It is only a report: it does NOT CHANGE THE EXIT CODE. It warns if it cannot write. Two
+    results with the same name (`[Theory]` rows that show the same name) keep the longest."""
     results = root / TEST_RESULTS_DIRECTORY
     modules: dict[str, dict[str, int]] = {}
     for _, trx, tree in _recent_trx_reports(since, root):
@@ -1780,26 +1784,24 @@ def isolate_failed_tests(
     runner: Runner = subprocess.run,
     root: pathlib.Path = ROOT,
 ) -> list[tuple[str, str, bool]]:
-    """Dusen her testi TEK BASINA tekrar kos ve hukmu bas.
+    """Rerun every failed test ALONE and print the verdict.
 
-    Bir kusur incelenirken kullanilan uc adimli el yordami budur. Bu repoda "tam
-    kosumda duser, izole gecer" sinifi YEDI kez kayda gecti: alti vaka
-    belgelidir (sinif acildi;
-    ayri testlerle tekrarladi), yedincisini
-    2026-09-04 surec denetiminin taban kosumu uretti. Her seferinde ayirt
-    etme ELLE yapildi — cogu kez TAM paketi ikinci kez kosarak (~9 dakika,
-    olculdu: 553 sn). Izole kosum saniyeler surer (olculdu: 2,5 sn).
+    This is the three-step manual aid used while a defect is investigated. In this repo the
+    class "fails in the full run, passes in isolation" was recorded SEVEN times, the seventh
+    one on 2026-09-04. Every time the two causes were told apart BY HAND - most often by
+    running the FULL suite a second time (~9 minutes, measured: 553 s). An isolated run
+    takes seconds (measured: 2.5 s).
 
-    🚨 CIKIS KODUNU DEGISTIRMEZ. Bu bir teshistir, kapi gevsemesi degil:
-    kirmizi kirmizi kalir. Verdigi tek sey, bir sonraki adimin ne oldugudur.
+    🚨 It does NOT CHANGE THE EXIT CODE. This is a diagnosis, not a loosening of the gate:
+    red stays red. All it gives is what the next step is.
     """
     verdicts: list[tuple[str, str, bool]] = []
     for failure in failures:
         executable = root / "artifacts" / "bin" / failure.project / failure.output / failure.project
-        # Bir `[Theory]`'nin TRX adi argumanlari da tasir ve onlar NOKTA
-        # icerebilir: `...A_provider_name_is_matched(savedAs: "a.b")`. Once
-        # arguman kuyrugu atilir, SONRA son parca alinir - ters sira metot
-        # adi yerine bir argumani filtreye koyardi.
+        # The TRX name of a `[Theory]` carries the arguments too, and they can contain
+        # a DOT: `...A_provider_name_is_matched(savedAs: "a.b")`. The argument tail is
+        # dropped FIRST, THEN the last segment is taken - the reverse order would put an
+        # argument into the filter instead of the method name.
         method = failure.name.split("(", 1)[0].rsplit(".", 1)[-1]
         if not executable.exists():
             print(f"   ⚠️ {failure.label}: no built binary, the isolated run was skipped")
@@ -2765,13 +2767,13 @@ POLYFORM_LICENSE_FILE = "LICENSE.md"
 MIT_LICENSE_FILE = "LICENSE-MIT.md"
 LICENSE_FILES = (POLYFORM_LICENSE_FILE, MIT_LICENSE_FILE)
 
-# Her paketin lisansı BURADA açıkça yazılıdır; varsayılan yoktur.
-# Yeni bir paket eklendiğinde bu tabloya girmezse kapı hata verir - amaç tam
-# olarak budur: lisans bir sonuç değil, bilinçli bir karardır. Üç paket MIT'dir
-# ki üçüncü taraf ticari lisans almadan eklenti yazıp test edebilsin ve
-# `dotnet new`'in ürettiği koda sahip olsun. Agent çalıştıran her şey PolyForm.
-# Kaynak: src/Directory.Build.props (TraconMitLicensed) - iki liste AYNI
-# olmalıdır; `PackageLicenseTests` bunu kilitler.
+# The license of every package is written out HERE; there is no default.
+# If a new package does not get an entry in this table the gate fails - that is exactly
+# the point: a license is a conscious decision, not a result. Three packages are MIT so that
+# a third party can write and test an extension without buying a commercial license, and
+# can own the code `dotnet new` generates. Everything that runs agents is PolyForm.
+# Source: src/Directory.Build.props (TraconMitLicensed) - the two lists must be
+# IDENTICAL; `PackageLicenseTests` pins this.
 PACKAGE_LICENSES: dict[str, str] = {
     "Tracon": POLYFORM_LICENSE_FILE,
     "Tracon.Abstractions": MIT_LICENSE_FILE,
@@ -2976,11 +2978,11 @@ def _entry_names(nupkg: pathlib.Path) -> set[str]:
 
 
 def dependency_floor_errors(project_id: str, nuspec: str) -> list[str]:
-    """Hatalar: nuspec'in sabitlenmiş bir bağımlılığın alt sınırı `SHIPPED_DEPENDENCY_FLOORS`'tan farklıysa.
+    """Errors where the nuspec's lower bound of a pinned dependency differs from `SHIPPED_DEPENDENCY_FLOORS`.
 
-    Alt sınır `version="3.2.2"` (= `>= 3.2.2`) ya da `[3.2.2, )` yazar. Yükseltmek bir
-    güncelleme değil bir uyumluluk kararıdır; bağımlılık hiç yoksa da hatadır,
-    yoksa kapı boş geçerdi."""
+    The lower bound is written as `version="3.2.2"` (= `>= 3.2.2`) or `[3.2.2, )`. Raising it is
+    a compatibility decision, not an update; a missing dependency is an error too,
+    otherwise the gate would pass empty."""
     errors: list[str] = []
     for dependency, floor in SHIPPED_DEPENDENCY_FLOORS.get(project_id, {}).items():
         ranges = [
@@ -3047,11 +3049,10 @@ def _resolve_package_set(
         print(f"❌ The requested version '{requested_version}' was not produced; produced: '{resolved_version}'")
         return None
 
-    # İki yönlü karşılaştırma: yalnız EKSİK paket değil, beklenmeyen (fazla) bir
-    # paket de yakalanmalı - ör. bir test projesinin yanlışlıkla packable hâle
-    # gelmesi. `resolved` yalnız `project_ids` üstünden dolduğu için kendi
-    # başına bunu göremez; dizindeki `resolved_version`'a ait GERÇEK `.nupkg`
-    # kümesi ayrıca taranır.
+    # Two-way comparison: not only a MISSING package, an unexpected (extra) package
+    # must be caught too - e.g. a test project that became packable by accident.
+    # `resolved` is filled only from `project_ids`, so it cannot see this on its own; the
+    # set of REAL `.nupkg` files for `resolved_version` in the directory is scanned separately.
     produced_ids = {
         path.name[: -len(f".{resolved_version}.nupkg")]
         for path in directory.glob(f"*.{resolved_version}.nupkg")
@@ -3280,10 +3281,10 @@ def _pack_release(
     sys.path.insert(0, str(ROOT / "scripts"))
     import breaking_changes
 
-    # Taban: son yayınlanmış `v*` sürümü. Pack'ten ÖNCE çözülür,
-    # çünkü pack taban yolunu ister. Git yoksa temizlik denetimi uyarıyla
-    # atlanır (MSBuild kapısı ikinci hattır); tabanın ikinci hattı yoktur, bu
-    # yüzden burada sessiz atlama yok.
+    # Baseline: the last published `v*` version. It is resolved BEFORE the pack,
+    # because the pack needs the baseline path. Without git the cleanliness check is
+    # skipped with a warning (the MSBuild gate is the second line); the baseline has no
+    # second line, so there is no silent skip here.
     try:
         baseline = breaking_changes.resolve_baseline(root)
     except breaking_changes.BaselineError as exception:
@@ -3299,7 +3300,7 @@ def _pack_release(
 
     library_ids = _library_ids(root, packable_project_ids(root))
     baseline_ids = breaking_changes.baseline_package_ids(root, library_ids)
-    # Taban cache'i depo DIŞINDA: geliştirici cache'i asla okunmaz.
+    # The baseline cache lives OUTSIDE the repo: the developer's cache is never read.
     baseline_work = pathlib.Path(tempfile.mkdtemp(prefix="tracon-baseline-"))
     try:
         try:
@@ -3331,9 +3332,9 @@ def _pack_release(
     finally:
         shutil.rmtree(baseline_work, ignore_errors=True)
 
-    # Kanıt pack'i koşan süreçte hesaplanır: semaphore bu makinenin
-    # artifacts/obj/'undadır. Artifact aşamasına TAŞINMAZ -
-    # `release-dryrun`'da obj/ yoktur; sonuç `pack` manifest'ine girer.
+    # The evidence is computed in the process that runs the pack: the semaphore sits in this
+    # machine's artifacts/obj/. It is NOT moved to the artifact stage -
+    # `release-dryrun` has no obj/; the result goes into the `pack` manifest.
     not_run = breaking_changes.validation_not_run(root, library_ids, pack_started)
     if not_run:
         print("❌ The package validation did not run in this pack:")
@@ -3364,35 +3365,35 @@ def release_rehearsal(
 ) -> int:
     project_ids = packable_project_ids(root)
 
-    # Erken ret: çalışma ağacı denetlenir ÖNCE dakikalarca süren bir
-    # `dotnet pack`e girilir. MSBuild kapısı (TraconValidateCleanWorkingTree)
-    # zaten aynı sonucu verirdi; bu adım yalnız geri bildirimi öne çeker.
-    # Koşulsuzdur - bir yayın provasının kanıt değeri kirli bir ağaçta yoktur,
-    # burada TraconAllowDirtyPack karşılığı bir override YOKTUR.
-    # git bulunamazsa (kaynak tarball, git PATH'te yok) kapı
-    # ATLANIR - `dotnet pack` kendi MSBuild kapısı üzerinden aynı denetimi
-    # tekrar dener; burası ikinci savunma hattıdır, tek hat değil.
+    # Early rejection: the working tree is checked BEFORE a `dotnet pack` that
+    # takes minutes starts. The MSBuild gate (TraconValidateCleanWorkingTree) would
+    # give the same result anyway; this step only brings the feedback forward.
+    # It is unconditional - a release rehearsal proves nothing on a dirty tree,
+    # so there is NO override here that corresponds to TraconAllowDirtyPack.
+    # If git cannot be found (a source tarball, git not on PATH) the gate is
+    # SKIPPED - `dotnet pack` tries the same check again through its own MSBuild gate;
+    # this is the second line of defense, not the only one.
     if _dirty_tree_rejected(require_git=False):
         return 1
-    # Etiket koşusu aynı taramayı koşar ve yayınlanmış bir etiket geri alınamaz.
-    # Taramanın düşüreceği her şey (sürüm etiketi kayması dahil) etiket doğmadan
-    # burada görünür; dakikalarca süren pack'e girilmez.
+    # The tag run runs the same scan and a published tag cannot be taken back.
+    # Everything the scan would fail on (a drifted version tag included) shows up
+    # here before the tag exists; the pack that takes minutes is not started.
     if scan(root) != 0:
         return 1
     commit = _head_commit()
 
-    # Önceki bir yeşil koşumun sonucu, bu koşum kırmızı biterse yanıltmasın.
+    # The result of an earlier green run must not mislead if this run ends red.
     sys.path.insert(0, str(ROOT / "scripts"))
     import breaking_changes
 
     (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
 
-    # Staging dizini koşum başına benzersizdir (paralel
-    # koşumlar desteklenmez, ama bu en azından ikisinin BİRBİRİNİN çıktısını
-    # ezmesini önler). `artifacts/` .gitignore'dadır - staging burada yaşarsa
-    # bir sonraki koşumun kendi "erken ret" denetimini kirletmez. Rapor dizini
-    # de aynı sebeple koşum başınadır; ayrıca yok olan bir çıktı dosyası SDK'nın
-    # artımlı doğrulama hedefini yeniden koşturur (ölçüldü).
+    # The staging directory is unique per run (parallel runs are not
+    # supported, but this at least keeps two of them from overwriting EACH OTHER's output).
+    # `artifacts/` is in .gitignore - if staging lives there it does not dirty the next
+    # run's own "early rejection" check. The report directory is per run for the same
+    # reason; also, an output file that disappears makes the SDK re-run its incremental
+    # validation target (measured).
     package_root = release_dir.parent if release_dir else PACKAGE_RELEASE_DIR.parent
     staging_root = package_root / "staging"
     staging_root.mkdir(parents=True, exist_ok=True)
@@ -3459,8 +3460,8 @@ def pack_for_ci(output_dir: pathlib.Path, *, root: pathlib.Path = ROOT) -> int:
     api_compat: list[dict[str, object]] = []
     for project_id in sorted(packed.baseline_ids):
         report = report_dir / f"{project_id}.xml"
-        # Farksız pakette SDK rapor YAZMAZ. "Rapor yok" meşru bir
-        # değerdir; doğrulamanın koştuğunu semaphore kanıtladı (yukarıda).
+        # For a package with no difference the SDK does NOT write a report. "No report" is a
+        # legitimate value; the semaphore proved that the validation ran (above).
         api_compat.append({
             "id": project_id,
             "report": report.relative_to(output_dir).as_posix() if report.exists() else None,
@@ -3549,8 +3550,8 @@ def rehearse_package_directory(
             print(f"  {problem}")
         return 1
 
-    # `release_dir` girdi dışı paket taşıyorsa ret. Kopya
-    # başlamadan söylenir; hiçbir dosya silinmez.
+    # Reject if `release_dir` holds packages outside the input. It is said before the
+    # copy starts; no file is deleted.
     input_files = {entry["file"] for entry in manifest["packages"]} | {
         entry["symbolsFile"] for entry in manifest["packages"] if entry.get("symbolsFile")}
     foreign = sorted(
@@ -3607,9 +3608,9 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
     if result:
         return result
 
-    # ApiCompat .NET assembly'lerini okur; HTTP, SSE, telemetri, yapılandırma,
-    # hata kodu ve CLI için son sürümle karşılaştırma ayrı bir okuyucudur ve ApiCompat'tan
-    # SONRA koşar (hat satırı iki kez yazılır, ikincisi bu yüzeylerin hattıdır).
+    # ApiCompat reads .NET assemblies; the comparison with the last release for HTTP, SSE,
+    # telemetry, configuration, error codes and the CLI is a separate reader and runs AFTER
+    # ApiCompat (the release-line statement is printed twice; the second belongs to these surfaces).
     import contract_breaks
 
     return contract_breaks.check(
@@ -3673,10 +3674,9 @@ def _finish_release_rehearsal_unchecked(
             "(expected in an untagged run; not an error unless --package-version forced it)"
         )
     else:
-        # Yalnız GERÇEK bir sürüm şeklinde çözümlenen koşumda zorlanır - ya
-        # `--package-version` ile insan tarafından yerel bir provada, ya da gerçek bir
-        # `v*` etiketiyle. Etiketlenmemiş her rutin CI koşumu yukarıdaki dalı
-        # alır ve bu kapıyı hiç görmez.
+        # Enforced only in a run that resolves to a REAL version shape - either a local
+        # rehearsal by a person with `--package-version`, or a real `v*` tag. Every
+        # routine CI run without a tag takes the branch above and never sees this gate.
         sys.path.insert(0, str(ROOT / "scripts"))
         import changelog
 
@@ -3684,10 +3684,10 @@ def _finish_release_rehearsal_unchecked(
         if not changelog_path.exists():
             print("❌ CHANGELOG.md not found")
             return 1
-        # Sürüm bölümü ETİKET anında yazılır: `## [Unreleased]` başlığı sürüme
-        # ve sevk tarihine dönüştürülür. O ana kadar bir sonraki sürümün notları
-        # Unreleased altındadır, bu yüzden prova oradan okur. Kapının
-        # koruduğu şey "bölüm var mı" değil, NOTSUZ SÜRÜM ÇIKMASIN'dır.
+        # The version section is written at TAG time: the `## [Unreleased]` heading is
+        # turned into the version and the ship date. Until then the notes of the next
+        # version sit under Unreleased, so the rehearsal reads them from there. What the
+        # gate protects is not "is there a section" but that NO VERSION SHIPS WITHOUT NOTES.
         _, notes_heading = changelog.read_release_notes(changelog_path, resolved_version)
         if notes_heading is None:
             print(
@@ -3718,18 +3718,18 @@ def _finish_release_rehearsal_unchecked(
             errors.append(f"{project_id}: icon.png is missing")
         if "README.md" not in entries:
             errors.append(f"{project_id}: README.md is missing")
-        # Lisans üç yönden birden doğrulanır. Yalnız .nuspec'e bakmak yetmez:
-        # bir paketin BEYAN ettiği lisans ile İÇİNDEKİ dosya ayrışabilir, ve
-        # ayrıştığında tüketicinin eline geçen dosya kazanır.
+        # The license is verified from three sides at once. Looking only at the .nuspec is
+        # not enough: the license a package DECLARES and the file INSIDE it can diverge,
+        # and when they diverge the file that reaches the consumer wins.
         expected_license = PACKAGE_LICENSES.get(project_id)
         if expected_license is None:
             errors.append(f"{project_id}: not in the PACKAGE_LICENSES table - its license must be chosen on purpose")
         else:
             if f'<license type="file">{expected_license}</license>' not in nuspec:
                 errors.append(f"{project_id}: the .nuspec does not carry '<license type=\"file\">{expected_license}</license>'")
-            # Ölçüldü: NuGet requireLicenseAcceptance'ı yalnız TRUE
-            # iken yazar; false varsayılandır ve element hiç görünmez. Bu yüzden
-            # MIT tarafı elementin YOKLUĞU ile doğrulanır, "false" metniyle değil.
+            # Measured: NuGet writes requireLicenseAcceptance only when it is TRUE;
+            # false is the default and the element never shows up. So the MIT side is
+            # verified by the ABSENCE of the element, not by a "false" text.
             acceptance_declared = "<requireLicenseAcceptance>true</requireLicenseAcceptance>" in nuspec
             if expected_license == MIT_LICENSE_FILE and acceptance_declared:
                 errors.append(f"{project_id}: an MIT package must not ask for requireLicenseAcceptance")
@@ -3740,9 +3740,9 @@ def _finish_release_rehearsal_unchecked(
             for other in LICENSE_FILES:
                 if other != expected_license and other in entries:
                     errors.append(f"{project_id}: the wrong license file is packed too: {other}")
-        # Yalnız VARLIK değil, DEĞER de. PR'de iki iş aynı merge
-        # commit'ini checkout eder; başka bir commit'ten gelen paket burada
-        # düşer. git yoksa (commit 'unknown') yalnız varlık denetlenir.
+        # Not only EXISTENCE, the VALUE too. In a PR two jobs check out the same merge
+        # commit; a package that comes from another commit fails here. Without git
+        # (commit 'unknown') only existence is checked.
         repository_match = REPOSITORY_COMMIT_PATTERN.search(nuspec)
         if repository_match is None:
             errors.append(f"{project_id}: the repository/commit metadata is missing")
@@ -3758,11 +3758,11 @@ def _finish_release_rehearsal_unchecked(
         elif resolved_version not in release_notes_match.group("url"):
             errors.append(f"{project_id}: releaseNotes does not carry the resolved version ('{resolved_version}')")
 
-        # `content` ve `meta` hicbir sey derlemez (IncludeBuildOutput=false), yani
-        # sembolu olacak bir .pdb yoktur; ikisi de IncludeSymbols=false yazar.
-        # `content`'te bos sembol paketi NU5017 ile build'i kirar; `meta`'da KIRMADI
-        # (nuspec bagimliliklari listeler) ve 0 PDB'li bir .snupkg sessizce
-        # sevk ediliyordu -, olculdu 2026-09-15.
+        # `content` and `meta` compile nothing (IncludeBuildOutput=false), so there is no
+        # .pdb to make symbols from; both write IncludeSymbols=false. In `content` an empty
+        # symbols package breaks the build with NU5017; in `meta` it did NOT break (the
+        # nuspec lists dependencies) and a .snupkg with 0 PDBs shipped silently - measured
+        # 2026-09-15.
         snupkg_exists = nupkg.with_suffix(".snupkg").exists()
         if profile in ("content", "meta"):
             if snupkg_exists:
@@ -3781,14 +3781,14 @@ def _finish_release_rehearsal_unchecked(
             for match in PRERELEASE_DEPENDENCY_PATTERN.finditer(nuspec)
             if not match.group("id").startswith("Tracon")
         ]
-        if project_id != K008_EXEMPT_PACKAGE:
+        if project_id != PRERELEASE_MAF_EXEMPT_PACKAGE:
             offenders = sorted({dependency for dependency, _ in prerelease})
             if offenders:
                 errors.append(f"{project_id}: the prerelease boundary was violated - prerelease dependencies: {', '.join(offenders)}")
-        # ön sürüm upstream kendi önizlemeleri arasında kırar. Açık alt
-        # sınır (`version="x"` = `>= x`) tüketicinin yükseltmesini uyarısız
-        # restore edip çalışma anında düşürüyordu; tam aralıkta NuGet onu
-        # restore'da söyler (NU1608 / NU1107).
+        # A prerelease upstream breaks between its own previews. An open lower bound
+        # (`version="x"` = `>= x`) let a consumer's upgrade restore without a warning
+        # and then fail at run time; with an exact range NuGet reports it at
+        # restore (NU1608 / NU1107).
         open_ranges = sorted({
             f"{dependency} {version_range}"
             for dependency, version_range in prerelease
@@ -3811,19 +3811,19 @@ def _finish_release_rehearsal_unchecked(
             print(f"  {error}")
         return 1
 
-    # Promote'tan ÖNCE: kırmızı bir kırıcı kapı release dizinine
-    # paket bırakmaz. Not okumak çözümlenen sürümü ister, bu yüzden sürüm
-    # çözümünden SONRA koşar. Her koşumda okur (yalnız sürüm biçimli olanda
-    # değil): Kırıcı değişikliğe izin verir, duyurusuz sevke izin vermez.
+    # BEFORE the promote: a red breaking-change gate leaves no package in the release
+    # directory. Reading the notes needs the resolved version, so it runs AFTER version
+    # resolution. It reads on every run (not only a version-shaped one): it allows a
+    # breaking change, it does not allow shipping one unannounced.
     breaking_result = _check_breaking_changes(root, breaking_gate, resolved_version)
     if breaking_result:
         return breaking_result
 
-    # Overwrite koruması ve manifest. Staging'de doğrulanmış paketler
-    # ancak burada release_dir'e taşınır (promote); `_promote_staged_packages`
-    # aynı isimde FARKLI bir SHA-256 bulursa HİÇBİR dosyayı taşımaz ve mevcut
-    # release_dir olduğu gibi kalır (hepsi ya da hiçbiri). Paket dizini
-    # modunda taşımaz, kopyalar - girdi CI'ın doğruladığı artifact'tır.
+    # Overwrite protection and the manifest. Packages validated in staging are moved
+    # to release_dir only here (promote); if `_promote_staged_packages` finds a DIFFERENT
+    # SHA-256 under the same name it moves NO file and the existing release_dir stays as
+    # it is (all or nothing). In package-directory mode it copies instead of moving - the
+    # input is the artifact CI validated.
     staged_file_names = _package_file_names(resolved)
     all_file_names = [name for names in staged_file_names.values() for name in names]
     conflicts = _promote_staged_packages(staging_dir, release_dir, all_file_names, copy=input_manifest is not None)
@@ -3860,10 +3860,9 @@ def _finish_release_rehearsal_unchecked(
     if npm_result:
         return npm_result
 
-    # Envanterdeki her extension sample'ı ve AOT smoke, tek exact-version bu
-    # koşumun ürettiği paketlere karşı izole bir NUGET_PACKAGES cache'iyle
-    # çalışır (envanter kapısı). `dotnet
-    # pack`/npm gibi ağa hiçbir şey yazmaz.
+    # Every extension sample in the inventory and the AOT smoke run against the packages
+    # this run produced, at the one exact version, with an isolated NUGET_PACKAGES cache
+    # (the inventory gate). Like `dotnet pack`/npm, it writes nothing to the network.
     sys.path.insert(0, str(ROOT / "scripts"))
     import release_extension_samples
 
@@ -3896,15 +3895,15 @@ def _npm_dry_run() -> int:
 
 
 def capacity_measurement(profile: str, version: str, output: pathlib.Path) -> int:
-    """Kapasite ölçümünü koşar.
+    """Run the capacity measurement.
 
-    🚨 Bu bir KAPI DEĞİLDİR. Yük ve arıza ölçümlerinin rapor olduğunu,
-    sürenin hiçbir eşiğe bağlanmadığını söyler; `close` bu komutu çağırmaz ve
-    hiçbir profili standart kapanışa, PR yoluna veya release hattına eklemez.
-    Ölçüm mantığı `scripts/capacity.py` içindedir; burada yalnız komut yüzeyi
-    tek noktada toplanır."""
+    🚨 This is NOT A GATE. Load and fault measurements are reports, and no
+    threshold is tied to the time; `close` does not call this command and no
+    profile is added to the standard close, the PR path or the release line.
+    The measurement logic lives in `scripts/capacity.py`; only the command
+    surface is gathered here, in one place."""
     sys.path.insert(0, str(ROOT / "scripts"))
-    import capacity  # noqa: PLC0415 - komut yüzeyi için tembel içe aktarma
+    import capacity  # noqa: PLC0415 - lazy import for the command surface
 
     try:
         return capacity.measure(profile, version, output)
@@ -4033,8 +4032,8 @@ def build_parser() -> tuple[argparse.ArgumentParser, Any]:
         "--update", action="store_true",
         help="replace bench/baseline.json with the result of this run (no comparison)")
     test = subparsers.add_parser("test", help="one test subset by MTP filter")
-    # extend: `--class A B` ile `--class A --class B` aynıdır. Varsayılan davranış
-    # ikinci bayrakta birinciyi sessizce ezerdi (bir kapanışta ölçüldü).
+    # extend: `--class A B` and `--class A --class B` are the same. The default behavior
+    # would silently overwrite the first flag with the second (measured in one close run).
     test.add_argument("--class", dest="classes", nargs="+", action="extend", required=True, help="class patterns")
     test.add_argument("--project", default="Tracon.Core.UnitTests", help="test project name")
     test.add_argument(
@@ -4072,7 +4071,7 @@ def build_parser() -> tuple[argparse.ArgumentParser, Any]:
     release.add_argument(
         "--package-directory",
         help="rehearse without packing: the output of 'gate.py pack'; the directory does not change")
-    # CI'ın tek pack'i. Bypass seçeneği YOKTUR.
+    # CI's single pack. There is NO bypass option.
     pack = subparsers.add_parser("pack", help="pack the tested build with --no-build, and write a manifest")
     pack.add_argument(
         "--output", required=True,
@@ -4080,9 +4079,9 @@ def build_parser() -> tuple[argparse.ArgumentParser, Any]:
     verify_packages = subparsers.add_parser(
         "verify-packages", help="check that the files in a directory match the SHA-256 values in the manifest")
     verify_packages.add_argument("directory", help="directory that holds package-manifest.json")
-    # Kapasite ölçümü bir KAPI DEĞİLDİR (yük ölçümü rapordur).
-    # `close` onu asla koşmaz; burada olması yalnız komut yüzeyini tek yerde
-    # tutmak içindir. Ağır profiller açık komutla, eli isteyerek koşar.
+    # The capacity measurement is NOT A GATE (a load measurement is a report).
+    # `close` never runs it; it is here only to keep the command surface in
+    # one place. The heavy profiles run by explicit command, started on purpose.
     capacity = subparsers.add_parser(
         "capacity",
         help="HTTP capacity measurement - opt-in, not a gate (scripts/capacity.py)")
@@ -4170,7 +4169,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
         if args.print_commands:
             print(f"$ {pack_command(args.output, ('<baseline properties>',), no_build=True).display}")
             return 0
-        # resolve(): `dotnet pack` köke göre koşar, Python cwd'ye göre çözerdi (denetim 🟢1).
+        # resolve(): `dotnet pack` runs relative to the root, while Python would resolve against the cwd.
         return pack_for_ci(pathlib.Path(args.output).resolve())
     if args.stage == "release":
         if args.print_commands:
