@@ -32,7 +32,7 @@ public sealed class CodeWorkflowRunTimeoutTests
             ceiling: null,
             work: TimeSpan.FromMinutes(5));
 
-        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromSeconds(1)));
+        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(1)));
 
         clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(300)], "the run ended at its registration's timeout, not at the installation's or the node's");
         run.Status.ShouldBe(RunStatus.Canceled);
@@ -59,9 +59,9 @@ public sealed class CodeWorkflowRunTimeoutTests
             ceiling: TimeSpan.FromHours(1),
             work: TimeSpan.FromMilliseconds(800));
 
-        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromSeconds(1)));
+        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromMilliseconds(800), TimeSpan.FromSeconds(1)));
 
-        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(800)], "the installation's 300 ms was not armed: the run waited for the node alone");
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(800)], "the installation's 300 ms was moved away before the clock reached it: the run waited for the node alone");
         run.Status.ShouldBe(RunStatus.Completed, run.Error?.Message);
     }
 
@@ -77,7 +77,7 @@ public sealed class CodeWorkflowRunTimeoutTests
             ceiling: null,
             work: TimeSpan.FromMinutes(5));
 
-        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromSeconds(1)));
+        var run = await RecordAsync(host, await RunWithinAsync(host, clock, TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(1)));
 
         clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(300)], "the run ended at the installation's timeout");
         run.Status.ShouldBe(RunStatus.Canceled);
@@ -105,9 +105,18 @@ public sealed class CodeWorkflowRunTimeoutTests
     /// Runs the workflow and moves the host's clock to the timers that fall within <paramref name="within"/>, the run's
     /// timeout and the node's work among them, and no further.
     /// </summary>
-    private static async Task<Guid> RunWithinAsync(TraconTestHost host, ManualClock clock, TimeSpan within)
+    /// <remarks>
+    /// A run is armed with the installation's value when it starts and moved to the registration's once the definition is
+    /// read, which is before the node starts. A clock moved to the first timer it sees could fire the installation's
+    /// shorter one in between, so the clock waits until the node's work (<paramref name="work"/>) is on it.
+    /// </remarks>
+    private static async Task<Guid> RunWithinAsync(TraconTestHost host, ManualClock clock, TimeSpan work, TimeSpan within)
     {
         var running = RunAsync(host, Flow);
+
+        await WaitUntil.TrueAsync(
+            () => running.IsCompleted || clock.Pending.Contains(work),
+            "the node's work to wait on the clock, after the run moved its deadline to the registration's");
 
         await clock.AdvanceUntilAsync(running, within);
 

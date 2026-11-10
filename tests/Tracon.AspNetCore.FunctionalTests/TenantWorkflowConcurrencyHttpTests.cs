@@ -79,7 +79,11 @@ public sealed class TenantWorkflowConcurrencyHttpTests
 
             var globex = await QueueAsync(host, "globex", "globex-1");
 
-            await WaitUntil.TrueAsync(() => node.RunningFor("globex") == 1, "the other tenant's job to run");
+            // The worker leases the oldest job first, but a leased job's run reaches the node on a thread of its own, so
+            // the younger tenant's run can get there before acme's first: wait for both before reading either.
+            await WaitUntil.TrueAsync(
+                () => node.RunningFor("globex") == 1 && node.RunningFor("acme") >= 1,
+                "the other tenant's job and the first job of acme to run");
 
             // The other tenant's job is younger than all three: for it to have been leased, the worker passed
             // over the two acme jobs that follow the first, because acme was at its ceiling. Without the ceiling
