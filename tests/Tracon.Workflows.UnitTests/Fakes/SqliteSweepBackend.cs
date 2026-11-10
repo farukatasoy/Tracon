@@ -221,9 +221,13 @@ internal sealed class SqliteSweepBackend : IWorkflowSweepBackend
             {
                 Interlocked.Increment(ref _open);
 
+                // The pragmas of the shipped data source, and one more: the sweep makes thousands of commits and what it checks is
+                // when a connection and a lock are let go, not that a commit reached the disk. With the default (a flush for every
+                // commit in the write-ahead log) the sweep took nine times as long on a Windows runner as on a Linux one (433 s
+                // against 49 s) and a run that stalled for the twenty seconds of its bound failed the sweep.
                 using var command = connection.CreateCommand();
                 command.CommandText =
-                    "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA case_sensitive_like = ON;";
+                    "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000; PRAGMA case_sensitive_like = ON;";
                 command.ExecuteNonQuery();
             }
             else if (eventArgs.OriginalState == ConnectionState.Open)
