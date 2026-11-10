@@ -496,34 +496,38 @@ public sealed class JobWorkerLeaseContractTests
     [Fact]
     public async Task A_renewal_refused_because_the_job_was_cancelled_is_not_a_lost_lease()
     {
-        var jobs = new LeaseLossJobStore();
+        // On a manual clock the renewal tick (every 100 ms) is the only timer that comes due before the cancel watch (every
+        // 1.5 s) does. With real timers a stall of a second and a half in the test process let the watch cancel the
+        // handler first, the renewal was never refused, and the test waited its whole bound for it.
+        var clock = new ManualClock();
+        var jobs = new LeaseLossJobStore(clock);
         var handler = new StopsWhenCancelledHandler();
         using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
         using var meters = new TestMeterFactory();
         using var collector = new MetricCollector(meters.Meter);
         using var metrics = new TraconMetrics(meters, TenantTaggedMetricsOptions.Create());
 
-        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+        var watch = TimeSpan.FromMilliseconds(1500);
 
-        // The renewal (every 100 ms) reaches the cancel long before the cancel watch (every 1.5 s) does.
-        using var worker = CreateWorker(
-            jobs,
-            host,
-            TimeSpan.FromMilliseconds(300),
-            metrics: metrics,
-            pollInterval: TimeSpan.FromMilliseconds(1500));
+        using var worker = CreateWorker(jobs, host, TimeSpan.FromMilliseconds(300), clock, metrics: metrics, pollInterval: watch);
 
-        await worker.StartAsync(TestContext.Current.CancellationToken);
-        await handler.Started.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await StartAttemptAsync(worker, clock, handler.Started, watch);
 
         (await jobs.CancelInnerAsync(jobId)).ShouldBeTrue();
 
+        clock.Advance(TimeSpan.FromMilliseconds(100));
         await WaitUntil.TrueAsync(() => jobs.RefusedRenewals >= 1, "the store to refuse the cancelled job's renewal");
+
+        // The refusal does not stop the handler: the cancel watch does, at its next tick.
+        clock.Advance(watch);
         await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
-        await AttemptEndedAsync(jobs);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.Cancelled, "the job was cancelled; its lease was not lost");
+
+        await AttemptEndedOnClockAsync(jobs, clock, jobs.LeaseCalls);
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
-        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.Cancelled);
         (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Cancelled);
         collector.LongTags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
             .ShouldBe(nameof(JobStatus.Cancelled));
