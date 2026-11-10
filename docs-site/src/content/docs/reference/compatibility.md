@@ -205,14 +205,14 @@ Lifecycle, read on 2026-11-06).
 
 ### SQLite
 
-`Tracon.Sqlite.IntegrationTests`, 1 639 tests (one skips unless a run names the engine version it expects). SQLite is a library, so its version is the version of the native file the
+`Tracon.Sqlite.IntegrationTests`, 1 880 tests (one skips unless a run names the engine version it expects). SQLite is a library, so its version is the version of the native file the
 process loads. `Microsoft.Data.Sqlite` 10.0.14 brings 3.53.3. The floor row replaces that file with the one a package of the
 same family carried, and the project asks the engine for its version to be sure the replacement is the file that ran.
 
 | SQLite | Result | Run |
 |---|---|---|
-| 3.53.3, the bundled library | Verified: 1 639 of 1 639 | `test-sqlite` · 2026-11-04 |
-| 3.44.0 | Verified: 1 639 of 1 639 | `sqlite-floor` · cell `3.44.0` · 2026-11-04 |
+| 3.53.3, the bundled library | Verified: 1 879 of 1 880 (one skips) | `test-sqlite` · 2026-11-09 |
+| 3.44.0 | Verified: 1 880 of 1 880 | `sqlite-floor` · cell `3.44.0` · 2026-11-09 |
 
 The same table applies to a SQLite library your application loads itself (a system library, or
 `SQLitePCLRaw.bundle_sqlite3`): what counts is its version. SQLite has no end-of-life date.
