@@ -98,8 +98,10 @@ jobs:
       - name: Build
         run: dotnet build Tracon.slnx -c Release --no-restore
 
-      # The exit code is 91 when only a time moved, 92 when a result changed (or a test failed in every run) and 2 when the
-      # command could not be set up. The step fails on any of them; the report is uploaded either way.
+      # The exit code is 0 when every result is the same, whatever the time did: a time that moved past the limits is a
+      # report (the table below, and the job summary), because wall time measures the runner as much as the code. It is
+      # 92 when a result changed (or a test failed in every run) and 2 when the command could not be set up. The step
+      # fails on the last two and swallows no code; the report is uploaded either way.
       - name: Run the stability check
         timeout-minutes: 90
         run: >-

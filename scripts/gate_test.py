@@ -1255,27 +1255,49 @@ class GateTests(unittest.TestCase):
             '<Results><UnitTestResult testName="N.S.A" duration="00:00:01" outcome="Passed" /></Results></TestRun>',
             encoding="utf-8")
 
-    def test_gate_is_red_when_a_module_exceeds_its_time_limit(self):
+    def test_a_module_over_its_time_budget_is_printed_and_recorded_and_the_report_has_no_exit_code(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
+            measurements = root / "measurements.jsonl"
             self._trx_with_times(root, "P", "2026-11-09T11:03:40.3574990Z", "2026-11-09T11:12:25.866393Z")
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                code = gate.enforce_module_time_limits(0.0, root=root, limits={"P": 500})
+                exceeded = gate.report_module_times(0.0, root=root, limits={"P": 1}, measurement_path=measurements)
+            rows = [json.loads(line) for line in measurements.read_text(encoding="utf-8").splitlines()]
 
-        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
-        self.assertIn("P/net10.0_arm64 526 s > 500 s", output.getvalue())
+        self.assertEqual(exceeded, ["P/net10.0_arm64 526 s > 1 s"])
+        self.assertIn("P/net10.0_arm64 526 s > 1 s", output.getvalue())
+        self.assertIn("the exit code stays with the tests", output.getvalue())
         self.assertIn("measure", output.getvalue())
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["command"], "gate.py module-time P/net10.0_arm64")
+        self.assertEqual(rows[0]["duration_seconds"], 525.509)
+        self.assertEqual(rows[0]["limit_seconds"], 1)
+        self.assertEqual(rows[0]["exit_code"], 0)
 
-    def test_module_under_its_time_limit_is_green_and_printed(self):
+    def test_a_measurement_file_that_cannot_be_written_warns_and_the_report_still_returns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._trx_with_times(root, "P", "2026-11-09T11:00:00Z", "2026-11-09T11:10:00Z")
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                # A directory cannot be opened for appending.
+                exceeded = gate.report_module_times(0.0, root=root, limits={"P": 1}, measurement_path=root)
+
+        self.assertEqual(exceeded, ["P/net10.0_arm64 600 s > 1 s"])
+        self.assertIn("could not be written", output.getvalue())
+
+    def test_module_under_its_time_limit_is_printed_and_leaves_no_row(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._trx_with_times(root, "P", "2026-11-09T11:00:00Z", "2026-11-09T11:03:59.9Z")
 
+            measurements = root / "measurements.jsonl"
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                code = gate.enforce_module_time_limits(0.0, root=root, limits={"P": 240})
+                exceeded = gate.report_module_times(0.0, root=root, limits={"P": 240}, measurement_path=measurements)
 
-        self.assertEqual(code, 0)
+            self.assertFalse(measurements.exists(), "a module inside its budget leaves no row")
+        self.assertEqual(exceeded, [])
         self.assertIn("P/net10.0_arm64: 240 s · limit 240 s · left 0 s (0%)", output.getvalue())
 
     def test_module_without_a_limit_does_not_break_the_gate_but_its_time_is_reported(self):
@@ -1284,9 +1306,10 @@ class GateTests(unittest.TestCase):
             self._trx_with_times(root, "Q", "2026-11-09T11:00:00Z", "2026-11-09T13:00:00Z")
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                code = gate.enforce_module_time_limits(0.0, root=root, limits={"P": 1})
+                exceeded = gate.report_module_times(
+                    0.0, root=root, limits={"P": 1}, measurement_path=root / "measurements.jsonl")
 
-        self.assertEqual(code, 0)
+        self.assertEqual(exceeded, [])
         self.assertIn("Q/net10.0_arm64: 7200 s · no limit", output.getvalue())
 
     def test_trx_with_an_unreadable_duration_warns_and_does_not_break_the_gate(self):
@@ -1295,9 +1318,10 @@ class GateTests(unittest.TestCase):
             self._trx_with_durations(root, "P", [("N.S.A", "00:00:01")])
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                code = gate.enforce_module_time_limits(0.0, root=root, limits={"P": 1})
+                exceeded = gate.report_module_times(
+                    0.0, root=root, limits={"P": 1}, measurement_path=root / "measurements.jsonl")
 
-        self.assertEqual(code, 0)
+        self.assertEqual(exceeded, [])
         self.assertIn("could not be read", output.getvalue())
 
     def test_trx_timestamp_reads_a_seven_digit_fraction_and_the_time_zone(self):
@@ -1333,10 +1357,10 @@ class GateTests(unittest.TestCase):
         self.assertEqual(sorted(set(budgets) - modules), [], "a budget must belong to a test module")
         self.assertTrue(all(isinstance(limit, int) and limit > 0 for limit in budgets.values()))
 
-    def test_green_full_run_enforces_the_time_limit(self):
+    def test_green_full_run_reports_the_module_times_and_a_module_over_its_budget_keeps_exit_zero(self):
         command = gate.full_solution_test_command()
         with mock.patch.object(gate, "require_executed_tests", return_value=0), \
-                mock.patch.object(gate, "enforce_module_time_limits", return_value=gate.MODULE_TIME_LIMIT_EXIT_CODE) as limit, \
+                mock.patch.object(gate, "report_module_times", return_value=["P/net10.0_arm64 526 s > 500 s"]) as limit, \
                 mock.patch.object(gate, "record_test_durations"), \
                 mock.patch.object(gate, "isolate_failed_tests", return_value=[]), \
                 mock.patch.object(gate, "failed_tests_from_trx", return_value=[]), \
@@ -1344,12 +1368,12 @@ class GateTests(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()):
             code = gate.run_commands("test", [command], runner=mock.Mock(return_value=mock.Mock(returncode=0)))
 
-        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(code, 0)
         limit.assert_called_once()
 
     def _time_limited_run(self, command, *, exit_code):
         with mock.patch.object(gate, "require_executed_tests", return_value=0), \
-                mock.patch.object(gate, "enforce_module_time_limits", return_value=gate.MODULE_TIME_LIMIT_EXIT_CODE) as limit, \
+                mock.patch.object(gate, "report_module_times", return_value=["P/net10.0_arm64 526 s > 500 s"]) as limit, \
                 mock.patch.object(gate, "record_test_durations"), \
                 mock.patch.object(gate, "isolate_failed_tests", return_value=[]), \
                 mock.patch.object(gate, "failed_tests_from_trx", return_value=[]), \
@@ -1358,14 +1382,14 @@ class GateTests(unittest.TestCase):
             code = gate.run_commands("test", [command], runner=mock.Mock(return_value=mock.Mock(returncode=exit_code)))
         return code, limit
 
-    def test_red_full_run_keeps_its_exit_code_and_does_not_enforce_the_time_limit(self):
-        # A failing test must not be overridden by the time-limit code 9: the reason for the red is the test.
+    def test_red_full_run_keeps_its_exit_code_and_prints_no_time_report(self):
+        # The reason for the red is the failing test; the time of a run that did not finish says nothing about a budget.
         code, limit = self._time_limited_run(gate.full_solution_test_command(), exit_code=2)
 
         self.assertEqual(code, 2)
         limit.assert_not_called()
 
-    def test_dotnet_test_that_wants_no_trx_does_not_enforce_the_time_limit(self):
+    def test_dotnet_test_that_wants_no_trx_prints_no_time_report(self):
         command = gate.Command(("dotnet", "test", "--project", "P.csproj"))
         self.assertFalse(gate.reports_trx(command))
 
@@ -2091,7 +2115,7 @@ class GroupRunnerTests(unittest.TestCase):
 class StagedTestRunTests(unittest.TestCase):
     """The closing's test run: Core alone, the light filter, two heavy lanes; a single TRX check; stop at the first red."""
 
-    def _execute(self, commands, exit_code_for=lambda args: 0, *, zero_tests=0, limit_code=0):
+    def _execute(self, commands, exit_code_for=lambda args: 0, *, zero_tests=0, over_budget=()):
         calls: list[tuple[tuple[str, ...], float]] = []
         lock = threading.Lock()
 
@@ -2101,7 +2125,7 @@ class StagedTestRunTests(unittest.TestCase):
             return mock.Mock(returncode=exit_code_for(tuple(args)), stdout="")
 
         with mock.patch.object(gate, "require_executed_tests", return_value=zero_tests) as required, \
-                mock.patch.object(gate, "enforce_module_time_limits", return_value=limit_code) as limit, \
+                mock.patch.object(gate, "report_module_times", return_value=list(over_budget)) as limit, \
                 mock.patch.object(gate, "record_test_durations") as duration, \
                 mock.patch.object(gate, "isolate_failed_tests", return_value=[]) as isolate, \
                 mock.patch.object(gate, "failed_tests_from_trx", return_value=[]) as failed, \
@@ -2257,9 +2281,10 @@ class StagedTestRunTests(unittest.TestCase):
         result.duration.assert_called_once()
         result.isolate.assert_called_once()
 
-    def test_red_heavy_module_stops_its_lane_and_keeps_the_exit_code_the_time_limit_does_not_override_it(self):
+    def test_red_heavy_module_stops_its_lane_and_keeps_the_exit_code_and_prints_no_time_report(self):
         result = self._execute(
-            gate.staged_test_commands(), self._name_containing("Tracon.SqlServer.IntegrationTests"), limit_code=90)
+            gate.staged_test_commands(), self._name_containing("Tracon.SqlServer.IntegrationTests"),
+            over_budget=["Tracon.SqlServer.IntegrationTests/net10.0_x64 412 s > 400 s"])
 
         executed = [" ".join(args) for args, _ in result.calls]
         self.assertEqual(result.result, 2)
@@ -2268,17 +2293,23 @@ class StagedTestRunTests(unittest.TestCase):
         result.duration.assert_called_once()
         result.isolate.assert_called_once()
 
-    def test_module_time_limit_gives_its_exit_code_and_writes_one_line_when_the_stages_are_green(self):
-        result = self._execute(gate.staged_test_commands(), limit_code=gate.MODULE_TIME_LIMIT_EXIT_CODE)
+    def test_a_module_over_its_budget_leaves_the_closing_green_and_writes_no_check_row(self):
+        result = self._execute(
+            gate.staged_test_commands(), over_budget=["Tracon.SqlServer.IntegrationTests/net10.0_x64 412 s > 400 s"])
 
-        self.assertEqual(result.result, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(result.result, 0)
         result.limit.assert_called_once()
         result.duration.assert_called_once()
-        checks = [s for s in result.lines if s["command"] == gate.TRX_CHECK.display]
-        self.assertEqual([s["exit_code"] for s in checks], [gate.MODULE_TIME_LIMIT_EXIT_CODE])
-        self.assertEqual(
-            [s["exit_code"] for s in result.lines if s["command"] != gate.TRX_CHECK.display],
-            [0] * len(gate.staged_test_commands()))
+        self.assertEqual([s for s in result.lines if s["command"] == gate.TRX_CHECK.display], [])
+        self.assertEqual([s["exit_code"] for s in result.lines], [0] * len(gate.staged_test_commands()))
+
+    def test_a_test_that_fails_in_a_run_that_is_over_its_budget_gives_the_exit_code_of_the_test(self):
+        result = self._execute(
+            gate.staged_test_commands(), self._name_containing("Tracon.SqlServer.IntegrationTests"),
+            over_budget=["Tracon.SqlServer.IntegrationTests/net10.0_x64 412 s > 400 s"])
+
+        self.assertEqual(result.result, 2)
+        result.limit.assert_not_called()
 
     def test_green_stages_that_ran_zero_tests_count_as_red(self):
         result = self._execute(gate.staged_test_commands(), zero_tests=gate.ZERO_TESTS_EXIT_CODE)
@@ -3832,19 +3863,20 @@ class ModuleTimeBudgetTests(unittest.TestCase):
             '<Results><UnitTestResult testName="N.S.A" duration="00:00:01" outcome="Passed" /></Results></TestRun>',
             encoding="utf-8")
 
-    def _execute(self, durations: dict[str, float], limits: dict[str, int]) -> tuple[int, str]:
+    def _execute(self, durations: dict[str, float], limits: dict[str, int]) -> tuple[list[str], str]:
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             for project, seconds in durations.items():
                 self._trx(root, project, seconds)
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                code = gate.enforce_module_time_limits(0.0, root=root, limits=limits)
-        return code, output.getvalue()
+                exceeded = gate.report_module_times(
+                    0.0, root=root, limits=limits, measurement_path=root / "measurements.jsonl")
+        return exceeded, output.getvalue()
 
     def test_report_lists_every_module_with_its_time_and_budget_share_slowest_first(self):
-        code, text = self._execute({"A": 100, "B": 300, "C": 50}, {"A": 200, "B": 400})
+        exceeded, text = self._execute({"A": 100, "B": 300, "C": 50}, {"A": 200, "B": 400})
 
-        self.assertEqual(code, 0)
+        self.assertEqual(exceeded, [])
         lines = [line.strip() for line in text.splitlines() if "net10.0_arm64" in line]
         self.assertEqual(lines, [
             "B/net10.0_arm64: 300 s · limit 400 s · left 100 s (25%)",
@@ -3852,17 +3884,17 @@ class ModuleTimeBudgetTests(unittest.TestCase):
             "C/net10.0_arm64: 50 s · no limit",
         ])
 
-    def test_slow_module_without_a_budget_does_not_break_the_gate_but_one_over_its_budget_does(self):
-        code, text = self._execute({"Slow": 5000, "Limited": 61}, {"Limited": 60})
+    def test_a_slow_module_without_a_budget_is_only_reported_and_one_over_its_budget_is_named(self):
+        exceeded, text = self._execute({"Slow": 5000, "Limited": 61}, {"Limited": 60})
 
-        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(exceeded, ["Limited/net10.0_arm64 61 s > 60 s"])
         self.assertIn("Limited/net10.0_arm64: 61 s · limit 60 s · EXCEEDED by 1 s", text)
         self.assertIn("Limited/net10.0_arm64 61 s > 60 s", text)
         self.assertNotIn("Slow/net10.0_arm64 5000 s >", text)
 
-    def test_budget_passes_exactly_at_the_limit_and_breaks_one_second_over(self):
-        self.assertEqual(self._execute({"A": 60}, {"A": 60})[0], 0)
-        self.assertEqual(self._execute({"A": 61}, {"A": 60})[0], gate.MODULE_TIME_LIMIT_EXIT_CODE)
+    def test_a_module_is_inside_its_budget_exactly_at_the_limit_and_named_one_second_over(self):
+        self.assertEqual(self._execute({"A": 60}, {"A": 60})[0], [])
+        self.assertEqual(self._execute({"A": 61}, {"A": 60})[0], ["A/net10.0_arm64 61 s > 60 s"])
 
     def test_budget_is_per_module_and_each_tfm_leg_is_checked_separately(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3870,13 +3902,14 @@ class ModuleTimeBudgetTests(unittest.TestCase):
             self._trx(root, "A", 30, "net10.0_arm64")
             self._trx(root, "A", 90, "net9.0_arm64")
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                code = gate.enforce_module_time_limits(0.0, root=root, limits={"A": 60})
+                exceeded = gate.report_module_times(
+                    0.0, root=root, limits={"A": 60}, measurement_path=root / "measurements.jsonl")
 
-        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(exceeded, ["A/net9.0_arm64 90 s > 60 s"])
         self.assertIn("A/net9.0_arm64 90 s > 60 s", output.getvalue())
         self.assertNotIn("A/net10.0_arm64 30 s >", output.getvalue())
 
-    def test_module_without_a_budget_and_an_unreadable_duration_warns_and_does_not_break_the_gate(self):
+    def test_module_without_a_budget_and_an_unreadable_duration_warns(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             folder = root / gate.TEST_RESULTS_DIRECTORY / "Q" / "net10.0_arm64"
@@ -3885,9 +3918,10 @@ class ModuleTimeBudgetTests(unittest.TestCase):
                 '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results/></TestRun>',
                 encoding="utf-8")
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                code = gate.enforce_module_time_limits(0.0, root=root, limits={})
+                exceeded = gate.report_module_times(
+                    0.0, root=root, limits={}, measurement_path=root / "measurements.jsonl")
 
-        self.assertEqual(code, 0)
+        self.assertEqual(exceeded, [])
         self.assertIn("Q/net10.0_arm64: the TRX duration could not be read", output.getvalue())
 
     def test_real_budget_table_uses_real_module_names_and_runs_in_the_closing(self):
@@ -3897,9 +3931,9 @@ class ModuleTimeBudgetTests(unittest.TestCase):
             self._trx(root, "Tracon.TwoNode.IntegrationTests", gate.TEST_MODULE_TIME_LIMITS_SECONDS[
                 "Tracon.TwoNode.IntegrationTests"] + 1)
             with contextlib.redirect_stdout(io.StringIO()):
-                code = gate.enforce_module_time_limits(0.0, root=root)
+                exceeded = gate.report_module_times(0.0, root=root, measurement_path=root / "measurements.jsonl")
 
-        self.assertEqual(code, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(len(exceeded), 1)
 
     def test_duration_variability_is_not_checked_in_the_closing(self):
         # Variance checking belongs to the detector (`stability`); the closing knows only the absolute budget.
@@ -3967,13 +4001,13 @@ class StabilityComparisonTests(unittest.TestCase):
         self.assertLessEqual(gate.STABILITY_MODULE_WALL_FLOOR_MS, 200)
         self.assertGreaterEqual(gate.STABILITY_DEFAULT_REPEAT, 5)
 
-    def test_exit_codes_are_distinct_and_do_not_collide_with_mtp_or_gate_codes(self):
+    def test_exit_codes_are_distinct_and_the_time_has_none(self):
         codes = {
-            gate.STABILITY_TIME_EXIT_CODE, gate.STABILITY_RESULT_EXIT_CODE, gate.STABILITY_USAGE_EXIT_CODE,
-            gate.MODULE_TIME_LIMIT_EXIT_CODE}
+            gate.STABILITY_RESULT_EXIT_CODE, gate.STABILITY_USAGE_EXIT_CODE,
+            gate.STABILITY_RUN_TIMEOUT_EXIT_CODE, gate.STABILITY_LAUNCH_EXIT_CODE}
 
         self.assertEqual(len(codes), 4)
-        self.assertTrue(all(code > 12 for code in (gate.STABILITY_TIME_EXIT_CODE, gate.STABILITY_RESULT_EXIT_CODE)))
+        self.assertEqual(gate.STABILITY_RESULT_EXIT_CODE, 92)
 
     def test_module_wall_spread_passes_at_exactly_15_percent_and_is_red_just_above(self):
         inside, percent = gate.wall_spread_exceeded([100.0, 115.0, 108.0])
@@ -4018,7 +4052,7 @@ class StabilityComparisonTests(unittest.TestCase):
 
     # --- duration verdict -------------------------------------------------------------
 
-    def test_a_drifting_single_test_duration_turns_the_module_time_red_and_names_the_test(self):
+    def test_a_drifting_single_test_duration_gives_the_module_the_time_verdict_and_names_the_test(self):
         runs = [
             _module_run(order=1, tests={"N.A": (100, "Passed"), "N.Slow": (100, "Passed")}),
             _module_run(order=2, tests={"N.A": (100, "Passed"), "N.Slow": (900, "Passed")}),
@@ -4033,9 +4067,9 @@ class StabilityComparisonTests(unittest.TestCase):
         self.assertIn("N.Slow", comparison.time_problems[0])
         self.assertIn("800 ms > 200 ms", comparison.time_problems[0])
         self.assertEqual(comparison.worst_test.name, "N.Slow")
-        self.assertEqual(gate.stability_exit_code([comparison]), gate.STABILITY_TIME_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([comparison]), 0)
 
-    def test_a_drifting_module_wall_time_turns_the_time_red(self):
+    def test_a_drifting_module_wall_time_gives_the_time_verdict(self):
         runs = [_module_run(order=1, wall=100.0), _module_run(order=2, wall=116.0), _module_run(order=3, wall=101.0)]
 
         comparison = gate.compare_module("M", runs)
@@ -4166,13 +4200,13 @@ class StabilityComparisonTests(unittest.TestCase):
 
     # --- exit-code precedence ----------------------------------------------------------------
 
-    def test_result_red_takes_precedence_over_time_red_and_neither_gives_zero(self):
+    def test_a_result_problem_gives_92_and_a_time_problem_alone_gives_zero(self):
         green = gate.compare_module("Y", [_module_run("Y", 1), _module_run("Y", 2)])
         duration = gate.compare_module("S", [_module_run("S", 1, wall=100.0), _module_run("S", 2, wall=200.0)])
         result = gate.compare_module("R", [_module_run("R", 1), _module_run("R", 2, tests={"N.A": (1, "Failed")}, exit_code=2)])
 
         self.assertEqual(gate.stability_exit_code([green]), 0)
-        self.assertEqual(gate.stability_exit_code([green, duration]), gate.STABILITY_TIME_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([green, duration]), 0)
         self.assertEqual(gate.stability_exit_code([green, result]), gate.STABILITY_RESULT_EXIT_CODE)
         self.assertEqual(gate.stability_exit_code([duration, result]), gate.STABILITY_RESULT_EXIT_CODE)
         self.assertEqual(gate.stability_exit_code([result, duration]), gate.STABILITY_RESULT_EXIT_CODE)
@@ -4418,11 +4452,72 @@ class StabilityRunTests(unittest.TestCase):
         line = json.loads((self.root / "measurement.jsonl").read_text(encoding="utf-8").splitlines()[-1])
         self.assertEqual(line["exit_code"], 92)
 
-    def test_a_duration_change_alone_gives_exit_91(self):
-        result = self._execute([self.LIGHT], behavior=lambda project, no: (0, self.DEFAULT_TESTS, 30.0) if no == 2 else None)
+    @staticmethod
+    def _slow_second_run(project, no):
+        return (0, StabilityRunTests.DEFAULT_TESTS, 30.0) if no == 2 else None
 
-        self.assertEqual(result.code, gate.STABILITY_TIME_EXIT_CODE)
+    def test_a_duration_change_alone_gives_exit_zero_and_the_report_names_the_module(self):
+        result = self._execute([self.LIGHT], behavior=self._slow_second_run)
+
+        self.assertEqual(result.code, 0)
         self.assertIn("module wall time", result.screen)
+        self.assertIn("Time spread passed the limit in 1 module(s): Tracon.Voice.UnitTests", result.screen)
+        self.assertNotIn("Result unstable", result.screen)
+        self.assertNotIn("✅ Stable", result.screen)
+        report = self._report_json(result)
+        module = report["modules"]["Tracon.Voice.UnitTests"]
+        self.assertEqual(report["exit_code"], 0)
+        self.assertEqual(module["verdict"], "time")
+        self.assertTrue(any("module wall time" in problem for problem in module["time_problems"]))
+        line = json.loads((self.root / "measurement.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+        self.assertEqual(line["exit_code"], 0)
+
+    def test_the_table_the_verdict_and_the_findings_go_to_the_job_summary_when_a_path_is_given(self):
+        summary = self.root / "summary.md"
+        summary.write_text("an earlier step\n", encoding="utf-8")
+
+        result = self._execute([self.LIGHT], behavior=self._slow_second_run, summary_path=summary)
+
+        text = summary.read_text(encoding="utf-8")
+        self.assertEqual(result.code, 0)
+        self.assertTrue(text.startswith("an earlier step\n"), "the summary is appended to, never replaced")
+        self.assertIn("### Stability", text)
+        self.assertIn("Time spread passed the limit in 1 module(s): Tracon.Voice.UnitTests", text)
+        self.assertIn("| module | runs | wall s (min / median / max) |", text)
+        self.assertRegex(text, r"(?m)^\| Tracon\.Voice\.UnitTests \| 5 \| .*\| ⏱️ time \|$")
+        self.assertRegex(text, r"(?s)```text\n.*module wall time.*```")
+
+    def test_a_green_run_writes_the_green_verdict_to_the_job_summary(self):
+        summary = self.root / "summary.md"
+
+        self._execute([self.LIGHT], summary_path=summary)
+
+        self.assertIn("✅ Stable", summary.read_text(encoding="utf-8"))
+        self.assertNotIn("```", summary.read_text(encoding="utf-8"), "a run with no finding has no findings block")
+
+    def test_a_result_change_and_a_time_change_together_put_both_verdicts_in_the_summary(self):
+        summary = self.root / "summary.md"
+
+        def behavior(project, no):
+            if project == "Tracon.Voice.UnitTests" and no == 2:
+                return 0, self.DEFAULT_TESTS, 30.0
+            if project == "Tracon.Core.UnitTests" and no == 3:
+                return 2, {"N.A": (1, "Failed")}, 10.0
+            return None
+
+        result = self._execute([self.CORE, self.LIGHT], behavior=behavior, summary_path=summary)
+
+        text = summary.read_text(encoding="utf-8")
+        self.assertEqual(result.code, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("❌ Result unstable (exit 92)", text)
+        self.assertIn("Time spread passed the limit in 1 module(s): Tracon.Voice.UnitTests", text)
+
+    def test_a_job_summary_that_cannot_be_written_warns_and_the_exit_code_is_the_same(self):
+        # A directory cannot be opened for appending.
+        result = self._execute([self.LIGHT], behavior=self._slow_second_run, summary_path=self.root)
+
+        self.assertEqual(result.code, 0)
+        self.assertIn("The job summary could not be written", result.screen)
 
     def test_when_result_and_duration_change_together_the_result_code_wins(self):
         def behavior(project, no):
@@ -4719,14 +4814,28 @@ class StabilityCommandTests(unittest.TestCase):
             binary.write_text("", encoding="utf-8")
             unit = gate.StabilityUnit("P", "release", "light", None, binary)
             with mock.patch.object(gate, "stability_check", return_value=0) as checks, \
-                    mock.patch.object(gate, "stability_units", return_value=[unit]):
+                    mock.patch.object(gate, "stability_units", return_value=[unit]), \
+                    mock.patch.dict(os.environ, clear=False):
+                os.environ.pop("GITHUB_STEP_SUMMARY", None)
                 code = gate.stability_from_arguments(self._args(
                     repeat=7, shuffle=True, pressure_runs=[2, 3], seed=42, output=folder))
 
         self.assertEqual(code, 0)
         checks.assert_called_once_with(
             [unit], 7, shuffle=True, pressure=True, pressure_runs=[2, 3], base_seed=42,
-            report_directory=pathlib.Path(folder))
+            report_directory=pathlib.Path(folder), summary_path=None)
+
+    def test_the_job_summary_of_the_ci_run_is_handed_to_stability_check(self):
+        with tempfile.TemporaryDirectory() as folder:
+            binary = pathlib.Path(folder) / "P"
+            binary.write_text("", encoding="utf-8")
+            unit = gate.StabilityUnit("P", "release", "light", None, binary)
+            with mock.patch.object(gate, "stability_check", return_value=0) as checks, \
+                    mock.patch.object(gate, "stability_units", return_value=[unit]), \
+                    mock.patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(pathlib.Path(folder) / "summary.md")}):
+                gate.stability_from_arguments(self._args())
+
+        self.assertEqual(checks.call_args.kwargs["summary_path"], pathlib.Path(folder) / "summary.md")
 
     def test_print_commands_lists_the_commands_without_running_anything(self):
         with mock.patch.object(gate, "stability_check") as checks, contextlib.redirect_stdout(io.StringIO()) as screen:
@@ -4836,6 +4945,15 @@ class StabilityWorkflowTests(unittest.TestCase):
         files = [p.name for p in self.WORKFLOWS.glob("*.yml") if p.name not in UNCHAINED_EXCLUDED_FILES]
 
         self.assertIn("stability.yml", files)
+
+    def test_the_stability_step_does_not_swallow_the_exit_code_of_the_command(self):
+        step = re.search(r"- name: Run the stability check\n(.*?)(?=\n      - name:|\Z)", self.uncommented, re.DOTALL)
+
+        self.assertIsNotNone(step)
+        self.assertIn("scripts/gate.py stability", step.group(1))
+        self.assertNotIn("continue-on-error", self.uncommented)
+        self.assertNotIn("||", step.group(1))
+        self.assertNotRegex(step.group(1), r"set \+e|\bexit 0\b")
 
     def test_stability_command_does_not_change_the_ci_tests_or_the_closing(self):
         ci = (self.WORKFLOWS / "ci.yml").read_text(encoding="utf-8")

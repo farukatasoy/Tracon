@@ -96,10 +96,11 @@ TEST_DURATIONS_DIRECTORY = "artifacts/test-durations"
 TEST_DURATIONS_KEEP = 20
 
 # Absolute wall-time budget per module, in seconds: the span between `Times start` and `finish`
-# in the TRX, container startup included. A `dotnet test` that reports TRX (a full run) ends
-# green, but if a module that has a budget exceeds it the gate is RED (exit code 90). Every
-# test module may carry a budget; the table lives in one place and it is this file. The time of
-# a module without a budget is reported on every run but never fails the gate. The budget is the
+# in the TRX, container startup included. A budget is a yardstick, not a verdict: wall time measures the
+# machine as much as the code (the same tests took 282 s on a quiet machine and 412 s on one that was
+# swapping). A module over its budget is printed and recorded in the measurement file; the exit code
+# stays with the tests. Every test module may carry a budget; the table lives in one place and it is
+# this file. The time of a module without a budget is reported on every run too. The budget is the
 # yardstick of the local gate (two modules at the same time, a developer machine); CI does not
 # run this command and runner hardware was not measured.
 #
@@ -124,11 +125,10 @@ TEST_DURATIONS_KEEP = 20
 #   would raise them and the table only goes down); Cli has no budget (10.2 s: rounding up to
 #   20 s would be no limit) and neither do the modules under 10 s.
 #
-# 🚨 The number only goes DOWN. A budget is not raised when a module exceeds it: first the cause
-# is measured (`artifacts/test-durations/` keeps a record per test). The only exception is a
-# proven slow machine: no assert failed and format and build took at least 4 times as long as on
-# the same day's normal run. That run is repeated once and recorded.
-# Time VARIANCE is not checked by the gate: the `stability` command measures it.
+# 🚨 The number only goes DOWN. A budget is not raised because a module exceeded it: first the cause
+# is measured (`artifacts/test-durations/` keeps a record per test). A run on a machine that was slow
+# that day (format and build took at least 4 times as long as usual) is read as such, not budgeted for.
+# Time VARIANCE is not checked here: the `stability` command reports it.
 TEST_MODULE_TIME_LIMITS_SECONDS: dict[str, int] = {
     "Tracon.SqlServer.IntegrationTests": 400,
     "Tracon.TwoNode.IntegrationTests": 540,
@@ -513,7 +513,8 @@ def _run_test_stages(
 
     The first red block ends the run, so a later and slower block never starts (fail fast). The checks over the
     TRX files then run once, over everything written since the first block began: the executed-test count, the
-    module time limits, the duration record (one file per run) and, after a red run, the isolated rerun.
+    module time report (it never changes the exit code), the duration record (one file per run) and, after a red
+    run, the isolated rerun.
     """
     since = time.time()
     exit_code = 0
@@ -524,11 +525,11 @@ def _run_test_stages(
     if not exit_code:
         check_started = time.monotonic()
         exit_code = require_executed_tests(since)
-        if not exit_code:
-            exit_code = enforce_module_time_limits(since)
         if exit_code:
             print(f"❌ Exit {exit_code}: TRX checks of the test run")
             _record_measurement(stage, TRX_CHECK, check_started, exit_code, measurement_path)
+        else:
+            report_module_times(since, stage=stage, measurement_path=measurement_path)
     record_test_durations(since)
     if exit_code:
         isolate_failed_tests(failed_tests_from_trx(since), runner=runner)
@@ -595,9 +596,6 @@ def require_executed_tests(since: float, root: pathlib.Path = ROOT) -> int:
     return 0
 
 
-MODULE_TIME_LIMIT_EXIT_CODE = 90  # outside the MTP codes (0-12): the gate tells its own red apart
-
-
 def _trx_instant(value: str | None) -> float | None:
     """TRX timestamp (`2026-11-09T11:03:40.357499Z`) -> epoch seconds; `None` if it cannot be parsed.
 
@@ -624,16 +622,43 @@ def trx_wall_seconds(tree: Any) -> float | None:
     return finish - start
 
 
-def enforce_module_time_limits(
+def _record_module_time(
+    stage: str, label: str, seconds: float, limit: int, measurement_path: pathlib.Path,
+) -> None:
+    """Append the row of one module that ran over its budget: module, wall time, budget.
+
+    The row has the shape of every other measurement row plus `limit_seconds`. A file that cannot be written
+    warns; the report is not a reason for the gate to fail."""
+    row = {
+        "utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "stage": stage,
+        "command": f"gate.py module-time {label}",
+        "duration_seconds": round(seconds, 3),
+        "exit_code": 0,
+        "limit_seconds": limit,
+    }
+    try:
+        measurement_path.parent.mkdir(parents=True, exist_ok=True)
+        with measurement_path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except OSError as exception:
+        print(f"   ⚠️ The over-budget row of {label} could not be written to {measurement_path}: {exception}")
+
+
+def report_module_times(
     since: float,
     root: pathlib.Path = ROOT,
     limits: dict[str, int] | None = None,
-) -> int:
-    """0 if every module that has a budget is under it; `MODULE_TIME_LIMIT_EXIT_CODE` if one exceeds it.
+    *,
+    stage: str = "test",
+    measurement_path: pathlib.Path = MEASUREMENTS,
+) -> list[str]:
+    """Print the wall time of every module; return the modules over their budget (`label 526 s > 500 s`).
 
-    The wall time of every module is printed on every run: getting close to the budget shows up before
-    the red. A module without a budget is only reported (`no limit`). A TRX whose time cannot be read
-    warns and does not fail the gate. Time variance is not checked here; `stability` measures it."""
+    This is a report: it never changes an exit code. The wall time of every module is printed on every run, so
+    getting close to a budget shows before it is passed. A module over its budget gets a `⏱️` line and one row
+    in the measurement file. A module without a budget is only reported (`no limit`). A TRX whose time cannot
+    be read warns. Time variance is not checked here; `stability` reports it."""
     limits = TEST_MODULE_TIME_LIMITS_SECONDS if limits is None else limits
     results = root / TEST_RESULTS_DIRECTORY
     measured: list[tuple[float, str, int | None]] = []
@@ -641,11 +666,11 @@ def enforce_module_time_limits(
         label = trx.parent.relative_to(results).as_posix()
         seconds = trx_wall_seconds(tree)
         if seconds is None:
-            print(f"   ⚠️ {label}: the TRX duration could not be read, the time limit was not checked")
+            print(f"   ⚠️ {label}: the TRX duration could not be read, the time budget was not checked")
             continue
         measured.append((seconds, label, limits.get(project)))
     if measured:
-        print("   ⏱️  Module times (TRX wall time; a module without a limit is only reported):")
+        print("   ⏱️  Module times (TRX wall time; a module without a budget is only reported):")
     exceeded: list[str] = []
     for seconds, label, limit in sorted(measured, key=lambda row: (-row[0], row[1])):
         if limit is None:
@@ -656,14 +681,14 @@ def enforce_module_time_limits(
         print(f"      {label}: {seconds:.0f} s · limit {limit} s · {remaining}")
         if seconds > limit:
             exceeded.append(f"{label} {seconds:.0f} s > {limit} s")
-    if not exceeded:
-        return 0
-    print(f"❌ Module time limit exceeded: {'; '.join(exceeded)}.")
-    print("   → Do not raise the limit and do not just rerun the gate. First measure which test got slower"
-          f" ({TEST_DURATIONS_DIRECTORY}/, time per test). The one exception is a proven slow"
-          " machine: no assert failed, and format and build took at least 4 times their normal"
-          " time that day.")
-    return MODULE_TIME_LIMIT_EXIT_CODE
+            _record_module_time(stage, label, seconds, limit, measurement_path)
+    if exceeded:
+        print(f"⏱️ Over the time budget (a report; the exit code stays with the tests): {'; '.join(exceeded)}.")
+        print("   → Read it before you go on: measure which test got slower"
+              f" ({TEST_DURATIONS_DIRECTORY}/, time per test). A machine that was slow that day"
+              " (format and build took at least 4 times their normal time) explains it. Do not raise"
+              " a budget to make the line go away.")
+    return exceeded
 
 
 def _walk_files(root: pathlib.Path, *, excluded_dirs: set[str] | None = None) -> Iterable[pathlib.Path]:
@@ -1981,11 +2006,13 @@ def test_commands(
 #   - result identity: the same tests with the same outcomes in every run, also under CPU pressure and
 #     in a shuffled order. Any difference is red and names the test. A test that fails in every run is
 #     red too: a stable red is not a stable result.
-#   - time: per test, the spread between the slowest and the fastest run may not exceed
+#   - time: per test, the spread between the slowest and the fastest run is expected to stay within
 #     max(STABILITY_TEST_FLOOR_MS, STABILITY_TEST_MEDIAN_FACTOR x the median of that test); per module,
-#     the slowest wall time may not exceed the fastest by more than STABILITY_MODULE_WALL_PERCENT
+#     the slowest wall time within the fastest by STABILITY_MODULE_WALL_PERCENT
 #     (with a floor of STABILITY_MODULE_WALL_FLOOR_MS, so a one-second module is not judged by
 #     scheduler noise). Only the runs without CPU pressure are judged; pressured runs are reported.
+#     A spread past the limit is a REPORT (verdict `time`, listed in the table, the findings and the report
+#     file) and never changes the exit code: wall time measures the machine as much as the code.
 #
 # Shuffled order: every xunit v3 test executable of this repository offers `--seed <integer>`
 # ("Set the randomization seed"). With `--shuffle` each run gets a different, recorded seed, so a
@@ -2012,7 +2039,6 @@ STABILITY_TEST_MEDIAN_FACTOR = 1
 STABILITY_MODULE_WALL_PERCENT = 15
 STABILITY_MODULE_WALL_FLOOR_MS = 200
 
-STABILITY_TIME_EXIT_CODE = 91
 STABILITY_RESULT_EXIT_CODE = 92
 STABILITY_USAGE_EXIT_CODE = 2
 STABILITY_RUN_TIMEOUT_EXIT_CODE = 124
@@ -2346,12 +2372,11 @@ def compare_module(label: str, runs: Sequence[ModuleRun], *, shuffled: bool = Fa
 
 
 def stability_exit_code(comparisons: Iterable[ModuleComparison]) -> int:
-    """0 when every module is green; a result problem outranks a time problem."""
-    verdicts = {comparison.verdict for comparison in comparisons}
-    if "result" in verdicts:
+    """`STABILITY_RESULT_EXIT_CODE` when any module's result differs, else 0.
+
+    A time problem is a report and has no exit code: the verdict stays `time` in the table and the report file."""
+    if any(comparison.verdict == "result" for comparison in comparisons):
         return STABILITY_RESULT_EXIT_CODE
-    if "time" in verdicts:
-        return STABILITY_TIME_EXIT_CODE
     return 0
 
 
@@ -2361,8 +2386,8 @@ def _stability_seconds(values: Sequence[float]) -> str:
     return f"{min(values):.1f} / {statistics.median(values):.1f} / {max(values):.1f}"
 
 
-def format_stability_table(comparisons: Sequence[ModuleComparison], *, shuffled: bool) -> list[str]:
-    """One human table: per module the wall times, the worst test and the verdict."""
+def _stability_table_cells(comparisons: Sequence[ModuleComparison], *, shuffled: bool) -> tuple[list[str], list[list[str]]]:
+    """The header and the rows of the stability table: per module the wall times, the worst test and the verdict."""
     symbols = {"green": "✅", "time": "⏱️ time", "result": "❌ result"}
     header = ["module", "runs", "wall s (min / median / max)", "spread %", "pressured max s", "worst test (span / limit ms)"]
     if shuffled:
@@ -2383,12 +2408,50 @@ def format_stability_table(comparisons: Sequence[ModuleComparison], *, shuffled:
             row.append(f"{min(comparison.order_similarity):.2f}" if comparison.order_similarity else "-")
         row.append(symbols[comparison.verdict])
         rows.append(row)
+    return header, rows
+
+
+def format_stability_table(comparisons: Sequence[ModuleComparison], *, shuffled: bool) -> list[str]:
+    """One human table: per module the wall times, the worst test and the verdict."""
+    header, rows = _stability_table_cells(comparisons, shuffled=shuffled)
     widths = [max(len(header[column]), *(len(row[column]) for row in rows)) if rows else len(header[column])
               for column in range(len(header))]
     lines = ["  ".join(cell.ljust(widths[column]) for column, cell in enumerate(header)).rstrip()]
     lines.append("  ".join("-" * width for width in widths))
     lines.extend("  ".join(cell.ljust(widths[column]) for column, cell in enumerate(row)).rstrip() for row in rows)
     return lines
+
+
+def format_stability_markdown(comparisons: Sequence[ModuleComparison], *, shuffled: bool) -> list[str]:
+    """The stability table as a markdown table, for a job summary."""
+    header, rows = _stability_table_cells(comparisons, shuffled=shuffled)
+    lines = ["| " + " | ".join(header) + " |", "|" + "|".join(" --- " for _ in header) + "|"]
+    lines.extend("| " + " | ".join(row) + " |" for row in rows)
+    return lines
+
+
+def stability_verdict_lines(comparisons: Sequence[ModuleComparison], exit_code: int) -> list[str]:
+    """What the run says about itself: the result verdict, then which modules moved in time, then green if neither."""
+    lines: list[str] = []
+    if exit_code == STABILITY_RESULT_EXIT_CODE:
+        lines.append(f"❌ Result unstable (exit {STABILITY_RESULT_EXIT_CODE}): fix the instability before you go on.")
+    timed = [comparison.label for comparison in comparisons if comparison.verdict == "time"]
+    if timed:
+        lines.append(
+            f"⏱️ Time spread passed the limit in {len(timed)} module(s): {', '.join(timed)}. "
+            "It is a report and does not change the exit code; read the findings before you trust the numbers.")
+    if not lines:
+        lines.append("✅ Stable: the results are the same and the times stay within the limits.")
+    return lines
+
+
+def write_step_summary(path: pathlib.Path, lines: Sequence[str]) -> None:
+    """Append `lines` to the job summary file of the CI run. A file that cannot be written warns and nothing else."""
+    try:
+        with path.open("a", encoding="utf-8") as stream:
+            stream.write("\n".join(lines) + "\n")
+    except OSError as exception:
+        print(f"⚠️ The job summary could not be written to {path}: {exception}")
 
 
 def stability_payload(
@@ -2606,19 +2669,21 @@ def _execute_stability_run(
     return finished
 
 
-def _print_stability_findings(comparisons: Sequence[ModuleComparison]) -> None:
+def stability_finding_lines(comparisons: Sequence[ModuleComparison]) -> list[str]:
+    """The findings per module, the first few of each (the report file holds the rest)."""
+    lines: list[str] = []
     for comparison in comparisons:
         findings = [("result", problem) for problem in comparison.result_problems]
         findings += [("time", problem) for problem in comparison.time_problems]
         if not findings and not comparison.notes:
             continue
-        print(f"\n{comparison.label}")
+        lines.extend(["", comparison.label])
         for kind, problem in findings[:STABILITY_LISTED_PROBLEMS]:
-            print(f"   {'❌' if kind == 'result' else '⏱️'} {problem}")
+            lines.append(f"   {'❌' if kind == 'result' else '⏱️'} {problem}")
         if len(findings) > STABILITY_LISTED_PROBLEMS:
-            print(f"   … {len(findings) - STABILITY_LISTED_PROBLEMS} more findings in the report file")
-        for note in comparison.notes:
-            print(f"   ℹ️ {note}")
+            lines.append(f"   … {len(findings) - STABILITY_LISTED_PROBLEMS} more findings in the report file")
+        lines.extend(f"   ℹ️ {note}" for note in comparison.notes)
+    return lines
 
 
 def stability_check(
@@ -2636,12 +2701,14 @@ def stability_check(
     measurement_path: pathlib.Path = MEASUREMENTS,
     stamp: str | None = None,
     cpu_count: int | None = None,
+    summary_path: pathlib.Path | None = None,
 ) -> int:
     """Run the units `repeat` times, compare the runs, write the report, return the exit code.
 
-    0 when every module is stable; `STABILITY_RESULT_EXIT_CODE` when any result differs (or a test fails);
-    `STABILITY_TIME_EXIT_CODE` when only the time differs; `STABILITY_USAGE_EXIT_CODE` when the command
-    itself could not be set up. CPU pressure runs only for the runs in `pressure_runs` (default: the last two)."""
+    0 when every result is the same, whatever the time did (a time spread is reported, not failed);
+    `STABILITY_RESULT_EXIT_CODE` when any result differs (or a test fails); `STABILITY_USAGE_EXIT_CODE` when the
+    command itself could not be set up. CPU pressure runs only for the runs in `pressure_runs` (default: the last
+    two). The table and the verdict are also appended to `summary_path` (the job summary of a CI run) when given."""
     if repeat < STABILITY_MIN_REPEAT:
         print(f"❌ --repeat must be at least {STABILITY_MIN_REPEAT}.")
         return STABILITY_USAGE_EXIT_CODE
@@ -2699,14 +2766,19 @@ def stability_check(
 
     comparisons = [compare_module(unit_label, collected[unit_label], shuffled=shuffle) for unit_label in collected]
     exit_code = stability_exit_code(comparisons)
-    print("\n" + "\n".join(format_stability_table(comparisons, shuffled=shuffle)))
-    _print_stability_findings(comparisons)
+    table = format_stability_table(comparisons, shuffled=shuffle)
+    findings = stability_finding_lines(comparisons)
+    verdict = stability_verdict_lines(comparisons, exit_code)
+    print("\n" + "\n".join(table))
+    if findings:
+        print("\n".join(findings))
     if pressured_runs:
         print("\nThe times of CPU-pressured runs are reported but do not count as red; under pressure only a result difference is red.")
-    verdict = {0: "✅ Stable: the results are the same and the times stay within the limits.",
-               STABILITY_TIME_EXIT_CODE: f"⏱️ Time unstable (exit {STABILITY_TIME_EXIT_CODE}): the results are the same, but the time spread passed the limit.",
-               STABILITY_RESULT_EXIT_CODE: f"❌ Result unstable (exit {STABILITY_RESULT_EXIT_CODE}): fix the instability before you go on."}[exit_code]
-    print(verdict, flush=True)
+    print("\n".join(verdict), flush=True)
+    if summary_path is not None:
+        write_step_summary(summary_path, [
+            "### Stability", "", *verdict, "", *format_stability_markdown(comparisons, shuffled=shuffle),
+            *(["", "```text", *findings, "```"] if findings else [])])
 
     payload = stability_payload(
         comparisons, collected, stamp=stamp, repeat=repeat, shuffled=shuffle, base_seed=base_seed,
@@ -2752,10 +2824,12 @@ def stability_from_arguments(args: argparse.Namespace) -> int:
         print(f"❌ No built test binary: {', '.join(missing)}")
         print("   `stability` does not build. Run `dotnet build Tracon.slnx -c Release` first.")
         return STABILITY_USAGE_EXIT_CODE
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
     return stability_check(
         units, args.repeat, shuffle=args.shuffle, pressure=pressure,
         pressure_runs=args.pressure_runs, base_seed=args.seed,
-        report_directory=pathlib.Path(args.output) if args.output else None)
+        report_directory=pathlib.Path(args.output) if args.output else None,
+        summary_path=pathlib.Path(summary) if summary else None)
 
 
 # -----------------------------------------------------------------------------
