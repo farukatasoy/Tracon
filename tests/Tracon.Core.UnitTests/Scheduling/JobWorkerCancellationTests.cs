@@ -159,10 +159,11 @@ public sealed class JobWorkerCancellationTests
     [Fact]
     public async Task One_jobs_cancel_does_not_cancel_another_and_the_watch_ends_with_its_handler()
     {
+        var clock = new ManualClock();
         var store = new ProbeJobStore(new InMemoryJobStore());
         var handler = new TokenProbeHandler();
         handler.For("other").Behavior = ProbeBehavior.IgnoreToken;
-        var (worker, host) = Worker(store, handler);
+        var (worker, host) = Worker(store, handler, clock: clock);
 
         using (host)
         using (worker)
@@ -170,11 +171,15 @@ public sealed class JobWorkerCancellationTests
             var cancelled = await EnqueueAsync(store, "slow");
             var other = await EnqueueAsync(store, "other");
 
-            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await StartOnClockAsync(worker, clock);
             await handler.For("slow").Started.Task.WaitAsync(TestContext.Current.CancellationToken);
             await handler.For("other").Started.Task.WaitAsync(TestContext.Current.CancellationToken);
 
+            // The worker's poll and one watch for each running job, all armed one poll interval ahead.
+            clock.Pending.Count(static due => due == Poll).ShouldBe(3, "the worker's poll and the two cancel watches");
+
             (await store.CancelAsync(Tenant, cancelled, TestContext.Current.CancellationToken)).ShouldBeTrue();
+            clock.Advance(Poll);
             await handler.For("slow").Cancelled.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
             await WaitForAsync(store, cancelled, JobStatus.Cancelled);
 
@@ -183,15 +188,12 @@ public sealed class JobWorkerCancellationTests
             handler.For("other").Release.TrySetResult();
             await WaitForAsync(store, other, JobStatus.Completed);
 
-            // No handler runs now: the reads must stop with their handlers. The
-            // worker's own lease poll does not read a single job. The finalization's
-            // one read after the status is written gets a few intervals first.
-            await Task.Delay(Poll * 5, TestContext.Current.CancellationToken); // delay: negative
-            var settled = store.Reads;
-
-            await Task.Delay(Poll * 10, TestContext.Current.CancellationToken); // delay: negative
-
-            store.Reads.ShouldBe(settled, "a watch outlived the handler it watched");
+            // No handler runs now: a watch lives on a timer of the worker's clock, and the watch of a job ends with its
+            // handler (the worker awaits it before it writes the outcome). What is armed is the worker's own poll alone,
+            // and that poll does not read a single job.
+            await WaitUntil.TrueAsync(
+                () => clock.Pending.Count(static due => due == Poll) == 1,
+                "the cancel watches to end with their handlers");
 
             await worker.StopAsync(TestContext.Current.CancellationToken);
         }

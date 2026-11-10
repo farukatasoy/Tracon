@@ -117,13 +117,17 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
                         runId,
                         new RunCost { InputCost = 1m, Currency = "USD", Source = PricingSource.Configuration },
                         AmbientTenant.TenantId);
-                    await Task.Delay(1);
+
+                    // The store's write lock is a real database lock: the pause is the only way to leave it free for the completion.
+                    await Task.Delay(1); // delay: product
                 }
             });
 
             try
             {
-                await Task.Delay(round % 5);
+                // Each round starts the completion at another point of the update loop; an update is a database round trip, so
+                // the offset has to be a span of real time.
+                await Task.Delay(round % 5); // delay: product
 
                 await Store.CompleteRunAsync(new RunCompletion
                 {
@@ -3801,6 +3805,9 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     // run by; a store that marks a run when it starts ages the mark, and the start time does not matter to it.
     private static readonly TimeSpan OrphanThreshold = TimeSpan.FromMilliseconds(200);
 
+    // The mark is stamped by the store's own clock and read by the same clock in the claim: a database server's, for a store
+    // that shares its database. Only that clock can age it, and the claim that follows is the store's answer, with no
+    // question to ask again (it closes what it claims).
     private static async Task LetTheMarkAgeAsync()
         => await Task.Delay(TimeSpan.FromMilliseconds(400)); // delay: product
 
@@ -4000,7 +4007,8 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
         await Store.TouchHeartbeatAsync([runId]);
 
-        // The heartbeat is stamped with the store's own clock, so it cannot be backdated: the test lets a short threshold pass.
+        // The heartbeat is stamped with the store's own clock, so it cannot be backdated: the test lets a short threshold pass
+        // on that clock, which only the store's own time passing can move.
         await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken); // delay: product
 
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
@@ -4042,7 +4050,8 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.TouchHeartbeatAsync([runId]);
 
         // The heartbeat is stamped with the store's own clock (a database server's, for a store that shares its
-        // database), so it cannot be backdated: the test lets a short threshold pass instead.
+        // database), so it cannot be backdated: the test lets a short threshold pass instead, on that clock, which only
+        // the store's own time passing can move.
         await Task.Delay(TimeSpan.FromMilliseconds(1300)); // delay: product
 
         var claimed = await Store.ClaimOrphanedRunsAsync(

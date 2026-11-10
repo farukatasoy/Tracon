@@ -61,13 +61,13 @@ public sealed class JobCancelEndpointTests
             response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         }
 
-        // Several poll intervals pass; the watch reads the job as Running each time.
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken); // delay: negative
-
-        probe.Cancelled("guarded").IsCompleted.ShouldBeFalse("another tenant's cancel must not reach this job");
-
+        // The only way a cancel reaches a running handler is the job's status in the store: the endpoint writes it before it
+        // answers, and the worker's watch reads it and cancels the token. A job that is still Running now can no
+        // longer be cancelled by this request, whatever the watch reads later.
         var store = host.Services.GetRequiredService<IJobStore>();
         (await store.GetAsync("acme", id, TestContext.Current.CancellationToken))!.Status.ShouldBe(JobStatus.Running);
+
+        probe.Cancelled("guarded").IsCompleted.ShouldBeFalse("another tenant's cancel must not reach this job");
 
         // The owner's cancel still works.
         using (var own = new HttpRequestMessage(HttpMethod.Post, $"/tracon/api/jobs/{id}/cancel"))

@@ -57,6 +57,7 @@ internal sealed class ManagedProcess(Process process, string description) : IAsy
 
         // The process exiting is a completion of the wait too - otherwise a
         // crash at startup would show up as a timeout, hiding the real error.
+        // The span only ends a wait that failed: it is the bound on a child process that prints nothing.
         var completed = await Task.WhenAny(
             _ready.Task,
             _exited.Task,

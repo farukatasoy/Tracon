@@ -478,8 +478,10 @@ public sealed partial class SandboxedSkillScriptRunnerTests
 
             var second = runner.RunStoredScriptAsync(skill, "echo", null, CancellationToken.None);
 
-            // The slot is held while the first executor call runs.
-            (await Task.WhenAny(secondCalled.Task, Task.Delay(TimeSpan.FromMilliseconds(300)))).ShouldNotBe(secondCalled.Task); // delay: negative
+            // The slot is held while the first executor call runs. The call runs on this thread up to the quota, and a free
+            // slot lets it on to the executor on this thread as well: the executor has been reached by now or the call is
+            // parked on the quota.
+            secondCalled.Task.IsCompleted.ShouldBeFalse("the second call reached the executor while the first held the only slot");
             clock.Pending.ShouldBe([TimeSpan.FromSeconds(35)]);
 
             clock.FireAll();
@@ -674,7 +676,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests
         await firstCalled.Task.WaitAsync(TimeSpan.FromSeconds(30));
         var second = runner.RunStoredScriptAsync(skill, "echo", null, CancellationToken.None);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(300)); // delay: negative
+        // The call runs on this thread up to the quota, and a free slot lets it on to the executor on this thread as well.
         executor.Requests.Count.ShouldBe(1);
 
         release.SetResult(Exited(0));

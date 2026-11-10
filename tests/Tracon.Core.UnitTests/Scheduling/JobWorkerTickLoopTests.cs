@@ -27,13 +27,27 @@ public sealed class JobWorkerTickLoopTests
         var clock = new ManualClock();
         var store = new ProbeJobStore(new InMemoryJobStore());
         var calls = 0;
-        var fail = true;
+        var failed = 0;
+        var recovered = false;
+        var recoveredAt = 0;
 
+        // The store fails every lease until the test lets it answer. The first lease that gets an answer records its
+        // position among the calls, and the position is the claim: a loop that leased without a tick (a hot spin after a
+        // failure) pushes the lease of the recovery tick further down the list.
         store.BeforeLease = _ =>
         {
-            Interlocked.Increment(ref calls);
+            var position = Interlocked.Increment(ref calls);
 
-            return fail ? throw new IOException("the job store is unreachable (probe)") : Task.CompletedTask;
+            if (Volatile.Read(ref recovered))
+            {
+                Interlocked.CompareExchange(ref recoveredAt, position, 0);
+
+                return Task.CompletedTask;
+            }
+
+            Interlocked.Increment(ref failed);
+
+            throw new IOException("the job store is unreachable (probe)");
         };
 
         var (worker, host) = Worker(store, new TokenProbeHandler(), o => o.PollInterval = Interval, clock: clock);
@@ -50,17 +64,17 @@ public sealed class JobWorkerTickLoopTests
             for (var tick = 1; tick <= 3; tick++)
             {
                 clock.Advance(Interval);
-                await WaitUntil.TrueAsync(() => Volatile.Read(ref calls) >= tick, $"the worker to lease on tick {tick}");
+                await WaitUntil.TrueAsync(() => Volatile.Read(ref failed) >= tick, $"the worker to lease on tick {tick}");
             }
 
-            // A hot spin shows here: nothing advanced the clock, so no call may follow the third one.
-            await Task.Delay(150, TestContext.Current.CancellationToken); // delay: negative
-            Volatile.Read(ref calls).ShouldBe(3, "the worker leased without a tick");
-
             // The loop is alive: once the store answers, the next tick reaches it.
-            fail = false;
+            Volatile.Write(ref recovered, true);
             clock.Advance(Interval);
-            await WaitUntil.TrueAsync(() => Volatile.Read(ref calls) >= 4, "the worker to lease from the recovered store");
+            await WaitUntil.TrueAsync(() => Volatile.Read(ref recoveredAt) != 0, "the worker to lease from the recovered store");
+
+            // The loop is sequential, so a lease it made without a tick (a hot spin) came before the lease of the recovery
+            // tick and moved it down the list: the first lease that was answered is the one after the three ticks.
+            recoveredAt.ShouldBe(4, "the worker leased without a tick");
 
             await worker.StopAsync(TestContext.Current.CancellationToken).WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
         }

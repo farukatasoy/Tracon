@@ -254,7 +254,9 @@ public abstract class SkillScriptExecutorContract : IAsyncLifetime
             .ExecuteAsync(CreateRequest("cancelled", SleepScript, timeout: TimeSpan.FromSeconds(60)), cancellation.Token)
             .AsTask();
 
-        await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+        // The script is a real child process: the call has to have started it before the cancel arrives, and the executor
+        // gives no signal that it has.
+        await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false); // delay: product
         await cancellation.CancelAsync().ConfigureAwait(false);
 
         Exception? thrown = null;

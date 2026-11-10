@@ -138,20 +138,29 @@ public sealed class RunCancellationRegistryTests
 
         var spendCount = 0;
         using var stop = new CancellationTokenSource();
+        using var spendNext = new SemaphoreSlim(0);
 
         // The "run body": simulates work that ignores the cancellation token entirely
         // (the shape a naive or third-party tool call takes) and keeps "spending" until
-        // it is told to stop through an UNRELATED channel.
+        // it is told to stop through an UNRELATED channel. It spends once for each turn
+        // the test gives it, so no time has to pass for it to spend.
         var runBody = Task.Run(async () =>
         {
-            while (!stop.IsCancellationRequested)
+            while (true)
             {
+                await spendNext.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+
+                if (stop.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 Interlocked.Increment(ref spendCount);
-                await Task.Delay(5, CancellationToken.None).ConfigureAwait(false); // delay: simulated
             }
         });
 
         // Let the body actually start spending before cancelling it.
+        spendNext.Release();
         await WaitUntil.TrueAsync(() => Volatile.Read(ref spendCount) > 0);
 
         registry.TryCancel(runId, "test").ShouldBeTrue();
@@ -161,9 +170,11 @@ public sealed class RunCancellationRegistryTests
 
         // The body keeps running (and "spending") after the signal, because it never
         // reads the token — this is the guarantee limit the interface documents.
+        spendNext.Release();
         await WaitUntil.TrueAsync(() => Volatile.Read(ref spendCount) > spendAtCancellation);
 
         stop.Cancel();
+        spendNext.Release();
         await runBody;
     }
 }

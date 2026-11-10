@@ -439,11 +439,9 @@ public sealed class LateToolCompletionTests
         release.SetResult();
         await WaitForLateSettlementAsync(host, runId);
 
-        // The observer that decides whether a late write is due has run (the record is
-        // written after it); a wrong write would be one more entry. A short window follows
-        // the proof, since the entry is written without anything waiting for it.
-        await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: negative
-
+        // The observer that decides whether a late write is due has run: it adds the quota entry on the thread that
+        // settled the call, before it starts the write of the call's record, and the in-memory counter takes the entry
+        // without a suspension. The record is the proof above, so a wrong write is one more entry by now.
         var only = quota.Entries.ShouldHaveSingleItem();
 
         only.Runs.ShouldBe(1);
@@ -543,8 +541,8 @@ public sealed class LateToolCompletionTests
         release.SetResult();
         await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
         await WaitForLateSettlementAsync(host, runId);
-        await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: negative
 
+        // The late quota entry, if one were due, was added before the record above was written (see the test before).
         quota.Entries.ShouldHaveSingleItem().Cost.ShouldBeNull();
     }
 

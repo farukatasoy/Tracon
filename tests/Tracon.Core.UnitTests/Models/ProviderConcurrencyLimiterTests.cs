@@ -25,10 +25,10 @@ public sealed class ProviderConcurrencyLimiterTests
 
         var secondTask = limiter.AcquireAsync("openai", TestContext.Current.CancellationToken).AsTask();
 
-        // The second caller must be genuinely BLOCKED, not merely slow: give it
-        // a short window and confirm it has not completed.
-        var completedEarly = await Task.WhenAny(secondTask, Task.Delay(100, TestContext.Current.CancellationToken)); // delay: negative
-        completedEarly.ShouldNotBe(secondTask);
+        // The second caller must be genuinely BLOCKED, not merely slow. The limiter runs up to its semaphore wait on the
+        // caller's own thread, so the call has returned a pending task only because it is parked on the semaphore: a
+        // slot that was free would have completed it before the call returned. No time has to pass for this.
+        secondTask.IsCompleted.ShouldBeFalse("the second caller got a slot while the first still held the only one");
 
         first!.Dispose();
 

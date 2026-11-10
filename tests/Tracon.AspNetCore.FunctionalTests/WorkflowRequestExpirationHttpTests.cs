@@ -72,7 +72,11 @@ public sealed class WorkflowRequestExpirationHttpTests
         var (runId, _) = await RunToAwaitAsync(host, Open);
 
         clock.Advance(TimeSpan.FromDays(3650));
-        await Task.Delay(400); // delay: negative
+
+        // The first scan after this would close the request if a request without a limit could run out of time. It has
+        // finished once the scan after the one that closes a later request has: two of them, the second after the first.
+        await WaitForALaterScanAsync(host, clock);
+        await WaitForALaterScanAsync(host, clock);
 
         (await RunAsync(host, runId)).GetProperty("status").GetString().ShouldBe("AwaitingInput");
         (await ListAsync(host)).ShouldHaveSingleItem();

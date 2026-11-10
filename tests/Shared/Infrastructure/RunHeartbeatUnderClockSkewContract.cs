@@ -201,6 +201,8 @@ public abstract class RunHeartbeatUnderClockSkewContract
 
         await runs.StartRunAsync(TestData.Run(runId));
 
+        // The mark is stamped by the database server's clock and cannot be backdated; the claim below reads the same
+        // clock, so only the server's own time passing can age it past the threshold.
         await Task.Delay(TimeSpan.FromMilliseconds(400), TestContext.Current.CancellationToken); // delay: product
 
         await runs.StartRunAsync(TestData.Run(runId));

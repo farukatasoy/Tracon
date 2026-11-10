@@ -93,11 +93,12 @@ public sealed class ConfigurationReloadTests
         // The host's own source reached the monitor ...
         monitor.CurrentValue.ModelConcurrency.MaxConcurrentCallsPerProvider.ShouldBe(5);
 
-        // ... and the limiter still holds two slots: a third caller waits.
+        // ... and the limiter still holds two slots: a third caller waits. The limiter runs up to its semaphore wait on the
+        // caller's own thread, so a pending task on return means the caller is parked on the semaphore; a slot the reload had
+        // freed would have completed it before the call returned.
         var third = limiter.AcquireAsync("openai", TestContext.Current.CancellationToken).AsTask();
-        var finished = await Task.WhenAny(third, Task.Delay(150, TestContext.Current.CancellationToken)); // delay: negative
 
-        finished.ShouldNotBe(third, "a SemaphoreSlim cannot be resized, so the limit is the one the first call saw");
+        third.IsCompleted.ShouldBeFalse("a SemaphoreSlim cannot be resized, so the limit is the one the first call saw");
 
         first!.Dispose();
         (await third)!.Dispose();

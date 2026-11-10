@@ -175,10 +175,13 @@ public sealed class RunTests(BrowserFixture browsers)
 
         // Keep the screen's loading state observable. The heading renders before
         // the filtered runs request completes, so an assertion that reads the
-        // table immediately after navigation races the network response.
+        // table immediately after navigation races the network response. The
+        // request is held until the test has looked at the screen.
+        var answer = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         await session.Page.RouteAsync("**/api/runs**", async route =>
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(750)); // delay: simulated
+            await answer.Task;
             await route.ContinueAsync();
         });
 
@@ -186,6 +189,8 @@ public sealed class RunTests(BrowserFixture browsers)
 
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Runs" })).ToBeVisibleAsync();
         await Expect(session.Page.GetByText("Page not found")).ToHaveCountAsync(0);
+
+        answer.TrySetResult();
 
         await Expect(session.Page.Locator("tbody tr"))
             .ToHaveCountAsync(expectedCount);

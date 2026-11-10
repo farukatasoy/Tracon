@@ -37,13 +37,14 @@ internal static class HarnessExecutionLog
     /// <param name="workerName">The writing process's label.</param>
     /// <param name="jobId">The job being executed.</param>
     /// <param name="attempt">The job's attempt counter at lease time.</param>
+    /// <returns>The completion task.</returns>
     /// <remarks>
     /// Two processes share the file, so a concurrent append can fail with a
     /// sharing violation; the retry loop covers that. Each line is written in
     /// a single call and stays far below the platform's atomic-append size, so
     /// lines never interleave.
     /// </remarks>
-    public static void Append(string path, string stage, string workerName, Guid jobId, int attempt)
+    public static async Task AppendAsync(string path, string stage, string workerName, Guid jobId, int attempt)
     {
         var line = string.Create(
             CultureInfo.InvariantCulture,
@@ -55,12 +56,15 @@ internal static class HarnessExecutionLog
             {
                 using var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
                 using var writer = new StreamWriter(stream);
-                writer.Write(line);
+                await writer.WriteAsync(line).ConfigureAwait(false);
                 return;
             }
             catch (IOException) when (retry < 20)
             {
-                Thread.Sleep(25);
+                // Another process holds the file for the length of its own append. This code also runs in the worker
+                // process, outside any test, where no condition wait exists: the pause is the one between two tries at a
+                // shared file.
+                await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false); // delay: retry
             }
         }
     }

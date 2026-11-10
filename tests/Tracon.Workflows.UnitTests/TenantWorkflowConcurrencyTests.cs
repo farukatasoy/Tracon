@@ -302,7 +302,7 @@ public sealed class TenantWorkflowConcurrencyTests
         const int sharedLimit = 3;
         const int tenantLimit = 2;
 
-        var (host, gate) = await BuildAsync(tenants: ["tenant-a", "tenant-b", "tenant-c"], blocking: false);
+        var (host, gate) = await BuildAsync(tenants: ["tenant-a", "tenant-b", "tenant-c"]);
         var runner = host.CreateRunner(static options =>
         {
             options.MaxConcurrentRuns = sharedLimit;
@@ -310,15 +310,49 @@ public sealed class TenantWorkflowConcurrencyTests
             options.RunTimeout = TimeSpan.FromMinutes(2);
         });
 
-        var runs = new List<Task<List<RunEvent>>>();
+        var started = new List<(string Tenant, StartedRun Run)>();
 
         for (var index = 0; index < runsPerTenant; index++)
         {
             for (var tenant = 0; tenant < tenants; tenant++)
             {
-                runs.Add(Start(runner, $"tenant-{(char)('a' + tenant)}").Events);
+                var name = $"tenant-{(char)('a' + tenant)}";
+
+                started.Add((name, Start(runner, name)));
             }
         }
+
+        // The node holds the runs that reach it. Once every run has its row, the shared slots are full and every other run
+        // waits Queued: a limit that let one more run in would show as a fourth Running row, and the one that let fewer in as
+        // a slot nobody holds. Then the runs go through, the ones that waited included.
+        var ids = await Task.WhenAll(started.Select(static item => item.Run.RunId)).WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        await WaitUntil.TrueAsync(
+            async () =>
+            {
+                var running = 0;
+                var queued = 0;
+
+                for (var index = 0; index < ids.Length; index++)
+                {
+                    switch (await StatusAsync(host, started[index].Tenant, ids[index]))
+                    {
+                        case RunStatus.Running:
+                            running++;
+                            break;
+                        case RunStatus.Queued:
+                            queued++;
+                            break;
+                    }
+                }
+
+                return running == sharedLimit && queued == ids.Length - sharedLimit;
+            },
+            "the shared slots to be full and every other run to wait Queued");
+
+        gate.ReleaseAll();
+
+        var runs = started.Select(static item => item.Run.Events).ToList();
 
         // Thirty-six runs through three shared slots and two per tenant: every run finishes (no wait cycle) and
         // neither limit is ever passed. What the ORDER of the two slots changes is who waits behind whom: taken
@@ -469,7 +503,11 @@ public sealed class TenantWorkflowConcurrencyTests
                 }
                 else
                 {
-                    await Task.Delay(Random.Shared.Next(0, 4), CancellationToken.None).ConfigureAwait(false); // delay: simulated
+                    // A node that takes a few turns of the scheduler, so the runs of the sweep overlap inside it.
+                    for (var turns = Random.Shared.Next(0, 4); turns > 0; turns--)
+                    {
+                        await Task.Yield();
+                    }
                 }
 
                 return messages;

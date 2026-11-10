@@ -27,28 +27,30 @@ internal static class HarnessWorkflow
 
         tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
             WorkerHarnessContract.FirstStep,
-            _ => (messages, _, _) =>
+            _ => async (messages, _, _) =>
             {
-                Log(settings, WorkerHarnessContract.FirstStepStage);
+                await LogAsync(settings, WorkerHarnessContract.FirstStepStage).ConfigureAwait(false);
 
-                return new ValueTask<List<ChatMessage>>(messages);
+                return messages;
             });
 
         tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
             WorkerHarnessContract.SecondStep,
             _ => async (messages, _, cancellationToken) =>
             {
-                Log(settings, WorkerHarnessContract.SecondStepStage);
+                await LogAsync(settings, WorkerHarnessContract.SecondStepStage).ConfigureAwait(false);
 
-                await Task.Delay(settings.WorkDuration, cancellationToken).ConfigureAwait(false); // delay: simulated
+                // The harness is a worker process the test kills in the middle of this step: how long the step lasts is how
+                // long the window to kill it stays open, and a process has no signal from the test to wait for but a span.
+                await Task.Delay(settings.WorkDuration, cancellationToken).ConfigureAwait(false); // delay: product
 
                 return messages;
             });
     }
 
     /// <summary>Writes one line with the run the step runs in.</summary>
-    private static void Log(WorkerHarnessSettings settings, string stage)
-        => HarnessExecutionLog.Append(
+    private static Task LogAsync(WorkerHarnessSettings settings, string stage)
+        => HarnessExecutionLog.AppendAsync(
             settings.ExecutionLogPath,
             stage,
             settings.Name,

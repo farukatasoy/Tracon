@@ -166,14 +166,19 @@ public sealed class TickOptionsReadTests
         var claimsBefore = plan.CountOf(nameof(IRunStore.ClaimOrphanedRunsAsync));
 
         continuation.Invalid = true;
-        clock.Advance(Interval);
-        await WaitUntil.TrueAsync(
-            () => continuation.RefusedReads > 0,
-            "the scan to try its continuation options",
-            FailureBound);
 
-        // The refused read happens before the claim, so no claim follows it.
-        await Task.Delay(100, TestContext.Current.CancellationToken); // delay: negative
+        // The refused read happens before the claim, so no claim follows it. The loop is sequential: the claim of a tick
+        // that could not read its options would come before the read of the next tick, so the second refused read is the
+        // later event that proves the first tick made no claim.
+        for (var tick = 1; tick <= 2; tick++)
+        {
+            clock.Advance(Interval);
+            await WaitUntil.TrueAsync(
+                () => continuation.RefusedReads >= tick,
+                $"the scan to try its continuation options on tick {tick}",
+                FailureBound);
+        }
+
         plan.CountOf(nameof(IRunStore.ClaimOrphanedRunsAsync)).ShouldBe(claimsBefore, "the scan claimed runs it could not decide about");
         service.ExecuteTask!.IsCompleted.ShouldBeFalse();
 

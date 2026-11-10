@@ -42,9 +42,31 @@ public sealed class HostedTickLoopTests
     public async Task A_failing_call_does_not_end_the_loop_and_is_made_again_only_on_the_next_tick(string loopName)
     {
         using var loop = Build(loopName);
-        loop.Plan.Fail = call => string.Equals(call.Method, loop.Call, StringComparison.Ordinal)
-            ? new IOException("the store is unreachable")
-            : null;
+        var failed = 0;
+        var recovered = false;
+        var recoveredAt = 0;
+
+        // The store fails every call until the test lets it answer. The first call that gets an answer records its
+        // position among the calls of the loop, and the position is the claim: a loop that made a call nothing asked for
+        // (a hot spin after a failure) pushes the call of the recovery tick further down the list.
+        loop.Plan.Fail = call =>
+        {
+            if (!string.Equals(call.Method, loop.Call, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            if (Volatile.Read(ref recovered))
+            {
+                Interlocked.CompareExchange(ref recoveredAt, call.MethodIndex, 0);
+
+                return null;
+            }
+
+            Interlocked.Increment(ref failed);
+
+            return new IOException("the store is unreachable");
+        };
 
         await loop.StartAsync();
 
@@ -52,20 +74,21 @@ public sealed class HostedTickLoopTests
         {
             loop.Clock.Advance(Interval);
             await WaitUntil.TrueAsync(
-                () => loop.Plan.CountOf(loop.Call) >= loop.StartCalls + tick,
+                () => Volatile.Read(ref failed) >= loop.StartCalls + tick,
                 $"{loopName} to make its call for tick {tick}");
         }
 
-        // A hot spin shows here: nothing advanced the clock, so no call may follow the third one.
-        await Task.Delay(150, TestContext.Current.CancellationToken); // delay: negative
-        loop.Plan.CountOf(loop.Call).ShouldBe(loop.StartCalls + 3, $"{loopName} called the store without a tick");
-
         // The loop is alive: once the store answers, the next tick reaches it and nothing is left half-done.
-        loop.Plan.Fail = null;
+        Volatile.Write(ref recovered, true);
         loop.Clock.Advance(Interval);
         await WaitUntil.TrueAsync(
-            () => loop.Plan.CountOf(loop.Call) >= loop.StartCalls + 4,
+            () => Volatile.Read(ref recoveredAt) != 0,
             $"{loopName} to call the recovered store");
+
+        // The loop is sequential, so any call it made without a tick came before the call of the recovery tick and
+        // moved it down the list: the first call that was answered is the one after the start-up calls and the three
+        // ticks, and no later call is needed to tell.
+        recoveredAt.ShouldBe(loop.StartCalls + 4, $"{loopName} called the store without a tick");
 
         await StopAsync(loop);
     }

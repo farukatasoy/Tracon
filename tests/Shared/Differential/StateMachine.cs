@@ -193,6 +193,7 @@ internal sealed class DeadlockRerunDriver<TStep>(IStepDriver<TStep> inner) : ISt
             }
             catch (Exception exception) when (attempt < Attempts && IsDeadlockVictim(exception))
             {
+                // The other transaction of the deadlock needs its own time to finish before the step is asked again.
                 await Task.Delay(TimeSpan.FromMilliseconds(10 * attempt)); // delay: retry
             }
         }

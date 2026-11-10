@@ -106,7 +106,8 @@ public sealed class ElevenLabsDialogueConcurrencyTests
 
         var speech = client.SynthesizeAsync(new SpeechRequest { Text = "hello" }, TestContext.Current.CancellationToken).AsTask();
 
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken); // delay: negative
+        // The call runs on this thread up to the slot pool, and a free slot lets it on to the provider on this thread as
+        // well: the provider has been reached by now or the call is parked on the pool.
         handler.Entered.ShouldBe(1, "the single-voice call reached the provider while the dialogue held the only slot");
 
         handler.Release();

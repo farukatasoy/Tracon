@@ -35,8 +35,11 @@ public sealed class WorkflowFunctionConcurrencyTests
 
         await WaitUntil.TrueAsync(() => node.Running == 2, "two calls to be running");
 
-        // A third call has had every chance to start by now.
-        await Task.Delay(300); // delay: negative
+        // Five calls, two slots: the other three each say they wait for a slot, and then wait on it. Their lines are the
+        // proof that every call over the limit was turned back; the end of the test measures the most that ever ran at once.
+        await WaitUntil.TrueAsync(
+            () => CountOf(host.Logs.AllText, "waiting for a free slot") >= 3,
+            "the three calls over the limit to be waiting for a slot");
         node.Running.ShouldBe(2);
 
         node.Open();
@@ -250,6 +253,18 @@ public sealed class WorkflowFunctionConcurrencyTests
                     static _ => static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages),
                     options => options.MaxConcurrency = limit))
             .Message.ShouldContain(nameof(WorkflowFunctionOptions.MaxConcurrency), Case.Sensitive);
+    }
+
+    private static int CountOf(string text, string phrase)
+    {
+        var count = 0;
+
+        for (var at = text.IndexOf(phrase, StringComparison.Ordinal); at >= 0; at = text.IndexOf(phrase, at + phrase.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
     }
 
     private static Task<TraconTestHost> StartAsync(

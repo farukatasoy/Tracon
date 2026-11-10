@@ -22,7 +22,7 @@ internal sealed class LongRunningJobHandler(IOptions<WorkerHarnessSettingsHolder
 
         var harness = settings.Value.Settings;
 
-        HarnessExecutionLog.Append(
+        await HarnessExecutionLog.AppendAsync(
             harness.ExecutionLogPath,
             HarnessExecutionLog.StartedStage,
             harness.Name,
@@ -36,7 +36,9 @@ internal sealed class LongRunningJobHandler(IOptions<WorkerHarnessSettingsHolder
                 continue;
             }
 
-            await Task.Delay(harness.WorkDuration, cancellationToken).ConfigureAwait(false); // delay: simulated
+            // The harness is a worker process the test kills in the middle of this item: how long the item lasts is how long
+            // the window to kill it stays open, and a process has no signal from the test to wait for but a span.
+            await Task.Delay(harness.WorkDuration, cancellationToken).ConfigureAwait(false); // delay: product
 
             await context.ReportItemAsync(
                 new JobItemResult
@@ -48,7 +50,7 @@ internal sealed class LongRunningJobHandler(IOptions<WorkerHarnessSettingsHolder
                 cancellationToken).ConfigureAwait(false);
         }
 
-        HarnessExecutionLog.Append(
+        await HarnessExecutionLog.AppendAsync(
             harness.ExecutionLogPath,
             HarnessExecutionLog.FinishedStage,
             harness.Name,

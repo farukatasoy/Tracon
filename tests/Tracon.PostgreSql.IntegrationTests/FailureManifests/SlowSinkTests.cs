@@ -165,7 +165,9 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
 
             if (delay > TimeSpan.Zero)
             {
-                await Task.Delay(delay, cancellationToken).ConfigureAwait(false); // delay: simulated
+                // The claim of the test is that a sink's latency is paid on the recording path, per event: the time it
+                // takes is what the run is measured to take.
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false); // delay: product
             }
         }
     }

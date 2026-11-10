@@ -280,39 +280,54 @@ public sealed class ChatTelemetryLanesTests
     {
         using var probe = new ChatSpanProbe();
         var built = 0;
+        using var holdBuilder = new ManualResetEventSlim();
 
-        // A slow builder widens the window two pipelines that miss together have to both build a lane.
+        // The builder is held until every caller has piled up behind it, which widens the window two pipelines that miss
+        // together have to both build a lane to the whole of the callers' arrival, and not to a guess of how long it takes.
         using var lanes = probe.NewLanes(
             createLane: (key, metadata) =>
             {
                 Interlocked.Increment(ref built);
-                Thread.Sleep(30);
+                holdBuilder.Wait(TestContext.Current.CancellationToken);
 
                 return new ChatTelemetryLane(key, metadata, probe.Source, logger: null);
             });
         var metadata = Metadata("provider", "https://api.example.test/", "m");
-        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var clients = new IChatClient[64];
 
-        var wraps = Enumerable.Range(0, 64)
-            .Select(index => Task.Run(
-                async () =>
-                {
-                    await start.Task;
+        // Dedicated threads, so that every caller can be parked at once whatever the thread pool is willing to start.
+        var callers = Enumerable.Range(0, clients.Length)
+            .Select(index => new Thread(() => clients[index] = lanes.Wrap(new ScriptedPipeline($"tenant-{index}", metadata))) { IsBackground = true })
+            .ToArray();
 
-                    return lanes.Wrap(new ScriptedPipeline($"tenant-{index}", metadata));
-                },
-                TestContext.Current.CancellationToken))
-            .ToList();
+        try
+        {
+            foreach (var caller in callers)
+            {
+                caller.Start();
+            }
 
-        start.SetResult();
-        var clients = await Task.WhenAll(wraps);
+            // A caller that missed is inside the builder or waits for the lock the builder holds: parked either way.
+            await WaitUntil.TrueAsync(
+                () => callers.All(static caller => caller.ThreadState.HasFlag(System.Threading.ThreadState.WaitSleepJoin)),
+                "every caller to be parked behind the builder");
+        }
+        finally
+        {
+            holdBuilder.Set();
+        }
+
+        foreach (var caller in callers)
+        {
+            caller.Join();
+        }
 
         // Two pipelines that miss together must not both build a client: the loser of a race would be dropped without a
         // dispose, and a meter that is dropped is a meter that stays.
         built.ShouldBe(1);
         lanes.LaneCount.ShouldBe(1);
         probe.SourcesCreated.ShouldBe(1);
-        clients.Length.ShouldBe(64);
+        clients.ShouldAllBe(static client => client != null);
     }
 
     [Fact]

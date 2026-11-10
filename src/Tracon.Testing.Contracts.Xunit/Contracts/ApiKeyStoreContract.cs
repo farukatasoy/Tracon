@@ -141,13 +141,17 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
                 while (!Volatile.Read(ref stop))
                 {
                     await Store.TouchLastUsedAsync(id, DateTimeOffset.UtcNow);
-                    await Task.Delay(1);
+
+                    // The store's write lock is a real database lock: the pause is the only way to leave it free for the revocation.
+                    await Task.Delay(1); // delay: product
                 }
             });
 
             try
             {
-                await Task.Delay(round % 7);
+                // Each round starts the revocation at another point of the stamp loop; a stamp is a database round trip, so
+                // the offset has to be a span of real time.
+                await Task.Delay(round % 7); // delay: product
 
                 (await Store.RevokeAsync(Tenant, id)).ShouldBeTrue();
             }

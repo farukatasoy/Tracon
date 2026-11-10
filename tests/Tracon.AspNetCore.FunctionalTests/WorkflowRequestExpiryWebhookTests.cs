@@ -126,12 +126,14 @@ public sealed class WorkflowRequestExpiryWebhookTests
         clock.Advance(PastTheLimit);
         await host.WaitForRunStatusAsync(runId, "Completed");
 
-        // Give the service the scans it needs to have published, if it were going to.
-        await Task.Delay(300); // delay: negative
+        // The scan that closed the source run has published, if it were going to, by the time a later scan has closed
+        // another request. That request is the only failure there is to publish.
+        var later = await WaitForALaterScanAsync(host, clock);
+        await WaitUntil.TrueAsync(() => publisher.Runs(WebhookEvents.RunFailed).Count == 1, "run.failed of the later request to be published");
 
         // The answer's run published its own completion; the source run, closed at the request's time, published nothing.
         publisher.Runs(WebhookEvents.RunCompleted).ShouldHaveSingleItem().RunId.ShouldBe(responseRun.ToString());
-        publisher.Runs(WebhookEvents.RunFailed).ShouldBeEmpty();
+        publisher.Runs(WebhookEvents.RunFailed).ShouldHaveSingleItem().RunId.ShouldBe(later.ToString());
     }
 
     [Fact]

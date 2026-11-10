@@ -95,6 +95,30 @@ internal static class WorkflowInboxHarness
             },
             configureEndpoints: configureEndpoints);
 
+    /// <summary>
+    /// Waits until the expiry service has finished every scan that began before this call: it puts one more request past its
+    /// limit and waits for the run that waits on it to close.
+    /// </summary>
+    /// <param name="host">The host.</param>
+    /// <param name="clock">The clock the host and the expiry read.</param>
+    /// <returns>The id of the run that waited on the request made here, closed as failed by the expiry.</returns>
+    /// <remarks>
+    /// The service scans one after the other. The request made here did not exist when an earlier scan read the due rows,
+    /// so the scan that closes it begins after those have ended: the close is a positive event that orders after
+    /// everything an earlier scan did, a close it should not have made and an event it should not have published included.
+    /// The scan that closes it may have closed other runs in the same pass, in no promised order. A test that needs the
+    /// scan of an earlier step to be over, and not just begun, calls this twice.
+    /// </remarks>
+    public static async Task<Guid> WaitForALaterScanAsync(TraconTestHost host, ManualClock clock)
+    {
+        var (runId, _) = await WorkflowResponseHarness.RunToAwaitAsync(host, Timed);
+
+        clock.Advance(Limit + TimeSpan.FromMinutes(1));
+        await host.WaitForRunStatusAsync(runId, "Failed");
+
+        return runId;
+    }
+
     /// <summary>Lists the tenant's requests.</summary>
     /// <param name="host">The host.</param>
     /// <param name="query">The query string without the question mark.</param>

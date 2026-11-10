@@ -22,9 +22,31 @@ public sealed class WorkflowRequestExpirationLoopTests
     public async Task A_failing_inbox_does_not_end_the_loop_and_is_asked_again_only_on_the_next_tick()
     {
         var (service, plan, clock) = Build();
-        plan.Fail = static call => string.Equals(call.Method, nameof(IWorkflowRequestStore.ExpireAsync), StringComparison.Ordinal)
-            ? new IOException("the inbox is unreachable")
-            : null;
+        var failed = 0;
+        var recovered = false;
+        var recoveredAt = 0;
+
+        // The inbox fails every scan until the test lets it answer. The first scan that gets an answer records its position
+        // among the scans, and the position is the claim: a loop that scanned without a tick (a hot spin after a failure)
+        // pushes the scan of the recovery tick further down the list.
+        plan.Fail = call =>
+        {
+            if (!string.Equals(call.Method, nameof(IWorkflowRequestStore.ExpireAsync), StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            if (Volatile.Read(ref recovered))
+            {
+                Interlocked.CompareExchange(ref recoveredAt, call.MethodIndex, 0);
+
+                return null;
+            }
+
+            Interlocked.Increment(ref failed);
+
+            return new IOException("the inbox is unreachable");
+        };
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the loop to arm its timer");
@@ -33,18 +55,19 @@ public sealed class WorkflowRequestExpirationLoopTests
         {
             clock.Advance(Interval);
             await WaitUntil.TrueAsync(
-                () => plan.CountOf(nameof(IWorkflowRequestStore.ExpireAsync)) >= tick,
+                () => Volatile.Read(ref failed) >= tick,
                 $"the loop to scan on tick {tick}");
         }
 
-        await Task.Delay(150, TestContext.Current.CancellationToken); // delay: negative
-        plan.CountOf(nameof(IWorkflowRequestStore.ExpireAsync)).ShouldBe(3, "the loop scanned without a tick");
-
-        plan.Fail = null;
+        Volatile.Write(ref recovered, true);
         clock.Advance(Interval);
         await WaitUntil.TrueAsync(
-            () => plan.CountOf(nameof(IWorkflowRequestStore.ExpireAsync)) >= 4,
+            () => Volatile.Read(ref recoveredAt) != 0,
             "the loop to scan the recovered inbox");
+
+        // The loop is sequential, so a scan it made without a tick came before the scan of the recovery tick and moved it
+        // down the list: the first scan that was answered is the one after the three ticks.
+        recoveredAt.ShouldBe(4, "the loop scanned without a tick");
 
         await service.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
     }

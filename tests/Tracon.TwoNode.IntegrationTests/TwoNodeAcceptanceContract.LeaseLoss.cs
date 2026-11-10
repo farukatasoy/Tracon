@@ -89,11 +89,9 @@ public abstract partial class TwoNodeAcceptanceContract
         probe.ResumeFirstAttempt.TrySetResult();
         await probe.FirstAttemptReturned.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
-        // Whatever the stalled node was going to write would reach the store at once: it has no signal to wait on, so the
-        // time is given for a write that must NOT come.
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken); // delay: negative
-
-        // Nothing the stalled node did changed the job the other node holds.
+        // Nothing the stalled node did changed the job the other node holds. A write of the stalled node that is still on its
+        // way cannot hide: the checks at the end read the store after the other node has closed the job, which a write
+        // applied by the wrong attempt would have prevented, and read every call the stalled node made.
         var afterWake = (await jobs.GetAsync("default", job.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         afterWake.Status.ShouldBe(JobStatus.Running, "the stalled node closed or requeued the other node's attempt");

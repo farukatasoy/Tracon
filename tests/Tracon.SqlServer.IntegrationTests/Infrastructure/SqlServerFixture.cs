@@ -132,7 +132,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
                 previousStart = null;
             }
 
-            await Task.Delay(CollationProbeInterval); // delay: fixture
+            // The container rebuilds its system databases in its own time: the pause is the one between two probes of it.
+            await Task.Delay(CollationProbeInterval); // delay: retry
         }
 
         throw new TimeoutException(string.Create(CultureInfo.InvariantCulture, $"The server did not report the collation '{expected}' within {CollationChangeBudget}."));

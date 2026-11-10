@@ -7,9 +7,9 @@ namespace Tracon.Testing.Contracts.Storage;
 /// </summary>
 /// <remarks>
 /// The in-memory store and the SQL stores must pass the same
-/// scenarios. The lease-expiry test runs against real time (a short lease +
-/// a short wait): the contract gets its store from <c>CreateStoreAsync</c> and
-/// has no way to hand it a clock, so fake time is not used here. Only the
+/// scenarios. The lease-expiry test runs against real time (a short lease, then
+/// the store asked again until the lease is over): the contract gets its store from
+/// <c>CreateStoreAsync</c> and has no way to hand it a clock, so fake time is not used here. Only the
 /// in-memory and SQLite stores take their clock through a <see cref="TimeProvider"/>;
 /// PostgreSQL and SQL Server read the database server's own clock inside the lease
 /// statements and ignore one. A test that needs two nodes with two clocks builds the
@@ -193,11 +193,9 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
 
         await LeaseAsync(Owner(), TimeSpan.FromMilliseconds(20));
-        await Task.Delay(TimeSpan.FromMilliseconds(200));
 
-        var reclaimed = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+        var reclaimed = await LeaseOnceExpiredAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        reclaimed.ShouldNotBeNull();
         reclaimed.Id.ShouldBe(job.Id);
         reclaimed.Attempt.ShouldBe(2);
     }
@@ -440,9 +438,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         var stalled = await LeaseOfAsync(Owner(), TimeSpan.FromMilliseconds(20));
 
-        await Task.Delay(TimeSpan.FromMilliseconds(200)); // delay: product
-
-        var holder = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+        var holder = JobLease.Of(await LeaseOnceExpiredAsync(Owner(), TimeSpan.FromMinutes(5)));
         (await Store.MarkRunningAsync(holder)).ShouldBeTrue();
 
         (await Store.CompleteAsync(stalled, new JobCompletion { Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow })).ShouldBeFalse();
@@ -468,9 +464,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         var owner = Owner();
         var stale = await LeaseOfAsync(owner, TimeSpan.FromMilliseconds(20));
 
-        await Task.Delay(TimeSpan.FromMilliseconds(200)); // delay: product
-
-        var current = await LeaseOfAsync(owner, TimeSpan.FromMinutes(5));
+        var current = JobLease.Of(await LeaseOnceExpiredAsync(owner, TimeSpan.FromMinutes(5)));
 
         current.Owner.ShouldBe(stale.Owner);
         current.Attempt.ShouldBe(stale.Attempt + 1);
@@ -495,9 +489,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         var stalled = await LeaseOfAsync(Owner(), TimeSpan.FromMilliseconds(20));
 
-        await Task.Delay(TimeSpan.FromMilliseconds(200)); // delay: product
-
-        var holder = await LeaseOfAsync(Owner(), TimeSpan.FromMinutes(5));
+        var holder = JobLease.Of(await LeaseOnceExpiredAsync(Owner(), TimeSpan.FromMinutes(5)));
         (await Store.MarkRunningAsync(holder)).ShouldBeTrue();
 
         (await Store.ReleaseForRetryAsync(stalled, "stalled worker's failure")).ShouldBeFalse();
@@ -889,10 +881,9 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         await Store.EnqueueAsync(WorkflowJob("tenant-a", age: 20), ["a"]);
 
         (await LeaseAsync(Owner(), TimeSpan.FromMilliseconds(20), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
-        await Task.Delay(TimeSpan.FromMilliseconds(200)); // delay: product
 
-        // The dead worker's lease no longer holds the tenant at the cap: a job is leased again.
-        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1))).ShouldNotBeNull();
+        // The dead worker's lease no longer holds the tenant at the cap once it has run out: a job is leased again.
+        await LeaseOnceExpiredAsync(Owner(), TimeSpan.FromMinutes(5), tenantCap: WorkflowCap(1));
     }
 
     [Fact]
@@ -1103,6 +1094,16 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
             Lanes = lanes,
             TenantCap = tenantCap,
         });
+
+    /// <summary>
+    /// Leases a job as soon as the store lets it, which for a job that is held is when the lease on it has run out on the
+    /// store's own clock.
+    /// </summary>
+    private async Task<JobRecord> LeaseOnceExpiredAsync(string owner, TimeSpan leaseDuration, JobTenantCap? tenantCap = null)
+        => (await UntilAnswered.AskAsync(
+            () => LeaseAsync(owner, leaseDuration, tenantCap: tenantCap),
+            static leased => leased is not null,
+            "the lease that holds the job to run out on the store's clock"))!;
 
     private static JobTenantCap WorkflowCap(int max)
         => new() { HandlerKeys = [JobHandlerKeys.Workflow, JobHandlerKeys.WorkflowRun], MaxLeasedPerTenant = max };

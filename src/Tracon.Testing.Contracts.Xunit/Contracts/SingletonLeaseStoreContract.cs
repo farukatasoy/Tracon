@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -6,8 +8,8 @@ namespace Tracon.Testing.Contracts.Storage;
 /// <remarks>
 /// <para>
 /// The in-memory store and the three SQL providers must pass the same
-/// scenarios. The lease-expiry test runs against real time (a short lease
-/// plus a short wait): the contract gets its store from <c>CreateStoreAsync</c>
+/// scenarios. The lease-expiry test runs against real time (a short lease, then
+/// the store asked again until the lease is over): the contract gets its store from <c>CreateStoreAsync</c>
 /// and has no way to hand it a <see cref="TimeProvider"/> -- the same rationale as
 /// <c>JobStoreContract</c>. PostgreSQL and SQL Server read the database server's
 /// own clock inside the statements and ignore one.
@@ -28,6 +30,13 @@ public abstract class SingletonLeaseStoreContract : StoreCancellationContract<IS
     private readonly string _cancellationLease = Lease();
 
     private static string Lease() => $"lease-{Guid.NewGuid():N}";
+
+    /// <summary>Acquires the lease as soon as the store lets another owner have it: when the lease on it has run out on the store's own clock.</summary>
+    private async Task AcquireOnceExpiredAsync(string lease, string owner)
+        => await UntilAnswered.AskAsync(
+            () => Store.TryAcquireAsync(lease, owner, LeaseDuration),
+            static acquired => acquired,
+            "the first owner's lease to run out on the store's clock");
 
     private static string Owner() => $"owner-{Guid.NewGuid():N}";
 
@@ -86,9 +95,8 @@ public abstract class SingletonLeaseStoreContract : StoreCancellationContract<IS
         var lease = Lease();
 
         await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMilliseconds(20));
-        await Task.Delay(TimeSpan.FromMilliseconds(200));
 
-        (await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5))).ShouldBeTrue();
+        await AcquireOnceExpiredAsync(lease, Owner());
     }
 
     [Fact]
@@ -109,8 +117,7 @@ public abstract class SingletonLeaseStoreContract : StoreCancellationContract<IS
         var firstOwner = Owner();
 
         await Store.TryAcquireAsync(lease, firstOwner, TimeSpan.FromMilliseconds(20));
-        await Task.Delay(TimeSpan.FromMilliseconds(200));
-        await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5));
+        await AcquireOnceExpiredAsync(lease, Owner());
 
         // 🚨 If the former owner tries to renew its lease, this must return
         // false -- the caller MUST step down).

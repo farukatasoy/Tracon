@@ -525,6 +525,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
             catch (SqlException exception) when (
                 exception.Number == DeadlockVictimErrorNumber && attempt < CatalogDeadlockRetryAttempts)
             {
+                // The other transaction of the deadlock needs its own time to finish before the read is sent again.
                 await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt)).ConfigureAwait(false); // delay: retry
             }
         }

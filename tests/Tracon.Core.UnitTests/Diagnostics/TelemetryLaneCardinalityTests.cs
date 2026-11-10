@@ -147,30 +147,51 @@ public sealed class TelemetryLaneCardinalityTests
         const int limit = 16;
         const int arrivals = 64;
 
-        // A slow builder widens the window in which two endpoints could both take the last place.
+        // Every build waits for a turn the test gives it once all the other callers are parked, which widens the window in
+        // which two endpoints could both take the last place to the whole of the callers' arrival.
+        using var turns = new SemaphoreSlim(0);
+
         using var lanes = probe.NewLanes(
             createLane: (key, metadata) =>
             {
-                Thread.Sleep(2);
+                turns.Wait(TestContext.Current.CancellationToken);
 
                 return new ChatTelemetryLane(key, metadata, probe.Source, logger: null);
             },
             maxIdentities: limit);
-        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var wraps = Enumerable.Range(0, arrivals)
-            .Select(index => Task.Run(
-                async () =>
-                {
-                    await start.Task;
+        // Dedicated threads, so that every caller can be parked at once whatever the thread pool is willing to start.
+        var callers = Enumerable.Range(0, arrivals)
+            .Select(index => new Thread(() => lanes.Wrap(new ScriptedPipeline($"tenant-{index}", Metadata("provider", $"https://host-{index}.example.test/", "m")))) { IsBackground = true })
+            .ToArray();
 
-                    return lanes.Wrap(new ScriptedPipeline($"tenant-{index}", Metadata("provider", $"https://host-{index}.example.test/", "m")));
-                },
-                TestContext.Current.CancellationToken))
-            .ToList();
+        try
+        {
+            foreach (var caller in callers)
+            {
+                caller.Start();
+            }
 
-        start.SetResult();
-        await Task.WhenAll(wraps);
+            // A caller that is not done is inside a builder or waits for the lock a builder holds: parked either way.
+            // Each turn lets one build go on; the callers that are done have been told "full" without the lock.
+            while (callers.Any(static caller => caller.IsAlive))
+            {
+                await WaitUntil.TrueAsync(
+                    () => callers.All(static caller => !caller.IsAlive || caller.ThreadState.HasFlag(System.Threading.ThreadState.WaitSleepJoin)),
+                    "every caller that is not done to be parked");
+
+                turns.Release();
+            }
+        }
+        finally
+        {
+            turns.Release(arrivals);
+        }
+
+        foreach (var caller in callers)
+        {
+            caller.Join();
+        }
 
         lanes.AdmittedIdentities.ShouldBe(limit);
         lanes.OverflowedCalls.ShouldBe(arrivals - limit);

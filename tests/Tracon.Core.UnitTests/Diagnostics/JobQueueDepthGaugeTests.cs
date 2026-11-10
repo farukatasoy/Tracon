@@ -287,8 +287,9 @@ public sealed class JobQueueDepthGaugeTests
 
         // 🚨 The host starts this refresher BEFORE a persistence provider
         // registered later in the chain has migrated. No query and no timer
-        // may exist until the gate opens.
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken); // delay: negative
+        // may exist until the gate opens. A background service runs to its first
+        // suspension inside StartAsync, so a loop that waits on the gate is parked
+        // there by now; one that went on to query or arm its timer has done so by now.
         store.DepthCalls.ShouldBe(0);
         clock.RunningTimers.ShouldBe(0);
 

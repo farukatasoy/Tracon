@@ -178,6 +178,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         var trigger = await OpenSessionsWithOneRowAsync(session, host);
 
         var requests = 0;
+        var answer = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         await session.Page.RouteAsync(
             "**/api/sessions/*",
@@ -192,9 +193,10 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
 
                 Interlocked.Increment(ref requests);
 
-                // Held open so the second click lands while the first is still
-                // in flight — the exact window the guard exists for.
-                await Task.Delay(1_500); // delay: simulated
+                // Held open until the test lets it go, so the second click lands
+                // while the first is still in flight — the exact window the
+                // guard exists for.
+                await answer.Task;
                 await route.ContinueAsync();
             });
 
@@ -211,6 +213,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         // is the only way to enter the handler twice, which is exactly the
         // window a real double click opens.
         await accept.EvaluateAsync("element => { element.click(); element.click(); }");
+        answer.TrySetResult();
 
         await Expect(session.Page
             .GetByTestId("confirm-delete-session")).ToHaveCountAsync(0);

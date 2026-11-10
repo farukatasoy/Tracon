@@ -41,8 +41,8 @@ public sealed class McpDiscoveryLoopTests
             await WaitUntil.TrueAsync(() => clock.Pending.Contains(Interval), "the loop to wait out the interval again");
         }
 
-        // A tight loop shows here: nothing advanced the clock, so no read may follow the fourth pass.
-        await Task.Delay(150, TestContext.Current.CancellationToken); // delay: negative
+        // A tight loop shows here: the loop waits on a timer of this clock only after the pass is over (the wait just above),
+        // so every read it made has been counted by now, and nothing advanced the clock since the fourth pass.
         plan.Total.ShouldBe(
             perPass * 4,
             "the loop read the server list without a pass: "

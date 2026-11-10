@@ -274,7 +274,8 @@ public abstract class SqlLeaseUnderClockSkewContract
         (await stores.FirstJobs.MarkRunningAsync(lease, TestContext.Current.CancellationToken)).ShouldBeTrue();
         (await stores.FirstJobs.RenewLeaseAsync(lease, JobLeaseDuration, TestContext.Current.CancellationToken)).ShouldBeTrue();
 
-        // The end the lease had would be behind us by now; the renewal moved it five minutes out.
+        // The end the lease had would be behind us by now; the renewal moved it five minutes out. The lease ends on the
+        // database server's clock, which the test cannot move, so the span has to pass on it.
         await Task.Delay(ShortLease + TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken); // delay: product
 
         var tookLongRenewed = await stores.SecondJobs.LeaseAsync(Request("second", ShortLease), TestContext.Current.CancellationToken);
@@ -391,6 +392,8 @@ public abstract class SqlLeaseUnderClockSkewContract
                 }
             }
 
+            // The probe is how long the database server's clock keeps the job out: the span between two asks is real time
+            // on that clock, and a signal in place of it would be the answer the test measures.
             await Task.Delay(PollEvery, TestContext.Current.CancellationToken); // delay: product
         }
 
@@ -491,6 +494,8 @@ public abstract class SqlLeaseUnderClockSkewContract
     {
         while (clock.Elapsed < GiveUpAfter)
         {
+            // The probe is when the database server's clock lets the job in: the span between two asks is real time on that
+            // clock, and a signal in place of it would be the answer the test measures.
             await Task.Delay(PollEvery, TestContext.Current.CancellationToken); // delay: product
 
             if (await attempt())

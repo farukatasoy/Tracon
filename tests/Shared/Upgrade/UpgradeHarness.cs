@@ -128,6 +128,7 @@ internal static class UpgradeHarness
             }
             catch (DbException exception) when (attempt < DeadlockAttempts && database.StoreContext.Dialect.IsDeadlock(exception))
             {
+                // The other transaction of the deadlock needs its own time to finish before the statement is sent again.
                 await Task.Delay(TimeSpan.FromMilliseconds(25 * attempt)).ConfigureAwait(false); // delay: retry
             }
         }
