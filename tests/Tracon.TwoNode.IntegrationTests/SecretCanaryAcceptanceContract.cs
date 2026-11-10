@@ -96,8 +96,8 @@ public abstract class SecretCanaryAcceptanceContract
                 await tenant.RunTheSixWaysAsync(TenantAgent);
 
                 wire.Mode = CanaryWireServer.Behavior.Hold;
-                await setup.AbandonStreamedRunAsync(SetupAgent, TimeSpan.FromMilliseconds(400));
-                await tenant.AbandonStreamedRunAsync(TenantAgent, TimeSpan.FromMilliseconds(400));
+                await setup.AbandonStreamedRunAsync(SetupAgent, wire);
+                await tenant.AbandonStreamedRunAsync(TenantAgent, wire);
                 await setup.WaitForRunsToSettleAsync();
                 await tenant.WaitForRunsToSettleAsync();
             }

@@ -33,7 +33,7 @@ internal static class SseComments
         var before = new List<string>();
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
 
-        bound.CancelAfter(WaitUntil.DefaultTimeout);
+        bound.CancelAfter(WaitUntil.DefaultTimeout); // cancel: bound
 
         try
         {

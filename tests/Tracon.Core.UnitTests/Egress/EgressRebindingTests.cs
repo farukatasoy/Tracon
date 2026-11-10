@@ -118,7 +118,7 @@ public sealed class EgressRebindingTests
     private static async Task<int> ServeOnceAsync(TcpListener listener, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        timeout.CancelAfter(TimeSpan.FromSeconds(15)); // cancel: bound
 
         try
         {

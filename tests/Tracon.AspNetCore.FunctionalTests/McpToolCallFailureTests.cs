@@ -210,7 +210,7 @@ public sealed class McpToolCallFailureTests
     private static CancellationTokenSource BoundedToken()
     {
         var source = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        source.CancelAfter(Bound);
+        source.CancelAfter(Bound); // cancel: bound
 
         return source;
     }

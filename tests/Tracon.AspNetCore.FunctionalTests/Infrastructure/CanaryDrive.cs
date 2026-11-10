@@ -40,7 +40,7 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
     /// <param name="body">The JSON body, or <see langword="null"/>.</param>
     /// <param name="idempotent">Sends an <c>Idempotency-Key</c>, which makes a run answer in one JSON body.</param>
     /// <param name="asTenant">The tenant of this request; <see langword="null"/> uses the drive's.</param>
-    /// <param name="cancelAfter">Abandons the request after this long, as a client that disconnects does.</param>
+    /// <param name="abandon">Abandons the request when it is cancelled, as a client that disconnects does.</param>
     /// <returns>The status code, or <see cref="HttpStatusCode.RequestTimeout"/> when the request did not finish.</returns>
     public async Task<HttpStatusCode> SendAsync(
         HttpMethod method,
@@ -48,7 +48,7 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
         object? body = null,
         bool idempotent = false,
         string? asTenant = null,
-        TimeSpan? cancelAfter = null)
+        CancellationToken abandon = default)
     {
         using var request = new HttpRequestMessage(method, new Uri(url, UriKind.Relative));
 
@@ -67,8 +67,8 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
             request.Content = JsonContent.Create(body);
         }
 
-        using var limit = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        limit.CancelAfter(cancelAfter ?? TimeSpan.FromSeconds(30));
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken, abandon);
+        limit.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound
 
         try
         {
@@ -138,12 +138,25 @@ internal sealed partial class CanaryDrive(TraconTestHost host, string? tenant = 
             await SendAsync(HttpMethod.Post, "/tracon/v1/responses", new { model = agent, stream = true, input = "hello" }),
         ];
 
-    /// <summary>Starts a streamed run and abandons it after a moment, as a client that disconnects does.</summary>
+    /// <summary>
+    /// Starts a streamed run and abandons it once the provider holds the model call, as a client that disconnects does.
+    /// </summary>
     /// <param name="agent">The agent's name.</param>
-    /// <param name="after">How long the client waits.</param>
+    /// <param name="wire">The provider, which is in <see cref="CanaryWireServer.Behavior.Hold"/>.</param>
     /// <returns>A task that completes when the client has given up.</returns>
-    public async Task AbandonStreamedRunAsync(string agent, TimeSpan after)
-        => await SendAsync(HttpMethod.Post, $"/tracon/api/agents/{agent}/run", new { message = "hello" }, cancelAfter: after);
+    public async Task AbandonStreamedRunAsync(string agent, CanaryWireServer wire)
+    {
+        var heldBefore = wire.Held;
+        using var leaves = new CancellationTokenSource();
+        var sent = SendAsync(HttpMethod.Post, $"/tracon/api/agents/{agent}/run", new { message = "hello" }, abandon: leaves.Token);
+
+        await WaitUntil.TrueAsync(() => wire.Held > heldBefore || sent.IsCompleted, "the provider to hold the model call");
+
+        wire.Held.ShouldBeGreaterThan(heldBefore, "the run ended before the provider held a call, so no client left a held one");
+
+        await leaves.CancelAsync();
+        await sent;
+    }
 
     /// <summary>Waits until no run of the tenant is still running.</summary>
     /// <returns>A task that completes when every run has reached a terminal state; it throws when one does not in time.</returns>

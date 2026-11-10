@@ -320,7 +320,7 @@ public sealed class JobWorkerLeaseContractTests
         await WaitUntil.TrueAsync(() => jobs.RefusedCompletions >= 2, "the worker to retry the refused completion");
 
         using var stopBound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        stopBound.CancelAfter(WaitUntil.DefaultTimeout);
+        stopBound.CancelAfter(WaitUntil.DefaultTimeout); // cancel: bound
 
         await worker.StopAsync(stopBound.Token);
 

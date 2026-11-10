@@ -83,7 +83,7 @@ public sealed class A2ASdkDifferentialTests
         await using var host = await StartAsync();
         using var client = Client(host);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(20));
+        deadline.CancelAfter(TimeSpan.FromSeconds(20)); // cancel: bound
 
         var events = new List<StreamResponse>();
         Exception? failure = null;

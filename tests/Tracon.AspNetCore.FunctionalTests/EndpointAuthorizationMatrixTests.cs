@@ -427,7 +427,7 @@ public sealed partial class EndpointAuthorizationMatrixTests
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        timeout.CancelAfter(TimeSpan.FromSeconds(10)); // cancel: bound
 
         try
         {
@@ -468,7 +468,7 @@ public sealed partial class EndpointAuthorizationMatrixTests
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        timeout.CancelAfter(TimeSpan.FromSeconds(10)); // cancel: bound
 
         using var reply = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
 

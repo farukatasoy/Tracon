@@ -135,17 +135,29 @@ public sealed class AguiSecretCanaryTests
             AsTenant(request);
 
             using var leaves = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-            leaves.CancelAfter(TimeSpan.FromMilliseconds(600));
+            var heldBefore = wire.Held;
 
-            try
-            {
-                using var held = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, leaves.Token);
-                seen.AppendLine(await held.Content.ReadAsStringAsync(leaves.Token));
-            }
-            catch (OperationCanceledException) when (!TestContext.Current.CancellationToken.IsCancellationRequested)
-            {
-                // The front end left while the provider held the call.
-            }
+            var sending = Task.Run(
+                async () =>
+                {
+                    try
+                    {
+                        using var held = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, leaves.Token);
+                        seen.AppendLine(await held.Content.ReadAsStringAsync(leaves.Token));
+                    }
+                    catch (OperationCanceledException) when (!TestContext.Current.CancellationToken.IsCancellationRequested)
+                    {
+                        // The front end left while the provider held the call.
+                    }
+                },
+                TestContext.Current.CancellationToken);
+
+            // The front end leaves once the provider holds the call, not after a guessed time.
+            await WaitUntil.TrueAsync(() => wire.Held > heldBefore || sending.IsCompleted, "the provider to hold the model call");
+            wire.Held.ShouldBeGreaterThan(heldBefore, "the run ended before the provider held a call, so no front end left a held one");
+
+            await leaves.CancelAsync();
+            await sending;
         }
 
         wire.Mode = CanaryWireServer.Behavior.Accept;

@@ -89,7 +89,7 @@ public sealed class RetentionVolumeTests(PostgresFixture fixture)
         // A SECOND connection, the way a serving process would be. Every call
         // is bounded: a blocked read fails the test instead of hanging it.
         await using var reader = PostgresTestContext.Create(fixture, schemaName);
-        using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // cancel: bound
 
         // Rows the delete does not match, and the run summary it never touches.
         (await reader.Runs.GetRunAsync(freshRun, bounded.Token)).ShouldNotBeNull();

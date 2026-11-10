@@ -105,7 +105,7 @@ public sealed class HostedTickLoopTests
             NullLogger<ModelProviderHealthBackgroundService>.Instance,
             clock);
 
-        using var stopping = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        using var stopping = new CancellationTokenSource(TimeSpan.FromMinutes(2)); // cancel: bound
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the health loop to arm its timer");

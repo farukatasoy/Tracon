@@ -236,7 +236,7 @@ public sealed class RunEventResumeTests
 
             using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"/tracon/api/runs/{recorded[0].Id}/events", UriKind.Relative));
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-            deadline.CancelAfter(TimeSpan.FromSeconds(30));
+            deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound
 
             using var response = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
             await using var body = await response.Content.ReadAsStreamAsync(deadline.Token);
@@ -296,7 +296,7 @@ public sealed class RunEventResumeTests
         }
 
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(30));
+        deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound
 
         using var response = await host.Client.SendAsync(request, deadline.Token);
 
@@ -358,7 +358,7 @@ public sealed class RunEventResumeTests
         }
 
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(30));
+        deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound
 
         using var response = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
 

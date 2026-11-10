@@ -97,13 +97,11 @@ manual-clock-real-timers|tests/Tracon.Workflows.UnitTests/TenantWorkflowConcurre
 sleep|tests/Shared/Infrastructure/HarnessExecutionLog.cs|1
 sleep|tests/Tracon.AspNetCore.FunctionalTests/ConcurrentToolInvocationTests.cs|1
 sleep|tests/Tracon.AspNetCore.FunctionalTests/FactoryAgentDiagnosticsTests.cs|1
-sleep|tests/Tracon.Core.UnitTests/Architecture/SyncOverAsyncSiteTests.cs|1
 sleep|tests/Tracon.Core.UnitTests/Diagnostics/ChatTelemetryLanesTests.cs|1
 sleep|tests/Tracon.Core.UnitTests/Diagnostics/TelemetryLaneCardinalityTests.cs|1
 stopwatch|src/Tracon.Testing.Contracts.Xunit/Contracts/Scripts/SkillScriptExecutorContract.cs|2
 stopwatch|tests/Shared/Infrastructure/DeltaStreamOverLatency.cs|4
 stopwatch|tests/Shared/Infrastructure/SqlLeaseUnderClockSkewContract.cs|5
-stopwatch|tests/Shared/Waiting/WaitUntil.cs|1
 stopwatch|tests/Shared/Workflows/WorkflowCancellationSweep.cs|1
 stopwatch|tests/Tracon.AspNetCore.FunctionalTests/ProviderRetryAfterTests.cs|1
 stopwatch|tests/Tracon.Generators.UnitTests/Corpus/CorpusRunner.cs|1

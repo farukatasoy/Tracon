@@ -34,6 +34,7 @@ internal sealed class CanaryWireServer : IAsyncDisposable
     private readonly List<string> _credentials = [];
     private readonly List<string> _bodies = [];
     private int _requests;
+    private int _held;
 
     private CanaryWireServer(WebApplication app, Uri baseAddress)
     {
@@ -65,6 +66,9 @@ internal sealed class CanaryWireServer : IAsyncDisposable
 
     /// <summary>Gets the number of model calls the server received.</summary>
     public int Requests => Volatile.Read(ref _requests);
+
+    /// <summary>Gets the number of model calls the server held open under <see cref="Behavior.Hold"/>.</summary>
+    public int Held => Volatile.Read(ref _held);
 
     /// <summary>
     /// Gets or sets the name of a tool the server asks for. While it is set, a chat completions call that carries no tool
@@ -190,6 +194,7 @@ internal sealed class CanaryWireServer : IAsyncDisposable
         switch (Mode)
         {
             case Behavior.Hold:
+                Interlocked.Increment(ref _held);
                 await Task.Delay(Timeout.Infinite, context.RequestAborted); // delay: simulated
 
                 return;

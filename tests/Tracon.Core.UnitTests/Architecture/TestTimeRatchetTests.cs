@@ -32,6 +32,19 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <c>manual-clock-real-timers</c>; <c>ManualClockTests</c> exercises them and is exempt too.
 /// </para>
 /// <para>
+/// <c>WaitUntil</c> measures its own failure bound with a <c>Stopwatch</c>. The bound only ends a wait that already failed,
+/// so that is the one place where real time is the contract and the row could never reach zero: exactly that file is exempt
+/// for exactly that kind. Another file's stopwatch, and any other kind in that file, is still counted.
+/// </para>
+/// <para>
+/// A token that expires after a span (<c>CancelAfter</c>, <c>new CancellationTokenSource(span)</c>) is either a failure bound
+/// ("give up after 30 s": the expiry is never the expected outcome) or a wait (the test expects the expiry, or sits until
+/// it). Syntax cannot tell them apart, so the author says which: a bound carries a trailing <c>// cancel: bound</c> and is
+/// not counted, and every other timed token is counted per file as <c>timed-cancel</c>. A wait becomes a signal (cancel
+/// when the awaited thing happens) or a token on a <c>ManualClock</c> (<c>new CancellationTokenSource(span, clock)</c>
+/// is not counted). A marker on a line that makes no timed token is red, so a converted site cannot keep a stale one.
+/// </para>
+/// <para>
 /// A file that moves keeps its debt: change the path in the baseline by hand, in the same change, and leave the count.
 /// </para>
 /// </remarks>
@@ -47,9 +60,16 @@ public sealed partial class TestTimeRatchetTests
     /// <summary>The tests of the standard clock; they use its real-time modes to prove them.</summary>
     private const string StandardClockTestsFile = "tests/Tracon.Core.UnitTests/TestInfrastructure/ManualClockTests.cs";
 
+    /// <summary>The shared condition wait; its stopwatch only limits how long a failure takes.</summary>
+    private const string ConditionWaitFile = "tests/Shared/Waiting/WaitUntil.cs";
+
     private const string TimeProviderSubclassKind = "time-provider-subclass";
 
     private const string RealTimersKind = "manual-clock-real-timers";
+
+    private const string StopwatchKind = "stopwatch";
+
+    private const string TimedCancelKind = "timed-cancel";
 
     private static readonly string[] ScanRoots = ["tests", "src/Tracon.Testing.Contracts.Xunit"];
 
@@ -115,6 +135,12 @@ public sealed partial class TestTimeRatchetTests
     [InlineData("await Task.Delay(1000); // delay: retry", "delay:retry")]
     [InlineData("await Task.Delay(1000); // delay: bound", "delay:bound")]
     [InlineData("await Task.Delay(1000); // delay: fixture", "delay:fixture")]
+    [InlineData("cancellation.CancelAfter(TimeSpan.FromMilliseconds(300));", "timed-cancel")]
+    [InlineData("using var caller = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));", "timed-cancel")]
+    [InlineData("using var cts = timeout is { } t ? new CancellationTokenSource(t) : new CancellationTokenSource();", "timed-cancel")]
+    [InlineData("using var source = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Max(1, limit)));", "timed-cancel")]
+    [InlineData("bound.CancelAfter(WaitUntil.DefaultTimeout);", "timed-cancel")]
+    [InlineData("deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bounded", "timed-cancel")]
     public void The_scan_counts_real_time(string line, string kind)
         => Kinds(line).ShouldBe([kind]);
 
@@ -131,6 +157,20 @@ public sealed partial class TestTimeRatchetTests
     [InlineData("// var clock = ManualClock.WithSystemTimers(start);")]
     [InlineData("/// <see cref=\"ManualClock.OverSystemClock\"/> and <c>SystemTimersWithin = x</c>")]
     [InlineData("if (clock.AutoFireWithin == null) { }")]
+    [InlineData("using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5), clock);")]
+    [InlineData("using var deadline = new CancellationTokenSource(Math.Max(1, 2) * delay, timeProvider);")]
+    [InlineData("using var source = new CancellationTokenSource(Timeout.InfiniteTimeSpan);")]
+    [InlineData("using var source = new CancellationTokenSource( Timeout.InfiniteTimeSpan );")]
+    [InlineData("using var source = new CancellationTokenSource(-1);")]
+    [InlineData("source.CancelAfter(Timeout.InfiniteTimeSpan);")]
+    [InlineData("using var source = new CancellationTokenSource();")]
+    [InlineData("using var source = new CancellationTokenSource( );")]
+    [InlineData("Should.NotThrow(() => new CancellationTokenSource(fits + grace).Dispose());")]
+    [InlineData("using var linked = CancellationTokenSource.CreateLinkedTokenSource(token);")]
+    [InlineData("deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound")]
+    [InlineData("using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));  // cancel: bound")]
+    [InlineData("// source.CancelAfter(TimeSpan.FromSeconds(1));")]
+    [InlineData("/// <see cref=\"CancellationTokenSource.CancelAfter(TimeSpan)\"/> moves a deadline")]
     public void The_scan_leaves_the_rest_alone(string line)
         => Kinds(line).ShouldBeEmpty();
 
@@ -138,6 +178,55 @@ public sealed partial class TestTimeRatchetTests
     public void Every_real_time_mode_on_one_line_is_counted()
         => Kinds("var clock = new ManualClock { SystemTimersWithin = poll, AutoFireWithin = poll };")
             .ShouldBe([RealTimersKind, RealTimersKind]);
+
+    [Fact]
+    public void Every_timed_token_on_one_line_is_counted()
+        => Kinds("using var a = new CancellationTokenSource(span); a.CancelAfter(span);")
+            .ShouldBe([TimedCancelKind, TimedCancelKind]);
+
+    [Theory]
+    [InlineData("var source = new CancellationTokenSource(); // cancel: bound")]
+    [InlineData("var source = new CancellationTokenSource(TimeSpan.FromSeconds(5), clock); // cancel: bound")]
+    [InlineData("var source = CancellationTokenSource.CreateLinkedTokenSource(token); // cancel: bound")]
+    public void A_failure_bound_marker_on_a_line_without_a_timed_token_is_stale(string line)
+        => StaleMarkers(line).ShouldBe(1);
+
+    [Theory]
+    [InlineData("deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound")]
+    [InlineData("using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30)); // cancel: bound")]
+    [InlineData("deadline.CancelAfter(TimeSpan.FromSeconds(30));")]
+    [InlineData("var source = new CancellationTokenSource();")]
+    public void A_failure_bound_marker_on_a_timed_token_is_not_stale(string line)
+        => StaleMarkers(line).ShouldBe(0);
+
+    [Fact]
+    public void The_failure_bound_markers_in_the_tree_sit_on_timed_tokens()
+        => StaleMarkerSites(RepositoryRoot).ShouldBeEmpty(
+            customMessage: "A '// cancel: bound' marker sits on a line that makes no timed token. The site was converted: " +
+                           "remove the marker.");
+
+    [Fact]
+    public void A_stale_failure_bound_marker_in_a_file_is_reported_with_its_line()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-time-ratchet");
+
+        try
+        {
+            var file = Path.Combine(directory.FullName, "tests", "Stale.cs");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            File.WriteAllText(
+                file,
+                "using var ok = new CancellationTokenSource(span); // cancel: bound\n" +
+                "using var gone = new CancellationTokenSource(); // cancel: bound\n");
+
+            StaleMarkerSites(directory.FullName).ShouldBe(["tests/Stale.cs:2"]);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
 
     [Fact]
     public void A_new_sleep_is_red()
@@ -212,6 +301,55 @@ public sealed partial class TestTimeRatchetTests
         }
     }
 
+    [Fact]
+    public void The_condition_wait_may_hold_its_own_stopwatch_and_nothing_else()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-time-ratchet");
+
+        try
+        {
+            var wait = Path.Combine(directory.FullName, ConditionWaitFile);
+            var other = Path.Combine(directory.FullName, "tests", "Other.cs");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(wait)!);
+            File.WriteAllText(
+                wait,
+                "var elapsed = Stopwatch.StartNew();\n" +
+                "await Task.Delay(PollInterval, token); // delay: poll\n" +
+                "await Task.Delay(PollInterval, token);\n" +
+                "await Task.Delay(PollInterval, token); // delay: simulated\n" +
+                "Thread.Sleep(5);\n" +
+                "var again = Stopwatch.GetTimestamp();\n");
+            File.WriteAllText(other, "var elapsed = Stopwatch.StartNew();\n");
+
+            // The stopwatch of the wait is exempt (both of its lines); a delay other than the poll, a sleep and another
+            // file's stopwatch are not.
+            Scan(directory.FullName).ShouldBe(
+                Counts(
+                    ("delay:simulated|tests/Shared/Waiting/WaitUntil.cs", 1),
+                    ("delay:untagged|tests/Shared/Waiting/WaitUntil.cs", 1),
+                    ("sleep|tests/Shared/Waiting/WaitUntil.cs", 1),
+                    ("stopwatch|tests/Other.cs", 1)));
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public void A_condition_wait_exemption_is_per_kind_and_per_file()
+    {
+        IsExempt(StopwatchKind, ConditionWaitFile).ShouldBeTrue();
+        IsExempt(StopwatchKind, "tests/Shared/Waiting/Other.cs").ShouldBeFalse();
+        IsExempt(StopwatchKind, StandardClockFile).ShouldBeFalse();
+
+        foreach (var kind in (string[])["sleep", "elapsed-assert", "delay:untagged", "delay:simulated", TimedCancelKind, RealTimersKind])
+        {
+            IsExempt(kind, ConditionWaitFile).ShouldBeFalse(kind);
+        }
+    }
+
     private static SortedDictionary<string, int> Counts(params (string Key, int Count)[] entries)
     {
         var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
@@ -276,6 +414,29 @@ public sealed partial class TestTimeRatchetTests
     {
         var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
+        foreach (var (relative, file) in SourceFiles(root))
+        {
+            foreach (var line in File.ReadLines(file))
+            {
+                foreach (var kind in Kinds(line))
+                {
+                    if (IsExempt(kind, relative))
+                    {
+                        continue;
+                    }
+
+                    var key = $"{kind}|{relative}";
+
+                    counts[key] = counts.GetValueOrDefault(key, 0) + 1;
+                }
+            }
+        }
+
+        return counts;
+    }
+
+    private static IEnumerable<(string Relative, string Path)> SourceFiles(string root)
+    {
         foreach (var scanRoot in ScanRoots)
         {
             var absoluteRoot = Path.Combine(root, scanRoot);
@@ -296,25 +457,36 @@ public sealed partial class TestTimeRatchetTests
                     continue;
                 }
 
-                foreach (var line in File.ReadLines(file))
+                yield return (relative, file);
+            }
+        }
+    }
+
+    /// <summary>The <c>path:line</c> of every failure-bound marker that sits on a line making no timed token.</summary>
+    private static List<string> StaleMarkerSites(string root)
+    {
+        var sites = new List<string>();
+
+        foreach (var (relative, file) in SourceFiles(root))
+        {
+            var number = 0;
+
+            foreach (var line in File.ReadLines(file))
+            {
+                number++;
+
+                if (StaleMarkers(line) > 0)
                 {
-                    foreach (var kind in Kinds(line))
-                    {
-                        if (IsExempt(kind, relative))
-                        {
-                            continue;
-                        }
-
-                        var key = $"{kind}|{relative}";
-
-                        counts[key] = counts.GetValueOrDefault(key, 0) + 1;
-                    }
+                    sites.Add($"{relative}:{number}");
                 }
             }
         }
 
-        return counts;
+        return sites;
     }
+
+    private static int StaleMarkers(string line)
+        => FailureBound().IsMatch(line) && TimedCancels(line) == 0 ? 1 : 0;
 
     private static bool IsExempt(string kind, string relative)
         => kind switch
@@ -322,15 +494,29 @@ public sealed partial class TestTimeRatchetTests
             TimeProviderSubclassKind => string.Equals(relative, StandardClockFile, StringComparison.Ordinal),
             RealTimersKind => string.Equals(relative, StandardClockFile, StringComparison.Ordinal)
                 || string.Equals(relative, StandardClockTestsFile, StringComparison.Ordinal),
+
+            // WaitUntil's own bound is the one stopwatch whose verdict does not depend on it: the limit only ends a wait that
+            // already failed. Nothing else in that file and no other file's stopwatch is covered.
+            StopwatchKind => string.Equals(relative, ConditionWaitFile, StringComparison.Ordinal),
             _ => false,
         };
+
+    /// <summary>How many timed tokens the line makes: <c>CancelAfter</c> and a source built with a span and no time source.</summary>
+    private static int TimedCancels(string line)
+        => IsComment(line) ? 0 : CancelAfterCall().Count(line) + TimedTokenSource().Count(line);
+
+    private static bool IsComment(string line)
+    {
+        var trimmed = line.TrimStart();
+
+        return trimmed.StartsWith("//", StringComparison.Ordinal) || trimmed.StartsWith('*');
+    }
 
     private static List<string> Kinds(string line)
     {
         var kinds = new List<string>();
-        var trimmed = line.TrimStart();
 
-        if (trimmed.StartsWith("//", StringComparison.Ordinal) || trimmed.StartsWith('*'))
+        if (IsComment(line))
         {
             return kinds;
         }
@@ -340,6 +526,14 @@ public sealed partial class TestTimeRatchetTests
         AddMatches(kinds, line, StopwatchUse(), "stopwatch");
         AddMatches(kinds, line, TimeProviderSubclass(), TimeProviderSubclassKind);
         AddMatches(kinds, line, ManualClockRealTimers(), RealTimersKind);
+
+        if (!FailureBound().IsMatch(line))
+        {
+            for (var count = TimedCancels(line); count > 0; count--)
+            {
+                kinds.Add(TimedCancelKind);
+            }
+        }
 
         if (line.Contains("Task.Delay(", StringComparison.Ordinal) && !Unbounded().IsMatch(line))
         {
@@ -397,6 +591,25 @@ public sealed partial class TestTimeRatchetTests
         RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: Timeout.Infinite)]
     private static partial Regex ManualClockRealTimers();
+
+    [GeneratedRegex(
+        @"\.CancelAfter\((?!\s*(?:Timeout\.Infinite(?:TimeSpan)?|-1)\b)",
+        RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: Timeout.Infinite)]
+    private static partial Regex CancelAfterCall();
+
+    // One argument, no more: a second one is the time source, and a source on a ManualClock waits for nothing. An argument may
+    // nest two levels of parentheses (a span built from a call that takes a call). A source disposed in the same expression
+    // only checks a range and never arms a timer for long.
+    [GeneratedRegex(
+        @"\bnew\s+CancellationTokenSource\((?!\s*\))(?>\s*)(?!Timeout\.Infinite(?:TimeSpan)?\b|-1\b)" +
+        @"(?:[^(),]|\((?:[^()]|\([^()]*\))*\))+\)(?!\s*\.Dispose\(\))",
+        RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: Timeout.Infinite)]
+    private static partial Regex TimedTokenSource();
+
+    [GeneratedRegex(@"//\s*cancel:\s*bound\s*$", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: Timeout.Infinite)]
+    private static partial Regex FailureBound();
 
     [GeneratedRegex(
         @"Task\.Delay\(\s*(?:Timeout\.Infinite(?:TimeSpan)?\b|-1\b)",

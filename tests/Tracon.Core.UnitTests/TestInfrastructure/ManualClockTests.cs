@@ -327,7 +327,7 @@ public sealed class ManualClockTests
 
         // A failure bound: a periodic timer that stayed virtual would never tick and the wait would never end.
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        bound.CancelAfter(WaitUntil.DefaultTimeout);
+        bound.CancelAfter(WaitUntil.DefaultTimeout); // cancel: bound
 
         for (var tick = 0; tick < 3; tick++)
         {

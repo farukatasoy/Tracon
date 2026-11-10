@@ -561,7 +561,7 @@ public sealed class WorkflowResponseOwnershipTests
         }
         else
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30)); // cancel: bound
             using var repeat = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
 
             (await QueuedWorkflowHarness.JobsAsync(host)).ShouldHaveSingleItem().Id.ShouldBe(head);
@@ -649,7 +649,7 @@ public sealed class WorkflowResponseOwnershipTests
         var head = (await WorkflowRunsAsync(host)).Single(run => !before.Contains(run.Id)).Id;
 
         // The follower's headers arrive once it is past its decision: it follows the Running row.
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30)); // cancel: bound
         using var follower = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
         var reading = FramesAsync(follower);
 
@@ -684,7 +684,7 @@ public sealed class WorkflowResponseOwnershipTests
         using var queued = await QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true });
         var head = await QueuedWorkflowHarness.AcceptedRunIdAsync(queued);
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30)); // cancel: bound
         using var follower = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
         var reading = FramesAsync(follower);
 
@@ -863,7 +863,7 @@ public sealed class WorkflowResponseOwnershipTests
     /// </summary>
     private static async Task<(Guid RunId, List<SseFrame> Frames)> AnswerUntilAppliedAsync(TraconTestHost host, Guid sourceId, string requestId)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20)); // cancel: bound
         using var response = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
         var frames = await FramesAsync(response);
 

@@ -87,7 +87,7 @@ public sealed class EgressHostFormTests
         var served = 0;
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        timeout.CancelAfter(TimeSpan.FromSeconds(10)); // cancel: bound
 
         try
         {

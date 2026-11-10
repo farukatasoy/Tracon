@@ -71,10 +71,15 @@ public sealed class OpenAIImageWireTests
         await using var server = StubHttpServer.NeverRespond();
         using var generator = Factory(server).CreateImageGenerator("gpt-image-1");
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        cancellation.CancelAfter(TimeSpan.FromMilliseconds(300));
+
+        var call = generator.GenerateAsync(new ImageGenerationRequest("x"), cancellationToken: cancellation.Token);
+
+        // The caller leaves once the server holds the request; the wait below only bounds a failure.
+        await server.RequestHead.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await cancellation.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(
-            () => generator.GenerateAsync(new ImageGenerationRequest("x"), cancellationToken: cancellation.Token));
+            () => call.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken));
     }
 
     [Fact]

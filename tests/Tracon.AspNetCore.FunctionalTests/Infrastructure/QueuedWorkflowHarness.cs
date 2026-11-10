@@ -336,7 +336,7 @@ internal static class QueuedWorkflowHarness
         {
             // Bounded: a handler hung in a step that ignores its token (a failing
             // case) would otherwise hold the stop forever. The probe releases it.
-            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // cancel: bound
             await worker.StopAsync(stop.Token);
         }
     }

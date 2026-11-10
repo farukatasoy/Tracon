@@ -186,7 +186,7 @@ public sealed class StreamKeepAliveTests
     private static async Task<string?> ReadLineWithinIdleLimitAsync(StreamReader reader)
     {
         using var idle = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        idle.CancelAfter(IdleLimit);
+        idle.CancelAfter(IdleLimit); // cancel: bound
 
         try
         {

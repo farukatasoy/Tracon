@@ -243,7 +243,7 @@ public sealed class ProviderRetryAfterTests
     private static CancellationTokenSource BoundedToken(TimeSpan? bound = null)
     {
         var source = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        source.CancelAfter(bound ?? Bound);
+        source.CancelAfter(bound ?? Bound); // cancel: bound
 
         return source;
     }

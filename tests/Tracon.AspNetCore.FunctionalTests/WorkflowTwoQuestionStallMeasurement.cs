@@ -204,7 +204,7 @@ public sealed class WorkflowTwoQuestionStallMeasurement
     {
         // The start is bounded too: a start that never ends would hang the whole batch instead of failing one iteration.
         using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        bounded.CancelAfter(StartBound);
+        bounded.CancelAfter(StartBound); // cancel: bound
 
         try
         {

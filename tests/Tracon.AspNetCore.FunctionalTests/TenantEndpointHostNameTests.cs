@@ -93,7 +93,7 @@ public sealed class TenantEndpointHostNameTests
                 binding,
                 new ModelProviderCredential { ApiKey = "tenant-key-not-real", Endpoint = $"http://{host}:{port}/v1" });
 
-            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120)); // cancel: bound
 
             var call = Should.ThrowAsync<Exception>(
                 async () => await chat.GetResponseAsync("hello", cancellationToken: deadline.Token),

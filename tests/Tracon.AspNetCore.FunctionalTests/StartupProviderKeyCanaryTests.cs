@@ -143,7 +143,7 @@ public sealed class StartupProviderKeyCanaryTests
                 await drive.RunTheSixWaysAsync(AgentName);
 
                 wire.Mode = CanaryWireServer.Behavior.Hold;
-                await drive.AbandonStreamedRunAsync(AgentName, TimeSpan.FromMilliseconds(400));
+                await drive.AbandonStreamedRunAsync(AgentName, wire);
                 await drive.WaitForRunsToSettleAsync();
 
                 wire.Mode = CanaryWireServer.Behavior.Accept;

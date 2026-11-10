@@ -219,7 +219,7 @@ public sealed class LiveVoiceLifecycleTests
         await slow.Entered.WaitAsync(Patience, TestContext.Current.CancellationToken);
 
         // The close must return rather than block on the running delegation.
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20)); // cancel: bound
 
         using var close = await host.Client.DeleteAsync(
             $"/tracon/api/voice/live/sessions/{voiceSessionId:D}",

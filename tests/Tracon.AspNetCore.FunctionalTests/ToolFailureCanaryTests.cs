@@ -76,7 +76,7 @@ public sealed class ToolFailureCanaryTests
         await responsesDrive.RunTheResponsesWaysAsync(KeyedCanaryHost.AgentName);
 
         wire.Mode = CanaryWireServer.Behavior.Hold;
-        await drive.AbandonStreamedRunAsync(KeyedCanaryHost.AgentName, TimeSpan.FromMilliseconds(600));
+        await drive.AbandonStreamedRunAsync(KeyedCanaryHost.AgentName, wire);
         await drive.WaitForRunsToSettleAsync();
 
         wire.Mode = CanaryWireServer.Behavior.Accept;

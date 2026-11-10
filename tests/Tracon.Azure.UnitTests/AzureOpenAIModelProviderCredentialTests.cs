@@ -71,7 +71,7 @@ public sealed class AzureOpenAIModelProviderCredentialTests
         using var chatClient = azure.CreateChatClient(
             TestData.Binding(),
             new ModelProviderCredential { ApiKey = "tenant-key-not-real", Endpoint = "https://127.0.0.1:9/" });
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60)); // cancel: bound
 
         var failure = await Should.ThrowAsync<Exception>(
             async () => await chatClient.GetResponseAsync("hello", cancellationToken: deadline.Token));

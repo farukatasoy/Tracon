@@ -67,7 +67,7 @@ public sealed class WebhookDeliveryTimeoutTests
         // back inside the send call the body read has none of its own, and
         // this token is the only thing that ends the test - it then fails with
         // a cancellation instead of hanging until the whole run is killed.
-        using var worker = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var worker = new CancellationTokenSource(TimeSpan.FromSeconds(5)); // cancel: bound
 
         // A timeout is retryable, so the handler asks for another attempt
         // rather than dropping the delivery.

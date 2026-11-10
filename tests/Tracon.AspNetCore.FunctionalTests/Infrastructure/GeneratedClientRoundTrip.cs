@@ -116,7 +116,7 @@ internal static class GeneratedClientRoundTrip
             }
 
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            deadline.CancelAfter(perCallTimeout);
+            deadline.CancelAfter(perCallTimeout); // cancel: bound
             arguments[^1] = deadline.Token;
 
             outcomes.Add(await InvokeAsync(client, method, arguments, operation, deadline, cancellationToken));

@@ -131,7 +131,7 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
         const string SessionId = "audited-session";
         await SeedSessionAsync(context, SessionId, "tenant-a");
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        bound.CancelAfter(TimeSpan.FromSeconds(25));
+        bound.CancelAfter(TimeSpan.FromSeconds(25)); // cancel: bound
 
         await context.DataSubjects.EraseAsync(
             "tenant-a",
@@ -162,7 +162,7 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
         const string SessionId = "rolled-back-session";
         await SeedSessionAsync(context, SessionId, "tenant-a");
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        bound.CancelAfter(TimeSpan.FromSeconds(25));
+        bound.CancelAfter(TimeSpan.FromSeconds(25)); // cancel: bound
 
         await Should.ThrowAsync<InvalidOperationException>(async () => await context.DataSubjects.EraseAsync(
             "tenant-a",

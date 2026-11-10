@@ -148,7 +148,7 @@ public sealed class DataSubjectEndpointTests
             configureServices: static services =>
                 services.AddSingleton<IDataSubjectResolver>(new FixedDataSubjectResolver()));
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        bound.CancelAfter(TimeSpan.FromSeconds(25));
+        bound.CancelAfter(TimeSpan.FromSeconds(25)); // cancel: bound
 
         using var response = await host.Client.DeleteAsync(
             new Uri("/tracon/api/data-subjects/subject-1?dryRun=false", UriKind.Relative),

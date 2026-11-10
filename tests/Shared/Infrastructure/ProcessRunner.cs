@@ -68,7 +68,7 @@ internal static class ProcessRunner
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        using var cts = timeout is { } t ? new CancellationTokenSource(t) : new CancellationTokenSource();
+        using var cts = timeout is { } t ? new CancellationTokenSource(t) : new CancellationTokenSource(); // cancel: bound
 
         try
         {

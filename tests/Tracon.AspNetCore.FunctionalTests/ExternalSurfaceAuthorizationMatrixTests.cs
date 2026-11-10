@@ -483,7 +483,7 @@ public sealed class ExternalSurfaceAuthorizationMatrixTests
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        timeout.CancelAfter(TimeSpan.FromSeconds(10)); // cancel: bound
 
         try
         {

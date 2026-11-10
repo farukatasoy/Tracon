@@ -126,14 +126,21 @@ public sealed class ProviderHealthCheckCoreTests
     public async Task Caller_cancellation_is_not_a_timeout_and_propagates()
     {
         await using var server = StubHttpServer.NeverRespond();
-        using var caller = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
 
-        await Should.ThrowAsync<OperationCanceledException>(async () => await new ProviderHealthCheckCore(ProviderName).CheckAsync(
+        var check = new ProviderHealthCheckCore(ProviderName).CheckAsync(
             server.BaseAddress,
             TimeSpan.FromSeconds(30),
             static (_, _) => ValueTask.CompletedTask,
             static (response, token) => ProviderHealthCheckCore.ReadModelIdsAsync(response, "data", "id", null, token),
-            caller.Token));
+            caller.Token).AsTask();
+
+        // The caller leaves once the server holds the request; the wait below only bounds a failure.
+        await server.RequestHead.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await caller.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            () => check.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken));
     }
 
     [Fact]

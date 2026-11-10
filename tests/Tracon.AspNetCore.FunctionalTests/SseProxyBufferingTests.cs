@@ -111,7 +111,7 @@ public sealed class SseProxyBufferingTests
         var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(30));
+        deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound
 
         return await client.GetAsync(
             new Uri(address, $"/tracon/api/runs/{runId}/events"),
