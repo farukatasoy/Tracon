@@ -136,13 +136,14 @@ public sealed class AsyncRunTests
     [Fact]
     public async Task A_queued_run_is_picked_up_on_a_host_whose_registered_clock_is_in_another_year()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var pollInterval = TimeSpan.FromMilliseconds(20);
 
         await using var host = await TraconTestHost.StartAsync(
-            static builder =>
+            builder =>
             {
                 builder.AddAgent(TestData.Definition());
-                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+                builder.UseScheduling(o => o.PollInterval = pollInterval);
             },
             configureServices: services => services.AddSingleton<TimeProvider>(clock));
 
@@ -151,16 +152,21 @@ public sealed class AsyncRunTests
 
         var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
 
-        var status = await WaitUntil.ValueAsync(
+        var left = WaitUntil.ValueAsync(
             async () =>
             {
-                using var poll = await host.Client.GetAsync(uri);
+                using var response = await host.Client.GetAsync(uri);
 
-                return (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
+                return (await TraconTestHost.ReadJsonAsync(response)).GetProperty("status").GetString();
             },
             static status => !string.Equals(status, "Queued", StringComparison.Ordinal) &&
                              !string.Equals(status, "Running", StringComparison.Ordinal),
             $"run {runId} to leave Queued and Running");
+
+        // The worker polls on the host's clock, which stands still: the test steps the poll timer and nothing beyond it.
+        await clock.AdvanceUntilAsync(left, within: pollInterval);
+
+        var status = await left;
 
         status.ShouldBe("Completed");
     }

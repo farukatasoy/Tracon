@@ -42,6 +42,7 @@ public sealed class TestDelayClassificationTests
     [
         "tests/Tracon.Core.UnitTests/Architecture/TestDelayClassificationTests.cs",
         "tests/Tracon.Core.UnitTests/Architecture/TestTimeRatchetTests.cs",
+        "tests/Tracon.Core.UnitTests/Architecture/TestTimeRatchetTests.RealTimeSites.cs",
     ];
 
     private static readonly Regex Tag = new(

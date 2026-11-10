@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Tracon.Tests.Workflows;
 
 /// <summary>Where a sweep runs: the stores its runs write to, and what the backend can say about what a run left behind.</summary>
@@ -30,9 +28,8 @@ internal interface IWorkflowSweepBackend : IAsyncDisposable
 /// <summary>What one sweep found.</summary>
 /// <param name="AwaitPoints">How many awaited calls a run of the graph makes; each of them is a run of the sweep.</param>
 /// <param name="Endings">How the swept runs ended, by the status of the row of the root run (<c>none</c> when the run was canceled before it opened its row), counted over the runs that cancel a call.</param>
-/// <param name="Elapsed">How long the sweep took, from the first run to the last check.</param>
 /// <param name="Problems">What the oracle found, one sentence for each; none when the graph holds up.</param>
-internal sealed record SweepReport(int AwaitPoints, IReadOnlyDictionary<string, int> Endings, TimeSpan Elapsed, IReadOnlyList<string> Problems);
+internal sealed record SweepReport(int AwaitPoints, IReadOnlyDictionary<string, int> Endings, IReadOnlyList<string> Problems);
 
 /// <summary>
 /// Cancels a workflow run at every await point it has, one run per point, and checks the same things each time: every
@@ -113,7 +110,6 @@ internal static class WorkflowCancellationSweep
     {
         ArgumentNullException.ThrowIfNull(backend);
 
-        var watch = Stopwatch.StartNew();
         var scope = Guid.NewGuid().ToString("N")[..8];
         var problems = new List<string>();
 
@@ -143,7 +139,7 @@ internal static class WorkflowCancellationSweep
 
         UnobservedTaskGuard.ForceCollection();
 
-        return new SweepReport(awaitPoints, endings, watch.Elapsed, problems);
+        return new SweepReport(awaitPoints, endings, problems);
     }
 
     /// <summary>Drives a stream of events to its end and drops the events: the sweep looks at the terminal state.</summary>
@@ -169,6 +165,7 @@ internal static class WorkflowCancellationSweep
         var plan = new FaultPlan { HonorCancellation = storeHonorsToken };
         using var cts = new CancellationTokenSource();
         var registry = new RunCancellationRegistry();
+        // A short pause (a retry, a backoff) passes at once on its own; a long timer (a run's deadline) stays armed to be counted.
         var clock = new ManualClock { AutoFireWithin = ShortTimer, CaptureTimerOrigins = true };
         var awaited = 0;
         string? cancelledAt = null;

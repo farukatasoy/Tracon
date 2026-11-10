@@ -95,7 +95,7 @@ public sealed class JobMetricsTests
     [Fact]
     public async Task The_duration_comes_from_the_monotonic_clock_not_the_wall_clock()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2026, 9, 2, 12, 0, 0, TimeSpan.Zero), systemTimestamp: false);
+        var clock = new ManualClock(new DateTimeOffset(2026, 9, 2, 12, 0, 0, TimeSpan.Zero));
 
         // The handler advances the monotonic clock by 5 s and simultaneously
         // drags the WALL clock an hour backwards -- an NTP correction mid-job.
@@ -203,6 +203,8 @@ public sealed class JobMetricsTests
     /// <summary>Drives a real <see cref="JobWorkerBackgroundService"/> and collects what it publishes.</summary>
     private sealed class WorkerHarness : IDisposable
     {
+        private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(5);
+
         private readonly TestMeterFactory _meterFactory = new();
         private readonly TaggedCollector _collector;
         private readonly TestJobHandlerHost _handlers;
@@ -225,7 +227,7 @@ public sealed class JobMetricsTests
             var schedulingOptions = new TraconSchedulingOptions
             {
                 MaxConcurrentJobs = 1,
-                PollInterval = TimeSpan.FromMilliseconds(5),
+                PollInterval = PollInterval,
                 LeaseDuration = TimeSpan.FromMinutes(5),
             };
 
@@ -274,14 +276,24 @@ public sealed class JobMetricsTests
                 TestContext.Current.CancellationToken);
         }
 
-        /// <summary>Starts the worker and stops it once <paramref name="until"/> holds.</summary>
+        /// <summary>
+        /// Starts the worker and stops it once <paramref name="until"/> holds. A harness with a manual clock has the worker
+        /// poll on it, so the call steps the poll timer, and nothing beyond it, until the condition holds.
+        /// </summary>
         /// <param name="until">The condition, checked against the counter measurements collected so far.</param>
         /// <returns>The completion task.</returns>
         public async Task RunUntilAsync(Func<List<Measured>, bool> until)
         {
             await _worker.StartAsync(TestContext.Current.CancellationToken);
 
-            await WaitUntil.TrueAsync(() => until(Counter), "the worker to publish the expected measurement");
+            var published = WaitUntil.TrueAsync(() => until(Counter), "the worker to publish the expected measurement");
+
+            if (_clock is { } clock)
+            {
+                await clock.AdvanceUntilAsync(published, within: PollInterval);
+            }
+
+            await published;
 
             await _worker.StopAsync(TestContext.Current.CancellationToken);
         }

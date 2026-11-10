@@ -141,7 +141,7 @@ public sealed class StructuredResponseRepairEndpointTests
     [Fact]
     public async Task The_trees_deadline_still_applies_to_a_repair_turn_and_stops_it_from_looping()
     {
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         var provider = new ClockAdvancingModelProvider(clock, TimeSpan.FromSeconds(10));
 
         await using var host = await TraconTestHost.StartAsync(

@@ -201,7 +201,7 @@ public sealed class WorkflowFunctionConcurrencyTests
     [Fact]
     public async Task A_budget_that_runs_out_while_a_call_waits_refuses_it_when_it_gets_its_slot()
     {
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         var node = new BlockingNode();
 
         await using var host = await StartAsync(

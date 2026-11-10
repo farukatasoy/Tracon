@@ -22,10 +22,12 @@ public sealed class WallClockStepTests
 {
     private static readonly DateTimeOffset Start = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(5);
+
     [Fact]
     public async Task A_wall_clock_stepped_forward_dispatches_a_schedule_once_and_not_once_per_missed_run()
     {
-        var clock = ManualClock.WithSystemTimers(Start, systemTimestamp: false);
+        var clock = new ManualClock(Start);
         var (jobs, schedules, plan, worker) = Build(clock);
 
         await schedules.SaveAsync(Schedule(Start), TestContext.Current.CancellationToken);
@@ -34,6 +36,7 @@ public sealed class WallClockStepTests
         try
         {
             clock.StepWallClock(TimeSpan.FromHours(3));
+            await PollAsync(clock, plan);
 
             // The claim moves the schedule past the new time: that is the signal the dispatch is over.
             var expectedNext = Start.AddHours(3).AddMinutes(5);
@@ -41,9 +44,8 @@ public sealed class WallClockStepTests
                 async () => (await schedules.GetAsync("tenant-a", "every-five", TestContext.Current.CancellationToken))!.NextRunAt == expectedNext,
                 "the schedule to be claimed for the first run after the new time");
 
-            // Polls go on at the worker's own pace; none of them finds the schedule due again.
-            var polls = plan.CountOf(nameof(IJobScheduleStore.ListDueAsync));
-            await WaitUntil.TrueAsync(() => plan.CountOf(nameof(IJobScheduleStore.ListDueAsync)) >= polls + 5, "five more polls");
+            // Five more polls, each one a step of the poll timer; none of them finds the schedule due again.
+            await PollAsync(clock, plan, polls: 5);
 
             var dispatched = await jobs.QueryAsync(new JobQuery { TenantId = "tenant-a" }, TestContext.Current.CancellationToken);
 
@@ -58,7 +60,7 @@ public sealed class WallClockStepTests
     [Fact]
     public async Task A_wall_clock_stepped_back_keeps_the_schedule_silent_for_the_step_and_then_dispatches_it_once()
     {
-        var clock = ManualClock.WithSystemTimers(Start, systemTimestamp: false);
+        var clock = new ManualClock(Start);
         var (jobs, schedules, plan, worker) = Build(clock);
 
         await schedules.SaveAsync(Schedule(Start), TestContext.Current.CancellationToken);
@@ -68,20 +70,19 @@ public sealed class WallClockStepTests
         {
             clock.StepWallClock(TimeSpan.FromHours(-1));
 
-            var polls = plan.CountOf(nameof(IJobScheduleStore.ListDueAsync));
-            await WaitUntil.TrueAsync(() => plan.CountOf(nameof(IJobScheduleStore.ListDueAsync)) >= polls + 5, "five polls on the stepped-back clock");
+            await PollAsync(clock, plan, polls: 5);
 
             (await jobs.QueryAsync(new JobQuery { TenantId = "tenant-a" }, TestContext.Current.CancellationToken))
                 .ShouldBeEmpty("the stored next run is an hour and five minutes ahead of the stepped-back clock");
 
             // The clock reaches the stored time: one dispatch.
             clock.StepWallClock(TimeSpan.FromHours(1) + TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(1));
+            await PollAsync(clock, plan);
             await WaitUntil.TrueAsync(
                 async () => (await jobs.QueryAsync(new JobQuery { TenantId = "tenant-a" }, TestContext.Current.CancellationToken)).Count == 1,
                 "the schedule to dispatch when the clock reaches its time");
 
-            var after = plan.CountOf(nameof(IJobScheduleStore.ListDueAsync));
-            await WaitUntil.TrueAsync(() => plan.CountOf(nameof(IJobScheduleStore.ListDueAsync)) >= after + 5, "five more polls");
+            await PollAsync(clock, plan, polls: 5);
 
             (await jobs.QueryAsync(new JobQuery { TenantId = "tenant-a" }, TestContext.Current.CancellationToken))
                 .Count.ShouldBe(1, "one run, not one per poll");
@@ -95,7 +96,7 @@ public sealed class WallClockStepTests
     [Fact]
     public async Task The_single_executor_guard_counts_its_lease_on_the_monotonic_clock()
     {
-        var clock = ManualClock.WithSystemTimers(Start, systemTimestamp: false);
+        var clock = new ManualClock(Start);
         var leaseDuration = TimeSpan.FromSeconds(30);
         var guard = new SingletonGuard(
             new InMemorySingletonLeaseStore(clock),
@@ -118,6 +119,22 @@ public sealed class WallClockStepTests
         guard.IsHeld.ShouldBeFalse();
     }
 
+    /// <summary>Steps the worker's poll timer once for each poll and waits until the worker has asked the store for what is due.</summary>
+    private static async Task PollAsync(ManualClock clock, FaultPlan plan, int polls = 1)
+    {
+        for (var poll = 0; poll < polls; poll++)
+        {
+            var asked = plan.CountOf(nameof(IJobScheduleStore.ListDueAsync));
+
+            // A step before the worker has armed its timer would be missed.
+            await WaitUntil.TrueAsync(() => clock.Pending.Count > 0, "the worker to arm its poll timer");
+
+            clock.Advance(PollInterval);
+
+            await WaitUntil.TrueAsync(() => plan.CountOf(nameof(IJobScheduleStore.ListDueAsync)) > asked, "the worker to poll after the step");
+        }
+    }
+
     private static (InMemoryJobStore Jobs, IJobScheduleStore Schedules, FaultPlan Plan, JobWorkerBackgroundService Worker) Build(TimeProvider clock)
     {
         var jobs = new InMemoryJobStore(clock);
@@ -133,7 +150,7 @@ public sealed class WallClockStepTests
             new StaticOptionsMonitor<TraconSchedulingOptions>(new TraconSchedulingOptions
             {
                 MaxConcurrentJobs = 1,
-                PollInterval = TimeSpan.FromMilliseconds(5),
+                PollInterval = PollInterval,
             }),
             new SchemaReadyGate([]),
             new NotDraining(),

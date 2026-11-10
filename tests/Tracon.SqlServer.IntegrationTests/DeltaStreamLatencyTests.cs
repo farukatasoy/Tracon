@@ -4,42 +4,53 @@ using Tracon.Tests.Common;
 namespace Tracon.SqlServer.IntegrationTests;
 
 /// <summary>
-/// A stream whose store sits behind a SQL Server connection with a round trip of two milliseconds does not wait for that
-/// round trip once for each chunk. The same 400 chunks go into the same store twice, written before the stream continues
-/// and written behind it; the second must hold the stream up for a fraction of the first, and hold every chunk when the
-/// run is over.
+/// A stream whose store sits behind a SQL Server connection does not wait for that connection once for each chunk. The same
+/// 400 chunks go into the same store twice, written before the stream continues and written behind it. Over a connection
+/// that answers nothing, the first stops at its first chunk and the second hands over every chunk; once the connection
+/// answers, the first has paid a write for each chunk, the second a handful, and both hold every chunk.
 /// </summary>
 /// <remarks>
-/// The round trip is added in front of every write; the database and the statements are real. The times are recorded with
-/// <c>TRACON_PROBE_OUT</c> (a file path) for the record of a measurement; the assertion is a ratio far from any noise: 400
-/// chunks at two milliseconds cannot be written one by one in less than 800 ms.
+/// The database and the statements are real; the connection is held by the test, so no assertion depends on how fast the
+/// machine is. The second test paces the stream with a model in real time and compares the two streams' durations, which
+/// is a real-time claim and stays one; the times are recorded with <c>TRACON_PROBE_OUT</c> (a file path) for the record of
+/// a measurement.
 /// </remarks>
 public sealed class DeltaStreamLatencyTests(SqlServerFixture fixture)
 {
     private static readonly TimeSpan RoundTrip = TimeSpan.FromMilliseconds(2);
 
     [Fact]
-    public async Task A_stream_over_a_two_millisecond_connection_does_not_wait_for_each_chunk()
+    public async Task A_stream_over_a_held_connection_does_not_wait_for_each_chunk()
     {
         await using var context = SqlServerTestContext.Create(fixture, SqlServerTestContext.NewSchemaName());
         await context.Migrations.ApplyAsync();
 
         const int Chunks = 400;
 
-        var inLine = await DeltaStreamOverLatency.RunAsync(context.Runs, behind: false, Chunks, RoundTrip);
-        var behind = await DeltaStreamOverLatency.RunAsync(context.Runs, behind: true, Chunks, RoundTrip);
+        // Written in line: the stream stops at its first chunk, whose write the connection has not answered.
+        await using var inLine = await DeltaStreamOverLatency.HoldAsync(context.Runs, behind: false, Chunks);
 
-        DeltaStreamOverLatency.Record(inLine.Describe("SQL Server", RoundTrip));
-        DeltaStreamOverLatency.Record(behind.Describe("SQL Server", RoundTrip));
+        await inLine.MeetsTheConnectionAsync();
 
-        foreach (var result in new[] { inLine, behind })
+        inLine.Stream.IsCompleted.ShouldBeFalse("the stream waits for the connection once for each chunk");
+
+        var inLineStored = await inLine.ReleaseAsync();
+
+        // Written behind: the stream hands over every chunk while no write has been answered.
+        await using var behind = await DeltaStreamOverLatency.HoldAsync(context.Runs, behind: true, Chunks);
+
+        await WaitUntil.TrueAsync(() => behind.Stream.IsCompleted, "the stream to hand over every chunk while the connection answers nothing");
+
+        var behindStored = await behind.ReleaseAsync();
+
+        foreach (var (stored, behindMode) in new[] { (inLineStored, false), (behindStored, true) })
         {
-            result.Stored.ShouldBe(Chunks, $"every chunk is stored when the run is over (behind: {result.Behind})");
-            result.Contiguous.ShouldBeTrue($"the sequence numbers have no gap and no repeat (behind: {result.Behind})");
+            stored.Count.ShouldBe(Chunks, $"every chunk is stored when the run is over (behind: {behindMode})");
+            stored.Contiguous.ShouldBeTrue($"the sequence numbers have no gap and no repeat (behind: {behindMode})");
         }
 
-        inLine.StreamTime.ShouldBeGreaterThan(TimeSpan.FromMilliseconds(Chunks * 2), "each chunk paid its round trip");
-        behind.StreamTime.ShouldBeLessThan(inLine.StreamTime / 4);
+        inLineStored.Calls.ShouldBeGreaterThanOrEqualTo(Chunks, "each chunk paid its round trip");
+        behindStored.Calls.ShouldBeLessThan(Chunks / 4, "the chunks went to the store together, not one write for each");
     }
 
     [Fact]
@@ -59,6 +70,6 @@ public sealed class DeltaStreamLatencyTests(SqlServerFixture fixture)
 
         behind.Stored.ShouldBe(Chunks);
         behind.Contiguous.ShouldBeTrue();
-        behind.StreamTime.ShouldBeLessThan(inLine.StreamTime);
+        behind.StreamTime.ShouldBeLessThan(inLine.StreamTime); // real time: a stream paced in real time by a model, over a real connection
     }
 }

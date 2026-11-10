@@ -227,6 +227,7 @@ public abstract class RunHeartbeatUnderClockSkewContract
         var runId = TraconId.NewId();
 
         await runs.StartRunAsync(TestData.Run(runId));
+        // A node whose clock is wrong while the database's is not: no virtual clock can stand in for the database's.
         await OpenRunStore(ManualClock.OverSystemClock(TimeSpan.FromHours(1))).TouchHeartbeatAsync([runId]);
 
         // The mark is older than the threshold from the next statement on; the wait is the time the threshold has to pass.
@@ -283,6 +284,7 @@ public abstract class RunHeartbeatUnderClockSkewContract
         var gate = new SchemaReadyGate([]);
 
         // The node that scans reads its clock ahead in its store too: the store decides what is old.
+        // Each node's clock runs, wrong by a fixed span, over the real one; the database's clock is the one that decides.
         var scanClock = ManualClock.OverSystemClock(ahead);
 
         var writer = new RunHeartbeatWriter(runs, registry, options, gate, ManualClock.OverSystemClock(writerOffset), NullLogger<RunHeartbeatWriter>.Instance);

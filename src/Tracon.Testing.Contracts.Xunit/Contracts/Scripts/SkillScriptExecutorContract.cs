@@ -231,13 +231,13 @@ public abstract class SkillScriptExecutorContract : IAsyncLifetime
     public async Task A_script_past_its_timeout_is_stopped_and_reported_as_timed_out()
     {
         Assert.SkipWhen(SkipReason is not null, SkipReason ?? string.Empty);
-        var stopwatch = Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew(); // real time: a real child process that the executor has to stop
 
         var result = await Executor
             .ExecuteAsync(CreateRequest("sleeper", SleepScript, timeout: TimeSpan.FromSeconds(1)), CancellationToken.None)
             .ConfigureAwait(false);
 
-        stopwatch.Elapsed.ShouldBeLessThan(StopTolerance);
+        stopwatch.Elapsed.ShouldBeLessThan(StopTolerance); // real time: a real child process that the executor has to stop
         result.TimedOut.ShouldBeTrue();
         result.ExitCode.ShouldBeNull();
         result.Succeeded.ShouldBeFalse();
@@ -248,7 +248,7 @@ public abstract class SkillScriptExecutorContract : IAsyncLifetime
     {
         Assert.SkipWhen(SkipReason is not null, SkipReason ?? string.Empty);
         using var cancellation = new CancellationTokenSource();
-        var stopwatch = Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew(); // real time: a real child process that the executor has to stop
 
         var call = Executor
             .ExecuteAsync(CreateRequest("cancelled", SleepScript, timeout: TimeSpan.FromSeconds(60)), cancellation.Token)
@@ -270,7 +270,7 @@ public abstract class SkillScriptExecutorContract : IAsyncLifetime
             thrown = ex;
         }
 
-        stopwatch.Elapsed.ShouldBeLessThan(StopTolerance);
+        stopwatch.Elapsed.ShouldBeLessThan(StopTolerance); // real time: a real child process that the executor has to stop
         thrown.ShouldBeAssignableTo<OperationCanceledException>(
             "A caller's cancellation must surface as OperationCanceledException, not as a TimedOut result.");
     }

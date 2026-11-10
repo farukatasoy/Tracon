@@ -150,7 +150,7 @@ public sealed class ProviderRetryAfterTests
         // real: it is the one check here that cannot run on the manual clock.
         await using var rig = await StartAsync(Anthropic, "2", rejected: 1);
         using var bound = BoundedToken();
-        var clock = Stopwatch.StartNew();
+        var clock = Stopwatch.StartNew(); // real time: the Anthropic SDK sleeps on the system clock and offers no hook for another
 
         await SendAsync(rig, streamed, bound.Token);
 
@@ -162,7 +162,7 @@ public sealed class ProviderRetryAfterTests
         rig.Calls().ShouldBe(2);
 
         // The ordinary backoff of the first retry is under a second, so a wait of nearly two seconds is the header.
-        clock.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(1.5), "the Anthropic client did not wait for the Retry-After it was given");
+        clock.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(1.5), "the Anthropic client did not wait for the Retry-After it was given"); // real time: the Anthropic SDK sleeps on the system clock and offers no hook for another
     }
 
     [Theory]

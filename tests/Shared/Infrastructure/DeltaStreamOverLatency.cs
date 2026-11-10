@@ -15,9 +15,16 @@ namespace Tracon.Tests.Common;
 /// store, the statements and the database are the shipped ones.
 /// </para>
 /// <para>
-/// Two times are kept. The <em>stream time</em> is how long the loop that hands the chunks to the writer takes: what a model
-/// whose answer is already waiting would be held up for. The <em>total time</em> adds the end of the run, which writes
-/// whatever is still queued.
+/// Two things can be asked of it. <see cref="RunAsync"/> adds a round trip of real time and measures how long the stream
+/// takes, for the claim that a stream paced by a model in real time is not slowed by the connection: that is a real-time
+/// measurement and the one place here that keeps a stopwatch. <see cref="HoldAsync"/> does not measure anything: the
+/// connection answers nothing until the test lets it, so that "the stream does not wait for the connection" is a stream
+/// that ends while no write has been answered, and "each chunk pays its round trip" is one write for each chunk.
+/// </para>
+/// <para>
+/// Two times are kept by <see cref="RunAsync"/>. The <em>stream time</em> is how long the loop that hands the chunks to the
+/// writer takes: what a model whose answer is already waiting would be held up for. The <em>total time</em> adds the end of
+/// the run, which writes whatever is still queued.
 /// </para>
 /// </remarks>
 internal static class DeltaStreamOverLatency
@@ -62,7 +69,7 @@ internal static class DeltaStreamOverLatency
     {
         ArgumentNullException.ThrowIfNull(store);
 
-        var latent = new LatentRunStore(store, latency);
+        var latent = new LatentRunStore(store, () => new ValueTask(PreciseWaitAsync(latency)));
         var writer = new RunEventWriter(
             latent,
             new TraconRunRecordingOptions { WriteDeltasBehind = behind },
@@ -70,11 +77,11 @@ internal static class DeltaStreamOverLatency
             Guid.NewGuid(),
             metrics: null);
 
-        var total = Stopwatch.StartNew();
+        var total = Stopwatch.StartNew(); // real time: a stream paced in real time by a model, over a real connection
 
         await writer.StartAsync(new RunStartInfo { RunId = writer.RunId, AgentName = "latency-agent", StartedAt = DateTimeOffset.UtcNow }, "hello");
 
-        var stream = Stopwatch.StartNew();
+        var stream = Stopwatch.StartNew(); // real time: a stream paced in real time by a model, over a real connection
 
         for (var i = 0; i < chunks; i++)
         {
@@ -119,18 +126,169 @@ internal static class DeltaStreamOverLatency
     /// <returns>The completion task.</returns>
     private static async Task PreciseWaitAsync(TimeSpan span)
     {
-        var until = Stopwatch.GetTimestamp() + (long)(span.TotalSeconds * Stopwatch.Frequency);
+        var until = Stopwatch.GetTimestamp() + (long)(span.TotalSeconds * Stopwatch.Frequency); // real time: a stream paced in real time by a model, over a real connection
 
-        while (Stopwatch.GetTimestamp() < until)
+        while (Stopwatch.GetTimestamp() < until) // real time: a stream paced in real time by a model, over a real connection
         {
             await Task.Yield();
         }
     }
 
-    /// <summary>Puts a fixed round trip in front of every write of a run store.</summary>
-    private sealed class LatentRunStore(IRunStore inner, TimeSpan latency) : IRunStore
+    /// <summary>
+    /// Streams the chunks into a store whose connection answers nothing until <see cref="Held.ReleaseAsync"/>, and returns
+    /// as soon as the stream has been started; the caller looks at what the stream does while the connection is held.
+    /// </summary>
+    /// <param name="store">The real store, over the tenant the caller set.</param>
+    /// <param name="behind">Whether to write the chunks behind the stream.</param>
+    /// <param name="chunks">How many chunks to stream.</param>
+    /// <returns>The held stream.</returns>
+    public static async Task<Held> HoldAsync(IRunStore store, bool behind, int chunks)
     {
-        private ValueTask Trip() => new(PreciseWaitAsync(latency));
+        ArgumentNullException.ThrowIfNull(store);
+
+        var connection = new Connection();
+        var writer = new RunEventWriter(
+            new LatentRunStore(store, connection.AnswerAsync),
+            new TraconRunRecordingOptions { WriteDeltasBehind = behind },
+            NullLogger.Instance,
+            Guid.NewGuid(),
+            metrics: null);
+
+        // The run is opened over a connection that answers; only the chunks meet the held one.
+        await writer.StartAsync(new RunStartInfo { RunId = writer.RunId, AgentName = "latency-agent", StartedAt = DateTimeOffset.UtcNow }, "hello");
+
+        connection.Hold();
+
+        var stream = Task.Run(async () =>
+        {
+            for (var i = 0; i < chunks; i++)
+            {
+                await writer.AppendAsync(new RunEventDraft(RunEventType.MessageDelta) { Text = "a streamed chunk " });
+            }
+        });
+
+        return new Held(store, writer, connection, stream, chunks);
+    }
+
+    /// <summary>A stream into a store behind a connection that the test answers.</summary>
+    public sealed class Held : IAsyncDisposable
+    {
+        private readonly IRunStore _store;
+        private readonly RunEventWriter _writer;
+        private readonly Connection _connection;
+        private readonly int _chunks;
+
+        internal Held(IRunStore store, RunEventWriter writer, Connection connection, Task stream, int chunks)
+        {
+            _store = store;
+            _writer = writer;
+            _connection = connection;
+            _chunks = chunks;
+            Stream = stream;
+        }
+
+        /// <summary>Gets the task of the loop that hands the chunks to the writer.</summary>
+        public Task Stream { get; }
+
+        /// <summary>Lets the connection answer, so that a stream a failed test left stopped at it can end.</summary>
+        /// <returns>The completed task.</returns>
+        public ValueTask DisposeAsync()
+        {
+            _connection.Release();
+
+            return ValueTask.CompletedTask;
+        }
+
+        /// <summary>Gets how many writes the store was asked for since the connection was held, answered or not.</summary>
+        public int Calls => _connection.Calls;
+
+        /// <summary>Waits until a write is on the held connection, unanswered: the stream has met it.</summary>
+        /// <returns>The completion task.</returns>
+        public Task MeetsTheConnectionAsync()
+            => WaitUntil.TrueAsync(() => _connection.Waiting > 0, "a write to be asked of the held connection");
+
+        /// <summary>Lets the connection answer, ends the stream and the run, and reads back what the store holds.</summary>
+        /// <returns>What the store holds.</returns>
+        public async Task<Stored> ReleaseAsync()
+        {
+            _connection.Release();
+
+            await Stream.ConfigureAwait(false);
+            await _writer.CompleteAsync(RunStatus.Completed).ConfigureAwait(false);
+
+            var sequences = new List<long>();
+            var stored = 0;
+
+            await foreach (var runEvent in _store.ReadEventsAsync(_writer.RunId))
+            {
+                sequences.Add(runEvent.Sequence);
+
+                if (runEvent.Type == RunEventType.MessageDelta)
+                {
+                    stored++;
+                }
+            }
+
+            return new Stored(_chunks, stored, sequences.SequenceEqual(Enumerable.Range(0, sequences.Count).Select(static n => (long)n)), _connection.Calls);
+        }
+    }
+
+    /// <summary>What a store holds once a held stream is over.</summary>
+    /// <param name="Chunks">How many chunks the stream handed over.</param>
+    /// <param name="Count">How many chunks the store holds.</param>
+    /// <param name="Contiguous">Whether the sequence numbers the store holds are 0 to n-1, each once.</param>
+    /// <param name="Calls">How many writes the store was asked for, from the moment the connection was held to the end of the run.</param>
+    public sealed record Stored(int Chunks, int Count, bool Contiguous, int Calls);
+
+    /// <summary>A connection that answers each call at once, or not until it is released.</summary>
+    internal sealed class Connection
+    {
+        private TaskCompletionSource _answer = Answered();
+        private int _calls;
+        private int _waiting;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public int Waiting => Volatile.Read(ref _waiting);
+
+        public void Hold()
+        {
+            _answer = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref _calls, 0);
+        }
+
+        public void Release() => _answer.TrySetResult();
+
+        public ValueTask AnswerAsync()
+        {
+            var answer = _answer;
+
+            Interlocked.Increment(ref _calls);
+
+            if (answer.Task.IsCompleted)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            Interlocked.Increment(ref _waiting);
+
+            return new ValueTask(answer.Task);
+        }
+
+        private static TaskCompletionSource Answered()
+        {
+            var answered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            answered.SetResult();
+
+            return answered;
+        }
+    }
+
+    /// <summary>Puts a round trip in front of every write of a run store.</summary>
+    private sealed class LatentRunStore(IRunStore inner, Func<ValueTask> trip) : IRunStore
+    {
+        private ValueTask Trip() => trip();
 
         public async ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
         {

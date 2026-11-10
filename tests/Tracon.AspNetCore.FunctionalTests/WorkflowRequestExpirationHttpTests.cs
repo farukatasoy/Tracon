@@ -14,8 +14,10 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The host reads a clock the test moves, and the expiry service looks every 50 ms, so a case
-/// moves the clock past the limit and waits for the run to change. Every case drives the real
+/// The host reads a clock the test moves, and the expiry service looks every 50 ms on that clock, so a case
+/// moves the clock past the limit, which fires the service's timer, and waits for the run to change. The clock's
+/// timers are virtual; a second process started on a clock of its own is carried to its first scans by stepping
+/// that clock to the scan interval. Every case drives the real
 /// service over the real stores: the two writes it makes (the row, then the run) and the read it
 /// makes in between are what a test of one part cannot see.
 /// </para>
@@ -31,7 +33,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task A_run_whose_request_ran_out_of_time_is_closed_and_an_answer_to_it_is_refused()
     {
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         await using var host = await StartAsync(clock: clock);
 
         var (runId, requestId) = await RunToAwaitAsync(host, Timed);
@@ -66,7 +68,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task A_request_without_a_limit_never_expires()
     {
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         await using var host = await StartAsync(clock: clock);
 
         var (runId, _) = await RunToAwaitAsync(host, Open);
@@ -85,7 +87,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task An_answered_request_closes_its_run_as_completed_and_not_as_a_failure()
     {
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         await using var host = await StartAsync(clock: clock);
 
         var (runId, requestId) = await RunToAwaitAsync(host, Timed);
@@ -110,7 +112,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task Each_tenant_has_its_own_requests_closed()
     {
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         await using var host = await StartAsync(tenancy: true, clock: clock);
 
         var alpha = await RunToAwaitAsync(host, Timed, tenant: "alpha");
@@ -130,7 +132,7 @@ public sealed class WorkflowRequestExpirationHttpTests
     [Fact]
     public async Task A_stored_workflow_expires_at_the_limit_of_the_version_the_run_recorded()
     {
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         await using var host = await StartAsync(
             clock: clock,
             configureTracon: static builder => builder
@@ -165,10 +167,10 @@ public sealed class WorkflowRequestExpirationHttpTests
     public async Task A_run_left_waiting_by_a_process_that_stopped_after_closing_its_row_is_closed_by_the_next_process()
     {
         using var database = new TempSqliteDatabase("request-expiry-restart");
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         Guid runId;
 
-        // The first process scans once an hour, so it does nothing during the case. It closes the
+        // The first process scans once a month, so it does nothing during the case (the clock moves an hour and a minute). It closes the
         // row the way a scan does and stops before it closes the run: a closed row is never found
         // by the expiry again, and nothing in memory remembers the run.
         await using (var first = await StartAsync(clock: clock, configureTracon: builder => UseSqliteAndSlowScan(builder, database)))
@@ -183,10 +185,12 @@ public sealed class WorkflowRequestExpirationHttpTests
             (await RunAsync(first, runId)).GetProperty("status").GetString().ShouldBe("AwaitingInput");
         }
 
-        // The next process takes the lease, looks for runs a stopped process left, and closes this one.
-        await using var second = await StartAsync(clock: ManualClock.WithSystemTimers(), configureTracon: builder => builder.UseSqlite(database.ConnectionString));
+        // The next process takes the lease, looks for runs a stopped process left, and closes this one. Its loops tick on
+        // its own clock, which the test steps to the scan interval and no further.
+        var secondClock = new ManualClock(TimeProvider.System.GetUtcNow());
+        await using var second = await StartAsync(clock: secondClock, configureTracon: builder => builder.UseSqlite(database.ConnectionString));
 
-        await second.WaitForRunStatusAsync(runId, "Failed");
+        await secondClock.AdvanceUntilAsync(second.WaitForRunStatusAsync(runId, "Failed"), within: ScanInterval);
 
         var run = await RunAsync(second, runId);
 
@@ -202,7 +206,7 @@ public sealed class WorkflowRequestExpirationHttpTests
         // in it passes the check "the run still waits" and starts its work; the row is closed, so
         // the answer cannot mark it. When the run is closed, nothing on it says it was answered.
         using var database = new TempSqliteDatabase("request-expiry-window");
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         Guid runId;
         Guid answerRun;
 
@@ -227,9 +231,10 @@ public sealed class WorkflowRequestExpirationHttpTests
             row.AnsweredAt.ShouldBeNull();
         }
 
-        await using var second = await StartAsync(clock: ManualClock.WithSystemTimers(), configureTracon: builder => builder.UseSqlite(database.ConnectionString));
+        var secondClock = new ManualClock(TimeProvider.System.GetUtcNow());
+        await using var second = await StartAsync(clock: secondClock, configureTracon: builder => builder.UseSqlite(database.ConnectionString));
 
-        await second.WaitForRunStatusAsync(runId, "Failed");
+        await secondClock.AdvanceUntilAsync(second.WaitForRunStatusAsync(runId, "Failed"), within: ScanInterval);
 
         (await RunAsync(second, runId)).GetProperty("error").GetProperty("type").GetString().ShouldBe("WorkflowRequestExpired");
         (await RunAsync(second, answerRun)).GetProperty("status").GetString().ShouldBe("Completed");
@@ -238,14 +243,14 @@ public sealed class WorkflowRequestExpirationHttpTests
     private static void UseSqliteAndSlowScan(ITraconBuilder builder, TempSqliteDatabase database)
     {
         builder.UseSqlite(database.ConnectionString);
-        builder.UseWorkflows(static options => options.RequestExpirationScanInterval = TimeSpan.FromHours(1));
+        builder.UseWorkflows(static options => options.RequestExpirationScanInterval = TimeSpan.FromDays(30));
     }
 
     [Fact]
     public async Task What_a_waiting_run_keeps_is_kept_until_its_request_expires_and_released_after()
     {
         using var database = new TempSqliteDatabase("request-expiry-retention");
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         await using var host = await StartAsync(
             clock: clock,
             configureTracon: builder => builder.UseSqlite(database.ConnectionString));

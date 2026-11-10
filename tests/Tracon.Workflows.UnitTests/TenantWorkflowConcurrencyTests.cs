@@ -242,7 +242,7 @@ public sealed class TenantWorkflowConcurrencyTests
         // as it opens, not at the next cycle: a process that stops in between would leave the row Queued for good.
         // The store marks with its own clock, so the test moves that clock an hour ahead once the runs are open: every
         // mark is then an hour old when the scan reads it.
-        var storeClock = ManualClock.OverSystemClock(TimeSpan.Zero);
+        var storeClock = new ManualClock(TimeProvider.System.GetUtcNow());
         var (host, gate) = await BuildAsync(runStoreClock: storeClock);
         host.Reconciliation = new RunReconciliationOptions { Enabled = reconciliation };
 

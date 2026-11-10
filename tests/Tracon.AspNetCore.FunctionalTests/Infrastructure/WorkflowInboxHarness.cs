@@ -38,6 +38,9 @@ internal static class WorkflowInboxHarness
     /// <summary>How long a request of <see cref="Timed"/> and <see cref="Other"/> may wait.</summary>
     public static readonly TimeSpan Limit = TimeSpan.FromHours(1);
 
+    /// <summary>How often the expiry service of a started host looks.</summary>
+    public static readonly TimeSpan ScanInterval = TimeSpan.FromMilliseconds(50);
+
     /// <summary>The list endpoint.</summary>
     public static readonly Uri InboxUri = new("/tracon/api/workflows/requests", UriKind.Relative);
 
@@ -57,7 +60,7 @@ internal static class WorkflowInboxHarness
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
-                builder.UseWorkflows(static options => options.RequestExpirationScanInterval = TimeSpan.FromMilliseconds(50));
+                builder.UseWorkflows(static options => options.RequestExpirationScanInterval = ScanInterval);
 
                 builder.AddWorkflow(
                     Timed,

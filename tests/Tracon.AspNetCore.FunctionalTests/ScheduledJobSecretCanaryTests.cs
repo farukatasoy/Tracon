@@ -33,6 +33,7 @@ public sealed class ScheduledJobSecretCanaryTests
     {
         const string Scenario = "scheduled-job";
 
+        // Only the wall clock is fixed: the cron schedule and the 20 ms job poll that run the jobs tick on real timers.
         var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2030, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         using var database = new TempSqliteDatabase("scheduled-job-canary");

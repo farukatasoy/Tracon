@@ -54,7 +54,7 @@ public sealed class SqliteWriteContentionTests : IDisposable
         await using var holder = await HoldWriteLockAsync(cancellationToken);
         var release = ReleaseAfterAsync(holder, LockHeldFor, cancellationToken);
 
-        var stopwatch = Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew(); // real time: SQLite's busy handler waits on the operating system's clock inside the engine
 
         await using (var insert = dataSource.CreateCommand("INSERT INTO items (value) VALUES ('written');"))
         {
@@ -66,7 +66,7 @@ public sealed class SqliteWriteContentionTests : IDisposable
 
         // The write did wait past one busy_timeout attempt, so the resend loop
         // is what carried it - not a lock released early.
-        stopwatch.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(5));
+        stopwatch.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(5)); // real time: SQLite's busy handler waits on the operating system's clock inside the engine
 
         await using var count = dataSource.CreateCommand("SELECT COUNT(*) FROM items;");
         Convert.ToInt32(await count.ExecuteScalarAsync(cancellationToken), provider: null).ShouldBe(1);
@@ -92,7 +92,7 @@ public sealed class SqliteWriteContentionTests : IDisposable
         await using var insert = dataSource.CreateCommand("INSERT INTO items (value) VALUES ('refused');");
         insert.CommandTimeout = 1;
 
-        var stopwatch = Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew(); // real time: SQLite's busy handler waits on the operating system's clock inside the engine
 
         var exception = await Should.ThrowAsync<SqliteException>(
             async () => await insert.ExecuteNonQueryAsync(cancellationToken));
@@ -100,7 +100,7 @@ public sealed class SqliteWriteContentionTests : IDisposable
         stopwatch.Stop();
 
         exception.SqliteErrorCode.ShouldBe(5);
-        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(20));
+        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(20)); // real time: SQLite's busy handler waits on the operating system's clock inside the engine
 
         await holder.DisposeAsync();
     }

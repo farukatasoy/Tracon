@@ -141,7 +141,7 @@ public sealed class IdempotencyTests
     [Fact]
     public async Task A_reservation_is_judged_on_the_registered_clock()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         await using var host = await TraconTestHost.StartAsync(
             static builder =>

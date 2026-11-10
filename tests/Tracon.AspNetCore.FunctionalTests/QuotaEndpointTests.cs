@@ -195,7 +195,7 @@ public sealed class QuotaEndpointTests
     public async Task Retry_After_is_the_wait_to_the_reset_on_the_registered_clock()
     {
         // Thirty seconds before the daily period ends.
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2030, 5, 1, 23, 59, 30, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2030, 5, 1, 23, 59, 30, TimeSpan.Zero));
 
         await using var host = await TraconTestHost.StartAsync(
             configureServices: services => services.AddSingleton<TimeProvider>(clock));

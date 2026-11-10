@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 using Tracon.Testing.Contracts.Storage;
@@ -92,7 +91,9 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
         await using var context = PostgresTestContext.Create(fixture, schemaName);
         await context.Migrations.ApplyAsync();
 
-        var sink = new CountingSink(throws: false, delay: SinkDelay);
+        // The sink's latency is paid on the sink's own clock, which the test moves.
+        var clock = new ManualClock();
+        var sink = new CountingSink(throws: false, delay: SinkDelay, clock);
         var runId = Guid.NewGuid();
 
         var writer = new RunEventWriter(
@@ -103,33 +104,29 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
             metrics: null,
             [sink]);
 
-        await writer.StartAsync(TestData.Run(runId), "the user's question");
-
-        var stopwatch = Stopwatch.StartNew();
-
-        for (var i = 0; i < EventCount; i++)
+        var recording = Task.Run(async () =>
         {
-            await writer.AppendAsync(new RunEventDraft(RunEventType.MessageDelta) { Text = "delta" });
-        }
+            await writer.StartAsync(TestData.Run(runId), "the user's question");
 
-        stopwatch.Stop();
+            for (var i = 0; i < EventCount; i++)
+            {
+                await writer.AppendAsync(new RunEventDraft(RunEventType.MessageDelta) { Text = "delta" });
+            }
 
-        // The measured claim, stated as a LOWER bound so a fast machine cannot
-        // make it pass by accident: the sink's latency is paid per event, on
-        // the recording path. It is not absorbed anywhere.
-        //
-        // The bound is nine tenths of the sum, not the sum. Task.Delay counts its
-        // milliseconds on a timer of its own, not on the stopwatch, and a delay can
-        // end a fraction of a millisecond early: five delays of 120 ms were read as
-        // 599.5 ms. A sink that was dispatched off the recording path would add
-        // next to nothing, far below any share of the sum.
-        stopwatch.Elapsed.ShouldBeGreaterThanOrEqualTo(SinkDelay * EventCount * 0.9);
+            await writer.CompleteAsync(RunStatus.Completed);
+        });
 
-        await writer.CompleteAsync(RunStatus.Completed);
+        await clock.AdvanceUntilAsync(recording, within: SinkDelay);
+
+        // The measured claim: the sink's latency is paid per event, on the recording path. It is not absorbed anywhere.
+        // Each call to the sink held the recording until its delay had passed on the clock, so the clock was stepped by
+        // the delay once for every call. A sink that was dispatched off the recording path would leave the recording
+        // free to finish with the delays still armed, and the steps would be fewer than the calls.
+        sink.Calls.ShouldBeGreaterThanOrEqualTo(EventCount);
+        clock.Steps.ShouldBe(Enumerable.Repeat(SinkDelay, sink.Calls));
+        clock.Pending.ShouldBeEmpty();
 
         // Slow is not broken: every event still reached the sink and the store.
-        sink.Calls.ShouldBeGreaterThanOrEqualTo(EventCount);
-
         (await CountDeltasAsync(context, runId)).ShouldBe(EventCount);
     }
 
@@ -148,7 +145,7 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
         return deltas;
     }
 
-    private sealed class CountingSink(bool throws, TimeSpan delay = default) : IRunEventSink
+    private sealed class CountingSink(bool throws, TimeSpan delay = default, TimeProvider? clock = null) : IRunEventSink
     {
         private int _calls;
 
@@ -163,11 +160,15 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
                 throw new InvalidOperationException("The sink's target is unreachable.");
             }
 
-            if (delay > TimeSpan.Zero)
+            if (delay > TimeSpan.Zero && clock is not null)
             {
-                // The claim of the test is that a sink's latency is paid on the recording path, per event: the time it
-                // takes is what the run is measured to take.
-                await Task.Delay(delay, cancellationToken).ConfigureAwait(false); // delay: product
+                // The claim of the test is that a sink's latency is paid on the recording path, per event: the test moves
+                // the clock past it, so the run can only go on once it has.
+                var passed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+                using var timer = clock.CreateTimer(static state => ((TaskCompletionSource)state!).TrySetResult(), passed, delay, Timeout.InfiniteTimeSpan);
+
+                await passed.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }

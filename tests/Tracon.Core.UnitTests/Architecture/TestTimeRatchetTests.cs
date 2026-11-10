@@ -45,6 +45,15 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// is not counted). A marker on a line that makes no timed token is red, so a converted site cannot keep a stale one.
 /// </para>
 /// <para>
+/// A measured duration (a <c>Stopwatch</c>, an assert on an elapsed value) is debt unless the duration itself is what the
+/// test is about: a database server's clock, a real child process, a lock the engine times out on, an analyzer's cost, the
+/// latency of a connection, a vendor SDK's backoff that cannot be given another clock. Such a site is not made to look
+/// like something else. It carries a trailing <c>// real time: &lt;the reason&gt;</c> of at least thirty characters, is not
+/// counted, and is listed with its reason in <c>RealTimeSites</c> (<c>TestTimeRatchetTests.RealTimeSites.cs</c>), so a new
+/// one needs a reviewed entry. The marker excuses only the <c>stopwatch</c> and <c>elapsed-assert</c> kinds on its own
+/// line, and a marker on a line that has neither is red, so a converted site cannot keep a stale one.
+/// </para>
+/// <para>
 /// A file that moves keeps its debt: change the path in the baseline by hand, in the same change, and leave the count.
 /// </para>
 /// </remarks>
@@ -78,6 +87,7 @@ public sealed partial class TestTimeRatchetTests
     [
         "tests/Tracon.Core.UnitTests/Architecture/TestDelayClassificationTests.cs",
         "tests/Tracon.Core.UnitTests/Architecture/TestTimeRatchetTests.cs",
+        "tests/Tracon.Core.UnitTests/Architecture/TestTimeRatchetTests.RealTimeSites.cs",
     ];
 
     /// <summary>The pause between two probes, allowed only inside <c>WaitUntil</c> by the classification test.</summary>
@@ -522,8 +532,14 @@ public sealed partial class TestTimeRatchetTests
         }
 
         AddMatches(kinds, line, Sleep(), "sleep");
-        AddMatches(kinds, line, ElapsedAssertion(), "elapsed-assert");
-        AddMatches(kinds, line, StopwatchUse(), "stopwatch");
+
+        // A measured duration that is the contract of the test says so in words and is listed; it is not debt.
+        if (RealTimeReason(line) is null)
+        {
+            AddMatches(kinds, line, ElapsedAssertion(), "elapsed-assert");
+            AddMatches(kinds, line, StopwatchUse(), "stopwatch");
+        }
+
         AddMatches(kinds, line, TimeProviderSubclass(), TimeProviderSubclassKind);
         AddMatches(kinds, line, ManualClockRealTimers(), RealTimersKind);
 

@@ -25,7 +25,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// see a counter restart for no reason of its own.
 /// </para>
 /// <para>
-/// The clock is shared by both hosts and moves only the wall clock; timers stay real.
+/// The clock is shared by both hosts. It is a manual clock whose timers are virtual too: neither host runs a worker, so no
+/// loop of theirs needs a tick.
 /// </para>
 /// </remarks>
 public sealed class DeploymentRateLimitTests
@@ -43,7 +44,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task Two_instances_admit_the_limit_once()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await StartPairAsync(clock, RateLimitScope.Deployment);
 
         var statuses = new List<HttpStatusCode>();
@@ -63,7 +64,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task The_rejected_request_tells_the_time_to_the_end_of_the_shared_window()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await StartPairAsync(clock, RateLimitScope.Deployment, window: TimeSpan.FromMinutes(5));
 
         for (var request = 0; request < Limit; request++)
@@ -84,7 +85,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task A_new_window_admits_requests_again_on_both_instances()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await StartPairAsync(clock, RateLimitScope.Deployment, window: TimeSpan.FromMinutes(1));
 
         for (var request = 0; request < Limit; request++)
@@ -105,7 +106,7 @@ public sealed class DeploymentRateLimitTests
     public async Task The_instance_scope_still_admits_the_limit_per_instance()
     {
         // 🚨 The default does not change: two instances admit twice the limit.
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await StartPairAsync(clock, RateLimitScope.Instance);
 
         for (var request = 0; request < 2 * Limit; request++)
@@ -120,7 +121,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task The_instance_scope_does_not_touch_the_database()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         var counting = new CountingStore();
         await using var host = await StartSingleAsync(clock, RateLimitScope.Instance, counting);
 
@@ -152,7 +153,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task The_tenant_partition_is_per_tenant_across_instances()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await StartPairAsync(clock, RateLimitScope.Deployment, limit: 2, tenancy: true);
 
         (await StatusAsync(pair.A, "tenant-a")).ShouldBe(HttpStatusCode.OK);
@@ -169,7 +170,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task The_global_partition_is_one_window_for_every_tenant_across_instances()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await StartPairAsync(
             clock, RateLimitScope.Deployment, limit: 2, tenancy: true, partition: RateLimitPartitionKind.Global);
 
@@ -223,7 +224,7 @@ public sealed class DeploymentRateLimitTests
     public async Task A_store_that_recovers_takes_the_counting_back()
     {
         var store = new FailingStore();
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: builder => builder.Services.AddSingleton<IRateLimitCounterStore>(store),
             configureServices: services =>
@@ -313,7 +314,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task A_deployment_scope_over_a_sql_provider_gives_no_warning()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await StartPairAsync(clock, RateLimitScope.Deployment);
 
         pair.A.Logs.Entries
@@ -324,7 +325,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task The_trigger_limit_is_shared_across_instances()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await TwoHostFixture.StartAsync(
             configure: static builder => builder.UseScheduling(static options => options.RunWorker = false),
             configureServices: services =>
@@ -356,7 +357,7 @@ public sealed class DeploymentRateLimitTests
     [Fact]
     public async Task The_trigger_limit_stays_per_instance_under_the_instance_scope()
     {
-        var clock = ManualClock.WithSystemTimers(FrozenNow);
+        var clock = new ManualClock(FrozenNow);
         await using var pair = await TwoHostFixture.StartAsync(
             configure: static builder => builder.UseScheduling(static options => options.RunWorker = false),
             configureServices: services =>

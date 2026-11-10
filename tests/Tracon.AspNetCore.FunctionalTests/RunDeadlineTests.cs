@@ -49,7 +49,7 @@ public sealed class RunDeadlineTests
         // of really sleeping: by the time it returns, the tree's time is
         // already up, and the cutoff must land on the NEXT model call
         // (the one that would produce "final answer"), never inside the tool.
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
 
         await using var host = await TraconTestHost.StartAsync(
             builder => builder
@@ -96,14 +96,15 @@ public sealed class RunDeadlineTests
         // wall-clock limit of its own. This proves MaxDuration cuts a queued
         // run off exactly like the synchronous path above.
         //
-        // 🚨 The clock keeps the system's timers, unlike a fully manual one:
-        // JobWorkerBackgroundService's own polling/lease-renewal loop reads
+        // 🚨 JobWorkerBackgroundService's own polling/lease-renewal loop reads
         // the SAME registered TimeProvider, and virtual timers that only move
         // when the tool body calls the clock would stall that loop forever
-        // (measured: the run never left Queued/Running). The tool moves the
-        // clock past the deadline the way the synchronous test does, and the
-        // loops keep ticking in real time.
-        var clock = ManualClock.WithSystemTimers();
+        // (measured: the run never left Queued/Running). The test therefore
+        // steps the poll timer, and nothing beyond it, until the run is over;
+        // the tool moves the clock past the deadline the way the synchronous
+        // test does.
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
+        var pollInterval = TimeSpan.FromMilliseconds(20);
 
         await using var host = await TraconTestHost.StartAsync(
             builder =>
@@ -118,7 +119,7 @@ public sealed class RunDeadlineTests
                     return "tool result";
                 }), name: ToolName)
                 .AddAgent(DeadlineAgent());
-                builder.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+                builder.UseScheduling(o => o.PollInterval = pollInterval);
             },
             configureServices: services =>
             {
@@ -132,7 +133,11 @@ public sealed class RunDeadlineTests
         using var accepted = await host.Client.SendAsync(request);
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        var run = await host.WaitForTerminalRunAsync(runId);
+        var terminal = host.WaitForTerminalRunAsync(runId);
+
+        await clock.AdvanceUntilAsync(terminal, within: pollInterval);
+
+        var run = await terminal;
 
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
@@ -144,7 +149,7 @@ public sealed class RunDeadlineTests
     {
         // Regression guard for the "Riskler" row: a zero (unset) MaxDuration
         // must not silently start cutting off runs that already run long.
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
 
         await using var host = await TraconTestHost.StartAsync(
             builder => builder
@@ -181,7 +186,7 @@ public sealed class RunDeadlineTests
         // model call. An explicit cancel that interrupts a tool call already
         // in flight must win: the run's terminal status is Canceled, never
         // QuotaExceeded, however close the deadline already is.
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         var toolStarted = new TaskCompletionSource();
         var releaseTool = new TaskCompletionSource();
 

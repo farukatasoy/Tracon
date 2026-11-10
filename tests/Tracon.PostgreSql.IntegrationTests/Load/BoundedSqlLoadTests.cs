@@ -68,12 +68,12 @@ public sealed class BoundedSqlLoadTests(PostgresFixture fixture)
         var modelTime = new long[Concurrency];
         var controlPlaneTime = new long[Concurrency];
 
-        var total = Stopwatch.StartNew();
+        var total = Stopwatch.StartNew(); // real time: an opt-in load report whose figures are wall-clock time
 
         await Task.WhenAll(Enumerable.Range(0, Concurrency).Select(async worker =>
         {
-            var model = new Stopwatch();
-            var controlPlane = new Stopwatch();
+            var model = new Stopwatch(); // real time: an opt-in load report whose figures are wall-clock time
+            var controlPlane = new Stopwatch(); // real time: an opt-in load report whose figures are wall-clock time
 
             for (var i = 0; i < RunsPerWorker; i++)
             {

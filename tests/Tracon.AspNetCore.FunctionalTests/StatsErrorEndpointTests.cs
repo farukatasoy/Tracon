@@ -74,7 +74,7 @@ public sealed class StatsErrorEndpointTests
         // fake clock after the runs are recorded is what "an hour later" means
         // here. A wall-clock sleep would be the same assertion made slowly and
         // flakily.
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
 
         await using var host = await TraconTestHost.StartAsync(
             ConfigureBrokenAgent,

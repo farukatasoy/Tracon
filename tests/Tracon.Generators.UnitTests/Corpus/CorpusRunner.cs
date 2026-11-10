@@ -89,7 +89,7 @@ internal static class CorpusRunner
         bool countSemanticErrors,
         CancellationToken cancellationToken)
     {
-        var watch = Stopwatch.StartNew();
+        var watch = Stopwatch.StartNew(); // real time: the analyzer's own cost is what the corpus run reports and bounds
         var trees = new List<SyntaxTree>(unit.Files.Length + 1) { CSharpSyntaxTree.ParseText(GlobalUsings, ParseOptions, "GlobalUsings.cs", cancellationToken: cancellationToken) };
         var lines = 0;
 

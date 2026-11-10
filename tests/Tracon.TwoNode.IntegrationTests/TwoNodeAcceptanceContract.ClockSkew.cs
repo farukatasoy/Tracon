@@ -50,14 +50,14 @@ public abstract partial class TwoNodeAcceptanceContract
             {
                 builder.Services.AddSingleton(probe);
                 probe.Install(builder.Services, leaseGate: probe.FirstAttemptRunning);
-                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(HourAhead));
+                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(HourAhead)); // the node's clock is wrong, its timers and the database's clock are real
                 builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(200));
             },
             configureB: builder =>
             {
                 builder.Services.AddSingleton(probe);
                 probe.Install(builder.Services);
-                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(-HourAhead));
+                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(-HourAhead)); // the node's clock is wrong, its timers and the database's clock are real
                 builder.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(100));
             },
             configureServices: static services => services.Configure<TraconSchedulingOptions>(static options => options.LeaseDuration = TimeSpan.FromSeconds(2)));
@@ -135,7 +135,7 @@ public abstract partial class TwoNodeAcceptanceContract
             configureA: static builder => builder.Services.Configure<RunReconciliationOptions>(static options => options.ScanInterval = TimeSpan.FromHours(1)),
             configureB: builder =>
             {
-                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(HourAhead));
+                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(HourAhead)); // the node's clock is wrong, its timers and the database's clock are real
                 builder.Services.Configure<RunReconciliationOptions>(static options => options.ScanInterval = TimeSpan.FromMilliseconds(200));
             },
             reconciliation: true);
@@ -204,7 +204,7 @@ public abstract partial class TwoNodeAcceptanceContract
                 .AddAgent(TestData.Definition() with { Model = new ModelBinding { Provider = hanging.Name, Model = "hanging-1" } }),
             configureA: builder =>
             {
-                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(-HourAhead));
+                builder.Services.AddSingleton<TimeProvider>(ManualClock.OverSystemClock(-HourAhead)); // the node's clock is wrong, its timers and the database's clock are real
                 builder.Services.Configure<RunReconciliationOptions>(static options => options.ScanInterval = TimeSpan.FromHours(1));
 
                 // The first beat is two minutes off (the threshold is five): the run has to survive the scans before it.

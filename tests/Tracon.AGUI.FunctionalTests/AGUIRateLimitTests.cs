@@ -27,7 +27,7 @@ public sealed class AGUIRateLimitTests
             TestAgents.AddEcho,
             configureServices: services =>
             {
-                services.AddSingleton<TimeProvider>(ManualClock.WithSystemTimers(FrozenNow));
+                services.AddSingleton<TimeProvider>(new ManualClock(FrozenNow));
                 services.Configure<TraconRateLimitOptions>(options =>
                 {
                     options.Enabled = true;
@@ -61,7 +61,7 @@ public sealed class AGUIRateLimitTests
             TestAgents.AddEcho,
             configureServices: services =>
             {
-                services.AddSingleton<TimeProvider>(ManualClock.WithSystemTimers(FrozenNow));
+                services.AddSingleton<TimeProvider>(new ManualClock(FrozenNow));
                 services.Configure<TraconRateLimitOptions>(options =>
                 {
                     options.Enabled = true;

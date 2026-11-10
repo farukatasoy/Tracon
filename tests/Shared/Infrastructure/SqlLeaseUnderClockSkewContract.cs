@@ -142,7 +142,7 @@ public abstract class SqlLeaseUnderClockSkewContract
         var stores = await OpenAsync(ShiftedBy(ownerOffsetSeconds), ShiftedBy(0));
         var name = $"skew-{Guid.NewGuid():N}";
 
-        var clock = Stopwatch.StartNew();
+        var clock = Stopwatch.StartNew(); // real time: a lease ends on the database server's clock, which a test cannot move
 
         (await stores.FirstLeases.TryAcquireAsync(name, "owner", ShortLease, TestContext.Current.CancellationToken)).ShouldBeTrue();
 
@@ -219,7 +219,7 @@ public abstract class SqlLeaseUnderClockSkewContract
 
         await stores.FirstJobs.EnqueueAsync(Due(), ["a"], TestContext.Current.CancellationToken);
 
-        var clock = Stopwatch.StartNew();
+        var clock = Stopwatch.StartNew(); // real time: a lease ends on the database server's clock, which a test cannot move
 
         var leased = (await stores.FirstJobs.LeaseAsync(Request("first", ShortLease), TestContext.Current.CancellationToken)).ShouldNotBeNull();
         var firstLease = JobLease.Of(leased);
@@ -281,7 +281,7 @@ public abstract class SqlLeaseUnderClockSkewContract
         var tookLongRenewed = await stores.SecondJobs.LeaseAsync(Request("second", ShortLease), TestContext.Current.CancellationToken);
 
         // A renewal can shorten a lease as well: from here the end is a second and a half away.
-        var clock = Stopwatch.StartNew();
+        var clock = Stopwatch.StartNew(); // real time: a lease ends on the database server's clock, which a test cannot move
 
         (await stores.FirstJobs.RenewLeaseAsync(lease, ShortLease, TestContext.Current.CancellationToken)).ShouldBeTrue();
 
@@ -330,7 +330,7 @@ public abstract class SqlLeaseUnderClockSkewContract
 
         var leased = (await stores.FirstJobs.LeaseAsync(Request("first"), TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
-        var clock = Stopwatch.StartNew();
+        var clock = Stopwatch.StartNew(); // real time: a lease ends on the database server's clock, which a test cannot move
 
         (await stores.FirstJobs.ReleaseForRetryAsync(JobLease.Of(leased), "try again", ShortLease, TestContext.Current.CancellationToken))
             .ShouldBeTrue();
@@ -379,7 +379,7 @@ public abstract class SqlLeaseUnderClockSkewContract
         stored.ScheduledFor.ShouldBe(atOnce.ScheduledFor, TimeSpan.FromMilliseconds(1), "the store keeps the writer's time as it was written");
 
         var leasedEarly = new List<Guid>();
-        var clock = Stopwatch.StartNew();
+        var clock = Stopwatch.StartNew(); // real time: a lease ends on the database server's clock, which a test cannot move
 
         // Both nodes poll for as long as the other scenarios wait for a lease to end; each one's own clock is ahead too.
         while (clock.Elapsed < ShortLease + ShortLease)

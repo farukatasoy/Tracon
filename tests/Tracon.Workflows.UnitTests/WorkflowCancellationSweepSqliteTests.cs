@@ -55,7 +55,7 @@ public sealed class WorkflowCancellationSweepSqliteTests
 
         var report = await WorkflowCancellationSweep.SweepAsync(backend, graph, start, operatorCancel, storeHonorsToken: false);
 
-        TestContext.Current.SendDiagnosticMessage($"SQLite {graph} {start}: {report.AwaitPoints} await points ({string.Join(", ", report.Endings.Select(static ending => $"{ending.Key} {ending.Value}"))}), {report.Elapsed.TotalSeconds:0.0} s (operator cancel: {operatorCancel})");
+        TestContext.Current.SendDiagnosticMessage($"SQLite {graph} {start}: {report.AwaitPoints} await points ({string.Join(", ", report.Endings.Select(static ending => $"{ending.Key} {ending.Value}"))}), (operator cancel: {operatorCancel})");
 
         report.Problems.ShouldBeEmpty();
     }

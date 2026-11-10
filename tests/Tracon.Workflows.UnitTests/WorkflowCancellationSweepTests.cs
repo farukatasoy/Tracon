@@ -64,7 +64,7 @@ public sealed class WorkflowCancellationSweepTests
 
         var report = await WorkflowCancellationSweep.SweepAsync(backend, graph, start, operatorCancel, storeHonorsToken);
 
-        TestContext.Current.SendDiagnosticMessage($"{graph} {start}: {report.AwaitPoints} await points ({string.Join(", ", report.Endings.Select(static ending => $"{ending.Key} {ending.Value}"))}), {report.Elapsed.TotalSeconds:0.0} s (honoring store: {storeHonorsToken}, operator cancel: {operatorCancel})");
+        TestContext.Current.SendDiagnosticMessage($"{graph} {start}: {report.AwaitPoints} await points ({string.Join(", ", report.Endings.Select(static ending => $"{ending.Key} {ending.Value}"))}), (honoring store: {storeHonorsToken}, operator cancel: {operatorCancel})");
 
         report.AwaitPoints.ShouldBeGreaterThan(MinimumAwaitPoints(graph), "the run must cross the stores, the sink and the agents of its graph");
         report.Problems.ShouldBeEmpty();

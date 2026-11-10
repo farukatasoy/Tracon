@@ -135,7 +135,7 @@ public sealed class TriggerEndpointTests
     [Fact]
     public async Task Save_stamps_the_trigger_and_its_audit_entry_with_the_registered_clock()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         await using var host = await TraconTestHost.StartAsync(
             configureServices: services => services.AddSingleton<TimeProvider>(clock));

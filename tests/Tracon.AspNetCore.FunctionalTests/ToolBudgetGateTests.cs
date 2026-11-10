@@ -134,7 +134,7 @@ public sealed class ToolBudgetGateTests
     [Fact]
     public async Task A_tool_does_not_start_once_the_time_budget_has_passed()
     {
-        var clock = ManualClock.WithSystemTimers();
+        var clock = new ManualClock(TimeProvider.System.GetUtcNow());
         var tools = new ToolBodies();
 
         await using var host = await StartAsync(
