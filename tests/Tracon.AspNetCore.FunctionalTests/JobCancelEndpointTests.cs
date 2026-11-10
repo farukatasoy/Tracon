@@ -160,7 +160,9 @@ public sealed class JobCancelEndpointTests
         {
             var call = probe.For(context.Job.TargetName);
 
-            using var registration = cancellationToken.Register(static state => ((TaskCompletionSource)state!).TrySetResult(), call.Cancelled);
+            // The registration stays: the delay below ends this method the moment the token is cancelled, and a disposal on that path
+            // can remove the callback before the cancelling thread has run it. The token's source drops it.
+            _ = cancellationToken.Register(static state => ((TaskCompletionSource)state!).TrySetResult(), call.Cancelled);
 
             call.Started.TrySetResult();
 

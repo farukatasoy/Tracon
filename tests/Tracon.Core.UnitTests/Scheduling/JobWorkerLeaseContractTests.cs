@@ -2055,10 +2055,12 @@ public sealed class JobWorkerLeaseContractTests
         public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
         {
             // A cancelled token runs its callbacks on the thread that cancelled it. The one that throws is the handler's
-            // own bug; the other tells the test the token was cancelled.
-            using var broken = cancellationToken.Register(
+            // own bug; the other tells the test the token was cancelled. Neither registration is disposed: the delay below
+            // ends this method the moment the token is cancelled, and a disposal on that path can remove a callback before
+            // the cancelling thread has run it. The token's source drops them.
+            _ = cancellationToken.Register(
                 static () => throw new InvalidOperationException("the callback broke on the lost lease"));
-            using var seen = cancellationToken.Register(
+            _ = cancellationToken.Register(
                 () =>
                 {
                     ReasonWhenCancelled = context.Signals!.Reason;

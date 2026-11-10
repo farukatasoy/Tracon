@@ -138,7 +138,9 @@ internal sealed class TokenProbeHandler : IJobHandler
         probe.Signals = context.Signals;
         probe.Token = cancellationToken;
 
-        using var registration = cancellationToken.Register(static state => ((Probe)state!).Cancelled.TrySetResult(), probe);
+        // The registration stays: the delay below ends this method the moment the token is cancelled, and a disposal on that path
+        // can remove the callback before the cancelling thread has run it. The token's source drops it.
+        _ = cancellationToken.Register(static state => ((Probe)state!).Cancelled.TrySetResult(), probe);
 
         probe.Started.TrySetResult();
 

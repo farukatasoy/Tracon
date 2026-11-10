@@ -89,9 +89,11 @@ public sealed class WorkflowFunctionTimeoutTests
 
         host.AddFunctionWithOptions<List<ChatMessage>, List<ChatMessage>>(
             "listening",
-            async (messages, _, cancellationToken) =>
+            async (messages, context, cancellationToken) =>
             {
-                using var registration = cancellationToken.Register(static state => ((TaskCompletionSource)state!).TrySetResult(), tokenCancelled);
+                // The registration stays: the delay below ends this method the moment the token is cancelled, and a disposal on that path
+                // can remove the callback before the cancelling thread has run it. The token's source drops it.
+                _ = cancellationToken.Register(static state => ((TaskCompletionSource)state!).TrySetResult(), tokenCancelled);
                 started.TrySetResult();
 
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated

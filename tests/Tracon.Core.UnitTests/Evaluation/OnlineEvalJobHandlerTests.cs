@@ -359,9 +359,11 @@ public sealed class OnlineEvalJobHandlerTests
             runs,
             inputs,
             new InMemoryRunScoreStore(),
-            [new AsyncJudge("watches-its-token", async (_, token) =>
+            [new AsyncJudge("watches-its-token", async (context, token) =>
             {
-                using var registration = token.Register(static state => ((TaskCompletionSource)state!).TrySetResult(), cancelled);
+                // The registration stays: the delay below ends this method the moment the token is cancelled, and a disposal on that path
+                // can remove the callback before the cancelling thread has run it. The token's source drops it.
+                _ = token.Register(static state => ((TaskCompletionSource)state!).TrySetResult(), cancelled);
 
                 watching.SetResult();
                 await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
