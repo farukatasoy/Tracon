@@ -94,7 +94,7 @@ jobs:
     if: github.repository == 'farukatasoy/Tracon'
     # Testler artik burada kosmaz. Tahmin: ubuntu ~9 dk, windows ~12 dk; ilk
     # kosumlardan sonra olculenin ~2 kati ile guncellenir.
-    timeout-minutes: 30
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -287,7 +287,7 @@ jobs:
     runs-on: ubuntu-latest
     # Tahmin: ~19 dk (kurulum 3 + moduller 15,8). Ilk kosumdan sonra olculenin
     # ~2 kati ile guncellenir; onceki degeri derleme dahil 30,9 dk idi.
-    timeout-minutes: 65
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
@@ -531,7 +531,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # Tahmin ~9,5 dk (kurulum 2,7 + modul 6 + imaj indirme 0,7).
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -868,7 +868,7 @@ jobs:
     needs: build
     runs-on: windows-latest
     # Tahmin ~12 dk (kurulum 3 + modul 9).
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -919,7 +919,7 @@ jobs:
     needs: build
     runs-on: windows-latest
     # Tahmin ~11 dk (kurulum 3,2 + moduller 7,9 + arayuz zincirinin soguk baslangici).
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -997,7 +997,7 @@ jobs:
     needs: build
     runs-on: windows-latest
     # Tahmin ~11 dk (kurulum 3 + moduller 7,5).
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -1138,7 +1138,7 @@ jobs:
     runs-on: ubuntu-latest
     # Tahmin ~9,5 dk (eski seri kosumda modul 361 sn; yerelde olculen en uzun
     # kosum 14 dk, amd64 emulasyonunda). Runner olcumu yok.
-    timeout-minutes: 60
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -1211,7 +1211,7 @@ jobs:
     runs-on: ubuntu-latest
     # Tahmin ~5,5 dk (eski seri kosumda modul 150 sn; yerelde olculen en uzun
     # kosum 7 dk, yuklu makine, 1594 test, imaj hazir). Runner olcumu yok.
-    timeout-minutes: 30
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -1298,7 +1298,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # Tahmin ~5,5 dk (eski seri kosumda modul 91 sn). Yerelde 1,5 dk (macOS, sicak onbellek).
-    timeout-minutes: 20
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -1505,7 +1505,7 @@ jobs:
     runs-on: ubuntu-latest
     # Tahmin ~9 dk (kurulum 2 + pack 3 + smoke 2,4; onceki en uzun adim 4,2 dk,
     # pack olmadan). Runner olcumu yok.
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -1583,7 +1583,7 @@ jobs:
     needs: [build, format, performans, kapasite, test-fast, test-aspnetcore, test-sqlite, test-twonode, test-package, test-postgres, test-sqlserver, test-windows-sqlite, test-windows-core, test-windows-web]
     # Olculen en uzun 5,7 dk (kendi pack'iyle). Pack artik
     # bu iste degil; sinir ilk yeni kosumda yeniden olculur.
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Kaynak kodu al
