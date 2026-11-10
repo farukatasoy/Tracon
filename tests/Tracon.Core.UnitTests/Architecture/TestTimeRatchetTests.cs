@@ -39,10 +39,13 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <para>
 /// A token that expires after a span (<c>CancelAfter</c>, <c>new CancellationTokenSource(span)</c>) is either a failure bound
 /// ("give up after 30 s": the expiry is never the expected outcome) or a wait (the test expects the expiry, or sits until
-/// it). Syntax cannot tell them apart, so the author says which: a bound carries a trailing <c>// cancel: bound</c> and is
-/// not counted, and every other timed token is counted per file as <c>timed-cancel</c>. A wait becomes a signal (cancel
-/// when the awaited thing happens) or a token on a <c>ManualClock</c> (<c>new CancellationTokenSource(span, clock)</c>
-/// is not counted). A marker on a line that makes no timed token is red, so a converted site cannot keep a stale one.
+/// it). Syntax cannot tell them apart, so the author says which: a bound carries a trailing <c>// cancel: bound</c> and
+/// is counted per file as <c>cancel-bound</c>, and every other timed token is counted per file as <c>timed-cancel</c>. A
+/// marker is therefore not a silent exemption: a new one needs its baseline row added by hand (a refresh never adds one),
+/// and the count of a file can only fall. A line counts once, whatever number of tokens its marker covers. A wait becomes a
+/// signal (cancel when the awaited thing happens) or a token on a <c>ManualClock</c>
+/// (<c>new CancellationTokenSource(span, clock)</c> is not counted). A marker on a line that makes no timed token is red,
+/// so a converted site cannot keep a stale one.
 /// </para>
 /// <para>
 /// A measured duration (a <c>Stopwatch</c>, an assert on an elapsed value) is debt unless the duration itself is what the
@@ -79,6 +82,8 @@ public sealed partial class TestTimeRatchetTests
     private const string StopwatchKind = "stopwatch";
 
     private const string TimedCancelKind = "timed-cancel";
+
+    private const string CancelBoundKind = "cancel-bound";
 
     private static readonly string[] ScanRoots = ["tests", "src/Tracon.Testing.Contracts.Xunit"];
 
@@ -151,6 +156,9 @@ public sealed partial class TestTimeRatchetTests
     [InlineData("using var source = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Max(1, limit)));", "timed-cancel")]
     [InlineData("bound.CancelAfter(WaitUntil.DefaultTimeout);", "timed-cancel")]
     [InlineData("deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bounded", "timed-cancel")]
+    [InlineData("deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound", "cancel-bound")]
+    [InlineData("using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));  // cancel: bound", "cancel-bound")]
+    [InlineData("a.CancelAfter(first); b.CancelAfter(second); // cancel: bound", "cancel-bound")]
     public void The_scan_counts_real_time(string line, string kind)
         => Kinds(line).ShouldBe([kind]);
 
@@ -177,8 +185,9 @@ public sealed partial class TestTimeRatchetTests
     [InlineData("using var source = new CancellationTokenSource( );")]
     [InlineData("Should.NotThrow(() => new CancellationTokenSource(fits + grace).Dispose());")]
     [InlineData("using var linked = CancellationTokenSource.CreateLinkedTokenSource(token);")]
-    [InlineData("deadline.CancelAfter(TimeSpan.FromSeconds(30)); // cancel: bound")]
-    [InlineData("using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));  // cancel: bound")]
+    [InlineData("using var source = new CancellationTokenSource(); // cancel: bound")]
+    [InlineData("using var source = new CancellationTokenSource(TimeSpan.FromSeconds(5), clock); // cancel: bound")]
+    [InlineData("// source.CancelAfter(TimeSpan.FromSeconds(1)); // cancel: bound")]
     [InlineData("// source.CancelAfter(TimeSpan.FromSeconds(1));")]
     [InlineData("/// <see cref=\"CancellationTokenSource.CancelAfter(TimeSpan)\"/> moves a deadline")]
     public void The_scan_leaves_the_rest_alone(string line)
@@ -194,6 +203,54 @@ public sealed partial class TestTimeRatchetTests
         => Kinds("using var a = new CancellationTokenSource(span); a.CancelAfter(span);")
             .ShouldBe([TimedCancelKind, TimedCancelKind]);
 
+    [Fact]
+    public void A_new_failure_bound_marker_is_red_until_the_baseline_has_its_row()
+    {
+        var failures = Compare(Counts(($"{CancelBoundKind}|tests/A.cs", 1)), Counts());
+
+        failures.ShouldHaveSingleItem().ShouldStartWith($"+ {CancelBoundKind}|tests/A.cs");
+    }
+
+    [Fact]
+    public void A_removed_failure_bound_marker_is_red_until_the_baseline_is_lowered()
+    {
+        var failures = Compare(Counts(($"{CancelBoundKind}|tests/A.cs", 1)), Counts(($"{CancelBoundKind}|tests/A.cs", 2)));
+
+        failures.ShouldHaveSingleItem().ShouldStartWith($"- {CancelBoundKind}|tests/A.cs");
+    }
+
+    [Fact]
+    public void A_refresh_never_adds_a_failure_bound_row()
+        => Refreshed(Counts(($"{CancelBoundKind}|tests/New.cs", 1)), Counts()).ShouldBeEmpty();
+
+    [Fact]
+    public void The_scan_keeps_a_marked_bound_apart_from_a_timed_wait()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-time-ratchet");
+
+        try
+        {
+            var file = Path.Combine(directory.FullName, "tests", "Bounds.cs");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            File.WriteAllText(
+                file,
+                "bound.CancelAfter(limit); // cancel: bound\n" +
+                "bound.CancelAfter(limit); // cancel: bound\n" +
+                "wait.CancelAfter(limit);\n" +
+                "using var gone = new CancellationTokenSource(); // cancel: bound\n");
+
+            // The stale marker on the last line is the stale rule's to report, not a row of its own.
+            Scan(directory.FullName).ShouldBe(
+                Counts(($"{CancelBoundKind}|tests/Bounds.cs", 2), ($"{TimedCancelKind}|tests/Bounds.cs", 1)));
+            StaleMarkerSites(directory.FullName).ShouldBe(["tests/Bounds.cs:4"]);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("var source = new CancellationTokenSource(); // cancel: bound")]
     [InlineData("var source = new CancellationTokenSource(TimeSpan.FromSeconds(5), clock); // cancel: bound")]
@@ -206,6 +263,7 @@ public sealed partial class TestTimeRatchetTests
     [InlineData("using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30)); // cancel: bound")]
     [InlineData("deadline.CancelAfter(TimeSpan.FromSeconds(30));")]
     [InlineData("var source = new CancellationTokenSource();")]
+    [InlineData("// var source = new CancellationTokenSource(); // cancel: bound")]
     public void A_failure_bound_marker_on_a_timed_token_is_not_stale(string line)
         => StaleMarkers(line).ShouldBe(0);
 
@@ -496,7 +554,7 @@ public sealed partial class TestTimeRatchetTests
     }
 
     private static int StaleMarkers(string line)
-        => FailureBound().IsMatch(line) && TimedCancels(line) == 0 ? 1 : 0;
+        => !IsComment(line) && FailureBound().IsMatch(line) && TimedCancels(line) == 0 ? 1 : 0;
 
     private static bool IsExempt(string kind, string relative)
         => kind switch
@@ -543,9 +601,16 @@ public sealed partial class TestTimeRatchetTests
         AddMatches(kinds, line, TimeProviderSubclass(), TimeProviderSubclassKind);
         AddMatches(kinds, line, ManualClockRealTimers(), RealTimersKind);
 
-        if (!FailureBound().IsMatch(line))
+        var timedCancels = TimedCancels(line);
+
+        if (timedCancels > 0 && FailureBound().IsMatch(line))
         {
-            for (var count = TimedCancels(line); count > 0; count--)
+            // Counted, not exempt: a marker is a claim the baseline holds, and a line is one claim.
+            kinds.Add(CancelBoundKind);
+        }
+        else
+        {
+            for (var count = timedCancels; count > 0; count--)
             {
                 kinds.Add(TimedCancelKind);
             }

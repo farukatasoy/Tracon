@@ -3,8 +3,8 @@ using System.Text.RegularExpressions;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Every <c>Task.Delay(</c> under <c>tests/</c> says why it is not a wait for
-/// a state.
+/// Every <c>Task.Delay(</c> under <c>tests/</c> and in the contract package
+/// <c>src/Tracon.Testing.Contracts.Xunit</c> says why it is not a wait for a state.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,7 +17,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// tag that says which kind it is:
 /// </para>
 /// <list type="bullet">
-/// <item><c>poll</c> - the pause between two probes; only <c>WaitUntil</c> itself may poll.</item>
+/// <item><c>poll</c> - the pause between two probes; only <c>WaitUntil</c> and the contract package's
+/// <c>UntilAnswered</c> may poll, each by its exact file.</item>
 /// <item><c>simulated</c> - a fake stands in for slow or hanging work (a tool body, a model, a sink).</item>
 /// <item><c>product</c> - the elapsed time IS the claim under test (a lease, a tool's own timeout).</item>
 /// <item><c>negative</c> - the window before "this did not happen", where no positive signal exists.</item>
@@ -27,15 +28,23 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </list>
 /// <para>
 /// An untagged delay fails here. A new wait for a state belongs in
-/// <c>WaitUntil</c>, not behind a tag.
+/// <c>WaitUntil</c>, not behind a tag. The contract package ships to consumers, so its
+/// sources are held to the same rule as the tests: it cannot grow a second polling loop.
 /// </para>
 /// </remarks>
 public sealed class TestDelayClassificationTests
 {
     private static readonly string[] Classes = ["poll", "simulated", "product", "negative", "bound", "retry", "fixture"];
 
-    /// <summary>The one file allowed to poll: the shared condition wait.</summary>
-    private const string PollingFile = "tests/Shared/Waiting/WaitUntil.cs";
+    /// <summary>The roots the rule covers: the tests, and the shipped package whose contracts the tests inherit.</summary>
+    private static readonly string[] ScanRoots = ["tests", "src/Tracon.Testing.Contracts.Xunit"];
+
+    /// <summary>The only files allowed to poll: the shared condition wait and the contract package's own.</summary>
+    private static readonly string[] PollingFiles =
+    [
+        "tests/Shared/Waiting/WaitUntil.cs",
+        "src/Tracon.Testing.Contracts.Xunit/Internal/UntilAnswered.cs",
+    ];
 
     /// <summary>This class's own source names the pattern in its samples.</summary>
     private static readonly string[] SkippedFiles =
@@ -51,12 +60,12 @@ public sealed class TestDelayClassificationTests
         TimeSpan.FromSeconds(1));
 
     [Fact]
-    public void Every_Task_Delay_under_tests_carries_a_known_class()
+    public void Every_Task_Delay_under_tests_and_the_contract_package_carries_a_known_class()
     {
         var violations = Scan(RepositoryRoot);
 
         violations.ShouldBeEmpty(
-            customMessage: $"A Task.Delay under tests/ says nothing about why it is not a wait:{Environment.NewLine}" +
+            customMessage: $"A Task.Delay under tests/ or in Tracon.Testing.Contracts.Xunit says nothing about why it is not a wait:{Environment.NewLine}" +
                            $"{string.Join(Environment.NewLine, violations)}{Environment.NewLine}" +
                            "Wait for the state with WaitUntil; if it is not a wait, add \"// delay: <class>\" " +
                            $"with one of: {string.Join(", ", Classes)} (see the class remarks).");
@@ -82,26 +91,63 @@ public sealed class TestDelayClassificationTests
     public void Scan_accepts_a_known_class()
         => ScanSample("await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated").ShouldBeEmpty();
 
-    [Fact]
-    public void Scan_reports_a_poll_outside_the_shared_condition_wait()
+    [Theory]
+    [InlineData("tests/Sample.cs")]
+    [InlineData("tests/Other.cs")]
+    [InlineData("tests/Shared/Waiting/Other.cs")]
+    [InlineData("tests/Shared/Waiting/WaitUntil.cs.bak.cs")]
+    [InlineData("tests/Elsewhere/Shared/Waiting/WaitUntil.cs")]
+    [InlineData("src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs")]
+    [InlineData("src/Tracon.Testing.Contracts.Xunit/Internal/Other.cs")]
+    [InlineData("src/Tracon.Testing.Contracts.Xunit/Internal/UntilAnswered.cs.bak.cs")]
+    [InlineData("src/Tracon.Testing.Contracts.Xunit/WaitUntil.cs")]
+    [InlineData("tests/Internal/UntilAnswered.cs")]
+    public void Scan_reports_a_poll_outside_the_two_condition_waits(string relativePath)
     {
-        var violations = ScanSample("await Task.Delay(20); // delay: poll");
+        var violations = ScanSample(relativePath, "await Task.Delay(20); // delay: poll");
 
-        violations.ShouldHaveSingleItem().ShouldContain("only WaitUntil polls");
+        violations.ShouldHaveSingleItem().ShouldContain("only the shared condition waits poll");
     }
+
+    [Theory]
+    [InlineData("tests/Shared/Waiting/WaitUntil.cs")]
+    [InlineData("src/Tracon.Testing.Contracts.Xunit/Internal/UntilAnswered.cs")]
+    public void Scan_accepts_a_poll_in_a_condition_wait(string relativePath)
+        => ScanSample(relativePath, "await Task.Delay(20); // delay: poll").ShouldBeEmpty();
+
+    [Theory]
+    [InlineData("tests/Other.cs")]
+    [InlineData("src/Tracon.Testing.Contracts.Xunit/Internal/Other.cs")]
+    [InlineData("src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs")]
+    public void Scan_reports_an_untagged_delay_in_both_roots(string relativePath)
+        => ScanSample(relativePath, "await Task.Delay(200);").ShouldHaveSingleItem().ShouldContain("no \"// delay: <class>\" tag");
+
+    [Fact]
+    public void Scan_reports_an_untagged_delay_inside_a_condition_wait()
+        => ScanSample("tests/Shared/Waiting/WaitUntil.cs", "await Task.Delay(200);")
+            .ShouldHaveSingleItem().ShouldContain("no \"// delay: <class>\" tag");
+
+    [Fact]
+    public void Scan_leaves_the_rest_of_the_package_sources_alone()
+        => ScanSample("src/Tracon.Core/Other.cs", "await Task.Delay(200);").ShouldBeEmpty();
 
     [Fact]
     public void Scan_ignores_a_delay_named_inside_a_comment()
         => ScanSample("// a fixed await Task.Delay(200) used to stand here").ShouldBeEmpty();
 
-    private static List<string> ScanSample(string line)
+    private static List<string> ScanSample(string line) => ScanSample("tests/Sample.cs", line);
+
+    private static List<string> ScanSample(string relativePath, string line)
     {
         var directory = Directory.CreateTempSubdirectory("tracon-delay-test");
 
         try
         {
+            var file = Path.Combine(directory.FullName, relativePath);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
             File.WriteAllText(
-                Path.Combine(directory.FullName, "Sample.cs"),
+                file,
                 $$"""
                 public sealed class SampleTest
                 {
@@ -123,53 +169,61 @@ public sealed class TestDelayClassificationTests
     private static List<string> Scan(string root)
     {
         var violations = new List<string>();
-        var testsRoot = Path.Combine(root, "tests");
-        var scanRoot = Directory.Exists(testsRoot) ? testsRoot : root;
 
-        foreach (var file in Directory.EnumerateFiles(scanRoot, "*.cs", SearchOption.AllDirectories))
+        foreach (var scanRoot in ScanRoots)
         {
-            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
-                file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            var absoluteRoot = Path.Combine(root, scanRoot);
+
+            if (!Directory.Exists(absoluteRoot))
             {
                 continue;
             }
 
-            var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-
-            if (SkippedFiles.Contains(relative, StringComparer.Ordinal))
+            foreach (var file in Directory.EnumerateFiles(absoluteRoot, "*.cs", SearchOption.AllDirectories))
             {
-                continue;
-            }
-
-            var lines = File.ReadAllLines(file);
-
-            for (var index = 0; index < lines.Length; index++)
-            {
-                var line = lines[index];
-                var trimmed = line.TrimStart();
-
-                if (trimmed.StartsWith("//", StringComparison.Ordinal) ||
-                    trimmed.StartsWith('*') ||
-                    !line.Contains("Task.Delay(", StringComparison.Ordinal))
+                if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+                    file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
                 {
                     continue;
                 }
 
-                var where = $"{relative}:{index + 1}";
-                var tag = Tag.Match(line);
+                var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
 
-                if (!tag.Success)
+                if (SkippedFiles.Contains(relative, StringComparer.Ordinal))
                 {
-                    violations.Add($"{where}: no \"// delay: <class>\" tag");
+                    continue;
                 }
-                else if (!Classes.Contains(tag.Groups["class"].Value, StringComparer.Ordinal))
+
+                var lines = File.ReadAllLines(file);
+
+                for (var index = 0; index < lines.Length; index++)
                 {
-                    violations.Add($"{where}: unknown class '{tag.Groups["class"].Value}'");
-                }
-                else if (string.Equals(tag.Groups["class"].Value, "poll", StringComparison.Ordinal) &&
-                         !string.Equals(relative, PollingFile, StringComparison.Ordinal))
-                {
-                    violations.Add($"{where}: only WaitUntil polls - use it instead of a private loop");
+                    var line = lines[index];
+                    var trimmed = line.TrimStart();
+
+                    if (trimmed.StartsWith("//", StringComparison.Ordinal) ||
+                        trimmed.StartsWith('*') ||
+                        !line.Contains("Task.Delay(", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    var where = $"{relative}:{index + 1}";
+                    var tag = Tag.Match(line);
+
+                    if (!tag.Success)
+                    {
+                        violations.Add($"{where}: no \"// delay: <class>\" tag");
+                    }
+                    else if (!Classes.Contains(tag.Groups["class"].Value, StringComparer.Ordinal))
+                    {
+                        violations.Add($"{where}: unknown class '{tag.Groups["class"].Value}'");
+                    }
+                    else if (string.Equals(tag.Groups["class"].Value, "poll", StringComparison.Ordinal) &&
+                             !PollingFiles.Contains(relative, StringComparer.Ordinal))
+                    {
+                        violations.Add($"{where}: only the shared condition waits poll - use WaitUntil instead of a private loop");
+                    }
                 }
             }
         }
