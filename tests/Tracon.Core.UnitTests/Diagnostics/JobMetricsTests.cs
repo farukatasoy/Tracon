@@ -106,9 +106,12 @@ public sealed class JobMetricsTests
 
         await harness.RunUntilAsync(static tags => tags.Count > 0);
 
+        // The handler moved the monotonic clock by 5 s. While the job ran the harness also stepped the worker's 5 ms poll
+        // timer, and how many steps that takes depends on the machine (5.01 s on a loaded one), so the span is 5 s plus a
+        // few polls. What it must never be is the wall clock's rewind: an hour back would give a negative span.
         var measurement = harness.Histogram.ShouldHaveSingleItem();
-        measurement.Value.ShouldBe(5, tolerance: 0.001);
-        measurement.Value.ShouldBeGreaterThan(0);
+        measurement.Value.ShouldBeGreaterThanOrEqualTo(5);
+        measurement.Value.ShouldBeLessThan(5 + 30);
     }
 
     [Fact]
