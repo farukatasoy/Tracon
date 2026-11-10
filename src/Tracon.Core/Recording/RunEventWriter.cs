@@ -129,6 +129,9 @@ public sealed class RunEventWriter
 
     private long _sequence;
 
+    // Whether the run id was minted for this writer; see the constructor. Only the start reads it.
+    private readonly bool _runIdIsNew;
+
     // Whether the call that opens this run's row was made. Set just BEFORE StartRunAsync is called, never after it
     // answers: a call that was sent and ended without an answer (a timeout, a stop that arrived after the store took
     // the row) may have written the row, and the writer cannot tell, so it counts as sent. Only a call that was never
@@ -160,6 +163,12 @@ public sealed class RunEventWriter
     /// run's times are on one clock (a continuation's spent time subtracts the start from the last
     /// event). <see langword="null"/> is the system clock.
     /// </param>
+    /// <param name="runIdIsNew">
+    /// Whether <paramref name="runId"/> was made for this writer a moment ago, so that no attempt before this one can
+    /// have written an event under it. The start then does not ask the store where an earlier attempt stopped.
+    /// <see langword="false"/> keeps the question: an id somebody else chose (a job worker hands the same one to every
+    /// attempt) may be a retry, and only the store knows.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     internal RunEventWriter(
         IRunStore store,
@@ -168,7 +177,8 @@ public sealed class RunEventWriter
         Guid runId,
         TraconMetrics? metrics,
         IReadOnlyList<IRunEventSink>? sinks = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        bool runIdIsNew = false)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(options);
@@ -178,6 +188,7 @@ public sealed class RunEventWriter
         _options = options;
         _logger = logger;
         RunId = runId;
+        _runIdIsNew = runIdIsNew;
         _metrics = metrics;
         _sinks = sinks is { Count: > 0 } ? sinks : [];
         _sinkDisabled = new int[_sinks.Count];
@@ -255,13 +266,20 @@ public sealed class RunEventWriter
             // Running forever with no usage and no cost. That is not
             // an edge case - it was the deterministic outcome of EVERY lease
             // takeover, which is the entire point of the feature.
-            var lastSequence = await _store
-                .GetLastEventSequenceAsync(info.RunId, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (lastSequence is { } written)
+            //
+            // The question is a round-trip, and it is asked for the retry only. An id minted for this writer has no
+            // earlier attempt, so the answer is known to be "none" and a run that streams over a network store does not
+            // wait for it before its first event.
+            if (!_runIdIsNew)
             {
-                _sequence = written + 1;
+                var lastSequence = await _store
+                    .GetLastEventSequenceAsync(info.RunId, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (lastSequence is { } written)
+                {
+                    _sequence = written + 1;
+                }
             }
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))

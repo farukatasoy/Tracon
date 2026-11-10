@@ -61,7 +61,34 @@ public sealed class RunEventSequenceResumeTests
         (await ReadSequencesAsync(store, runId))[0].ShouldBe(0);
     }
 
-    private static async Task RunOnceAsync(InMemoryRunStore store, Guid runId)
+    [Fact]
+    public async Task A_run_whose_id_the_recorder_made_does_not_ask_the_store_for_a_sequence_that_cannot_exist()
+    {
+        // The id is new, so no attempt before this one can have written an event under it. The question costs a round-trip
+        // to the store on every run, and over a network that is paid before the first byte of the answer.
+        var store = new GroupSpyRunStore(new InMemoryRunStore(tenantContext: new FixedTenantContext()));
+
+        await RunOnceAsync(store, runId: null);
+
+        store.LastSequenceLookups.ShouldBe(0);
+        (await store.ReadAsync(await OnlyRunIdAsync(store)))[0].Sequence.ShouldBe(0, "the stream still starts at zero without the question");
+    }
+
+    [Fact]
+    public async Task A_run_whose_id_the_caller_chose_still_asks_because_the_id_may_be_a_retry()
+    {
+        // A job worker hands the same id to every attempt; only the store knows whether an earlier one wrote events.
+        var store = new GroupSpyRunStore(new InMemoryRunStore(tenantContext: new FixedTenantContext()));
+
+        await RunOnceAsync(store, TraconId.NewId());
+
+        store.LastSequenceLookups.ShouldBe(1);
+    }
+
+    private static async Task<Guid> OnlyRunIdAsync(GroupSpyRunStore store)
+        => (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem().Id;
+
+    private static async Task RunOnceAsync(IRunStore store, Guid? runId)
     {
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider(new FakeChatClient())),
@@ -76,7 +103,7 @@ public sealed class RunEventSequenceResumeTests
 
         await agent.RunAsync(
             "hello",
-            options: new TraconRunOptions { RunId = runId },
+            options: runId is { } chosen ? new TraconRunOptions { RunId = chosen } : null,
             cancellationToken: TestContext.Current.CancellationToken);
     }
 

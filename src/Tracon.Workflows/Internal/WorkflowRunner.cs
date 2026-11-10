@@ -377,7 +377,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         RunDeadline deadline,
         CancellationTokenSource linked)
     {
-        var writer = _services.CreateWriter(execution.RunId, _logger);
+        // A run id the caller did not choose was made for this run a moment ago (a start, a resume and a response
+        // all make one when the request names none), so no earlier attempt wrote an event under it and the writer
+        // does not ask the store where one stopped.
+        var writer = _services.CreateWriter(execution.RunId, _logger, runIdIsNew: !execution.RowMayBeOpen);
 
         // 🚨 The root span is started IN THE BODY OF THIS METHOD. Activity.Current
         // is an AsyncLocal, and an assignment made inside a helper method does not

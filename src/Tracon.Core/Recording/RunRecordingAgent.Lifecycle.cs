@@ -144,7 +144,7 @@ public sealed partial class RunRecordingAgent
         // does not flow back to the caller; if the writer were created there, a child call
         // could not see the writer in the scope and could not write its summary events into
         // the root stream.
-        var writer = _services.CreateWriter(runId, _logger);
+        var writer = _services.CreateWriter(runId, _logger, runIdIsNew: runOptions?.RunId is null);
 
         var budget = runOptions?.Budget ?? (depth == 0 ? _services.AgentGraph.CreateBudget(_services.TimeProvider) : null);
 

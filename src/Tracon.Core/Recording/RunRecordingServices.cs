@@ -188,9 +188,10 @@ internal sealed class RunRecordingServices
     /// </remarks>
     /// <param name="runId">The identifier of the run.</param>
     /// <param name="logger">The logger of the recorder that owns the run.</param>
+    /// <param name="runIdIsNew">Whether the recorder made <paramref name="runId"/> itself, rather than taking one a caller chose.</param>
     /// <returns>The writer.</returns>
-    public RunEventWriter CreateWriter(Guid runId, ILogger logger)
-        => new(RunStore, Recording, logger, runId, Metrics, Sinks, TimeProvider);
+    public RunEventWriter CreateWriter(Guid runId, ILogger logger, bool runIdIsNew = false)
+        => new(RunStore, Recording, logger, runId, Metrics, Sinks, TimeProvider, runIdIsNew);
 
     /// <summary>
     /// Returns the services for a run that the control plane starts on its own account, such as the

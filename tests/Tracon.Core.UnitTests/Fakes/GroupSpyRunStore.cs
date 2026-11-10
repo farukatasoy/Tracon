@@ -17,6 +17,10 @@ internal sealed class GroupSpyRunStore(InMemoryRunStore inner) : IRunStore
     private readonly List<long> _order = [];
     private TaskCompletionSource? _release;
     private int _groupsEntered;
+    private int _lastSequenceLookups;
+
+    /// <summary>Gets how many times the writer asked the store for the last event sequence of a run.</summary>
+    public int LastSequenceLookups => Volatile.Read(ref _lastSequenceLookups);
 
     /// <summary>Gets the sequence numbers of each group that reached the store, in the order the groups arrived.</summary>
     public IReadOnlyList<IReadOnlyList<long>> Groups
@@ -150,7 +154,11 @@ internal sealed class GroupSpyRunStore(InMemoryRunStore inner) : IRunStore
 
     public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default) => inner.StartRunAsync(info, cancellationToken);
 
-    public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default) => inner.GetLastEventSequenceAsync(runId, cancellationToken);
+    public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref _lastSequenceLookups);
+        return inner.GetLastEventSequenceAsync(runId, cancellationToken);
+    }
 
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default) => inner.CompleteRunAsync(completion, cancellationToken);
 
