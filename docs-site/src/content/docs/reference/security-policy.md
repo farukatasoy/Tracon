@@ -3,8 +3,10 @@ title: Security policy
 description: How to report a vulnerability in Tracon privately, what is in scope, which versions get security fixes, and what response to expect.
 ---
 
-Report a suspected vulnerability privately to <hfarukatasoy@gmail.com>. Do not open a
-public issue, and do not run an exploit against a system you do not own.
+Report a suspected vulnerability privately, in either of two ways: GitHub's
+[private vulnerability reporting](https://github.com/farukatasoy/Tracon/security/advisories/new),
+or an email to <hfarukatasoy@gmail.com>. Do not open a public issue, and do not run an
+exploit against a system you do not own.
 
 Expect an acknowledgement within **72 hours** and an assessment within **seven days**.
 

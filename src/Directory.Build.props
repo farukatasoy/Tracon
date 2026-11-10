@@ -41,8 +41,8 @@
     <!--
       PolyForm Small Business 1.0.0 is not OSI approved, so it cannot be named in
       <PackageLicenseExpression> - NuGet accepts only its own allow list there.
-      <PackageLicenseFile> embeds the text in the package instead, which also
-      means the licence needs no URL to resolve while the repository is private.
+      <PackageLicenseFile> embeds the text in the package instead, so the licence
+      reaches the consumer with the package and needs no URL to resolve.
     -->
     <!--
       🚨 The matrix lives HERE and not in the three csproj files, because the
@@ -67,16 +67,16 @@
     <Product>Tracon</Product>
     <Copyright>Copyright (c) Faruk Atasoy</Copyright>
     <!--
-      🚨 Measured (HTTP 404, anonymous): the GitHub repository is private, so any
-      github.com URL shipped in package metadata is a dead link for every
-      consumer. The two fields a person actually clicks on nuget.org - the
-      project website and the release notes - therefore point at the public
-      documentation site, which is the only public surface this product has.
-      RepositoryUrl stays on the real repository on purpose: it is provenance
-      that tooling reads, not a link offered to a reader, and the packing gate
-      requires a <repository commit="..."/> element. The consequence is written
-      down rather than hidden - Source Link cannot resolve sources for a third
-      party while the repository is private.
+      The two fields a person actually clicks on nuget.org - the project website
+      and the release notes - point at the documentation site, not at github.com.
+      The site is the product's landing page, and its changelog page is generated
+      from the root CHANGELOG.md with one stable anchor per version. A link on
+      nuget.org outlives the version it was written for, so it names the surface
+      the project controls and can keep alive. RepositoryUrl is the real
+      repository: it is provenance that tooling reads (Source Link, and the
+      <repository commit="..."/> element the packing gate requires), not a link
+      offered to a reader. The repository is public, so a third party's debugger
+      resolves sources from it.
     -->
     <PackageProjectUrl>https://tracon.dev</PackageProjectUrl>
     <RepositoryUrl>https://github.com/farukatasoy/Tracon</RepositoryUrl>
@@ -128,8 +128,8 @@
         Anchored to the version, not embedded release-note text: 21 packages
         share one version stream, so inlining the same text 21 times would
         drift. The target is the documentation site's release-notes page, which
-        is generated from the root CHANGELOG.md - a github.com URL would 404
-        for every consumer while the repository is private. The `v<version>`
+        is generated from the root CHANGELOG.md, so every package of a version
+        links to the same text. The `v<version>`
         anchor is written explicitly by that generator, because a heading slug
         would drop the dots from a version like `1.0.0-preview.1`. The page
         exists only after the site is rebuilt and deployed for the version

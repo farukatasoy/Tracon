@@ -15,9 +15,10 @@ for the pinning and upgrade contract.
 
 ## Reporting a vulnerability
 
-Report suspected vulnerabilities privately to **hfarukatasoy@gmail.com**. Do not
-open a public issue, and do not include a working exploit against a system you do
-not own.
+Report suspected vulnerabilities privately, in either of two ways: GitHub's
+[private vulnerability reporting](https://github.com/farukatasoy/Tracon/security/advisories/new),
+or an email to **hfarukatasoy@gmail.com**. Do not open a public issue, and do not
+include a working exploit against a system you do not own.
 
 Include what a maintainer needs to reproduce it:
 

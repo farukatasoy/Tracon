@@ -3,9 +3,9 @@
 // Why generated and not written twice:
 //
 //   Every package's `PackageReleaseNotes` metadata has to resolve to something a
-//   consumer can open. The repository is private, so a GitHub blob URL 404s for
-//   everyone outside it, and this site is the only public surface that can carry
-//   the notes. Keeping a second, hand-maintained copy of the changelog here would
+//   consumer can open. It points at this site, the surface the project controls,
+//   which renders the notes of one version at a stable anchor. Keeping a second,
+//   hand-maintained copy of the changelog here would
 //   drift from the root file the release gate actually reads - so the root file
 //   stays the single source and this script publishes it.
 //
