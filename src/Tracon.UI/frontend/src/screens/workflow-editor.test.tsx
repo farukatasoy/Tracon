@@ -231,8 +231,9 @@ describe('WorkflowEditorScreen - the stored form', () => {
     const user = userEvent.setup();
 
     open(agentsOnly);
+    await loaded();
 
-    await user.selectOptions(await screen.findByTestId('workflow-add-function'), 'word-count');
+    await user.selectOptions(screen.getByTestId('workflow-add-function'), 'word-count');
 
     expect(screen.getByTestId('workflow-form-notice').textContent).toContain('node list');
 
@@ -286,8 +287,7 @@ describe('WorkflowEditorScreen - the pattern', () => {
     const user = userEvent.setup();
 
     open(agentsOnly);
-
-    await screen.findByTestId('workflow-add-function');
+    await loaded();
 
     await user.selectOptions(screen.getByRole('combobox', { name: /^Kind/ }), 'Concurrent');
 
@@ -316,8 +316,9 @@ describe('WorkflowEditorScreen - the pattern', () => {
 
   it('does not offer a function that is already in the chain', async () => {
     open(mixed);
+    await loaded();
 
-    const picker = await screen.findByTestId('workflow-add-function');
+    const picker = screen.getByTestId('workflow-add-function');
 
     expect(within(picker).queryByRole('option', { name: 'word-count' })).toBeNull();
     within(picker).getByRole('option', { name: 'pass-through' });
@@ -418,8 +419,9 @@ describe('WorkflowEditorScreen - the settings field', () => {
     const user = userEvent.setup();
 
     open(agentsOnly);
+    await loaded();
 
-    await user.selectOptions(await screen.findByTestId('workflow-add-function'), 'pass-through');
+    await user.selectOptions(screen.getByTestId('workflow-add-function'), 'pass-through');
 
     expect(screen.queryByTestId('workflow-settings-pass-through')).toBeNull();
     screen.getByText('This function takes no settings.');
@@ -549,8 +551,11 @@ describe('WorkflowEditorScreen - timeouts', () => {
     const user = userEvent.setup();
 
     open(mixed);
+    // The field is on the screen before the stored workflow has filled the form, and the fill replaces what was typed in
+    // between: a value typed in that gap is lost, or the form is left empty and Save stays held back. Found is not loaded.
+    await loaded();
 
-    fireEvent.change(await screen.findByTestId('workflow-request-timeout'), { target: { value: typed } });
+    fireEvent.change(screen.getByTestId('workflow-request-timeout'), { target: { value: typed } });
     await save(user);
 
     expect(sent[0]).toMatchObject({ requestTimeout: expected });
@@ -558,8 +563,9 @@ describe('WorkflowEditorScreen - timeouts', () => {
 
   it('holds Save back on an answer time limit that is neither seconds nor d.hh:mm:ss', async () => {
     open(mixed);
+    await loaded();
 
-    fireEvent.change(await screen.findByTestId('workflow-request-timeout'), { target: { value: 'a week' } });
+    fireEvent.change(screen.getByTestId('workflow-request-timeout'), { target: { value: 'a week' } });
 
     expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
     expect(screen.getByText('Enter seconds (for example 3600) or d.hh:mm:ss (for example 2.00:00:00).')).toBeTruthy();
