@@ -16,7 +16,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The bridge is a control-plane seam, not a media helper (the plan's counter-argument to
+/// The bridge is a control-plane seam, not a media helper (the answer to
 /// "write your own adapter"): the tenant's egress policy, the refusal of a tenant's own
 /// key, the character limit and the host's startup are applied by Tracon's resolver and
 /// registration, so an adapter written by hand could skip all of them. Every refusal case here

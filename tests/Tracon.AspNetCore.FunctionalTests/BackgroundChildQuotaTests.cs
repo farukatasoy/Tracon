@@ -153,7 +153,7 @@ public sealed class BackgroundChildQuotaTests
     [Fact]
     public async Task The_roots_run_completed_webhook_stays_the_tree_as_it_stood_when_the_root_closed()
     {
-        // The earlier decision decided the webhook is NOT the quota's twin: it is a picture of the moment the
+        // The webhook is NOT the quota's twin: it is a picture of the moment the
         // root closes. A child that ends later is in the counter and in GET /api/runs/{id},
         // and publishes nothing of its own - no second event, no changed payload.
         var gated = new GatedModelProvider(GatedProvider, ResearcherModel);

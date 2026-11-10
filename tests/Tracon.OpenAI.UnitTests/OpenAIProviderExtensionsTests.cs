@@ -12,7 +12,6 @@ namespace Tracon.OpenAI.UnitTests;
 /// <remarks>
 /// <c>UsePostgreSql()</c> uses <c>Replace</c> because it takes the place of existing
 /// stores; this call <em>adds</em> a new provider, so <c>AddModelProvider</c> is enough.
-/// Reason: <c>.md</c>, the earlier decision.
 /// </remarks>
 public sealed class OpenAIProviderExtensionsTests
 {
@@ -101,7 +100,7 @@ public sealed class OpenAIProviderExtensionsTests
     [Fact]
     public void Catalog_is_empty_by_default()
     {
-        // Tracon carries no built-in model list; the earlier decision.
+        // Tracon carries no built-in model list.
         using var provider = BuildProvider();
 
         var descriptors = provider.GetRequiredService<IModelProviderRegistry>().List();

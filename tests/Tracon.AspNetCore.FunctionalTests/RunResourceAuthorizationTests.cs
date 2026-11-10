@@ -19,7 +19,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// over HTTP: the installation's own
 /// <see cref="IRunAuthorizationHandler"/> now gates a run's RESOURCES — its
 /// summary, tree, events, input, trace, tool calls, scores, cancellation, its
-/// attachments and its approvals — and the two run-starting surfaces an earlier change
+/// attachments and its approvals — and the two run-starting surfaces the first version of the gate
 /// missed (<c>POST /api/runs/{id}/replay</c> and <c>/v1/chat/completions</c>).
 /// </summary>
 /// <remarks>
@@ -82,7 +82,7 @@ public sealed class RunResourceAuthorizationTests
 
         await AssertStatusAsync(host, HttpMethod.Delete, $"/tracon/api/attachments/{attachmentId}", HttpStatusCode.NoContent);
 
-        // 🚨 The two run-STARTING endpoints an earlier change added a gate to, and the
+        // 🚨 The two run-STARTING endpoints that gained a gate later, and the
         // two writes with a second identity in the route. A gate that goes into
         // a path which never had one before is exactly where a null-handler
         // regression would land, so each is exercised here as well.
@@ -529,7 +529,7 @@ public sealed class RunResourceAuthorizationTests
         response.Content.Headers.ContentType?.MediaType.ShouldNotBe("text/event-stream", StringComparer.Ordinal);
     }
 
-    // --- The surfaces the change's own audit found still ungated ---
+    // --- The surfaces an audit found still ungated ---
 
     [Fact]
     public async Task Feedback_delete_refuses_a_score_that_belongs_to_a_different_run()
@@ -612,8 +612,8 @@ public sealed class RunResourceAuthorizationTests
         var before = (await runs.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Count;
 
         // 🚨 Resume opens a NEW run row from an existing run's checkpoint, so
-        // it is a run-STARTING surface — counted four and the earlier change's
-        // own audit found this one still outside the gate.
+        // it is a run-STARTING surface — counted four, and an audit of the gate
+        // found this one still outside it.
         handler.OnRun = Deny(RunAccess.Start);
 
         using var response = await host.Client.PostAsJsonAsync(

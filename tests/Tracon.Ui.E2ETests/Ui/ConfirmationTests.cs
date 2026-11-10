@@ -226,7 +226,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
     {
         // A dialog that closes on a refusal hands the operator a screen that
         // looks exactly like success. It stays open, and the server's own
-        // words are inside it. (That those words stay untranslated is that decision,
+        // words are inside it. (That those words stay untranslated is the rule that server responses are not translated,
         // proven in `A_failed_list_shows_the_servers_own_words...`; this case
         // is about WHERE they appear, so it runs in the default locale the
         // shared helper above navigates by.)

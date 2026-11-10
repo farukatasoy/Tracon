@@ -9,7 +9,7 @@ namespace Tracon.Anthropic.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before the phase the binder skipped such a value and kept the shipped default:
+/// The binder used to skip such a value and keep the shipped default:
 /// <c>DefaultMaxOutputTokens = "8k"</c> kept 4096 and <c>MaxRetries = "three"</c> kept the retry count
 /// unset, both without a word. Every case goes through the container a host builds and
 /// <c>IStartupValidator</c>. The probes in <see cref="UnreadableProviderConfiguration"/> reflect over

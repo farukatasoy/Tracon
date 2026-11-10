@@ -4,8 +4,8 @@ using Tracon;
 namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
-/// An earlier change split — <c>TraconServiceCollectionExtensions</c> was one
-/// 2,662-line file; the registration body now runs through four private
+/// The registration body was split — <c>TraconServiceCollectionExtensions</c> was one
+/// 2,662-line file; it now runs through four private
 /// helpers spread across <c>Registration.*.cs</c> partial files, called in
 /// their original order from <c>AddTracon()</c>.
 /// </summary>

@@ -23,8 +23,7 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// queue: a writer that has waited long polls rarely, and newcomers take the
 /// lock first. Under a saturated machine one statement starved past
 /// Microsoft.Data.Sqlite's 30-second command timeout and failed with
-/// <c>SQLite Error 5: 'database is locked'</c> in a random test (an earlier fix;
-/// traced: no transaction held the lock longer than 1.7 s and commits never
+/// <c>SQLite Error 5: 'database is locked'</c> in a random test (traced: no transaction held the lock longer than 1.7 s and commits never
 /// paused longer, while single statements in the same runs waited 30-61 s).
 /// PostgreSQL and SQL Server have no per-database writer lock, so the
 /// one-server, schema-per-class model stays right for them; for SQLite
@@ -34,8 +33,7 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// Contexts that name the SAME prefix share the file on purpose: the
 /// deliberate concurrency tests open several contexts on one prefix
 /// (<see cref="SqliteTestContext.Create(SqliteFixture, string, string, bool)"/>).
-/// Two prefixes in one physical file - a supported production layout (
-/// That decision) - is proven by tests that build that layout explicitly.
+/// Two prefixes in one physical file - a supported production layout - is proven by tests that build that layout explicitly.
 /// </para>
 /// </remarks>
 public sealed class SqliteFixture : IAsyncLifetime

@@ -134,7 +134,7 @@ public sealed class DrainTests
         settled.ShouldBe(JobStatus.Completed);
     }
 
-    // --- an earlier fix: the workflow endpoints start runs too ---
+    // --- The workflow endpoints start runs too ---
     //
     // Each endpoint gets its own test: they do not share a filter, so a test of
     // one says nothing about another (the RunAuthorizationEndpointTests rule).

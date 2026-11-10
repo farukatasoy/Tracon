@@ -10,7 +10,7 @@ public sealed class RetentionMaxRowsDialectTests
     private readonly SqlServerDialect _dialect = new("tracon");
 
     /// <summary>
-    /// 🚨 That decision pitfall: in SQL Server, <c>OFFSET</c>/<c>FETCH</c> throws
+    /// 🚨 Pitfall: in SQL Server, <c>OFFSET</c>/<c>FETCH</c> throws
     /// WITHOUT an <c>ORDER BY</c>. This template must always carry an
     /// <c>ORDER BY</c>.
     /// </summary>

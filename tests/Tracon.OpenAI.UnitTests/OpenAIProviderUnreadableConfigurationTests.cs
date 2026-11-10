@@ -9,7 +9,7 @@ namespace Tracon.OpenAI.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Before the phase the binder skipped such a value and kept the shipped default:
+/// The binder used to skip such a value and keep the shipped default:
 /// <c>Timeout = "30s"</c> kept the default timeout, and <c>EnableResponsesSurface = "evet"</c> kept the
 /// Responses surface off, both without a word. Every case goes through the container a host builds and
 /// <c>IStartupValidator</c>. The probes in <see cref="UnreadableProviderConfiguration"/> reflect over

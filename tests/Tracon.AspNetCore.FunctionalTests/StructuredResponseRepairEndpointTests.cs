@@ -44,7 +44,7 @@ public sealed class StructuredResponseRepairEndpointTests
         // The single (rejected) call's tokens were genuinely spent, and the
         // side channel that folds a discarded attempt's usage into the run
         // runs on every rejection, not only when a repair follows -
-        // this is an intentional improvement over an earlier change, where a
+        // this is an intentional improvement over the earlier behavior, where a
         // rejected run's Usage was silently null even though real tokens
         // were spent.
         run.Usage.ShouldNotBeNull();

@@ -25,17 +25,17 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// surface") is not mechanical, and got it wrong: it declared FOUR
 /// run-starting files while <c>POST /api/runs/{id}/replay</c> and
 /// <c>/v1/chat/completions</c> were already starting real runs without the
-/// gate. An earlier change found them and the list below is now SIX. What this test
+/// gate. A later review found them and the list below is now SIX. What this test
 /// catches is a REGRESSION: a known call site silently losing its call during
 /// a later edit. When a new surface is added, this list must be added to BY
-/// HAND, and the handover note of the phase that adds it must say so.
+/// HAND, and the change that adds it must say so.
 /// </para>
 /// </remarks>
 public sealed class RunAuthorizationCoverageTests
 {
     // 🚨 The real call is formatted across two lines (`RunAuthorizationGate`
     // then `.CheckRunAsync(` on the next, indented line) at every call site -
-    // a plain substring search would never match, the exact that decision "split
+    // a plain substring search would never match, the exact "split
     // phrase" trap SeamContractDocumentationTests warns about. The regex
     // tolerates any whitespace (including a newline) between the two halves.
     private static readonly Regex StartMarker = new(
@@ -70,7 +70,7 @@ public sealed class RunAuthorizationCoverageTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// the earlier change's own ratchet, kept in this class rather than a new one
+    /// The session-ownership ratchet, kept in this class rather than a new one
     /// because it guards the SAME failure in the same way: an HTTP surface
     /// that reaches a session without asking whose it is. Session ownership is
     /// a second boundary drawn under the tenant, and it is enforced by explicit
@@ -137,9 +137,9 @@ public sealed class RunAuthorizationCoverageTests
 
     /// <summary>The files that reach a run's or a session's RESOURCES behind the same handler.</summary>
     /// <remarks>
-    /// 🚨 <c>OpenAIConversationsEndpoints</c> joined, one phase
-    /// after it joined the ownership list below — the same file, the same
-    /// miss, found twice. An earlier change gave it Tracon's own ownership
+    /// 🚨 <c>OpenAIConversationsEndpoints</c> joined later than
+    /// it joined the ownership list below — the same file, the same
+    /// miss, found twice. It first got Tracon's own ownership
     /// boundary and stopped there; the consumer's own
     /// <c>IRunAuthorizationHandler</c> was still never asked, so an
     /// installation whose handler refused <c>GET /api/sessions/{id}</c> had
@@ -178,8 +178,8 @@ public sealed class RunAuthorizationCoverageTests
     /// reaches the very same sessions under a different name, so while
     /// <c>GET /api/sessions/{id}</c> answered 404 for another user's session,
     /// <c>GET /v1/conversations/{id}/items</c> returned its whole history and
-    /// <c>DELETE</c> removed it. The same class of miss an earlier change made and
-    /// An earlier change had to come back for — a compatibility surface is a surface.
+    /// <c>DELETE</c> removed it. The same class of miss the first run-ownership gate made and
+    /// had to come back for — a compatibility surface is a surface.
     ///
     /// 🚨 Three run-starting files, not six. <c>TriggerEndpoints</c> and
     /// <c>OpenAIChatCompletionsEndpoints</c> pass <c>sessionId: null</c> to the
@@ -287,7 +287,7 @@ public sealed class RunAuthorizationCoverageTests
 
     /// <summary>Regression coverage for the scan itself, isolated from the real repository tree.</summary>
     /// <remarks>
-    /// 🚨 The point is that decision: a plain <c>Contains</c> would find NEITHER real
+    /// 🚨 The point is the split-phrase trap: a plain <c>Contains</c> would find NEITHER real
     /// call, because every call site wraps the line after the class name. A
     /// scan that silently matches nothing is a test that reports green while
     /// proving nothing, so both directions are asserted here.

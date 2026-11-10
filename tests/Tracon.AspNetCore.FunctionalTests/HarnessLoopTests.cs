@@ -17,7 +17,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// A unit test cannot answer any of the questions in this class. Whether the
 /// iteration event reaches the run store crosses the recording boundary;
 /// whether it is written in the right ambient scope on the streaming path
-/// crosses the async-iterator boundary, which is where four earlier phases lost
+/// crosses the async-iterator boundary, which is where four earlier changes lost
 /// exactly this kind of write.
 /// </remarks>
 // MAAI001: the loop API is marked "evaluation purposes only"
@@ -404,7 +404,7 @@ public sealed class HarnessLoopTests
         provider.Requests.Count.ShouldBe(2);
     }
 
-    // ---- an earlier change: how the loop ends when no criterion is satisfied ------------
+    // ---- How the loop ends when no criterion is satisfied ------------
 
     /// <summary>
     /// FailRun on exhaustion: the run fails with LoopUnsatisfied after exactly

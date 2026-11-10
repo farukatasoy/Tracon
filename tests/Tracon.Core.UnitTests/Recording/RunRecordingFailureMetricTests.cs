@@ -204,8 +204,8 @@ public sealed class RunRecordingFailureMetricTests
 
         // The published sentence is "counted once per sink per run", and per-run
         // concurrency is real: AllowConcurrentToolCalls fans tool events out at
-        // once, and a child run writes into the root writer. Since an earlier fix
-        // a writer hands events to its sinks one at a time, so the broken sink is
+        // once, and a child run writes into the root writer. A writer
+        // hands events to its sinks one at a time, so the broken sink is
         // asked ONCE, disabled, and never asked again by the seven others.
         var sink = new ThrowingAfterStartRunEventSink();
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext("tenant-a"));

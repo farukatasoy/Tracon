@@ -139,8 +139,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
             {/*
               `Field`'s render-prop form rather than a hand-rolled label: the id
               it generates is what binds the caption to the `<select>`, and the
-              hint explains why "follow the system" is not the default (
-              a browser cannot report "no preference", so following the system
+              hint explains why "follow the system" is not the default (a browser cannot report "no preference", so following the system
               means defaulting to light).
             */}
             <Field label={t('settings.theme')} hint={t('settings.themeHint')}>
@@ -266,9 +265,9 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
 /**
  * Which voice speaks each language.
  *
- * 🚨 A Turkish answer read out by an English voice is unintelligible. An earlier change
- * added `VoiceDescriptor.attributes`, and the option label below shows the
- * `language`/`gender` values a provider reports through it — but not every
+ * 🚨 A Turkish answer read out by an English voice is unintelligible.
+ * The option label below shows the `language`/`gender` values a provider
+ * reports through `VoiceDescriptor.attributes` — but not every
  * provider reports them, so the mapping still cannot be derived reliably and
  * an operator sets it here once. The conversation panel then sends the chosen
  * id in the `start` frame, which the protocol already accepts; the server

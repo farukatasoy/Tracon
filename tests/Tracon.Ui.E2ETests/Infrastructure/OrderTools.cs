@@ -47,7 +47,7 @@ internal static class OrderTools
 
     /// <summary>
     /// Marks an order's preview as ready and writes a consumer-defined
-    /// <see cref="RunEventType.Custom"/> event (the earlier change's escape hatch, for the E2E test).
+    /// <see cref="RunEventType.Custom"/> event (the escape hatch, for the E2E test).
     /// </summary>
     /// <param name="orderId">Order number.</param>
     /// <returns>A human-readable result message.</returns>

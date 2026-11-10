@@ -1,7 +1,7 @@
 namespace Tracon.Core.UnitTests.Providers;
 
 /// <summary>
-/// Verifies the earlier change's composition path: a consumer's
+/// Verifies the composition path: a consumer's
 /// <see cref="IRunErrorClassifier"/> can wrap <see cref="DefaultRunErrorClassifier"/>
 /// (now public, zero-dependency, safe to <c>new</c> up directly - no DI
 /// required) and <see cref="RunErrorFingerprint"/> to defer to Tracon's

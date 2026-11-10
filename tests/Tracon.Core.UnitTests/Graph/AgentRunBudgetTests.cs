@@ -111,7 +111,7 @@ public sealed class AgentRunBudgetTests
         budget.Deadline.ShouldBeNull();
     }
 
-    // --- an earlier fix: where a function node may start ---
+    // --- Where a function node may start ---
 
     [Fact]
     public void A_spent_token_budget_does_not_refuse_a_node_start()

@@ -125,7 +125,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
     [Fact]
     public void NothingIsDerivedWithoutBaselineRoot()
     {
-        // The daily loop (ic-dongu, kapanis) never compares with a published
+        // The daily loop (`kapi.py ic-dongu` and `kapi.py kapanis`) never compares with a published
         // version and never reaches the network for one. Only the release packs
         // (`kapi.py yayin`, and `kapi.py paketle` in the CI build job) pass a root.
         foreach (var (id, properties) in evaluations.WithoutBaseline)

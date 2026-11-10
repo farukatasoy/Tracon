@@ -9,7 +9,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An earlier change at the host boundary. Which switches a deployment ended up
+/// A host-boundary check. Which switches a deployment ended up
 /// with is only decided once every module has registered, so the cases below
 /// start real hosts rather than constructing the validator by hand.
 /// </summary>

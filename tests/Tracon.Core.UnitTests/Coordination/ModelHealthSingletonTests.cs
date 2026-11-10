@@ -8,8 +8,8 @@ namespace Tracon.Core.UnitTests.Coordination;
 /// instances share the SAME lease store (the requirement: "With two instances...
 /// the model health check runs on only one"). Uses real time: the services run
 /// on their own <c>PeriodicTimer</c>s, no fake timer is injected (this project
-/// does not test BackgroundServices that way, see <c>the development notes</c> — "A unit
-/// test is not enough").
+/// does not test BackgroundServices that way: a unit test of the loop alone is
+/// not enough to show that two real services keep to one lease).
 /// </summary>
 public sealed class ModelHealthSingletonTests
 {

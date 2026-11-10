@@ -395,7 +395,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         criteria[1].ReviewerAgentVersion.ShouldBeNull();
     }
 
-    /// <summary>A loop saved before an earlier change has no reviewer keys and reads back with both null.</summary>
+    /// <summary>A loop saved before reviewer keys existed has none and reads back with both null.</summary>
     [Fact]
     public void A_loop_criterion_written_before_the_reviewer_fields_existed_reads_back_with_no_reviewer()
     {

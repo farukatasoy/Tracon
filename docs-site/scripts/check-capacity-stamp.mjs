@@ -5,26 +5,31 @@ import { join } from 'node:path';
  * Every capacity number this site publishes must be recomputable from a stored
  * measurement artifact.
  *
- * measured the numbers on `guides/production.md` and its audit found
- * five defects. All five were the same class: a number that was correct in the
- * measurement file and wrong by the time it reached the page. That decision turned that
- * into a contract - a published capacity number carries its version and its
- * commit - and this gate is the contract's enforcement.
+ * An audit of the numbers on `guides/production.md` found five defects. All
+ * five were the same class: a number that was correct in the measurement file
+ * and wrong by the time it reached the page. That became a contract - a
+ * published capacity number carries its version and its commit - and this gate
+ * is the contract's enforcement.
  *
  * The gate reads only. It never rewrites the page to match the artifact,
  * because a number that drifted is a question for a person: either the page was
  * mistyped, or the measurement was never re-run.
  *
- * 🚨 A process-measurement gate checks that a section EXISTS, not
- * that it is CORRECT, and reasons that no gate can check correctness. This gate
- * checks correctness and that is not a contradiction. A process measurement is
- * a judgement with no external source. A capacity number has a machine-readable
- * source sitting next to it. Correctness is checkable exactly when a source
- * exists; this is the other side of the same rule, not a new one.
+ * 🚨 This gate checks that a number is CORRECT, not only that a section EXISTS.
+ * A judgement with no external source (a process measurement, say) can only be
+ * checked for presence. A capacity number has a machine-readable source sitting
+ * next to it, and correctness is checkable exactly when a source exists.
  */
 
 /** The page that publishes capacity numbers. */
 const PAGE = 'guides/production.md';
+
+/**
+ * A manifest names the commit its run was packed from in the history the run was measured in, and a clone of this
+ * repository does not hold that commit. This file, stored beside the manifests, maps each one to the commit here whose
+ * source tree is identical, so a `git diff` between two commits the page names runs in a clone.
+ */
+const PUBLIC_COMMITS = 'public-commits.json';
 
 /**
  * A published row names the measurement cell it came from, in the row itself:
@@ -769,22 +774,50 @@ function checkStamps(text, measurementsRoot, seen, collected) {
     return [`${PAGE}: no measurement manifest is stored; every stamp on the page is unbacked`];
   }
 
-  // 1 - every short SHA the page names belongs to a run that is stored.
-  const commits = new Set(manifests.map(([, manifest]) => manifest.commit));
+  // 1 - every short SHA the page names is the public commit of a run that is stored.
+  //
+  // The page names the commit a reader can resolve. The commit a manifest names is a finding on the page even though
+  // it is a true stamp, because the reader's `git diff` against it fails.
+  const { map, errors: mapErrors } = readPublicCommits(measurementsRoot);
+  errors.push(...mapErrors);
+  const publicOf = (manifest) => map.get(manifest.commit);
+
+  for (const [profile, manifest] of manifests) {
+    if (map.size > 0 && !publicOf(manifest)) {
+      errors.push(
+        `${PAGE}: profile '${profile}' measured ${manifest.commit.slice(0, 8)}, ` +
+          `which ${PUBLIC_COMMITS} does not map to a commit of this repository`,
+      );
+    }
+  }
+
+  const named = manifests.map(([, manifest]) => publicOf(manifest)).filter(Boolean);
 
   // Seven characters, not eight: packageVersion carries a seven-character
   // SHA, and a stamp in that form went unchecked.
   for (const [stamp] of body.matchAll(/(?<![0-9a-zA-Z])[0-9a-f]{7,40}(?![0-9a-zA-Z])/g)) {
-    if (![...commits].some((commit) => commit.startsWith(stamp))) {
-      errors.push(`${PAGE}: commit stamp '${stamp}' matches no stored manifest`);
+    if (named.some((commit) => commit.startsWith(stamp))) {
+      continue;
     }
+
+    const own = manifests.find(([, manifest]) => manifest.commit.startsWith(stamp));
+    const instead = own && publicOf(own[1]);
+
+    errors.push(
+      instead
+        ? `${PAGE}: commit stamp '${stamp}' is the commit profile '${own[0]}' was measured at, which a clone of ` +
+            `this repository does not hold; name '${instead.slice(0, 8)}'`
+        : `${PAGE}: commit stamp '${stamp}' matches no stored manifest`,
+    );
   }
 
   // And the other direction: a stored run the page never names is a run whose
   // numbers the reader cannot attribute.
   for (const [profile, manifest] of manifests) {
-    if (!body.includes(manifest.commit.slice(0, 8))) {
-      errors.push(`${PAGE}: profile '${profile}' measured ${manifest.commit.slice(0, 8)}, which the page never names`);
+    const commit = publicOf(manifest);
+
+    if (commit && !body.includes(commit.slice(0, 8))) {
+      errors.push(`${PAGE}: profile '${profile}' measured ${commit.slice(0, 8)}, which the page never names`);
     }
   }
 
@@ -794,7 +827,7 @@ function checkStamps(text, measurementsRoot, seen, collected) {
   // A run measured on ANOTHER machine gets its own sentence, named by a marker in front of it:
   //
   //     <!-- capacity-environment: profiles=nodes -->
-  //     Measured on 2026-10-29 at commit `647aa02e` on Darwin 27.0.0 ...
+  //     Measured on 2026-10-29 at commit `d52f458c` on Darwin 27.0.0 ...
   //
   // The paragraph under the marker (to the next blank line) is where that group's environment is checked. The runs
   // WITHOUT a marker still share one sentence, and a disagreement among them is still a finding: a marker is how a
@@ -895,6 +928,50 @@ function checkEnvironment(manifests, body, scope) {
   }
 
   return errors;
+}
+
+/**
+ * Read the map from the commit a manifest names to the commit of this repository that carries the same source.
+ *
+ * A missing, unreadable or empty map is a finding: a stamp gate that cannot say which commits a reader can resolve would
+ * pass every stamp, and silence here would read as agreement.
+ *
+ * @param {string} measurementsRoot The directory that stores the measurements.
+ * @returns {{ map: Map<string, string>, errors: string[] }} The mapping and the findings.
+ */
+function readPublicCommits(measurementsRoot) {
+  const path = join(measurementsRoot, PUBLIC_COMMITS);
+  const map = new Map();
+
+  if (!existsSync(path)) {
+    return { map, errors: [`${PAGE}: ${PUBLIC_COMMITS} is not stored; no stamp on the page can name a commit a reader can resolve`] };
+  }
+
+  let parsed;
+
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    return { map, errors: [`${PUBLIC_COMMITS} is not readable JSON: ${error.message}`] };
+  }
+
+  const errors = [];
+  const entries = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? Object.entries(parsed) : [];
+
+  if (entries.length === 0) {
+    return { map, errors: [`${PUBLIC_COMMITS} maps no commit; every stamp on the page is unbacked`] };
+  }
+
+  for (const [measured, published] of entries) {
+    if (!/^[0-9a-f]{40}$/.test(measured) || typeof published !== 'string' || !/^[0-9a-f]{40}$/.test(published)) {
+      errors.push(`${PUBLIC_COMMITS}: '${measured}' must map a 40-character commit to a 40-character commit`);
+      continue;
+    }
+
+    map.set(measured, published);
+  }
+
+  return { map, errors };
 }
 
 /** Every profile directory that stores a measurement, in a stable order. */

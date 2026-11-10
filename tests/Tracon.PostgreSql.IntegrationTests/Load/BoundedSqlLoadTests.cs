@@ -32,7 +32,7 @@ namespace Tracon.PostgreSql.IntegrationTests.Load;
 /// </para>
 /// <para>
 /// It is <strong>opt-in</strong>: <c>TRACON_LOAD=1</c>. The run costs tens
-/// of seconds and needs a container, and of the phase decided
+/// of seconds and needs a container, so it was decided that
 /// it is not worth paying on every pull request.
 /// </para>
 /// </remarks>

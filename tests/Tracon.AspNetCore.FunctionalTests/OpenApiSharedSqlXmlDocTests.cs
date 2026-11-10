@@ -3,7 +3,7 @@ using System.Xml.Linq;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// 🚨 An earlier fix guard: <c>Tracon.Sql.Shared</c> is not a package; the same
+/// 🚨 OpenAPI 500 guard: <c>Tracon.Sql.Shared</c> is not a package; the same
 /// source is linked into three assemblies via <c>LinkBase</c>. The XML
 /// documentation file of all three assemblies therefore carries the same
 /// <c>&lt;member&gt;</c> ids.
@@ -26,7 +26,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// This test guards that fix. If it fails, either the target was removed or
-/// The earlier decision changed; in the latter case the target is unnecessary and this test
+/// the linked-source layout changed; in the latter case the target is unnecessary and this test
 /// should also be removed.
 /// </para>
 /// </remarks>

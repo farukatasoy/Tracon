@@ -104,7 +104,7 @@ public sealed class RunCostMetricTests
     }
 
     /// <summary>
-    /// 🚨 That decision regression protection: for a root + two sub-runs, the counter
+    /// 🚨 Regression protection for the separate own-cost and tree-cost fields: for a root + two sub-runs, the counter
     /// produces only THREE independent measurements, and their sum gives the
     /// three runs' OWN costs, NOT the subtree total.
     /// </summary>

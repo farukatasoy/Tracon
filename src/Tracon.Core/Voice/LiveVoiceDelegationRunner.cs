@@ -8,7 +8,7 @@ namespace Tracon;
 /// <summary>Turns one delegation from a live voice session into a Tracon run.</summary>
 /// <remarks>
 /// <para>
-/// This is where the phase earns its keep: a delegated task becomes an
+/// This is where the feature earns its keep: a delegated task becomes an
 /// <strong>ordinary</strong> run. The tool registry, the content guard, the quota,
 /// the cost accounting and the audit trail are all on, exactly as they are for
 /// <c>POST /api/agents/{name}/run</c>, because it is the same path. Nothing in the

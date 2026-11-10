@@ -684,8 +684,8 @@ function PlanApproval({
  *   change of the pinned version alone is not.
  * - **The graph changes.** A new pattern, step or order is a different graph. A run that is
  *   waiting keeps resuming the definition version it recorded; resuming it WITH THE NEW version
- * is refused, because its saved state belongs to the old graph (measured.
- *   for the recorded version). A settings, description or pin change is not such a change.
+ * is refused, because its saved state belongs to the old graph (measured).
+ *   A settings, description or pin change is not such a change.
  */
 function ChainNotices({
   kind,

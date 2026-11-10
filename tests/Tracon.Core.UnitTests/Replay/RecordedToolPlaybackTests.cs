@@ -7,7 +7,7 @@ namespace Tracon.Core.UnitTests.Replay;
 /// replay's <see cref="ToolPlaybackMismatchPolicy.Stop"/> behavior must stay
 /// unchanged, and continuation's <see cref="ToolPlaybackMismatchPolicy.RunLive"/>
 /// must run the real tool body for a call with no recorded result — this is
-/// the change's first (and most likely) failure mode.
+/// the first (and most likely) failure mode.
 /// </summary>
 public sealed class RecordedToolPlaybackTests
 {

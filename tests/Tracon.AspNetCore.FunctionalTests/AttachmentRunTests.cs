@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Attaching previously uploaded attachments to a run.
 /// </summary>
 /// <remarks>
-/// The rule these tests verify is the change's central design decision:
+/// The rule these tests verify is the central design decision of attachments:
 /// in chat history, an attachment
 /// lives as a small reference, but it resolves to real bytes right before the
 /// model call. <see cref="FakeModelProvider.Requests"/> shows what ACTUALLY

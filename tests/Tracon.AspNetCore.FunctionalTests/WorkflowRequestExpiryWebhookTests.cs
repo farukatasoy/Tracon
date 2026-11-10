@@ -14,7 +14,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The service closed the run in the store and published nothing - a known edge of an earlier change - so a host that drives its
+/// The service closed the run in the store and published nothing - a known edge of the first version - so a host that drives its
 /// pipeline from webhooks waited for a run that had already ended. The payload is the runner's own, from one builder.
 /// </para>
 /// <para>

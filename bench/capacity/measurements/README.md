@@ -14,19 +14,28 @@ be recomputed from a run directory with:
 Tracon.CapacityDriver report --run artifacts/capacity/<run-id>
 ```
 
-`nodes` measured Tracon packed from commit `647aa02e` (2026-10-29, version `0.0.0-capacity265.647aa02`, clean tree). Its
+`nodes` measured Tracon packed from commit `d52f458c` (2026-10-29, version `0.0.0-capacity265.647aa02`, clean tree). Its
 `report.md` was recomputed afterwards: the closing caveat names two processes on one machine (not "nothing about multi-node"), and
 the processor time and peak memory of a two-host cell are the two hosts added together (the first version of the report read
 only the first host). The cell results are untouched.
 
 These are the runs the numbers in
 `docs-site/src/content/docs/guides/production.md` come from. `sweep` and
-`arrival` measured Tracon packed from commit `d3696d94`; `workers` and `soak`
-measured `af66b869`, because two apparatus defects were fixed between them. The
+`arrival` measured Tracon packed from commit `9a7cc145`; `workers` and `soak`
+measured `466f63fe`, because two apparatus defects were fixed between them. The
 **shipped source is byte identical across those commits** — `git diff
-d3696d94..af66b869 -- src/` is empty — so the two halves measure the same
+9a7cc145..466f63fe -- src/` is empty — so the two halves measure the same
 Tracon. Each manifest names its own commit and package version; do not read one
 commit off another run's manifest.
+
+A manifest names the commit in the history its run was measured in, and the
+package version carries the first seven characters of that identifier. A clone
+of this repository does not hold those commits, so `public-commits.json` maps
+each one to the commit here whose `src/` and `bench/` trees are byte identical
+to it (the identifiers above are the mapped ones). The page and this file name
+the mapped commit; the manifests and reports are measurement records and keep
+what the run wrote. A new run is added to the map once its commit has reached
+this repository.
 
 | Profile | What it answers | Cells |
 |---|---|---|

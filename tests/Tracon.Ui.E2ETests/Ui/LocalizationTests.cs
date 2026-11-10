@@ -51,7 +51,7 @@ public sealed class LocalizationTests(BrowserFixture browsers)
 
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })).ToBeVisibleAsync();
 
-        // Language is not a secret (does not conflict with that decision): it is kept
+        // Language is not a secret (unlike the token in sessionStorage, it may outlive the tab): it is kept
         // in localStorage and persists across reload — and in a new tab.
         await session.Page.ReloadAsync();
 

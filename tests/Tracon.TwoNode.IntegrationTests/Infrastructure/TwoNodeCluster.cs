@@ -13,8 +13,8 @@ namespace Tracon.TwoNode.IntegrationTests.Infrastructure;
 /// (and, where a test hands one in, a distributed cache) is shared.
 /// </para>
 /// <para>
-/// A reconciliation interval of 200 ms stands in for the 30 s default. The default is measured by the manual acceptance
-/// case, not here.
+/// A reconciliation interval of 200 ms stands in for the 30 s default. The default is checked by hand on two running
+/// instances, not here.
 /// </para>
 /// </remarks>
 internal sealed class TwoNodeCluster : IAsyncDisposable

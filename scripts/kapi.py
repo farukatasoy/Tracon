@@ -2853,7 +2853,7 @@ def _sha256(path: pathlib.Path) -> str:
 # compiler's own DLL/PDB output. Comparing raw file hashes here would make
 # `kapi.py yayin` report a false "different artifact" conflict on every
 # second run against an unchanged commit, which is precisely the false
-# positive a manual case exists to rule out.
+# positive a hand-run check of this command exists to rule out.
 _VOLATILE_OPC_ENTRY = re.compile(r"^_rels/\.rels$|^package/services/metadata/core-properties/[0-9a-f]{32}\.psmdcp$")
 
 

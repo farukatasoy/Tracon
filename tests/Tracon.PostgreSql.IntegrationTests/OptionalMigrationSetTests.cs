@@ -228,7 +228,7 @@ public sealed class OptionalMigrationSetTests(PostgresFixture fixture)
 
     /// <summary>
     /// A database that already applied the core set under the shape that
-    /// existed before an earlier change (id-only ledger primary key, no
+    /// existed before sets were named (id-only ledger primary key, no
     /// <c>set_name</c> column — simulated here with raw DDL) upgrades safely:
     /// the pre-existing row is backfilled as <c>core</c>, and the knowledge
     /// set (also numbering from 1) can apply afterward without a primary key

@@ -28,7 +28,7 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// </para>
 /// <para>
 /// 🚨 <strong>This is the proof of a narrow promise, not an SLA.</strong> It says nothing about three nodes, and the
-/// intervals are shortened: the shipped values are measured by the manual acceptance cases and by
+/// intervals are shortened: the shipped values are checked by hand on running instances and measured by
 /// <c>bench/capacity</c>.
 /// </para>
 /// </remarks>

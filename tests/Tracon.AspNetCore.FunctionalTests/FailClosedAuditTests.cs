@@ -110,7 +110,7 @@ public sealed class FailClosedAuditTests
     {
         // An approval decision can arrive two ways: through the approval inbox, or in
         // the next run's own request body. The published guarantee does not distinguish
-        // them, so neither may this. Until an earlier change the in-band path was best-effort:
+        // them, so neither may this. The in-band path used to be best-effort:
         // with a broken audit store it approved the call and ran the tool anyway.
         var audit = new SwitchableAuditLog();
 

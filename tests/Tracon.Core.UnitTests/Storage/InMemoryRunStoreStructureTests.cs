@@ -1,8 +1,8 @@
 namespace Tracon.Core.UnitTests.Storage;
 
 /// <summary>
-/// Structural regression coverage for an earlier change <see cref="InMemoryRunStore"/>
-/// split into responsibility files (lifecycle, events, queries, statistics,
+/// Structural regression coverage for the split of <see cref="InMemoryRunStore"/>
+/// into responsibility files (lifecycle, events, queries, statistics,
 /// analytics) -- the two error modes that <c>RunStoreContract</c> does not
 /// exercise because they are specific to this store's <see cref="InMemoryRunStore.MaxRuns"/>
 /// trim and its <see cref="IRunScoreStore"/> dependency.

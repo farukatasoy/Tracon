@@ -165,7 +165,7 @@ public sealed class QuotaEnforcerTreeStartTests
     [Fact]
     public async Task A_tenant_with_no_rule_costs_one_read_and_one_with_a_rule_costs_two()
     {
-        // The measured cost of the check at the start of a node (the change's cost note): the rules,
+        // The measured cost of the check at the start of a node: the rules,
         // then the current periods' usage.
         var counting = new CountingQuotaStore(new InMemoryQuotaStore());
         var harness = Harness.Create(store: counting);

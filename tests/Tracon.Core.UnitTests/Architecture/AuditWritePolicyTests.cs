@@ -9,7 +9,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </summary>
 /// <remarks>
 /// <para>
-/// An earlier change exists because that decision HAD drifted: four hand-written copies of the
+/// The shared write policy exists because the fail-closed set HAD drifted: four hand-written copies of the
 /// fail-closed write and two direct calls, one of which did not even log the failure.
 /// Removing the copies is not enough on its own — the sixth copy would arrive with the
 /// next change that needs one. This test is the ratchet that makes it arrive as a
@@ -34,14 +34,14 @@ public sealed class AuditWritePolicyTests
 
     /// <summary>
     /// The fail-closed operations: the file each one lives in, and every action name it
-    /// writes. This list IS the published contract of that decision — eight operations refuse to
+    /// writes. This list IS the published contract of the audit guarantee — eight operations refuse to
     /// apply when their audit entry cannot be written, and every other audit write is
-    /// best-effort. An earlier change added the seventh: answering a workflow request. An earlier change added
-    /// the eighth: answering a tool's request for user input.
+    /// best-effort. The seventh is answering a workflow request; the eighth is answering
+    /// a tool's request for user input.
     /// </summary>
     /// <remarks>
     /// Adding or removing an entry changes a published security guarantee, so it travels
-    /// with the three consumer-facing places the earlier decision names: the governance page's table,
+    /// with the three consumer-facing places that state it: the governance page's table,
     /// the security policy page's scope, and the capability list.
     /// </remarks>
     private static readonly (string Operation, string File, string[] Actions)[] FailClosedOperations =

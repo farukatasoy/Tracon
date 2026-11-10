@@ -222,7 +222,7 @@ public sealed class DiagnosticIntegrityTests
     /// <summary>
     /// A coding agent's first sight of a <c>TRC</c> code is the build log, and
     /// the only page that explains all of them is <c>guides/build-diagnostics.md</c>
-    /// (it moved out of <c>troubleshooting.md</c> in an earlier fix to free the weight
+    /// (it moved out of <c>troubleshooting.md</c> to free the weight
     /// ceiling). A code missing from it has no explanation anywhere a consumer
     /// would look.
     /// </summary>

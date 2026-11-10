@@ -37,9 +37,9 @@ const repositoryRoot = resolve(siteRoot, '..');
  * references. Overflow is not truncated — generation fails, and the maintainer
  * decides what moves to llms-full.txt.
  *
- * raised the ceiling from 10 KiB (a user decision). It had run
- * out: measured 10,239 B,240 B — the ceiling exactly — from
- * An earlier change on, so the next capability of any length broke generation, and the
+ * The ceiling was raised from 10 KiB (a maintainer decision). The map had run
+ * out: it measured 10,239 B and then 10,240 B — the ceiling exactly — so the next
+ * capability of any length broke generation, and the
  * shortest possible line for this one (64 B) broke it too. The alternative the
  * comment above offers, dropping an existing capability, trades one agent's
  * blind spot for another's; the map's whole job is to list what exists. The

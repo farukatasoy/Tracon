@@ -10,7 +10,9 @@ const here = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const realDocs = join(here, '../src/content/docs');
 const realMeasurements = join(here, '../../bench/capacity/measurements');
 
+// What a manifest names, and the commit of this repository that carries the same source: the page names the second.
 const COMMIT = 'abcdef1234567890abcdef1234567890abcdef12';
+const PUBLIC_COMMIT = '0a1b2c3d4e5f60718293a4b5c6d7e8f901234567';
 
 const MANIFEST = {
   commit: COMMIT,
@@ -50,7 +52,7 @@ function cell(overrides = {}) {
 const MARKER = 'kind=latency profile=sweep seed=empty scenario=buffered concurrency=8';
 
 /** A page whose one capacity row matches the one measured cell. */
-function page({ rows = [`| Buffered | 8 | 1 384 | 1048 ms | 1084 ms | 7.47 <!-- capacity: ${MARKER} --> |`], stamp = 'abcdef12', environment } = {}) {
+function page({ rows = [`| Buffered | 8 | 1 384 | 1048 ms | 1084 ms | 7.47 <!-- capacity: ${MARKER} --> |`], stamp = '0a1b2c3d', environment } = {}) {
   const sentence =
     environment ??
     'Measured on Darwin 25.6.0 (Apple Silicon), 10 logical processors, 16 GiB,\n' +
@@ -74,7 +76,7 @@ function page({ rows = [`| Buffered | 8 | 1 384 | 1048 ms | 1084 ms | 7.47 <!-- 
   ].join('\n');
 }
 
-function fixture(t, { rows, stamp, environment, cells = [cell()], profiles = ['sweep'] } = {}) {
+function fixture(t, { rows, stamp, environment, cells = [cell()], profiles = ['sweep'], publicCommits = { [COMMIT]: PUBLIC_COMMIT } } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'tracon-capacity-gate-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
 
@@ -82,6 +84,13 @@ function fixture(t, { rows, stamp, environment, cells = [cell()], profiles = ['s
   const measurements = join(root, 'measurements');
   mkdirSync(join(docs, 'guides'), { recursive: true });
   writeFileSync(join(docs, 'guides/production.md'), page({ rows, stamp, environment }));
+  mkdirSync(measurements, { recursive: true });
+
+  // null stores no map at all; a string is written as given, so a test can store a file that is not JSON.
+  if (publicCommits !== null) {
+    const stored = typeof publicCommits === 'string' ? publicCommits : JSON.stringify(publicCommits);
+    writeFileSync(join(measurements, 'public-commits.json'), stored);
+  }
 
   for (const profile of profiles) {
     mkdirSync(join(measurements, profile), { recursive: true });
@@ -136,6 +145,37 @@ test('a commit stamp that matches no stored manifest is a finding', (t) => {
   assert.match(run(f), /commit stamp 'deadbeef' matches no stored manifest/);
 });
 
+test('the commit a manifest names is a finding on the page: a clone does not hold it', (t) => {
+  // The page used to name the identifier a manifest records, and the `git diff` it printed between two of them failed
+  // in a clone. The stamp is true and unusable, so the gate asks for the mapped commit instead.
+  const f = fixture(t, { stamp: 'abcdef12' });
+  assert.match(run(f), /commit stamp 'abcdef12' is the commit profile 'sweep' was measured at.*name '0a1b2c3d'/);
+});
+
+test('the mapped commit of a stored run passes', (t) => {
+  assert.equal(run(fixture(t, { stamp: PUBLIC_COMMIT.slice(0, 8) })), '');
+});
+
+test('a run whose commit the map does not carry is a finding', (t) => {
+  // An unmapped run has no commit the page could name: the map is the only way the page reaches a clone.
+  const f = fixture(t, { publicCommits: { [`99887766${COMMIT.slice(8)}`]: PUBLIC_COMMIT } });
+  assert.match(run(f), /profile 'sweep' measured abcdef12, which public-commits\.json does not map to a commit of this repository/);
+});
+
+test('a missing, unreadable or empty map is a finding, never a pass', (t) => {
+  assert.match(run(fixture(t, { publicCommits: null })), /public-commits\.json is not stored/);
+  assert.match(run(fixture(t, { publicCommits: '{ not json' })), /public-commits\.json is not readable JSON/);
+  assert.match(run(fixture(t, { publicCommits: {} })), /public-commits\.json maps no commit/);
+  assert.match(run(fixture(t, { publicCommits: [] })), /public-commits\.json maps no commit/);
+});
+
+test('a map entry that is not a pair of full commits is a finding', (t) => {
+  const f = fixture(t, { publicCommits: { [COMMIT]: PUBLIC_COMMIT, abcdef12: PUBLIC_COMMIT, [`${'1'.repeat(40)}`]: 'abc' } });
+  const findings = run(f);
+  assert.match(findings, /public-commits\.json: 'abcdef12' must map a 40-character commit to a 40-character commit/);
+  assert.match(findings, /public-commits\.json: '1{40}' must map a 40-character commit/);
+});
+
 test('a seven-character commit stamp is checked too', (t) => {
   // packageVersion carries a seven-character SHA; the scan asked
   // for eight or more, so such a stamp was never compared with anything.
@@ -148,8 +188,13 @@ test('a stored run the page never names is a finding', (t) => {
   // attribute, because the page never says that run happened.
   const f = fixture(t, { profiles: ['sweep', 'soak'] });
   const other = join(f.measurements, 'soak/manifest.json');
-  writeFileSync(other, JSON.stringify({ ...MANIFEST, commit: `99887766${COMMIT.slice(8)}` }));
-  assert.match(run(f), /profile 'soak' measured 99887766, which the page never names/);
+  const otherCommit = `99887766${COMMIT.slice(8)}`;
+  writeFileSync(other, JSON.stringify({ ...MANIFEST, commit: otherCommit }));
+  writeFileSync(
+    join(f.measurements, 'public-commits.json'),
+    JSON.stringify({ [COMMIT]: PUBLIC_COMMIT, [otherCommit]: `5566778899${PUBLIC_COMMIT.slice(10)}` }),
+  );
+  assert.match(run(f), /profile 'soak' measured 55667788, which the page never names/);
 });
 
 test('an environment claim that drifts from the manifest is a finding', (t) => {
@@ -312,7 +357,7 @@ test('the shipped page has a marker on every capacity row', () => {
 
   // 🚨 One number, measured, in one place. The audit found this count written
   // three different ways across three documents and all three were wrong.
-  // An earlier change added the host-axis table: four rows, two scenarios at one and two hosts.
+  // The host-axis table adds four rows, two scenarios at one and two hosts.
   assert.deepEqual(census, { latency: 12, arrival: 4, storage: 3, hosts: 4, value: 5 });
 });
 
@@ -328,7 +373,7 @@ function widePage({ storage, arrival, prose } = {}) {
     'Measured on Darwin 25.6.0 (Apple Silicon), 10 logical processors, 16 GiB,',
     '.NET 10.0.100, PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image.',
     '',
-    'The load sweep measured Tracon packed from commit `abcdef12`.',
+    'The load sweep measured Tracon packed from commit `0a1b2c3d`.',
     '',
     `A p95 of ${prose ?? '1084'} ms<!-- capacity: kind=value profile=sweep seed=empty ` +
       'scenario=buffered concurrency=8 field=latency.p95 --> was measured.',
@@ -496,6 +541,7 @@ test('deleting markers makes the gate louder, not quieter', (t) => {
 // --- The host axis and a run from another machine ---------------------------------------------------
 
 const NODES_COMMIT = 'fedcba0987654321fedcba0987654321fedcba09';
+const NODES_PUBLIC_COMMIT = '9e8d7c6b5a4f30211203f4a5b6c7d8e9f0a1b2c3';
 
 const NODES_MANIFEST = {
   ...MANIFEST,
@@ -532,7 +578,7 @@ function nodesSummary() {
 
 function hostsPage({
   marker = '<!-- capacity-environment: profiles=nodes -->',
-  paragraph = 'The host run measured commit `fedcba09` on Darwin 27.0.0 (Apple Silicon), 10 logical processors, 16 GiB, .NET 10.0.402, PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image.',
+  paragraph = 'The host run measured commit `9e8d7c6b` on Darwin 27.0.0 (Apple Silicon), 10 logical processors, 16 GiB, .NET 10.0.402, PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image.',
   rows = [
     `| Queued | 2 | 2 208 | 1320 ms | 1333 ms | 11.8 | 0.10 s <!-- capacity: ${HOSTS_MARKER} --> |`,
     '| Buffered | 1 | 2 736 | 1053 ms | 1076 ms | 14.9 | — <!-- capacity: kind=hosts profile=nodes scenario=buffered hosts=1 --> |',
@@ -544,7 +590,7 @@ function hostsPage({
     'Measured on Darwin 25.6.0 (Apple Silicon), 10 logical processors, 16 GiB,',
     '.NET 10.0.100, PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image.',
     '',
-    'The load sweep measured Tracon packed from commit `abcdef12`.',
+    'The load sweep measured Tracon packed from commit `0a1b2c3d`.',
     '',
     '| Path | Concurrency | n | p50 | p95 | Completed/s |',
     '|---|---|---|---|---|---|',
@@ -573,6 +619,11 @@ function hostsFixture(t, options = {}, { nodesProfile = 'nodes' } = {}) {
   mkdirSync(join(docs, 'guides'), { recursive: true });
   writeFileSync(join(docs, 'guides/production.md'), hostsPage(options));
 
+  mkdirSync(measurements, { recursive: true });
+  writeFileSync(
+    join(measurements, 'public-commits.json'),
+    JSON.stringify({ [COMMIT]: PUBLIC_COMMIT, [NODES_COMMIT]: NODES_PUBLIC_COMMIT }),
+  );
   mkdirSync(join(measurements, 'sweep'), { recursive: true });
   writeFileSync(join(measurements, 'sweep/manifest.json'), JSON.stringify(MANIFEST));
   writeFileSync(join(measurements, 'sweep/summary.json'), JSON.stringify({ profile: 'sweep', rows: [cell()], evidence: [] }));
@@ -596,7 +647,7 @@ test('the same two machines without the marker are still a finding', (t) => {
 });
 
 test('a marked paragraph that leaves out the machine is a finding for that run', (t) => {
-  const f = hostsFixture(t, { paragraph: 'The host run measured commit `fedcba09` and nothing else about its machine.' });
+  const f = hostsFixture(t, { paragraph: 'The host run measured commit `9e8d7c6b` and nothing else about its machine.' });
   assert.match(runHosts(f), /the environment paragraph for 'nodes' never states operatingSystem 'Darwin 27\.0\.0'/);
 });
 

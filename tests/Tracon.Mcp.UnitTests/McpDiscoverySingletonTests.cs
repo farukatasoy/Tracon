@@ -11,7 +11,7 @@ namespace Tracon.Mcp.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This test says the opposite of what it said. An earlier change put discovery behind a
+/// 🚨 This test says the opposite of what it said. Discovery used to sit behind a
 /// single-executor lease and this class asserted that it ran on ONLY ONE instance. That choice was
 /// wrong: the catalog is a cache of the process and holds the live connection a tool call goes
 /// through, so an instance that did not discover had no MCP tool at all (measured on two hosts:

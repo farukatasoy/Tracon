@@ -289,7 +289,7 @@ public sealed class WorkflowHumanInTheLoopTests
     {
         // The cleanup deletes per SESSION, and the answer run shares the
         // source run's session. When the answer run completed, the source run's
-        // checkpoints went with it, and the second answer that decision allows failed
+        // checkpoints went with it, and the second answer (allowed, because an answered run stays AwaitingInput) failed
         // with "no checkpoint".
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(

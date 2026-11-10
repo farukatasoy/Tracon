@@ -14,7 +14,7 @@ namespace Tracon.Voice.UnitTests;
 /// <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
 /// reads the capability from the registered synthesizer instance and applies the
 /// tenant's checks. A container registration of the capability would be a second way to
-/// reach the provider that skips both (the plan's an earlier plan proposed one).
+/// reach the provider that skips both (an earlier design proposed one).
 /// </para>
 /// <para>
 /// The tests compose the real <c>AddTracon().UseVoice(...)</c> registration and read

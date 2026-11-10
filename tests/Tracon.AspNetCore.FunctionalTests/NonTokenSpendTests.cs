@@ -12,7 +12,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// And the class of that decision: the money a decision reads is a SUM, and a place that
+/// And the class of defect behind it: the money a decision reads is a SUM, and a place that
 /// reads only the token term under-reports every run that reported something else. Nothing
 /// fails when it happens; a tenant's ceiling is simply passed. One function adds the two
 /// (<see cref="RunSpend"/>), and this class has one test PER PLACE that takes a decision, so a

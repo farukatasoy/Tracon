@@ -44,9 +44,9 @@ public sealed class WorkflowFunctionTimeoutValidationTests
     }
 
     [Fact]
-    public void An_agent_nodes_timeout_is_accepted_open_question_9_A()
+    public void An_agent_nodes_timeout_is_accepted()
     {
-        // The plan's first draft refused a timeout on an agent node; the earlier decision made it
+        // An agent node's timeout is accepted: it is
         // the agent step's own ChildDeadline.
         WorkflowDefinitionValidator.Validate(Chain(new WorkflowNodeReference
         {
@@ -92,7 +92,7 @@ public sealed class WorkflowFunctionTimeoutValidationTests
     }
 
     [Fact]
-    public void A_node_timeout_is_not_checked_against_the_runs_timeout_open_question_12_B()
+    public void A_node_timeout_is_not_checked_against_the_runs_timeout()
     {
         var definition = Chain(new WorkflowNodeReference
         {

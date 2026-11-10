@@ -90,7 +90,7 @@ public sealed class McpOptionsConfigurationBindingTests
     /// <summary>
     /// Resolves the setting through the REAL registration path: <c>AddTracon().UseMcp(section)</c> →
     /// <c>IOptions&lt;TraconMcpOptions&gt;</c>. It is the setup itself that is measured, not a
-    /// probe object (: "an isolated measurement does not prove integrated behavior").
+    /// probe object ("an isolated measurement does not prove integrated behavior").
     /// </summary>
     private static TraconMcpOptions Resolve(
         Dictionary<string, string?> settings,

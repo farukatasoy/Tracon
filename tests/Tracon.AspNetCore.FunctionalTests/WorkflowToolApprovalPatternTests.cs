@@ -278,7 +278,7 @@ public sealed class WorkflowToolApprovalPatternTests
 
         var run = await RunToApprovalAsync(host, "delegating");
 
-        // That decision holds below the step: the sub-agent's approval is a tool result the step's model reads.
+        // The rule that a sub-agent cannot ask for approval holds below the step: the sub-agent's approval is a tool result the step's model reads.
         run.Run.Status.ShouldBe(RunStatus.Completed, run.Run.Error?.Message);
         run.Requests.ShouldBeEmpty();
         cancels[0].ShouldBe(0);
@@ -361,7 +361,7 @@ public sealed class WorkflowToolApprovalPatternTests
     [Fact]
     public async Task A_request_nobody_answers_runs_out_of_time_and_the_step_that_waited_fails_with_the_workflow()
     {
-        // of the phase, option A: a step left AwaitingApproval for good would show an approval that
+        // A step left AwaitingApproval for good would show an approval that
         // nothing can answer any more.
         var limit = TimeSpan.FromMinutes(5);
         var clock = new ManualClock(TimeProvider.System.GetUtcNow());

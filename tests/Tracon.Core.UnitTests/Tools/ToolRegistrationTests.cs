@@ -238,7 +238,7 @@ public sealed class ToolRegistrationTests
     [Fact]
     public void AddToolsFrom_rejects_the_sample_method_at_scan_time()
     {
-        // That decision fix: MAF passes an EMPTY provider as AIFunctionArguments.Services
+        // Fix: MAF passes an EMPTY provider as AIFunctionArguments.Services
         // into the tool body (EmptyServiceProvider, NOT null). This check used to
         // sit behind an `is { }` pattern at call time that never triggered.
         // Fix: move the rejection to SCAN time instead of waiting for the first
@@ -253,7 +253,7 @@ public sealed class ToolRegistrationTests
         exception.Message.ShouldContain("Greet");
         exception.Message.ShouldContain("empty provider");
 
-        // The earlier decision does NOT reopen (the instance method is still
+        // This does NOT reopen the question (the instance method is still
         // rejected) - the rejection text now also names AddScopedTool, the
         // API a caller reaches for when the dependency must be resolved per call.
         exception.Message.ShouldContain("AddScopedTool");

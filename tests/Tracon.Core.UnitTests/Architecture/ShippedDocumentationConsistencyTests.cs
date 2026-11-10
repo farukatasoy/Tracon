@@ -29,11 +29,11 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </para>
 /// <para>
 /// <b>One tool factory.</b> A tool takes its dependency when it is built, because Microsoft
-/// Agent Framework gives it an empty service provider at call time. Until an earlier change
-/// the only way was a service registration that returned a <c>TraconToolRegistration</c> from
+/// Agent Framework gives it an empty service provider at call time. The older
+/// form was a service registration that returned a <c>TraconToolRegistration</c> from
 /// the provider; <c>AddTool(provider =&gt; ...)</c> is the same thing on the Tracon chain. A page
 /// that teaches the old form sends a reader away from the chain the rest of the site uses. The
-/// gate is zero: the five places that taught it were moved in the same phase.
+/// gate is zero: the five places that taught it were moved together with it.
 /// </para>
 /// </remarks>
 public sealed class ShippedDocumentationConsistencyTests

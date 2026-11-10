@@ -1,9 +1,9 @@
 // What one documentation page costs a reader, measured rather than assumed.
 //
-// This change added a token layer, a section rule, diagrams to nine guides, and a
-// symptom index. None of that is free, and nothing was measuring it. The ceiling
-// below is the measured worst page plus headroom — it is a ratchet against silent
-// growth, not a target anybody has to design against.
+// A token layer, a section rule, diagrams and a symptom index are not free, and
+// nothing was measuring them. The ceiling below is the measured worst page plus
+// headroom — it is a ratchet against silent growth, not a target anybody has to
+// design against.
 //
 // What is counted: the page's own HTML, plus every stylesheet and script the HTML
 // references, each gzipped. What is not: mermaid's diagram parser. It is loaded on
@@ -21,76 +21,17 @@ import { base } from '../site.config.mjs';
 const here = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const dist = resolve(here, '../dist');
 
-// Measured 2026-08-20: the heaviest page is troubleshooting at 49 365 B, which is
-// also the largest source page on the site. The ceiling adds about 15% of headroom.
+// The ceiling is the measured worst page plus headroom. Last measured 2026-11-10: concepts/runs, the
+// heaviest page, at 59 367 B gzip on a local build, 133 B under the ceiling. A CI build of the same commit
+// weighs about 56 B more than a local one (every page also carries the same 23 925 B of shared assets), so the
+// headroom must never shrink below that gap.
 //
-// Re-measured 2026-09-12: the same page reached 57 367 B and crossed the 57 000
-// ceiling. The growth is one deliberate addition, not drift — the brand contract
-// requires every page showing an install command to carry the "not published yet"
-// warning, and this page shows one. That aside costs exactly 376 B gzip here,
-// almost all of it the icon and wrapper markup Starlight renders: shortening its
-// text back saves only 95 B. The alternatives were measured before the ceiling
-// moved — no dead rule is left in site.css (all four unused-looking classes are
-// live, `pagefind-ui` at run time), and dropping the warning would have landed at
-// 56 991 B, nine bytes under, which is not a margin. Raised to 58 000 B, which
-// keeps about 1% of headroom over the measured page.
-//
-// Re-measured 2026-09-16: the same page reached 58 391 B, and the 58 000 ceiling
-// had 15 B of headroom left before this change - anything added to this page
-// would have crossed it. The addition is one more diagnostic section, TRC0403,
-// which the page cannot omit: it is the only page that explains all of them, and
-// a gate test enforces that. Costs were measured rather than estimated: the
-// section is 450 B gzip and its row in the summary table 36 B, and shortening the
-// prose recovered 80 B of the 450. Raised to 59 000 B, which restores about 1% of
-// headroom. This page is the site's largest by a wide margin and grows with every
-// diagnostic; the next raise should split it instead.
-//
-// Split 2026-09-24 instead of raised: CI measured the page at 59 003 B while a
-// local build of the same commit measured 58 993 B - the two environments differ
-// by about ten bytes, so a margin of a few bytes is no margin. The Voice symptoms
-// moved to guides/voice.md (#troubleshooting), next to the feature, and the page
-// dropped to 58 151 B. Ceiling unchanged.
-//
-// Split again 2026-10-17: the page was back at 58 994 B, 6 B under the ceiling, and the
-// next symptom entry could not fit. The build-diagnostics section (twenty headings, one per
-// TRC id and agent-map symptom) moved to guides/build-diagnostics.md; troubleshooting dropped
-// to 49 054 B and the new page weighs 43 648 B. The heaviest page is now guides/production.
-// Ceiling unchanged.
-//
-// Split three pages 2026-10-27 (1.0.0-preview.6): CI measured concepts/workflows at 59 039 B
-// and guides/voice at 59 007 B while a local build of the same commit measured workflows at
-// 58 983 B - the gap between the two environments has grown to about 56 B, and every page
-// shares the same 23 925 B of assets. Function nodes moved to concepts/workflow-function-nodes,
-// provider-hosted live voice to guides/live-voice, and the three upgrade sections of
-// guides/production (which the new sidebar entries had pushed to 58 985 B locally) to
-// guides/production-upgrades. The heaviest page is now concepts/governance at 58 194 B
-// locally. Ceiling unchanged.
-//
-// Raised 2026-10-30 from 59 000 to 59 200 B instead of split: a new guide's sidebar entry is on
-// every page, about 45 B gzip, and pushed concepts/governance from about 58 975 B (25 B under the ceiling
-// before the entry) to 59 032 B locally. The sidebar label was shortened ("Move definitions", -14 B); trimming
-// filler words out of the page itself recovered 3 B, because gzip already removes them, so the page was
-// restored. 200 B is about 0.3% headroom, which covers the 56 B gap between CI and a local build and one more
-// sidebar entry. The next raise should split the page, as the three entries above did.
-//
-// Split 2026-11-04 instead of raised: reference/configuration measured 59 585 B locally with the Mcp option rules and
-// the reload paragraph added (it was already about 190 B over the ceiling before them). The sections a package of its
-// own reads (SQL stores, model providers, MCP, workflows, voice) moved to reference/configuration-packages, which
-// weighs 38 978 B; the configuration page dropped to 54 967 B. The new sidebar entry costs every page about 10 B.
-// Ceiling unchanged. concepts/governance (59 732 B) and guides/model-providers (59 323 B) were over it before this
-// split and are the next two to split.
-//
-// Raised 2026-11-05 from 59 200 to 59 500 B instead of split: concepts/governance was at 59 196 B, 4 B under the
-// ceiling, when the data subject section needed one more paragraph (a session whose agent is not registered is
-// counted and not failed: the field, the header, the preview-first advice). Measured: the first draft, a table
-// under a heading, 59 854 B; the same text as one paragraph, 59 473 B; that paragraph with three other paragraphs
-// of the section tightened (the audit-trail one, the memory-copy one and the run-text one, about 170 B of
-// Markdown), 59 319 B. The paragraph alone costs about 290 B gzip, because gzip finds nothing in new prose to
-// fold, and the tightening takes back about 170 B. Shortening the paragraph further saves about 60 B, not the 120 B
-// still needed, and the endpoint detail is already in the generated http-api page of both endpoints. 59 500 B is
-// 181 B over the measured page, which covers the roughly 56 B by which a CI build differs from a local one. The
-// page is still the heaviest on the site and the next raise should split it, Webhooks first (3 948 B of Markdown,
-// a topic of its own with three inbound links).
+// When a page crosses the ceiling, split it instead of raising the number. Every earlier crossing was settled
+// that way (the build diagnostics, voice, live voice, function nodes, upgrades and the package-level
+// configuration each moved to a page of their own); the ceiling was raised only when a page sat within a few
+// bytes of it and nothing could move without orphaning inbound links. Split the heaviest page along a topic of
+// its own that has few inbound links. The history of every raise and split is in
+// `git log -p -- docs-site/scripts/check-weight.mjs`.
 const CEILING = 59_500;
 
 // The release notes were one generated page that grew with every release, not with what a reader

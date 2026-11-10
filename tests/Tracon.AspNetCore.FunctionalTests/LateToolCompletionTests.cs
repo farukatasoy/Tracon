@@ -393,7 +393,7 @@ public sealed class LateToolCompletionTests
         // The entry names the run whose tool spent it, which is what a threshold webhook shows.
         late.RunId.ShouldBe(runId.ToString());
 
-        // The run's snapshot is the one that decision froze at its close.
+        // The run's snapshot is the one frozen at its close.
         var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull();
         run.NonTokenCost.ShouldBeNull();
     }

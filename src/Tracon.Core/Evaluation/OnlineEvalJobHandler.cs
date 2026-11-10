@@ -305,9 +305,8 @@ internal sealed class OnlineEvalJobHandler(
             // on every attempt; retrying it only repeats the rejected request.
             // A structured answer cut off at the output limit is the same
             // case: the next attempt sends the same limit, pays for the same
-            // tokens and is cut off again. Raising the limit is the fix. An earlier fix:
-            // the question has one answer, FinalFailure, which the job worker and
-            // the workflow node retry read too.
+            // tokens and is cut off again. Raising the limit is the fix. The question has one answer, FinalFailure,
+            // which the job worker and the workflow node retry read too.
             failures.Add(Failure(
                 judge.Name,
                 JudgeFailureTypes.Failed,

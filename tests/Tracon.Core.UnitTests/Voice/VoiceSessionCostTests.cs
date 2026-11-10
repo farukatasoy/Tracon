@@ -81,7 +81,7 @@ public sealed class VoiceSessionCostTests
         VoiceDurationPricing.ComputeDurationCost(90m, 0.60m).ShouldBe(0.90m);
         VoiceDurationPricing.ComputeDurationCost(0m, 0.10m).ShouldBe(0m);
 
-        // The number the real provider reported in the change's own live run, priced
+        // The number the real provider reported in the feature's own live run, priced
         // at the rate that run used.
         VoiceDurationPricing.ComputeDurationCost(57m, 0.60m).ShouldBe(0.57m);
     }

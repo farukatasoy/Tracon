@@ -86,7 +86,7 @@ public sealed class StructuredResponseValidatingAgentTests
         validator.LastContext.Kind.ShouldBe(AgentResponseFormatKind.Json);
     }
 
-    // --- an earlier fix: the answer is the last assistant message, not the joined text ---
+    // --- The answer is the last assistant message, not the joined text ---
 
     [Fact]
     public async Task Text_written_before_the_final_answer_is_not_validated_as_part_of_it()

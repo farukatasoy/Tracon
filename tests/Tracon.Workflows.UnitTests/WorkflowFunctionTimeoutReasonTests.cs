@@ -6,8 +6,7 @@ using static Tracon.Workflows.UnitTests.WorkflowFunctionTimeoutTests;
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
-/// The node's timeout is named only when the node's OWN delay ended the call (
-/// failure mode 5): a run its caller cancelled, or one that reached its
+/// The node's timeout is named only when the node's OWN delay ended the call: a run its caller cancelled, or one that reached its
 /// own deadline, while a bounded node was running ends <c>Canceled</c> with the reason it
 /// already carries.
 /// </summary>

@@ -24,7 +24,7 @@
     <!--
       The type a consumer will want most is the in-memory host fixture
       (TraconTestHost), and it requires Tracon.AspNetCore, which
-      builds the endpoints. That decision applies here: AspNetCore is the only
+      builds the endpoints. AspNetCore is the only
       package that can carry prerelease MAF packages; since Testing
       depends on it, it inherits those dependencies TRANSITIVELY.
       Acceptable — the test package is not in the production graph

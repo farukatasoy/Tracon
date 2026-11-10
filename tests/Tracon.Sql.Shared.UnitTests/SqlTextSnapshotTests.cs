@@ -21,9 +21,8 @@ namespace Tracon.SqlProviders.Tests;
 /// one that never opens a connection. Building a <c>PostgresQueries</c>/
 /// <c>SqlServerQueries</c>/<c>SqliteQueries</c> instance needs no connection at
 /// all -- only <see cref="InternalsVisibleToAttribute"/> from the three
-/// provider projects to this one (an earlier change, resolved in
-/// favour of this option once the Docker cost of the alternative was
-/// measured).
+/// provider projects to this one (chosen once the Docker cost of the
+/// alternative was measured).
 /// </para>
 /// <para>
 /// Refresh a baseline after a deliberate, reviewed text change:

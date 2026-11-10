@@ -181,8 +181,8 @@ public sealed class WorkflowNodeRetryTests
     }
 
     /// <summary>
-    /// <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx (that decision
-    /// widened it on purpose), so the class alone cannot say whether a retry helps. A node
+    /// <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx (it was widened
+    /// on purpose), so the class alone cannot say whether a retry helps. A node
     /// that calls <c>EnsureSuccessStatusCode()</c> and gets a 401 used to run
     /// <c>MaxAttempts</c> times; a retried 409 on a non-idempotent call repeats its side
     /// effect. The status is read from <see cref="HttpRequestException.StatusCode"/>, because

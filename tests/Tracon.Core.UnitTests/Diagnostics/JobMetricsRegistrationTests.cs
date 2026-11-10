@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Diagnostics;
 /// <see cref="TraconMetrics"/>.
 /// </summary>
 /// <remarks>
-/// 🚨 This is the change's silent-failure risk. Adding an OPTIONAL
+/// 🚨 This is the silent-failure risk. Adding an OPTIONAL
 /// <c>TraconMetrics?</c> parameter to <c>JobWorkerBackgroundService</c>
 /// produces no compiler error anywhere: if the container never supplies it, the
 /// parameter stays <see langword="null"/> and every job metric is silently

@@ -556,10 +556,12 @@ consumed Tracon by `PackageReference` at one exact version from an isolated
 feed; the driver was a separate process calling it over loopback TCP.
 
 The load sweep and the arrival runs measured Tracon packed from commit
-`d3696d94`; the worker and soak runs measured `af66b869`. Only the measurement
+`9a7cc145`; the worker and soak runs measured `466f63fe`. Only the measurement
 apparatus differs between those two commits — the shipped source is byte
-identical (`git diff d3696d94..af66b869 -- src/` is empty). Each run's own
-manifest, under `bench/capacity/measurements/`, names the commit it measured.
+identical (`git diff 9a7cc145..466f63fe -- src/` is empty). Each run's own
+manifest, under `bench/capacity/measurements/`, names the commit it measured by
+the identifier the run recorded; `public-commits.json` beside the manifests maps
+each one to the commit of this repository with the same source.
 
 **The model is a synthetic fixture that makes no network call**: one second of
 total think time, a tool call, and a 5 KB answer in twenty chunks. Substituting
@@ -673,7 +675,7 @@ leasing worker and `MaxConcurrentJobs` of 8, at a constant 16 requests in flight
 host in turn, so the read that followed a request usually reached the other host.
 
 <!-- capacity-environment: profiles=nodes -->
-This run was measured on 2026-10-29, at commit `647aa02e`, in another environment than the runs above: Darwin 27.0.0 (Apple Silicon), 10 logical processors, 16 GiB, .NET 10.0.402 and PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image. Each cell ran three repeats of 60 seconds after a 10-second warm-up.
+This run was measured on 2026-10-29, at commit `d52f458c`, in another environment than the runs above: Darwin 27.0.0 (Apple Silicon), 10 logical processors, 16 GiB, .NET 10.0.402 and PostgreSQL 18.4 in the `pgvector/pgvector:pg18` image. Each cell ran three repeats of 60 seconds after a 10-second warm-up.
 
 | Path | Hosts | n | p50 | p95 | Completed/s | Queue wait p95 |
 |---|---:|---:|---:|---:|---:|---:|

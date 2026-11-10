@@ -9,7 +9,7 @@ namespace Tracon.Ui.E2ETests.Infrastructure;
 /// The helpers more than one console test class uses.
 /// </summary>
 /// <remarks>
-/// An earlier change split <c>UiTests.cs</c> into one class per screen. These members
+/// <c>UiTests.cs</c> was split into one class per screen. These members
 /// moved here unchanged except for their visibility; a class reaches them
 /// through <c>using static</c>, so its test bodies read exactly as before.
 /// </remarks>

@@ -218,7 +218,7 @@ public sealed class CitationRecordingTests
     [Fact]
     public async Task A_run_canceled_after_a_citation_keeps_the_citation_and_ends_Canceled()
     {
-        // An earlier fix sibling: the event is written with the caller's token, so a cancel that lands while the
+        // Sibling case: the event is written with the caller's token, so a cancel that lands while the
         // model is silent ends the run as Canceled, with what was recorded before it still recorded.
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var registry = new RunCancellationRegistry();

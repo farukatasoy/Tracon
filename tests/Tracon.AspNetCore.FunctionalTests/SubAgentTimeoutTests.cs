@@ -238,7 +238,7 @@ public sealed class SubAgentTimeoutTests
     [Fact]
     public async Task A_provider_timeout_does_not_count_on_the_sub_agent_wait_limit_metric()
     {
-        // That decision regression through the REAL background_agents_* flow: the
+        // Regression test through the REAL background_agents_* flow: the
         // researcher's provider breaks the request off itself, so NEITHER wait
         // limit fires. Both are set far longer than the call can possibly take.
         await using var host = await StartAsync(

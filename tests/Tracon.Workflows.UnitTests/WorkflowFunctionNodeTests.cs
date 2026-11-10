@@ -348,7 +348,7 @@ public sealed class WorkflowFunctionNodeTests
     [Fact]
     public async Task Resuming_from_an_EARLIER_checkpoint_RE_RUNS_the_function_node_that_follows_it()
     {
-        // 🚨 Measured (the plan's own "riskiest failure mode"):
+        // 🚨 Measured (the riskiest failure mode):
         // an explicit checkpointId from BEFORE the function node's super-step
         // (the shape a real crash-recovery resume takes - the process died
         // before the LATEST checkpoint was written) replays that super-step,

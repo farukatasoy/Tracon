@@ -3,7 +3,7 @@ using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 namespace Tracon.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Rows written before the earlier change's <c>header_configuration_keys</c> column
+/// Rows written before the <c>header_configuration_keys</c> column existed
 /// read back with an empty map, keep their plain headers, and take a map on
 /// the next save.
 /// </summary>

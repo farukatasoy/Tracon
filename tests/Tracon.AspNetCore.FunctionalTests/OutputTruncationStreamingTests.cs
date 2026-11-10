@@ -7,7 +7,7 @@ using static Tracon.AspNetCore.FunctionalTests.OutputTruncationTests;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An earlier fix on the streaming (SSE) path: the finish reason arrives in the LAST
+/// Output truncation on the streaming (SSE) path: the finish reason arrives in the LAST
 /// update, after the content already reached the client, and the run scope is
 /// re-established before every step of the stream — only a real host proves
 /// the decision still lands on the run.

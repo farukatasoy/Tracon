@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An earlier change at the host boundary: <c>RequireCustomBinding&lt;T&gt;()</c>
+/// A host-boundary check: <c>RequireCustomBinding&lt;T&gt;()</c>
 /// is a composition gate, and what a container resolves is only decided once
 /// every module has registered. A unit test that constructs the validator by
 /// hand cannot prove that, so the cases below start real hosts.

@@ -99,7 +99,7 @@ public sealed class ContentGuardRecordingTests
     public async Task Audit_trail_does_not_carry_the_blocked_text()
     {
         // 🚨 Blocked content is sensitive by definition. Writing it to the audit
-        // trail would make the problem PERMANENT (the spirit of that decision).
+        // trail would make the problem PERMANENT (the same reason secrets are never written to the database).
         var auditLog = new InMemoryAuditLog();
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
         var agent = Agent(store, new FakeChatClient(), StubContentGuard.Blocking("secret-project"), auditLog);

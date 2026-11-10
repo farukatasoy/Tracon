@@ -4,7 +4,7 @@ namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
 /// Pins <see cref="FallbackRetryClassifier"/>'s decision table BEFORE the
-/// An earlier change <see cref="IProviderRetryClassifier"/> seam was added to
+/// <see cref="IProviderRetryClassifier"/> seam was added to
 /// <see cref="FallbackChatClient"/>. Tracon's own registered classifier
 /// (<see cref="DefaultProviderRetryClassifier"/>) must reproduce the same
 /// table bit-for-bit — a consumer who registers nothing must see IDENTICAL

@@ -74,7 +74,7 @@ public sealed class OnlineEvalRetryTests
     }
 
     /// <summary>
-    /// 🚨 That decision: a judge that holds MORE THAN ONE named score
+    /// 🚨 The retry checkpoint comes from the existing score rows: a judge that holds MORE THAN ONE named score
     /// row is still recognised as having scored the run.
     /// </summary>
     /// <remarks>
@@ -124,8 +124,8 @@ public sealed class OnlineEvalRetryTests
 
         goodJudge.CallCount.ShouldBe(1);
 
-        // A SECOND named row under the same judge author -- the shape an earlier change
-        // makes possible and the shape the checkpoint must survive.
+        // A SECOND named row under the same judge author -- the shape a second named
+        // score makes possible and the shape the checkpoint must survive.
         await scores.UpsertAsync(new RunScore
         {
             TenantId = tenantContext.TenantId,
@@ -177,7 +177,7 @@ public sealed class OnlineEvalRetryTests
     }
 
     /// <summary>
-    /// Audit finding on the output-limit phase: the model judge's structured
+    /// Audit finding on the output limit: the model judge's structured
     /// answer cut off at the limit was retryable. The job had attempts left, so
     /// it sent the same request with the same limit again and paid for the
     /// same cut-off answer each time.

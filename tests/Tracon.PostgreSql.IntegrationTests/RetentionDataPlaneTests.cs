@@ -137,7 +137,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     /// <summary>
-    /// 🚨 the earlier change's core evidence requirement: the <c>MaxRows</c> threshold is
+    /// 🚨 The core evidence requirement: the <c>MaxRows</c> threshold is
     /// computed correctly from the OWN column of the Nth row, counting from the
     /// newest, and feeding that threshold into the EXISTING batch deletion
     /// mechanism leaves the table at exactly N rows.

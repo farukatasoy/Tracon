@@ -63,7 +63,7 @@ public sealed class QuotaNoticeOrderingTests
     [Fact]
     public async Task A_child_run_with_no_tree_account_records_no_quota_consumption()
     {
-        // The earlier decision changed the rule this test used to state ("a child never records"): a child
+        // The rule this test used to state ("a child never records") changed: a child
         // run writes its own tokens and cost under its ROOT's counter, named by the account
         // the root put on the tree's budget (TreeQuotaTests). With no root of ours behind the
         // run - hand-built options carry no budget - there is no counter to name, and this

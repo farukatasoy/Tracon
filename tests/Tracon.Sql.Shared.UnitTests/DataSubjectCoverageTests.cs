@@ -21,7 +21,7 @@ namespace Tracon.SqlProviders.Tests;
 /// <para>
 /// A table is covered when it is an export target, or when a foreign key with
 /// <c>ON DELETE CASCADE</c> ties it to an erasure target (the run's events, tool
-/// calls, and traces go with the run; an earlier change left them out of the export on
+/// calls, and traces go with the run; they are left out of the export on
 /// purpose). Any other table needs an entry in <see cref="Exemptions"/>.
 /// </para>
 /// <para>

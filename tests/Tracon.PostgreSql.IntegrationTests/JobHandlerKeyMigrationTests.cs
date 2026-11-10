@@ -9,7 +9,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// 🚨 A one-way migration over data that already exists. A single digit
-/// transposed in the <c>CASE</c> table — 7 and 8, say, which the earlier decision keeps
+/// transposed in the <c>CASE</c> table — 7 and 8, say, which are kept
 /// deliberately apart — would silently relabel every historic
 /// <c>ApprovalResume</c> job as a <c>RunContinuation</c> and could not be
 /// undone once <c>kind</c> is dropped. No compiler and no snapshot sees SQL

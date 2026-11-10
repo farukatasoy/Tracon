@@ -19,15 +19,15 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <c>TRACON_SOURCE_LANGUAGE_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release</c>.
 /// </para>
 /// <para>
-/// Development tooling stays Turkish and is out of scope: <c>docs/</c>,
-/// <c>the development notes</c> and <c>scripts/</c> are never scanned. The user-facing
+/// Development tooling stays Turkish and is out of scope: <c>docs/</c> and the
+/// root <c>scripts/</c> are never scanned (the site's own <c>docs-site/scripts</c> are). The user-facing
 /// translation dictionary <c>locales/tr.ts</c> is excluded for the same reason,
 /// and the language-picker label in <c>locales/en.ts</c> is allowed by line.
 /// </para>
 /// <para>
 /// Reads project sources from disk rather than compiled assemblies — the same
 /// pattern as <see cref="DependencyDirectionTests"/> and
-/// <see cref="ProblemDetailsLanguageTests"/>, which enforces the narrower that decision
+/// <see cref="ProblemDetailsLanguageTests"/>, which enforces the narrower
 /// rule and is deliberately kept alongside this one.
 /// </para>
 /// </remarks>
@@ -36,12 +36,12 @@ public sealed class SourceLanguageTests
     private const string RefreshEnvVar = "TRACON_SOURCE_LANGUAGE_REFRESH";
 
     private static readonly string[] ScanRoots =
-        ["src", "tests", "samples", "packages", ".github/ISSUE_TEMPLATE", "docs-site/src", "docs-site/public"];
+        ["src", "tests", "samples", "bench", "packages", ".github/ISSUE_TEMPLATE", "docs-site/src", "docs-site/public", "docs-site/scripts"];
 
     private static readonly HashSet<string> ScannedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs", ".sql", ".csproj", ".props", ".targets", ".json", ".ts", ".tsx",
-        ".md", ".mdx", ".astro", ".mjs", ".yml", ".yaml",
+        ".md", ".mdx", ".astro", ".mjs", ".yml", ".yaml", ".txt",
     };
 
     /// <summary>
@@ -99,9 +99,9 @@ public sealed class SourceLanguageTests
         "tests/Tracon.Core.UnitTests/Architecture/SourceLanguageTests.cs",
         "tests/Tracon.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs",
         "src/Tracon.UI/frontend/src/locales/tr.ts",
-        // An earlier change split the monolithic tr.ts into domain fragments — same
-        // That decision status, still an aggregate-only file with no dictionary text
-        // of its own once split. Each fragment carries the exemption instead.
+        // The monolithic tr.ts was split into domain fragments. It keeps its status as
+        // the Turkish dictionary but is now an aggregate-only file with no dictionary text
+        // of its own. Each fragment carries the exemption instead.
         "src/Tracon.UI/frontend/src/locales/tr/common.ts",
         "src/Tracon.UI/frontend/src/locales/tr/agents.ts",
         "src/Tracon.UI/frontend/src/locales/tr/runs.ts",
@@ -128,15 +128,19 @@ public sealed class SourceLanguageTests
     /// <summary>
     /// Turkish-named identifiers that are not prose and must survive translation:
     /// defect ids and manual test case ids (a prefix, letters and a number),
-    /// and paths into the development tooling, which stays Turkish by design
-    /// (markdown and script file names, and the contract
-    /// snapshots under <c>docs/sozlesme/</c>, whose file names the release gate reads).
+    /// the names of the repository's own scripts and the flags they take (those
+    /// stay Turkish by design), and the contract snapshots under
+    /// <c>docs/sozlesme/</c>, whose file names the release gate reads.
     /// They are removed from a line before it is inspected — otherwise
     /// <c>HATA-</c> would forever match the word <c>hata</c> and the baseline
     /// could never reach zero.
     /// </summary>
+    /// <remarks>
+    /// A markdown file name is deliberately NOT masked: a document named in Turkish is exactly
+    /// the pointer a reader cannot follow, and hiding it hid the sentence around it too.
+    /// </remarks>
     private static readonly Regex IdentifierMaskPattern = new(
-        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:md|py|sh)\b|docs/sozlesme/[A-Za-z0-9_./-]+",
+        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:py|sh)\b|--surum\b|docs/sozlesme/[A-Za-z0-9_./-]+",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -226,6 +230,49 @@ public sealed class SourceLanguageTests
     public void Generated_site_trees_are_skipped_and_hand_written_pages_are_not(string path, bool skipped)
         => IsSkipped(path).ShouldBe(skipped);
 
+    [Theory]
+    [InlineData("See kayit-defteri.md for the reason", true)]
+    [InlineData("python3 scripts/kapi.py kapasite --surum 1.0.0", false)]
+    [InlineData("The reason is written in English", false)]
+    public void A_line_is_offending_unless_only_a_masked_identifier_is_Turkish(string line, bool offending)
+        => IsOffending(line).ShouldBe(offending);
+
+    [Fact]
+    public void The_scan_reaches_the_bench_the_site_scripts_and_text_files_but_not_the_root_scripts()
+    {
+        var root = Directory.CreateTempSubdirectory("tracon-source-language-").FullName;
+
+        try
+        {
+            const string Turkish = "bu yeni dosya icin yazildi";
+
+            foreach (var (path, text) in new[]
+            {
+                ("bench/capacity/Notes.md", Turkish),
+                ("docs-site/scripts/check.mjs", $"// {Turkish}"),
+                ("tests/Tracon.Package.Tests/Baselines/graph.txt", $"# {Turkish}"),
+                ("scripts/tool.py", $"# {Turkish}"),
+                ("docs-site/src/content/docs/guides/clean.md", "Everything here is English."),
+            })
+            {
+                var file = Path.Combine(root, path);
+                Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                File.WriteAllText(file, text);
+            }
+
+            Scan(root).Keys.ShouldBe(
+            [
+                "bench/capacity/Notes.md",
+                "docs-site/scripts/check.mjs",
+                "tests/Tracon.Package.Tests/Baselines/graph.txt",
+            ]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public void Source_tree_carries_no_Turkish_outside_the_baseline()
     {
@@ -271,13 +318,15 @@ public sealed class SourceLanguageTests
                            "dotnet test tests/Tracon.Core.UnitTests -c Release");
     }
 
-    private static SortedDictionary<string, int> Scan()
+    private static SortedDictionary<string, int> Scan() => Scan(RepositoryRoot);
+
+    private static SortedDictionary<string, int> Scan(string repositoryRoot)
     {
         var results = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
         foreach (var root in ScanRoots)
         {
-            var absoluteRoot = Path.Combine(RepositoryRoot, root);
+            var absoluteRoot = Path.Combine(repositoryRoot, root);
 
             if (!Directory.Exists(absoluteRoot))
             {
@@ -286,7 +335,7 @@ public sealed class SourceLanguageTests
 
             foreach (var file in Directory.EnumerateFiles(absoluteRoot, "*", SearchOption.AllDirectories))
             {
-                var relative = Path.GetRelativePath(RepositoryRoot, file).Replace('\\', '/');
+                var relative = Path.GetRelativePath(repositoryRoot, file).Replace('\\', '/');
 
                 if (!ScannedExtensions.Contains(Path.GetExtension(file)) &&
                     !PackagedReadmePattern.IsMatch(relative))
@@ -310,7 +359,7 @@ public sealed class SourceLanguageTests
 
         foreach (var name in ScannedRootFiles)
         {
-            var file = Path.Combine(RepositoryRoot, name);
+            var file = Path.Combine(repositoryRoot, name);
 
             if (!File.Exists(file))
             {
@@ -360,20 +409,25 @@ public sealed class SourceLanguageTests
 
         foreach (var line in File.ReadLines(file))
         {
-            if (line.Length == 0 || AllowedLinePattern.IsMatch(line))
-            {
-                continue;
-            }
-
-            var inspected = IdentifierMaskPattern.Replace(line, string.Empty);
-
-            if (TurkishLetterPattern.IsMatch(inspected) || TurkishWordPattern.IsMatch(inspected))
+            if (IsOffending(line))
             {
                 count++;
             }
         }
 
         return count;
+    }
+
+    private static bool IsOffending(string line)
+    {
+        if (line.Length == 0 || AllowedLinePattern.IsMatch(line))
+        {
+            return false;
+        }
+
+        var inspected = IdentifierMaskPattern.Replace(line, string.Empty);
+
+        return TurkishLetterPattern.IsMatch(inspected) || TurkishWordPattern.IsMatch(inspected);
     }
 
     private static Regex BuildWordPattern()

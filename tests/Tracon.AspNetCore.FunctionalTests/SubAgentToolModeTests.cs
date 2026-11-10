@@ -22,7 +22,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// What the router's model <em>receives</em> is read from <see cref="FakeModelProvider.Requests"/>, not
-/// inferred from a transcript: the claim of the phase is that the model sees one tool and not the task tools.
+/// inferred from a transcript: the claim is that the model sees one tool and not the task tools.
 /// </para>
 /// </remarks>
 public sealed class SubAgentToolModeTests
@@ -179,7 +179,7 @@ public sealed class SubAgentToolModeTests
     [Fact]
     public async Task An_empty_query_fails_the_tool_call_before_the_child_starts_and_the_parent_completes()
     {
-        // Measured, not assumed (the plan's "empty or oversize input" question): the framework's
+        // Measured, not assumed (an empty or oversize input): the framework's
         // AsAIFunction hands the query to AIAgent.RunAsync(string), which refuses an empty or
         // whitespace message with ArgumentException ("Argument is whitespace"). The tool call fails
         // ("Error: Function failed.", the function-invoking client hides the detail), the wrapper is
@@ -401,7 +401,7 @@ public sealed class SubAgentToolModeTests
     [Fact]
     public async Task The_http_stream_of_a_tool_mode_parent_carries_the_child_answer_and_links_the_child_run()
     {
-        // The earlier decision was the only check of the streamed HTTP endpoint in tool mode.
+        // This replaces a hand-run check as the only coverage of the streamed HTTP endpoint in tool mode.
         var provider = Provider(static router => router
             .CallsTool(ChildTool, new { query = "sub task" })
             .EchoesLastToolResult("Delegated: "));

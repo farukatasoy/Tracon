@@ -175,7 +175,7 @@ public sealed class ContentGuardRegistrationTests
     public void The_registry_picks_up_the_guard_pipeline_from_DI()
     {
         // Measures that the registration chain is actually wired up: this
-        // exists because of a lesson from earlier phases — "a green build
+        // exists because of an earlier lesson — "a green build
         // proves nothing".
         using var provider = Build(services =>
         {

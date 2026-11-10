@@ -12,9 +12,8 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <para>
 /// This settles a documented contradiction (measured 2026-08-26): the
 /// embedding guide claimed "the two planes share one Npgsql connection pool";
-/// the feasibility report's an earlier plan claimed the opposite ("the pool
-/// doubles"). Both cannot be true. The result is written to the phase
-/// document's "Plandan Sapmalar" section, not guessed.
+/// an estimate written before the measurement claimed the opposite ("the pool
+/// doubles"). Both cannot be true, so the answer is measured here, not guessed.
 /// </para>
 /// <para>
 /// Mechanism: since Npgsql 7.0, connection pooling is scoped to the

@@ -125,7 +125,7 @@ public sealed class AgentValidationLoopTests
         Messages(json).ShouldBe([("loop_judge_unavailable", "harness.loop.criteria[0].kind")]);
     }
 
-    // ---- an earlier change: the catalog step for an agentReview criterion's reviewer ----
+    // ---- The catalog step for an agentReview criterion's reviewer ----
 
     [Fact]
     public async Task A_reviewer_that_is_not_in_the_catalog_is_reported_at_the_criterion_and_saving_is_refused()

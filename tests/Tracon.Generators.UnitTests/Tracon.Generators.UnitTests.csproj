@@ -39,7 +39,7 @@
     <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
     <!-- MapTraconAGUI carries an <example>; it compiles against this project's reference set like every other. -->
     <ProjectReference Include="../../src/Tracon.AGUI/Tracon.AGUI.csproj" />
-    <!-- TraconClientServiceCollectionExtensions carries an <example> too; missed when an earlier change added the package. -->
+    <!-- TraconClientServiceCollectionExtensions carries an <example> too; missed when the package was added. -->
     <ProjectReference Include="../../src/Tracon.Client/Tracon.Client.csproj" />
   </ItemGroup>
 

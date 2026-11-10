@@ -16,7 +16,7 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// </para>
 /// <para>
 /// A reconciliation interval of 200 ms stands in for the 30 s default. The default is
-/// measured by the manual acceptance case, not here.
+/// checked by hand on two running instances, not here.
 /// </para>
 /// </remarks>
 internal sealed class TwoHostFixture : IAsyncDisposable

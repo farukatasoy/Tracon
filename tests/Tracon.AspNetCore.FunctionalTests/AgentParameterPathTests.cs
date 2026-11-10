@@ -75,7 +75,7 @@ public sealed class AgentParameterPathTests
     [Fact]
     public async Task A_replay_of_an_agent_with_a_required_parameter_repeats_the_values_its_run_recorded()
     {
-        // The earlier decision reopened the replay refusal: a run records the values it was
+        // The replay refusal was reopened: a run records the values it was
         // bound with, so a replay no longer has to refuse for want of them. The
         // refusal that remains - a run that recorded NOTHING - is pinned in
         // RunReplayParameterTests.

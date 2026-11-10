@@ -16,7 +16,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// Voice was left out of scope on purpose, and the handover note said a
 /// later change must approach the case CAREFULLY. That is what these tests
-/// lock down. That decision established that an INVISIBLE session counts as ABSENT:
+/// lock down. The rule established that an INVISIBLE session counts as ABSENT:
 /// the voice endpoint accepts a session id it has never seen, and the first
 /// turn opens it. A gate that rejected unknown sessions would silently break
 /// every first conversation, so the handler is asked and the DEFAULT answer

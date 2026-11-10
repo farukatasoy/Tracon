@@ -48,7 +48,7 @@ public sealed class SpeechDialogueValidationTests
     [Fact]
     public async Task A_dialogue_over_the_character_limit_names_the_limit_and_the_count_and_reaches_nothing()
     {
-        // Twelve turns, the shape of manual case 5: 12 x 170 = 2,040 characters over a 2,000 limit.
+        // Twelve turns: 12 x 170 = 2,040 characters over a 2,000 limit.
         var handler = new StubHttpMessageHandler(_ => DialogueTestData.RawResponse());
         using var client = DialogueTestData.CreateClient(handler);
 

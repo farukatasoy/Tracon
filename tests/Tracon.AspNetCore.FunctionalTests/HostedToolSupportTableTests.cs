@@ -13,7 +13,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <remarks>
 /// <para>
 /// The table below is what each adapter writes on the wire (<c>HostedToolWireTests</c> pins the OpenAI and Anthropic
-/// rows against the request body; Google rests on the real calls of 2026-10-20 and the manual acceptance cases). A row
+/// rows against the request body; Google rests on the real calls of 2026-10-20 and on manual runs against the real API). A row
 /// changes when an SDK upgrade changes what its adapter sends.
 /// </para>
 /// <para>

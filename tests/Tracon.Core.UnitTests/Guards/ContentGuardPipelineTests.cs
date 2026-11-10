@@ -15,7 +15,7 @@ public sealed class ContentGuardPipelineTests
     [Fact]
     public async Task Blocked_input_never_reaches_the_provider()
     {
-        // 🚨 The change's most important claim: pre-flight inspection spends no money.
+        // 🚨 The most important claim: pre-flight inspection spends no money.
         var inner = new FakeChatClient();
         using var chatClient = Guarded(inner, StubContentGuard.Blocking("secret-project"));
 

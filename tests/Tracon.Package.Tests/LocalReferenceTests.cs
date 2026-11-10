@@ -4,7 +4,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The consumer-facing half of an earlier change: the <c>buildTransitive</c> target that
+/// The consumer-facing side of the local reference: the <c>buildTransitive</c> target that
 /// writes <c>Tracon.LocalReference.md</c> beside each project, and the
 /// OpenAPI document that <c>Tracon.AspNetCore</c> now carries.
 /// </summary>

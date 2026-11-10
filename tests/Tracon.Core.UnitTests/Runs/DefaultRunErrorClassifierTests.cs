@@ -100,7 +100,7 @@ public sealed class DefaultRunErrorClassifierTests
     /// it lets through, and stamps <c>upstream_error</c> on it. That identity
     /// is matched BEFORE the message patterns, so the timeout check below could
     /// never see it and every provider timeout was filed as ProviderError —
-    /// undoing the distinction an earlier change exists to make.
+    /// undoing the distinction this classifier exists to make.
     ///
     /// 🚨 The existing fake in <c>FailureManifests.ProviderTimeoutTests</c>
     /// cannot produce this: it throws <c>TaskCanceledException</c> DIRECTLY,

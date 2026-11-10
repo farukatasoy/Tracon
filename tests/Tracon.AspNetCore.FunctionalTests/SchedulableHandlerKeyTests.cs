@@ -183,7 +183,7 @@ public sealed class SchedulableHandlerKeyTests
     [Fact]
     public async Task A_duplicate_handler_key_stops_the_host_from_starting()
     {
-        // The DI boundary of that decision: a configuration mistake breaks StartAsync,
+        // The DI boundary of the handler-key rule: a configuration mistake breaks StartAsync,
         // not the worker's first tick (which only logs and swallows).
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             () => TraconTestHost.StartAsync(

@@ -226,7 +226,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
 
     /// <summary>
     /// A database that already applied the core set under the shape that
-    /// existed before an earlier change (id-only ledger primary key, no
+    /// existed before sets were named (id-only ledger primary key, no
     /// <c>set_name</c> column — simulated here with raw DDL) upgrades safely.
     /// </summary>
     /// <remarks>

@@ -251,8 +251,7 @@ public sealed class TenantCoverageTests
     }
 
     /// <summary>
-    /// Finds every store class in the provider assembly (linked source,
-    /// That decision).
+    /// Finds every store class in the provider assembly (linked source).
     /// </summary>
     /// <returns>The store types.</returns>
     private static IReadOnlyList<Type> DiscoverStores()

@@ -52,7 +52,7 @@ internal static class ScriptedModels
 /// </summary>
 /// <remarks>
 /// <para>
-/// the earlier change's <c>TestServer</c> pattern cannot be reused here: <c>TestServer</c>
+/// The usual <c>TestServer</c> pattern cannot be reused here: <c>TestServer</c>
 /// does not open a real socket, so a browser cannot connect to it. The test
 /// therefore starts its own <see cref="WebApplication"/> instance on a port
 /// assigned by the operating system.
@@ -321,9 +321,9 @@ internal sealed class UiHost : IAsyncDisposable
     /// embeds no assets at all. Without this shield, every E2E test waits 30
     /// seconds on a blank page saying "waiting for heading Dashboard"; across
     /// 41 tests that adds up to <strong>~20 minutes</strong>, and no error
-    /// message states the real cause. Measured: in an earlier change the same symptom
-    /// (caused that time by synchronization copies) wasted 19 minutes; in
-    /// An earlier change the cause was a missing build flag instead. The shield makes
+    /// message states the real cause. Measured: once the same symptom
+    /// (caused that time by synchronization copies) wasted 19 minutes; another
+    /// time the cause was a missing build flag instead. The shield makes
     /// both causes visible at once and within seconds.
     /// </remarks>
     private static void GuardUiAssets(WebApplication app)

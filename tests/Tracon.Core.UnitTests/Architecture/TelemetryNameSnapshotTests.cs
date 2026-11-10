@@ -52,7 +52,7 @@ public sealed class TelemetryNameSnapshotTests
         var constants = InstrumentConstants();
         var published = PublishInstruments().Select(static instrument => instrument.Name).ToList();
 
-        // 2026-10-29: 15 counters and histograms of TraconMetrics (an earlier change added the rate-limit store
+        // 2026-10-29: 15 counters and histograms of TraconMetrics (including the rate-limit store
         // failure counter), 3 observable gauges.
         published.Count.ShouldBe(18);
 

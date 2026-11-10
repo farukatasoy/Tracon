@@ -420,7 +420,7 @@ public sealed class WorkflowEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    // --- an earlier change: graph, pending request, response ---
+    // --- Graph, pending request, response ---
 
     [Fact]
     public async Task Graph_endpoint_returns_nodes_edges_and_mermaid()

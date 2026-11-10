@@ -30,8 +30,7 @@ namespace Tracon.PostgreSql.IntegrationTests.FailureManifests;
 /// </list>
 /// <para>
 /// 🚨 The claim is about LOCK behaviour, not speed. No duration is asserted as
-/// a ceiling: on a shared machine a wall-clock ceiling is noise (the earlier change's
-/// lesson). What is asserted is that concurrent work COMPLETES and returns
+/// a ceiling: on a shared machine a wall-clock ceiling is noise. What is asserted is that concurrent work COMPLETES and returns
 /// correct results, which a table-level lock would make impossible.
 /// <para>
 /// 🚨 <strong>The first test issues the delete itself rather than calling

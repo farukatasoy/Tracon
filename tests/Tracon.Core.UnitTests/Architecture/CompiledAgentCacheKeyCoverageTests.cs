@@ -18,8 +18,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// decisions. "State read while compiling but missing from the key" recurred
 /// five times: the tenant, a tenant credential, the
 /// version used as a proxy for content, the shared instructions block
-/// and callable sub-agents, and the tenant egress policy (
-/// 2026-10-11). The sixth, found by the same scan, was the connection an MCP
+/// and callable sub-agents, and the tenant egress policy
+/// (2026-10-11). The sixth, found by the same scan, was the connection an MCP
 /// tool object is bound to (2026-10-11).
 /// </para>
 /// <para>

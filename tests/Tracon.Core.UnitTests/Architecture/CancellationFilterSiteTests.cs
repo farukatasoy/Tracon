@@ -19,7 +19,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <para>
 /// The defect class came back three times: seven hosted services and three
 /// recording paths, nine endpoint and helper sites, then 55 more
-/// in the class scan that closed an earlier fix. The rule now has one spelling,
+/// in the class scan that closed it. The rule now has one spelling,
 /// <c>OperationCancellation.IsFailure(exception, token)</c>, and this gate fails
 /// on the shapes that bypass it:
 /// </para>

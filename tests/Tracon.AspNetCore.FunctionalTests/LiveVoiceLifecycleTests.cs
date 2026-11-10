@@ -48,7 +48,7 @@ public sealed class LiveVoiceLifecycleTests
         // close used to cancel the pump before it had consumed the transcript
         // frames already on the wire, so the history was flushed EMPTY and no
         // wait could succeed (fixed by the close-order and sideband-drain
-        // changes of 2026-09-19 and 2026-09-20; an earlier fix). The wait stays as a
+        // changes of 2026-09-19 and 2026-09-20). The wait stays as a
         // guard, not as the fix.
         //
         // 🚨 Wait for BOTH strings the assertions below read. Waiting only for
@@ -150,7 +150,7 @@ public sealed class LiveVoiceLifecycleTests
         // 🚨 Every channel, not only commentary. This guard refuses the model
         // input too, so the run fails and the only append it makes is its own
         // error notice on the thinking channel. Checking commentary alone passed
-        // even with the refusal ignored - measured in an earlier change by removing the
+        // even with the refusal ignored - measured by removing the
         // runner's `return` after the refusal: the notice reached the provider
         // and this test stayed green.
         foreach (var channel in new[] { "session.thinking.append", "session.commentary.append", "session.instructions.append" })

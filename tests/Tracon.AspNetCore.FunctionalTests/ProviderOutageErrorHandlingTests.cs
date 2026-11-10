@@ -8,8 +8,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Family H regression tests: the narrow exception
 /// filter on the non-streaming run endpoints let real provider SDK exceptions
 /// escape and leak into ASP.NET Core's generic handler — the client got a bare
-/// <c>500</c> instead of the expected <c>502</c>/<c>upstream_error</c>. That decision/that decision
-/// already fixed this pattern on the sibling streaming (SSE) paths; the three
+/// <c>500</c> instead of the expected <c>502</c>/<c>upstream_error</c>. The same
+/// pattern was already fixed on the sibling streaming (SSE) paths; the three
 /// non-streaming paths fixed here are verified with the SAME <see cref="ThrowingModelProvider"/>.
 /// </summary>
 public sealed class ProviderOutageErrorHandlingTests

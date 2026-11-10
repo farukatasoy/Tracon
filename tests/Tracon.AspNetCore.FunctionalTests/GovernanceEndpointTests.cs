@@ -273,8 +273,8 @@ public sealed class GovernanceEndpointTests
         await using var host = await TraconTestHost.StartAsync();
 
         // X-Tenant: a name neither the audit secret filter nor the credential
-        // header rule recognizes, so its value is stored as sent (an earlier change
-        // moved credential names out of plain headers; the mask covers the rest).
+        // header rule recognizes, so its value is stored as sent (credential names live
+        // outside plain headers; the mask covers the rest).
         foreach (var value in new[] { ApiKey, ApiKey + "-rotated" })
         {
             using var saved = await host.Client.PutAsJsonAsync(
@@ -558,8 +558,8 @@ public sealed class GovernanceEndpointTests
         // Read the RAW JSON text, not the deserialized C# object: a missing
         // [JsonConverter(typeof(JsonStringEnumConverter<...>))] on
         // ToolArgumentOperator would round-trip fine through matching C# types
-        // on both ends and only show up as a wire-level number (that decision's
-        // recurring trap).
+        // on both ends and only show up as a wire-level number (a recurring
+        // trap for enums on this wire).
         created.GetProperty("argumentConditions")[0].GetProperty("operator").GetString()
             .ShouldBe("LessThanOrEqual");
 

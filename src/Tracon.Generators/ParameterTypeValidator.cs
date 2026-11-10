@@ -325,7 +325,7 @@ internal static class ParameterTypeValidator
     /// A second shape - a parameterless constructor plus public
     /// <c>init</c>/<c>set</c> properties - for a type built through an object initializer
     /// instead of a positional record is not supported: every measured need
-    /// (and every manual acceptance case) is the positional-record shape, and the property
+    /// is the positional-record shape, and the property
     /// path has no reliable, unmeasured signal for which properties are required versus
     /// optional (a constructor parameter has <see cref="IParameterSymbol.HasExplicitDefaultValue"/>;
     /// a property has nothing equivalent). Recorded as a scope reduction, not a silent gap.

@@ -131,7 +131,7 @@ public sealed class StructuredResponseEndpointTests
         var eventsBody = await EventTypesAsync(host, run.Id);
 
         // 🚨 The WHOLE stream is not redacted: RunStarted legitimately carries
-        // the raw user prompt (the earlier change's eval-promotion source). Only the
+        // the raw user prompt (the eval-promotion source). Only the
         // StructuredResponseRejected event's OWN line must exclude the raw
         // response - same boundary ContentGuardEndpointTests measures for
         // ContentBlocked/ContentMasked.

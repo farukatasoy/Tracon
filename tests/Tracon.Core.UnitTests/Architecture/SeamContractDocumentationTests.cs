@@ -53,7 +53,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <c>TRACON_SEAM_CONTRACT_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release</c>.
 /// </para>
 /// <para>
-/// <strong>🚨 the tuzak: a split phrase is not a gate.</strong> An early draft of
+/// <strong>🚨 The trap: a split phrase is not a gate.</strong> An early draft of
 /// <c>OrderingContractDocumentationTests</c> searched for two phrase FRAGMENTS
 /// independently; a deliberate break of one fragment still passed because a LATER,
 /// unrelated occurrence of the other fragment satisfied the check. This gate searches
@@ -78,7 +78,7 @@ public sealed class SeamContractDocumentationTests
 
     /// <summary>
     /// One phrase set per dimension, checked as WHOLE phrases (see the class remarks'
-    /// That decision warning) against an interface's own XML doc block, case-insensitively.
+    /// split-phrase warning) against an interface's own XML doc block, case-insensitively.
     /// </summary>
     private static readonly (string Dimension, string[] Phrases)[] Dimensions =
     [
@@ -224,7 +224,7 @@ public sealed class SeamContractDocumentationTests
     }
 
     /// <summary>
-    /// Regression coverage for the tuzak this class's remarks describe: a phrase
+    /// Regression coverage for the trap this class's remarks describe: a phrase
     /// must be matched WHOLE. A doc block carrying only the first HALF of a two-word
     /// phrase must still be reported as missing that dimension.
     /// </summary>

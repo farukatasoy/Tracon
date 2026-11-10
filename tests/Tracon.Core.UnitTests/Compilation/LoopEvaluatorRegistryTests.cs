@@ -342,7 +342,7 @@ public sealed class LoopEvaluatorRegistryTests
         exception.Message.ShouldContain("completionMarker");
     }
 
-    // ---- an earlier change: factory registrations and the shared rule set ----
+    // ---- Factory registrations and the shared rule set ----
 
     [Fact]
     public async Task Concurrent_first_compilations_call_a_factory_once_and_share_its_result()
@@ -627,7 +627,7 @@ public sealed class LoopEvaluatorRegistryTests
         calls.ShouldBe(0);
     }
 
-    // ---- an earlier change: the built-in agentReview kind ----
+    // ---- The built-in agentReview kind ----
 
     [Fact]
     public void An_agentReview_criterion_builds_its_reviewer_through_the_factory_with_the_pin()
@@ -693,7 +693,7 @@ public sealed class LoopEvaluatorRegistryTests
     [Fact]
     public void Registering_a_code_kind_named_agentReview_is_refused_at_construction()
     {
-        // The kind became built in with an earlier change: a host that registered its own "agentReview" before
+        // The kind is built in: a host that registered its own "agentReview"
         // would otherwise mean one thing in its definitions and another in everyone else's.
         var custom = new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()));
 

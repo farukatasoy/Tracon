@@ -55,8 +55,8 @@ public sealed class AgentRunJobHandlerTests
     /// <summary>
     /// A registered <see cref="IToolApprovalPresenter"/> reaches the
     /// PERSISTED <see cref="PendingApproval"/> row, not just the closing run event.
-    /// This is the fast, isolated proof the plan's own test matrix names
-    /// (<c>QueuedApprovalTests</c>) — the DI + queue + store boundary the
+    /// This is the fast, isolated proof of the
+    /// DI + queue + store boundary the
     /// end-to-end screenshot test exercises too, but without a browser or an
     /// HTTP round trip.
     /// </summary>

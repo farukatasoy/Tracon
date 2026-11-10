@@ -24,7 +24,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// The intervals are shortened (<see cref="McpOAuthDistributedTiming"/>); the production values are
-/// measured by the manual acceptance case.
+/// checked by hand on two running instances.
 /// </para>
 /// </remarks>
 public sealed class McpOAuthCrossInstanceTests

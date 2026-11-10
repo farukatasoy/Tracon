@@ -1,8 +1,8 @@
 namespace Tracon.Core.UnitTests.Egress;
 
 /// <summary>
-/// The credential header classifier. The table is the plan's,
-/// including the two known gaps: a false positive and the false negatives.
+/// The credential header classifier. The table
+/// includes the two known gaps: a false positive and the false negatives.
 /// </summary>
 public sealed class CredentialHeaderNamesTests
 {

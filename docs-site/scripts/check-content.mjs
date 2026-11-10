@@ -163,7 +163,7 @@ for (const [label, pattern] of securityPolicyFacts) {
 }
 
 // The threat model's boundary table restates the set of boundaries from the
-// authorization guide, for a reader who never opens that page. A phase that adds or
+// authorization guide, for a reader who never opens that page. A change that adds or
 // removes a boundary there and forgets the model leaves a stale promise standing -
 // the direction that matters more, because it claims a protection that no longer
 // exists. Same pattern as securityPolicyFacts above, applied to a table's first
@@ -930,7 +930,7 @@ const telemetryNames = [...diagnostics.matchAll(/public const string \w+ = "([^"
   .filter((value) => value !== 'Tracon');
 
 // A gate that collects its own expectations can only fail while it collects
-// something. The screenshot gate returned zero for an entire phase and stayed
+// something. The screenshot gate once returned zero and stayed
 // green; these two read source the same way, so they carry the same guard.
 // `public const string` becoming `static readonly` is all it would take.
 if (telemetryNames.length === 0) {
@@ -1072,7 +1072,7 @@ if (validApiKeyScopes.size === 0) {
 // round is a bool; DocumentedPolicyTests.cs is the one that actually
 // evaluates it against the real code.
 //
-// 🚨 That alone is not enough (denetim, 158, finding 1): DocumentedPolicyTests
+// 🚨 That alone is not enough (an audit finding): DocumentedPolicyTests
 // reads the marker's value, never the READER'S sentence, so a page could say
 // "off by default" while its marker still claims `false` after the real
 // default flipped to `true` and BOTH gates would stay green - the marker and
@@ -1406,7 +1406,7 @@ const CONTRAST_PAIRS = [
 ];
 
 const paired = new Set(CONTRAST_PAIRS.flatMap(([a, b]) => [a, b]));
-// Reported on success, not only on failure: the phase records the measured floor,
+// Reported on success, not only on failure: the measured floor is recorded,
 // and a number nobody prints is a number nobody notices drifting.
 const floors = {
   4.5: { ratio: Number.POSITIVE_INFINITY, pair: '' },
@@ -1798,7 +1798,7 @@ console.log(
 console.log(
   `Behavior claims: ${markedClaims} marked and verified by DocumentedPolicyTests.cs; ` +
     `${defaultPhraseMentions} sentence(s) across manual pages match "by default" or "defaults to" ` +
-    '(marked or not - see 158.2).',
+    '(marked or not).',
 );
 
 function collect(directory) {

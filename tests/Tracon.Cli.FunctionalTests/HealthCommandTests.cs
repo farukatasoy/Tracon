@@ -3,8 +3,7 @@ using Tracon.Cli.FunctionalTests.Infrastructure;
 namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
-/// <c>tracon health</c> against a real, listening Tracon host
-/// (manual cases 5-8): the
+/// <c>tracon health</c> against a real, listening Tracon host: the
 /// client's first consumer.
 /// </summary>
 [Collection(nameof(CliTestGroup))]

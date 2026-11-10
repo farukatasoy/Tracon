@@ -11,7 +11,7 @@ namespace Tracon.Core.UnitTests.Models;
 /// <remarks>
 /// Tests run through <see cref="ModelProviderRegistry"/>, not
 /// <see cref="FallbackChatClient"/> directly — this also proves the wrapping
-/// POSITION (the rule applied to an earlier change): outside the circuit breaker,
+/// POSITION: outside the circuit breaker,
 /// inside content-filter detection.
 /// </remarks>
 public sealed class FallbackChatClientTests

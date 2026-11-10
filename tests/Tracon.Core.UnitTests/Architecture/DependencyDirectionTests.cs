@@ -124,7 +124,7 @@ public sealed class DependencyDirectionTests
     public void The_speech_dialogue_contract_lives_in_abstractions_not_in_the_voice_package()
     {
         // The HTTP layer and a host's workflow code name these types, and
-        // neither may reference Tracon.Voice (the earlier decision placed the speech contracts in
+        // neither may reference Tracon.Voice (the speech contracts live in
         // Abstractions for the same reason). The resolver that hands the capability
         // out is in Core; the ElevenLabs implementation stays in Voice.
         Type[] contract =
@@ -170,8 +170,8 @@ public sealed class DependencyDirectionTests
         // Microsoft.Agents.AI.Hosting.AspNetCore + A2A.AspNetCore packages.
         // the dependency direction must not break: these packages live
         // only inside Tracon.AspNetCore; Tracon.Mcp (the client) stays
-        // on the `.Core` line and takes NONE of them. An earlier change added the MCP
-        // Tasks extension to the same server-only list.
+        // on the `.Core` line and takes NONE of them. The MCP
+        // Tasks extension is on the same server-only list.
         var forbidden = new[]
         {
             "ModelContextProtocol.AspNetCore",

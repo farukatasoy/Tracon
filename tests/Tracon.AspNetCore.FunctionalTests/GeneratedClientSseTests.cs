@@ -17,7 +17,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// unconditionally, because a raw SSE frame is not a JSON string literal.
 /// </para>
 /// <para>
-/// An earlier change added the sixth pass: every operation declaring an SSE 200 now
+/// The sixth pass: every operation declaring an SSE 200 now
 /// also has a <c>&lt;operation&gt;StreamAsync</c> sibling returning
 /// <c>IAsyncEnumerable&lt;string&gt;</c>. That closed the last two endpoints
 /// that were not callable in their streaming shape at all —
@@ -36,7 +36,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </remarks>
 public sealed class GeneratedClientSseTests
 {
-    // --- an earlier change: the pure-SSE methods read their body as text ---
+    // --- The pure-SSE methods read their body as text ---
 
     [Fact]
     public async Task TraconRunAgentAsync_reads_the_SSE_body_as_plain_text()
@@ -72,7 +72,7 @@ public sealed class GeneratedClientSseTests
         body.ShouldNotContain("event: unknown");
     }
 
-    // --- an earlier change: the dual JSON/SSE endpoints, in both shapes ---
+    // --- The dual JSON/SSE endpoints, in both shapes ---
 
     [Fact]
     public async Task OpenAI_responses_streams_frames_when_the_body_asks_for_a_stream()
@@ -144,7 +144,7 @@ public sealed class GeneratedClientSseTests
             .ShouldBe("Echo: hello");
     }
 
-    // --- an earlier change: method and body disagreeing, in both directions ---
+    // --- Method and body disagreeing, in both directions ---
 
     [Fact]
     public async Task The_JSON_method_names_the_streaming_sibling_when_the_body_asked_for_a_stream()
@@ -214,7 +214,7 @@ public sealed class GeneratedClientSseTests
         exception.Message.ShouldContain("uninitialized JsonElement");
     }
 
-    // --- an earlier change: the pure-SSE endpoints gained the same streaming shape ---
+    // --- The pure-SSE endpoints take the same streaming shape ---
 
     [Fact]
     public async Task A_pure_SSE_endpoint_streams_frames_through_its_sibling()
@@ -302,7 +302,7 @@ public sealed class GeneratedClientSseTests
     }
 
     // The collections are no longer filled to work around a null default —
-    // The earlier decision fixed that in nswag-postprocess-client.py's fifth pass, and
+    // The client generator fixed that in nswag-postprocess-client.py's fifth pass, and
     // GeneratedClientCollectionDefaultTests is the test that proves a minimal
     // request works. Only Message is set here, which is also what a real
     // caller writes.

@@ -17,8 +17,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <c>generate_image</c> and <c>POST /api/images/generate</c> called
 /// the setup-wide generator and read neither. A tenant whose policy forbade the
 /// image provider still had its prompts sent there, and a tenant with its own
-/// key for that provider was billed to the host's account. That decision and that decision say
-/// every path to a provider passes the gate; the earlier decision is the live-voice precedent
+/// key for that provider was billed to the host's account. The tenant egress policy says
+/// every path to a provider passes the gate; live voice is the precedent
 /// this follows: the policy refuses with <c>403</c>, and a tenant binding the
 /// generator cannot use refuses too instead of falling back to the setup key.
 /// </para>

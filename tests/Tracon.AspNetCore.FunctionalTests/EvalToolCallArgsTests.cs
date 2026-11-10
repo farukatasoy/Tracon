@@ -106,7 +106,7 @@ public sealed class EvalToolCallArgsTests
     [Fact]
     public async Task A_two_megabyte_argument_is_stored_and_listed_whole_because_the_endpoint_sets_no_size_limit_of_its_own()
     {
-        // Measured for the plan's "huge JSON" question: a case's query, context and parameters have no
+        // Measured for a huge JSON payload: a case's query, context and parameters have no
         // limit either, so the expected arguments get none; the host's request body limit applies.
         await using var host = await TraconTestHost.StartAsync();
 

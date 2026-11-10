@@ -9,8 +9,7 @@
     <!-- ClientTenantScopeTests: proves the generated client sees the same tenant boundary a raw HTTP caller does. -->
     <ProjectReference Include="../../src/Tracon.Client/Tracon.Client.csproj" />
     <!--
-      Tracon.AspNetCore is itself provider-independent (a natural
-      consequence of that decision). This project tests the AspNetCore + OpenAI
+      Tracon.AspNetCore is itself provider-independent. This project tests the AspNetCore + OpenAI
       combination (real-world usage), so it references the OpenAI package
       directly.
     -->
@@ -37,7 +36,7 @@
       DependencyDirectionTests.
     -->
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
-    <!-- Fake model provider (FakeModelProvider): an earlier change, rationale. -->
+    <!-- Fake model provider (FakeModelProvider). -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
     <!--
       Verifying that MapTraconMcpServer/MapTraconA2A do not crash on

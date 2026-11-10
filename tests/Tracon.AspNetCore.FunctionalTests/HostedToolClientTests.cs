@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// The generated .NET client reads the tool list of a host that has a hosted tool.
 /// </summary>
 /// <remarks>
-/// 🚨 Found by the phase audit, not by a test: the document wraps a nullable enum property in
+/// 🚨 Found by an audit, not by a test: the document wraps a nullable enum property in
 /// <c>oneOf: [null, $ref]</c> and also lists <c>null</c> in the enum itself, and NJsonSchema then wrote an empty class named
 /// after the property (<c>public HostedKind? HostedKind</c>) in place of the enum. The client built, the coverage test saw
 /// the method, and <c>TraconListToolsAsync</c> threw <c>JsonException</c> the first time a host registered a hosted tool.

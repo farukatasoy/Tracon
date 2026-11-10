@@ -115,7 +115,7 @@ public sealed class ProviderTimeoutTests
         // one layer up - RunRecordingAgent.ToRunError redacts a foreign
         // exception's message through SafeErrorText, so the classifier sees
         // "TaskCanceledException failed. (ref: ...)" and the timeout wording
-        // The earlier decision relies on to tell a provider timeout from a caller's stop is
+        // the cancellation rule relies on to tell a provider timeout from a caller's stop is
         // gone before it ever reaches a pattern. A caller's stop cannot reach
         // this path at all (RunRecordingAgent.cs:309 catches it under
         // `when (cancellationSource.IsCancellationRequested)`), so Canceled is

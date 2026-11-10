@@ -285,7 +285,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     {
         // Uppercase letters, quotes, and dots are rejected: the prefix is
         // embedded directly into SQL text, and the injection surface is
-        // closed here (the SQLite counterpart of that decision).
+        // closed here (the SQLite counterpart of the PostgreSQL schema-name check).
         foreach (var invalid in new[] { "Agent", "agent-prism", "agent.prism", "agent prism", "dbo';--" })
         {
             Should.Throw<TraconException>(() => new SqliteDialect(invalid));
@@ -340,14 +340,13 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
 
     /// <summary>
     /// A database that already applied the core set under the shape that
-    /// existed before an earlier change (id-only ledger primary key, no
+    /// existed before sets were named (id-only ledger primary key, no
     /// <c>set_name</c> column — simulated here with raw DDL) upgrades safely.
     /// </summary>
     /// <remarks>
     /// SQLite cannot alter a primary key in place; <c>SqliteDialect</c>
     /// overrides <see cref="SqlDialect.UpgradeMigrationsTableAsync"/> to
-    /// rebuild the table (the same technique as 0006_sessions_tenant_key.sql,
-    /// That decision) — this test proves the rebuild preserves the pre-existing rows.
+    /// rebuild the table (the same technique as 0006_sessions_tenant_key.sql) — this test proves the rebuild preserves the pre-existing rows.
     /// </remarks>
     [Fact]
     public async Task Pre_phase_67_ledger_shape_upgrades_without_data_loss()

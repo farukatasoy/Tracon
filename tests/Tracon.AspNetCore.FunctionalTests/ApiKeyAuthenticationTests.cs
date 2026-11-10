@@ -38,7 +38,7 @@ public sealed class ApiKeyAuthenticationTests
     [Fact]
     public async Task Unknown_value_gets_401_when_no_static_token_is_configured()
     {
-        // 🚨 Deliberate behavior change (K-XXX): when AuthToken is undefined and no
+        // 🚨 Deliberate behavior change: when AuthToken is undefined and no
         // header is sent at all, the old behavior (open access) is preserved. But
         // if an Authorization header IS SENT, it must now validate against either
         // the static token or an API key.

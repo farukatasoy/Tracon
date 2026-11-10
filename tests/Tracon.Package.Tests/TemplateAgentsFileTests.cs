@@ -5,7 +5,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The consumer-facing half of an earlier change: the <c>buildTransitive</c> target that
+/// The consumer-facing side of the agents file: the <c>buildTransitive</c> target that
 /// writes <c>AGENTS.md</c>, and the usage analyzer that reaches a consumer
 /// through the package.
 /// </summary>

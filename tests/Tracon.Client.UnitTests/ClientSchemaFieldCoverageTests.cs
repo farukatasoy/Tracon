@@ -11,10 +11,10 @@ namespace Tracon.Client.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The gap this closes was measured, not imagined. An earlier change added
-/// <c>EvaluatorVersion</c> to a response record, the OpenAPI snapshot picked it
+/// 🚨 The gap this closes was measured, not imagined. <c>EvaluatorVersion</c> was
+/// added to a response record, the OpenAPI snapshot picked it
 /// up, and the generated client was never re-run: the field was absent from
-/// <c>TraconApiClient.g.cs</c> for a whole phase. Neither existing gate could
+/// <c>TraconApiClient.g.cs</c> until the next regeneration. Neither existing gate could
 /// see it - <see cref="ClientCoverageTests"/> proves a METHOD exists per
 /// operationId, and <see cref="ClientDescriptionBaselineTests"/> pins a count.
 /// A consumer reading that field through the typed client got nothing, with

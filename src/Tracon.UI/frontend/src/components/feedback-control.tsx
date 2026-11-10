@@ -22,7 +22,7 @@ const OVERALL = 'overall';
  *
  * Message-level scoring and star ratings are part of the store contract
  * (`IRunScoreStore`, `RunScoreKind.Stars`) but are not exposed in this
- * control yet — see the change's handoff notes for the open follow-up.
+ * control yet — exposing them is an open follow-up.
  */
 export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   const t = useT();

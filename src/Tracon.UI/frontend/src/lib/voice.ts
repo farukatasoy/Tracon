@@ -98,8 +98,8 @@ const VOICE_STORAGE_PREFIX = 'tracon.voice.';
 /**
  * The voice this language is spoken with.
  *
- * 🚨 A Turkish answer read out by an English voice is unintelligible. An earlier change
- * added `VoiceDescriptor.attributes`, but a provider's `language` entry is not
+ * 🚨 A Turkish answer read out by an English voice is unintelligible.
+ * `VoiceDescriptor.attributes` carries what a provider reports, but its `language` entry is not
  * guaranteed — it depends on that provider reporting it (ElevenLabs does, via
  * a separate verified-languages field; another provider might not). The
  * mapping still cannot be derived reliably across providers, so an operator

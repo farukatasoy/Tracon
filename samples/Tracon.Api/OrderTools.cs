@@ -77,7 +77,7 @@ internal static class OrderTools
     /// body sleeps far longer than its own 1-second timeout, showing that the
     /// registry's <c>TimeoutAIFunction</c> wrapper cuts the WAIT short — the
     /// body itself keeps running in the background, a documented limit of
-    /// cooperative cancellation (Manual Case 8).
+    /// cooperative cancellation.
     /// </summary>
     /// <param name="reportId">The report number.</param>
     /// <returns>The report text — never actually reached at the default timeout.</returns>

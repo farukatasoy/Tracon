@@ -103,7 +103,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
 
         // The worker leases the job from the queue and waits until it reaches
         // the tool call that requires approval; the screen auto-refreshes every 5 seconds.
-        // 🚨 `Exact` matters from an earlier change on: the confirmation's own heading
+        // 🚨 `Exact` matters: the confirmation's own heading
         // reads "Approve cancel_order?", so a substring match resolves to two
         // elements the moment the dialog is up and Playwright's strict mode
         // rejects it. The row's cell is the exact string.

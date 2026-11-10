@@ -1,9 +1,9 @@
 /**
  * A failed request, carrying the server's own explanation.
  *
- * The management API answers with `application/problem+json` (decision
- * That decision), so `title` and `detail` are written for a human and are shown
- * verbatim — this layer does not translate them.
+ * The management API answers with `application/problem+json`, so `title` and
+ * `detail` are written for a human and are shown verbatim — this layer does
+ * not translate them (the API speaks one language).
  */
 export class TraconError extends Error {
   readonly status: number;

@@ -143,7 +143,7 @@ public sealed class WorkflowJobDeadlineRecoveryTests
     [Fact]
     public async Task When_the_limit_stops_the_last_pending_item_the_job_fails_at_once_with_the_code()
     {
-        // Found in the sample app (manual case 7): with one item, the stopped item was
+        // Found by running the sample app: with one item, the stopped item was
         // reported failed, the attempt was released, and the next lease found nothing to
         // run - the job ended "All of the job's items failed." without the code, one
         // pointless lease later.
@@ -179,7 +179,7 @@ public sealed class WorkflowJobDeadlineRecoveryTests
     }
 
     /// <summary>
-    /// The plan's <c>Stopped</c> step, for a queued run: a lease stopped the run at its
+    /// The <c>Stopped</c> step, for a queued run: a lease stopped the run at its
     /// limit (the engine closed it with the limit's reason) and its process died before
     /// the job's outcome was written. The next lease fails the job with the code; it
     /// neither continues the run nor runs a step.
@@ -211,7 +211,7 @@ public sealed class WorkflowJobDeadlineRecoveryTests
     }
 
     /// <summary>
-    /// The plan's <c>Stopped</c> step, for a batch item: the item whose run the limit
+    /// The <c>Stopped</c> step, for a batch item: the item whose run the limit
     /// stopped was never reported. The next lease fails it with the limit's reason and
     /// runs the items left.
     /// </summary>

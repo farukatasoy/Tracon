@@ -11,8 +11,8 @@ namespace Tracon.Generators.UnitTests;
 public sealed class ToolObjectGraphTests
 {
     /// <summary>
-    /// A graph 4 nested levels deep (root's member, its member, its member, its member -
-    /// manual case 5's "four-level graph"): the root and its first 3 nested levels are
+    /// A graph 4 nested levels deep (root's member, its member, its member, its member):
+    /// the root and its first 3 nested levels are
     /// within the limit, and only the 4th nested level is rejected.
     /// </summary>
     [Fact]

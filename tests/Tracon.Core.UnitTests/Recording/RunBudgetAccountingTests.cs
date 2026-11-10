@@ -6,7 +6,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
-/// the earlier change's central claim, measured end to end through the REAL pipeline
+/// The central claim, measured end to end through the REAL pipeline
 /// <see cref="AgentDefinitionCompiler"/>/<see cref="ModelProviderRegistry"/>
 /// assemble (not a mock of it): <see cref="RunBudgetChatClient"/> owns 100% of
 /// a run tree's usage accounting, cuts a run off exactly at a tool-turn

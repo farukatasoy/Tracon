@@ -163,8 +163,7 @@ public sealed class ContentGuardEndpointTests
         // ContentMasked lines and search for the card number.
         //
         // 🚨 The SAME cannot be said for the WHOLE stream, and this is a deliberate
-        // boundary: the RunStarted event carries the user's raw prompt (
-        // the sole source of production-to-eval case promotion). Masking is a
+        // boundary: the RunStarted event carries the user's raw prompt (the sole source of production-to-eval case promotion). Masking is a
         // control AT THE MODEL BOUNDARY; it does not retroactively clean
         // Tracon's own records. That is a separate task (retention/redaction)
         // and out of scope for this change.

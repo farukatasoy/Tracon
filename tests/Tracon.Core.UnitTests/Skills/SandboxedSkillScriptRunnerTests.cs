@@ -83,7 +83,7 @@ public sealed partial class SandboxedSkillScriptRunnerTests : IDisposable
     [Fact]
     public async Task The_script_does_not_run_when_the_audit_trail_cannot_be_written()
     {
-        // A deliberate exception to the earlier change's "observability does not break
+        // A deliberate exception to the "observability does not break
         // functionality" rule: a run whose record cannot be kept must never happen.
         using var runner = CreateRunner(new ThrowingAuditLog(), await GrantAllAsync(Demo(EchoScript())));
 

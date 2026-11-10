@@ -4,12 +4,12 @@ import { join, relative, resolve } from 'node:path';
 /**
  * The gate that keeps the console's modal layer in one place.
  *
- * An earlier change found nine call sites reaching for `window.confirm`, in a console
+ * A review found nine call sites reaching for `window.confirm`, in a console
  * whose `dialog.tsx` already carried a focus trap, an Esc handler and focus
  * return. A native modal has none of what those nine needed:
  *
  *  - it cannot be styled, so it arrives in the browser's chrome, in the
- * browser's language, ignoring the console's own locale (the language rule is about the
+ *    browser's language, ignoring the console's own locale (the language rule is about the
  *    SERVER's language; this was the operating system's);
  *  - its default button is the ACCEPT one in every major browser, which is the
  *    exact mis-click the modal-layer rule exists to prevent;

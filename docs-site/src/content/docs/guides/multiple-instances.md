@@ -214,7 +214,7 @@ needs its token where every instance can read it: set `Tracon:Mcp:OAuthTokenStor
 ## What two instances cost
 
 One machine measured one host and two hosts on the same database at a constant 16 requests in flight (2026-10-29,
-commit `647aa02e`, three repeats of 60 seconds):
+commit `d52f458c`, three repeats of 60 seconds):
 
 | Path | One host | Two hosts |
 |---|---|---|

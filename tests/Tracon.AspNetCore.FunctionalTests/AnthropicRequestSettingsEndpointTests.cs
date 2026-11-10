@@ -5,7 +5,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// An earlier fix end to end: an agent run through the whole host — compiled agent,
+/// End to end: an agent run through the whole host — compiled agent,
 /// Microsoft Agent Framework, the model pipeline and the real Anthropic adapter —
 /// sends the <c>anthropic.*</c> settings in the request body.
 /// </summary>

@@ -259,7 +259,7 @@ public sealed class ChildAgentInvokerTests
     [InlineData(true)]
     public async Task A_provider_timeout_is_not_reported_as_the_sub_agents_own_wait_limit(bool streaming)
     {
-        // That decision regression: the provider reports its OWN request timeout as an
+        // Regression: the provider reports its OWN request timeout as an
         // OperationCanceledException while NOTHING was cancelled. Both wait
         // limits are set far longer than this call, so neither layer can fire -
         // the only honest sentence here is "the provider did not answer".
@@ -283,7 +283,7 @@ public sealed class ChildAgentInvokerTests
         child.Status.ShouldBe(RunStatus.Failed);
     }
 
-    // --- an earlier fix: a workflow step fails instead of returning the refusal as content ---
+    // --- A workflow step fails instead of returning the refusal as content ---
 
     [Theory]
     [InlineData(false)]

@@ -15,7 +15,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <remarks>
 /// <para>
 /// 🚨 The gap this change closed was HALF closed already, which is what makes
-/// it worth a file of its own. An earlier change gave these endpoints Tracon's own
+/// it worth a file of its own. These endpoints first got Tracon's own
 /// session-ownership boundary and stopped there; the consumer's handler was
 /// still never asked. An installation whose handler refused
 /// <c>GET /api/sessions/{id}</c> had <c>GET /v1/conversations/{id}/items</c>
@@ -274,8 +274,7 @@ public sealed class OpenAIConversationsAuthorizationTests
         // the request leaves, so this never reaches the conversation route at
         // all — it arrives at GET /api/sessions, the LISTING. The point worth
         // locking is that the surface it escapes to is gated too: a denying
-        // handler answers 403 there (a list has no single identity to hide,
-        // That decision), so traversal buys an attacker nothing.
+        // handler answers 403 there (a list has no single identity to hide), so traversal buys an attacker nothing.
         var handler = new RecordingHandler { Allow = false };
 
         await using var host = await StartAsync(handler);

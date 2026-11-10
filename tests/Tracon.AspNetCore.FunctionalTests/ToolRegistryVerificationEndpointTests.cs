@@ -8,7 +8,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <summary>
 /// <see cref="ToolRegistrationValidationService"/>'s <see cref="IToolRegistry"/>
 /// check, through a REAL <c>IHostedService</c> boot (<c>WebApplication.StartAsync</c>),
-/// not a direct unit call — Manual Case 7/8/9 of an earlier change (host-boundary claim).
+/// not a direct unit call, because the claim is about the host boundary.
 /// </summary>
 public sealed class ToolRegistryVerificationEndpointTests
 {

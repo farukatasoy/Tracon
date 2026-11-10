@@ -108,7 +108,7 @@ public sealed class LiveVoiceTests
     [Fact]
     public async Task A_delegation_becomes_a_real_run_and_its_answer_is_spoken_back()
     {
-        // This is the change's whole reward: a spoken request becomes an ordinary
+        // This is the feature's whole reward: a spoken request becomes an ordinary
         // Tracon run, with the same recording chain as POST /api/agents/{name}/run.
         await using var provider = await FakeGptLiveServer.StartAsync();
         await using var host = await StartAsync(provider);

@@ -191,7 +191,7 @@ public sealed class ToolGovernanceEndpointTests
                         async () =>
                         {
                             // Deliberately does NOT accept a CancellationToken:
-                            // the non-cooperative case the development notes Manual Case 8 covers.
+                            // the non-cooperative case, where only the registration's own timeout can end the call.
                             await Task.Delay(Timeout.InfiniteTimeSpan); // delay: simulated
                             return "too late";
                         },
@@ -234,7 +234,7 @@ public sealed class ToolGovernanceEndpointTests
 
         var clock = HostClock();
 
-        // Manual Case 5: ModelProviderCircuitBreaker wraps only the
+        // ModelProviderCircuitBreaker wraps only the
         // IChatClient pipeline (CircuitBreakingChatClient); a tool exception
         // never reaches it structurally. This proves it BEHAVIORALLY: if a
         // tool timeout were miscounted as a provider failure, the circuit
@@ -304,7 +304,7 @@ public sealed class ToolGovernanceEndpointTests
     {
         var clock = HostClock();
 
-        // Manual Case 6: a Destructive + RequiresApproval tool ALSO
+        // A Destructive + RequiresApproval tool ALSO
         // carries a short timeout. The timeout must bound only the real
         // execution after approval, never the human wait — ApprovalRequiredAIFunction
         // defers before TimeoutAIFunction's race ever starts (the

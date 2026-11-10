@@ -70,7 +70,7 @@ public sealed class RunContinuationTests
         }
 
         // The recorded (replayed) result must reach the model UNCHANGED —
-        // this is the change's first (and most likely) failure mode: if the
+        // this is the first (and most likely) failure mode: if the
         // mismatch policy were not reversed for continuation, this run would
         // have stopped with a mismatch at the FIRST call instead of reaching Completed.
         events.Any(e => e.Type == RunEventType.ToolInvoked &&
@@ -501,8 +501,8 @@ public sealed class RunContinuationTests
     public async Task A_hosted_tool_call_in_the_interrupted_run_does_not_block_continuation()
     {
         // The provider ran the hosted call inside a model turn that already answered. A continuation sends the
-        // history on and runs no hosted call again, so there is no effect to repeat. Before the phase a hosted call
-        // was a content event, wrote no tool record, and never met this check.
+        // history on and runs no hosted call again, so there is no effect to repeat. A hosted call used to be
+        // a content event, wrote no tool record, and never met this check.
         ContinuationProbeTools.Reset();
 
         await using var host = await StartHostAsync(
@@ -660,7 +660,7 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
-    /// The earlier decision keeps one owner. With workflow recovery on, reconciliation still closes an
+    /// Recovery keeps one owner. With workflow recovery on, reconciliation still closes an
     /// orphaned workflow root and still does not continue it as an agent turn: the job
     /// that started the run resumes it from its checkpoint. Two owners would resume the
     /// same run twice. The refusal now names the job's recovery as well.

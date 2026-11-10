@@ -718,7 +718,7 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("hata kodu: 1 kırılma", output)
 
     def test_manuel_case_3_donmus_hatta_iki_kirilma_kirmizidir(self):
-        """Manual case 3: a gone SSE name and a gone response field, baseline 1.0.0, release 1.1.0."""
+        """A gone SSE name and a gone response field, baseline 1.0.0, release 1.1.0."""
         with tempfile.TemporaryDirectory() as directory:
             repo = _repo_with_baseline(directory)
             _write(repo, "docs/sozlesme/sse-olaylari.txt", "# header\nrun-events run.started\nagent-stream done\n")

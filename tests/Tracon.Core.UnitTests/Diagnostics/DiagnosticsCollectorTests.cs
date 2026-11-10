@@ -164,7 +164,7 @@ public sealed class DiagnosticsCollectorTests
         report.PersistenceProvider.ShouldNotBeNullOrEmpty();
     }
 
-    // --- an earlier change: embedding points ---
+    // --- Embedding points ---
 
     [Fact]
     public async Task Bare_setup_reports_all_seven_embedding_points_as_built_in_default()

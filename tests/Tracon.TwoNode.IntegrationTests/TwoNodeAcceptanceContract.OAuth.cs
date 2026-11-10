@@ -14,8 +14,8 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// <remarks>
 /// The cache is one object both hosts share, as one Redis is for two replicas; the server definitions and the refresh
 /// lease live in the SQL database. A real MCP server that is its own authorization server stands behind them
-/// (<see cref="OAuthProtectedMcpServer"/>). The polling intervals are shortened; the shipped values are measured by the
-/// manual acceptance cases.
+/// (<see cref="OAuthProtectedMcpServer"/>). The polling intervals are shortened; the shipped values are checked by hand
+/// on running instances.
 /// </remarks>
 public abstract partial class TwoNodeAcceptanceContract
 {

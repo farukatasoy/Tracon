@@ -722,8 +722,8 @@ tracon
     // tree through a SINGLE budget object.
     //
     // "support" was chosen DELIBERATELY as the sub-agent, not "researcher":
-    // the researcher uses a harness, and the harness defect documented in
-    // That decision (tool calls do not connect) would also hit the sub-run. Working
+    // the researcher uses a harness, and the harness defect (tool calls do not
+    // connect) would also hit the sub-run. Working
     // samples come before samples that explain the architecture.
     .AddAgent(new AgentDefinition
     {
@@ -1045,7 +1045,7 @@ tracon.AddReviewAndRevise(
 // then mix it in with catalog agents (only the name crosses into the
 // definition, the body always lives in code - the same shape
 // AgentDefinition.ToolNames already uses for tools). This particular node
-// makes NO model call - it demonstrates the change's own motivation: a real
+// makes NO model call - it demonstrates the feature's own motivation: a real
 // pipeline has steps (formatting, counting, file I/O) that are not AI calls
 // and previously could not enter a workflow graph at all.
 //

@@ -3,7 +3,7 @@ using Tracon.Package.Tests.Infrastructure;
 namespace Tracon.Package.Tests;
 
 /// <summary>
-/// The antithesis of the earlier change's <c>internal</c> narrowing: for every type
+/// The antithesis of the <c>internal</c> narrowing: for every type
 /// pulled behind <c>internal</c> because "the consumer reaches it through a
 /// public interface instead", this proves both halves of that claim from a
 /// real <c>PackageReference</c> consumer - the interface resolves, the

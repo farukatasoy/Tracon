@@ -38,7 +38,7 @@ public sealed class LiveVoiceAuthorizationTests
     [Fact]
     public async Task A_delegation_run_is_recorded_under_the_sessions_OWN_tenant()
     {
-        // 🚨 The change's most likely silent defect. The pump is not on the request's
+        // 🚨 The most likely silent defect. The pump is not on the request's
         // thread and inherits nothing from it; if the ambient tenant is not opened on
         // the pump itself, every delegated run lands in "default" and every test that
         // only ever uses one tenant stays green.

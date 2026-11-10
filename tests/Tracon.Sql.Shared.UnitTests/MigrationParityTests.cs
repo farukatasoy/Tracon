@@ -243,8 +243,7 @@ public sealed class MigrationParityTests
 
     /// <summary>The per-dialect upsert text, which carries the order by hand.</summary>
     /// <remarks>
-    /// Each provider compiles its own copy of the shared base (linked source,
-    /// That decision), so the three query types share no common type to switch over.
+    /// Each provider compiles its own copy of the shared base (linked source), so the three query types share no common type to switch over.
     /// </remarks>
     private static IEnumerable<(string Dialect, string Sql)> Upserts(string table)
     {

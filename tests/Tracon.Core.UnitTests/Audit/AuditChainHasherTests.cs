@@ -129,7 +129,7 @@ public sealed class AuditChainHasherTests
     // --- Golden vectors ---
     // 🚨 These two hashes were computed BEFORE the keyed form existed, by an independent
     // implementation of the canonical form (Python hashlib over the same text), and checked against
-    // the code of an earlier change. An entry written without a key must hash to exactly these values
+    // the code that introduced the keyed form. An entry written without a key must hash to exactly these values
     // for as long as 1.x lasts: every chain a deployment has written is verified against them.
 
     [Fact]

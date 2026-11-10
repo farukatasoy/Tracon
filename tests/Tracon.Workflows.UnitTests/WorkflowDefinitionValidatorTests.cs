@@ -234,7 +234,7 @@ public sealed class WorkflowDefinitionValidatorTests
         message.ShouldContain(kind, Case.Sensitive);
     }
 
-    // --- an earlier change: handoff topology and the limits ----------------------------------------------------------
+    // --- Handoff topology and the limits ----------------------------------------------------------
 
     [Fact]
     public void A_handoff_definition_with_an_edge_list_that_reaches_every_agent_is_accepted()

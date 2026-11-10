@@ -5,8 +5,7 @@
       All three SQL providers, directly, not via Tracon.Sql.Shared (it has
       no csproj of its own). The text-fidelity and completeness checks in
       this project read the SqlQueriesBase-derived types by their concrete
-      provider name; no cross-assembly type unification is needed (the earlier decision does
-      not apply here). No Docker/Testcontainers dependency: every check here
+      provider name; no cross-assembly type unification is needed. No Docker/Testcontainers dependency: every check here
       builds a query-set object in memory and never opens a connection.
     -->
     <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />

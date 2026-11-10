@@ -48,7 +48,7 @@ public sealed class WorkflowTimeoutSaveTests
     [Fact]
     public async Task An_agent_nodes_timeout_is_accepted_and_read_back()
     {
-        // The plan's first draft refused it; the earlier decision made it the step's own deadline.
+        // An agent node's timeout is accepted: it is the step's own deadline.
         await using var host = await StartAsync();
 
         using (var saved = await SaveAsync(host, "chain", nodes: [Node(Writer, "Agent", "00:06:00"), Node(Render, "Function", "00:00:02.5")]))

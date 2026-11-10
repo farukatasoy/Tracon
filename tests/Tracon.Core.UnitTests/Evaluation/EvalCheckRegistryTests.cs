@@ -70,8 +70,7 @@ public sealed class EvalCheckRegistryTests
         // carries an empty ExpectedOutput. Measured: EvalChecks.ContainsExpected
         // does NOT throw on a null/empty ExpectedOutput, it silently returns
         // PASSED=false — so such a case ALWAYS appears failed in a suite
-        // containing `containsExpected` (
-        // option B).
+        // containing `containsExpected` (the chosen behavior).
         var registry = new EvalCheckRegistry([]);
         var checks = registry.BuildChecks(Parse("""[{"kind":"containsExpected"}]"""));
 

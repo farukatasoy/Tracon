@@ -22,7 +22,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Before this rule, a key bound to tenant A with <c>SecurityAdmin</c>, or a
 /// claims-based Admin of tenant A, could point tenant B's provider binding at
 /// an address A controls: every model call of B then sent B's prompts and its
-/// resolved key there. The earlier decision accepted the route tenant for a "platform
+/// resolved key there. That route accepted the tenant for a "platform
 /// admin", but nothing enforced that the caller WAS one.
 /// </para>
 /// <para>

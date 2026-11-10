@@ -108,7 +108,7 @@ public sealed class ExternalDataSourceTests(SqliteFixture fixture)
         protected override DbConnection CreateDbConnection() => new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
     }
 
-    /// <summary>Manual case 4: the host must not kill the consumer's own pool at shutdown.</summary>
+    /// <summary>The host must not kill the consumer's own pool at shutdown.</summary>
     [Fact]
     public async Task External_data_source_is_not_disposed_when_the_host_stops()
     {

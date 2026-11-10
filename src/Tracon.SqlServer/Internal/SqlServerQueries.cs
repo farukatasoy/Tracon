@@ -1241,7 +1241,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // --- Tool approval rules ---
 
         // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
-        // reads argument_conditions by fixed ordinal 7 (.md's
+        // reads argument_conditions by fixed ordinal 7 (the PostgreSQL store's
         // ordinal-position lesson applies equally here).
         const string approvalColumns = """
             id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions, source_fingerprint

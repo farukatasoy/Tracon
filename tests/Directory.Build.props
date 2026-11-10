@@ -13,7 +13,8 @@
     🚨 The list lives HERE, not in the csproj files. A csproj body is read AFTER
     this file, so a csproj that writes <TargetFrameworks> must also clear the
     singular <TargetFramework> assigned here; forgetting that builds net10.0
-    only, silently (the mirror image of that decision). One list also gives
+    only, silently (the mirror image of what the project templates do: they clear
+    the plural when they set the singular). One list also gives
     `scripts/kapi.py` a single place to read the set from.
 
     TraconTestTargetFrameworks is a build input. Narrow it for one run with an

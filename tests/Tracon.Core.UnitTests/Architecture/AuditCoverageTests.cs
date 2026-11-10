@@ -13,8 +13,8 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// missing one because it reads as complete: <c>ISkillScriptGrantStore</c>
 /// was audited while <c>IAgentSkillStore</c> was not, so the trail recorded
 /// who PERMITTED a script to run and not who WROTE it — and a skill carries
-/// both the model's instructions and the scripts themselves. the earlier change's
-/// independent audit found it; nothing mechanical would have.
+/// both the model's instructions and the scripts themselves. An independent
+/// audit found it; nothing mechanical would have.
 /// </para>
 /// <para>
 /// This resolves from a real container rather than scanning source: the

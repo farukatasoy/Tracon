@@ -20,7 +20,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// <see langword="null"/>" must hold in the TYPE, not in every reader.
 /// </para>
 /// <para>
-/// 🚨 The earlier decision added <see cref="AgentDefinition.ExtensionNames"/>; the sample's own list of
+/// 🚨 <see cref="AgentDefinition.ExtensionNames"/> was added; the sample's own list of
 /// collections to restore did not get the new member and five of its tests failed with a
 /// <see cref="NullReferenceException"/> inside <c>AgentExtensionRegistry.Configure</c>. The
 /// sweep below is the gate: a collection added later cannot reach a reader as <see langword="null"/>.

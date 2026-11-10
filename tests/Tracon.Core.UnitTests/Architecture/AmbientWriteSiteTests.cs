@@ -15,7 +15,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// method, or before a streaming loop instead of inside it, does not flow to
 /// the caller and does not survive a <c>yield return</c> boundary. Nothing
 /// short of a human reading every new write site catches the next one; a
-/// coding assistant reading <c>the development notes</c> is a hope, not a gate.
+/// note in a guide for coding assistants is a hope, not a gate.
 /// </para>
 /// <para>
 /// This is a ratchet, not a snapshot - the same contract as

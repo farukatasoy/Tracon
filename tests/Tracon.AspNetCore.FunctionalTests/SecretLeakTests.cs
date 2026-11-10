@@ -120,7 +120,7 @@ public sealed class SecretLeakTests
         host.Logs.AllText.ShouldNotContain(Token);
     }
 
-    // --- an earlier change: API key ---
+    // --- API key ---
 
     [Fact]
     public async Task Raw_api_key_does_not_appear_in_the_listing()

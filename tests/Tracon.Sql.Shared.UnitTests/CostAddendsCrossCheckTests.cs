@@ -3,22 +3,22 @@ using System.Reflection;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// The SQL twin of that decision: <c>SqlQueriesBase.CostAddends</c> and
+/// The SQL twin of the rule that every cost sum has the same terms: <c>SqlQueriesBase.CostAddends</c> and
 /// <see cref="RunCost.Total"/> must sum the exact same terms.
 /// </summary>
 /// <remarks>
-/// The earlier decision was born when <c>InputCost + OutputCost</c> was hand-written seven
+/// That rule was born when <c>InputCost + OutputCost</c> was hand-written seven
 /// times in C#; a third term (the cache charge) reached <see cref="RunCost.Total"/>
 /// but was missed in one spot, and a tenant with a cost ceiling could exceed it.
-/// An earlier change gave the SQL side the same single source (<c>CostAddends</c>), but a
+/// The SQL side has the same single source (<c>CostAddends</c>), but a
 /// list can still drift from its C# twin silently: nothing stops someone from
 /// adding a fourth SQL addend without touching <see cref="RunCost"/>, or the
 /// reverse. This test makes that drift a build failure by comparing the two
 /// sets, not by asserting a hard-coded count on either side.
 /// </remarks>
 /// <remarks>
-/// An earlier change added applied-unit-price fields to <see cref="RunCost"/>
-/// (<c>*PricePerMillionTokens</c>) that are also <c>decimal?</c> but are rates,
+/// <see cref="RunCost"/> also carries applied-unit-price fields
+/// (<c>*PricePerMillionTokens</c>) that are <c>decimal?</c> too but are rates,
 /// not amounts, and are deliberately never summed by <see cref="RunCost.Total"/>.
 /// The property filter below narrows to names ending in <c>Cost</c> so the
 /// cross-check still catches a real addend drift without treating every

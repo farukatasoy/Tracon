@@ -122,7 +122,7 @@ public sealed class WorkflowSingleResponseTests
     [Fact]
     public async Task Branch_mode_still_opens_a_branch_for_every_answer()
     {
-        // The earlier decision is the default and stays byte for byte: every answer opens its own run. The only
+        // The earlier behavior is the default and stays byte for byte: every answer opens its own run. The only
         // new thing is that each one is recorded and audited.
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync();

@@ -19,7 +19,6 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// application would keep working with the in-memory store without erroring, and
 /// all data would be lost with the process.
 /// </para>
-/// <para>Rationale: <c>.md</c>, the earlier decision.</para>
 /// </remarks>
 public sealed class ServiceRegistrationTests(PostgresFixture fixture)
 {

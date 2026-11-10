@@ -67,7 +67,7 @@ public sealed class KnowledgeTraceTests
         var ingestion = new ConcurrentBag<Activity>();
         var probe = new AsyncLocal<bool>();
 
-        // ActivityListener is process-wide (hafiza/test-kosum-tuzaklari.md): the flag is an AsyncLocal, so only the
+        // An ActivityListener is process-wide: other tests' spans reach it too. The flag is an AsyncLocal, so only the
         // spans this test's own call chain stops are counted.
         using var listener = new ActivityListener
         {

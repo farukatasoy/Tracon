@@ -500,8 +500,8 @@ public sealed class SessionOwnershipTests
         // 🚨 The same door, a different building. /v1/responses reaches a
         // session through 'conversation'/'previous_response_id' rather than
         // 'sessionId', so a gate installed only on /api/agents/{name}/run
-        // leaves it wide open - the exact coverage mistake an earlier change made and
-        // An earlier change had to come back for.
+        // leaves it wide open - the exact coverage mistake the first run-ownership gate made and
+        // had to come back for.
         await using var host = await StartAsync(enabled: true, out var identity);
 
         identity.UserId = "a";
@@ -893,7 +893,7 @@ public sealed class SessionOwnershipTests
     [Fact]
     public async Task An_unknown_session_still_opens_a_voice_socket()
     {
-        // The earlier decision survives ownership: a session nothing has written yet carries
+        // The invisible-session rule survives ownership: a session nothing has written yet carries
         // no owner and is not refused. Breaking this would silently kill the
         // FIRST conversation in every installation.
         var identity = new SwitchableAttribution { UserId = "a" };
@@ -922,7 +922,7 @@ public sealed class SessionOwnershipTests
     }
 
     // ------------------------------------------------------------------
-    // Failure paths the plan's own table promised.
+    // Failure paths.
     // ------------------------------------------------------------------
 
     [Fact]

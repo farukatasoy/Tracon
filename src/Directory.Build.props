@@ -197,8 +197,8 @@
     diagnostic/source output, Templates' is `dotnet new` content), and
     Tracon.Client and Tracon.Cli (their surface is generated from the
     OpenAPI document, which already has its own drift gate).
-    This is the ONLY public API tracking switch. A phase that
-    changes the surface produces a PublicAPI.Unshipped.txt diff;
+    This is the ONLY public API tracking switch. A change that
+    alters the surface produces a PublicAPI.Unshipped.txt diff;
     PublicAPI.Shipped.txt stays empty through the preview line and is filled
     once, at 1.0.0 GA.
   -->

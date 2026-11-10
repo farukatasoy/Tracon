@@ -138,7 +138,7 @@ public sealed class ToolApprovalPresenterTests
     [Fact]
     public async Task A_presenters_own_provider_timeout_is_not_logged_as_the_configured_timeout()
     {
-        // That decision regression on a SHIPPED extension seam: a consumer's presenter
+        // Regression test on a SHIPPED extension seam: a consumer's presenter
         // may call an HTTP service that reports its OWN request timeout, which
         // arrives as an OperationCanceledException with nothing cancelled. The
         // fail-open result is the same either way; the reason an operator reads

@@ -186,7 +186,7 @@ public sealed class TraconPricingBindingTests
         options.Pricing.Providers["echo"]["echo-1"].InputCostPerMillionTokens.ShouldBe(0.25m);
     }
 
-    // --- an earlier fix: Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall ---
+    // --- Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall ---
 
     [Fact]
     public void A_hosted_tool_price_is_bound_by_provider_and_kind_and_the_key_is_not_a_provider()

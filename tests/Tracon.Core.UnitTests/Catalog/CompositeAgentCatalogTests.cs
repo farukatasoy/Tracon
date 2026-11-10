@@ -135,7 +135,7 @@ public sealed class CompositeAgentCatalogTests
         await Should.ThrowAsync<TraconException>(async () => await catalog.ResolveAsync("beta", 99, culture: null, CancellationToken.None));
     }
 
-    // --- an earlier fix: a run that carries on an earlier run pins its version only where it can ---
+    // --- A run that carries on an earlier run pins its version only where it can ---
 
     [Fact]
     public async Task A_recorded_version_is_pinned_when_the_serving_source_keeps_versions()
@@ -208,7 +208,7 @@ public sealed class CompositeAgentCatalogTests
         catalog.RequestedVersion.ShouldBe(expected);
     }
 
-    // --- an earlier fix: a pinned resolve describes the pinned version ---
+    // --- A pinned resolve describes the pinned version ---
 
     [Fact]
     public async Task A_pinned_resolve_from_the_store_describes_the_version_it_compiled()

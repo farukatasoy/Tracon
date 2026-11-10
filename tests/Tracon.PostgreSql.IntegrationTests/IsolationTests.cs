@@ -6,7 +6,7 @@ namespace Tracon.PostgreSql.IntegrationTests;
 /// <summary>
 /// Verifies that the consumer's <c>public</c> schema is left untouched.
 /// </summary>
-/// <remarks>This is a security and trust boundary; the earlier decision.</remarks>
+/// <remarks>This is a security and trust boundary.</remarks>
 public sealed class SchemaIsolationTests(PostgresFixture fixture)
 {
     [Fact]

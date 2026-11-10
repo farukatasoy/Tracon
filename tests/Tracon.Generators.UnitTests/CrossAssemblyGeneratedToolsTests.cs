@@ -16,7 +16,7 @@ namespace Tracon.Generators.UnitTests;
 /// </para>
 /// <para>
 /// The extension is generated plumbing for its own compilation, so it is
-/// <c>internal</c> (the answer an earlier change had planned). A library hands its tools to a
+/// <c>internal</c>. A library hands its tools to a
 /// host through its own public extension, which calls <c>AddGeneratedTools()</c>
 /// inside the library - the pattern <c>samples/Tracon.Samples.CustomTool</c> proves
 /// under Native AOT.

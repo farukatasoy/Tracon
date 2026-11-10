@@ -15,7 +15,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 A table is a copy of the provider constants until the wire says otherwise (the earlier decision found a cell that was
+/// 🚨 A table is a copy of the provider constants until the wire says otherwise (a cell was once found
 /// wrong, and the tests mirrored the constants). Each row below is read from the request the adapter wrote, so a
 /// kind that the table says a surface runs but is not on the wire fails here, and a kind the table refuses but the
 /// adapter sends fails too.
@@ -27,7 +27,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// Google has no local fake server here. Its rows rest on the real calls of 2026-10-20 (<c>gemini-3.6-flash</c>),
-/// repeated by the manual acceptance cases.
+/// repeated by manual runs against the real API.
 /// </para>
 /// </remarks>
 public sealed class HostedToolWireTests

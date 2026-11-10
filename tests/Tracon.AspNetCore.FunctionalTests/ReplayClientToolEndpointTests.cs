@@ -66,7 +66,7 @@ public sealed class ReplayClientToolEndpointTests
     public async Task A_code_defined_agent_carrying_a_client_side_tool_is_also_rejected()
     {
         // The catalog path (PrepareFromCatalogAsync) is a SEPARATE code path
-        // from the persistent-definition one above; the earlier change's approval-tool
+        // from the persistent-definition one above; the approval-tool
         // guard once missed this exact branch.
         await using var host = await TraconTestHost.StartAsync(builder =>
         {

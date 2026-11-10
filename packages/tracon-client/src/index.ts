@@ -7,7 +7,7 @@ import type { components } from './schema.js';
 /** Wire contracts, by schema name. Example: `Schemas['RunRecord']`. */
 export type Schemas = components['schemas'];
 
-// Hand-written — the thin layer described.
+// Hand-written — the thin layer over the generated types.
 export { TraconError } from './error.js';
 export { createTraconClient, type TraconClient, type TraconClientOptions } from './client.js';
 

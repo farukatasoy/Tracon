@@ -4,7 +4,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Guards;
 
 /// <summary>
-/// Measures the allocation cost the earlier change's <c>CallId</c> → tool name map adds
+/// Measures the allocation cost the <c>CallId</c> → tool name map adds
 /// to <see cref="ContentGuardMessageMasker"/>'s hot path (the gate).
 /// </summary>
 /// <remarks>

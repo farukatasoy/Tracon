@@ -10,8 +10,7 @@ namespace Tracon.Core.UnitTests.Compilation;
 /// <remarks>
 /// The rule these tests guard: a file written through <c>EnableFileMemory</c>
 /// must NEVER APPEAR in the <c>EnableTextSearch</c> search of another tenant
-/// (the "CRITICAL SUSPICION" note in 00-INDEKS.md, 2026-08-10) or of another
-/// agent of the same tenant. The sessions of one agent DO share
+/// or of another agent of the same tenant. The sessions of one agent DO share
 /// the subtree; file memory is an agent-level memory.
 /// </remarks>
 public sealed class TenantPrefixingAgentFileStoreTests

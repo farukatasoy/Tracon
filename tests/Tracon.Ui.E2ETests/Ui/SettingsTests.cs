@@ -74,10 +74,10 @@ public sealed class SettingsTests(BrowserFixture browsers)
 
         await Expect(session.Page.Locator("html")).ToHaveAttributeAsync("data-theme", "light");
 
-        // 🚨 Read through the BINDING, not off a `title` attribute. An earlier change
-        // moved this description into `Tooltip`, because `title` never showed
+        // 🚨 Read through the BINDING, not off a `title` attribute. The description
+        // lives in `Tooltip`, because `title` never showed
         // the current preference to a touch or keyboard user at all. The
-        // assertion got stronger in the move: it now proves the text is
+        // assertion got stronger when it moved: it now proves the text is
         // attached to the control (`aria-describedby`) rather than merely
         // present somewhere on it.
         var description = await session.Page.GetByTestId("theme-toggle").GetAttributeAsync("aria-describedby");

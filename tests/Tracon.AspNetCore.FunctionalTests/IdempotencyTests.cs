@@ -193,7 +193,7 @@ public sealed class IdempotencyTests
 
         // The status code alone does not tell a 422 from a key reuse apart from
         // a 422 from anything else. The title is the part an operator reads,
-        // and it is what the manual case compares against.
+        // and it is what a hand-run check of this endpoint compares against.
         (await TraconTestHost.ReadJsonAsync(mismatched)).GetProperty("title").GetString()
             .ShouldBe("Idempotency-Key used for a different request");
     }

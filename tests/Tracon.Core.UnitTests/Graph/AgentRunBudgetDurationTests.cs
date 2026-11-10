@@ -3,7 +3,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Graph;
 
 /// <summary>
-/// The duration dimension <see cref="AgentRunBudget"/> gained in an earlier change —
+/// The duration dimension of <see cref="AgentRunBudget"/> —
 /// <see cref="AgentRunBudgetTests"/> and <see cref="AgentRunBudgetCostTests"/>
 /// cover the pre-existing token/count/cost dimensions.
 /// </summary>
