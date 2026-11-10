@@ -45,7 +45,7 @@ public static class AcceptanceEnvironment
             ? value
             : throw new InvalidOperationException(string.Create(
                 CultureInfo.InvariantCulture,
-                $"'{name}' is not set. This suite is run by `kapi.py kapasite --profil smoke`, " +
+                $"'{name}' is not set. This suite is run by `gate.py capacity --profile smoke`, " +
                 $"which prepares the packed host, the database and the artifact directory. " +
                 $"A missing prerequisite is a failed precondition, never a skipped test."));
 }

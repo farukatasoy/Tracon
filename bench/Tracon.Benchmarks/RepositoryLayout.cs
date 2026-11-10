@@ -10,7 +10,7 @@ namespace Tracon.Benchmarks;
 /// default is derived from the executing assembly's location and lands
 /// somewhere different depending on HOW the project is launched
 /// (<c>dotnet run</c> vs the built exe directly), which would make
-/// <c>scripts/kapi.py performans</c>'s report glob unreliable.
+/// <c>scripts/gate.py perf</c>'s report glob unreliable.
 /// </para>
 /// <para>
 /// 🚨 The obvious way to get that path - <c>[CallerFilePath]</c> - is WRONG

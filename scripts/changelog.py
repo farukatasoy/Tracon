@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Parses CHANGELOG.md's Keep a Changelog version sections.
 
-Shared by `kapi.py` (the release-notes gate) and the `github-release` CI job
+Shared by `gate.py` (the release-notes gate) and the `github-release` CI job
 (the release body) so the two never grow two different parsers for the same
 `## [<version>] - <date>` heading.
 """

@@ -8,7 +8,7 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Pins the telemetry names Tracon publishes to <c>docs/sozlesme/telemetri.txt</c>.
+/// Pins the telemetry names Tracon publishes to <c>docs/contracts/telemetry.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -40,7 +40,7 @@ public sealed class TelemetryNameSnapshotTests
     public void The_snapshot_matches_the_names_in_the_code()
     {
         ContractSnapshot.Verify(
-            "docs/sozlesme/telemetri.txt",
+            "docs/contracts/telemetry.txt",
             "tests/Tracon.Core.UnitTests/Architecture/TelemetryNameSnapshotTests.cs",
             "The telemetry Tracon publishes: sources, meters, spans, instruments (kind, unit, default attributes) and attributes",
             Lines());

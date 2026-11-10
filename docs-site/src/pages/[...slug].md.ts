@@ -34,7 +34,7 @@ import { siteUrl } from '../../site.config.mjs';
  * Both spellings of the landing page are listed. The loader strips `index` from
  * `concepts/index.md` but keeps it for the site root, so excluding '' alone
  * published `/index/index.md` whose own `Page:` line named `/index/` - a route
- * that does not exist. site-seo-denetle.py now compares every built page against
+ * that does not exist. site-seo-check.py now compares every built page against
  * its markdown copy and that copy's declared address, so a route that drifts fails
  * the gate rather than shipping a dead address to a reader with no site around it
  * to correct the mistake.

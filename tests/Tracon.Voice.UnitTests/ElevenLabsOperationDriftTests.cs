@@ -18,7 +18,7 @@ namespace Tracon.Voice.UnitTests;
 /// contract. The declaration is the written dependency. This test proves the
 /// declaration equals what the code does, in both directions: a path or field the
 /// code sends and the file does not declare fails, and so does a declared one the
-/// code no longer uses. <c>scripts/elevenlabs-kayma.py</c> then checks the
+/// code no longer uses. <c>scripts/elevenlabs-drift.py</c> then checks the
 /// declaration against ElevenLabs' published OpenAPI document (needs the network,
 /// so it does not run here).
 /// </para>

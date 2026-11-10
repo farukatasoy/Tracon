@@ -12,8 +12,8 @@ sorar. Agdan etkilenir, bu yuzden CI'da kosmaz: yayin oncesi kontrolde ve
 kusur turlarinda elle kosulur.
 
 Kullanim:
-    python3 scripts/elevenlabs-kayma.py                 # canli belgeyi indirir
-    python3 scripts/elevenlabs-kayma.py --dosya x.json  # yerel belgeyle (test)
+    python3 scripts/elevenlabs-drift.py                 # canli belgeyi indirir
+    python3 scripts/elevenlabs-drift.py --file x.json    # yerel belgeyle (test)
 
 Cikis kodu 0: beyan canli belgede gecerli. 1: kayma var (liste basilir). 2: belge indirilemedi.
 """
@@ -181,36 +181,39 @@ def check(document: dict, declaration: dict) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--dosya", help="Canli belge yerine yerel bir OpenAPI JSON dosyasi")
+    parser = argparse.ArgumentParser(
+        description=("Compares the OpenAPI document ElevenLabs publishes with the dependency declaration "
+                     "of Tracon.Voice. Exit code 0: the declaration holds in the live document. "
+                     "1: drift found (the list is printed). 2: the document could not be downloaded."))
+    parser.add_argument("--file", help="a local OpenAPI JSON file instead of the live document")
     arguments = parser.parse_args()
 
-    if arguments.dosya:
-        document = json.loads(pathlib.Path(arguments.dosya).read_text(encoding="utf-8"))
+    if arguments.file:
+        document = json.loads(pathlib.Path(arguments.file).read_text(encoding="utf-8"))
     else:
         try:
             with urllib.request.urlopen(LIVE_DOCUMENT, timeout=60) as response:  # noqa: S310 - sabit https adres
                 document = json.loads(response.read())
         except urllib.error.URLError as error:
             # Sertifika dogrulamasi ASLA kapatilmaz. python.org kurulumunun CA paketi
-            # yoksa (macOS) belgeyi curl indirir ve --dosya ile verilir.
-            print(f"❌ Canli belge indirilemedi: {error.reason}", file=sys.stderr)
+            # yoksa (macOS) belgeyi curl indirir ve --file ile verilir.
+            print(f"❌ Could not download the live document: {error.reason}", file=sys.stderr)
             print(f"   curl -s {LIVE_DOCUMENT} -o openapi.json && "
-                  "python3 scripts/elevenlabs-kayma.py --dosya openapi.json", file=sys.stderr)
+                  "python3 scripts/elevenlabs-drift.py --file openapi.json", file=sys.stderr)
             return 2
 
     declaration = json.loads(FIXTURE.read_text(encoding="utf-8"))
     problems = check(document, declaration)
 
     if problems:
-        print(f"❌ ElevenLabs kaymasi: {len(problems)} sorun")
+        print(f"❌ ElevenLabs drift: {len(problems)} problem(s)")
         for problem in problems:
             print(f"  {problem}")
         return 1
 
     fields = sum(len(o["request"]) + len(o["response"]) + len(o["query"]) for o in declaration["operations"])
-    print(f"✅ {len(declaration['operations'])} operasyon, {fields} beyan canli belgede gecerli "
-          f"(OpenAPI {document.get('openapi')}, {len(document.get('paths', {}))} yol)")
+    print(f"✅ {len(declaration['operations'])} operation(s), {fields} declaration(s) hold in the live document "
+          f"(OpenAPI {document.get('openapi')}, {len(document.get('paths', {}))} path(s))")
     return 0
 
 

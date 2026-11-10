@@ -69,7 +69,7 @@ public sealed partial class WorkflowWorkspacePathsTests
         var paths = ArtifactStepPaths(workflow).Distinct(StringComparer.Ordinal).ToArray();
 
         paths.ShouldNotBeEmpty("No upload/download-artifact 'path:' was found; the parser is stale.");
-        paths.ShouldContain("artifacts/ci-paket", StringComparer.Ordinal);
+        paths.ShouldContain("artifacts/ci-packages", StringComparer.Ordinal);
 
         foreach (var path in paths)
         {

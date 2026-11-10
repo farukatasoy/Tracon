@@ -24,10 +24,10 @@ import zipfile
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-spec = importlib.util.spec_from_file_location("kapi", ROOT / "scripts" / "kapi.py")
-kapi = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = kapi
-spec.loader.exec_module(kapi)
+spec = importlib.util.spec_from_file_location("gate", ROOT / "scripts" / "gate.py")
+gate = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = gate
+spec.loader.exec_module(gate)
 
 
 def _write_src_build_props(root: pathlib.Path, frameworks: str = "net10.0") -> None:
@@ -258,26 +258,26 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("* text=auto eol=lf", attributes.splitlines())
 
     def test_first_failure_stops_pahali_kapilari(self):
-        commands = [kapi.Command(("first",)), kapi.Command(("second",))]
+        commands = [gate.Command(("first",)), gate.Command(("second",))]
         runner = mock.Mock(side_effect=[mock.Mock(returncode=1), mock.Mock(returncode=0)])
         with tempfile.TemporaryDirectory() as directory:
-            result = kapi.run_commands(
+            result = gate.run_commands(
                 "test", commands, runner=runner, measurement_path=pathlib.Path(directory) / "m.jsonl")
 
         self.assertEqual(result, 1)
         self.assertEqual(runner.call_count, 1)
 
     def test_sinif_bayragi_tekrarlaninca_desenler_birikir(self):
-        """`--sinif A --sinif B` yalnız B'yi koşuyordu (argparse ikinciyi
+        """`--class A --class B` yalnız B'yi koşuyordu (argparse ikinciyi
         birincinin yerine yazar); iki mimari testinin ikisi de koştu sanıldı."""
-        with mock.patch.object(kapi, "test_commands", side_effect=ValueError("dur")) as commands:
+        with mock.patch.object(gate, "test_commands", side_effect=ValueError("dur")) as commands:
             with contextlib.redirect_stdout(io.StringIO()):
-                kapi.main(["test", "--proje", "Tracon.Core.UnitTests", "--sinif", "*A*", "--sinif", "*B*", "*C*"])
+                gate.main(["test", "--project", "Tracon.Core.UnitTests", "--class", "*A*", "--class", "*B*", "*C*"])
 
         self.assertEqual(commands.call_args.args[1], ["*A*", "*B*", "*C*"])
 
     def test_mtp_filtresi_filter_class_uretir(self):
-        commands = kapi.test_commands("Tracon.Generators.UnitTests", ["*Capability*"], environ={})
+        commands = gate.test_commands("Tracon.Generators.UnitTests", ["*Capability*"], environ={})
 
         self.assertEqual(len(commands), 1)
         self.assertIn("--filter-class", commands[0].args)
@@ -294,15 +294,15 @@ class KapiTestleri(unittest.TestCase):
         # bugun tek TFM hedefler; altyapi ikinci bir TFM'i ortam degiskeniyle sinar.
         self.assertEqual(
             [pathlib.PurePath(command.args[0]).parts[-2]
-             for command in kapi.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={})],
+             for command in gate.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={})],
             ["release_net10.0"])
         self.assertEqual(
             [pathlib.PurePath(command.args[0]).parts[-2]
-             for command in kapi.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})],
+             for command in gate.test_commands("Tracon.Core.UnitTests", ["*Capability*"], environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})],
             ["release_net10.0", "release_net11.0"])
 
     def test_tfm_secimi_tek_bacagi_kosar(self):
-        commands = kapi.test_commands("Tracon.Core.UnitTests", ["*X*"], "net11.0", environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})
+        commands = gate.test_commands("Tracon.Core.UnitTests", ["*X*"], "net11.0", environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})
 
         self.assertEqual(len(commands), 1)
         self.assertEqual(
@@ -311,17 +311,17 @@ class KapiTestleri(unittest.TestCase):
 
     def test_derlenmeyen_tfm_istenirse_sessiz_gecmez(self):
         with self.assertRaises(ValueError):
-            kapi.test_commands("Tracon.Core.UnitTests", ["*X*"], "net7.0", environ={})
+            gate.test_commands("Tracon.Core.UnitTests", ["*X*"], "net7.0", environ={})
         with self.assertRaises(ValueError):
             # Tek hedefli proje yalniz net10.0 derlenir; baska bir TFM istemek
             # bayat ya da var olmayan bir ikiliyi kosturmak olurdu.
-            kapi.test_commands("Tracon.Generators.UnitTests", ["*X*"], "net11.0", environ={})
+            gate.test_commands("Tracon.Generators.UnitTests", ["*X*"], "net11.0", environ={})
 
     def test_temsilci_kume_ve_tfm_listesi_props_dosyasindan_okunur(self):
-        self.assertEqual(kapi.test_target_frameworks(environ={}), ("net10.0",))
-        self.assertEqual(kapi.single_test_target_framework(), "net10.0")
+        self.assertEqual(gate.test_target_frameworks(environ={}), ("net10.0",))
+        self.assertEqual(gate.single_test_target_framework(), "net10.0")
         self.assertEqual(
-            sorted(kapi.multi_target_test_projects()),
+            sorted(gate.multi_target_test_projects()),
             sorted([
                 "Tracon.Core.UnitTests",
                 "Tracon.Sql.Shared.UnitTests",
@@ -334,7 +334,7 @@ class KapiTestleri(unittest.TestCase):
             ]))
         # Kume disindaki her ad gercek bir test projesidir - yazim hatasi
         # MSBuild'de sessizce "kosul yanlis" olur ve proje net10'da kalir.
-        for project in kapi.multi_target_test_projects():
+        for project in gate.multi_target_test_projects():
             csproj = ROOT / "tests" / project / f"{project}.csproj"
             self.assertTrue(csproj.exists(), project)
             # Denetim bulgusu: csproj govdesi props'tan SONRA okunur;
@@ -345,9 +345,9 @@ class KapiTestleri(unittest.TestCase):
     def test_tfm_listesi_ortam_degiskeninden_okunur(self):
         # Ayni adli ortam degiskeni MSBuild'e baslangic ozelligi olarak gider;
         # betik de ayni ciktilari aramalidir.
-        self.assertEqual(kapi.test_target_frameworks(environ={"TraconTestTargetFrameworks": "net10.0;net11.0"}), ("net10.0", "net11.0"))
+        self.assertEqual(gate.test_target_frameworks(environ={"TraconTestTargetFrameworks": "net10.0;net11.0"}), ("net10.0", "net11.0"))
         self.assertEqual(
-            [path.name for path in kapi.test_output_directories("Tracon.Core.UnitTests", environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})],
+            [path.name for path in gate.test_output_directories("Tracon.Core.UnitTests", environ={"TraconTestTargetFrameworks": "net10.0;net11.0"})],
             ["release_net10.0", "release_net11.0"])
 
     def test_bayat_tek_hedef_klasoru_secilmez(self):
@@ -360,7 +360,7 @@ class KapiTestleri(unittest.TestCase):
                 (ROOT / "tests" / "Directory.Build.props").read_text(encoding="utf-8"), encoding="utf-8")
             (kok / "artifacts" / "bin" / "Tracon.Core.UnitTests" / "release").mkdir(parents=True)
 
-            outputs = kapi.test_output_directories("Tracon.Core.UnitTests", root=kok, environ={})
+            outputs = gate.test_output_directories("Tracon.Core.UnitTests", root=kok, environ={})
 
         self.assertNotIn("release", [path.name for path in outputs])
 
@@ -371,7 +371,7 @@ class KapiTestleri(unittest.TestCase):
             (root / "tests" / "Example 2.cs").write_text("", encoding="utf-8")
             (root / "tests" / "resources 2").mkdir()
 
-            found = kapi.find_sync_copies(root)
+            found = gate.find_sync_copies(root)
 
         self.assertEqual({path.name for path in found}, {"Example 2.cs", "resources 2"})
 
@@ -381,7 +381,7 @@ class KapiTestleri(unittest.TestCase):
             (root / "sample.txt").write_text(
                 "Pass" + "word=not-a-real-secret-value\n", encoding="utf-8")
 
-            found, skipped = kapi.find_secrets(root)
+            found, skipped = gate.find_secrets(root)
 
         self.assertEqual(len(found), 1)
         self.assertIn("sample.txt:1", found[0])
@@ -402,7 +402,7 @@ class KapiTestleri(unittest.TestCase):
             (root / "src" / "Thing.cs").write_text(
                 f"// Bkz. {missing} ve {present}\n", encoding="utf-8")
 
-            found = kapi.find_stale_doc_references(root)
+            found = gate.find_stale_doc_references(root)
 
         self.assertEqual(len(found), 1)
         self.assertIn(missing, found[0])
@@ -416,7 +416,7 @@ class KapiTestleri(unittest.TestCase):
             (root / "src" / "Thing.cs").write_text(
                 "/// <c>docs-site/src/content/docs/capabilities.md</c>\n", encoding="utf-8")
 
-            self.assertEqual(kapi.find_stale_doc_references(root), [])
+            self.assertEqual(gate.find_stale_doc_references(root), [])
 
     def test_yer_tutucu_referansi_bayat_sayilmaz(self):
         # Arsivleme scripti ve faz sablonu ornek yol yazar; bunlar hicbir zaman
@@ -428,43 +428,59 @@ class KapiTestleri(unittest.TestCase):
                 "# docs" "/X.md -> docs" "/arsiv/Y.md; sablon: docs" "/NN-BUYUK-HARFLI-AD.md\n",
                 encoding="utf-8")
 
-            self.assertEqual(kapi.find_stale_doc_references(root), [])
+            self.assertEqual(gate.find_stale_doc_references(root), [])
 
     def test_arsivlenen_faz_referansi_repoda_kalmaz(self):
         # SINIF KAPISI: bu repoda gercek olan tarama. Bir dokuman silindiginde
         # (once arsive tasiniyordu) onu anan baska dosyalar bir donem
         # guncellenmiyordu (43 bayat referans olculdu).
-        self.assertEqual(kapi.find_stale_doc_references(), [])
+        self.assertEqual(gate.find_stale_doc_references(), [])
 
     def test_kanitsiz_public_tip_tarama_kapisini_kirar(self):
-        # `public-yuzey-envanteri.py --denetle` hicbir kapida kosmuyordu; kuralin
+        # `public-surface-inventory.py --check` hicbir kapida kosmuyordu; kuralin
         # cirkirligi iki kez sessizce gevsedi (iki kanitsiz istisna).
         runner = mock.Mock(side_effect=[
-            mock.Mock(returncode=1, stdout="", stderr="denetim: 1 kanitsiz tip, 0 bayat gerekce\n"),
-            mock.Mock(returncode=0, stdout="Tracon.Abstractions\tTracon.OrnekTip\tclass\tkanitsiz\n", stderr=""),
+            mock.Mock(returncode=1, stdout="", stderr="audit: 1 unproven type, 0 stale reasons\n"),
+            mock.Mock(returncode=0, stdout="Tracon.Abstractions\tTracon.OrnekTip\tclass\tunproven\n", stderr=""),
         ])
-        with mock.patch.object(kapi.subprocess, "run", runner):
-            found = kapi.public_surface_violations()
+        with mock.patch.object(gate.subprocess, "run", runner):
+            found = gate.public_surface_violations()
 
         self.assertTrue(any("Tracon.OrnekTip" in line for line in found), found)
+        self.assertIn("public type without evidence", "\n".join(found))
+
+    def test_the_inventory_gets_flags_and_a_class_it_accepts(self):
+        # The real script must accept the exact class name. The `--check` call runs for real in
+        # `test_public_yuzey_repoda_kanitsiz_tip_icermez`; the `--list` call runs only when the audit is red.
+        runner = mock.Mock(side_effect=[
+            mock.Mock(returncode=1, stdout="", stderr="audit: 1 unproven type, 0 stale reasons\n"),
+            mock.Mock(returncode=0, stdout="", stderr=""),
+        ])
+        with mock.patch.object(gate.subprocess, "run", runner):
+            gate.public_surface_violations()
+
+        commands = [call.args[0] for call in runner.call_args_list]
+        self.assertEqual([command[2:] for command in commands], [["--check"], ["--list", "unproven"]])
+        real = subprocess.run(commands[1], capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertNotEqual(real.returncode, 2, real.stderr)
 
     def test_temiz_envanter_tarama_kapisini_kirmaz(self):
         runner = mock.Mock(return_value=mock.Mock(returncode=0, stdout="", stderr=""))
-        with mock.patch.object(kapi.subprocess, "run", runner):
-            self.assertEqual(kapi.public_surface_violations(), [])
+        with mock.patch.object(gate.subprocess, "run", runner):
+            self.assertEqual(gate.public_surface_violations(), [])
 
     def test_scan_kanitsiz_public_tipte_kirmizi_doner(self):
         with tempfile.TemporaryDirectory() as directory, \
-                mock.patch.object(kapi, "public_surface_violations", return_value=["Tracon.OrnekTip: kanitsiz"]), \
+                mock.patch.object(gate, "public_surface_violations", return_value=["Tracon.OrnekTip: kanitsiz"]), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
-            result = kapi.scan(pathlib.Path(directory))
+            result = gate.scan(pathlib.Path(directory))
 
         self.assertEqual(result, 1)
         self.assertIn("Tracon.OrnekTip", output.getvalue())
 
     def test_public_yuzey_repoda_kanitsiz_tip_icermez(self):
         # SINIF KAPISI: bu repoda gercek olan denetim.
-        self.assertEqual(kapi.public_surface_violations(), [])
+        self.assertEqual(gate.public_surface_violations(), [])
 
     # Context7 surumlu kimligi `previousVersions` ilk etiketinden uretir. Etiket son yayindan
     # geride kalirsa ajanlar kurulu paketin degil eski bir surumun metnini okur.
@@ -484,20 +500,20 @@ class KapiTestleri(unittest.TestCase):
             root = self._context7_koku(
                 directory, {"previousVersions": [{"tag": "v1.0.0-preview.6"}]}, self._CHANGELOG)
 
-            self.assertEqual(kapi.context7_version_drift(root), [])
+            self.assertEqual(gate.context7_version_drift(root), [])
 
     def test_context7_etiketi_dize_olarak_da_okunur(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._context7_koku(directory, {"previousVersions": ["v1.0.0-preview.6"]}, self._CHANGELOG)
 
-            self.assertEqual(kapi.context7_version_drift(root), [])
+            self.assertEqual(gate.context7_version_drift(root), [])
 
     def test_context7_etiketi_son_yayindan_geride_kalirsa_kirar(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._context7_koku(
                 directory, {"previousVersions": [{"tag": "v1.0.0-preview.5"}]}, self._CHANGELOG)
 
-            found = kapi.context7_version_drift(root)
+            found = gate.context7_version_drift(root)
 
         self.assertEqual(len(found), 1, found)
         self.assertIn("v1.0.0-preview.5", found[0])
@@ -507,19 +523,19 @@ class KapiTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = self._context7_koku(directory, {"previousVersions": []}, self._CHANGELOG)
 
-            self.assertEqual(len(kapi.context7_version_drift(root)), 1)
+            self.assertEqual(len(gate.context7_version_drift(root)), 1)
 
     def test_context7_bozuk_json_kirar(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._context7_koku(directory, "{ bozuk", self._CHANGELOG)
 
-            self.assertEqual(len(kapi.context7_version_drift(root)), 1)
+            self.assertEqual(len(gate.context7_version_drift(root)), 1)
 
     # Yukseltme kapisinin tabani son yayin olmali: kapi son yayinin veritabanini bugunun migration'larina tasir.
 
     def _taban_koku(self, directory: str, manifest: object, changelog_text: str | None) -> pathlib.Path:
         root = pathlib.Path(directory)
-        target = root / kapi.UPGRADE_BASELINE_MANIFEST
+        target = root / gate.UPGRADE_BASELINE_MANIFEST
         target.parent.mkdir(parents=True)
         target.write_text(manifest if isinstance(manifest, str) else json.dumps(manifest), encoding="utf-8")
         if changelog_text is not None:
@@ -530,13 +546,13 @@ class KapiTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = self._taban_koku(directory, {"version": "1.0.0-preview.6"}, self._CHANGELOG)
 
-            self.assertEqual(kapi.upgrade_baseline_drift(root), [])
+            self.assertEqual(gate.upgrade_baseline_drift(root), [])
 
     def test_yukseltme_tabani_son_yayindan_geride_kalirsa_kirar(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._taban_koku(directory, {"version": "1.0.0-preview.5"}, self._CHANGELOG)
 
-            found = kapi.upgrade_baseline_drift(root)
+            found = gate.upgrade_baseline_drift(root)
 
         self.assertEqual(len(found), 1, found)
         self.assertIn("1.0.0-preview.5", found[0])
@@ -545,32 +561,32 @@ class KapiTestleri(unittest.TestCase):
     def test_yukseltme_tabani_bozuk_ya_da_surumsuzse_kirar(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._taban_koku(directory, "{ bozuk", self._CHANGELOG)
-            self.assertEqual(len(kapi.upgrade_baseline_drift(root)), 1)
+            self.assertEqual(len(gate.upgrade_baseline_drift(root)), 1)
 
         with tempfile.TemporaryDirectory() as directory:
             root = self._taban_koku(directory, {"tag": "v1"}, self._CHANGELOG)
-            self.assertEqual(len(kapi.upgrade_baseline_drift(root)), 1)
+            self.assertEqual(len(gate.upgrade_baseline_drift(root)), 1)
 
     def test_yukseltme_tabani_tarihli_yayin_yoksa_kirar(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._taban_koku(directory, {"version": "1.0.0-preview.6"}, "## [Unreleased]\n")
 
-            self.assertEqual(len(kapi.upgrade_baseline_drift(root)), 1)
+            self.assertEqual(len(gate.upgrade_baseline_drift(root)), 1)
 
     def test_yukseltme_tabani_repoda_son_yayindir(self):
         # SINIF KAPISI: bu repoda gercek olan denetim.
-        self.assertEqual(kapi.upgrade_baseline_drift(), [])
+        self.assertEqual(gate.upgrade_baseline_drift(), [])
 
     def test_context7_tarihli_yayin_yoksa_kirar(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self._context7_koku(
                 directory, {"previousVersions": [{"tag": "v1.0.0-preview.6"}]}, "## [Unreleased]\n")
 
-            self.assertEqual(len(kapi.context7_version_drift(root)), 1)
+            self.assertEqual(len(gate.context7_version_drift(root)), 1)
 
     def test_context7_dosyasi_yoksa_kontrol_atlanir(self):
         with tempfile.TemporaryDirectory() as directory:
-            self.assertEqual(kapi.context7_version_drift(pathlib.Path(directory)), [])
+            self.assertEqual(gate.context7_version_drift(pathlib.Path(directory)), [])
 
     def test_scan_yalniz_context7_kaymasiyla_kirmiziya_doner(self):
         # Ötekiler boş: sonucu yalnız etiket ayırt eder; taklit edilmezse `scan` her iki durumda da 1 döner
@@ -583,9 +599,9 @@ class KapiTestleri(unittest.TestCase):
             with self.subTest(tag=tag), tempfile.TemporaryDirectory() as directory, \
                     contextlib.ExitStack() as stack, contextlib.redirect_stdout(io.StringIO()) as output:
                 for ad, deger in bos.items():
-                    stack.enter_context(mock.patch.object(kapi, ad, return_value=deger))
+                    stack.enter_context(mock.patch.object(gate, ad, return_value=deger))
                 root = self._context7_koku(directory, {"previousVersions": [{"tag": tag}]}, self._CHANGELOG)
-                result = kapi.scan(root)
+                result = gate.scan(root)
 
             self.assertEqual(result, beklenen, output.getvalue())
             self.assertEqual("v1.0.0-preview.5" in output.getvalue(), beklenen == 1)
@@ -596,42 +612,42 @@ class KapiTestleri(unittest.TestCase):
             "find_sync_copies": [], "find_secrets": ([], 0), "find_stale_doc_references": [],
             "public_surface_violations": [], "context7_version_drift": [], "upgrade_baseline_drift": [],
         }.items():
-            stack.enter_context(mock.patch.object(kapi, ad, return_value=deger))
+            stack.enter_context(mock.patch.object(gate, ad, return_value=deger))
         return pathlib.Path(directory)
 
     def test_scan_uzantinin_bulgu_sinifi_basligi_ve_ihlaliyle_kirmiziya_doner(self):
-        uzanti = kapi.Extension(scan_checks=(
-            kapi.ScanCheck("temiz sınıf", lambda kok: []),
-            kapi.ScanCheck("kirli sınıf", lambda kok: ["a.cs:3: iz", "b.cs:4: iz"]),
+        uzanti = gate.Extension(scan_checks=(
+            gate.ScanCheck("temiz sınıf", lambda kok: []),
+            gate.ScanCheck("kirli sınıf", lambda kok: ["a.cs:3: iz", "b.cs:4: iz"]),
         ))
         with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
-            sonuc = kapi.scan(self._bos_tarama(stack, directory), uzanti)
+            sonuc = gate.scan(self._bos_tarama(stack, directory), uzanti)
 
         self.assertEqual(1, sonuc)
-        self.assertIn("Tarama: ❌ kirli sınıf", output.getvalue())
+        self.assertIn("Scan: ❌ kirli sınıf", output.getvalue())
         self.assertIn("  a.cs:3: iz", output.getvalue())
         self.assertNotIn("temiz sınıf", output.getvalue())
 
     def test_scan_uzantinin_kontrolleri_temizse_yesil_doner_ve_kok_dizinini_alir(self):
         gorulen = []
-        uzanti = kapi.Extension(scan_checks=(kapi.ScanCheck("sınıf", lambda kok: gorulen.append(kok) or []),))
+        uzanti = gate.Extension(scan_checks=(gate.ScanCheck("sınıf", lambda kok: gorulen.append(kok) or []),))
         with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             kok = self._bos_tarama(stack, directory)
-            sonuc = kapi.scan(kok, uzanti)
+            sonuc = gate.scan(kok, uzanti)
 
         self.assertEqual(0, sonuc, output.getvalue())
         self.assertEqual([kok], gorulen)
 
     def test_scan_uzantisiz_public_kok_ozel_bulgu_sinifi_calistirmaz(self):
-        self.assertEqual((), kapi.PUBLIC.scan_checks)
+        self.assertEqual((), gate.PUBLIC.scan_checks)
 
     def test_scan_uzantinin_uzun_ihlal_listesi_yirmide_kesilir(self):
-        uzanti = kapi.Extension(scan_checks=(kapi.ScanCheck("sınıf", lambda kok: [f"d{i}.cs" for i in range(25)]),))
+        uzanti = gate.Extension(scan_checks=(gate.ScanCheck("sınıf", lambda kok: [f"d{i}.cs" for i in range(25)]),))
         with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
-            kapi.scan(self._bos_tarama(stack, directory), uzanti)
+            gate.scan(self._bos_tarama(stack, directory), uzanti)
 
         self.assertIn("  d19.cs", output.getvalue())
         self.assertNotIn("d20.cs", output.getvalue())
@@ -639,10 +655,10 @@ class KapiTestleri(unittest.TestCase):
 
     def test_context7_surumu_repoda_son_yayinla_ayni(self):
         # SINIF KAPISI: bu repoda gercek olan denetim.
-        self.assertEqual(kapi.context7_version_drift(), [])
+        self.assertEqual(gate.context7_version_drift(), [])
 
     def test_harita_eksigi_tam_test_kosumuna_duser(self):
-        projects, full = kapi.affected_test_projects(["src/Unknown.Package/Thing.cs"])
+        projects, full = gate.affected_test_projects(["src/Unknown.Package/Thing.cs"])
 
         self.assertEqual(projects, ["Tracon.Generators.UnitTests"])
         self.assertTrue(full)
@@ -653,7 +669,7 @@ class KapiTestleri(unittest.TestCase):
         # ic dongu Core.UnitTests + AspNetCore.FunctionalTests seciyordu ve
         # gercekte dusen projeyi HIC kosmuyordu. ExampleExtractor
         # src/**/*.cs'in tamamini okur, yalniz Generators'i degil.
-        projects, full = kapi.affected_test_projects(
+        projects, full = gate.affected_test_projects(
             ["src/Tracon.Core/Builder/ITraconBuilder.cs"])
 
         self.assertIn("Tracon.Generators.UnitTests", projects)
@@ -664,9 +680,9 @@ class KapiTestleri(unittest.TestCase):
         # olmasa her degisiklik tam kosuma duserdi. Etki alani dort projedir.
         for path in ("src/Tracon.Providers.Shared/ModelProviderCore.cs",
                      "tests/Shared/Providers/ModelProviderCoreTests.cs"):
-            projects, full = kapi.affected_test_projects([path])
+            projects, full = gate.affected_test_projects([path])
 
-            for project in kapi.PROVIDER_TEST_PROJECTS:
+            for project in gate.PROVIDER_TEST_PROJECTS:
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
@@ -677,23 +693,23 @@ class KapiTestleri(unittest.TestCase):
         # yalniz tam kosumda calistirirdi.
         for path in ("src/Tracon.Providers.Shared/ModelProviderCore.cs",
                      "src/Tracon.Sql.Shared/Stores/SqlJobStore.cs"):
-            projects, full = kapi.affected_test_projects([path])
+            projects, full = gate.affected_test_projects([path])
 
             self.assertIn("Tracon.PackageOptions.UnitTests", projects, path)
             self.assertFalse(full, path)
 
     def test_yukseltme_kapisinin_paylasimli_kaynagi_dort_projeyi_secer_tam_kosuma_dusmez(self):
         for path in ("tests/Shared/Upgrade/UpgradeSeed.json", "tests/Shared/Upgrade/UpgradeProbes.cs"):
-            projects, full = kapi.affected_test_projects([path])
+            projects, full = gate.affected_test_projects([path])
 
-            for project in kapi.UPGRADE_GATE_TEST_PROJECTS:
+            for project in gate.UPGRADE_GATE_TEST_PROJECTS:
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
     def test_openai_ortak_kaynagi_iki_saglayici_projesini_secer(self):
         # src/Tracon.OpenAI.Shared paket degildir; OpenAI ve Azure
         # paketlerine derlenir. Haritada olmasa her degisiklik tam kosuma duserdi.
-        projects, full = kapi.affected_test_projects(
+        projects, full = gate.affected_test_projects(
             ["src/Tracon.OpenAI.Shared/OpenAIPipelineImageGenerator.cs"])
 
         self.assertIn("Tracon.OpenAI.UnitTests", projects)
@@ -712,12 +728,12 @@ class KapiTestleri(unittest.TestCase):
         expectations = {
             "src/Tracon.Testing.Contracts.Xunit/Contracts/JobStoreContract.cs": (
                 "Tracon.Testing.Contracts.Xunit.UnitTests", "Tracon.Core.UnitTests",
-                *kapi.PROVIDER_TEST_PROJECTS, *sql_tests),
+                *gate.PROVIDER_TEST_PROJECTS, *sql_tests),
             "src/Tracon.Sql.Shared/Stores/SqlJobStore.cs": (
                 "Tracon.Sql.Shared.UnitTests", *sql_tests),
         }
         for path, expected in expectations.items():
-            projects, full = kapi.affected_test_projects([path])
+            projects, full = gate.affected_test_projects([path])
 
             self.assertFalse(full, path)
             for project in expected:
@@ -732,7 +748,7 @@ class KapiTestleri(unittest.TestCase):
         # seciyordu; unutulan bir kayit satiri orada sessiz kalir.
         for package in ("Tracon.PostgreSql", "Tracon.SqlServer", "Tracon.Sqlite"):
             path = f"src/{package}/{package.replace('.', '')}BuilderExtensions.cs"
-            projects, full = kapi.affected_test_projects([path])
+            projects, full = gate.affected_test_projects([path])
 
             self.assertIn("Tracon.Sql.Shared.UnitTests", projects, path)
             self.assertIn(f"{package}.IntegrationTests", projects, path)
@@ -745,7 +761,7 @@ class KapiTestleri(unittest.TestCase):
         # degisiklikte kapiyi kosmazsa bulgu ancak tam kosumda gorunur.
         for path in ("src/Tracon.Core/TraconServiceCollectionExtensions.Registration.Storage.cs",
                      "src/Tracon.Abstractions/Runs/IRunStore.cs"):
-            projects, full = kapi.affected_test_projects([path])
+            projects, full = gate.affected_test_projects([path])
 
             self.assertIn("Tracon.Sql.Shared.UnitTests", projects, path)
             self.assertFalse(full, path)
@@ -753,28 +769,28 @@ class KapiTestleri(unittest.TestCase):
     def test_test_agaci_kok_dosyasi_tam_kosum_ister(self):
         # tests/Directory.Build.props HER test projesine ulasir. Bir onceki degisikliğe
         # kadar bu yol HICBIR proje secmiyordu ve ic dongu sessizce bos kalirdi.
-        projects, full = kapi.affected_test_projects(["tests/Directory.Build.props"])
+        projects, full = gate.affected_test_projects(["tests/Directory.Build.props"])
 
         self.assertTrue(full)
 
     def test_tfm_nobetcisi_yalniz_temsilci_kumeyi_secer(self):
-        projects, full = kapi.affected_test_projects(
+        projects, full = gate.affected_test_projects(
             ["tests/Shared/TargetFramework/RuntimeMatchesTargetFrameworkTests.cs"])
 
-        self.assertEqual(sorted(projects), sorted(kapi.multi_target_test_projects()))
+        self.assertEqual(sorted(projects), sorted(gate.multi_target_test_projects()))
         self.assertFalse(full)
 
     def test_cok_hedefli_projeye_ulasan_test_komutu_taninir(self):
-        self.assertTrue(kapi.runs_multi_target_tests([kapi.full_solution_test_command()]))
-        self.assertTrue(kapi.runs_multi_target_tests(
-            [kapi.Command(("dotnet", "test", "--project", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))]))
-        self.assertFalse(kapi.runs_multi_target_tests(
-            [kapi.Command(("dotnet", "test", "--project", "tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj"))]))
-        self.assertTrue(kapi.runs_multi_target_tests(
-            [kapi.Command(("dotnet", "test", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))]))
-        self.assertFalse(kapi.runs_multi_target_tests(
-            [kapi.Command(("dotnet", "test", "tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj"))]))
-        self.assertFalse(kapi.runs_multi_target_tests([kapi.Command(("dotnet", "build", "Tracon.slnx"))]))
+        self.assertTrue(gate.runs_multi_target_tests([gate.full_solution_test_command()]))
+        self.assertTrue(gate.runs_multi_target_tests(
+            [gate.Command(("dotnet", "test", "--project", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))]))
+        self.assertFalse(gate.runs_multi_target_tests(
+            [gate.Command(("dotnet", "test", "--project", "tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj"))]))
+        self.assertTrue(gate.runs_multi_target_tests(
+            [gate.Command(("dotnet", "test", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))]))
+        self.assertFalse(gate.runs_multi_target_tests(
+            [gate.Command(("dotnet", "test", "tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj"))]))
+        self.assertFalse(gate.runs_multi_target_tests([gate.Command(("dotnet", "build", "Tracon.slnx"))]))
 
     def test_eksik_runtime_dotnet_root_altindan_bulunur(self):
         # Olculdu: test apphost'u runtime'i DOTNET_ROOT'tan cozer,
@@ -785,7 +801,7 @@ class KapiTestleri(unittest.TestCase):
                 (shared / version).mkdir(parents=True)
             runner = mock.Mock()
 
-            missing = kapi.missing_test_runtimes(
+            missing = gate.missing_test_runtimes(
                 ("net10.0", "net11.0"), environ={"DOTNET_ROOT": directory}, runner=runner)
 
         self.assertEqual(missing, ["net11.0"])
@@ -795,9 +811,9 @@ class KapiTestleri(unittest.TestCase):
         # Apphost DOTNET_ROOT_<ARCH>'i DOTNET_ROOT'tan ONCE okur.
         environ = {"DOTNET_ROOT": "/genel", "DOTNET_ROOT_ARM64": "/arm64"}
 
-        self.assertEqual(kapi._apphost_dotnet_root(environ, "arm64"), "/arm64")
-        self.assertEqual(kapi._apphost_dotnet_root(environ, "x86_64"), "/genel")
-        self.assertEqual(kapi._apphost_dotnet_root({}, "arm64"), "")
+        self.assertEqual(gate._apphost_dotnet_root(environ, "arm64"), "/arm64")
+        self.assertEqual(gate._apphost_dotnet_root(environ, "x86_64"), "/genel")
+        self.assertEqual(gate._apphost_dotnet_root({}, "arm64"), "")
 
     def test_eksik_runtime_global_kurulum_konumundan_bulunur(self):
         # Denetim bulgusu: DOTNET_ROOT yokken apphost PATH'teki
@@ -812,7 +828,7 @@ class KapiTestleri(unittest.TestCase):
                 (kok / "global" / "shared" / "Microsoft.NETCore.App" / version).mkdir(parents=True)
             runner = mock.Mock()
 
-            missing = kapi.missing_test_runtimes(
+            missing = gate.missing_test_runtimes(
                 ("net10.0", "net11.0"), environ={}, runner=runner,
                 system="Darwin", machine="arm64", install_location_dir=kok / "etc")
 
@@ -823,9 +839,9 @@ class KapiTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             yok = pathlib.Path(directory) / "etc"
 
-            self.assertEqual(kapi._global_dotnet_root("Linux", "x86_64", yok), "/usr/share/dotnet")
-            self.assertEqual(kapi._global_dotnet_root("Darwin", "arm64", yok), "/usr/local/share/dotnet")
-            self.assertIsNone(kapi._global_dotnet_root("Windows", "amd64", yok))
+            self.assertEqual(gate._global_dotnet_root("Linux", "x86_64", yok), "/usr/share/dotnet")
+            self.assertEqual(gate._global_dotnet_root("Darwin", "arm64", yok), "/usr/local/share/dotnet")
+            self.assertIsNone(gate._global_dotnet_root("Windows", "amd64", yok))
 
     def test_windowsta_list_runtimes_ciktisindan_bulunur(self):
         stdout = (
@@ -835,7 +851,7 @@ class KapiTestleri(unittest.TestCase):
         runner = mock.Mock(return_value=mock.Mock(returncode=0, stdout=stdout))
 
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            ok = kapi.require_test_runtimes(("net10.0", "net11.0"), environ={}, runner=runner, system="Windows")
+            ok = gate.require_test_runtimes(("net10.0", "net11.0"), environ={}, runner=runner, system="Windows")
 
         # ASP.NET Core 11 runtime'i NETCore 11 yerine SAYILMAZ.
         self.assertFalse(ok)
@@ -851,15 +867,15 @@ class KapiTestleri(unittest.TestCase):
         runner = mock.Mock(side_effect=FileNotFoundError("dotnet"))
 
         self.assertEqual(
-            kapi.missing_test_runtimes(("net11.0",), environ={}, runner=runner, system="Windows"), [])
+            gate.missing_test_runtimes(("net11.0",), environ={}, runner=runner, system="Windows"), [])
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(
-                kapi.missing_test_runtimes(
+                gate.missing_test_runtimes(
                     ("net11.0",), environ={"DOTNET_ROOT": str(pathlib.Path(directory) / "yok")}, runner=runner),
                 [])
 
     def test_diger_paylasimli_test_kaynagi_hala_tam_kosum_ister(self):
-        projects, full = kapi.affected_test_projects(["tests/Shared/Infrastructure/ProcessRunner.cs"])
+        projects, full = gate.affected_test_projects(["tests/Shared/Infrastructure/ProcessRunner.cs"])
 
         self.assertTrue(full)
 
@@ -868,7 +884,7 @@ class KapiTestleri(unittest.TestCase):
         # samples/Tracon.Embedded geride kaldi. O gun bir samples/
         # degisikligi HICBIR test projesi secmiyordu; Embedded.Tests ise
         # ProjectReference ile tam o ornege bagli.
-        projects, full = kapi.affected_test_projects(
+        projects, full = gate.affected_test_projects(
             ["samples/Tracon.Embedded/Program.cs"])
 
         self.assertEqual(projects, ["Tracon.Embedded.Tests"])
@@ -876,32 +892,32 @@ class KapiTestleri(unittest.TestCase):
 
     def test_yayin_ornekleri_sessiz_gecmez(self):
         # samples/Tracon.Samples.* cozumde DEGILDIR: hicbir kapanis
-        # kosumu onlari kapsamaz, yalniz `kapi.py yayin`. Secim bos kalir
+        # kosumu onlari kapsamaz, yalniz `gate.py release`. Secim bos kalir
         # ama bu ARTIK sessiz degildir.
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            projects, full = kapi.affected_test_projects(
+            projects, full = gate.affected_test_projects(
                 ["samples/Tracon.Samples.CustomJobHandler/Program.cs"])
 
         self.assertEqual(projects, [])
         self.assertFalse(full)
-        self.assertIn("kapi.py yayin", output.getvalue())
+        self.assertIn("gate.py release", output.getvalue())
 
     def test_tam_kosum_komutu_mtp_bayraklarini_tasir(self):
         # `dotnet test` MTP kipindedir. `-maxcpucount` bu kipte HIC TEST
         # KOSTURMADAN cikis kodu 5 verir; `--` ayiricisi da artik yoktur.
-        command = kapi.full_solution_test_command()
+        command = gate.full_solution_test_command()
         args = command.args
 
         self.assertEqual(args[:4], ("dotnet", "test", "--solution", "Tracon.slnx"))
         self.assertNotIn("--", args)
         self.assertFalse([arg for arg in args if arg.startswith("-maxcpucount")])
-        self.assertEqual(args[args.index("--max-parallel-test-modules") + 1], str(kapi.TEST_MAX_CPU_COUNT))
+        self.assertEqual(args[args.index("--max-parallel-test-modules") + 1], str(gate.TEST_MAX_CPU_COUNT))
         self.assertIn("--report-trx", args)
-        self.assertEqual(args[args.index("--results-directory") + 1], kapi.TEST_RESULTS_DIRECTORY)
+        self.assertEqual(args[args.index("--results-directory") + 1], gate.TEST_RESULTS_DIRECTORY)
         self.assertEqual(args[args.index("--results-directory-layout") + 1], "per-module")
 
     def test_ci_ve_kapi_ayni_trx_yolunu_ve_bayraklari_kullanir(self):
-        # Kapi (kapi.py) ile CI (ci.yml) AYRI yazilmis iki komuttur ve bir tarafin
+        # Kapi (gate.py) ile CI (ci.yml) AYRI yazilmis iki komuttur ve bir tarafin
         # TRX yolunu degistirmek digerini sessizce bosaltir: CI yuklemesi artifact
         # bulamaz (`if-no-files-found: ignore`) ve kimse fark etmez.
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -922,9 +938,9 @@ class KapiTestleri(unittest.TestCase):
                 # Cozum komutu modulleri tek tek kosar; tek projeli komutun paralel modulu yoktur.
                 self.assertIn("--max-parallel-test-modules 1", line)
             self.assertIn("--report-trx", line)
-            self.assertIn(f"--results-directory {kapi.TEST_RESULTS_DIRECTORY}", line)
+            self.assertIn(f"--results-directory {gate.TEST_RESULTS_DIRECTORY}", line)
             self.assertIn("--results-directory-layout per-module", line)
-        self.assertIn(f"path: {kapi.TEST_RESULTS_DIRECTORY}/**/*.trx", ci)
+        self.assertIn(f"path: {gate.TEST_RESULTS_DIRECTORY}/**/*.trx", ci)
         self.assertNotIn("TestResults/*.trx", ci)
 
     def test_ci_test_isleri_kirmizi_ya_da_bos_kosuyu_yesil_gostermez(self):
@@ -942,9 +958,9 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn(eski, metin)
             return _ci_sessiz_yesil_sorunlari(metin.replace(eski, yeni, 1))
 
-        restore = "      - name: Bagimliliklari geri yukle\n        id: restore\n"
-        self.assertEqual(len(bozulmus(restore, "      - name: Bagimliliklari geri yukle\n")), 1)
-        self.assertEqual(len(bozulmus(restore, "      - name: Bagimliliklari geri yukle\n        id: restor\n")), 1)
+        restore = "      - name: Restore the dependencies\n        id: restore\n"
+        self.assertEqual(len(bozulmus(restore, "      - name: Restore the dependencies\n")), 1)
+        self.assertEqual(len(bozulmus(restore, "      - name: Restore the dependencies\n        id: restor\n")), 1)
         trx_sonu = "          if-no-files-found: error\n          overwrite: true\n"
         self.assertEqual(len(bozulmus(trx_sonu, "          if-no-files-found: ignore\n          overwrite: true\n")), 1)
         self.assertEqual(len(bozulmus(trx_sonu, "          if-no-files-found: error\n")), 1)
@@ -957,7 +973,7 @@ class KapiTestleri(unittest.TestCase):
         # MTP 2 `--results-directory-layout per-module`: <proje>/<tfm>_<mimari>/*.trx.
         # `codeBase` testin kosan ikilisinin yolunu tasir; Windows'ta ters egik cizgiyle gelir.
         tfm = "net10.0" if cikti == "release" else cikti.removeprefix("release_")
-        dizin = kok / kapi.TEST_RESULTS_DIRECTORY / proje / f"{tfm}_arm64"
+        dizin = kok / gate.TEST_RESULTS_DIRECTORY / proje / f"{tfm}_arm64"
         dizin.mkdir(parents=True, exist_ok=True)
         satirlar = "".join(
             f'<UnitTestResult testName="{ad}" outcome="{durum}" />' for ad, durum in sonuclar)
@@ -982,7 +998,7 @@ class KapiTestleri(unittest.TestCase):
                 '<UnitTestResult testName="N.S.Dusen" outcome="Failed" /></Results></TestRun>',
                 encoding="utf-8")
 
-            self.assertEqual(kapi.failed_tests_from_trx(0, kok), [])
+            self.assertEqual(gate.failed_tests_from_trx(0, kok), [])
 
     def test_trx_cikti_klasoru_codebase_ten_okunur_yoksa_tek_hedefli_release_varsayilir(self):
         # `codeBase` olmayan dal testsizdi. Cok hedefli bacak klasorunu TRX soyler;
@@ -993,13 +1009,13 @@ class KapiTestleri(unittest.TestCase):
                 f"<TestDefinitions><UnitTest>{metot}</UnitTest></TestDefinitions></TestRun>"))
 
         self.assertEqual(
-            kapi._trx_output_directory(agac('<TestMethod codeBase="C:\\r\\bin\\P\\release_net10.0\\P.dll" name="M" />')),
+            gate._trx_output_directory(agac('<TestMethod codeBase="C:\\r\\bin\\P\\release_net10.0\\P.dll" name="M" />')),
             "release_net10.0")
         self.assertEqual(
-            kapi._trx_output_directory(agac('<TestMethod codeBase="/r/bin/P/release/P.dll" name="M" />')),
+            gate._trx_output_directory(agac('<TestMethod codeBase="/r/bin/P/release/P.dll" name="M" />')),
             "release")
-        self.assertEqual(kapi._trx_output_directory(agac('<TestMethod name="M" />')), "release")
-        self.assertEqual(kapi._trx_output_directory(agac('<TestMethod codeBase="P.dll" name="M" />')), "release")
+        self.assertEqual(gate._trx_output_directory(agac('<TestMethod name="M" />')), "release")
+        self.assertEqual(gate._trx_output_directory(agac('<TestMethod codeBase="P.dll" name="M" />')), "release")
 
     def test_sifir_test_koşan_yesil_kosum_kirmizi_sayilir(self):
         # NEGATIF KONTROL: cikis kodu 0 "test kostu" demek degildir. TRX yoksa
@@ -1007,34 +1023,34 @@ class KapiTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                self.assertEqual(kapi.require_executed_tests(0, kok), kapi.ZERO_TESTS_EXIT_CODE)
-            self.assertIn("koşulmuş test yok", output.getvalue())
+                self.assertEqual(gate.require_executed_tests(0, kok), gate.ZERO_TESTS_EXIT_CODE)
+            self.assertIn("no executed test exists", output.getvalue())
 
             self._trx(kok, "P", [("N.S.Gecen", "Passed"), ("N.S.Dusen", "Failed")])
             self._trx(kok, "Q", [("N.S.Gecen", "Passed")], cikti="release_net10.0")
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                self.assertEqual(kapi.require_executed_tests(0, kok), 0)
-            self.assertIn("3 test, 2 modül", output.getvalue())
+                self.assertEqual(gate.require_executed_tests(0, kok), 0)
+            self.assertIn("3 tests, 2 modules", output.getvalue())
 
     def test_run_commands_cikis_kodu_sifir_ama_test_yoksa_durur(self):
         runner = mock.Mock(return_value=mock.Mock(returncode=0))
         with tempfile.TemporaryDirectory() as directory, \
-                mock.patch.object(kapi, "executed_tests_from_trx", return_value=(0, 0)), \
+                mock.patch.object(gate, "executed_tests_from_trx", return_value=(0, 0)), \
                 contextlib.redirect_stdout(io.StringIO()):
-            result = kapi.run_commands(
-                "test", [kapi.full_solution_test_command()], runner=runner,
+            result = gate.run_commands(
+                "test", [gate.full_solution_test_command()], runner=runner,
                 measurement_path=pathlib.Path(directory) / "m.jsonl")
 
-        self.assertEqual(result, kapi.ZERO_TESTS_EXIT_CODE)
+        self.assertEqual(result, gate.ZERO_TESTS_EXIT_CODE)
 
     def test_run_commands_trx_istemeyen_komutu_sifir_test_diye_kirmaz(self):
         # `dotnet build` ya da tek proje komutu TRX uretmez; kapi onlara sayi sormaz.
         runner = mock.Mock(return_value=mock.Mock(returncode=0))
         with tempfile.TemporaryDirectory() as directory, \
-                mock.patch.object(kapi, "executed_tests_from_trx", return_value=(0, 0)), \
+                mock.patch.object(gate, "executed_tests_from_trx", return_value=(0, 0)), \
                 contextlib.redirect_stdout(io.StringIO()):
-            result = kapi.run_commands(
-                "test", [kapi.Command(("dotnet", "build", "Tracon.slnx")), kapi._dotnet_test_project("P")],
+            result = gate.run_commands(
+                "test", [gate.Command(("dotnet", "build", "Tracon.slnx")), gate._dotnet_test_project("P")],
                 runner=runner, measurement_path=pathlib.Path(directory) / "m.jsonl")
 
         self.assertEqual(result, 0)
@@ -1045,26 +1061,26 @@ class KapiTestleri(unittest.TestCase):
         proje = "Tracon.Testing.Contracts.Xunit"
         iyi = ('<dependency id="xunit.v3.extensibility.core" version="3.2.2" exclude="Build,Analyzers" />'
                '<dependency id="xunit.v3.assert" version="3.2.2" />')
-        self.assertEqual(kapi.dependency_floor_errors(proje, iyi + iyi), [])
-        self.assertEqual(kapi.dependency_floor_errors("Tracon.Core", ""), [])
+        self.assertEqual(gate.dependency_floor_errors(proje, iyi + iyi), [])
+        self.assertEqual(gate.dependency_floor_errors("Tracon.Core", ""), [])
 
         yukseltilmis = iyi.replace('"xunit.v3.assert" version="3.2.2"', '"xunit.v3.assert" version="4.0.2"')
-        hatalar = kapi.dependency_floor_errors(proje, yukseltilmis)
+        hatalar = gate.dependency_floor_errors(proje, yukseltilmis)
         self.assertEqual(len(hatalar), 1)
-        self.assertIn("xunit.v3.assert alt sınırı 4.0.2", hatalar[0])
+        self.assertIn("the xunit.v3.assert lower bound is 4.0.2", hatalar[0])
 
-        eksik = kapi.dependency_floor_errors(proje, '<dependency id="xunit.v3.assert" version="3.2.2" />')
+        eksik = gate.dependency_floor_errors(proje, '<dependency id="xunit.v3.assert" version="3.2.2" />')
         self.assertEqual(len(eksik), 1)
-        self.assertIn("xunit.v3.extensibility.core bağımlılığı nuspec'te yok", eksik[0])
+        self.assertIn("the xunit.v3.extensibility.core dependency is missing from the nuspec", eksik[0])
 
     def test_depodaki_xunit_alt_siniri_props_ile_ayni(self):
         props = (ROOT / "Directory.Packages.props").read_text(encoding="utf-8")
-        for paket, alt_sinir in kapi.SHIPPED_DEPENDENCY_FLOORS["Tracon.Testing.Contracts.Xunit"].items():
+        for paket, alt_sinir in gate.SHIPPED_DEPENDENCY_FLOORS["Tracon.Testing.Contracts.Xunit"].items():
             self.assertIn(f'<PackageVersion Include="{paket}" Version="{alt_sinir}" />', props)
 
     def test_tek_proje_komutu_project_bayragini_kullanir(self):
         self.assertEqual(
-            kapi._dotnet_test_project("P").args,
+            gate._dotnet_test_project("P").args,
             ("dotnet", "test", "--project", "tests/P/P.csproj", "-c", "Release", "--no-build"))
 
     def test_trx_yalniz_dusen_testi_verir(self):
@@ -1076,10 +1092,10 @@ class KapiTestleri(unittest.TestCase):
                 ("Tracon.Ui.E2ETests.UiTests.Atlanan", "NotExecuted"),
             ])
 
-            dusenler = kapi.failed_tests_from_trx(0, kok)
+            dusenler = gate.failed_tests_from_trx(0, kok)
 
         self.assertEqual(
-            dusenler, [kapi.FailedTest("Tracon.Ui.E2ETests", "release", "Tracon.Ui.E2ETests.UiTests.Dusen")])
+            dusenler, [gate.FailedTest("Tracon.Ui.E2ETests", "release", "Tracon.Ui.E2ETests.UiTests.Dusen")])
 
     def test_coklu_tfm_trx_i_bacagiyla_bulunur(self):
         # Yalniz release/ taransaydi net11.0 bacaginda dusen test
@@ -1089,9 +1105,9 @@ class KapiTestleri(unittest.TestCase):
             self._trx(kok, "Tracon.Core.UnitTests", [("N.S.Dusen", "Failed")], cikti="release_net11.0")
             self._trx(kok, "Tracon.Core.UnitTests", [("N.S.Dusen", "Passed")], cikti="release_net10.0")
 
-            dusenler = kapi.failed_tests_from_trx(0, kok)
+            dusenler = gate.failed_tests_from_trx(0, kok)
 
-        self.assertEqual(dusenler, [kapi.FailedTest("Tracon.Core.UnitTests", "release_net11.0", "N.S.Dusen")])
+        self.assertEqual(dusenler, [gate.FailedTest("Tracon.Core.UnitTests", "release_net11.0", "N.S.Dusen")])
         self.assertEqual(dusenler[0].label, "Tracon.Core.UnitTests (net11.0)")
 
     def test_bayat_trx_sayilmaz(self):
@@ -1100,7 +1116,7 @@ class KapiTestleri(unittest.TestCase):
             kok = pathlib.Path(directory)
             self._trx(kok, "Tracon.Core.UnitTests", [("X.Y.Eski", "Failed")])
 
-            self.assertEqual(kapi.failed_tests_from_trx(time.time() + 60, kok), [])
+            self.assertEqual(gate.failed_tests_from_trx(time.time() + 60, kok), [])
 
     def test_izole_kosum_cikis_kodunu_degistirmez_ama_hukum_verir(self):
         # SINIF: "tam kosumda duser, izole gecer" YEDI kez kayda gecti ve her
@@ -1114,20 +1130,20 @@ class KapiTestleri(unittest.TestCase):
             runner = mock.Mock(return_value=mock.Mock(returncode=0))
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                hukumler = kapi.isolate_failed_tests(
-                    [kapi.FailedTest("P", "release", "N.S.Dusen")], runner=runner, root=kok)
+                hukumler = gate.isolate_failed_tests(
+                    [gate.FailedTest("P", "release", "N.S.Dusen")], runner=runner, root=kok)
 
         self.assertEqual(hukumler, [("P", "N.S.Dusen", True)])
         self.assertIn("--filter-method", runner.call_args.args[0])
         self.assertIn("*Dusen*", runner.call_args.args[0])
-        self.assertIn("izole GEÇTİ", output.getvalue())
-        self.assertIn("yeniden koşturma", output.getvalue())
-        self.assertIn("kök sebebi", output.getvalue())
-        self.assertIn("ürün yarışı", output.getvalue())
-        self.assertNotIn("TEKRAR koş", output.getvalue())
+        self.assertIn("PASSED in isolation", output.getvalue())
+        self.assertIn("do not rerun the suite", output.getvalue())
+        self.assertIn("root cause", output.getvalue())
+        self.assertIn("product race", output.getvalue())
+        self.assertNotIn("RERUN", output.getvalue())
 
     def _sureli_trx(self, kok: pathlib.Path, proje: str, sonuclar: list[tuple[str, str]]) -> None:
-        dizin = kok / kapi.TEST_RESULTS_DIRECTORY / proje / "net10.0_arm64"
+        dizin = kok / gate.TEST_RESULTS_DIRECTORY / proje / "net10.0_arm64"
         dizin.mkdir(parents=True)
         satirlar = "".join(
             f'<UnitTestResult testName="{ad}" duration="{sure}" outcome="Passed" />' for ad, sure in sonuclar)
@@ -1142,7 +1158,7 @@ class KapiTestleri(unittest.TestCase):
             self._sureli_trx(kok, "P", [("N.S.A", "00:00:01.5000000"), ("N.S.B", "00:01:00.0100000")])
 
             with contextlib.redirect_stdout(io.StringIO()):
-                yol = kapi.record_test_durations(0.0, root=kok)
+                yol = gate.record_test_durations(0.0, root=kok)
 
             with gzip.open(yol, "rt", encoding="utf-8") as dosya:
                 kayit = json.load(dosya)
@@ -1155,7 +1171,7 @@ class KapiTestleri(unittest.TestCase):
             self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.1000000"), ("N.S.A", "00:00:00.3000000")])
 
             with contextlib.redirect_stdout(io.StringIO()):
-                yol = kapi.record_test_durations(0.0, root=kok)
+                yol = gate.record_test_durations(0.0, root=kok)
 
             with gzip.open(yol, "rt", encoding="utf-8") as dosya:
                 kayit = json.load(dosya)
@@ -1166,8 +1182,8 @@ class KapiTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
 
-            self.assertIsNone(kapi.record_test_durations(0.0, root=kok))
-            self.assertFalse((kok / kapi.TEST_DURATIONS_DIRECTORY).exists())
+            self.assertIsNone(gate.record_test_durations(0.0, root=kok))
+            self.assertFalse((kok / gate.TEST_DURATIONS_DIRECTORY).exists())
 
     def test_sure_kaydi_cozulemeyen_sureyi_atlar(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1175,7 +1191,7 @@ class KapiTestleri(unittest.TestCase):
             self._sureli_trx(kok, "P", [("N.S.A", "bozuk"), ("N.S.B", "00:00:00.0020000")])
 
             with contextlib.redirect_stdout(io.StringIO()):
-                yol = kapi.record_test_durations(0.0, root=kok)
+                yol = gate.record_test_durations(0.0, root=kok)
 
             with gzip.open(yol, "rt", encoding="utf-8") as dosya:
                 kayit = json.load(dosya)
@@ -1185,11 +1201,11 @@ class KapiTestleri(unittest.TestCase):
     def test_sure_kaydi_bozuk_trx_ile_kapiyi_kirmaz(self):
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
-            dizin = kok / kapi.TEST_RESULTS_DIRECTORY / "P" / "net10.0_arm64"
+            dizin = kok / gate.TEST_RESULTS_DIRECTORY / "P" / "net10.0_arm64"
             dizin.mkdir(parents=True)
             (dizin / "sonuc.trx").write_text("<TestRun", encoding="utf-8")
 
-            self.assertIsNone(kapi.record_test_durations(0.0, root=kok))
+            self.assertIsNone(gate.record_test_durations(0.0, root=kok))
 
     def test_sure_kaydi_bos_trx_ile_kapiyi_kirmaz(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1197,7 +1213,7 @@ class KapiTestleri(unittest.TestCase):
             self._sureli_trx(kok, "P", [])
 
             with contextlib.redirect_stdout(io.StringIO()):
-                yol = kapi.record_test_durations(0.0, root=kok)
+                yol = gate.record_test_durations(0.0, root=kok)
 
             with gzip.open(yol, "rt", encoding="utf-8") as dosya:
                 kayit = json.load(dosya)
@@ -1209,31 +1225,31 @@ class KapiTestleri(unittest.TestCase):
             kok = pathlib.Path(directory)
             self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.0010000")])
 
-            with mock.patch.object(kapi.gzip, "open", side_effect=OSError("disk dolu")), \
+            with mock.patch.object(gate.gzip, "open", side_effect=OSError("disk dolu")), \
                     contextlib.redirect_stdout(io.StringIO()) as output:
-                self.assertIsNone(kapi.record_test_durations(0.0, root=kok))
+                self.assertIsNone(gate.record_test_durations(0.0, root=kok))
 
-        self.assertIn("yazılamadı", output.getvalue())
+        self.assertIn("could not be written", output.getvalue())
 
     def test_sure_kaydi_eski_dosyalari_siler(self):
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
             self._sureli_trx(kok, "P", [("N.S.A", "00:00:00.0010000")])
-            kayitlar = kok / kapi.TEST_DURATIONS_DIRECTORY
+            kayitlar = kok / gate.TEST_DURATIONS_DIRECTORY
             kayitlar.mkdir(parents=True)
-            for sira in range(kapi.TEST_DURATIONS_KEEP + 3):
+            for sira in range(gate.TEST_DURATIONS_KEEP + 3):
                 (kayitlar / f"20000101T0000{sira:02d}Z.json.gz").write_bytes(b"")
 
             with contextlib.redirect_stdout(io.StringIO()):
-                kapi.record_test_durations(0.0, root=kok)
+                gate.record_test_durations(0.0, root=kok)
 
             kalan = sorted(path.name for path in kayitlar.glob("*.json.gz"))
 
-        self.assertEqual(len(kalan), kapi.TEST_DURATIONS_KEEP)
+        self.assertEqual(len(kalan), gate.TEST_DURATIONS_KEEP)
         self.assertNotIn("20000101T000000Z.json.gz", kalan)
 
     def _zamanli_trx(self, kok: pathlib.Path, proje: str, baslangic: str, bitis: str) -> None:
-        dizin = kok / kapi.TEST_RESULTS_DIRECTORY / proje / "net10.0_arm64"
+        dizin = kok / gate.TEST_RESULTS_DIRECTORY / proje / "net10.0_arm64"
         dizin.mkdir(parents=True)
         (dizin / "sonuc.trx").write_text(
             '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
@@ -1247,11 +1263,11 @@ class KapiTestleri(unittest.TestCase):
             self._zamanli_trx(kok, "P", "2026-11-09T11:03:40.3574990Z", "2026-11-09T11:12:25.866393Z")
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"P": 500})
+                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"P": 500})
 
-        self.assertEqual(kod, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
         self.assertIn("P/net10.0_arm64 526 s > 500 s", output.getvalue())
-        self.assertIn("ölç", output.getvalue())
+        self.assertIn("measure", output.getvalue())
 
     def test_modul_suresi_sinirin_altindaysa_yesil_ve_basilir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1259,10 +1275,10 @@ class KapiTestleri(unittest.TestCase):
             self._zamanli_trx(kok, "P", "2026-11-09T11:00:00Z", "2026-11-09T11:03:59.9Z")
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"P": 240})
+                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"P": 240})
 
         self.assertEqual(kod, 0)
-        self.assertIn("P/net10.0_arm64: 240 s · sınır 240 s · kalan 0 s (%0)", output.getvalue())
+        self.assertIn("P/net10.0_arm64: 240 s · limit 240 s · left 0 s (0%)", output.getvalue())
 
     def test_siniri_olmayan_modul_kapiyi_kirmaz_ama_suresi_raporlanir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1270,10 +1286,10 @@ class KapiTestleri(unittest.TestCase):
             self._zamanli_trx(kok, "Q", "2026-11-09T11:00:00Z", "2026-11-09T13:00:00Z")
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"P": 1})
+                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"P": 1})
 
         self.assertEqual(kod, 0)
-        self.assertIn("Q/net10.0_arm64: 7200 s · sınır yok", output.getvalue())
+        self.assertIn("Q/net10.0_arm64: 7200 s · no limit", output.getvalue())
 
     def test_suresi_okunamayan_trx_uyarir_ve_kapiyi_kirmaz(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1281,21 +1297,21 @@ class KapiTestleri(unittest.TestCase):
             self._sureli_trx(kok, "P", [("N.S.A", "00:00:01")])
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"P": 1})
+                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"P": 1})
 
         self.assertEqual(kod, 0)
-        self.assertIn("okunamadı", output.getvalue())
+        self.assertIn("could not be read", output.getvalue())
 
     def test_trx_zaman_damgasi_yedi_haneli_kesri_ve_saat_dilimini_okur(self):
         self.assertAlmostEqual(
-            kapi._trx_instant("2026-11-09T11:00:01.1234567+01:00") - kapi._trx_instant("2026-11-09T10:00:00Z"),
+            gate._trx_instant("2026-11-09T11:00:01.1234567+01:00") - gate._trx_instant("2026-11-09T10:00:00Z"),
             1.123456, places=5)
-        self.assertIsNone(kapi._trx_instant("dun"))
-        self.assertIsNone(kapi._trx_instant(None))
+        self.assertIsNone(gate._trx_instant("dun"))
+        self.assertIsNone(gate._trx_instant(None))
 
     def test_modul_sure_butceleri_yalniz_duser_ve_gercek_modullere_aittir(self):
         # Butceler yalniz duser; bu test bugunku degerleri sabitler ki bir
-        # yukseltme ya da butcenin silinmesi gozden kacmasin (kapi.py yorumundaki kural).
+        # yukseltme ya da butcenin silinmesi gozden kacmasin (gate.py yorumundaki kural).
         # Yeni giris eklemek bu tabloya da satir eklemektir; mevcut satir yalniz kucultulebilir.
         sabit = {
             "Tracon.SqlServer.IntegrationTests": 400,
@@ -1309,7 +1325,7 @@ class KapiTestleri(unittest.TestCase):
             "Tracon.Generators.UnitTests": 30,
             "Tracon.Sqlite.IntegrationTests": 90,
         }
-        butceler = kapi.TEST_MODULE_TIME_LIMITS_SECONDS
+        butceler = gate.TEST_MODULE_TIME_LIMITS_SECONDS
 
         for modul, sinir in sabit.items():
             with self.subTest(modul=modul):
@@ -1320,40 +1336,40 @@ class KapiTestleri(unittest.TestCase):
         self.assertTrue(all(isinstance(sinir, int) and sinir > 0 for sinir in butceler.values()))
 
     def test_yesil_tam_kosum_sure_sinirini_denetler(self):
-        komut = kapi.full_solution_test_command()
-        with mock.patch.object(kapi, "require_executed_tests", return_value=0), \
-                mock.patch.object(kapi, "enforce_module_time_limits", return_value=kapi.MODULE_TIME_LIMIT_EXIT_CODE) as sinir, \
-                mock.patch.object(kapi, "record_test_durations"), \
-                mock.patch.object(kapi, "isolate_failed_tests", return_value=[]), \
-                mock.patch.object(kapi, "failed_tests_from_trx", return_value=[]), \
-                mock.patch.object(kapi, "_record_measurement"), \
+        komut = gate.full_solution_test_command()
+        with mock.patch.object(gate, "require_executed_tests", return_value=0), \
+                mock.patch.object(gate, "enforce_module_time_limits", return_value=gate.MODULE_TIME_LIMIT_EXIT_CODE) as sinir, \
+                mock.patch.object(gate, "record_test_durations"), \
+                mock.patch.object(gate, "isolate_failed_tests", return_value=[]), \
+                mock.patch.object(gate, "failed_tests_from_trx", return_value=[]), \
+                mock.patch.object(gate, "_record_measurement"), \
                 contextlib.redirect_stdout(io.StringIO()):
-            kod = kapi.run_commands("test", [komut], runner=mock.Mock(return_value=mock.Mock(returncode=0)))
+            kod = gate.run_commands("test", [komut], runner=mock.Mock(return_value=mock.Mock(returncode=0)))
 
-        self.assertEqual(kod, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
         sinir.assert_called_once()
 
     def _sure_sinirli_kosum(self, komut, *, cikis):
-        with mock.patch.object(kapi, "require_executed_tests", return_value=0), \
-                mock.patch.object(kapi, "enforce_module_time_limits", return_value=kapi.MODULE_TIME_LIMIT_EXIT_CODE) as sinir, \
-                mock.patch.object(kapi, "record_test_durations"), \
-                mock.patch.object(kapi, "isolate_failed_tests", return_value=[]), \
-                mock.patch.object(kapi, "failed_tests_from_trx", return_value=[]), \
-                mock.patch.object(kapi, "_record_measurement"), \
+        with mock.patch.object(gate, "require_executed_tests", return_value=0), \
+                mock.patch.object(gate, "enforce_module_time_limits", return_value=gate.MODULE_TIME_LIMIT_EXIT_CODE) as sinir, \
+                mock.patch.object(gate, "record_test_durations"), \
+                mock.patch.object(gate, "isolate_failed_tests", return_value=[]), \
+                mock.patch.object(gate, "failed_tests_from_trx", return_value=[]), \
+                mock.patch.object(gate, "_record_measurement"), \
                 contextlib.redirect_stdout(io.StringIO()):
-            kod = kapi.run_commands("test", [komut], runner=mock.Mock(return_value=mock.Mock(returncode=cikis)))
+            kod = gate.run_commands("test", [komut], runner=mock.Mock(return_value=mock.Mock(returncode=cikis)))
         return kod, sinir
 
     def test_kirmizi_tam_kosum_cikis_kodunu_korur_ve_sure_sinirini_denetlemez(self):
         # Dusen bir test sure siniri kodu 9 ile ezilmemeli: kirmizinin sebebi test.
-        kod, sinir = self._sure_sinirli_kosum(kapi.full_solution_test_command(), cikis=2)
+        kod, sinir = self._sure_sinirli_kosum(gate.full_solution_test_command(), cikis=2)
 
         self.assertEqual(kod, 2)
         sinir.assert_not_called()
 
     def test_trx_istemeyen_dotnet_test_sure_sinirini_denetlemez(self):
-        komut = kapi.Command(("dotnet", "test", "--project", "P.csproj"))
-        self.assertFalse(kapi.reports_trx(komut))
+        komut = gate.Command(("dotnet", "test", "--project", "P.csproj"))
+        self.assertFalse(gate.reports_trx(komut))
 
         kod, sinir = self._sure_sinirli_kosum(komut, cikis=0)
 
@@ -1370,8 +1386,8 @@ class KapiTestleri(unittest.TestCase):
             runner = mock.Mock(return_value=mock.Mock(returncode=1))
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                hukumler = kapi.isolate_failed_tests(
-                    [kapi.FailedTest("P", "release_net11.0", "N.S.Dusen")], runner=runner, root=kok)
+                hukumler = gate.isolate_failed_tests(
+                    [gate.FailedTest("P", "release_net11.0", "N.S.Dusen")], runner=runner, root=kok)
 
         self.assertEqual(pathlib.PurePath(runner.call_args.args[0][0]).parts[-2], "release_net11.0")
         self.assertEqual(hukumler, [("P (net11.0)", "N.S.Dusen", False)])
@@ -1386,15 +1402,15 @@ class KapiTestleri(unittest.TestCase):
             runner = mock.Mock(return_value=mock.Mock(returncode=1))
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                hukumler = kapi.isolate_failed_tests(
-                    [kapi.FailedTest("P", "release", "N.S.Dusen")], runner=runner, root=kok)
+                hukumler = gate.isolate_failed_tests(
+                    [gate.FailedTest("P", "release", "N.S.Dusen")], runner=runner, root=kok)
 
         self.assertEqual(hukumler, [("P", "N.S.Dusen", False)])
-        self.assertIn("GERÇEK regresyon", output.getvalue())
+        self.assertIn("REAL regression", output.getvalue())
 
     def test_frontend_degisikligi_ic_dongude_frontendi_acar(self):
-        self.assertTrue(kapi.frontend_changed(["src/Tracon.UI/frontend/src/app.tsx"]))
-        self.assertFalse(kapi.frontend_changed(["src/Tracon.Core/Thing.cs"]))
+        self.assertTrue(gate.frontend_changed(["src/Tracon.UI/frontend/src/app.tsx"]))
+        self.assertFalse(gate.frontend_changed(["src/Tracon.Core/Thing.cs"]))
 
     def test_e2e_kosan_ic_dongu_arayuzlu_derler(self):
         # Haritası eksik bir yol iç döngüyü tam
@@ -1406,46 +1422,46 @@ class KapiTestleri(unittest.TestCase):
                      "tests/Shared/Infrastructure/ProcessRunner.cs",
                      "tests/Tracon.Ui.E2ETests/RunsPageTests.cs"):
             with contextlib.redirect_stdout(io.StringIO()):
-                build = kapi.inner_loop_commands([path])[0]
+                build = gate.inner_loop_commands([path])[0]
 
             self.assertEqual(build.args[:2], ("dotnet", "build"), path)
             self.assertNotIn("-p:TraconFrontendEnabled=false", build.args, path)
 
     def test_e2e_kosmayan_ic_dongu_arayuzsuz_derler(self):
-        build = kapi.inner_loop_commands(["src/Tracon.Core/Thing.cs"])[0]
+        build = gate.inner_loop_commands(["src/Tracon.Core/Thing.cs"])[0]
 
         self.assertIn("-p:TraconFrontendEnabled=false", build.args)
 
     def test_ic_dongu_tabani_commit_edilen_isi_de_gorur(self):
-        # Iş commit edildikten sonra `ic-dongu` HEAD'e karşı hiçbir şey
+        # Iş commit edildikten sonra `inner-loop` HEAD'e karşı hiçbir şey
         # görmüyor, yalnız build koşup "yeşil" diyordu (iki derlenmeyen
-        # <example> bu yüzden bir commit boyunca görünmedi). `--taban` aralığı verir.
-        with mock.patch.object(kapi, "changed_paths", return_value=["src/Tracon.Core/Thing.cs"]) as paths, \
+        # <example> bu yüzden bir commit boyunca görünmedi). `--base` aralığı verir.
+        with mock.patch.object(gate, "changed_paths", return_value=["src/Tracon.Core/Thing.cs"]) as paths, \
                 contextlib.redirect_stdout(io.StringIO()):
-            code = kapi.main(["--komutlari-bas", "ic-dongu", "--taban", "abc123"])
+            code = gate.main(["--print-commands", "inner-loop", "--base", "abc123"])
 
         self.assertEqual(code, 0)
         paths.assert_called_once_with("abc123")
 
     def test_ic_dongu_bos_degisiklikte_tabani_hatirlatir(self):
-        with mock.patch.object(kapi, "changed_paths", return_value=[]), \
+        with mock.patch.object(gate, "changed_paths", return_value=[]), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
-            kapi.main(["--komutlari-bas", "ic-dongu"])
+            gate.main(["--print-commands", "inner-loop"])
 
-        self.assertIn("--taban", output.getvalue())
+        self.assertIn("--base", output.getvalue())
 
     def test_kapanis_komutlari_dort_net_kapisini_tasir(self):
-        commands = kapi.closing_commands("abc123", site=False)
+        commands = gate.closing_commands("abc123", site=False)
         rendered = [command.display for command in commands]
 
         self.assertIn("dotnet build Tracon.slnx -c Release", rendered)
         # Tam test koşumu tek `--solution Tracon.slnx` komutu değil, aşamalıdır (AsamaliTestKosumuTestleri).
-        for asama in kapi.staged_test_commands():
+        for asama in gate.staged_test_commands():
             self.assertIn(asama.display, rendered)
-        self.assertNotIn(kapi.full_solution_test_command().display, rendered)
+        self.assertNotIn(gate.full_solution_test_command().display, rendered)
         # TraconSkipCleanWorkingTreeCheck: this pack validates the
         # packaging CONTRACT during iteration, not a release candidate - it must
-        # not be blocked by the new dirty-tree gate the way `kapi.py yayin` is.
+        # not be blocked by the new dirty-tree gate the way `gate.py release` is.
         self.assertIn(
             "dotnet pack Tracon.slnx -c Release --no-build -p:TraconSkipCleanWorkingTreeCheck=true",
             rendered)
@@ -1454,12 +1470,12 @@ class KapiTestleri(unittest.TestCase):
     def test_kapanis_uretimle_baslar_ve_tam_testle_biter(self):
         # Ekim 2026: 42 kırmızı kapanışın 11'i bayat agent haritasında, 11'i
         # testlerden SONRA koşan bir adımda düştü. Üretim ilk, en pahalı adım son.
-        rendered = [c.display for c in kapi.closing_commands("abc123", site=True, performance=True)]
-        uretim = [c.display for c in kapi.generation_commands()]
+        rendered = [c.display for c in gate.closing_commands("abc123", site=True, performance=True)]
+        uretim = [c.display for c in gate.generation_commands()]
 
         self.assertEqual(rendered[:len(uretim)], uretim)
         # Testler en sonda ve bitişik: aşamalı koşumun her komutu `dotnet test`, başka hiçbir adım değil.
-        testler = [c.display for c in kapi.staged_test_commands()]
+        testler = [c.display for c in gate.staged_test_commands()]
         self.assertEqual(rendered[-len(testler):], testler)
         self.assertEqual(sum(1 for c in rendered if c.startswith("dotnet test")), len(testler))
         test_sirasi = len(rendered) - len(testler)
@@ -1467,7 +1483,7 @@ class KapiTestleri(unittest.TestCase):
             "dotnet format Tracon.slnx --verify-no-changes",
             "dotnet pack Tracon.slnx -c Release --no-build -p:TraconSkipCleanWorkingTreeCheck=true",
             "(cd docs-site && npm run check)",
-            "python3 scripts/kapi.py performans",
+            "python3 scripts/gate.py perf",
         ):
             self.assertLess(rendered.index(ucuz), test_sirasi, ucuz)
         # DocFX derlemenin yazdığı XML dokümanını okur: site kapısı derlemeden sonra.
@@ -1481,7 +1497,7 @@ class KapiTestleri(unittest.TestCase):
         # önbellekli restore yeni yayımlanan güvenlik uyarısını görmez
         # (`NU1902`/`NU1903` yalnız soğuk ya da zorlanmış restore'da çıkar). Kapanış
         # sıfır uyarıyı ancak denetimi gerçekten koşturursa kanıtlar.
-        rendered = [c.display for c in kapi.closing_commands("abc123", site=False)]
+        rendered = [c.display for c in gate.closing_commands("abc123", site=False)]
 
         self.assertIn("dotnet restore Tracon.slnx --force", rendered)
         self.assertLess(rendered.index("dotnet restore Tracon.slnx --force"),
@@ -1489,7 +1505,7 @@ class KapiTestleri(unittest.TestCase):
 
     def test_kapanis_agent_haritasini_uretir_denetlemez(self):
         # Yerelde üretim denetimi gereksiz kılar; `--check` CI'da kalır (ci.yml).
-        rendered = [c.display for c in kapi.closing_commands("abc123", site=False)]
+        rendered = [c.display for c in gate.closing_commands("abc123", site=False)]
 
         self.assertIn("node docs-site/scripts/build-agent-map.mjs", rendered)
         self.assertNotIn("node docs-site/scripts/build-agent-map.mjs --check", rendered)
@@ -1498,28 +1514,28 @@ class KapiTestleri(unittest.TestCase):
         # Public ağaç yalnız kendi dosyalarıyla koşar: sevk edilen kapı özel bir
         # betiği çağırırsa süzülmüş ağaçta ilk adımda düşer.
         for rendered in (
-            [c.display for c in kapi.closing_commands("abc123", site=True, performance=True)],
-            [c.display for c in kapi.generation_commands()],
+            [c.display for c in gate.closing_commands("abc123", site=True, performance=True)],
+            [c.display for c in gate.generation_commands()],
         ):
             for command in rendered:
                 self.assertNotIn(".agents", command)
             # Every script the public lists run exists in the public `scripts/` directory.
-            for command in [*kapi.closing_commands("abc123", site=True, performance=True), *kapi.generation_commands()]:
+            for command in [*gate.closing_commands("abc123", site=True, performance=True), *gate.generation_commands()]:
                 if command.args[0] == "python3" and command.args[1].endswith(".py"):
                     self.assertTrue((ROOT / command.args[1]).is_file(), command.args[1])
 
     def test_genisletme_adimlari_public_listeye_eklenir(self):
-        ek = kapi.Extension(
+        ek = gate.Extension(
             program="ozel/giris.py",
-            generation=(kapi.Command(("echo", "uret")),),
-            after_scan=lambda taban: (kapi.Command(("echo", taban)),),
+            generation=(gate.Command(("echo", "uret")),),
+            after_scan=lambda taban: (gate.Command(("echo", taban)),),
         )
 
-        rendered = [c.display for c in kapi.closing_commands("abc123", site=False, extension=ek)]
+        rendered = [c.display for c in gate.closing_commands("abc123", site=False, extension=ek)]
 
         self.assertEqual(rendered[0], "echo uret")
-        self.assertEqual(rendered[rendered.index("python3 ozel/giris.py tarama") + 1], "echo abc123")
-        self.assertNotIn("python3 scripts/kapi.py tarama", rendered)
+        self.assertEqual(rendered[rendered.index("python3 ozel/giris.py scan") + 1], "echo abc123")
+        self.assertNotIn("python3 scripts/gate.py scan", rendered)
 
     def test_tarama_kokleri_ozel_dizin_olmadan_calisir(self):
         # Süzülmüş ağaçta `docs/` yalnız iki sözleşme dizini taşır ve başka kök yoktur.
@@ -1527,11 +1543,11 @@ class KapiTestleri(unittest.TestCase):
             kok = pathlib.Path(gecici)
             (kok / "src").mkdir()
             (kok / "docs" / "sozlesme").mkdir(parents=True)
-            (kok / "docs" / "sozlesme" / "hata-kodlari.txt").write_text("x", encoding="utf-8")
+            (kok / "docs" / "sozlesme" / "error-codes.txt").write_text("x", encoding="utf-8")
 
-            self.assertEqual(kapi.find_sync_copies(kok), [])
-            self.assertEqual(kapi.find_stale_doc_references(kok), [])
-            self.assertEqual(kapi.find_secrets(kok), ([], 0))
+            self.assertEqual(gate.find_sync_copies(kok), [])
+            self.assertEqual(gate.find_stale_doc_references(kok), [])
+            self.assertEqual(gate.find_secrets(kok), ([], 0))
 
     def test_ci_her_is_kanonik_repo_korumasina_baglidir(self):
         # Özel depoda ve fork'larda hiçbir iş dakika harcamamalı.
@@ -1708,68 +1724,68 @@ class KapiTestleri(unittest.TestCase):
 
     def test_uret_alt_komutu_yalniz_ureticileri_kosar(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            result = kapi.main(["--komutlari-bas", "uret"])
+            result = gate.main(["--print-commands", "generate"])
 
         self.assertEqual(result, 0)
         self.assertEqual(
             [line[2:] for line in output.getvalue().splitlines() if line.startswith("$ ")],
-            [c.display for c in kapi.generation_commands()])
+            [c.display for c in gate.generation_commands()])
 
     def test_kapanis_performans_adimini_kosullu_ekler(self):
-        with_it = [c.display for c in kapi.closing_commands("abc123", site=False, performance=True)]
-        without_it = [c.display for c in kapi.closing_commands("abc123", site=False, performance=False)]
+        with_it = [c.display for c in gate.closing_commands("abc123", site=False, performance=True)]
+        without_it = [c.display for c in gate.closing_commands("abc123", site=False, performance=False)]
 
-        self.assertIn("python3 scripts/kapi.py performans", with_it)
-        self.assertNotIn("python3 scripts/kapi.py performans", without_it)
+        self.assertIn("python3 scripts/gate.py perf", with_it)
+        self.assertNotIn("python3 scripts/gate.py perf", without_it)
 
     def test_sicak_yol_degisikligi_performans_kapisini_tetikler(self):
-        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Recording/RunEventWriter.cs"]))
-        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Compilation/CompiledAgentCache.cs"]))
-        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Core/Diagnostics/ChatTelemetryLanes.cs"]))
-        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Sql.Shared/Stores/SqlRunStore.cs"]))
-        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Sqlite/Internal/SqliteDataSource.cs"]))
-        self.assertTrue(kapi.performance_gate_triggered(["src/Tracon.Sqlite/Internal/SqliteDecimalFunctions.cs"]))
-        self.assertTrue(kapi.performance_gate_triggered(["bench/Tracon.Benchmarks/Program.cs"]))
-        self.assertFalse(kapi.performance_gate_triggered(["src/Tracon.Core/TraconOptions.cs"]))
-        self.assertFalse(kapi.performance_gate_triggered([]))
+        self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Core/Recording/RunEventWriter.cs"]))
+        self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Core/Compilation/CompiledAgentCache.cs"]))
+        self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Core/Diagnostics/ChatTelemetryLanes.cs"]))
+        self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Sql.Shared/Stores/SqlRunStore.cs"]))
+        self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Sqlite/Internal/SqliteDataSource.cs"]))
+        self.assertTrue(gate.performance_gate_triggered(["src/Tracon.Sqlite/Internal/SqliteDecimalFunctions.cs"]))
+        self.assertTrue(gate.performance_gate_triggered(["bench/Tracon.Benchmarks/Program.cs"]))
+        self.assertFalse(gate.performance_gate_triggered(["src/Tracon.Core/TraconOptions.cs"]))
+        self.assertFalse(gate.performance_gate_triggered([]))
 
     def test_tam_test_kosumu_kaynak_cekismesini_sinirlar(self):
         # Aynı anda en çok TEST_MAX_CPU_COUNT test modülü: hafif aşamalar o kadar modülü bir komutta koşar,
         # ağır modüller o kadar hatta ve hat başına tek modül koşar.
-        asamalar = kapi.staged_test_commands()
+        asamalar = gate.staged_test_commands()
         hafif = [komut for komut in asamalar if komut.group is None]
         agir = [komut for komut in asamalar if komut.group is not None]
 
         for komut in hafif:
             self.assertEqual(
-                komut.args[komut.args.index("--max-parallel-test-modules") + 1], str(kapi.TEST_MAX_CPU_COUNT))
+                komut.args[komut.args.index("--max-parallel-test-modules") + 1], str(gate.TEST_MAX_CPU_COUNT))
         for komut in agir:
             self.assertEqual(komut.args[komut.args.index("--max-parallel-test-modules") + 1], "1")
-        self.assertEqual(len({komut.lane for komut in agir}), kapi.TEST_MAX_CPU_COUNT)
+        self.assertEqual(len({komut.lane for komut in agir}), gate.TEST_MAX_CPU_COUNT)
 
     def test_dry_run_komut_calistirmaz(self):
         runner = mock.Mock()
-        result = kapi.run_commands(
-            "test", [kapi.Command(("would-not-run",))], runner=runner, dry_run=True)
+        result = gate.run_commands(
+            "test", [gate.Command(("would-not-run",))], runner=runner, dry_run=True)
 
         self.assertEqual(result, 0)
         runner.assert_not_called()
 
     def test_komut_bulunamazsa_127_ile_durur(self):
-        commands = [kapi.Command(("dotnet",)), kapi.Command(("second",))]
+        commands = [gate.Command(("dotnet",)), gate.Command(("second",))]
         runner = mock.Mock(side_effect=FileNotFoundError(2, "No such file or directory", "dotnet"))
         with tempfile.TemporaryDirectory() as directory:
-            result = kapi.run_commands(
+            result = gate.run_commands(
                 "test", commands, runner=runner, measurement_path=pathlib.Path(directory) / "m.jsonl")
 
         self.assertEqual(result, 127)
         self.assertEqual(runner.call_count, 1)
 
     def test_alt_sistem_hatasi_126_ile_durur(self):
-        commands = [kapi.Command(("dotnet",))]
+        commands = [gate.Command(("dotnet",))]
         runner = mock.Mock(side_effect=OSError("boru kırıldı"))
         with tempfile.TemporaryDirectory() as directory:
-            result = kapi.run_commands(
+            result = gate.run_commands(
                 "test", commands, runner=runner, measurement_path=pathlib.Path(directory) / "m.jsonl")
 
         self.assertEqual(result, 126)
@@ -1778,7 +1794,7 @@ class KapiTestleri(unittest.TestCase):
         """Denetim: `_git()` `subprocess.run`'ın FileNotFoundError'ını
         yakalamıyordu; git PATH'te yoksa `changed_paths()` traceback ile çöküyordu."""
         with mock.patch("subprocess.run", side_effect=FileNotFoundError("git")):
-            self.assertIsNone(kapi.changed_paths())
+            self.assertIsNone(gate.changed_paths())
 
 
 def _slnx_test_modulleri(kok: pathlib.Path = ROOT) -> list[str]:
@@ -1837,16 +1853,16 @@ class GrupKosucuTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()) as ekran:
             yol = pathlib.Path(dizin) / "m.jsonl"
             if olcum_yamasi is None:
-                sonuc = kapi.run_commands("test", komutlar, runner=runner, measurement_path=yol)
+                sonuc = gate.run_commands("test", komutlar, runner=runner, measurement_path=yol)
             else:
-                with mock.patch.object(kapi, "_record_measurement", side_effect=olcum_yamasi):
-                    sonuc = kapi.run_commands("test", komutlar, runner=runner, measurement_path=yol)
+                with mock.patch.object(gate, "_record_measurement", side_effect=olcum_yamasi):
+                    sonuc = gate.run_commands("test", komutlar, runner=runner, measurement_path=yol)
             satirlar = [json.loads(s) for s in yol.read_text(encoding="utf-8").splitlines()] if yol.exists() else []
         return sonuc, ekran.getvalue(), basladi, satirlar
 
     @staticmethod
     def _grup(*adlar, grup="g"):
-        return [kapi.Command((ad,), group=grup) for ad in adlar]
+        return [gate.Command((ad,), group=grup) for ad in adlar]
 
     def test_cikti_liste_sirasiyla_basilir_bitis_sirasiyla_degil(self):
         bitti = {ad: threading.Event() for ad in ("c1", "c2")}
@@ -1895,7 +1911,7 @@ class GrupKosucuTestleri(unittest.TestCase):
 
         self.assertEqual(sonuc, 3)
         self.assertEqual([(s["command"], s["exit_code"]) for s in satirlar], [("c0", 3), ("c1", 5), ("c2", 0)])
-        self.assertIn("Çıkış 5", ekran)  # kardeşin kırmızısı da görünür, kararı değiştirmez
+        self.assertIn("Exit 5", ekran)  # kardeşin kırmızısı da görünür, kararı değiştirmez
 
     def test_kirmizi_adim_kardeslerini_yetim_birakmaz(self):
         serbest = threading.Event()
@@ -1958,8 +1974,8 @@ class GrupKosucuTestleri(unittest.TestCase):
             return 0, ""
 
         komutlar = [
-            kapi.Command(("a1",), group="g", lane="a"), kapi.Command(("a2",), group="g", lane="a"),
-            kapi.Command(("b1",), group="g", lane="b"), kapi.Command(("b2",), group="g", lane="b"),
+            gate.Command(("a1",), group="g", lane="a"), gate.Command(("a2",), group="g", lane="a"),
+            gate.Command(("b1",), group="g", lane="b"), gate.Command(("b2",), group="g", lane="b"),
         ]
         sonuc, _, _, _ = self._kos(komutlar, davranis)
 
@@ -1983,14 +1999,14 @@ class GrupKosucuTestleri(unittest.TestCase):
             return 0, ""
 
         komutlar = [
-            kapi.Command(("a1",), group="g", lane="a"), kapi.Command(("b1",), group="g", lane="b"),
-            kapi.Command(("b2",), group="g", lane="b"), kapi.Command(("a2",), group="g", lane="a"),
+            gate.Command(("a1",), group="g", lane="a"), gate.Command(("b1",), group="g", lane="b"),
+            gate.Command(("b2",), group="g", lane="b"), gate.Command(("a2",), group="g", lane="a"),
         ]
         sonuc, ekran, basladi, satirlar = self._kos(komutlar, davranis, olcum_yamasi=kaydet)
 
         self.assertEqual(sonuc, 4)
         self.assertCountEqual(basladi, ["a1", "b1"])
-        self.assertEqual(ekran.count("atlandı"), 2)
+        self.assertEqual(ekran.count("skipped"), 2)
         self.assertEqual(satirlar, [])  # yama satır yazmaz; ölçümün kendisi ayrı sınanır
 
     def test_uzun_suren_grup_sessiz_kalmaz_hangi_komutlar_surdugunu_yazar(self):
@@ -1998,11 +2014,11 @@ class GrupKosucuTestleri(unittest.TestCase):
             time.sleep(0.4 if ad == "yavas" else 0.0)
             return 0, ""
 
-        with mock.patch.object(kapi, "GROUP_HEARTBEAT_SECONDS", 0.05):
+        with mock.patch.object(gate, "GROUP_HEARTBEAT_SECONDS", 0.05):
             sonuc, ekran, _, _ = self._kos(self._grup("yavas", "hizli"), davranis)
 
         self.assertEqual(sonuc, 0)
-        self.assertRegex(ekran, r"… sürüyor \(\d+ s\): yavas")
+        self.assertRegex(ekran, r"… still running \(\d+ s\): yavas")
 
     def test_komut_bulunamazsa_grupta_127_olur_ve_kimse_beklemede_kalmaz(self):
         def runner(args, **kwargs):
@@ -2011,7 +2027,7 @@ class GrupKosucuTestleri(unittest.TestCase):
             return mock.Mock(returncode=0, stdout="")
 
         with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()):
-            sonuc = kapi.run_commands(
+            sonuc = gate.run_commands(
                 "test", self._grup("c0", "c1"), runner=runner, measurement_path=pathlib.Path(dizin) / "m.jsonl")
 
         self.assertEqual(sonuc, 127)
@@ -2023,42 +2039,42 @@ class GrupKosucuTestleri(unittest.TestCase):
             return mock.Mock(returncode=0, stdout="")
 
         with tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()) as ekran:
-            sonuc = kapi.run_commands(
+            sonuc = gate.run_commands(
                 "test", self._grup("c0", "c1"), runner=runner, measurement_path=pathlib.Path(dizin) / "m.jsonl")
 
-        self.assertEqual(sonuc, kapi.INTERNAL_ERROR_EXIT_CODE)
+        self.assertEqual(sonuc, gate.INTERNAL_ERROR_EXIT_CODE)
         self.assertIn("beklenmeyen", ekran.getvalue())
 
     def test_grup_komutun_gorunumunu_degistirmez(self):
-        self.assertEqual(kapi.Command(("x", "y"), group="g", lane="a").display, kapi.Command(("x", "y")).display)
+        self.assertEqual(gate.Command(("x", "y"), group="g", lane="a").display, gate.Command(("x", "y")).display)
 
     def test_ayni_grup_adi_ancak_bitisikse_tek_blok_olur(self):
         komutlar = [
-            *self._grup("g1", "g2"), kapi.Command(("duz",)), *self._grup("g3", "g4"),
-            kapi.Command(("tek",), group="baska"),
+            *self._grup("g1", "g2"), gate.Command(("duz",)), *self._grup("g3", "g4"),
+            gate.Command(("tek",), group="baska"),
         ]
 
         self.assertEqual(
-            [[komut.args[0] for komut in blok] for blok in kapi._blocks(komutlar)],
+            [[komut.args[0] for komut in blok] for blok in gate._blocks(komutlar)],
             [["g1", "g2"], ["duz"], ["g3", "g4"], ["tek"]])
 
     def test_gruplanmamis_komutlar_eskisi_gibi_sirayla_ve_ilk_kirmizida_durur(self):
         sonuc, _, basladi, _ = self._kos(
-            [kapi.Command((ad,)) for ad in ("s0", "s1", "s2")], lambda ad: (7 if ad == "s1" else 0, ""))
+            [gate.Command((ad,)) for ad in ("s0", "s1", "s2")], lambda ad: (7 if ad == "s1" else 0, ""))
 
         self.assertEqual(sonuc, 7)
         self.assertEqual(basladi, ["s0", "s1"])
 
     def test_kuru_listede_grup_ve_hat_isaretleri_yorum_satiridir(self):
         komutlar = [
-            kapi.Command(("once",)),
-            kapi.Command(("a1",), group="g", lane="a"), kapi.Command(("b1",), group="g", lane="b"),
-            kapi.Command(("a2",), group="g", lane="a"),
-            kapi.Command(("sonra",)),
+            gate.Command(("once",)),
+            gate.Command(("a1",), group="g", lane="a"), gate.Command(("b1",), group="g", lane="b"),
+            gate.Command(("a2",), group="g", lane="a"),
+            gate.Command(("sonra",)),
         ]
         runner = mock.Mock()
         with contextlib.redirect_stdout(io.StringIO()) as ekran:
-            sonuc = kapi.run_commands("test", komutlar, runner=runner, dry_run=True)
+            sonuc = gate.run_commands("test", komutlar, runner=runner, dry_run=True)
 
         satirlar = ekran.getvalue().splitlines()
         self.assertEqual(sonuc, 0)
@@ -2066,11 +2082,11 @@ class GrupKosucuTestleri(unittest.TestCase):
         self.assertEqual(
             [satir[2:] for satir in satirlar if satir.startswith("$ ")],
             [komut.display for komut in komutlar])
-        self.assertTrue(any(satir.startswith("# paralel grup") for satir in satirlar))
-        self.assertTrue(any(satir.startswith("# grup sonu") for satir in satirlar))
+        self.assertTrue(any(satir.startswith("# parallel group") for satir in satirlar))
+        self.assertTrue(any(satir.startswith("# group end") for satir in satirlar))
         # Hat işareti, listede hat değiştiği yerde yazılır (a1, b1, a2 -> a, b, a).
         self.assertEqual(
-            [satir for satir in satirlar if satir.startswith("# hat ")], ["# hat a", "# hat b", "# hat a"])
+            [satir for satir in satirlar if satir.startswith("# lane ")], ["# lane a", "# lane b", "# lane a"])
 
 
 class AsamaliTestKosumuTestleri(unittest.TestCase):
@@ -2085,14 +2101,14 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
                 cagrilar.append((tuple(args), time.time()))
             return mock.Mock(returncode=kod_veren(tuple(args)), stdout="")
 
-        with mock.patch.object(kapi, "require_executed_tests", return_value=sifir_test) as zorunlu, \
-                mock.patch.object(kapi, "enforce_module_time_limits", return_value=sinir_kodu) as sinir, \
-                mock.patch.object(kapi, "record_test_durations") as sure, \
-                mock.patch.object(kapi, "isolate_failed_tests", return_value=[]) as izole, \
-                mock.patch.object(kapi, "failed_tests_from_trx", return_value=[]) as dusenler, \
+        with mock.patch.object(gate, "require_executed_tests", return_value=sifir_test) as zorunlu, \
+                mock.patch.object(gate, "enforce_module_time_limits", return_value=sinir_kodu) as sinir, \
+                mock.patch.object(gate, "record_test_durations") as sure, \
+                mock.patch.object(gate, "isolate_failed_tests", return_value=[]) as izole, \
+                mock.patch.object(gate, "failed_tests_from_trx", return_value=[]) as dusenler, \
                 tempfile.TemporaryDirectory() as dizin, contextlib.redirect_stdout(io.StringIO()):
             yol = pathlib.Path(dizin) / "m.jsonl"
-            sonuc = kapi.run_commands("test", komutlar, runner=runner, measurement_path=yol)
+            sonuc = gate.run_commands("test", komutlar, runner=runner, measurement_path=yol)
             satirlar = [json.loads(s) for s in yol.read_text(encoding="utf-8").splitlines()] if yol.exists() else []
         return types.SimpleNamespace(
             sonuc=sonuc, cagrilar=cagrilar, satirlar=satirlar, zorunlu=zorunlu, sinir=sinir, sure=sure,
@@ -2105,7 +2121,7 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
     # --- sıra ve yapı -------------------------------------------------------------
 
     def test_core_tek_basina_ilk_komuttur_sonra_hafif_sonra_agir(self):
-        komutlar = kapi.staged_test_commands()
+        komutlar = gate.staged_test_commands()
 
         self.assertEqual(
             komutlar[0].args[:4],
@@ -2113,11 +2129,11 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
         self.assertEqual(komutlar[1].args[:4], ("dotnet", "test", "--solution", "Tracon.fast.slnf"))
         self.assertIsNone(komutlar[0].group)
         self.assertIsNone(komutlar[1].group)
-        self.assertTrue(all(komut.group == kapi.HEAVY_TEST_GROUP for komut in komutlar[2:]))
-        self.assertEqual(len(komutlar), 2 + sum(len(adlar) for adlar in kapi.HEAVY_TEST_LANES.values()))
+        self.assertTrue(all(komut.group == gate.HEAVY_TEST_GROUP for komut in komutlar[2:]))
+        self.assertEqual(len(komutlar), 2 + sum(len(adlar) for adlar in gate.HEAVY_TEST_LANES.values()))
 
     def test_docker_modulleri_en_sonda_agir_hatlarda_kosar(self):
-        komutlar = kapi.staged_test_commands()
+        komutlar = gate.staged_test_commands()
         for modul in ("TwoNode", "SqlServer", "PostgreSql"):
             with self.subTest(modul=modul):
                 yer = [i for i, komut in enumerate(komutlar) if f"Tracon.{modul}.IntegrationTests" in komut.display]
@@ -2127,37 +2143,37 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
 
     def test_sql_server_ve_two_node_ayni_hattadir_boylece_asla_ayni_anda_kosmaz(self):
         hat_of = {
-            ad: hat for hat, adlar in kapi.HEAVY_TEST_LANES.items() for ad in adlar}
+            ad: hat for hat, adlar in gate.HEAVY_TEST_LANES.items() for ad in adlar}
 
         self.assertEqual(hat_of["Tracon.SqlServer.IntegrationTests"], hat_of["Tracon.TwoNode.IntegrationTests"])
-        komutlar = {k.display: k for k in kapi.staged_test_commands() if k.group}
+        komutlar = {k.display: k for k in gate.staged_test_commands() if k.group}
         for komut in komutlar.values():
-            proje = pathlib.PurePath(kapi._test_target(komut.args)).stem
+            proje = pathlib.PurePath(gate._test_target(komut.args)).stem
             self.assertEqual(komut.lane, hat_of[proje], proje)
 
     def test_hat_sayisi_ayni_anda_kosan_modul_sayisidir(self):
-        self.assertEqual(len(kapi.HEAVY_TEST_LANES), kapi.TEST_MAX_CPU_COUNT)
+        self.assertEqual(len(gate.HEAVY_TEST_LANES), gate.TEST_MAX_CPU_COUNT)
 
     def test_her_asama_trx_bayraklarini_tasir(self):
-        for komut in kapi.staged_test_commands():
+        for komut in gate.staged_test_commands():
             with self.subTest(komut=komut.display):
                 args = komut.args
-                self.assertTrue(kapi.reports_trx(komut))
+                self.assertTrue(gate.reports_trx(komut))
                 self.assertNotIn("--", args)
                 self.assertEqual(args[args.index("-c") + 1], "Release")
                 self.assertIn("--no-build", args)
-                self.assertEqual(args[args.index("--results-directory") + 1], kapi.TEST_RESULTS_DIRECTORY)
+                self.assertEqual(args[args.index("--results-directory") + 1], gate.TEST_RESULTS_DIRECTORY)
                 self.assertEqual(args[args.index("--results-directory-layout") + 1], "per-module")
 
     def test_ic_dongu_tam_kosum_komutu_tek_cozum_komutu_olarak_kalir(self):
         with contextlib.redirect_stdout(io.StringIO()):
-            komutlar = kapi.inner_loop_commands(["src/Unknown.Package/Thing.cs"])[1:]
+            komutlar = gate.inner_loop_commands(["src/Unknown.Package/Thing.cs"])[1:]
 
-        self.assertEqual([k.display for k in komutlar], [kapi.full_solution_test_command().display])
+        self.assertEqual([k.display for k in komutlar], [gate.full_solution_test_command().display])
 
     def test_kapanis_testleri_listenin_sonunda_bitisiktir_ve_oncesinde_testsiz_adimlar_vardir(self):
-        komutlar = kapi.closing_commands("abc123", site=True, performance=True)
-        testler = kapi.staged_test_commands()
+        komutlar = gate.closing_commands("abc123", site=True, performance=True)
+        testler = gate.staged_test_commands()
 
         self.assertEqual(komutlar[-len(testler):], testler)
         self.assertFalse(any(k.display.startswith("dotnet test") for k in komutlar[:-len(testler)]))
@@ -2165,18 +2181,18 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
     # --- bölüm koruması -------------------------------------------------------------
 
     def test_slnf_ve_agir_liste_ve_core_her_test_modulunu_tam_bir_kez_kapsar(self):
-        hafif = _slnf_projeleri(ROOT / kapi.FAST_TEST_SOLUTION_FILTER)
+        hafif = _slnf_projeleri(ROOT / gate.FAST_TEST_SOLUTION_FILTER)
 
         self.assertTrue(all(yol.startswith("tests/") for yol in hafif), "hafif süzgeç yalnız test projesi tutar")
         for yol in hafif:
             self.assertTrue((ROOT / yol).is_file(), yol)
         self.assertEqual(
-            json.loads((ROOT / kapi.FAST_TEST_SOLUTION_FILTER).read_text(encoding="utf-8"))["solution"]["path"],
+            json.loads((ROOT / gate.FAST_TEST_SOLUTION_FILTER).read_text(encoding="utf-8"))["solution"]["path"],
             "Tracon.slnx")
         self.assertEqual(
             _bolum_sorunlari(
-                _slnx_test_modulleri(), kapi.CORE_TEST_PROJECT,
-                [pathlib.PurePosixPath(yol).stem for yol in hafif], kapi.HEAVY_TEST_LANES),
+                _slnx_test_modulleri(), gate.CORE_TEST_PROJECT,
+                [pathlib.PurePosixPath(yol).stem for yol in hafif], gate.HEAVY_TEST_LANES),
             [])
 
     def test_bolum_korumasi_hicbir_yerde_listelenmeyen_yeni_modulde_kirmizi_olur(self):
@@ -2201,15 +2217,15 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
         moduller = _slnx_test_modulleri()
 
         self.assertNotIn("Tracon.WorkerHarness", moduller)
-        self.assertIn(kapi.CORE_TEST_PROJECT, moduller)
+        self.assertIn(gate.CORE_TEST_PROJECT, moduller)
 
     # --- koşum: tek TRX denetimi, ilk kırmızıda durma ------------------------------------
 
     def test_yesil_kosumda_trx_kancalari_bir_kez_ve_ilk_komuttan_once_baslayan_zamanla_calisir(self):
-        sonuc = self._kos(kapi.staged_test_commands())
+        sonuc = self._kos(gate.staged_test_commands())
 
         self.assertEqual(sonuc.sonuc, 0)
-        self.assertEqual(len(sonuc.cagrilar), len(kapi.staged_test_commands()))
+        self.assertEqual(len(sonuc.cagrilar), len(gate.staged_test_commands()))
         for kanca in (sonuc.zorunlu, sonuc.sinir, sonuc.sure):
             kanca.assert_called_once()
         since = sonuc.sure.call_args.args[0]
@@ -2217,10 +2233,10 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
         self.assertEqual(sonuc.sinir.call_args.args[0], since)
         self.assertLessEqual(since, min(zaman for _, zaman in sonuc.cagrilar))
         sonuc.izole.assert_not_called()
-        self.assertEqual([s["exit_code"] for s in sonuc.satirlar], [0] * len(kapi.staged_test_commands()))
+        self.assertEqual([s["exit_code"] for s in sonuc.satirlar], [0] * len(gate.staged_test_commands()))
 
     def test_kirmizi_core_sonraki_asamalari_baslatmaz_ama_teshis_kancalari_calisir(self):
-        sonuc = self._kos(kapi.staged_test_commands(), self._ad_iceren("Tracon.Core.UnitTests"))
+        sonuc = self._kos(gate.staged_test_commands(), self._ad_iceren("Tracon.Core.UnitTests"))
 
         self.assertEqual(sonuc.sonuc, 2)
         self.assertEqual(len(sonuc.cagrilar), 1)
@@ -2235,7 +2251,7 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
         self.assertIn("Tracon.Core.UnitTests", sonuc.satirlar[0]["command"])
 
     def test_kirmizi_hafif_asama_agir_hatlari_baslatmaz(self):
-        sonuc = self._kos(kapi.staged_test_commands(), self._ad_iceren("Tracon.fast.slnf"))
+        sonuc = self._kos(gate.staged_test_commands(), self._ad_iceren("Tracon.fast.slnf"))
 
         self.assertEqual(sonuc.sonuc, 2)
         self.assertEqual(len(sonuc.cagrilar), 2)
@@ -2244,7 +2260,7 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
 
     def test_kirmizi_agir_modul_hatti_durdurur_cikis_kodunu_korur_ve_sure_sinirini_ezmez(self):
         sonuc = self._kos(
-            kapi.staged_test_commands(), self._ad_iceren("Tracon.SqlServer.IntegrationTests"), sinir_kodu=90)
+            gate.staged_test_commands(), self._ad_iceren("Tracon.SqlServer.IntegrationTests"), sinir_kodu=90)
 
         calisan = [" ".join(args) for args, _ in sonuc.cagrilar]
         self.assertEqual(sonuc.sonuc, 2)
@@ -2254,34 +2270,34 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
         sonuc.izole.assert_called_once()
 
     def test_asamalar_yesilken_modul_sure_siniri_cikis_kodu_verir_ve_tek_satir_yazar(self):
-        sonuc = self._kos(kapi.staged_test_commands(), sinir_kodu=kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        sonuc = self._kos(gate.staged_test_commands(), sinir_kodu=gate.MODULE_TIME_LIMIT_EXIT_CODE)
 
-        self.assertEqual(sonuc.sonuc, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(sonuc.sonuc, gate.MODULE_TIME_LIMIT_EXIT_CODE)
         sonuc.sinir.assert_called_once()
         sonuc.sure.assert_called_once()
-        kontrol = [s for s in sonuc.satirlar if s["command"] == kapi.TRX_CHECK.display]
-        self.assertEqual([s["exit_code"] for s in kontrol], [kapi.MODULE_TIME_LIMIT_EXIT_CODE])
+        kontrol = [s for s in sonuc.satirlar if s["command"] == gate.TRX_CHECK.display]
+        self.assertEqual([s["exit_code"] for s in kontrol], [gate.MODULE_TIME_LIMIT_EXIT_CODE])
         self.assertEqual(
-            [s["exit_code"] for s in sonuc.satirlar if s["command"] != kapi.TRX_CHECK.display],
-            [0] * len(kapi.staged_test_commands()))
+            [s["exit_code"] for s in sonuc.satirlar if s["command"] != gate.TRX_CHECK.display],
+            [0] * len(gate.staged_test_commands()))
 
     def test_sifir_test_kosan_yesil_asamalar_kirmizi_sayilir(self):
-        sonuc = self._kos(kapi.staged_test_commands(), sifir_test=kapi.ZERO_TESTS_EXIT_CODE)
+        sonuc = self._kos(gate.staged_test_commands(), sifir_test=gate.ZERO_TESTS_EXIT_CODE)
 
-        self.assertEqual(sonuc.sonuc, kapi.ZERO_TESTS_EXIT_CODE)
+        self.assertEqual(sonuc.sonuc, gate.ZERO_TESTS_EXIT_CODE)
         sonuc.zorunlu.assert_called_once()
         sonuc.sinir.assert_not_called()
 
     def test_testsiz_adim_iki_test_kosumunu_ayirir_ve_her_kosum_kendi_kancalarini_calistirir(self):
-        trx = kapi.full_solution_test_command()
-        sonuc = self._kos([trx, kapi.Command(("dotnet", "build", "Tracon.slnx")), trx])
+        trx = gate.full_solution_test_command()
+        sonuc = self._kos([trx, gate.Command(("dotnet", "build", "Tracon.slnx")), trx])
 
         self.assertEqual(sonuc.sonuc, 0)
         self.assertEqual(sonuc.zorunlu.call_count, 2)
         self.assertEqual(sonuc.sure.call_count, 2)
 
     def test_trx_istemeyen_grup_test_kancalarini_calistirmaz(self):
-        sonuc = self._kos([kapi.Command((ad,), group="g") for ad in ("c0", "c1")])
+        sonuc = self._kos([gate.Command((ad,), group="g") for ad in ("c0", "c1")])
 
         self.assertEqual(sonuc.sonuc, 0)
         sonuc.zorunlu.assert_not_called()
@@ -2289,7 +2305,7 @@ class AsamaliTestKosumuTestleri(unittest.TestCase):
 
 
 class PerformansKapisiTestleri(unittest.TestCase):
-    """`scripts/kapi.py performans` - karşılaştırma ve taban çizgisi
+    """`scripts/gate.py perf` - karşılaştırma ve taban çizgisi
     okuma mantığının SAF Python testleri. `dotnet run` gerektiren gerçek
     benchmark koşumu ve kasıtlı gerileme koşumu manuel kabul case'lerindedir."""
 
@@ -2297,7 +2313,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
         baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
         current = {"A": {"allocatedBytes": 132, "meanNanoseconds": 1.0}}
 
-        exit_code, messages = kapi.compare_allocations(baseline, current)
+        exit_code, messages = gate.compare_allocations(baseline, current)
 
         self.assertEqual(exit_code, 1)
         self.assertTrue(any("A" in message and "132" in message and "+32" in message for message in messages))
@@ -2306,24 +2322,24 @@ class PerformansKapisiTestleri(unittest.TestCase):
         baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
         current = {"A": {"allocatedBytes": 80, "meanNanoseconds": 1.0}}
 
-        exit_code, messages = kapi.compare_allocations(baseline, current)
+        exit_code, messages = gate.compare_allocations(baseline, current)
 
         self.assertEqual(exit_code, 0)
-        self.assertTrue(any("güncelle" in message for message in messages))
+        self.assertTrue(any("update the baseline" in message for message in messages))
 
     def test_ayni_tahsis_gecer(self):
         baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
         current = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
 
-        exit_code, _messages = kapi.compare_allocations(baseline, current)
+        exit_code, _messages = gate.compare_allocations(baseline, current)
 
         self.assertEqual(exit_code, 0)
 
     def test_taban_cizgisinde_olmayan_benchmark_kirmizi_olur(self):
-        exit_code, messages = kapi.compare_allocations({}, {"Yeni": {"allocatedBytes": 10, "meanNanoseconds": 1.0}})
+        exit_code, messages = gate.compare_allocations({}, {"Yeni": {"allocatedBytes": 10, "meanNanoseconds": 1.0}})
 
         self.assertEqual(exit_code, 1)
-        self.assertTrue(any("Yeni" in message and "taban çizgisinde yok" in message for message in messages))
+        self.assertTrue(any("Yeni" in message and "not in the baseline" in message for message in messages))
 
     def test_olcum_uretmeyen_benchmark_anlasilir_kirmizi_olur(self):
         # 2026-10-11: BenchmarkDotNet aynı ada sahip ikinci bir .csproj bulunca
@@ -2332,41 +2348,41 @@ class PerformansKapisiTestleri(unittest.TestCase):
         # anlamlı bir mesaj yerine TypeError ile çöktü.
         report = {"Benchmarks": [{"FullName": "A", "Statistics": None,
                                   "Memory": {"BytesAllocatedPerOperation": None}}]}
-        current = kapi.parse_benchmark_report(report)
+        current = gate.parse_benchmark_report(report)
 
-        exit_code, messages = kapi.compare_allocations({"A": {"allocatedBytes": 24, "meanNanoseconds": 1.0}}, current)
+        exit_code, messages = gate.compare_allocations({"A": {"allocatedBytes": 24, "meanNanoseconds": 1.0}}, current)
 
         self.assertEqual(exit_code, 1)
-        self.assertTrue(any("A" in message and "ölçüm üretmedi" in message for message in messages))
+        self.assertTrue(any("A" in message and "produced no measurement" in message for message in messages))
 
     def test_bu_kosumda_uretilmeyen_benchmark_kirmizi_olur(self):
-        exit_code, messages = kapi.compare_allocations({"Eski": {"allocatedBytes": 10, "meanNanoseconds": 1.0}}, {})
+        exit_code, messages = gate.compare_allocations({"Eski": {"allocatedBytes": 10, "meanNanoseconds": 1.0}}, {})
 
         self.assertEqual(exit_code, 1)
-        self.assertTrue(any("Eski" in message and "üretilmedi" in message for message in messages))
+        self.assertTrue(any("Eski" in message and "not produced" in message for message in messages))
 
     def test_eksik_taban_cizgisi_dosyasi_anlasilir_hata_verir(self):
         with tempfile.TemporaryDirectory() as directory:
             missing = pathlib.Path(directory) / "does-not-exist.json"
 
-            with self.assertRaises(kapi.BaselineError):
-                kapi.load_baseline(missing)
+            with self.assertRaises(gate.BaselineError):
+                gate.load_baseline(missing)
 
     def test_bozuk_taban_cizgisi_dosyasi_anlasilir_hata_verir(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "baseline.json"
             path.write_text("{ this is not valid json", encoding="utf-8")
 
-            with self.assertRaises(kapi.BaselineError):
-                kapi.load_baseline(path)
+            with self.assertRaises(gate.BaselineError):
+                gate.load_baseline(path)
 
     def test_benchmarks_anahtari_eksik_taban_cizgisi_anlasilir_hata_verir(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "baseline.json"
             path.write_text('{"somethingElse": true}', encoding="utf-8")
 
-            with self.assertRaises(kapi.BaselineError):
-                kapi.load_baseline(path)
+            with self.assertRaises(gate.BaselineError):
+                gate.load_baseline(path)
 
     def test_benchmarkdotnet_json_raporundan_tahsis_ve_sure_cikarilir(self):
         report = {
@@ -2379,7 +2395,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
             ],
         }
 
-        parsed = kapi.parse_benchmark_report(report)
+        parsed = gate.parse_benchmark_report(report)
 
         self.assertEqual(
             parsed["Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent"],
@@ -2398,7 +2414,7 @@ class PerformansKapisiTestleri(unittest.TestCase):
                 "Benchmarks": [{"FullName": "B.M", "Memory": {"BytesAllocatedPerOperation": 2}, "Statistics": {"Mean": 2.0}}],
             }), encoding="utf-8")
 
-            found = kapi._benchmark_report_files(report_dir)
+            found = gate._benchmark_report_files(report_dir)
 
         self.assertEqual([path.name for path in found], ["A-report-full.json", "B-report-full.json"])
 
@@ -2407,8 +2423,8 @@ class PerformansKapisiTestleri(unittest.TestCase):
             path = pathlib.Path(directory) / "baseline.json"
             benchmarks = {"A": {"allocatedBytes": 42, "meanNanoseconds": 3.5}}
 
-            kapi.write_baseline(benchmarks, path)
-            loaded = kapi.load_baseline(path)
+            gate.write_baseline(benchmarks, path)
+            loaded = gate.load_baseline(path)
 
         self.assertEqual(loaded["benchmarks"], benchmarks)
 
@@ -2428,10 +2444,10 @@ class PerformansKapisiTestleri(unittest.TestCase):
         enjekte edilebilir - `run_commands` testlerindeki desenin aynısı."""
         with tempfile.TemporaryDirectory() as directory:
             baseline_path = pathlib.Path(directory) / "baseline.json"
-            kapi.write_baseline({"A": {"allocatedBytes": 1, "meanNanoseconds": 1.0}}, baseline_path)
+            gate.write_baseline({"A": {"allocatedBytes": 1, "meanNanoseconds": 1.0}}, baseline_path)
             runner = mock.Mock(return_value=mock.Mock(returncode=1))
 
-            exit_code = kapi.performance_gate(
+            exit_code = gate.performance_gate(
                 runner=runner,
                 baseline_path=baseline_path,
                 report_dir=pathlib.Path(directory) / "results")
@@ -2442,10 +2458,10 @@ class PerformansKapisiTestleri(unittest.TestCase):
     def test_performans_kapisi_rapor_uretilmezse_anlasilir_hata_verir(self):
         with tempfile.TemporaryDirectory() as directory:
             baseline_path = pathlib.Path(directory) / "baseline.json"
-            kapi.write_baseline({"A": {"allocatedBytes": 1, "meanNanoseconds": 1.0}}, baseline_path)
+            gate.write_baseline({"A": {"allocatedBytes": 1, "meanNanoseconds": 1.0}}, baseline_path)
             runner = mock.Mock(return_value=mock.Mock(returncode=0))
 
-            exit_code = kapi.performance_gate(
+            exit_code = gate.performance_gate(
                 runner=runner,
                 baseline_path=baseline_path,
                 report_dir=pathlib.Path(directory) / "results")
@@ -2456,13 +2472,13 @@ class PerformansKapisiTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             baseline_path = pathlib.Path(directory) / "baseline.json"
             report_dir = pathlib.Path(directory) / "results"
-            kapi.write_baseline({"A.M": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}, baseline_path)
+            gate.write_baseline({"A.M": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}, baseline_path)
 
             def fake_runner(*args, **kwargs):
                 self._write_report(report_dir, "A-report-full.json", "A.M", 132)
                 return mock.Mock(returncode=0)
 
-            exit_code = kapi.performance_gate(
+            exit_code = gate.performance_gate(
                 runner=fake_runner, baseline_path=baseline_path, report_dir=report_dir)
 
         self.assertEqual(exit_code, 1)
@@ -2476,16 +2492,16 @@ class PerformansKapisiTestleri(unittest.TestCase):
                 self._write_report(report_dir, "A-report-full.json", "A.M", 55)
                 return mock.Mock(returncode=0)
 
-            exit_code = kapi.performance_gate(
+            exit_code = gate.performance_gate(
                 update=True, runner=fake_runner, baseline_path=baseline_path, report_dir=report_dir)
-            written = kapi.load_baseline(baseline_path)
+            written = gate.load_baseline(baseline_path)
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(written["benchmarks"]["A.M"]["allocatedBytes"], 55)
 
 
 class YayinTestleri(unittest.TestCase):
-    """`scripts/kapi.py yayin` - saf Python mantığı. `dotnet
+    """`scripts/gate.py release` - saf Python mantığı. `dotnet
     pack`'e ihtiyaç duyan uçtan uca davranış `ReleaseArtifactTests.cs`'te ve bu
     fazın manuel kabul case'lerinde."""
 
@@ -2502,7 +2518,7 @@ class YayinTestleri(unittest.TestCase):
             self._write_csproj(root, "Tracon.Core")
             self._write_csproj(root, "Tracon.Generators", "<PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>")
 
-            self.assertEqual(kapi.packable_project_ids(root), ["Tracon.Core"])
+            self.assertEqual(gate.packable_project_ids(root), ["Tracon.Core"])
 
     def test_paket_profili_arac_icerik_meta_ve_kutuphaneyi_ayirir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -2514,32 +2530,32 @@ class YayinTestleri(unittest.TestCase):
             self._write_csproj(root, "Tracon", "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup>")
             self._write_csproj(root, "Tracon.Core")
 
-            self.assertEqual(kapi._package_profile(root, "Tracon.Cli"), "tool")
-            self.assertEqual(kapi._package_profile(root, "Tracon.Templates"), "content")
-            self.assertEqual(kapi._package_profile(root, "Tracon"), "meta")
-            self.assertEqual(kapi._package_profile(root, "Tracon.Core"), "library")
+            self.assertEqual(gate._package_profile(root, "Tracon.Cli"), "tool")
+            self.assertEqual(gate._package_profile(root, "Tracon.Templates"), "content")
+            self.assertEqual(gate._package_profile(root, "Tracon"), "meta")
+            self.assertEqual(gate._package_profile(root, "Tracon.Core"), "library")
 
     def test_kendi_surumunu_adlandirma_baska_paketi_karistirmiyor(self):
         """'Tracon.' önekiyle başlayan başka bir paketin dosyasını
         ("Tracon.Core...") kendi paketiymiş gibi almamalı."""
-        self.assertTrue(kapi._names_own_version("Tracon", "Tracon.1.0.0-preview.1.nupkg"))
-        self.assertFalse(kapi._names_own_version("Tracon", "Tracon.Core.1.0.0-preview.1.nupkg"))
-        self.assertTrue(kapi._names_own_version("Tracon.Core", "Tracon.Core.1.0.0-preview.1.nupkg"))
+        self.assertTrue(gate._names_own_version("Tracon", "Tracon.1.0.0-preview.1.nupkg"))
+        self.assertFalse(gate._names_own_version("Tracon", "Tracon.Core.1.0.0-preview.1.nupkg"))
+        self.assertTrue(gate._names_own_version("Tracon.Core", "Tracon.Core.1.0.0-preview.1.nupkg"))
 
     def test_surum_istenmisse_tam_dosya_adi_aranir(self):
         with tempfile.TemporaryDirectory() as directory:
             release_dir = pathlib.Path(directory)
             (release_dir / "Tracon.Core.1.0.0-preview.1.nupkg").write_bytes(b"")
 
-            found = kapi._resolve_nupkg(release_dir, "Tracon.Core", "1.0.0-preview.1")
-            missing = kapi._resolve_nupkg(release_dir, "Tracon.Core", "1.0.0-preview.2")
+            found = gate._resolve_nupkg(release_dir, "Tracon.Core", "1.0.0-preview.1")
+            missing = gate._resolve_nupkg(release_dir, "Tracon.Core", "1.0.0-preview.2")
 
         self.assertIsNotNone(found)
         self.assertIsNone(missing)
 
     def test_surum_istenmemisse_en_son_yazilan_kendi_dosyasi_secilir(self):
         """Denetim: eski bir 'en son yazılan' seçimi, ÖNCEKİ bir
-        --surum koşumundan kalan bayat dosyayı seçebiliyordu, çünkü artımlı
+        --package-version koşumundan kalan bayat dosyayı seçebiliyordu, çünkü artımlı
         `dotnet pack` değişmeyen bir projenin çıktısını yeniden üretmeyebilir.
         `_clean_stale_packages` bu testin varsaydığı ön koşulu sağlar; burada
         yalnız kalan iki adaydan DOĞRU (en yeni) olanın seçildiği ölçülüyor."""
@@ -2552,7 +2568,7 @@ class YayinTestleri(unittest.TestCase):
             os.utime(old, (1, 1))
             os.utime(new, (2, 2))
 
-            found = kapi._resolve_nupkg(release_dir, "Tracon.Core", None)
+            found = gate._resolve_nupkg(release_dir, "Tracon.Core", None)
 
         self.assertEqual(found, new)
 
@@ -2563,13 +2579,13 @@ class YayinTestleri(unittest.TestCase):
             self._write_csproj(root, "Tracon.Core")
             _write_src_build_props(root, "net10.0;net11.0")
 
-            self.assertEqual(kapi._target_frameworks(root, "Tracon.Testing"), ("net10.0",))
+            self.assertEqual(gate._target_frameworks(root, "Tracon.Testing"), ("net10.0",))
             # Varsayilan props'tan OKUNUR, betikte tekrar yazilmaz.
-            self.assertEqual(kapi._target_frameworks(root, "Tracon.Core"), ("net10.0", "net11.0"))
+            self.assertEqual(gate._target_frameworks(root, "Tracon.Core"), ("net10.0", "net11.0"))
 
             (root / "src" / "Directory.Build.props").write_text("<Project />\n", encoding="utf-8")
             with self.assertRaises(ValueError):
-                kapi._target_frameworks(root, "Tracon.Core")
+                gate._target_frameworks(root, "Tracon.Core")
 
     @staticmethod
     def _write_fake_nupkg(path: pathlib.Path, *, content: bytes, psmdcp_guid: str = "0" * 32) -> None:
@@ -2594,7 +2610,7 @@ class YayinTestleri(unittest.TestCase):
             name = "Tracon.Core.1.0.0-preview.1.nupkg"
             self._write_fake_nupkg(staging_dir / name, content=b"content")
 
-            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [name])
+            conflicts = gate._promote_staged_packages(staging_dir, release_dir, [name])
 
             self.assertEqual(conflicts, [])
             self.assertTrue((release_dir / name).exists())
@@ -2610,7 +2626,7 @@ class YayinTestleri(unittest.TestCase):
             self._write_fake_nupkg(staging_dir / name, content=b"same-content")
             self._write_fake_nupkg(release_dir / name, content=b"same-content")
 
-            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [name])
+            conflicts = gate._promote_staged_packages(staging_dir, release_dir, [name])
 
             self.assertEqual(conflicts, [])
 
@@ -2630,9 +2646,9 @@ class YayinTestleri(unittest.TestCase):
             name = "Tracon.Core.1.0.0-preview.1.nupkg"
             self._write_fake_nupkg(staging_dir / name, content=b"same-content", psmdcp_guid="a" * 32)
             self._write_fake_nupkg(release_dir / name, content=b"same-content", psmdcp_guid="b" * 32)
-            self.assertNotEqual(kapi._sha256(staging_dir / name), kapi._sha256(release_dir / name))
+            self.assertNotEqual(gate._sha256(staging_dir / name), gate._sha256(release_dir / name))
 
-            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [name])
+            conflicts = gate._promote_staged_packages(staging_dir, release_dir, [name])
 
             self.assertEqual(conflicts, [])
 
@@ -2651,7 +2667,7 @@ class YayinTestleri(unittest.TestCase):
             self._write_fake_nupkg(release_dir / conflicting, content=b"old-content")
             self._write_fake_nupkg(staging_dir / clean, content=b"non-conflicting")
 
-            conflicts = kapi._promote_staged_packages(staging_dir, release_dir, [conflicting, clean])
+            conflicts = gate._promote_staged_packages(staging_dir, release_dir, [conflicting, clean])
 
             with zipfile.ZipFile(release_dir / conflicting) as archive:
                 untouched_content = archive.read("lib/net10.0/Thing.dll")
@@ -2665,7 +2681,7 @@ class YayinTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             release_dir = pathlib.Path(directory)
 
-            manifest_path = kapi._write_manifest(
+            manifest_path = gate._write_manifest(
                 release_dir,
                 version="1.0.0-preview.1",
                 commit="691dfbe17061bd6932576e892f4eeffe044468df",
@@ -2682,21 +2698,21 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(manifest["packages"][0]["sha256"], "abc")
 
     def test_yayin_kirli_agacta_erken_reddeder_pack_denenmez(self):
-        with mock.patch.object(kapi, "_git", return_value=[" M src/Directory.Build.props"]):
+        with mock.patch.object(gate, "_git", return_value=[" M src/Directory.Build.props"]):
             with mock.patch("subprocess.run") as run:
-                result = kapi.release_rehearsal(None)
+                result = gate.release_rehearsal(None)
 
         self.assertEqual(result, 1)
         run.assert_not_called()
 
     def test_yayin_tarama_kirmiziysa_pack_denenmez(self):
-        """Etiket koşusu `tarama`yı koşar ve yayınlanmış bir etiket geri alınamaz.
+        """Etiket koşusu `scan`'i koşar ve yayınlanmış bir etiket geri alınamaz.
         Taramanın düşüreceği her şey (sürüm etiketi kayması dahil) etiketten ÖNCE,
         provada görünmeli; pack'e hiç girilmez."""
-        with mock.patch.object(kapi, "_git", return_value=[]), \
-                mock.patch.object(kapi, "scan", return_value=1) as scan, \
-                mock.patch.object(kapi, "_pack_release", return_value=1) as pack:
-            result = kapi.release_rehearsal(None)
+        with mock.patch.object(gate, "_git", return_value=[]), \
+                mock.patch.object(gate, "scan", return_value=1) as scan, \
+                mock.patch.object(gate, "_pack_release", return_value=1) as pack:
+            result = gate.release_rehearsal(None)
 
         self.assertEqual(result, 1)
         scan.assert_called_once()
@@ -2711,21 +2727,21 @@ class YayinTestleri(unittest.TestCase):
             (root / "src").mkdir()
             output = io.StringIO()
 
-            with mock.patch.object(kapi, "_git", return_value=None), \
-                    mock.patch.object(kapi, "scan", return_value=0):
+            with mock.patch.object(gate, "_git", return_value=None), \
+                    mock.patch.object(gate, "scan", return_value=0):
                 with mock.patch("subprocess.run", side_effect=OSError("git yok")) as run:
                     with contextlib.redirect_stdout(output):
-                        result = kapi.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
+                        result = gate.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
 
         self.assertEqual(result, 1)
-        self.assertIn("Taban çözülemedi", output.getvalue())
+        self.assertIn("The baseline could not be resolved", output.getvalue())
         self.assertFalse(any(call.args[0][0] == "dotnet" for call in run.call_args_list))
 
     # --- Taban, izole restore ve kırıcı kapının sırası -------------
 
     @staticmethod
     def _breaking_changes_module():
-        # kapi.py modülü `import breaking_changes` ile alır; testler aynı nesneyi
+        # gate.py modülü `import breaking_changes` ile alır; testler aynı nesneyi
         # (sys.modules girdisi) yamalamalı, kopyasını değil.
         sys.path.insert(0, str(ROOT / "scripts"))
         return importlib.import_module("breaking_changes")
@@ -2742,8 +2758,8 @@ class YayinTestleri(unittest.TestCase):
         output = io.StringIO()
         resolve = mock.Mock(return_value=baseline) if isinstance(baseline, str) else mock.Mock(side_effect=baseline)
         with contextlib.ExitStack() as stack:
-            stack.enter_context(mock.patch.object(kapi, "_git", return_value=[]))
-            stack.enter_context(mock.patch.object(kapi, "scan", return_value=0))
+            stack.enter_context(mock.patch.object(gate, "_git", return_value=[]))
+            stack.enter_context(mock.patch.object(gate, "scan", return_value=0))
             stack.enter_context(mock.patch.object(bc, "resolve_baseline", resolve))
             stack.enter_context(mock.patch.object(
                 bc, "restore_baselines", restore or (lambda ids, version, work: work / "packages")))
@@ -2751,10 +2767,10 @@ class YayinTestleri(unittest.TestCase):
             stack.enter_context(mock.patch.object(bc, "validation_not_run", not_run or mock.Mock(return_value=[])))
             stack.enter_context(mock.patch("subprocess.run", side_effect=fake_run))
             finish_mock = stack.enter_context(mock.patch.object(
-                kapi, "_finish_release_rehearsal", finish or mock.Mock(return_value=0)))
+                gate, "_finish_release_rehearsal", finish or mock.Mock(return_value=0)))
             stack.enter_context(contextlib.redirect_stdout(output))
             release_dir = None if default_release_dir else root / "artifacts" / "package" / "release"
-            result = kapi.release_rehearsal(None, root=root, release_dir=release_dir)
+            result = gate.release_rehearsal(None, root=root, release_dir=release_dir)
         return result, pack_calls, finish_mock, output.getvalue()
 
     def _library_root(self, directory: str) -> pathlib.Path:
@@ -2769,12 +2785,12 @@ class YayinTestleri(unittest.TestCase):
             root = self._library_root(directory)
 
             result, pack_calls, finish, output = self._rehearse(
-                root, baseline=bc.BaselineError("HEAD'den erişilen bir 'v*' etiketi yok"))
+                root, baseline=bc.BaselineError("no 'v*' tag is reachable from HEAD"))
 
         self.assertEqual(result, 1)
         self.assertEqual(pack_calls, [])
         finish.assert_not_called()
-        self.assertIn("❌ Taban çözülemedi: HEAD'den erişilen bir 'v*' etiketi yok", output)
+        self.assertIn("❌ The baseline could not be resolved: no 'v*' tag is reachable from HEAD", output)
 
     def test_restore_hatasi_paketi_adiyla_bildirir_pack_denenmez(self):
         bc = self._breaking_changes_module()
@@ -2808,8 +2824,8 @@ class YayinTestleri(unittest.TestCase):
             self.assertTrue(any(argument.startswith("-p:TraconPackageBaselineRoot=") for argument in arguments))
             self.assertEqual(gate.report_dir.parent, root / "artifacts" / "package" / "api-compat")
             self.assertEqual(gate.baseline, "1.0.0-preview.2")
-            self.assertIn("Taban: v1.0.0-preview.2 (git describe)", output)
-            self.assertIn("Taban paketleri izole cache'ten: 1 paket, kaynak api.nuget.org", output)
+            self.assertIn("Baseline: v1.0.0-preview.2 (git describe)", output)
+            self.assertIn("Baseline packages from the isolated cache (source api.nuget.org): 1", output)
 
     def test_rapor_dizini_kosum_basina_benzersiz(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -2854,26 +2870,26 @@ class YayinTestleri(unittest.TestCase):
             stale = package_root / "release" / "Tracon.Core.1.0.0-preview.2.82.nupkg"
             stale.write_bytes(b"eski")
 
-            with mock.patch.object(kapi, "PACKAGE_RELEASE_DIR", package_root / "release"), \
-                    mock.patch.object(kapi, "PACKAGE_REHEARSAL_ROOT", package_root / "yayin"), \
-                    mock.patch.object(kapi, "_head_commit", return_value="0123456789abcdef0123"), \
-                    mock.patch.object(kapi, "_resolve_package_set", return_value=({}, "1.0.0-preview.3")):
+            with mock.patch.object(gate, "PACKAGE_RELEASE_DIR", package_root / "release"), \
+                    mock.patch.object(gate, "PACKAGE_REHEARSAL_ROOT", package_root / "rehearsal"), \
+                    mock.patch.object(gate, "_head_commit", return_value="0123456789abcdef0123"), \
+                    mock.patch.object(gate, "_resolve_package_set", return_value=({}, "1.0.0-preview.3")):
                 result, _, finish, output = self._rehearse(root, default_release_dir=True)
 
             self.assertEqual(result, 0, output)
-            self.assertEqual(finish.call_args.kwargs["release_dir"], package_root / "yayin" / "1.0.0-preview.3")
+            self.assertEqual(finish.call_args.kwargs["release_dir"], package_root / "rehearsal" / "1.0.0-preview.3")
             self.assertEqual(finish.call_args.kwargs["staging_dir"].parent, package_root / "staging")
             self.assertEqual(stale.read_bytes(), b"eski")
-            self.assertIn("Prova çıktısı:", output)
+            self.assertIn("Rehearsal output:", output)
 
     def test_prova_dizini_surum_basinadir(self):
         """Dizinin İÇİNDE geçerli kalır: aynı sürümün yeni commit'i aynı
         dizine düşer ve farklı içerik reddedilir."""
         root = pathlib.Path("/x")
 
-        self.assertEqual(kapi.rehearsal_release_dir("1.0.0-preview.3", root), root / "1.0.0-preview.3")
-        self.assertNotEqual(kapi.rehearsal_release_dir("1.0.0-preview.3", root),
-                            kapi.rehearsal_release_dir("1.0.0-preview.2", root))
+        self.assertEqual(gate.rehearsal_release_dir("1.0.0-preview.3", root), root / "1.0.0-preview.3")
+        self.assertNotEqual(gate.rehearsal_release_dir("1.0.0-preview.3", root),
+                            gate.rehearsal_release_dir("1.0.0-preview.2", root))
 
     def test_bayat_ilk_yayin_bayragi_pack_denenmez(self):
         bc = self._breaking_changes_module()
@@ -2885,7 +2901,7 @@ class YayinTestleri(unittest.TestCase):
 
         self.assertEqual(result, 1)
         self.assertEqual(pack_calls, [])
-        self.assertIn("TraconPackageFirstRelease'i kaldırın: Tracon.Voice", output)
+        self.assertIn("remove TraconPackageFirstRelease: Tracon.Voice", output)
 
     @staticmethod
     def _write_valid_library_nupkg(staging_dir: pathlib.Path, project_id: str, version: str) -> None:
@@ -2910,16 +2926,16 @@ class YayinTestleri(unittest.TestCase):
         self._write_valid_library_nupkg(staging_dir, "Tracon.Core", "1.0.0-preview.2.47")
         sys.path.insert(0, str(ROOT / "scripts"))
         samples = importlib.import_module("release_extension_samples")
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=root / "reports")
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=root / "reports")
         output = io.StringIO()
-        with mock.patch.object(kapi, "_check_breaking_changes", return_value=gate_result) as checked, \
-                mock.patch.object(kapi, "_npm_dry_run", return_value=0), \
+        with mock.patch.object(gate, "_check_breaking_changes", return_value=gate_result) as checked, \
+                mock.patch.object(gate, "_npm_dry_run", return_value=0), \
                 mock.patch.object(samples, "verify", return_value=0), \
                 contextlib.redirect_stdout(output):
-            result = kapi._finish_release_rehearsal(
+            result = gate._finish_release_rehearsal(
                 root=root, release_dir=release_dir, staging_dir=staging_dir, project_ids=["Tracon.Core"],
-                requested_version=None, commit="abcdef1234", breaking_gate=gate)
-        checked.assert_called_once_with(root, gate, "1.0.0-preview.2.47")
+                requested_version=None, commit="abcdef1234", breaking_gate=breaking_gate)
+        checked.assert_called_once_with(root, breaking_gate, "1.0.0-preview.2.47")
         return result, release_dir, output.getvalue()
 
     def _finish_packages(self, root: pathlib.Path, packages: dict[str, tuple[str, dict[str, bytes]]]):
@@ -2948,15 +2964,15 @@ class YayinTestleri(unittest.TestCase):
                     archive.writestr(name, data)
         sys.path.insert(0, str(ROOT / "scripts"))
         samples = importlib.import_module("release_extension_samples")
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=root / "reports")
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=root / "reports")
         output = io.StringIO()
-        with mock.patch.object(kapi, "_check_breaking_changes", return_value=0), \
-                mock.patch.object(kapi, "_npm_dry_run", return_value=0), \
+        with mock.patch.object(gate, "_check_breaking_changes", return_value=0), \
+                mock.patch.object(gate, "_npm_dry_run", return_value=0), \
                 mock.patch.object(samples, "verify", return_value=0), \
                 contextlib.redirect_stdout(output):
-            result = kapi._finish_release_rehearsal(
+            result = gate._finish_release_rehearsal(
                 root=root, release_dir=release_dir, staging_dir=staging_dir, project_ids=sorted(packages),
-                requested_version=None, commit="abcdef1234", breaking_gate=gate)
+                requested_version=None, commit="abcdef1234", breaking_gate=breaking_gate)
         return result, output.getvalue()
 
     HOSTING = '<dependency id="Microsoft.Agents.AI.Hosting" version="{0}" exclude="Build,Analyzers" />'
@@ -2969,7 +2985,7 @@ class YayinTestleri(unittest.TestCase):
                 "Tracon.AspNetCore": (self.HOSTING.format("1.20.0-preview.260831.1"), {})})
 
         self.assertEqual(result, 1, output)
-        self.assertIn("tam aralık değil: Microsoft.Agents.AI.Hosting 1.20.0-preview.260831.1", output)
+        self.assertIn("is not an exact range: Microsoft.Agents.AI.Hosting 1.20.0-preview.260831.1", output)
 
     def test_on_surum_ucuncu_taraf_bagimlilik_tam_araliksa_gecer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -2982,12 +2998,12 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 0, output)
 
     def test_on_surum_farkli_iki_sinirli_aralik_tam_sayilmaz(self):
-        self.assertIsNone(kapi.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1, 1.0.0-preview.2]"))
-        self.assertIsNone(kapi.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1, )"))
-        self.assertIsNotNone(kapi.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1]"))
+        self.assertIsNone(gate.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1, 1.0.0-preview.2]"))
+        self.assertIsNone(gate.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1, )"))
+        self.assertIsNotNone(gate.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1]"))
 
     def _ui_notice(self, root: pathlib.Path, text: bytes) -> None:
-        source = root / kapi.THIRD_PARTY_NOTICE_PACKAGES["Tracon.UI"]
+        source = root / gate.THIRD_PARTY_NOTICE_PACKAGES["Tracon.UI"]
         source.parent.mkdir(parents=True, exist_ok=True)
         source.write_bytes(text)
 
@@ -2999,7 +3015,7 @@ class YayinTestleri(unittest.TestCase):
             result, output = self._finish_packages(root, {"Tracon.UI": ("", {})})
 
         self.assertEqual(result, 1, output)
-        self.assertIn("THIRD-PARTY-NOTICES.txt paket kökünde yok", output)
+        self.assertIn("THIRD-PARTY-NOTICES.txt is not at the package root", output)
 
     def test_ui_bildirimi_kaynaktan_farkliysa_kirmizi(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3009,7 +3025,7 @@ class YayinTestleri(unittest.TestCase):
                 root, {"Tracon.UI": ("", {"THIRD-PARTY-NOTICES.txt": b"eski\n"})})
 
         self.assertEqual(result, 1, output)
-        self.assertIn("ile aynı değil", output)
+        self.assertIn("differs from", output)
 
     def test_ui_bildirimi_kaynakla_ayniysa_gecer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3043,25 +3059,25 @@ class YayinTestleri(unittest.TestCase):
             self.assertTrue((release_dir / "Tracon.Core.1.0.0-preview.2.47.nupkg").exists())
 
     def test_surum_tabana_esitse_kapi_kirmizi(self):
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
-            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.2")
+            result = gate._check_breaking_changes(ROOT, breaking_gate, "1.0.0-preview.2")
 
         self.assertEqual(result, 1)
-        self.assertIn("tabandan (v1.0.0-preview.2) büyük değil", output.getvalue())
+        self.assertIn("is not above the baseline (v1.0.0-preview.2)", output.getvalue())
 
     def test_kapi_depoyu_yuzey_okuyucularina_verir(self):
         """The PublicAPI, `required` and contract readers need the repo whose tag is the baseline."""
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
 
-        import sozlesme_kirilma
+        import contract_breaks
 
         with mock.patch.object(breaking_changes, "check", return_value=0) as checked, \
-                mock.patch.object(sozlesme_kirilma, "check", return_value=0):
-            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
+                mock.patch.object(contract_breaks, "check", return_value=0):
+            result = gate._check_breaking_changes(ROOT, breaking_gate, "1.0.0-preview.3")
 
         self.assertEqual(result, 0)
         self.assertEqual(checked.call_args.kwargs["repo"], ROOT)
@@ -3069,15 +3085,15 @@ class YayinTestleri(unittest.TestCase):
 
     def test_kapi_sozlesme_yuzeylerini_apicompat_kapisindan_sonra_okur(self):
         """The non-.NET surfaces are read after ApiCompat, with the same baseline, version and repo."""
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
-        import sozlesme_kirilma
+        import contract_breaks
 
         order: list[str] = []
         with mock.patch.object(breaking_changes, "check", side_effect=lambda **_: order.append("apicompat") or 0), \
-                mock.patch.object(sozlesme_kirilma, "check", side_effect=lambda **_: order.append("sozlesme") or 0) as surfaces:
-            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
+                mock.patch.object(contract_breaks, "check", side_effect=lambda **_: order.append("sozlesme") or 0) as surfaces:
+            result = gate._check_breaking_changes(ROOT, breaking_gate, "1.0.0-preview.3")
 
         self.assertEqual(result, 0)
         self.assertEqual(order, ["apicompat", "sozlesme"])
@@ -3086,33 +3102,33 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(surfaces.call_args.kwargs["version"], "1.0.0-preview.3")
 
     def test_apicompat_kirmizisi_sozlesme_okuyucusunu_calistirmaz(self):
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
-        import sozlesme_kirilma
+        import contract_breaks
 
         with mock.patch.object(breaking_changes, "check", return_value=1), \
-                mock.patch.object(sozlesme_kirilma, "check", return_value=0) as surfaces:
-            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
+                mock.patch.object(contract_breaks, "check", return_value=0) as surfaces:
+            result = gate._check_breaking_changes(ROOT, breaking_gate, "1.0.0-preview.3")
 
         self.assertEqual(result, 1)
         surfaces.assert_not_called()
 
     def test_sozlesme_okuyucusunun_kirmizisi_provayi_kirmizi_yapar(self):
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        breaking_gate = gate.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
-        import sozlesme_kirilma
+        import contract_breaks
 
         with mock.patch.object(breaking_changes, "check", return_value=0), \
-                mock.patch.object(sozlesme_kirilma, "check", return_value=1):
-            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
+                mock.patch.object(contract_breaks, "check", return_value=1):
+            result = gate._check_breaking_changes(ROOT, breaking_gate, "1.0.0-preview.3")
 
         self.assertEqual(result, 1)
 
 
 class TekDerlemeZinciriTestleri(unittest.TestCase):
-    """`paketle` · `paket-dogrula` · `yayin --paket-dizini`.
+    """`pack` · `verify-packages` · `release --package-directory`.
 
     Sahte bir repo kökü iki paket taşır: `Tracon.Core` (library, taban
     doğrulaması var) ve `Tracon` (meta, `.snupkg` yok)."""
@@ -3184,7 +3200,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
         text = io.StringIO()
         with contextlib.ExitStack() as stack:
-            stack.enter_context(mock.patch.object(kapi, "_git", side_effect=self._git(status=status)))
+            stack.enter_context(mock.patch.object(gate, "_git", side_effect=self._git(status=status)))
             stack.enter_context(mock.patch.object(bc, "resolve_baseline", return_value=self.BASELINE))
             stack.enter_context(mock.patch.object(bc, "stale_first_release_flags", return_value=[]))
             stack.enter_context(mock.patch.object(bc, "restore_baselines", lambda ids, version, work: work / "packages"))
@@ -3192,7 +3208,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             stack.enter_context(mock.patch.object(bc, "validation_not_run", return_value=list(not_run)))
             stack.enter_context(mock.patch("subprocess.run", side_effect=fake_run))
             stack.enter_context(contextlib.redirect_stdout(text))
-            result = kapi.pack_for_ci(output, root=root)
+            result = gate.pack_for_ci(output, root=root)
         return result, calls, text.getvalue()
 
     def _rehearse(self, root: pathlib.Path, package_dir: pathlib.Path, *, commit=None, version=None,
@@ -3202,17 +3218,17 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         release_dir = root / "artifacts" / "package" / "release"
         text = io.StringIO()
         with contextlib.ExitStack() as stack:
-            stack.enter_context(mock.patch.object(kapi, "_git", side_effect=self._git(commit=commit)))
+            stack.enter_context(mock.patch.object(gate, "_git", side_effect=self._git(commit=commit)))
             stack.enter_context(mock.patch.object(bc, "resolve_baseline", return_value=baseline or self.BASELINE))
             not_run = stack.enter_context(mock.patch.object(bc, "validation_not_run", return_value=[]))
             check = stack.enter_context(mock.patch.object(bc, "check", return_value=breaking))
-            # The surfaces of the other kinds are read after ApiCompat; their own tests are in sozlesme_kirilma_test.py.
-            stack.enter_context(mock.patch.object(importlib.import_module("sozlesme_kirilma"), "check", return_value=0))
+            # The surfaces of the other kinds are read after ApiCompat; their own tests are in contract_breaks_test.py.
+            stack.enter_context(mock.patch.object(importlib.import_module("contract_breaks"), "check", return_value=0))
             run = stack.enter_context(mock.patch("subprocess.run"))
-            stack.enter_context(mock.patch.object(kapi, "_npm_dry_run", return_value=0))
+            stack.enter_context(mock.patch.object(gate, "_npm_dry_run", return_value=0))
             stack.enter_context(mock.patch.object(samples, "verify", return_value=0))
             stack.enter_context(contextlib.redirect_stdout(text))
-            result = kapi.rehearse_package_directory(package_dir, version, root=root, release_dir=release_dir)
+            result = gate.rehearse_package_directory(package_dir, version, root=root, release_dir=release_dir)
         return result, release_dir, text.getvalue(), run, not_run, check
 
     def _packed(self, directory: str, **kwargs) -> tuple[pathlib.Path, pathlib.Path]:
@@ -3235,10 +3251,10 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
     @staticmethod
     def _snapshot(directory: pathlib.Path) -> dict[str, str]:
-        return {path.relative_to(directory).as_posix(): kapi._sha256(path)
+        return {path.relative_to(directory).as_posix(): gate._sha256(path)
                 for path in directory.rglob("*") if path.is_file()}
 
-    # --- paketle ---------------------------------------------------------------
+    # --- pack ------------------------------------------------------------------
 
     def test_paketle_no_build_ile_tek_pack_ve_manifest_yazar(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3272,18 +3288,19 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         self.assertEqual(records, [{"id": "Tracon.Core", "report": None, "sha256": None, "validationRan": True}])
 
     def test_paketle_bypass_bayragi_tasimaz(self):
-        """`paketle` iç araç listesine girmez."""
+        """`pack` iç araç listesine girmez."""
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
             _, calls, _ = self._pack(root, pathlib.Path(directory) / "ci-paket")
         help_text = io.StringIO()
         with contextlib.redirect_stdout(help_text), self.assertRaises(SystemExit):
-            kapi.main(["paketle", "--help"])
+            gate.main(["pack", "--help"])
 
         for flag in ("TraconSkipCleanWorkingTreeCheck", "TraconAllowDirtyPack"):
             self.assertFalse(any(flag in argument for argument in calls[0]), flag)
             self.assertNotIn(flag, help_text.getvalue())
         self.assertNotIn("--izin", help_text.getvalue())
+        self.assertNotIn("--allow", help_text.getvalue())
 
     def test_paketle_kirli_agacta_pack_denenmez(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3301,9 +3318,9 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = self._root(directory)
             text = io.StringIO()
-            with mock.patch.object(kapi, "_git", return_value=None), \
+            with mock.patch.object(gate, "_git", return_value=None), \
                     mock.patch("subprocess.run") as run, contextlib.redirect_stdout(text):
-                result = kapi.pack_for_ci(pathlib.Path(directory) / "ci-paket", root=root)
+                result = gate.pack_for_ci(pathlib.Path(directory) / "ci-paket", root=root)
 
         self.assertEqual(result, 1)
         run.assert_not_called()
@@ -3322,7 +3339,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             self.assertEqual(leftover.read_bytes(), b"yarim kalmis")
         self.assertEqual(result, 1)
         self.assertEqual(calls, [])
-        self.assertIn("Çıktı dizini boş değil", text)
+        self.assertIn("The output directory is not empty", text)
 
     def test_paketle_ikinci_kosum_ayni_dizine_reddedilir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3342,20 +3359,20 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             root = self._root(directory)
             output = pathlib.Path(directory) / "ci-paket"
 
-            result, _, text = self._pack(root, output, not_run=["Tracon.Core: paket doğrulaması bu koşumda koşmadı"])
+            result, _, text = self._pack(root, output, not_run=["Tracon.Core: package validation did not run in this pack"])
 
             self.assertFalse((output / "package-manifest.json").exists())
-            self.assertEqual(kapi.package_directory_problems(output), ["package-manifest.json yok"])
+            self.assertEqual(gate.package_directory_problems(output), ["package-manifest.json is missing"])
         self.assertEqual(result, 1)
-        self.assertIn("Paket doğrulaması bu koşumda koşmadı", text)
+        self.assertIn("The package validation did not run in this pack", text)
 
-    # --- paket-dogrula ----------------------------------------------------------
+    # --- verify-packages --------------------------------------------------------
 
     def test_paket_dogrula_yesil(self):
         with tempfile.TemporaryDirectory() as directory:
             _, output = self._packed(directory)
 
-            self.assertEqual(kapi.package_directory_problems(output), [])
+            self.assertEqual(gate.package_directory_problems(output), [])
 
     def test_paket_dogrula_tek_bayt_farki_dosya_adiyla(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3363,9 +3380,9 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             with (output / f"Tracon.Core.{self.VERSION}.nupkg").open("ab") as handle:
                 handle.write(b"\0")
 
-            problems = kapi.package_directory_problems(output)
+            problems = gate.package_directory_problems(output)
 
-        self.assertEqual(problems, [f"SHA-256 farklı: Tracon.Core.{self.VERSION}.nupkg"])
+        self.assertEqual(problems, [f"SHA-256 differs: Tracon.Core.{self.VERSION}.nupkg"])
 
     def test_paket_dogrula_eksik_ve_fazla_dosya(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3374,11 +3391,11 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             (output / "Tracon.Extra.1.0.0.nupkg").write_bytes(b"x")
             (output / "api-compat" / "Tracon.Extra.xml").write_text("<x />", encoding="utf-8")
 
-            problems = kapi.package_directory_problems(output)
+            problems = gate.package_directory_problems(output)
 
-        self.assertIn(f"eksik: Tracon.Core.{self.VERSION}.snupkg", problems)
-        self.assertIn("manifest dışı dosya: Tracon.Extra.1.0.0.nupkg", problems)
-        self.assertIn("manifest dışı dosya: api-compat/Tracon.Extra.xml", problems)
+        self.assertIn(f"missing: Tracon.Core.{self.VERSION}.snupkg", problems)
+        self.assertIn("file not in the manifest: Tracon.Extra.1.0.0.nupkg", problems)
+        self.assertIn("file not in the manifest: api-compat/Tracon.Extra.xml", problems)
 
     def test_paket_dogrula_bos_yok_ve_bozuk_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3393,32 +3410,32 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
                 json.dumps({"dirty": False, "packages": [{"id": "X", "file": "../X.nupkg", "sha256": "0" * 64}]}),
                 encoding="utf-8")
 
-            self.assertEqual(kapi.package_directory_problems(base / "yok"), [f"{base / 'yok'}: dizin yok"])
-            self.assertEqual(kapi.package_directory_problems(base / "bos"), [f"{base / 'bos'}: dizin boş"])
-            self.assertEqual(kapi.package_directory_problems(base / "manifestsiz"), ["package-manifest.json yok"])
-            self.assertTrue(kapi.package_directory_problems(base / "bozuk")[0].startswith("package-manifest.json okunamadı"))
-            self.assertIn("package-manifest.json: X geçersiz dosya/SHA-256 kaydı taşıyor",
-                          kapi.package_directory_problems(base / "sema"))
+            self.assertEqual(gate.package_directory_problems(base / "yok"), [f"{base / 'yok'}: directory not found"])
+            self.assertEqual(gate.package_directory_problems(base / "bos"), [f"{base / 'bos'}: directory is empty"])
+            self.assertEqual(gate.package_directory_problems(base / "manifestsiz"), ["package-manifest.json is missing"])
+            self.assertTrue(gate.package_directory_problems(base / "bozuk")[0].startswith("package-manifest.json could not be read"))
+            self.assertIn("package-manifest.json: X carries an invalid file/SHA-256 record",
+                          gate.package_directory_problems(base / "sema"))
 
     def test_paket_dogrula_komutu_cikis_kodu(self):
         with tempfile.TemporaryDirectory() as directory:
             _, output = self._packed(directory)
             text = io.StringIO()
             with contextlib.redirect_stdout(text):
-                green = kapi.main(["paket-dogrula", str(output)])
+                green = gate.main(["verify-packages", str(output)])
                 (output / f"Tracon.{self.VERSION}.nupkg").unlink()
-                red = kapi.main(["paket-dogrula", str(output)])
+                red = gate.main(["verify-packages", str(output)])
 
         self.assertEqual((green, red), (0, 1))
-        self.assertIn(f"eksik: Tracon.{self.VERSION}.nupkg", text.getvalue())
+        self.assertIn(f"missing: Tracon.{self.VERSION}.nupkg", text.getvalue())
 
-    # --- yayin --kuru --paket-dizini --------------------------------------------
+    # --- release --dry-run --package-directory ---------------------------------------
 
     def test_paket_dizini_modu_pack_ve_semaphore_cagirmaz_ortak_yolu_kosar(self):
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
 
-            with mock.patch.object(kapi, "_finish_release_rehearsal", return_value=0) as finish:
+            with mock.patch.object(gate, "_finish_release_rehearsal", return_value=0) as finish:
                 result, _, text, run, not_run, _ = self._rehearse(root, output)
 
         self.assertEqual(result, 0, text)
@@ -3444,10 +3461,10 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             source = self._manifest(output)
             for field in ("version", "commit", "baseline", "packages"):
                 self.assertEqual(written[field], source[field], field)
-            self.assertEqual(kapi.package_directory_problems(release_dir), [])
+            self.assertEqual(gate.package_directory_problems(release_dir), [])
             self.assertEqual(check.call_args.kwargs["report_dir"], output / "api-compat")
         run.assert_not_called()
-        self.assertIn("Manifest girdiyle aynı", text)
+        self.assertIn("The manifest matches the input", text)
 
     def test_paket_dizini_modu_kirici_kapi_kirmiziyken_kopya_yok(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3467,7 +3484,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             result, _, text, *_ = self._rehearse(root, output)
 
         self.assertEqual(result, 1)
-        self.assertIn("rapor eksik: Tracon.Core", text)
+        self.assertIn("report missing: Tracon.Core", text)
 
     def test_paket_dizini_modu_rapor_dosyasi_yoksa_kirmizi(self):
         """Kayıt rapor diyor ama `api-compat/` boş: 'kırıcı değişiklik yok' sayılmaz."""
@@ -3478,7 +3495,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             result, _, text, *_ = self._rehearse(root, output)
 
         self.assertEqual(result, 1)
-        self.assertIn("eksik: api-compat/Tracon.Core.xml", text)
+        self.assertIn("missing: api-compat/Tracon.Core.xml", text)
 
     def test_paket_dizini_modu_dogrulama_kostu_kaydi_yoksa_kirmizi(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3488,7 +3505,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             result, _, text, *_ = self._rehearse(root, output)
 
         self.assertEqual(result, 1)
-        self.assertIn("rapor eksik: Tracon.Core (doğrulama koştu kaydı yok)", text)
+        self.assertIn("report missing: Tracon.Core (no record that validation ran)", text)
 
     def test_paket_dizini_modu_baska_commit_reddedilir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3498,7 +3515,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
             self.assertFalse(release_dir.exists())
         self.assertEqual(result, 1)
-        self.assertIn("Paketler başka bir commit'ten", text)
+        self.assertIn("The packages come from another commit", text)
 
     def test_nuspec_commit_head_degilse_kirmizi(self):
         """Manifest commit'i doğru ama paketin kendisi başka commit'i adlandırıyor."""
@@ -3506,13 +3523,13 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             root, output = self._packed(directory)
             self._write_package(output, "Tracon.Core", commit="e" * 40)
             self._rewrite_manifest(output, lambda manifest: [
-                entry.update(sha256=kapi._sha256(output / entry["file"]))
+                entry.update(sha256=gate._sha256(output / entry["file"]))
                 for entry in manifest["packages"] if entry["id"] == "Tracon.Core"])
 
             result, _, text, *_ = self._rehearse(root, output)
 
         self.assertEqual(result, 1)
-        self.assertIn(f"repository commit '{'e' * 40}' HEAD değil", text)
+        self.assertIn(f"the repository commit '{'e' * 40}' is not HEAD", text)
 
     def test_paket_dizini_modu_baska_taban_reddedilir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3521,7 +3538,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             result, _, text, *_ = self._rehearse(root, output, baseline="1.0.0-preview.1")
 
         self.assertEqual(result, 1)
-        self.assertIn("başka bir tabana karşı doğrulandı", text)
+        self.assertIn("validated against another baseline", text)
 
     def test_paket_dizini_modu_iki_surum_hatti_reddedilir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3530,23 +3547,23 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             (output / f"Tracon.{self.VERSION}.nupkg").unlink()
             self._rewrite_manifest(output, lambda manifest: [
                 entry.update(file=f"Tracon.1.0.0-preview.2.48.nupkg",
-                             sha256=kapi._sha256(output / "Tracon.1.0.0-preview.2.48.nupkg"))
+                             sha256=gate._sha256(output / "Tracon.1.0.0-preview.2.48.nupkg"))
                 for entry in manifest["packages"] if entry["id"] == "Tracon"])
 
             result, _, text, *_ = self._rehearse(root, output)
 
         self.assertEqual(result, 1)
-        self.assertIn("tek bir sürüm hattında değil", text)
+        self.assertIn("not on one version line", text)
 
     def test_paket_dizini_modu_surum_beklenen_surum_olarak_denetlenir(self):
-        """--surum ile --paket-dizini birlikte izinlidir."""
+        """--package-version ile --package-directory birlikte izinlidir."""
         with tempfile.TemporaryDirectory() as directory:
             root, output = self._packed(directory)
 
             result, _, text, *_ = self._rehearse(root, output, version="1.0.0-preview.3")
 
         self.assertEqual(result, 1)
-        self.assertIn("Paket üretilmedi", text)
+        self.assertIn("Package not produced", text)
 
     def test_paket_dizini_modu_release_dirde_girdi_disi_paket_reddedilir(self):
         """Ret, dosya silinmez."""
@@ -3562,7 +3579,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             self.assertTrue(old.exists())
             self.assertEqual(sorted(path.name for path in release_dir.iterdir()), [old.name])
         self.assertEqual(result, 1)
-        self.assertIn("girdi dışı paket taşıyor (1): Tracon.Core.1.0.0-preview.2.10.nupkg", text)
+        self.assertIn("holds packages outside the input (1): Tracon.Core.1.0.0-preview.2.10.nupkg", text)
         self.assertIn(f"rm -rf {release_dir}", text)
 
     def test_paket_dizini_modu_ayni_kimlik_farkli_icerik_korunur(self):
@@ -3579,7 +3596,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
             self.assertEqual(sorted(path.name for path in release_dir.iterdir()), [name])
         self.assertEqual(result, 1)
-        self.assertIn("FARKLI içerikli bir artifact zaten var", text)
+        self.assertIn("but DIFFERENT content already exists", text)
 
     def test_release_dirde_kesik_paket_dosya_adiyla_cikis_1(self):
         """`_content_fingerprint` BadZipFile izi değil, dosya adı verir."""
@@ -3593,7 +3610,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             result, _, text, *_ = self._rehearse(root, output)
 
         self.assertEqual(result, 1)
-        self.assertIn(f"❌ {name}: paket okunamadı", text)
+        self.assertIn(f"❌ {name}: the package could not be read", text)
 
     def test_ayni_parmak_izi_farkli_bayt_manifest_esitsizligi_verir(self):
         """Eski bir kopya aynı içeriği farklı OPC baytlarıyla taşır: no-op promote
@@ -3611,7 +3628,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             result, _, text, *_ = self._rehearse(root, output)
 
         self.assertEqual(result, 1)
-        self.assertIn("manifest'i girdi manifest'inden farklı: packages", text)
+        self.assertIn("differs from the input manifest: packages", text)
 
     def test_kopya_yarida_kesilirse_asil_adla_dosya_kalmaz(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3623,7 +3640,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             TekDerlemeZinciriTestleri._zip(source / name)
 
             with mock.patch("os.replace", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
-                kapi._promote_staged_packages(source, release_dir, [name], copy=True)
+                gate._promote_staged_packages(source, release_dir, [name], copy=True)
 
             self.assertEqual(list(release_dir.iterdir()), [])
             self.assertTrue((source / name).exists())
@@ -3637,10 +3654,10 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             name = "Tracon.Core.1.0.0.nupkg"
             TekDerlemeZinciriTestleri._zip(source / name)
 
-            conflicts = kapi._promote_staged_packages(source, release_dir, [name], copy=True)
+            conflicts = gate._promote_staged_packages(source, release_dir, [name], copy=True)
 
             self.assertEqual(conflicts, [])
-            self.assertEqual(kapi._sha256(source / name), kapi._sha256(release_dir / name))
+            self.assertEqual(gate._sha256(source / name), gate._sha256(release_dir / name))
             self.assertEqual([path.name for path in release_dir.iterdir()], [name])
 
     @staticmethod
@@ -3657,7 +3674,7 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
 
         self.assertEqual(result, 1)
         run.assert_not_called()
-        self.assertIn("manifest dışı dosya: Tracon.Sneaky.1.0.0.nupkg", text)
+        self.assertIn("file not in the manifest: Tracon.Sneaky.1.0.0.nupkg", text)
 
 
 # Bu iki sabit PARÇALI yazılır: tam metin kaynakta görünseydi taramanın kendi
@@ -3677,7 +3694,7 @@ class SentetikCredentialTestleri(unittest.TestCase):
             (root / "src").mkdir()
             (root / "src" / "a.cs").write_text(SECRET_LINE, encoding="utf-8")
 
-            found, skipped = kapi.find_secrets(root)
+            found, skipped = gate.find_secrets(root)
 
         self.assertEqual(len(found), 1)
         self.assertEqual(skipped, 0)
@@ -3688,7 +3705,7 @@ class SentetikCredentialTestleri(unittest.TestCase):
             (root / "src").mkdir()
             (root / "src" / "a.cs").write_text(SECRET_LINE + "  // " + MARKER, encoding="utf-8")
 
-            found, skipped = kapi.find_secrets(root)
+            found, skipped = gate.find_secrets(root)
 
         self.assertEqual(found, [])
         self.assertEqual(skipped, 1)
@@ -3701,7 +3718,7 @@ class SentetikCredentialTestleri(unittest.TestCase):
             (root / "src").mkdir()
             (root / "src" / "a.cs").write_text("// " + MARKER + "\n" + SECRET_LINE, encoding="utf-8")
 
-            found, skipped = kapi.find_secrets(root)
+            found, skipped = gate.find_secrets(root)
 
         self.assertEqual(len(found), 1)
         self.assertEqual(skipped, 0)
@@ -3722,7 +3739,7 @@ class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
             path = root / relative_path
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(line + "\n", encoding="utf-8")
-            return kapi.find_secrets(root)
+            return gate.find_secrets(root)
 
     def test_uretilmis_anahtar_arsivde_yakalanir(self):
         # 🚨 Bu tam olarak kaçırılan vakadır. Arşivlenmiş faz kaydı GERÇEK koşum
@@ -3780,29 +3797,28 @@ class KapasiteKomutuTestleri(unittest.TestCase):
     def test_kapasite_komutu_kapanisa_eklenmez(self):
         # 🚨 Ağır bir yük koşumu standart kapanışa sızarsa her faz saatler
         # sürer ve kapılar koşulmaz hale gelir.
-        commands = [c.display for c in kapi.closing_commands("abc123", site=True, performance=True)]
+        commands = [c.display for c in gate.closing_commands("abc123", site=True, performance=True)]
 
-        self.assertFalse(any("kapasite" in command for command in commands))
         self.assertFalse(any("capacity" in command for command in commands))
 
     def test_kapasite_komutu_ic_donguye_de_eklenmez(self):
-        commands = [c.display for c in kapi.inner_loop_commands(["src/Tracon.Core/Foo.cs"])]
+        commands = [c.display for c in gate.inner_loop_commands(["src/Tracon.Core/Foo.cs"])]
 
-        self.assertFalse(any("kapasite" in command for command in commands))
+        self.assertFalse(any("capacity" in command for command in commands))
 
     def test_kapasite_exact_surum_ister(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            code = kapi.capacity_measurement("smoke", "*-*", pathlib.Path("/tmp/kapasite-test"))
+            code = gate.capacity_measurement("smoke", "*-*", pathlib.Path("/tmp/kapasite-test"))
 
         self.assertEqual(code, 1)
         self.assertIn("exact", output.getvalue())
 
     def test_kapasite_bilinmeyen_profili_reddeder(self):
         with contextlib.redirect_stdout(io.StringIO()) as output:
-            code = kapi.capacity_measurement("yok", "1.0.0", pathlib.Path("/tmp/kapasite-test"))
+            code = gate.capacity_measurement("yok", "1.0.0", pathlib.Path("/tmp/kapasite-test"))
 
         self.assertEqual(code, 1)
-        self.assertIn("profili yok", output.getvalue())
+        self.assertIn("does not exist", output.getvalue())
 
 
 class ModulSureButcesiTestleri(unittest.TestCase):
@@ -3810,7 +3826,7 @@ class ModulSureButcesiTestleri(unittest.TestCase):
 
     @staticmethod
     def _trx(kok: pathlib.Path, proje: str, saniye: float, tfm: str = "net10.0_arm64") -> None:
-        dizin = kok / kapi.TEST_RESULTS_DIRECTORY / proje / tfm
+        dizin = kok / gate.TEST_RESULTS_DIRECTORY / proje / tfm
         dizin.mkdir(parents=True, exist_ok=True)
         (dizin / "sonuc.trx").write_text(
             '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
@@ -3824,7 +3840,7 @@ class ModulSureButcesiTestleri(unittest.TestCase):
             for proje, saniye in sureler.items():
                 self._trx(kok, proje, saniye)
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits=limits)
+                kod = gate.enforce_module_time_limits(0.0, root=kok, limits=limits)
         return kod, output.getvalue()
 
     def test_rapor_her_modulu_suresi_ve_butce_payiyla_listeler_en_yavas_ustte(self):
@@ -3833,22 +3849,22 @@ class ModulSureButcesiTestleri(unittest.TestCase):
         self.assertEqual(kod, 0)
         satirlar = [satir.strip() for satir in metin.splitlines() if "net10.0_arm64" in satir]
         self.assertEqual(satirlar, [
-            "B/net10.0_arm64: 300 s · sınır 400 s · kalan 100 s (%25)",
-            "A/net10.0_arm64: 100 s · sınır 200 s · kalan 100 s (%50)",
-            "C/net10.0_arm64: 50 s · sınır yok",
+            "B/net10.0_arm64: 300 s · limit 400 s · left 100 s (25%)",
+            "A/net10.0_arm64: 100 s · limit 200 s · left 100 s (50%)",
+            "C/net10.0_arm64: 50 s · no limit",
         ])
 
     def test_butcesi_olmayan_yavas_modul_kapiyi_kirmaz_butcesi_olan_asan_kirar(self):
         kod, metin = self._kos({"Yavas": 5000, "Sinirli": 61}, {"Sinirli": 60})
 
-        self.assertEqual(kod, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
-        self.assertIn("Sinirli/net10.0_arm64: 61 s · sınır 60 s · AŞILDI 1 s", metin)
+        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertIn("Sinirli/net10.0_arm64: 61 s · limit 60 s · EXCEEDED by 1 s", metin)
         self.assertIn("Sinirli/net10.0_arm64 61 s > 60 s", metin)
         self.assertNotIn("Yavas/net10.0_arm64 5000 s >", metin)
 
     def test_butce_sinirin_tam_ustunde_gecer_bir_saniye_ustunde_kirar(self):
         self.assertEqual(self._kos({"A": 60}, {"A": 60})[0], 0)
-        self.assertEqual(self._kos({"A": 61}, {"A": 60})[0], kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(self._kos({"A": 61}, {"A": 60})[0], gate.MODULE_TIME_LIMIT_EXIT_CODE)
 
     def test_butce_modul_basinadir_her_tfm_bacagi_ayri_denetlenir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3856,44 +3872,44 @@ class ModulSureButcesiTestleri(unittest.TestCase):
             self._trx(kok, "A", 30, "net10.0_arm64")
             self._trx(kok, "A", 90, "net9.0_arm64")
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={"A": 60})
+                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={"A": 60})
 
-        self.assertEqual(kod, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
         self.assertIn("A/net9.0_arm64 90 s > 60 s", output.getvalue())
         self.assertNotIn("A/net10.0_arm64 30 s >", output.getvalue())
 
     def test_suresi_okunamayan_butcesiz_modul_uyarir_kapiyi_kirmaz(self):
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
-            dizin = kok / kapi.TEST_RESULTS_DIRECTORY / "Q" / "net10.0_arm64"
+            dizin = kok / gate.TEST_RESULTS_DIRECTORY / "Q" / "net10.0_arm64"
             dizin.mkdir(parents=True)
             (dizin / "sonuc.trx").write_text(
                 '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results/></TestRun>',
                 encoding="utf-8")
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                kod = kapi.enforce_module_time_limits(0.0, root=kok, limits={})
+                kod = gate.enforce_module_time_limits(0.0, root=kok, limits={})
 
         self.assertEqual(kod, 0)
-        self.assertIn("Q/net10.0_arm64: TRX süresi okunamadı", output.getvalue())
+        self.assertIn("Q/net10.0_arm64: the TRX duration could not be read", output.getvalue())
 
     def test_gercek_butce_tablosu_gercek_modul_adlarini_kullanir_ve_kapanista_calisir(self):
         # Tablo tek yerdedir; kapanis test adimi onu varsayilan olarak okur.
         with tempfile.TemporaryDirectory() as directory:
             kok = pathlib.Path(directory)
-            self._trx(kok, "Tracon.TwoNode.IntegrationTests", kapi.TEST_MODULE_TIME_LIMITS_SECONDS[
+            self._trx(kok, "Tracon.TwoNode.IntegrationTests", gate.TEST_MODULE_TIME_LIMITS_SECONDS[
                 "Tracon.TwoNode.IntegrationTests"] + 1)
             with contextlib.redirect_stdout(io.StringIO()):
-                kod = kapi.enforce_module_time_limits(0.0, root=kok)
+                kod = gate.enforce_module_time_limits(0.0, root=kok)
 
-        self.assertEqual(kod, kapi.MODULE_TIME_LIMIT_EXIT_CODE)
+        self.assertEqual(kod, gate.MODULE_TIME_LIMIT_EXIT_CODE)
 
     def test_sure_degiskenligi_kapanista_denetlenmez(self):
-        # Varyans denetimi dedektordedir (`kararlilik`); kapanis yalniz mutlak butceyi bilir.
-        komutlar = [komut.display for komut in kapi.closing_commands("abc123", site=True, performance=True)]
+        # Varyans denetimi dedektordedir (`stability`); kapanis yalniz mutlak butceyi bilir.
+        komutlar = [komut.display for komut in gate.closing_commands("abc123", site=True, performance=True)]
 
-        self.assertFalse(any("kararlilik" in komut for komut in komutlar))
-        self.assertFalse(any("kararlilik" in komut.display for komut in kapi.staged_test_commands()))
-        self.assertFalse(any("kararlilik" in komut.display for komut in kapi.inner_loop_commands(["src/Tracon.Core/A.cs"])))
+        self.assertFalse(any("stability" in komut for komut in komutlar))
+        self.assertFalse(any("stability" in komut.display for komut in gate.staged_test_commands()))
+        self.assertFalse(any("stability" in komut.display for komut in gate.inner_loop_commands(["src/Tracon.Core/A.cs"])))
 
 
 def _saat(saniye: float) -> str:
@@ -3931,9 +3947,9 @@ def _kosum(
     etiket: str = "M", sira: int = 1, *, baski: bool = False, cikis: int = 0, duvar: float | None = 10.0,
     testler: dict[str, tuple[int, str]] | None = None, baslama_sirasi: list[str] | None = None, sorun: str = "",
     tohum: int | None = None,
-) -> "kapi.ModuleRun":
+) -> "gate.ModuleRun":
     testler = {"N.A": (100, "Passed"), "N.B": (50, "Passed")} if testler is None else testler
-    return kapi.ModuleRun(
+    return gate.ModuleRun(
         etiket, sira, baski, tohum, cikis, (duvar or 0) + 1, duvar,
         {ad: sure for ad, (sure, _) in testler.items()},
         {ad: (durum,) for ad, (_, durum) in testler.items()},
@@ -3946,24 +3962,24 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
     # --- esikler ---------------------------------------------------------------------
 
     def test_esikler_yalniz_sikilasir(self):
-        # Bugunku degerleri sabitler: bir gevsetme gozden kacmasin (kapi.py yorumundaki kural).
-        self.assertLessEqual(kapi.STABILITY_TEST_FLOOR_MS, 200)
-        self.assertLessEqual(kapi.STABILITY_TEST_MEDIAN_FACTOR, 1)
-        self.assertLessEqual(kapi.STABILITY_MODULE_WALL_PERCENT, 15)
-        self.assertLessEqual(kapi.STABILITY_MODULE_WALL_FLOOR_MS, 200)
-        self.assertGreaterEqual(kapi.STABILITY_DEFAULT_REPEAT, 5)
+        # Bugunku degerleri sabitler: bir gevsetme gozden kacmasin (gate.py yorumundaki kural).
+        self.assertLessEqual(gate.STABILITY_TEST_FLOOR_MS, 200)
+        self.assertLessEqual(gate.STABILITY_TEST_MEDIAN_FACTOR, 1)
+        self.assertLessEqual(gate.STABILITY_MODULE_WALL_PERCENT, 15)
+        self.assertLessEqual(gate.STABILITY_MODULE_WALL_FLOOR_MS, 200)
+        self.assertGreaterEqual(gate.STABILITY_DEFAULT_REPEAT, 5)
 
     def test_cikis_kodlari_ayridir_ve_mtp_ile_kapi_kodlariyla_cakismaz(self):
         kodlar = {
-            kapi.STABILITY_TIME_EXIT_CODE, kapi.STABILITY_RESULT_EXIT_CODE, kapi.STABILITY_USAGE_EXIT_CODE,
-            kapi.MODULE_TIME_LIMIT_EXIT_CODE}
+            gate.STABILITY_TIME_EXIT_CODE, gate.STABILITY_RESULT_EXIT_CODE, gate.STABILITY_USAGE_EXIT_CODE,
+            gate.MODULE_TIME_LIMIT_EXIT_CODE}
 
         self.assertEqual(len(kodlar), 4)
-        self.assertTrue(all(kod > 12 for kod in (kapi.STABILITY_TIME_EXIT_CODE, kapi.STABILITY_RESULT_EXIT_CODE)))
+        self.assertTrue(all(kod > 12 for kod in (gate.STABILITY_TIME_EXIT_CODE, gate.STABILITY_RESULT_EXIT_CODE)))
 
     def test_modul_duvar_farki_tam_yuzde_15te_gecer_hemen_ustunde_kirmizi(self):
-        icinde, yuzde = kapi.wall_spread_exceeded([100.0, 115.0, 108.0])
-        disinda, _ = kapi.wall_spread_exceeded([100.0, 115.001])
+        icinde, yuzde = gate.wall_spread_exceeded([100.0, 115.0, 108.0])
+        disinda, _ = gate.wall_spread_exceeded([100.0, 115.001])
 
         self.assertFalse(icinde)
         self.assertEqual(yuzde, 15.0)
@@ -3971,24 +3987,24 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
 
     def test_modul_duvar_farki_kisa_modulde_200_ms_tabana_yaslanir(self):
         # 0,5 sn'lik modulde %15 = 75 ms: zamanlayici gurultusu. Taban 200 ms.
-        self.assertFalse(kapi.wall_spread_exceeded([0.5, 0.7])[0])
-        self.assertTrue(kapi.wall_spread_exceeded([0.5, 0.701])[0])
-        self.assertFalse(kapi.wall_spread_exceeded([0.5, 0.58])[0], "%16 ama 80 ms: taban altinda")
+        self.assertFalse(gate.wall_spread_exceeded([0.5, 0.7])[0])
+        self.assertTrue(gate.wall_spread_exceeded([0.5, 0.701])[0])
+        self.assertFalse(gate.wall_spread_exceeded([0.5, 0.58])[0], "%16 ama 80 ms: taban altinda")
 
     def test_modul_duvar_farki_uzun_modulde_yuzde_belirler_taban_degil(self):
-        self.assertFalse(kapi.wall_spread_exceeded([400.0, 460.0])[0])
-        self.assertTrue(kapi.wall_spread_exceeded([400.0, 460.1])[0])
+        self.assertFalse(gate.wall_spread_exceeded([400.0, 460.0])[0])
+        self.assertTrue(gate.wall_spread_exceeded([400.0, 460.1])[0])
 
     def test_test_suresi_farki_200_ms_tabaninda_gecer_hemen_ustunde_kirmizi(self):
-        icinde = kapi.duration_spreads([_kosum(testler={"N.T": (10, "Passed")}), _kosum(sira=2, testler={"N.T": (210, "Passed")})])
-        disinda = kapi.duration_spreads([_kosum(testler={"N.T": (10, "Passed")}), _kosum(sira=2, testler={"N.T": (211, "Passed")})])
+        icinde = gate.duration_spreads([_kosum(testler={"N.T": (10, "Passed")}), _kosum(sira=2, testler={"N.T": (210, "Passed")})])
+        disinda = gate.duration_spreads([_kosum(testler={"N.T": (10, "Passed")}), _kosum(sira=2, testler={"N.T": (211, "Passed")})])
 
         self.assertEqual((icinde[0].span_ms, icinde[0].allowed_ms, icinde[0].exceeded), (200, 200, False))
         self.assertTrue(disinda[0].exceeded)
 
     def test_test_suresi_farki_medyanin_bir_katinda_gecer_hemen_ustunde_kirmizi(self):
         def spreads(*sureler):
-            return kapi.duration_spreads(
+            return gate.duration_spreads(
                 [_kosum(sira=i + 1, testler={"N.T": (sure, "Passed")}) for i, sure in enumerate(sureler)])
 
         self.assertFalse(spreads(500, 1000, 1500)[0].exceeded, "aralik 1000 = medyan 1000")
@@ -4000,7 +4016,7 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             _kosum(sira=2, testler={"N.A": (20, "Passed")}),
         ]
 
-        self.assertEqual([spread.name for spread in kapi.duration_spreads(kosumlar)], ["N.A"])
+        self.assertEqual([spread.name for spread in gate.duration_spreads(kosumlar)], ["N.A"])
 
     # --- sure hukmu -------------------------------------------------------------------
 
@@ -4011,32 +4027,32 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             _kosum(sira=3, testler={"N.A": (100, "Passed"), "N.Yavas": (100, "Passed")}),
         ]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "süre")
+        self.assertEqual(karsilastirma.verdict, "time")
         self.assertEqual(karsilastirma.result_problems, [])
         self.assertEqual(len(karsilastirma.time_problems), 1)
         self.assertIn("N.Yavas", karsilastirma.time_problems[0])
         self.assertIn("800 ms > 200 ms", karsilastirma.time_problems[0])
         self.assertEqual(karsilastirma.worst_test.name, "N.Yavas")
-        self.assertEqual(kapi.stability_exit_code([karsilastirma]), kapi.STABILITY_TIME_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([karsilastirma]), gate.STABILITY_TIME_EXIT_CODE)
 
     def test_modul_duvar_suresi_kayarsa_sure_kirmizisi_olur(self):
         kosumlar = [_kosum(sira=1, duvar=100.0), _kosum(sira=2, duvar=116.0), _kosum(sira=3, duvar=101.0)]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "süre")
-        self.assertIn("modül duvar süresi", karsilastirma.time_problems[0])
+        self.assertEqual(karsilastirma.verdict, "time")
+        self.assertIn("module wall time", karsilastirma.time_problems[0])
         self.assertEqual(karsilastirma.wall_spread_percent, 16.0)
 
     def test_sureleri_sinir_icindeyse_yesil(self):
         kosumlar = [_kosum(sira=1, duvar=100.0), _kosum(sira=2, duvar=114.0), _kosum(sira=3, duvar=103.0)]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "yeşil")
-        self.assertEqual(kapi.stability_exit_code([karsilastirma]), 0)
+        self.assertEqual(karsilastirma.verdict, "green")
+        self.assertEqual(gate.stability_exit_code([karsilastirma]), 0)
 
     def test_cpu_baskili_kosumun_suresi_raporlanir_ama_kirmizi_saymaz(self):
         kosumlar = [
@@ -4044,9 +4060,9 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             _kosum(sira=4, baski=True, duvar=300.0, testler={"N.A": (5000, "Passed"), "N.B": (50, "Passed")}),
         ]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "yeşil")
+        self.assertEqual(karsilastirma.verdict, "green")
         self.assertEqual(karsilastirma.judged_runs, 3)
         self.assertEqual(karsilastirma.pressured_wall_seconds, (300.0,))
         self.assertEqual(karsilastirma.pressured_runs, 1)
@@ -4054,10 +4070,10 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
     def test_baskisiz_temiz_kosum_ikiden_azsa_sure_karsilastirilmaz_ve_not_dusulur(self):
         kosumlar = [_kosum(sira=1), _kosum(sira=2, baski=True, duvar=500.0)]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "yeşil")
-        self.assertIn("süre karşılaştırılamadı", karsilastirma.notes[0])
+        self.assertEqual(karsilastirma.verdict, "green")
+        self.assertIn("time could not be compared", karsilastirma.notes[0])
 
     # --- sonuc kimligi ------------------------------------------------------------------
 
@@ -4066,21 +4082,21 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             _kosum(sira=1), _kosum(sira=2, testler={"N.A": (100, "Passed")}), _kosum(sira=3),
         ]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "sonuç")
+        self.assertEqual(karsilastirma.verdict, "result")
         self.assertEqual(len(karsilastirma.result_problems), 1)
-        self.assertIn("N.B — sonuç değişti", karsilastirma.result_problems[0])
-        self.assertIn("koşum 2: yok", karsilastirma.result_problems[0])
+        self.assertIn("N.B — result changed", karsilastirma.result_problems[0])
+        self.assertIn("run 2: missing", karsilastirma.result_problems[0])
 
     def test_bir_kosumda_fazladan_test_sonuc_kirmizisidir(self):
         kosumlar = [
             _kosum(sira=1), _kosum(sira=2, testler={"N.A": (100, "Passed"), "N.B": (50, "Passed"), "N.Yeni": (1, "Passed")}),
         ]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "sonuç")
+        self.assertEqual(karsilastirma.verdict, "result")
         self.assertIn("N.Yeni", karsilastirma.result_problems[0])
 
     def test_sonuc_degisen_test_adlandirilir_ve_sonuc_sure_kirmizisini_ezer(self):
@@ -4089,24 +4105,24 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             _kosum(sira=2, testler={"N.A": (100, "Passed"), "N.B": (900, "Failed")}),
         ]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "sonuç")
-        self.assertIn("N.B — sonuç değişti (koşum 1: Passed, koşum 2: Failed)", karsilastirma.result_problems[0])
-        self.assertEqual(kapi.stability_exit_code([karsilastirma]), kapi.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(karsilastirma.verdict, "result")
+        self.assertIn("N.B — result changed (run 1: Passed, run 2: Failed)", karsilastirma.result_problems[0])
+        self.assertEqual(gate.stability_exit_code([karsilastirma]), gate.STABILITY_RESULT_EXIT_CODE)
 
     def test_her_kosumda_dusen_test_de_sonuc_kirmizisidir(self):
         kosumlar = [_kosum(sira=i, testler={"N.A": (100, "Failed"), "N.B": (50, "Passed")}, cikis=2) for i in (1, 2, 3)]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "sonuç")
-        self.assertEqual(karsilastirma.result_problems, ["N.A — her koşumda düştü (Failed)"])
+        self.assertEqual(karsilastirma.verdict, "result")
+        self.assertEqual(karsilastirma.result_problems, ["N.A — failed in every run (Failed)"])
 
     def test_atlanan_test_her_kosumda_atlaniyorsa_sonuc_aynidir(self):
         kosumlar = [_kosum(sira=i, testler={"N.A": (0, "NotExecuted"), "N.B": (50, "Passed")}) for i in (1, 2)]
 
-        self.assertEqual(kapi.compare_module("M", kosumlar).verdict, "yeşil")
+        self.assertEqual(gate.compare_module("M", kosumlar).verdict, "green")
 
     def test_atlanan_test_bir_kosumda_kosarsa_sonuc_degismistir(self):
         kosumlar = [
@@ -4114,23 +4130,23 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             _kosum(sira=2, testler={"N.A": (10, "Passed")}),
         ]
 
-        self.assertEqual(kapi.compare_module("M", kosumlar).verdict, "sonuç")
+        self.assertEqual(gate.compare_module("M", kosumlar).verdict, "result")
 
     def test_cikis_kodu_sifir_degilse_ve_raporda_dusen_yoksa_sonuc_kirmizisi(self):
         kosumlar = [_kosum(sira=1), _kosum(sira=2, cikis=8)]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "sonuç")
-        self.assertIn("koşum 2: çıkış kodu 8", karsilastirma.result_problems[0])
+        self.assertEqual(karsilastirma.verdict, "result")
+        self.assertIn("run 2: exit code 8", karsilastirma.result_problems[0])
 
     def test_raporu_olmayan_kosum_sonuc_kirmizisidir(self):
-        kosumlar = [_kosum(sira=1), _kosum(sira=2, cikis=1, duvar=None, testler={}, sorun="TRX raporu yok ya da okunamadı (çıkış 1)")]
+        kosumlar = [_kosum(sira=1), _kosum(sira=2, cikis=1, duvar=None, testler={}, sorun="the TRX report is missing or unreadable (exit 1)")]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "sonuç")
-        self.assertIn("koşum 2: TRX raporu yok", karsilastirma.result_problems[0])
+        self.assertEqual(karsilastirma.verdict, "result")
+        self.assertIn("run 2: the TRX report is missing", karsilastirma.result_problems[0])
 
     def test_cpu_baskili_kosumda_sonuc_degisirse_kirmizi(self):
         kosumlar = [
@@ -4138,9 +4154,9 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             _kosum(sira=3, baski=True, testler={"N.A": (100, "Passed"), "N.B": (50, "Failed")}, cikis=2),
         ]
 
-        karsilastirma = kapi.compare_module("M", kosumlar)
+        karsilastirma = gate.compare_module("M", kosumlar)
 
-        self.assertEqual(karsilastirma.verdict, "sonuç")
+        self.assertEqual(karsilastirma.verdict, "result")
         self.assertIn("N.B", karsilastirma.result_problems[0])
 
     def test_ayni_adli_theory_satirlari_cokluk_olarak_karsilastirilir(self):
@@ -4148,39 +4164,39 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
         ayni_iki_satir = dataclasses.replace(ayni, outcomes={"N.A": ("Passed", "Passed"), "N.B": ("Passed",)})
         eksik_satir = dataclasses.replace(ayni, index=2, outcomes={"N.A": ("Passed",), "N.B": ("Passed",)})
 
-        self.assertEqual(kapi.compare_module("M", [ayni_iki_satir, eksik_satir]).verdict, "sonuç")
+        self.assertEqual(gate.compare_module("M", [ayni_iki_satir, eksik_satir]).verdict, "result")
 
     # --- cikis kodu onceligi ----------------------------------------------------------------
 
     def test_sonuc_kirmizisi_sure_kirmizisindan_once_gelir_hicbiri_yoksa_sifir(self):
-        yesil = kapi.compare_module("Y", [_kosum("Y", 1), _kosum("Y", 2)])
-        sure = kapi.compare_module("S", [_kosum("S", 1, duvar=100.0), _kosum("S", 2, duvar=200.0)])
-        sonuc = kapi.compare_module("R", [_kosum("R", 1), _kosum("R", 2, testler={"N.A": (1, "Failed")}, cikis=2)])
+        yesil = gate.compare_module("Y", [_kosum("Y", 1), _kosum("Y", 2)])
+        sure = gate.compare_module("S", [_kosum("S", 1, duvar=100.0), _kosum("S", 2, duvar=200.0)])
+        sonuc = gate.compare_module("R", [_kosum("R", 1), _kosum("R", 2, testler={"N.A": (1, "Failed")}, cikis=2)])
 
-        self.assertEqual(kapi.stability_exit_code([yesil]), 0)
-        self.assertEqual(kapi.stability_exit_code([yesil, sure]), kapi.STABILITY_TIME_EXIT_CODE)
-        self.assertEqual(kapi.stability_exit_code([yesil, sonuc]), kapi.STABILITY_RESULT_EXIT_CODE)
-        self.assertEqual(kapi.stability_exit_code([sure, sonuc]), kapi.STABILITY_RESULT_EXIT_CODE)
-        self.assertEqual(kapi.stability_exit_code([sonuc, sure]), kapi.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([yesil]), 0)
+        self.assertEqual(gate.stability_exit_code([yesil, sure]), gate.STABILITY_TIME_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([yesil, sonuc]), gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([sure, sonuc]), gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(gate.stability_exit_code([sonuc, sure]), gate.STABILITY_RESULT_EXIT_CODE)
 
     # --- siralama kaniti -----------------------------------------------------------------------
 
     def test_siralama_benzerligi_ayni_sira_bir_ters_sira_sifir(self):
-        self.assertEqual(kapi.order_similarity(["a", "b", "c", "d"], ["a", "b", "c", "d"]), 1.0)
-        self.assertEqual(kapi.order_similarity(["a", "b", "c", "d"], ["d", "c", "b", "a"]), 0.0)
-        self.assertEqual(kapi.order_similarity(["a", "b", "c"], ["a", "c", "b"]), 0.5)
-        self.assertIsNone(kapi.order_similarity(["a"], ["a"]))
-        self.assertIsNone(kapi.order_similarity(["a", "b"], ["x", "y"]))
+        self.assertEqual(gate.order_similarity(["a", "b", "c", "d"], ["a", "b", "c", "d"]), 1.0)
+        self.assertEqual(gate.order_similarity(["a", "b", "c", "d"], ["d", "c", "b", "a"]), 0.0)
+        self.assertEqual(gate.order_similarity(["a", "b", "c"], ["a", "c", "b"]), 0.5)
+        self.assertIsNone(gate.order_similarity(["a"], ["a"]))
+        self.assertIsNone(gate.order_similarity(["a", "b"], ["x", "y"]))
 
     def test_karistirilmis_modulde_baslama_sirasi_ayniysa_etkisiz_notu_dusulur(self):
         testler = {f"N.T{i:02d}": (10, "Passed") for i in range(30)}
         kosumlar = [_kosum(sira=1, testler=testler), _kosum(sira=2, testler=testler)]
 
-        karistirilmis = kapi.compare_module("M", kosumlar, shuffled=True)
-        karistirilmamis = kapi.compare_module("M", kosumlar, shuffled=False)
+        karistirilmis = gate.compare_module("M", kosumlar, shuffled=True)
+        karistirilmamis = gate.compare_module("M", kosumlar, shuffled=False)
 
-        self.assertTrue(any("görünür etkisi yok" in not_ for not_ in karistirilmis.notes))
-        self.assertFalse(any("görünür etkisi yok" in not_ for not_ in karistirilmamis.notes))
+        self.assertTrue(any("no visible effect" in not_ for not_ in karistirilmis.notes))
+        self.assertFalse(any("no visible effect" in not_ for not_ in karistirilmamis.notes))
 
     def test_baslama_sirasi_gercekten_degistiyse_etkisiz_notu_yok(self):
         adlar = [f"N.T{i:02d}" for i in range(30)]
@@ -4190,7 +4206,7 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             _kosum(sira=2, testler=testler, baslama_sirasi=adlar[::-1]),
         ]
 
-        karsilastirma = kapi.compare_module("M", kosumlar, shuffled=True)
+        karsilastirma = gate.compare_module("M", kosumlar, shuffled=True)
 
         self.assertEqual(karsilastirma.order_similarity, [0.0])
         self.assertEqual(karsilastirma.notes, [])
@@ -4198,7 +4214,7 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
     def test_kisa_modulde_siralama_notu_dusulmez(self):
         kosumlar = [_kosum(sira=1), _kosum(sira=2)]
 
-        self.assertEqual(kapi.compare_module("M", kosumlar, shuffled=True).notes, [])
+        self.assertEqual(gate.compare_module("M", kosumlar, shuffled=True).notes, [])
 
     # --- TRX okuma -----------------------------------------------------------------------------
 
@@ -4207,7 +4223,7 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
             dizin = pathlib.Path(directory)
             _kosum_trx(dizin, {"N.B": (1500, "Passed"), "N.A": (20, "Failed")}, duvar_saniye=12.5)
 
-            rapor = kapi.read_module_report(dizin)
+            rapor = gate.read_module_report(dizin)
 
         self.assertEqual(rapor.wall_seconds, 12.5)
         self.assertEqual(rapor.durations_ms, {"N.B": 1500, "N.A": 20})
@@ -4223,7 +4239,7 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
                 '<UnitTestResult testName="N.T" duration="00:00:00.3000000" outcome="Failed" />'
                 "</Results></TestRun>", encoding="utf-8")
 
-            rapor = kapi.read_module_report(dizin)
+            rapor = gate.read_module_report(dizin)
 
         self.assertEqual(rapor.durations_ms, {"N.T": 300})
         self.assertEqual(rapor.outcomes, {"N.T": ("Failed", "Passed")})
@@ -4233,10 +4249,10 @@ class KararlilikKarsilastirmaTestleri(unittest.TestCase):
     def test_trx_raporu_yoksa_ya_da_bozuksa_none(self):
         with tempfile.TemporaryDirectory() as directory:
             dizin = pathlib.Path(directory)
-            self.assertIsNone(kapi.read_module_report(dizin))
-            self.assertIsNone(kapi.read_module_report(dizin / "yok"))
+            self.assertIsNone(gate.read_module_report(dizin))
+            self.assertIsNone(gate.read_module_report(dizin / "yok"))
             (dizin / "result.trx").write_text("<TestRun", encoding="utf-8")
-            self.assertIsNone(kapi.read_module_report(dizin))
+            self.assertIsNone(gate.read_module_report(dizin))
 
 
 class _SahteBaskici:
@@ -4271,10 +4287,10 @@ class KararlilikKosumTestleri(unittest.TestCase):
         self.cagrilar: list[list[str]] = []
         self._kilit = threading.Lock()
 
-    CORE = kapi.StabilityUnit(
+    CORE = gate.StabilityUnit(
         "Tracon.Core.UnitTests", "release_net10.0", "core", None, pathlib.Path("/b/Tracon.Core.UnitTests"))
-    HAFIF = kapi.StabilityUnit("Tracon.Voice.UnitTests", "release", "light", None, pathlib.Path("/b/Tracon.Voice.UnitTests"))
-    AGIR = kapi.StabilityUnit(
+    HAFIF = gate.StabilityUnit("Tracon.Voice.UnitTests", "release", "light", None, pathlib.Path("/b/Tracon.Voice.UnitTests"))
+    AGIR = gate.StabilityUnit(
         "Tracon.AspNetCore.FunctionalTests", "release", "heavy", "b", pathlib.Path("/b/Tracon.AspNetCore.FunctionalTests"))
     VARSAYILAN = {"N.A": (100, "Passed"), "N.B": (50, "Passed")}
 
@@ -4302,7 +4318,7 @@ class KararlilikKosumTestleri(unittest.TestCase):
         fabrika = secenekler.pop("burner_factory", lambda sayi: _SahteBaskici(sayi, self.olaylar))
         rapor = self.kok / "rapor"
         with contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = kapi.stability_check(
+            kod = gate.stability_check(
                 units, repeat, root=self.kok, runner=self._kosucu(davranis), burner_factory=fabrika,
                 report_directory=rapor, measurement_path=self.kok / "olcum.jsonl", stamp="20261109T000000Z",
                 cpu_count=8, **secenekler)
@@ -4325,7 +4341,7 @@ class KararlilikKosumTestleri(unittest.TestCase):
             sorted(rapor["modules"]),
             ["Tracon.AspNetCore.FunctionalTests", "Tracon.Core.UnitTests (net10.0)", "Tracon.Voice.UnitTests"])
         modul = rapor["modules"]["Tracon.Voice.UnitTests"]
-        self.assertEqual(modul["verdict"], "yeşil")
+        self.assertEqual(modul["verdict"], "green")
         self.assertEqual([kosum["index"] for kosum in modul["runs"]], [1, 2, 3, 4, 5])
         self.assertEqual(modul["runs"][0]["tests"], 2)
         self.assertEqual(
@@ -4334,8 +4350,8 @@ class KararlilikKosumTestleri(unittest.TestCase):
         self.assertEqual(set(rapor), {"utc", "repeat", "shuffled", "base_seed", "pressure", "thresholds", "exit_code", "modules"})
         satir = json.loads((self.kok / "olcum.jsonl").read_text(encoding="utf-8").splitlines()[-1])
         self.assertEqual(
-            (satir["stage"], satir["exit_code"], satir["command"]), ("kararlilik", 0, "kapi.py kararlilik --tekrar 5"))
-        self.assertIn("Kararlı", sonuc.ekran)
+            (satir["stage"], satir["exit_code"], satir["command"]), ("stability", 0, "gate.py stability --repeat 5"))
+        self.assertIn("Stable", sonuc.ekran)
 
     def test_komut_derlenmis_ikiliyi_trx_bayraklariyla_cagirir_ve_hicbir_seyi_derlemez(self):
         self._kos([self.HAFIF], repeat=2)
@@ -4343,8 +4359,8 @@ class KararlilikKosumTestleri(unittest.TestCase):
         for args in self.cagrilar:
             self.assertEqual(args[0], str(self.HAFIF.executable))
             self.assertIn("--report-trx", args)
-            self.assertEqual(args[args.index("--report-trx-filename") + 1], kapi.STABILITY_TRX_NAME)
-            self.assertEqual(args[args.index("--timeout") + 1], f"{kapi.STABILITY_MODULE_TIMEOUT_MINUTES}m")
+            self.assertEqual(args[args.index("--report-trx-filename") + 1], gate.STABILITY_TRX_NAME)
+            self.assertEqual(args[args.index("--timeout") + 1], f"{gate.STABILITY_MODULE_TIMEOUT_MINUTES}m")
             self.assertNotIn("dotnet", args[0])
             self.assertNotIn("build", args)
             self.assertNotIn("--seed", args)
@@ -4366,7 +4382,7 @@ class KararlilikKosumTestleri(unittest.TestCase):
                           if proje == "Tracon.Core.UnitTests" else None)
 
         self.assertEqual(len(self.cagrilar), 10)
-        self.assertEqual(sonuc.kod, kapi.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(sonuc.kod, gate.STABILITY_RESULT_EXIT_CODE)
 
     # --- sira karistirma ----------------------------------------------------------------------------
 
@@ -4379,7 +4395,7 @@ class KararlilikKosumTestleri(unittest.TestCase):
         self.assertEqual(rapor["base_seed"], 1000)
         self.assertTrue(rapor["shuffled"])
         self.assertEqual([kosum["seed"] for kosum in rapor["modules"]["Tracon.Voice.UnitTests"]["runs"]], [1000, 1001, 1002])
-        self.assertIn("tohum 1000", sonuc.ekran)
+        self.assertIn("seed 1000", sonuc.ekran)
 
     def test_sira_karistirma_kapaliyken_tohum_verilmez_ve_raporlanmaz(self):
         sonuc = self._kos([self.HAFIF], repeat=2, base_seed=1000)
@@ -4398,8 +4414,8 @@ class KararlilikKosumTestleri(unittest.TestCase):
         sonuc = self._kos(
             [self.HAFIF], davranis=lambda proje, no: {"N.A": (100, "Passed"), "N.B": (50, "Failed")} if no == 3 else None)
 
-        self.assertEqual(sonuc.kod, kapi.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("N.B — sonuç değişti", sonuc.ekran)
+        self.assertEqual(sonuc.kod, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("N.B — result changed", sonuc.ekran)
         self.assertEqual(self._rapor_json(sonuc)["exit_code"], 92)
         satir = json.loads((self.kok / "olcum.jsonl").read_text(encoding="utf-8").splitlines()[-1])
         self.assertEqual(satir["exit_code"], 92)
@@ -4407,8 +4423,8 @@ class KararlilikKosumTestleri(unittest.TestCase):
     def test_yalniz_sure_degisirse_cikis_91(self):
         sonuc = self._kos([self.HAFIF], davranis=lambda proje, no: (0, self.VARSAYILAN, 30.0) if no == 2 else None)
 
-        self.assertEqual(sonuc.kod, kapi.STABILITY_TIME_EXIT_CODE)
-        self.assertIn("modül duvar süresi", sonuc.ekran)
+        self.assertEqual(sonuc.kod, gate.STABILITY_TIME_EXIT_CODE)
+        self.assertIn("module wall time", sonuc.ekran)
 
     def test_sonuc_ve_sure_birlikte_degisirse_sonuc_kodu_kazanir(self):
         def davranis(proje, no):
@@ -4418,45 +4434,46 @@ class KararlilikKosumTestleri(unittest.TestCase):
                 return 2, {"N.A": (1, "Failed")}, 10.0
             return None
 
-        self.assertEqual(self._kos([self.CORE, self.HAFIF], davranis=davranis).kod, kapi.STABILITY_RESULT_EXIT_CODE)
+        self.assertEqual(self._kos([self.CORE, self.HAFIF], davranis=davranis).kod, gate.STABILITY_RESULT_EXIT_CODE)
 
     def test_raporu_olmayan_kosum_kirmizidir_ve_kosum_cokmesi_digerlerini_engellemez(self):
         sonuc = self._kos([self.CORE, self.HAFIF], davranis=lambda proje, no: (1, None, 0) if (proje, no) == ("Tracon.Voice.UnitTests", 2) else None)
 
-        self.assertEqual(sonuc.kod, kapi.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("koşum 2: TRX raporu yok", sonuc.ekran)
+        self.assertEqual(sonuc.kod, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("run 2: the TRX report is missing", sonuc.ekran)
         self.assertEqual(len(self.cagrilar), 10)
 
     def test_testsiz_rapor_kirmizidir(self):
         sonuc = self._kos([self.HAFIF], repeat=2, davranis=lambda proje, no: {})
 
-        self.assertEqual(sonuc.kod, kapi.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("raporda hiç test yok", sonuc.ekran)
+        self.assertEqual(sonuc.kod, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("the report holds no test", sonuc.ekran)
 
     def test_zaman_asimi_ve_baslatma_hatasi_kosum_sorunu_olur_cokme_degil(self):
         def kos(args, **kwargs):
             raise subprocess.TimeoutExpired(args, 1)
         rapor = self.kok / "rapor"
         with contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = kapi.stability_check(
+            kod = gate.stability_check(
                 [self.HAFIF], 2, root=self.kok, runner=kos, report_directory=rapor,
                 measurement_path=self.kok / "olcum.jsonl", stamp="s",
                 burner_factory=lambda sayi: _SahteBaskici(sayi, self.olaylar))
 
-        self.assertEqual(kod, kapi.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("dk içinde bitmedi", ekran.getvalue())
+        self.assertEqual(kod, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("min", ekran.getvalue())
+        self.assertIn("did not finish within", ekran.getvalue())
 
     def test_kosucu_beklenmedik_hata_verirse_sonuc_kirmizisi_olur_ve_kosum_kilitlenmez(self):
         def kos(args, **kwargs):
             raise RuntimeError("patladi")
         with contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = kapi.stability_check(
+            kod = gate.stability_check(
                 [self.CORE, self.HAFIF], 2, root=self.kok, runner=kos, report_directory=self.kok / "r",
                 measurement_path=self.kok / "olcum.jsonl", stamp="s",
                 burner_factory=lambda sayi: _SahteBaskici(sayi, self.olaylar))
 
-        self.assertEqual(kod, kapi.STABILITY_RESULT_EXIT_CODE)
-        self.assertIn("koşucu çöktü", ekran.getvalue())
+        self.assertEqual(kod, gate.STABILITY_RESULT_EXIT_CODE)
+        self.assertIn("the runner crashed", ekran.getvalue())
 
     # --- CPU baskisi ---------------------------------------------------------------------------------
 
@@ -4474,7 +4491,7 @@ class KararlilikKosumTestleri(unittest.TestCase):
         self.assertEqual(rapor["pressure"], {"runs": [4, 5], "burners": 4})
         kosumlar = rapor["modules"]["Tracon.Voice.UnitTests"]["runs"]
         self.assertEqual([kosum["pressured"] for kosum in kosumlar], [False, False, False, True, True])
-        self.assertIn("(4 yük işlemi)", sonuc.ekran)
+        self.assertIn("(4 load processes)", sonuc.ekran)
 
     def test_baski_kosumlari_elle_secilir_ve_aralarinda_baski_durur(self):
         self._kos([self.HAFIF], repeat=5, pressure=True, pressure_runs=[2, 4])
@@ -4491,16 +4508,16 @@ class KararlilikKosumTestleri(unittest.TestCase):
         self.assertNotIn("baski basladi", self.olaylar)
 
     def test_gecersiz_baski_kosumu_ve_kisa_tekrar_hicbir_sey_kosmadan_reddedilir(self):
-        self.assertEqual(self._kos([self.HAFIF], repeat=3, pressure=True, pressure_runs=[4]).kod, kapi.STABILITY_USAGE_EXIT_CODE)
-        self.assertEqual(self._kos([self.HAFIF], repeat=1).kod, kapi.STABILITY_USAGE_EXIT_CODE)
-        self.assertEqual(self._kos([], repeat=3).kod, kapi.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(self._kos([self.HAFIF], repeat=3, pressure=True, pressure_runs=[4]).kod, gate.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(self._kos([self.HAFIF], repeat=1).kod, gate.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(self._kos([], repeat=3).kod, gate.STABILITY_USAGE_EXIT_CODE)
         self.assertEqual(self.cagrilar, [])
 
     def test_hata_yolunda_yuk_islemleri_temizlenir(self):
         # Bir kosum ortasinda beklenmedik hata yukselirse baski `finally` ile durur.
-        with mock.patch.object(kapi, "_execute_stability_run", side_effect=[[], RuntimeError("patladi")]):
+        with mock.patch.object(gate, "_execute_stability_run", side_effect=[[], RuntimeError("patladi")]):
             with self.assertRaises(RuntimeError), contextlib.redirect_stdout(io.StringIO()):
-                kapi.stability_check(
+                gate.stability_check(
                     [self.HAFIF], 5, pressure=True, pressure_runs=[2, 3], root=self.kok,
                     runner=self._kosucu(), burner_factory=lambda sayi: _SahteBaskici(sayi, self.olaylar),
                     report_directory=self.kok / "r", measurement_path=self.kok / "olcum.jsonl")
@@ -4516,9 +4533,9 @@ class KararlilikKosumTestleri(unittest.TestCase):
         sonuc = self._kos(
             [self.HAFIF], repeat=3, pressure=True, burner_factory=lambda sayi: Bozuk(sayi, self.olaylar))
 
-        self.assertEqual(sonuc.kod, kapi.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(sonuc.kod, gate.STABILITY_USAGE_EXIT_CODE)
         self.assertEqual(self.olaylar[-1], "baski durdu")
-        self.assertIn("CPU baskısı kurulamadı", sonuc.ekran)
+        self.assertIn("CPU pressure could not be set up", sonuc.ekran)
 
     def test_baski_islemleri_baslar_baslamaz_olurse_kosum_baslamaz(self):
         class Olu(_SahteBaskici):
@@ -4527,12 +4544,12 @@ class KararlilikKosumTestleri(unittest.TestCase):
 
         sonuc = self._kos([self.HAFIF], repeat=3, pressure=True, burner_factory=lambda sayi: Olu(sayi, self.olaylar))
 
-        self.assertEqual(sonuc.kod, kapi.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(sonuc.kod, gate.STABILITY_USAGE_EXIT_CODE)
         self.assertEqual(self.olaylar[-1], "baski durdu")
 
     def test_rapor_dizini_eski_raporlari_ve_trx_dizinlerini_budar(self):
         rapor = self.kok / "rapor"
-        for i in range(kapi.STABILITY_REPORTS_KEEP + 3):
+        for i in range(gate.STABILITY_REPORTS_KEEP + 3):
             (rapor).mkdir(exist_ok=True)
             (rapor / f"2020{i:04d}T000000Z.json").write_text("{}", encoding="utf-8")
             (rapor / f"2020{i:04d}T000000Z").mkdir()
@@ -4541,8 +4558,8 @@ class KararlilikKosumTestleri(unittest.TestCase):
 
         raporlar = sorted(rapor.glob("*.json"))
         dizinler = sorted(p for p in rapor.iterdir() if p.is_dir())
-        self.assertEqual(len(raporlar), kapi.STABILITY_REPORTS_KEEP)
-        self.assertEqual(len(dizinler), kapi.STABILITY_TRX_DIRECTORIES_KEEP)
+        self.assertEqual(len(raporlar), gate.STABILITY_REPORTS_KEEP)
+        self.assertEqual(len(dizinler), gate.STABILITY_TRX_DIRECTORIES_KEEP)
         self.assertTrue((rapor / "20261109T000000Z.json").is_file())
         self.assertTrue((rapor / "20261109T000000Z").is_dir())
 
@@ -4563,11 +4580,11 @@ class CpuYukIsleriTestleri(unittest.TestCase):
 
     def test_yuk_islemi_sayisi_cpu_sayisinin_yarisidir_en_az_bir(self):
         self.assertEqual(
-            [kapi.stability_burner_count(n) for n in (1, 2, 3, 8, 10)], [1, 1, 1, 4, 5])
+            [gate.stability_burner_count(n) for n in (1, 2, 3, 8, 10)], [1, 1, 1, 4, 5])
 
     def test_baslat_sayi_kadar_islem_acar_durdur_hepsini_sonlandirir_ve_ikinci_durdurma_zararsizdir(self):
         olusan: list[mock.Mock] = []
-        baski = kapi.CpuBurner(3, popen=self._sahte_popen(olusan))
+        baski = gate.CpuBurner(3, popen=self._sahte_popen(olusan))
 
         baski.start()
         baski.start()
@@ -4585,7 +4602,7 @@ class CpuYukIsleriTestleri(unittest.TestCase):
         olusan: list[mock.Mock] = []
 
         with self.assertRaises(RuntimeError):
-            with kapi.CpuBurner(2, popen=self._sahte_popen(olusan)):
+            with gate.CpuBurner(2, popen=self._sahte_popen(olusan)):
                 raise RuntimeError("test patladi")
 
         for surec in olusan:
@@ -4593,7 +4610,7 @@ class CpuYukIsleriTestleri(unittest.TestCase):
 
     def test_baslatma_ortada_cokerse_acilmis_islemler_durdurulur(self):
         olusan: list[mock.Mock] = []
-        baski = kapi.CpuBurner(3, popen=self._sahte_popen(olusan, ikinci_hata=True))
+        baski = gate.CpuBurner(3, popen=self._sahte_popen(olusan, ikinci_hata=True))
 
         with self.assertRaises(OSError):
             baski.start()
@@ -4604,7 +4621,7 @@ class CpuYukIsleriTestleri(unittest.TestCase):
 
     def test_sonlanmayan_islem_oldurulur(self):
         olusan: list[mock.Mock] = []
-        baski = kapi.CpuBurner(1, popen=self._sahte_popen(olusan))
+        baski = gate.CpuBurner(1, popen=self._sahte_popen(olusan))
         baski.start()
         olusan[0].wait.side_effect = [subprocess.TimeoutExpired("x", 5), None]
 
@@ -4613,7 +4630,7 @@ class CpuYukIsleriTestleri(unittest.TestCase):
         olusan[0].kill.assert_called_once()
 
     def test_gercek_yuk_islemi_baslar_calisir_ve_durdurulunca_biter(self):
-        with kapi.CpuBurner(1, lifetime_seconds=60) as baski:
+        with gate.CpuBurner(1, lifetime_seconds=60) as baski:
             surec = baski._processes[0]
             time.sleep(0.2)
             self.assertEqual(baski.alive(), 1)
@@ -4622,7 +4639,7 @@ class CpuYukIsleriTestleri(unittest.TestCase):
         self.assertIsNotNone(surec.poll())
 
     def test_yuk_islemi_omru_dolunca_kendiliginden_biter(self):
-        baski = kapi.CpuBurner(1, lifetime_seconds=0.3)
+        baski = gate.CpuBurner(1, lifetime_seconds=0.3)
         baski.start()
         surec = baski._processes[0]
         try:
@@ -4637,7 +4654,7 @@ class KararlilikKomutuTestleri(unittest.TestCase):
     """Modul secimi, komut satiri ve calisma onkosullari."""
 
     def test_plan_her_test_modulunu_tam_bir_kez_kapsar(self):
-        plan = kapi.stability_plan()
+        plan = gate.stability_plan()
         hafif = [proje for proje, asama, _ in plan if asama == "light"]
         agir = {}
         for proje, asama, hat in plan:
@@ -4645,11 +4662,11 @@ class KararlilikKomutuTestleri(unittest.TestCase):
                 agir.setdefault(hat, []).append(proje)
 
         self.assertEqual(
-            _bolum_sorunlari(_slnx_test_modulleri(), kapi.CORE_TEST_PROJECT, hafif, {k: tuple(v) for k, v in agir.items()}), [])
-        self.assertEqual(plan[0], (kapi.CORE_TEST_PROJECT, "core", None))
+            _bolum_sorunlari(_slnx_test_modulleri(), gate.CORE_TEST_PROJECT, hafif, {k: tuple(v) for k, v in agir.items()}), [])
+        self.assertEqual(plan[0], (gate.CORE_TEST_PROJECT, "core", None))
 
     def test_birimler_ikili_yolunu_derlenmis_cikti_dizininden_cozer(self):
-        birimler = kapi.stability_units(["Tracon.Voice.UnitTests", "Tracon.Core.UnitTests"])
+        birimler = gate.stability_units(["Tracon.Voice.UnitTests", "Tracon.Core.UnitTests"])
 
         self.assertEqual([birim.project for birim in birimler], ["Tracon.Core.UnitTests", "Tracon.Voice.UnitTests"])
         voice = birimler[1]
@@ -4660,53 +4677,53 @@ class KararlilikKomutuTestleri(unittest.TestCase):
         self.assertIn("(", core.label)
 
     def test_haric_listesi_modulu_cikarir_proje_listesi_sinirlar_bilinmeyen_ad_hata(self):
-        hepsi = kapi.stability_units()
-        haric = kapi.stability_units(exclude=["Tracon.Package.Tests", "Tracon.Ui.E2ETests"])
-        sadece = kapi.stability_units(["Tracon.Sqlite.IntegrationTests"])
+        hepsi = gate.stability_units()
+        haric = gate.stability_units(exclude=["Tracon.Package.Tests", "Tracon.Ui.E2ETests"])
+        sadece = gate.stability_units(["Tracon.Sqlite.IntegrationTests"])
 
         self.assertEqual(len(hepsi) - len(haric), 2)
         self.assertNotIn("Tracon.Package.Tests", [birim.project for birim in haric])
         self.assertEqual([birim.project for birim in sadece], ["Tracon.Sqlite.IntegrationTests"])
         self.assertEqual(sadece[0].lane, "b")
         with self.assertRaises(ValueError) as hata:
-            kapi.stability_units(["Tracon.Yok"])
+            gate.stability_units(["Tracon.Yok"])
         self.assertIn("Tracon.Yok", str(hata.exception))
         with self.assertRaises(ValueError):
-            kapi.stability_units(exclude=["Tracon.Yazim"])
+            gate.stability_units(exclude=["Tracon.Yazim"])
 
     def _args(self, **degisen):
         varsayilan = dict(
-            tekrar=5, proje=None, haric=None, sira_karistir=False, baski=False, baski_kosumlari=None, tohum=None,
-            cikti=None, komutlari_bas=False)
+            repeat=5, project=None, exclude=None, shuffle=False, pressure=False, pressure_runs=None, seed=None,
+            output=None, print_commands=False)
         varsayilan.update(degisen)
         return types.SimpleNamespace(**varsayilan)
 
     def test_derlenmis_ikili_yoksa_cikis_2_hicbir_sey_kosmadan_ve_derleme_onerilir(self):
-        with mock.patch.object(kapi, "stability_check") as kontrol, \
-                mock.patch.object(kapi, "stability_units", return_value=[
-                    kapi.StabilityUnit("P", "release", "light", None, pathlib.Path("/yok/P"))]), \
+        with mock.patch.object(gate, "stability_check") as kontrol, \
+                mock.patch.object(gate, "stability_units", return_value=[
+                    gate.StabilityUnit("P", "release", "light", None, pathlib.Path("/yok/P"))]), \
                 contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = kapi.stability_from_arguments(self._args())
+            kod = gate.stability_from_arguments(self._args())
 
-        self.assertEqual(kod, kapi.STABILITY_USAGE_EXIT_CODE)
+        self.assertEqual(kod, gate.STABILITY_USAGE_EXIT_CODE)
         kontrol.assert_not_called()
-        self.assertIn("derlemez", ekran.getvalue())
+        self.assertIn("does not build", ekran.getvalue())
         self.assertIn("dotnet build", ekran.getvalue())
 
     def test_tekrar_en_az_iki_ve_bilinmeyen_modul_reddedilir(self):
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(kapi.stability_from_arguments(self._args(tekrar=1)), kapi.STABILITY_USAGE_EXIT_CODE)
-            self.assertEqual(kapi.stability_from_arguments(self._args(proje=["Tracon.Yok"])), kapi.STABILITY_USAGE_EXIT_CODE)
+            self.assertEqual(gate.stability_from_arguments(self._args(repeat=1)), gate.STABILITY_USAGE_EXIT_CODE)
+            self.assertEqual(gate.stability_from_arguments(self._args(project=["Tracon.Yok"])), gate.STABILITY_USAGE_EXIT_CODE)
 
     def test_hazir_ikililer_varsa_secenekler_stability_check_a_gecer(self):
         with tempfile.TemporaryDirectory() as dizin:
             ikili = pathlib.Path(dizin) / "P"
             ikili.write_text("", encoding="utf-8")
-            birim = kapi.StabilityUnit("P", "release", "light", None, ikili)
-            with mock.patch.object(kapi, "stability_check", return_value=0) as kontrol, \
-                    mock.patch.object(kapi, "stability_units", return_value=[birim]):
-                kod = kapi.stability_from_arguments(self._args(
-                    tekrar=7, sira_karistir=True, baski_kosumlari=[2, 3], tohum=42, cikti=dizin))
+            birim = gate.StabilityUnit("P", "release", "light", None, ikili)
+            with mock.patch.object(gate, "stability_check", return_value=0) as kontrol, \
+                    mock.patch.object(gate, "stability_units", return_value=[birim]):
+                kod = gate.stability_from_arguments(self._args(
+                    repeat=7, shuffle=True, pressure_runs=[2, 3], seed=42, output=dizin))
 
         self.assertEqual(kod, 0)
         kontrol.assert_called_once_with(
@@ -4714,45 +4731,45 @@ class KararlilikKomutuTestleri(unittest.TestCase):
             report_directory=pathlib.Path(dizin))
 
     def test_komutlari_bas_hicbir_sey_kosmadan_komutlari_listeler(self):
-        with mock.patch.object(kapi, "stability_check") as kontrol, contextlib.redirect_stdout(io.StringIO()) as ekran:
-            kod = kapi.stability_from_arguments(self._args(
-                proje=["Tracon.Voice.UnitTests"], komutlari_bas=True, sira_karistir=True, baski=True))
+        with mock.patch.object(gate, "stability_check") as kontrol, contextlib.redirect_stdout(io.StringIO()) as ekran:
+            kod = gate.stability_from_arguments(self._args(
+                project=["Tracon.Voice.UnitTests"], print_commands=True, shuffle=True, pressure=True))
 
         self.assertEqual(kod, 0)
         kontrol.assert_not_called()
         satirlar = ekran.getvalue().splitlines()
-        self.assertTrue(any(satir.startswith("# CPU baskısı") for satir in satirlar))
+        self.assertTrue(any(satir.startswith("# CPU pressure") for satir in satirlar))
         komut = next(satir for satir in satirlar if satir.startswith("$ "))
         self.assertIn("Tracon.Voice.UnitTests", komut)
         self.assertIn("--seed 1", komut)
 
     def test_komut_satiri_secenekleri_ayristirilir(self):
-        with mock.patch.object(kapi, "stability_from_arguments", return_value=0) as komut:
-            kod = kapi.main([
-                "kararlilik", "--tekrar", "4", "--proje", "A", "B", "--proje", "C", "--haric", "D",
-                "--sira-karistir", "--baski", "--baski-kosumlari", "2", "3", "--tohum", "9", "--cikti", "x"])
+        with mock.patch.object(gate, "stability_from_arguments", return_value=0) as komut:
+            kod = gate.main([
+                "stability", "--repeat", "4", "--project", "A", "B", "--project", "C", "--exclude", "D",
+                "--shuffle", "--pressure", "--pressure-runs", "2", "3", "--seed", "9", "--output", "x"])
 
         self.assertEqual(kod, 0)
         args = komut.call_args.args[0]
         self.assertEqual(
-            (args.tekrar, args.proje, args.haric, args.sira_karistir, args.baski, args.baski_kosumlari, args.tohum, args.cikti),
+            (args.repeat, args.project, args.exclude, args.shuffle, args.pressure, args.pressure_runs, args.seed, args.output),
             (4, ["A", "B", "C"], ["D"], True, True, [2, 3], 9, "x"))
 
     def test_varsayilan_tekrar_bestir_ve_komut_ust_duzey_komutlari_bas_bayragini_taniyor(self):
-        with mock.patch.object(kapi, "stability_from_arguments", return_value=0) as komut:
-            kapi.main(["--komutlari-bas", "kararlilik"])
+        with mock.patch.object(gate, "stability_from_arguments", return_value=0) as komut:
+            gate.main(["--print-commands", "stability"])
 
         args = komut.call_args.args[0]
-        self.assertEqual((args.tekrar, args.komutlari_bas), (5, True))
+        self.assertEqual((args.repeat, args.print_commands), (5, True))
 
 
 class KararlilikIsAkisiTestleri(unittest.TestCase):
-    """`kararlilik.yml`: public aynada haftalik koşum; ci.yml'in sözleşmelerini taşır."""
+    """`stability.yml`: public aynada haftalik koşum; ci.yml'in sözleşmelerini taşır."""
 
     WORKFLOWS = ROOT / ".github" / "workflows"
 
     def setUp(self):
-        self.metin = (self.WORKFLOWS / "kararlilik.yml").read_text(encoding="utf-8")
+        self.metin = (self.WORKFLOWS / "stability.yml").read_text(encoding="utf-8")
         self.yorumsuz = "\n".join(satir for satir in self.metin.splitlines() if not satir.lstrip().startswith("#"))
 
     def test_haftalik_ve_elle_tetiklenir_pull_request_ve_push_yok(self):
@@ -4773,7 +4790,7 @@ class KararlilikIsAkisiTestleri(unittest.TestCase):
     def test_utf8_modu_ve_izinler_ci_yml_ile_aynidir(self):
         self.assertRegex(self.yorumsuz, r"(?m)^  PYTHONUTF8: 1$")
         self.assertRegex(self.yorumsuz, r"(?m)^permissions:\n  contents: read$")
-        self.assertRegex(self.yorumsuz, r"(?m)^concurrency:\n  group: kararlilik\n  cancel-in-progress: false$")
+        self.assertRegex(self.yorumsuz, r"(?m)^concurrency:\n  group: stability\n  cancel-in-progress: false$")
 
     def test_her_eylem_ci_yml_deki_ayni_sha_ile_sabitlenmistir(self):
         ci = (self.WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
@@ -4789,18 +4806,18 @@ class KararlilikIsAkisiTestleri(unittest.TestCase):
     def test_bir_kez_derler_sonra_kararlilik_kosar_ve_rapor_her_durumda_yuklenir(self):
         adimlar = [satir.strip() for satir in self.yorumsuz.splitlines() if satir.strip().startswith("- name:")]
         derleme = self.yorumsuz.index("dotnet build Tracon.slnx -c Release --no-restore")
-        kararlilik = self.yorumsuz.index("scripts/kapi.py kararlilik")
+        kararlilik = self.yorumsuz.index("scripts/gate.py stability")
 
         self.assertEqual(self.yorumsuz.count("dotnet build"), 1)
         self.assertLess(derleme, kararlilik)
-        self.assertIn("--tekrar 5 --sira-karistir --baski", self.yorumsuz)
+        self.assertIn("--repeat 5 --shuffle --pressure", self.yorumsuz)
         self.assertEqual(adimlar[-1], "- name: Upload the report")
         self.assertRegex(self.yorumsuz, r"- name: Upload the report\n        if: always\(\)")
-        self.assertIn("path: artifacts/kararlilik/**", self.yorumsuz)
+        self.assertIn("path: artifacts/stability/**", self.yorumsuz)
 
     def test_haric_listesi_gercek_modullerdir_ve_konteyner_paket_ve_tarayici_modullerini_kapsar(self):
         tek_satir = re.sub(r"\s+", " ", self.yorumsuz)
-        komut = re.search(r"kararlilik --tekrar 5 .*?--haric ((?:Tracon\.[\w.]+ ?)+)", tek_satir)
+        komut = re.search(r"stability --repeat 5 .*?--exclude ((?:Tracon\.[\w.]+ ?)+)", tek_satir)
         haric = komut.group(1).split()
         moduller = _slnx_test_modulleri()
 
@@ -4811,21 +4828,173 @@ class KararlilikIsAkisiTestleri(unittest.TestCase):
             sorted(["Tracon.SqlServer.IntegrationTests", "Tracon.PostgreSql.IntegrationTests",
                     "Tracon.TwoNode.IntegrationTests", "Tracon.Package.Tests", "Tracon.Ui.E2ETests"]))
         # Komut gercekten cozulur: hicbir bilinmeyen ad yok.
-        self.assertTrue(kapi.stability_units(exclude=haric))
+        self.assertTrue(gate.stability_units(exclude=haric))
 
     def test_dosya_adi_uzak_durum_okumasinin_aradigi_workflow_adidir(self):
-        self.assertEqual(kapi.STABILITY_WORKFLOW, "kararlilik.yml")
-        self.assertTrue((self.WORKFLOWS / kapi.STABILITY_WORKFLOW).is_file())
+        self.assertEqual(gate.STABILITY_WORKFLOW, "stability.yml")
+        self.assertTrue((self.WORKFLOWS / gate.STABILITY_WORKFLOW).is_file())
 
     def test_zincirsiz_is_akislari_testi_bu_dosyayi_da_kapsar(self):
         dosyalar = [p.name for p in self.WORKFLOWS.glob("*.yml") if p.name not in ZINCIRSIZ_DOSYA_DISI]
 
-        self.assertIn("kararlilik.yml", dosyalar)
+        self.assertIn("stability.yml", dosyalar)
 
     def test_kararlilik_komutu_ci_nin_testlerini_ve_kapanisi_degistirmez(self):
         ci = (self.WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
 
-        self.assertNotIn("kararlilik", ci)
+        self.assertNotRegex(ci, r"gate\.py\s+stability")
+
+
+class CommandSurfaceTests(unittest.TestCase):
+    """The command line of `gate.py` is English: command names, flag names, and every line the commands print."""
+
+    COMMANDS = (
+        "scan", "generate", "remote-state", "inner-loop", "close", "perf",
+        "test", "stability", "release", "pack", "verify-packages", "capacity")
+    RENAMED = {
+        "tarama": "scan", "uret": "generate", "uzak-durum": "remote-state", "ic-dongu": "inner-loop",
+        "kapanis": "close", "performans": "perf", "kararlilik": "stability", "yayin": "release",
+        "paketle": "pack", "paket-dogrula": "verify-packages", "kapasite": "capacity"}
+    TURKISH_LETTERS = r"[çğıöşüÇĞİÖŞÜ]"
+    WORKFLOWS = ROOT / ".github" / "workflows"
+
+    @staticmethod
+    def _run(argv: list[str]) -> tuple[int | str | None, str, str]:
+        """(exit code, stdout, stderr) of `gate.main(argv)`; a run that returns instead of exiting reports its return value."""
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                code = gate.main(argv)
+            except SystemExit as stop:
+                code = stop.code
+        return code, out.getvalue(), err.getvalue()
+
+    def test_the_command_set_is_exactly_the_twelve_dictionary_names(self):
+        _, subparsers = gate.build_parser()
+
+        self.assertEqual(sorted(subparsers.choices), sorted(self.COMMANDS))
+        self.assertEqual(len(subparsers.choices), 12)
+
+    def test_every_old_command_name_exits_2_and_says_the_new_name(self):
+        self.assertEqual(gate.RENAMED_COMMANDS, self.RENAMED)
+        for old, new in self.RENAMED.items():
+            for argv in ([old], ["--print-commands", old], [old, "--" "taban", "HEAD"]):
+                with self.subTest(argv=argv):
+                    code, out, err = self._run(argv)
+
+                    self.assertEqual(code, 2)
+                    self.assertEqual(out, "")
+                    self.assertIn(f"'{old}' was renamed to '{new}'", err)
+
+    def test_an_old_command_name_is_not_an_alias(self):
+        _, subparsers = gate.build_parser()
+
+        self.assertEqual(set(self.RENAMED) & set(subparsers.choices), set())
+
+    def test_old_flag_names_are_rejected_including_their_abbreviation_forms(self):
+        required = {
+            "close": ["--base", "HEAD"], "test": ["--class", "A"], "release": ["--dry-run"],
+            "pack": ["--output", "x"], "capacity": ["--profile", "smoke", "--package-version", "1.0.0"],
+            "verify-packages": ["x"]}
+        old_flags = {
+            "close": ["--" "taban", "--site-atla"], "inner-loop": ["--" "taban"], "perf": ["--guncelle"],
+            "test": ["--" "sinif", "--" "proje"],
+            "stability": ["--tekrar", "--haric", "--sira-karistir", "--baski", "--baski-kosumlari", "--tohum", "--cikti"],
+            "release": ["--kuru", "--surum", "--paket-dizini"], "pack": ["--cikti"],
+            "capacity": ["--profil", "--surum", "--cikti"]}
+        for command, flags in old_flags.items():
+            for flag in flags:
+                with self.subTest(command=command, flag=flag):
+                    code, _, err = self._run([command, *required.get(command, []), flag, "1"])
+
+                    self.assertEqual(code, 2)
+                    self.assertIn("unrecognized arguments", err)
+        code, _, err = self._run(["--komutlari-bas", "close", "--base", "HEAD"])
+        self.assertEqual(code, 2)
+        self.assertIn("unrecognized arguments", err)
+
+    def test_a_call_without_a_command_lists_the_new_names(self):
+        code, _, err = self._run([])
+
+        self.assertEqual(code, 2)
+        for name in self.COMMANDS:
+            self.assertIn(name, err)
+        self.assertNotRegex(err, self.TURKISH_LETTERS)
+
+    def test_the_help_of_every_command_has_no_turkish_letter(self):
+        for argv in ([], *([name] for name in self.COMMANDS)):
+            with self.subTest(command=argv):
+                code, out, _ = self._run([*argv, "--help"])
+
+                self.assertEqual(code, 0)
+                self.assertTrue(out.strip())
+                self.assertNotRegex(out, self.TURKISH_LETTERS)
+
+    def test_the_dry_run_listings_have_no_turkish_letter(self):
+        with mock.patch.object(gate, "changed_paths", return_value=["src/Tracon.Core/Thing.cs"]):
+            for argv in (
+                ["generate"], ["remote-state"], ["perf"], ["verify-packages", "x"], ["pack", "--output", "x"],
+                ["release", "--dry-run"], ["release", "--dry-run", "--package-directory", "x"], ["stability"],
+                ["close", "--base", "HEAD"], ["inner-loop"],
+            ):
+                with self.subTest(command=argv):
+                    code, out, _ = self._run(["--print-commands", *argv])
+
+                    self.assertEqual(code, 0)
+                    self.assertTrue(out.strip())
+                    self.assertNotRegex(out, self.TURKISH_LETTERS)
+
+    def test_workflow_script_calls_point_at_existing_files_and_existing_commands(self):
+        _, subparsers = gate.build_parser()
+        files_seen = commands_seen = 0
+        for workflow in sorted(self.WORKFLOWS.glob("*.yml")):
+            for number, line in enumerate(workflow.read_text(encoding="utf-8").splitlines(), 1):
+                is_comment = line.lstrip().startswith("#")
+                for match in re.finditer(r"scripts/([\w.-]+\.py)\b", line):
+                    files_seen += 1
+                    where = f"{workflow.name}:{number}: {match.group(0)}"
+                    self.assertTrue((ROOT / "scripts" / match.group(1)).is_file(), where)
+                    if match.group(1) != "gate.py" or is_comment:
+                        continue
+                    following = re.sub(r"\s#.*$", "", line[match.end():]).split()
+                    candidate = next((word for word in following if not word.startswith("-")), None)
+                    if candidate is not None and re.fullmatch(r"[a-z][a-z-]*", candidate):
+                        commands_seen += 1
+                        self.assertIn(candidate, subparsers.choices, where)
+        self.assertGreater(files_seen, 0)
+        self.assertGreater(commands_seen, 0)
+
+    def test_remote_state_says_so_when_no_stability_run_exists_and_the_exit_code_does_not_change(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        breaking_changes = importlib.import_module("breaking_changes")
+        remote_state = importlib.import_module("remote_state")
+        green = remote_state.CiState("completed", "success", "https://example.test/run", "abcdef01")
+
+        def check(release: object, stability: object) -> tuple[int, str]:
+            def ci_state(root, remote="origin", branch="main", *, workflow="ci.yml", **kwargs):  # noqa: ANN001, ANN202
+                return stability if workflow == gate.STABILITY_WORKFLOW else green
+
+            output = io.StringIO()
+            with mock.patch.object(breaking_changes, "resolve_baseline", return_value="1.0.0"), \
+                    mock.patch.object(remote_state, "packable_ids_at", return_value=["A", "B"]), \
+                    mock.patch.object(remote_state, "release_state", return_value=release), \
+                    mock.patch.object(remote_state, "ci_state", side_effect=ci_state), \
+                    contextlib.redirect_stdout(output):
+                code = gate.remote_state_check(ROOT)
+            return code, output.getvalue()
+
+        published = remote_state.ReleaseState("1.0.0", (), (), 2)
+        incomplete = remote_state.ReleaseState("1.0.0", ("B",), (), 1)
+
+        for release, expected_code in ((published, 0), (incomplete, 1)):
+            with self.subTest(exit_code=expected_code):
+                code_without_run, text = check(release, None)
+                code_with_run, _ = check(release, green)
+
+                self.assertEqual(code_without_run, expected_code)
+                self.assertEqual(code_with_run, expected_code)
+                self.assertIn("ℹ️ No decided stability run could be read for 'origin'", text)
+                self.assertNotIn("is red", text)
 
 
 if __name__ == "__main__":

@@ -66,13 +66,13 @@ def load_profile(name: str, profile_dir: pathlib.Path = PROFILE_DIR) -> dict[str
 
     if not path.exists():
         available = ", ".join(sorted(p.stem for p in profile_dir.glob("*.json")))
-        raise CapacityError(f"'{name}' profili yok. Mevcut: {available}")
+        raise CapacityError(f"Profile '{name}' does not exist. Available: {available}")
 
     profile = json.loads(path.read_text(encoding="utf-8"))
     problems = validate_profile(profile)
 
     if problems:
-        raise CapacityError(f"'{name}' profili ölçülemez:\n  " + "\n  ".join(problems))
+        raise CapacityError(f"Profile '{name}' cannot be measured:\n  " + "\n  ".join(problems))
 
     return profile
 
@@ -86,14 +86,14 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
     problems: list[str] = []
 
     if not profile.get("scenarios"):
-        problems.append("scenarios boş olamaz")
+        problems.append("scenarios must not be empty")
 
     for scenario in profile.get("scenarios", []):
         if scenario not in ("buffered", "streaming", "queued"):
-            problems.append(f"bilinmeyen senaryo: {scenario}")
+            problems.append(f"unknown scenario: {scenario}")
 
     if profile.get("repeats", 0) <= 0:
-        problems.append("repeats sıfırdan büyük olmalı")
+        problems.append("repeats must be greater than zero")
 
     measure = profile.get("measureSeconds", 0)
     runs_per_tenant = profile.get("runsPerTenant", 0)
@@ -102,51 +102,51 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
     if ramp is not None:
         # Tenant rampası ölçümün sınırının KENDİSİDİR: süre ya da run sayısı ayrıca verilirse iki sınır olurdu.
         if measure > 0 or runs_per_tenant > 0:
-            problems.append("tenantRamp sınırın kendisidir; measureSeconds ve runsPerTenant sıfır olmalı")
+            problems.append("tenantRamp is the measurement limit itself; measureSeconds and runsPerTenant must be zero")
 
         problems.extend(validate_tenant_ramp(ramp))
     else:
         if measure <= 0 and runs_per_tenant <= 0:
-            problems.append("measureSeconds veya runsPerTenant birinden biri sıfırdan büyük olmalı")
+            problems.append("one of measureSeconds or runsPerTenant must be greater than zero")
 
         if measure > 0 and runs_per_tenant > 0:
-            problems.append("measureSeconds ve runsPerTenant iki ayrı sınırdır; yalnız birini ver")
+            problems.append("measureSeconds and runsPerTenant are two separate limits; set only one")
 
     if profile.get("warmupSeconds", 0) < 0:
-        problems.append("warmupSeconds negatif olamaz")
+        problems.append("warmupSeconds must not be negative")
 
     for value in profile.get("concurrency", [1]):
         if value <= 0:
-            problems.append(f"concurrency sıfırdan büyük olmalı: {value}")
+            problems.append(f"concurrency must be greater than zero: {value}")
 
     for value in profile.get("arrivalRates", []):
         if value <= 0:
-            problems.append(f"arrivalRates sıfırdan büyük olmalı: {value}")
+            problems.append(f"arrivalRates must be greater than zero: {value}")
 
     for value in profile.get("workerCounts", []):
         if value <= 0:
-            problems.append(f"workerCounts sıfırdan büyük olmalı: {value}")
+            problems.append(f"workerCounts must be greater than zero: {value}")
 
     for value in profile.get("apiHostCounts", []):
         if value <= 0:
-            problems.append(f"apiHostCounts sıfırdan büyük olmalı: {value}")
+            problems.append(f"apiHostCounts must be greater than zero: {value}")
 
     # Üç eksen (worker sayısı, host sayısı, varış hızı) birbirini çaprazlamaz: her biri kendi sabit
     # yüküyle ölçülür. Birlikte verilirse plan_cells yalnız birini koşar ve diğeri sessizce düşerdi.
     axes = [name for name in ("workerCounts", "apiHostCounts", "arrivalRates") if profile.get(name)]
 
     if len(axes) > 1:
-        problems.append(f"{' ve '.join(axes)} ayrı eksenlerdir; yalnız birini ver")
+        problems.append(f"{' and '.join(axes)} are separate axes; set only one")
 
     if ramp is not None and axes:
-        problems.append(f"tenantRamp tek başına ölçülür; {' ve '.join(axes)} ile birleşmez")
+        problems.append(f"tenantRamp is measured alone; it does not combine with {' and '.join(axes)}")
 
     for shape in profile.get("seedShapes", ["empty"]):
         if shape not in ("empty", "full"):
-            problems.append(f"bilinmeyen seed şekli: {shape}")
+            problems.append(f"unknown seed shape: {shape}")
 
     if profile.get("seedRuns", 0) < 0:
-        problems.append("seedRuns negatif olamaz")
+        problems.append("seedRuns must not be negative")
 
     return problems
 
@@ -157,13 +157,13 @@ def validate_tenant_ramp(ramp: Any) -> list[str]:
     🚨 Sürücü aynı kuralları kendi tarafında tekrar doğrular; burası yalnız saatler süren bir koşumun
     paketleme ve derleme adımlarından SONRA, ilk hücrede reddedilmesini önler."""
     if not isinstance(ramp, dict):
-        return ["tenantRamp bir nesne olmalı"]
+        return ["tenantRamp must be an object"]
 
     problems: list[str] = []
     stages = ramp.get("stages")
 
     if not isinstance(stages, list) or not stages:
-        return ["tenantRamp.stages boş olamaz"]
+        return ["tenantRamp.stages must not be empty"]
 
     previous = 0
 
@@ -172,21 +172,21 @@ def validate_tenant_ramp(ramp: Any) -> list[str]:
         tenants = stage.get("tenants", 0)
 
         if not isinstance(tenants, int) or tenants <= previous:
-            problems.append(f"tenantRamp.stages[{index}].tenants öncekinden büyük bir tam sayı olmalı ({previous})")
+            problems.append(f"tenantRamp.stages[{index}].tenants must be an integer greater than the previous stage ({previous})")
         else:
             previous = tenants
 
         if stage.get("runsPerNewTenant", 2) <= 0:
-            problems.append(f"tenantRamp.stages[{index}].runsPerNewTenant sıfırdan büyük olmalı")
+            problems.append(f"tenantRamp.stages[{index}].runsPerNewTenant must be greater than zero")
 
         if stage.get("holdSeconds", 60) < 0:
-            problems.append(f"tenantRamp.stages[{index}].holdSeconds negatif olamaz")
+            problems.append(f"tenantRamp.stages[{index}].holdSeconds must not be negative")
 
     if previous > 99_999:
-        problems.append("tenantRamp 99999 tenant'tan fazlasına çıkamaz")
+        problems.append("tenantRamp must not exceed 99999 tenants")
 
     if ramp.get("idleSeconds", 30) < 0:
-        problems.append("tenantRamp.idleSeconds negatif olamaz")
+        problems.append("tenantRamp.idleSeconds must not be negative")
 
     return problems
 
@@ -326,9 +326,9 @@ def wait_for_line(process: subprocess.Popen[str], line: str, timeout: float,
             if process.stdout:
                 seen.append(process.stdout.read())
 
-            detail = "".join(seen).strip() or "(process hiçbir şey yazmadı)"
+            detail = "".join(seen).strip() or "(the process wrote nothing)"
             raise CapacityError(
-                f"{label} '{line}' yazmadan çıktı (kod {process.returncode}): {detail[-2000:]}"
+                f"{label} exited without writing '{line}' (code {process.returncode}): {detail[-2000:]}"
             )
 
         ready = process.stdout.readline() if process.stdout else ""
@@ -343,8 +343,8 @@ def wait_for_line(process: subprocess.Popen[str], line: str, timeout: float,
             return
 
     raise CapacityError(
-        f"{label} {timeout:.0f} sn içinde '{line}' yazmadı; okunan: "
-        f"{''.join(seen).strip()[-2000:] or '(hiçbir şey)'}"
+        f"{label} did not write '{line}' within {timeout:.0f} s; output so far: "
+        f"{''.join(seen).strip()[-2000:] or '(nothing)'}"
     )
 
 
@@ -360,7 +360,7 @@ def stop(process: subprocess.Popen[str] | None, label: str) -> None:
         process.send_signal(signal.SIGTERM)
         process.wait(timeout=20)
     except subprocess.TimeoutExpired:
-        print(f"⚠️ {label} SIGTERM ile durmadı; kill", flush=True)
+        print(f"⚠️ {label} did not stop on SIGTERM; killing it", flush=True)
         process.kill()
         process.wait(timeout=10)
     except ProcessLookupError:
@@ -428,12 +428,12 @@ def reusable_feed(version: str, reuse_feed: pathlib.Path) -> pathlib.Path:
     yeniden üretmek dakikalarca sürer. Kirli olmayan bir koşum bunu KULLANAMAZ: yayımlanacak her sayının
     provenance'ı kendi `pack`'inden gelir."""
     if "dirty" not in version:
-        raise CapacityError("--hazir-feed yalnız 'dirty' sürümle kullanılır; yayımlanabilir bir koşum kendi pack'ini yapar")
+        raise CapacityError("--ready-feed works only with a 'dirty' version; a publishable run builds its own packages")
 
     feed = reuse_feed.resolve()
 
     if not (feed / f"Tracon.{version}.nupkg").exists():
-        raise CapacityError(f"{feed} içinde Tracon.{version}.nupkg yok")
+        raise CapacityError(f"Tracon.{version}.nupkg is not in {feed}")
 
     return feed
 
@@ -500,15 +500,15 @@ def verify_isolation(consumer: pathlib.Path, cache: pathlib.Path, version: str) 
     assets = consumer / HOST_PROJECT / "obj" / "project.assets.json"
 
     if not assets.exists():
-        raise CapacityError(f"{HOST_PROJECT} restore çıktısı yok: {assets}")
+        raise CapacityError(f"{HOST_PROJECT} has no restore output: {assets}")
 
     text = assets.read_text(encoding="utf-8")
 
     if str(cache) not in text:
-        raise CapacityError(f"{HOST_PROJECT} izole NUGET_PACKAGES kullanmadı")
+        raise CapacityError(f"{HOST_PROJECT} did not use the isolated NUGET_PACKAGES")
 
     if f'"Tracon/{version}"' not in text:
-        raise CapacityError(f"{HOST_PROJECT} exact sürüm {version} çözmedi")
+        raise CapacityError(f"{HOST_PROJECT} did not resolve exact version {version}")
 
     document = json.loads(text)
 
@@ -516,7 +516,7 @@ def verify_isolation(consumer: pathlib.Path, cache: pathlib.Path, version: str) 
         name, _, resolved = library.partition("/")
 
         if name.startswith("Tracon") and resolved != version:
-            raise CapacityError(f"{name} beklenen sürümde değil: {resolved} != {version}")
+            raise CapacityError(f"{name} is not at the expected version: {resolved} != {version}")
 
 
 # --------------------------------------------------------------------------
@@ -581,7 +581,7 @@ class Database:
 
             time.sleep(0.5)
 
-        raise CapacityError("PostgreSQL container hazır olmadı")
+        raise CapacityError("The PostgreSQL container did not become ready")
 
     def _server_version(self, connection: str) -> str:
         if not self.container:
@@ -595,8 +595,8 @@ class Database:
     def psql(self, database: str, sql: str) -> str:
         if not self.container:
             raise CapacityError(
-                "Harici bir sunucuda veritabanı yönetimi desteklenmiyor; "
-                "TRACON_CAPACITY_CONNECTION olmadan koşun."
+                "Database management on an external server is not supported; "
+                "run without TRACON_CAPACITY_CONNECTION."
             )
 
         result = run(["docker", "exec", self.container, "psql", "-h", "127.0.0.1",
@@ -604,7 +604,7 @@ class Database:
                      check=False, capture=True)
 
         if result.returncode != 0:
-            raise CapacityError(f"psql başarısız: {result.stderr.strip()[:500]}")
+            raise CapacityError(f"psql failed: {result.stderr.strip()[:500]}")
 
         return result.stdout.strip()
 
@@ -634,7 +634,7 @@ def host_executable(consumer: pathlib.Path, project: str) -> pathlib.Path:
     path = consumer / project / "bin" / "Release" / "net10.0" / name
 
     if not path.exists():
-        raise CapacityError(f"{project} derlenmedi: {path}")
+        raise CapacityError(f"{project} was not built: {path}")
 
     return path
 
@@ -695,7 +695,7 @@ def run_to_completion(executable: pathlib.Path, environment: dict[str, str],
     )
 
     if result.returncode != 0:
-        raise CapacityError(f"{label} çıkış {result.returncode}: {result.stdout[-2000:]}{result.stderr[-2000:]}")
+        raise CapacityError(f"{label} exit code {result.returncode}: {result.stdout[-2000:]}{result.stderr[-2000:]}")
 
     return result.stdout
 
@@ -762,7 +762,7 @@ def build_templates(database: Database, consumer: pathlib.Path, profile: dict[st
             match = re.search(r"CAPACITY-SEEDED runs=(\d+) events=(\d+)", output)
 
             if not match:
-                raise CapacityError("seed modu ne yazdığını raporlamadı")
+                raise CapacityError("the seed mode did not report what it wrote")
 
             seeded = {"runs": int(match.group(1)), "events": int(match.group(2))}
 
@@ -773,8 +773,8 @@ def build_templates(database: Database, consumer: pathlib.Path, profile: dict[st
 
         if shape == "full" and (actual_runs != seeded["runs"] or actual_events != seeded["events"]):
             raise CapacityError(
-                f"seed beyanı satır sayısıyla uyuşmuyor: beyan {seeded}, "
-                f"gerçek runs={actual_runs} events={actual_events}"
+                f"the seed declaration does not match the row counts: declared {seeded}, "
+                f"actual runs={actual_runs} events={actual_events}"
             )
 
         size = int(database.psql(name, "SELECT pg_database_size(current_database())"))
@@ -786,8 +786,8 @@ def build_templates(database: Database, consumer: pathlib.Path, profile: dict[st
             "bytes": size,
         }
 
-        print(f"  şablon {shape}: runs={actual_runs} events={actual_events} "
-              f"boyut={size / 1024 / 1024:.1f} MiB", flush=True)
+        print(f"  template {shape}: runs={actual_runs} events={actual_events} "
+              f"size={size / 1024 / 1024:.1f} MiB", flush=True)
 
     return templates
 
@@ -923,7 +923,7 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
         cell_json = cell_dir / "cell.json"
 
         if not cell_json.exists():
-            raise CapacityError(f"{cell['cellId']}: driver hücre sonucu yazmadı")
+            raise CapacityError(f"{cell['cellId']}: the driver did not write a cell result")
 
         summary = json.loads(cell_json.read_text(encoding="utf-8"))
         summary["driverExitCode"] = result.returncode
@@ -942,7 +942,7 @@ def run_cell(*, cell: dict[str, Any], profile: dict[str, Any], database: Databas
         try:
             database.psql("capacity", f'DROP DATABASE IF EXISTS "{name}"')
         except CapacityError as error:
-            print(f"⚠️ {name} düşürülemedi: {error}", flush=True)
+            print(f"⚠️ {name} could not be dropped: {error}", flush=True)
 
 
 # --------------------------------------------------------------------------
@@ -1088,7 +1088,7 @@ def run_acceptance(consumer: pathlib.Path, database: Database, profile: dict[str
     )
 
     if not executable.exists():
-        raise CapacityError(f"kabul koşumu derlenmedi: {executable}")
+        raise CapacityError(f"the acceptance run was not built: {executable}")
 
     name = f"cap_{output.name}_acceptance".lower().replace("-", "_")[:60]
     database.psql("capacity", f'DROP DATABASE IF EXISTS "{name}"')
@@ -1134,7 +1134,7 @@ def run_acceptance(consumer: pathlib.Path, database: Database, profile: dict[str
         try:
             database.psql("capacity", f'DROP DATABASE IF EXISTS "{name}"')
         except CapacityError as error:
-            print(f"⚠️ {name} düşürülemedi: {error}", flush=True)
+            print(f"⚠️ {name} could not be dropped: {error}", flush=True)
 
 
 def build_report(consumer: pathlib.Path, output: pathlib.Path) -> int:
@@ -1154,16 +1154,16 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
 
     if not EXACT_VERSION.match(version):
         raise CapacityError(
-            f"'{version}' exact bir sürüm değil. Kayan sürüm ('*', '*-*') ile ölçüm yapılmaz: "
-            "hangi baytların ölçüldüğü bilinmeyen bir rapor kanıt değildir."
+            f"'{version}' is not an exact version. A floating version ('*', '*-*') is not measured: "
+            "a report that does not say which bytes it measured is not evidence."
         )
 
     commit, dirty, _ = working_tree_state()
 
     if dirty and "dirty" not in version:
         raise CapacityError(
-            "Çalışma ağacı kirli. Kirli bir pack'in provenance'ı yoktur; ya commit edin "
-            "ya da sürüme 'dirty' koyun (ör. 0.0.0-dirty.capacity166). Kirli koşum yayına giremez."
+            "The working tree is dirty. A dirty pack has no provenance: commit your changes "
+            "or put 'dirty' in the version (for example 0.0.0-dirty.capacity1). A dirty run cannot be published."
         )
 
     run_id = time.strftime("%Y%m%d-%H%M%S") + "-" + profile_name
@@ -1176,13 +1176,13 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
     database = Database(os.environ.get("TRACON_CAPACITY_CONNECTION"))
     failures = 0
 
-    print(f"▶ kapasite koşumu {run_id} · profil {profile_name} · sürüm {version}", flush=True)
-    print(f"  commit {commit}{' (kirli)' if dirty else ''}", flush=True)
+    print(f"▶ capacity run {run_id} · profile {profile_name} · version {version}", flush=True)
+    print(f"  commit {commit}{' (dirty)' if dirty else ''}", flush=True)
 
     try:
         if reuse_feed is not None:
             feed = reusable_feed(version, reuse_feed)
-            print(f"  paketler yeniden kullanılıyor: {feed}", flush=True)
+            print(f"  reusing packages: {feed}", flush=True)
         else:
             pack(version, feed, dirty=dirty)
 
@@ -1195,7 +1195,7 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
                        feed=feed, database=database, templates=templates, schema=schema)
 
         cells = plan_cells(profile, run_id)
-        print(f"  {len(cells)} hücre planlandı", flush=True)
+        print(f"  {len(cells)} cells planned", flush=True)
 
         stopped_axes: set[tuple[Any, ...]] = set()
 
@@ -1206,8 +1206,8 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
             # koşulmaz: doygunluğa ulaşmış bir eksende üst basamağı koşmak
             # yalnız makineyi daha çok doyurur, yeni bilgi vermez.
             if axis in stopped_axes:
-                print(f"  [{index}/{len(cells)}] {cell['cellId']} atlandı "
-                      "(aynı eksende daha alçak bir basamak yarım kaldı)", flush=True)
+                print(f"  [{index}/{len(cells)}] {cell['cellId']} skipped "
+                      "(a lower step on the same axis did not finish)", flush=True)
                 continue
 
             print(f"  [{index}/{len(cells)}] {cell['cellId']}", flush=True)
@@ -1239,12 +1239,12 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
         report_code = build_report(consumer, output)
 
         if profile_name == "smoke":
-            print("  kabul koşumu (packed host)", flush=True)
+            print("  acceptance run (packed host)", flush=True)
             acceptance_code = run_acceptance(consumer, database, profile, templates,
                                              schema, output, version)
 
             if acceptance_code:
-                print("❌ kabul koşumu düştü", flush=True)
+                print("❌ the acceptance run failed", flush=True)
                 failures += 1
 
         for shape in templates.values():
@@ -1255,32 +1255,32 @@ def measure(profile_name: str, version: str, output_root: pathlib.Path,
         database.stop()
 
         if keep_workspace:
-            print(f"  çalışma alanı bırakıldı: {workspace}", flush=True)
+            print(f"  workspace kept: {workspace}", flush=True)
         else:
             shutil.rmtree(workspace, ignore_errors=True)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profil", required=True, help="bench/capacity/profiles altındaki profil adı")
-    parser.add_argument("--surum", required=True, help="ölçülecek exact paket sürümü")
-    parser.add_argument("--cikti", default=str(DEFAULT_OUTPUT), help="artifact kökü")
-    parser.add_argument("--calisma-alanini-birak", action="store_true",
-                        help="geçici tüketici dizinini silme (teşhis için)")
-    parser.add_argument("--hazir-feed", default=None,
-                        help="daha önce üretilmiş paket feed'i (yalnız 'dirty' sürümle; aparat geliştirirken pack'i atlar)")
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n", 1)[0], allow_abbrev=False)
+    parser.add_argument("--profile", required=True, help="profile name under bench/capacity/profiles")
+    parser.add_argument("--package-version", required=True, help="exact package version to measure")
+    parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="artifact root directory")
+    parser.add_argument("--keep-workspace", action="store_true",
+                        help="do not delete the temporary consumer directory (for diagnosis)")
+    parser.add_argument("--ready-feed", default=None,
+                        help="package feed built earlier (only with a 'dirty' version; skips packing while you work on the harness)")
     args = parser.parse_args(argv)
 
     try:
-        return measure(args.profil, args.surum, pathlib.Path(args.cikti),
-                       keep_workspace=args.calisma_alanini_birak,
-                       reuse_feed=pathlib.Path(args.hazir_feed) if args.hazir_feed else None)
+        return measure(args.profile, args.package_version, pathlib.Path(args.output),
+                       keep_workspace=args.keep_workspace,
+                       reuse_feed=pathlib.Path(args.ready_feed) if args.ready_feed else None)
     except CapacityError as error:
         print(f"❌ {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         # 🚨 Kullanıcı kesintisi de PARTIAL rapor üretir; başarıya çevrilmez.
-        print("\n⚠️ kesildi - tamamlanan hücreler korundu", file=sys.stderr)
+        print("\n⚠️ interrupted - completed cells are kept", file=sys.stderr)
         return 130
 
 

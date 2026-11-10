@@ -15,7 +15,7 @@ namespace Tracon.Package.Tests;
 /// <see cref="RepositoryTreeGate"/> collection so it still runs only once.
 /// </summary>
 /// <remarks>
-/// <c>scripts/kapi.py yayin</c> runs the SAME rehearsal as a CLI command (for
+/// <c>scripts/gate.py release</c> runs the SAME rehearsal as a CLI command (for
 /// a human before tagging, and for CI's <c>release-dryrun</c> job on every
 /// push); these facts are the automated, <c>dotnet test</c>-gated half of the
 /// same contract.

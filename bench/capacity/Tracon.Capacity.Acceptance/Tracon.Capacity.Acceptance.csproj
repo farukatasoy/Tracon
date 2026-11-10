@@ -2,7 +2,7 @@
 
   <!--
     Short, deterministic checks against a REAL packed-consumer host
-    and a REAL database. Run only by the `kapasite` smoke profile, never by the
+    and a REAL database. Run only by the `capacity` smoke profile, never by the
     normal suite: it needs a packed feed and a running PostgreSQL that an
     ordinary `dotnet test` has neither of.
 

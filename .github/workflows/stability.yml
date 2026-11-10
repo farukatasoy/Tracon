@@ -9,9 +9,9 @@ name: Stability
 # The job runs the command a developer runs on a laptop:
 #
 #   dotnet build Tracon.slnx -c Release
-#   python3 scripts/kapi.py kararlilik --tekrar 5 --sira-karistir --baski --haric <modules>
+#   python3 scripts/gate.py stability --repeat 5 --shuffle --pressure --exclude <modules>
 #
-# so a failing run is replayed by copying those lines. The report (`artifacts/kararlilik/<utc>.json`) names every test
+# so a failing run is replayed by copying those lines. The report (`artifacts/stability/<utc>.json`) names every test
 # whose outcome changed and every test and module whose time moved more than the limits allow, with the seed of every
 # shuffled run; the TRX files and the output of every run are uploaded next to it.
 #
@@ -19,7 +19,7 @@ name: Stability
 # the package module (it restores and packs from the network) and the browser module (it installs a browser). Their time
 # is dominated by image pulls, package feeds and downloads, which a free runner cannot hold still, and five repeats of a
 # 400 second module would multiply the run for a number nobody could act on. They run in the full local command, which
-# has no exclusion: `python3 scripts/kapi.py kararlilik --tekrar 5 --sira-karistir --baski`.
+# has no exclusion: `python3 scripts/gate.py stability --repeat 5 --shuffle --pressure`.
 
 on:
   schedule:
@@ -34,7 +34,7 @@ permissions:
 
 # A second run waits for the first instead of racing it for the same runner pool.
 concurrency:
-  group: kararlilik
+  group: stability
   cancel-in-progress: false
 
 env:
@@ -94,7 +94,7 @@ jobs:
       - name: Restore the dependencies
         run: dotnet restore Tracon.slnx
 
-      # The one build of the run. `kararlilik` starts the executables this step leaves in `artifacts/bin/`.
+      # The one build of the run. `stability` starts the executables this step leaves in `artifacts/bin/`.
       - name: Build
         run: dotnet build Tracon.slnx -c Release --no-restore
 
@@ -103,8 +103,8 @@ jobs:
       - name: Run the stability check
         timeout-minutes: 90
         run: >-
-          python3 scripts/kapi.py kararlilik --tekrar 5 --sira-karistir --baski
-          --haric Tracon.SqlServer.IntegrationTests Tracon.PostgreSql.IntegrationTests Tracon.TwoNode.IntegrationTests
+          python3 scripts/gate.py stability --repeat 5 --shuffle --pressure
+          --exclude Tracon.SqlServer.IntegrationTests Tracon.PostgreSql.IntegrationTests Tracon.TwoNode.IntegrationTests
           Tracon.Package.Tests Tracon.Ui.E2ETests
 
       # Uploaded whether the run passed or not: the TRX files of the five runs explain a red the table only names.
@@ -112,7 +112,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: kararlilik-report
-          path: artifacts/kararlilik/**
+          name: stability-report
+          path: artifacts/stability/**
           retention-days: 30
           if-no-files-found: warn

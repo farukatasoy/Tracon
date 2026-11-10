@@ -61,7 +61,7 @@
       forwarder'siz tasindi). Tam aralikta NuGet ayni durumu restore'da soyler
       (NU1608 dogrudan, NU1107 gecisli). Kararli ucuncu taraf alt sinirda kalir.
       Kapi: ReleaseArtifactTests.EveryPrereleaseThirdPartyDependencyIsExact ve
-      `kapi.py yayin`. Yukseltme bu bes satiri BIRLIKTE degistirir.
+      `gate.py release`. Yukseltme bu bes satiri BIRLIKTE degistirir.
     -->
     <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="[1.26.0-preview.261023.1]" />
     <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="[1.26.0-alpha.261023.1]" />

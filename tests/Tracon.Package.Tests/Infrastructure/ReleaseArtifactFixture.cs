@@ -27,7 +27,7 @@ public sealed class ReleaseArtifactFixture : IAsyncLifetime
         // TraconSkipCleanWorkingTreeCheck: this fixture validates
         // the packaging CONTENT CONTRACT during test runs, not a release
         // candidate - it must not be blocked by TraconValidateCleanWorkingTree
-        // the way `kapi.py yayin` (the real release rehearsal) is.
+        // the way `gate.py release` (the real release rehearsal) is.
         var result = await ProcessRunner.RunAsync(
             "dotnet",
             $"pack \"{RepoPaths.PackableSolutionFilter}\" -c Release -p:TraconSkipCleanWorkingTreeCheck=true",

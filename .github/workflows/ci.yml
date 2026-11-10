@@ -82,7 +82,7 @@ jobs:
   # siniri asilirsa GitHub hangi isi once baslatacagina kendisi karar verir.
   # ---------------------------------------------------------------------------
   build:
-    name: Derle (${{ matrix.os }})
+    name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     # CI yalniz kanonik repo'da kosar. Kod ayni dal ve etiketlerle ikinci bir
     # uzaga da itilir (ikinci bir uzak); orada hicbir is
@@ -101,20 +101,20 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # MinVer surumu git etiketlerinden uretir; tum gecmis gerekir.
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
       # Arayuz derlemesi icin. jsdom 30 Node ^22.22.2 (veya ^24.15, >=26) ister.
       # npm onbellegi package-lock.json uzerinden anahtarlanir.
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -127,24 +127,24 @@ jobs:
       # Windows runner (only `python`); installing it explicitly gives the same
       # binary on both systems. The scripts need nothing beyond the standard
       # library, and the `X | None` union type needs Python 3.10 or later.
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
       # Tek OS yeterli; bu bir dosya sistemi kontroludur.
-      - name: Gelistirme dongusu taramasi
+      - name: Run the repository scan
         if: matrix.os == 'ubuntu-latest'
-        run: python3 scripts/kapi.py tarama
+        run: python3 scripts/gate.py scan
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         run: dotnet restore Tracon.slnx
 
       # Agent haritasi (buildTransitive/Tracon.AgentMap.md) capabilities.md'den
@@ -161,7 +161,7 @@ jobs:
       # yokken --check calisirsa harita bu sayfayi dislar ve COMMIT edilmis
       # (sayfayi iceren) surumle sonsuza dek uyusmaz; build-changelog.mjs de npm
       # bagimliligi istemedigi icin buraya eklemek yukaridaki yorumu bozmaz.
-      - name: Agent haritasi kaynagiyla ayni mi
+      - name: Check the agent map matches its source
         run: |
           node docs-site/scripts/build-changelog.mjs
           node docs-site/scripts/build-agent-map.mjs --check
@@ -170,7 +170,7 @@ jobs:
       # adim ORADA degil BURADA durur - yoksa kapinin kirmizi olmasi hicbir PR'i
       # durdurmaz. Betik yalnizca node: yerlesikleri ve yerel dosyalar okur; olculdu:
       # node_modules silinmisken de kosuyor, bu yuzden `npm ci` istemez.
-      - name: Icerik ve sunum kapilari
+      - name: Content and presentation gates
         working-directory: docs-site
         run: node scripts/check-content.mjs
 
@@ -183,15 +183,15 @@ jobs:
       # schema-drift + paths-coverage + error-mapping + prefix +
       # client testleri. `npm test`'e baglidir, `dotnet test`'e degil -- dort
       # kapinin suresi uretec/paket surumune baglanmaz.
-      - name: TypeScript istemcisi bagimliliklari
+      - name: Install the TypeScript client dependencies
         working-directory: packages/tracon-client
         run: npm ci
 
-      - name: TypeScript istemcisi testleri
+      - name: Run the TypeScript client tests
         working-directory: packages/tracon-client
         run: npm test
 
-      - name: Derle
+      - name: Build
         run: dotnet build Tracon.slnx -c Release --no-restore
 
       # ---------------------------------------------------------------------
@@ -200,7 +200,7 @@ jobs:
       # paketlenir, test isleri ayni derlemenin tar'ini kosar, `release-dryrun`
       # paketleri paketlemeden dogrular, `publish` ayni baytlari iter.
       #
-      # 🚨 Sira bir sozlesmedir: bu adim `Derle`'nin HEMEN ardindadir.
+      # 🚨 Sira bir sozlesmedir: bu adim `Build`'in HEMEN ardindadir.
       # Performans kapisi, kapasite smoke'u ve Tracon.Package.Tests'in
       # fiksturleri src'yi yeniden derler (ReleaseArtifactFixture baska bir
       # surumle; olculdu 2026-09-24: Tracon.Core.dll SHA-256'si degisti). Artik
@@ -211,30 +211,30 @@ jobs:
       # Taban dogrulamasi pack aninin isidir: son `v*` etiketinin
       # paketleri izole bir cache'e nuget.org'dan restore edilir. Ag gerekir.
       # ---------------------------------------------------------------------
-      - name: Paketle
+      - name: Pack the packages
         if: matrix.os == 'ubuntu-latest'
-        run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket
+        run: python3 scripts/gate.py pack --output artifacts/ci-packages
 
-      # Kume `Paketle` aninda manifest SHA-256'lariyla dondu. Bu adim kumenin
+      # Kume `Pack the packages` aninda manifest SHA-256'lariyla dondu. Bu adim kumenin
       # paketleme ile yukleme arasinda degismedigini yuklemeden hemen once
       # kanitlar. Testler bu isin calisma alaninda kosmaz; yukleme, kirmizi bir
       # test isinden once olur ama etiket yolunda kimseyi korumasiz birakmaz:
       # `publish` her test isine, `release-dryrun` PR'de kosan her test isine
       # baglidir ve `nuget-verified` yalniz onlar yesilken yuklenir.
-      - name: Paketleri dogrula
+      - name: Verify the packages
         if: matrix.os == 'ubuntu-latest'
-        run: python3 scripts/kapi.py paket-dogrula artifacts/ci-paket
+        run: python3 scripts/gate.py verify-packages artifacts/ci-packages
 
-      - name: Paketleri yukle
+      - name: Upload the packages
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: nuget-packages
           path: |
-            artifacts/ci-paket/*.nupkg
-            artifacts/ci-paket/*.snupkg
-            artifacts/ci-paket/package-manifest.json
-            artifacts/ci-paket/api-compat/*.xml
+            artifacts/ci-packages/*.nupkg
+            artifacts/ci-packages/*.snupkg
+            artifacts/ci-packages/package-manifest.json
+            artifacts/ci-packages/api-compat/*.xml
           if-no-files-found: error
 
       # Test islerinin kosacagi ikililer. `artifacts/bin` her projenin kendi
@@ -242,7 +242,7 @@ jobs:
       # playwright.ps1'i); `obj` tasinmaz. Tar, calistirma bitini korur. Sikistirma
       # bir boru hattidir (`gzip -1`): GNU ve bsd tar'in ikisinde de ayni calisir.
       # Boyut ozete yazilir; sure adimin kendi suresinden okunur.
-      - name: Derleme ciktilarini tar'la
+      - name: Archive the build output
         shell: bash
         run: |
           mkdir -p artifacts/ci-bin
@@ -250,10 +250,10 @@ jobs:
           ls -l artifacts/ci-bin/bin.tar.gz
           {
             echo "### bin-${{ matrix.os }}"
-            echo "tar boyutu: $(du -h artifacts/ci-bin/bin.tar.gz | cut -f1); acilmis boyut: $(du -sh artifacts/bin | cut -f1)"
+            echo "tar size: $(du -h artifacts/ci-bin/bin.tar.gz | cut -f1); unpacked size: $(du -sh artifacts/bin | cut -f1)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Derleme ciktilarini yukle
+      - name: Upload the build output
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: bin-${{ matrix.os }}
@@ -281,7 +281,7 @@ jobs:
   # yuzden dosyada onde durur.
   # ---------------------------------------------------------------------------
   culture-matrix:
-    name: Kultur (${{ matrix.name }})
+    name: Culture (${{ matrix.name }})
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -299,19 +299,19 @@ jobs:
             lc_all: de_DE.UTF-8
             tz: Australia/Lord_Howe
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
       # Tracon.Package.Tests kendi pack'ini kosar ve arayuz zinciri (npm) o pack'te
       # soguk baslar.
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -320,47 +320,47 @@ jobs:
             src/Tracon.UI/frontend/package-lock.json
             packages/tracon-client/package-lock.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Playwright tarayicisini onbellekle
+      - name: Cache the Playwright browser
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-chromium-1.63.0
 
-      - name: Playwright sistem bagimliliklari
+      - name: Install the Playwright system dependencies
         run: |
           pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
 
       # Degiskenler yalniz test surecine verilir: kurulu olmayan bir yerel ayar
       # restore ve apt adimlarina uyari bastirmasin.
-      - name: Test et (Docker gerektirmeyenler)
+      - name: Run tests (no Docker needed)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         env:
           LC_ALL: ${{ matrix.lc_all }}
           TZ: ${{ matrix.tz }}
         run: dotnet test --solution Tracon.no-docker.slnf -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -379,7 +379,7 @@ jobs:
   #
   # Tum solution'u kosan eski adimin yerine her test projesi AYRI bir adimdir.
   # Yeni bir test projesi eklenirse buraya bir adim eklenmelidir; kapi testi
-  # (kapi_test.py) her test projesinin tam bir ubuntu ve (Docker'siz ise) tam bir
+  # (gate_test.py) her test projesinin tam bir ubuntu ve (Docker'siz ise) tam bir
   # windows isinde kostugunu denetler.
   #
   # Sinirlar: sinir = tahmin edilen surenin ~2 kati, 5 dk'ya yukari yuvarlanir
@@ -395,47 +395,47 @@ jobs:
     # Tahmin ~10,5 dk (kurulum 2,7 + modul 7,7).
     timeout-minutes: 25
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
       # Yerel kosum SQL Server'da workflow iptal taramasinin yarisini kosar;
       # CI iki saglayicida da tam matrisi kosar. Degisken yalniz bu modul tarafindan
       # okunur.
-      - name: Test et (Tracon.TwoNode.IntegrationTests)
+      - name: Run tests (Tracon.TwoNode.IntegrationTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         env:
           TRACON_TEST_FULL_SWEEP: '1'
         run: dotnet test --project tests/Tracon.TwoNode.IntegrationTests/Tracon.TwoNode.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -452,17 +452,17 @@ jobs:
     # kendi pack'ini kosar; arayuz zinciri (npm) o pack'te soguk baslar.
     timeout-minutes: 25
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -471,49 +471,49 @@ jobs:
             src/Tracon.UI/frontend/package-lock.json
             packages/tracon-client/package-lock.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
       # Playwright'in tarayici ikilileri NuGet paketiyle gelmez. Test fixture'i
       # eksikse indirir, ancak Linux'ta sistem bagimliliklari ayri bir adim ister
       # ve o adim sudo gerektirir. Onbellek isabetinde indirme atlanir.
-      - name: Playwright tarayicisini onbellekle
+      - name: Cache the Playwright browser
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-chromium-1.63.0
 
-      - name: Playwright sistem bagimliliklari
+      - name: Install the Playwright system dependencies
         run: |
           pwsh artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
 
-      - name: Test et (Tracon.Package.Tests)
+      - name: Run tests (Tracon.Package.Tests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Package.Tests/Tracon.Package.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Ui.E2ETests)
+      - name: Run tests (Tracon.Ui.E2ETests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Ui.E2ETests/Tracon.Ui.E2ETests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -527,48 +527,48 @@ jobs:
   # imaj ortam degiskeni VERILMEZ, fikstur kendi varsayilan imajini kullanir.
   # Diger surumler ve yerel ayarlar asagidaki `*-matrix` islerindedir (PR'de kosmaz).
   test-sqlserver:
-    name: Test (SQL Server, varsayilan imaj)
+    name: Test (SQL Server, default image)
     needs: build
     runs-on: ubuntu-latest
     # Tahmin ~9,5 dk (kurulum 2,7 + modul 6 + imaj indirme 0,7).
     timeout-minutes: 15
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et (Tracon.SqlServer.IntegrationTests)
+      - name: Run tests (Tracon.SqlServer.IntegrationTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -578,48 +578,48 @@ jobs:
           overwrite: true
 
   test-postgres:
-    name: Test (PostgreSQL, varsayilan imaj)
+    name: Test (PostgreSQL, default image)
     needs: build
     runs-on: ubuntu-latest
     # Tahmin ~5,5 dk (kurulum 2,7 + modul 2,5 + imaj indirme 0,3).
     timeout-minutes: 15
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et (Tracon.PostgreSql.IntegrationTests)
+      - name: Run tests (Tracon.PostgreSql.IntegrationTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -635,42 +635,42 @@ jobs:
     # Tahmin ~5,5 dk (kurulum 2,7 + modul 2,6).
     timeout-minutes: 15
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et (Tracon.AspNetCore.FunctionalTests)
+      - name: Run tests (Tracon.AspNetCore.FunctionalTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.AspNetCore.FunctionalTests/Tracon.AspNetCore.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -686,46 +686,46 @@ jobs:
     # Tahmin ~5,5 dk (kurulum 2,7 + moduller 2,6).
     timeout-minutes: 15
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et (Tracon.Sqlite.IntegrationTests)
+      - name: Run tests (Tracon.Sqlite.IntegrationTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Workflows.UnitTests)
+      - name: Run tests (Tracon.Workflows.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Workflows.UnitTests/Tracon.Workflows.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -737,112 +737,112 @@ jobs:
   # Hizli moduller ve Core. Core ilk siradadir: kirmizisi isin ilk dakikalarinda
   # gorunur.
   test-fast:
-    name: Test (Core ve hizli moduller)
+    name: Test (Core and fast modules)
     needs: build
     runs-on: ubuntu-latest
     # Tahmin ~7 dk (kurulum 2,7 + moduller 4,1).
     timeout-minutes: 15
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et (Tracon.Core.UnitTests)
+      - name: Run tests (Tracon.Core.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Generators.UnitTests)
+      - name: Run tests (Tracon.Generators.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Mcp.UnitTests)
+      - name: Run tests (Tracon.Mcp.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Mcp.UnitTests/Tracon.Mcp.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.OpenAI.UnitTests)
+      - name: Run tests (Tracon.OpenAI.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.OpenAI.UnitTests/Tracon.OpenAI.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Anthropic.UnitTests)
+      - name: Run tests (Tracon.Anthropic.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Anthropic.UnitTests/Tracon.Anthropic.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Google.UnitTests)
+      - name: Run tests (Tracon.Google.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Google.UnitTests/Tracon.Google.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Azure.UnitTests)
+      - name: Run tests (Tracon.Azure.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Azure.UnitTests/Tracon.Azure.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Voice.UnitTests)
+      - name: Run tests (Tracon.Voice.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Voice.UnitTests/Tracon.Voice.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.AGUI.FunctionalTests)
+      - name: Run tests (Tracon.AGUI.FunctionalTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.AGUI.FunctionalTests/Tracon.AGUI.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Cli.FunctionalTests)
+      - name: Run tests (Tracon.Cli.FunctionalTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.PackageOptions.UnitTests)
+      - name: Run tests (Tracon.PackageOptions.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.PackageOptions.UnitTests/Tracon.PackageOptions.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Sql.Shared.UnitTests)
+      - name: Run tests (Tracon.Sql.Shared.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Sql.Shared.UnitTests/Tracon.Sql.Shared.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Testing.UnitTests)
+      - name: Run tests (Tracon.Testing.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Testing.UnitTests/Tracon.Testing.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Testing.Contracts.Xunit.UnitTests)
+      - name: Run tests (Tracon.Testing.Contracts.Xunit.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Testing.Contracts.Xunit.UnitTests/Tracon.Testing.Contracts.Xunit.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Client.UnitTests)
+      - name: Run tests (Tracon.Client.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Client.UnitTests/Tracon.Client.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Embedded.Tests)
+      - name: Run tests (Tracon.Embedded.Tests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Embedded.Tests/Tracon.Embedded.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Capacity.Tests)
+      - name: Run tests (Tracon.Capacity.Tests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Capacity.Tests/Tracon.Capacity.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -870,42 +870,42 @@ jobs:
     # Tahmin ~12 dk (kurulum 3 + modul 9).
     timeout-minutes: 40
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-windows-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et (Tracon.Sqlite.IntegrationTests)
+      - name: Run tests (Tracon.Sqlite.IntegrationTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -921,19 +921,19 @@ jobs:
     # Tahmin ~11 dk (kurulum 3,2 + moduller 7,9 + arayuz zincirinin soguk baslangici).
     timeout-minutes: 45
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
       # Tracon.Package.Tests kendi pack'ini kosar ve arayuz zinciri (npm) o pack'te
       # soguk baslar.
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -942,48 +942,48 @@ jobs:
             src/Tracon.UI/frontend/package-lock.json
             packages/tracon-client/package-lock.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-windows-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
       # Windows'ta sistem bagimliligi adimi yoktur; Test fixture'i tarayiciyi
       # eksikse indirir. Onbellek isabetinde indirme atlanir.
-      - name: Playwright tarayicisini onbellekle
+      - name: Cache the Playwright browser
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~\AppData\Local\ms-playwright
           key: ${{ runner.os }}-playwright-chromium-1.63.0
 
-      - name: Test et (Tracon.AspNetCore.FunctionalTests)
+      - name: Run tests (Tracon.AspNetCore.FunctionalTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.AspNetCore.FunctionalTests/Tracon.AspNetCore.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Package.Tests)
+      - name: Run tests (Tracon.Package.Tests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Package.Tests/Tracon.Package.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Ui.E2ETests)
+      - name: Run tests (Tracon.Ui.E2ETests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Ui.E2ETests/Tracon.Ui.E2ETests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -993,116 +993,116 @@ jobs:
           overwrite: true
 
   test-windows-core:
-    name: Test (windows, Core ve birim modulleri)
+    name: Test (windows, Core and unit modules)
     needs: build
     runs-on: windows-latest
     # Tahmin ~11 dk (kurulum 3 + moduller 7,5).
     timeout-minutes: 35
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-windows-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et (Tracon.Core.UnitTests)
+      - name: Run tests (Tracon.Core.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Workflows.UnitTests)
+      - name: Run tests (Tracon.Workflows.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Workflows.UnitTests/Tracon.Workflows.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Generators.UnitTests)
+      - name: Run tests (Tracon.Generators.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Mcp.UnitTests)
+      - name: Run tests (Tracon.Mcp.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Mcp.UnitTests/Tracon.Mcp.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.OpenAI.UnitTests)
+      - name: Run tests (Tracon.OpenAI.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.OpenAI.UnitTests/Tracon.OpenAI.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Anthropic.UnitTests)
+      - name: Run tests (Tracon.Anthropic.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Anthropic.UnitTests/Tracon.Anthropic.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Google.UnitTests)
+      - name: Run tests (Tracon.Google.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Google.UnitTests/Tracon.Google.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Azure.UnitTests)
+      - name: Run tests (Tracon.Azure.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Azure.UnitTests/Tracon.Azure.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Voice.UnitTests)
+      - name: Run tests (Tracon.Voice.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Voice.UnitTests/Tracon.Voice.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.AGUI.FunctionalTests)
+      - name: Run tests (Tracon.AGUI.FunctionalTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.AGUI.FunctionalTests/Tracon.AGUI.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Cli.FunctionalTests)
+      - name: Run tests (Tracon.Cli.FunctionalTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.PackageOptions.UnitTests)
+      - name: Run tests (Tracon.PackageOptions.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.PackageOptions.UnitTests/Tracon.PackageOptions.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Sql.Shared.UnitTests)
+      - name: Run tests (Tracon.Sql.Shared.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Sql.Shared.UnitTests/Tracon.Sql.Shared.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Testing.UnitTests)
+      - name: Run tests (Tracon.Testing.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Testing.UnitTests/Tracon.Testing.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Testing.Contracts.Xunit.UnitTests)
+      - name: Run tests (Tracon.Testing.Contracts.Xunit.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Testing.Contracts.Xunit.UnitTests/Tracon.Testing.Contracts.Xunit.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Client.UnitTests)
+      - name: Run tests (Tracon.Client.UnitTests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Client.UnitTests/Tracon.Client.UnitTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Embedded.Tests)
+      - name: Run tests (Tracon.Embedded.Tests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Embedded.Tests/Tracon.Embedded.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test et (Tracon.Capacity.Tests)
+      - name: Run tests (Tracon.Capacity.Tests)
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.Capacity.Tests/Tracon.Capacity.Tests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -1160,42 +1160,42 @@ jobs:
       TRACON_TEST_SQLSERVER_COLLATION: ${{ matrix.collation }}
       TRACON_TEST_SQLSERVER_LCID: ${{ matrix.lcid }}
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et
+      - name: Run tests
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -1243,42 +1243,42 @@ jobs:
       TRACON_TEST_POSTGRES_IMAGE: ${{ matrix.image }}
       TRACON_TEST_POSTGRES_ICU_LOCALE: ${{ matrix.icu }}
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Test et
+      - name: Run tests
         if: ${{ !cancelled() && steps.restore.outcome == 'success' }}
         run: dotnet test --project tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -1308,38 +1308,38 @@ jobs:
     env:
       TRACON_TEST_SQLITE_VERSION: ${{ matrix.sqlite }}
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Derleme ciktilarini indir
+      - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bin-ubuntu-latest
           path: artifacts/ci-bin
 
-      - name: Derleme ciktilarini ac
+      - name: Unpack the build output
         shell: bash
         run: tar -xzf artifacts/ci-bin/bin.tar.gz
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         id: restore
         run: dotnet restore Tracon.slnx
 
-      - name: Yerel kutuphaneyi eski surumle degistir
+      - name: Replace the native library with the older version
         env:
           NATIVE_VERSION: ${{ matrix.native }}
         run: |
@@ -1355,10 +1355,10 @@ jobs:
           cp "${RUNNER_TEMP}/sqlite-native/packages/sqlitepclraw.lib.e_sqlite3/${NATIVE_VERSION}/runtimes/linux-x64/native/libe_sqlite3.so" \
             artifacts/bin/Tracon.Sqlite.IntegrationTests/release_net10.0/runtimes/linux-x64/native/libe_sqlite3.so
 
-      - name: Test et
+      - name: Run tests
         run: dotnet test --project tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj -c Release --no-build --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
-      - name: Test sonuclarini yukle
+      - name: Upload the test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -1373,7 +1373,7 @@ jobs:
   # kirmizi bir kapi onceki gibi provayi ve yayini durdurur.
   # ---------------------------------------------------------------------------
   format:
-    name: Kod bicimi (${{ matrix.os }})
+    name: Code format (${{ matrix.os }})
     needs: build
     runs-on: ${{ matrix.os }}
     # Tahmin ~7 dk (eski seri kosumda ubuntu adimi 223 sn). Windows olcumu yok.
@@ -1383,19 +1383,19 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
       # Eski adimin ortami korunur: biçim denetimi Node kurulu bir runner'da,
       # node_modules olmadan kosardi.
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -1404,22 +1404,22 @@ jobs:
             src/Tracon.UI/frontend/package-lock.json
             packages/tracon-client/package-lock.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         run: dotnet restore Tracon.slnx
 
-      - name: Kod bicimini dogrula
+      - name: Verify the code format
         # Bicim sapmasi build'i kirar. Duzeltmek icin: dotnet format Tracon.slnx
         run: dotnet format Tracon.slnx --verify-no-changes --no-restore
 
   # Tahsis kapisi yalniz dort sicak yoldan biri (veya bench/ kendisi)
-  # degistiyse kosar - `kapi.py performans`'in kendi mantigi
+  # degistiyse kosar - `gate.py perf`'in kendi mantigi
   # (`performance_gate_triggered`) yeniden kullanilir, CI kendi diff
   # tabanini hesaplar (PR'de taban dal, push'ta onceki commit).
   #
@@ -1434,41 +1434,41 @@ jobs:
   #
   # Kapi src'yi yeniden derler; bu yuzden `build` isinin calisma alaninda
   # degil, kendi isinde kosar.
-  performans:
-    name: Performans kapisi (tahsis)
+  performance:
+    name: Performance gate (allocation)
     needs: build
     runs-on: ubuntu-latest
-    # Tahmin ~2 dk tetiklenmediginde, ~8 dk tetiklendiginde (kapanis kapisinda ~220 sn).
+    # Tahmin ~2 dk tetiklenmediginde, ~8 dk tetiklendiginde (`close` kapisinda ~220 sn).
     timeout-minutes: 30
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Performans kapisi sicak yolu degisti mi?
+      - name: Check whether a hot path changed
         id: perf-trigger
         run: |
           if [ "${{ github.ref_type }}" = "tag" ]; then
             echo "triggered=false" >> "$GITHUB_OUTPUT"
-            echo "etiket push'u - tahsis kapisi main'de olculdu, burada kosmaz"
+            echo "tag push - the allocation gate was measured on main and does not run here"
             exit 0
           fi
 
@@ -1476,13 +1476,13 @@ jobs:
           if [ -z "$BASE" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
             echo "triggered=true" >> "$GITHUB_OUTPUT"
           else
-            TRIGGERED=$(python3 -c "import sys; sys.path.insert(0, 'scripts'); import kapi; print('true' if kapi.performance_gate_triggered(kapi.changed_paths('$BASE') or []) else 'false')")
+            TRIGGERED=$(python3 -c "import sys; sys.path.insert(0, 'scripts'); import gate; print('true' if gate.performance_gate_triggered(gate.changed_paths('$BASE') or []) else 'false')")
             echo "triggered=$TRIGGERED" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Performans kapisi (tahsis)
+      - name: Performance gate (allocation)
         if: steps.perf-trigger.outputs.triggered == 'true'
-        run: python3 scripts/kapi.py performans
+        run: python3 scripts/gate.py perf
 
   # Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
   # DEGIL. Uc HTTP yolu, iki kiraci, gercek TCP, gercek SQL ve packed
@@ -1499,26 +1499,26 @@ jobs:
   # 🚨 Eksik Docker veya hazirlanmamis paket SESSIZ SKIP degil BASARISIZ
   # onkosuldur: atlanmis bir provenance kontrolu CI log'unda gecmis bir
   # kontrolden ayirt edilemez.
-  kapasite:
-    name: Kapasite smoke (packed tuketici)
+  capacity:
+    name: Capacity smoke (packed consumer)
     needs: build
     runs-on: ubuntu-latest
     # Tahmin ~9 dk (kurulum 2 + pack 3 + smoke 2,4; onceki en uzun adim 4,2 dk,
     # pack olmadan). Runner olcumu yok.
     timeout-minutes: 15
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
       # Aparatin pack'i arayuz varliklarini (TRACON0003) derler.
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -1527,26 +1527,26 @@ jobs:
             src/Tracon.UI/frontend/package-lock.json
             packages/tracon-client/package-lock.json
 
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Kapasite smoke (packed tuketici)
+      - name: Capacity smoke (packed consumer)
         timeout-minutes: 20
         run: |
-          python3 scripts/kapi.py kapasite \
-            --profil smoke \
-            --surum "0.0.0-ci.${{ github.run_number }}"
+          python3 scripts/gate.py capacity \
+            --profile smoke \
+            --package-version "0.0.0-ci.${{ github.run_number }}"
 
-      - name: Kapasite smoke ciktisini yukle
+      - name: Upload the capacity smoke output
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -1559,8 +1559,8 @@ jobs:
   # Yayın provası
   #
   # Kendi `dotnet pack`'ini KOSMAZ. `build` isinin ubuntu bacaginin
-  # paketledigi `nuget-packages` artifact'ini indirir ve `kapi.py yayin --kuru
-  # --paket-dizini` ile dogrular: manifest SHA-256'lari, commit ve taban
+  # paketledigi `nuget-packages` artifact'ini indirir ve `gate.py release --dry-run
+  # --package-directory` ile dogrular: manifest SHA-256'lari, commit ve taban
   # esitligi, on surum siniri, paket icerik sozlesmesi, kirici degisiklik raporu
   # dis sample'lar ve AOT smoke. Dogrulanan kume SHA-256
   # manifest'iyle `nuget-verified` olarak yuklenir; `publish` YALNIZ onu iter.
@@ -1572,33 +1572,33 @@ jobs:
   # kultur) buraya GIRMEZ - atlanan bir bagimlilik bu isi de atlatir ve prova her
   # push'ta (PR dahil) kosmalidir. O isler `publish`'in bagimliligidir.
   #
-  # `--surum` GECILMEZ: bu is her push'ta (PR dahil) kosar ve o an bir etiket
+  # `--package-version` GECILMEZ: bu is her push'ta (PR dahil) kosar ve o an bir etiket
   # olmayabilir. Zorlanmis bir surum yalniz INSANIN gercek etiketten ONCE
   # yerelde kostugu provada anlamlidir. Bir GERCEK `v*` etiketinde
   # MinVer'in kendi hesapladigi surum zaten hedeftir - zorlamaya gerek yoktur.
   # ---------------------------------------------------------------------------
   release-dryrun:
-    name: Yayin provasi (kapi.py yayin --kuru --paket-dizini)
+    name: Release rehearsal (gate.py release --dry-run --package-directory)
     runs-on: ubuntu-latest
-    needs: [build, format, performans, kapasite, test-fast, test-aspnetcore, test-sqlite, test-twonode, test-package, test-postgres, test-sqlserver, test-windows-sqlite, test-windows-core, test-windows-web]
+    needs: [build, format, performance, capacity, test-fast, test-aspnetcore, test-sqlite, test-twonode, test-package, test-postgres, test-sqlserver, test-windows-sqlite, test-windows-core, test-windows-web]
     # Olculen en uzun 5,7 dk (kendi pack'iyle). Pack artik
     # bu iste degil; sinir ilk yeni kosumda yeniden olculur.
     timeout-minutes: 10
 
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
-      # Yalniz `npm publish --dry-run` icin (kapi.py'nin npm adimi). Bu is
+      # Yalniz `npm publish --dry-run` icin (gate.py'nin npm adimi). Bu is
       # paketlemez; arayuz varliklari (TRACON0003) `build` isinde gerekir.
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -1606,28 +1606,28 @@ jobs:
           cache-dependency-path: packages/tracon-client/package-lock.json
 
       # `npm publish --dry-run`'in kendi `prepublishOnly` -> `npm run build`
-      # adimi icin gerekir; kapi.py'nin npm adimi bu dizinde kosar.
-      - name: TypeScript istemcisi bagimliliklari
+      # adimi icin gerekir; gate.py'nin npm adimi bu dizinde kosar.
+      - name: Install the TypeScript client dependencies
         working-directory: packages/tracon-client
         run: npm ci
 
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
       # `artifacts/` .gitignore'dadir: indirilen dizin erken git denetimini
       # kirletmez (WorkflowWorkspacePathsTests).
-      - name: Paketleri indir
+      - name: Download the packages
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: nuget-packages
-          path: artifacts/ci-paket
+          path: artifacts/ci-packages
 
-      - name: Yayin provasi
-        run: python3 scripts/kapi.py yayin --kuru --paket-dizini artifacts/ci-paket
+      - name: Run the release rehearsal
+        run: python3 scripts/gate.py release --dry-run --package-directory artifacts/ci-packages
 
-      - name: Dogrulanan paketleri yukle
+      - name: Upload the verified packages
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: nuget-verified
@@ -1653,7 +1653,7 @@ jobs:
   # atlanan bir bagimlilik `publish`'i de atlatirdi.
   # ---------------------------------------------------------------------------
   publish:
-    name: NuGet.org'a yayinla
+    name: Publish to NuGet.org
     runs-on: ubuntu-latest
     needs: [release-dryrun, npm-publish, test-fast, test-aspnetcore, test-sqlite, test-twonode, test-package, test-postgres, test-sqlserver, test-windows-sqlite, test-windows-core, test-windows-web, postgres-matrix, sqlserver-matrix, sqlite-floor, culture-matrix]
     # Olculen en uzun 0,5 dk; taban 10 dk. Sinir push'un ortasinda keserse bir
@@ -1669,34 +1669,34 @@ jobs:
 
     # Bu is DERLEMEZ ve PAKETLEMEZ. `release-dryrun`'in dogruladigi
     # `nuget-verified` kumesini indirir, provanin kullandigi AYNI komutla
-    # (`kapi.py paket-dogrula`) yeniden sinar ve tam o baytlari iter.
+    # (`gate.py verify-packages`) yeniden sinar ve tam o baytlari iter.
     # Dogrulama login'den ONCE kosar: repo kodu calisirken API anahtari yoktur.
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
 
       # 🚨 `artifacts/` altina: repo izlenen `packages/tracon-client/`'i
       # tasir; eski indirme yolu `packages` checkout'la cakisirdi.
-      - name: Paketleri indir
+      - name: Download the packages
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: nuget-verified
           path: artifacts/nuget-verified
 
-      - name: Paketleri dogrula
-        run: python3 scripts/kapi.py paket-dogrula artifacts/nuget-verified
+      - name: Verify the packages
+        run: python3 scripts/gate.py verify-packages artifacts/nuget-verified
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: NuGet.org'a OIDC ile gir
+      - name: Log in to NuGet.org with OIDC
         id: nuget_login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         with:
@@ -1718,7 +1718,7 @@ jobs:
           # exchanges the token.
           user: farukatasoy
 
-      - name: Yayinla
+      - name: Push the packages to NuGet.org
         run: >
           dotnet nuget push "artifacts/nuget-verified/*.nupkg"
           --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}"
@@ -1737,7 +1737,7 @@ jobs:
   # surum yarim kalirdi (npm yayinlandi, NuGet durdu).
   # ---------------------------------------------------------------------------
   npm-publish:
-    name: npm.org'a yayinla
+    name: Publish to npm
     runs-on: ubuntu-latest
     needs: [build, release-dryrun, postgres-matrix, sqlserver-matrix, sqlite-floor, culture-matrix]
     # Olculen en uzun 0,3 dk; taban 10 dk. Yeniden kosum guvenlidir: var olan
@@ -1754,10 +1754,10 @@ jobs:
       id-token: write
 
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
@@ -1767,40 +1767,40 @@ jobs:
 
       # Node 22 npm 10.9'u getirir; OIDC ile `npm publish` 11.5.1'den, dist-tag islemi 11.21.0'dan beri calisir
       # (docs.npmjs.com/trusted-publishers). Surum SABITTIR: `latest` bir gun yayin aninda degisirdi.
-      - name: npm'i trusted publishing surumune cikar
+      - name: Upgrade npm to the trusted publishing version
         run: |
           npm install --global npm@11.21.2
           npm --version
 
-      - name: Bagimliliklari geri yukle
+      - name: Restore the dependencies
         working-directory: packages/tracon-client
         run: npm ci
 
       # MinVer.NET surumunu ayni etiketten turetir; npm'in boyle
       # bir mekanizmasi yoktur, o yuzden ayni etiketten elle turetilir.
-      - name: Surumu etiketten turet
+      - name: Derive the version from the tag
         id: version
         run: echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
-      - name: package.json surumunu yaz
+      - name: Write the version into package.json
         working-directory: packages/tracon-client
         run: npm version "${{ steps.version.outputs.value }}" --no-git-tag-version --allow-same-version
 
       # `npm run generate` burada KOSMAZ -- src/schema.ts commit'lidir ve
       # `build` isindeki schema-drift testi onu zaten dogruladi. Yalniz derleme.
-      - name: Paketle
+      - name: Build the npm package
         working-directory: packages/tracon-client
         run: npm run build
 
       # npm'de NuGet'in --skip-duplicate karsiligi yoktur; ayni surum ikinci kez
       # yayinlanirsa `npm publish` HATA ile durur. Var olan surum onceden
       # kontrol edilir; bulunursa yayinlama adimi ATLANIR, is KIRILMAZ.
-      - name: Surum zaten yayinlanmis mi
+      - name: Check whether the version is already published
         id: exists
         working-directory: packages/tracon-client
         run: |
           if npm view "@tracon/client@${{ steps.version.outputs.value }}" version >/dev/null 2>&1; then
-            echo "already published — atlaniyor"
+            echo "already published - skipping the publish step"
             echo "value=true" >> "$GITHUB_OUTPUT"
           else
             echo "value=false" >> "$GITHUB_OUTPUT"
@@ -1808,7 +1808,7 @@ jobs:
 
       # @tracon kapsamli bir paket varsayilan PRIVATE'tir; --access public
       # unutulursa paket yayinlanir ama kimse kuramaz (Kabul case 8).
-      - name: Yayinla
+      - name: Publish to npm
         if: steps.exists.outputs.value == 'false'
         working-directory: packages/tracon-client
         run: |
@@ -1842,12 +1842,12 @@ jobs:
       # Sinir: npm'in `>` araligi farkli major/minor/patch'in prerelease'lerini
       # gormez (`>1.0.0-preview.2` sorgusu 1.0.1-preview.1'i bulmaz), koruma o
       # kosede tam degildir.
-      - name: Dagitim etiketini hizala
+      - name: Align the npm dist-tags
         working-directory: packages/tracon-client
         run: |
           version="${{ steps.version.outputs.value }}"
           if npm view "@tracon/client@>$version" version >/dev/null 2>&1; then
-            echo "::notice::$version en yeni yayin degil -- dist-tag'lere dokunulmuyor"
+            echo "::notice::$version is not the newest release - the dist-tags stay as they are"
             exit 0
           fi
           if [[ "$version" == *-* ]]; then
@@ -1856,7 +1856,7 @@ jobs:
               | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+"' | tail -n1 | tr -d '"' || true)"
             if [[ -z "$stable" ]]; then
               npm dist-tag add "@tracon/client@$version" latest
-              echo "::notice::stable yayin yok -- latest $version'a alindi (npm latest'i sildirmez)"
+              echo "::notice::no stable release exists - latest now points to $version (npm does not let a tag be deleted)"
             fi
           else
             npm dist-tag add "@tracon/client@$version" latest
@@ -1870,14 +1870,14 @@ jobs:
   # `publish` VE `npm-publish`'ten SONRA kosar: paket yayini bu ise bagli
   # KALMAZ, yalniz release sayfasi eksik kalir GitHub API erisilemezse.
   # Govde CHANGELOG.md'nin o surume ait bolumudur --
-  # `scripts/changelog.py` kapi.py'nin surum-notu kapisiyla AYNI ayrıştırıcıdır,
+  # `scripts/changelog.py` gate.py'nin surum-notu kapisiyla AYNI ayrıştırıcıdır,
   # iki ayri parser yazmak drift uretirdi. Surum bolumu yoksa `## [Unreleased]`
   # okunur: bolum ETIKET aninda yazilir, yani bu is kosarken heniz yazilmamis
   # olabilir. Iki taraf ayni fallback'i kullanmazsa prova yesil,
   # release govdesi bos olurdu.
   # ---------------------------------------------------------------------------
   github-release:
-    name: GitHub release olustur
+    name: Create GitHub release
     runs-on: ubuntu-latest
     needs: [publish, npm-publish]
     # Olculen en uzun 0,1 dk; taban 10 dk.
@@ -1888,10 +1888,10 @@ jobs:
       contents: write
 
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
@@ -1903,7 +1903,7 @@ jobs:
       # eslesir (`## [1.0.0-preview.1]`, `v` onceki degil). Etiket adi ortam
       # degiskeniyle tasinir - bir YAML ifadesini Python string literaline
       # gommek yerine (tag adinda `'` teorik olarak yasak degildir).
-      - name: Surum notlarini CHANGELOG.md'den cikar
+      - name: Extract the release notes from CHANGELOG.md
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
@@ -1927,19 +1927,19 @@ jobs:
 
       # Ayni etiket yeniden itilirse is KIRILMAZ - npm-publish'in "already
       # published" deseniyle ayni fikir: var olan release atlanir.
-      - name: Release zaten var mi
+      - name: Check whether the release already exists
         id: exists
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "already exists — atlaniyor"
+            echo "already exists - skipping the create step"
             echo "value=true" >> "$GITHUB_OUTPUT"
           else
             echo "value=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: GitHub release olustur
+      - name: Create the GitHub release
         if: steps.exists.outputs.value == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1979,7 +1979,7 @@ jobs:
   # `check-content.mjs` adimi tam olarak bu sebeple oradadir.
   # ---------------------------------------------------------------------------
   site:
-    name: Dokuman sitesi kapilari
+    name: Docs site gates
     runs-on: ubuntu-latest
     needs: build
     # Olculen en uzun 7,9 dk.
@@ -1990,62 +1990,62 @@ jobs:
       contents: read
 
     steps:
-      - name: Kaynak kodu al
+      - name: Check out the source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: .NET SDK kur
+      - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
 
       # Astro 7.4 >= 22.22 ister; arayuzun jsdom 30'u ^22.22.2 ister.
       # Iki hat ayni surumu kullanir.
-      - name: Node.js kur
+      - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: docs-site/package-lock.json
 
-      - name: NuGet paketlerini onbellekle
+      - name: Cache the NuGet packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
 
-      - name: Assembly ve XML dokumanini uret
+      - name: Generate the assembly and the XML documentation
         run: |
           dotnet restore Tracon.slnx
           dotnet build Tracon.slnx -c Release --no-restore -p:TraconFrontendEnabled=false
 
-      - name: DocFX aracini geri yukle
+      - name: Restore the DocFX tool
         run: dotnet tool restore
 
-      - name: Site bagimliliklari
+      - name: Install the site dependencies
         working-directory: docs-site
         run: npm ci
 
-      - name: Siteyi derle
+      - name: Build the site
         working-directory: docs-site
         run: npm run build
 
       # Uretilen sitede kirik ic baglanti olmamalidir. API referansi uid'lerden,
       # HTTP API sayfalari etiketlerden baglanti kurar; bir yeniden adlandirma
       # sessizce baglanti kirar.
-      - name: Ic baglantilari denetle
+      - name: Check the internal links
         working-directory: docs-site
         run: npm run check:links
 
       # Sayfa agirligi taban cizgisi. Uretilen dist/ uzerinden olculur, bu yuzden
       # derlemeden SONRA kosar.
-      - name: Sayfa agirligini denetle
+      - name: Check the page weight
         working-directory: docs-site
         run: npm run check:weight
 
-      - name: Nginx SEO HTTP sözleşmesini denetle
+      - name: Check the Nginx SEO HTTP contract
         shell: bash
         run: |
           site_domain="$(node --input-type=module -e "import {site} from './docs-site/site.config.mjs'; process.stdout.write(new URL(site).hostname)")"
@@ -2059,4 +2059,4 @@ jobs:
             if curl --silent --fail http://127.0.0.1:4175/ > /dev/null; then break; fi
             sleep 1
           done
-          python3 scripts/site-http-denetle.py http://127.0.0.1:4175
+          python3 scripts/site-http-check.py http://127.0.0.1:4175

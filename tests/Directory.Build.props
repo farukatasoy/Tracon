@@ -15,12 +15,12 @@
     singular <TargetFramework> assigned here; forgetting that builds net10.0
     only, silently (the mirror image of what the project templates do: they clear
     the plural when they set the singular). One list also gives
-    `scripts/kapi.py` a single place to read the set from.
+    `scripts/gate.py` a single place to read the set from.
 
     TraconTestTargetFrameworks is a build input. Narrow it for one run with an
     ENVIRONMENT VARIABLE (MSBuild reads environment variables as initial
     properties), so restore, build, format, and test all see the same set and
-    `scripts/kapi.py` - which reads the same variable - looks for the same
+    `scripts/gate.py` - which reads the same variable - looks for the same
     output folders. A `-p:` on one command line would reach MSBuild but not the
     script.
   -->

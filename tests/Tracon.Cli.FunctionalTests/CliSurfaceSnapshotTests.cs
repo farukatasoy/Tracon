@@ -4,7 +4,7 @@ using Tracon.Cli.FunctionalTests.Infrastructure;
 namespace Tracon.Cli.FunctionalTests;
 
 /// <summary>
-/// Pins the commands and options of the <c>tracon</c> CLI to <c>docs/sozlesme/cli.txt</c>.
+/// Pins the commands and options of the <c>tracon</c> CLI to <c>docs/contracts/cli.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -39,7 +39,7 @@ public sealed class CliSurfaceSnapshotTests
     public async Task The_snapshot_matches_the_commands_and_options_in_the_help_text()
     {
         ContractSnapshot.Verify(
-            "docs/sozlesme/cli.txt",
+            "docs/contracts/cli.txt",
             "tests/Tracon.Cli.FunctionalTests/CliSurfaceSnapshotTests.cs",
             "The commands and options of the tracon CLI, read from 'tracon --help' (an option line names its command)",
             await SurfaceAsync());

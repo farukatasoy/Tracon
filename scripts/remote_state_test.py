@@ -21,10 +21,10 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import breaking_changes  # noqa: E402
 import remote_state  # noqa: E402
 
-spec = importlib.util.spec_from_file_location("kapi", ROOT / "scripts" / "kapi.py")
-kapi = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = kapi
-spec.loader.exec_module(kapi)
+spec = importlib.util.spec_from_file_location("gate", ROOT / "scripts" / "gate.py")
+gate = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = gate
+spec.loader.exec_module(gate)
 
 
 def _index(*versions: str) -> tuple[int, str]:
@@ -257,10 +257,10 @@ class CiStateTests(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0, stdout="[]", stderr="")
 
         remote_state.ci_state(ROOT, runner=run, which=lambda name: "/usr/bin/gh")
-        remote_state.ci_state(ROOT, workflow="kararlilik.yml", runner=run, which=lambda name: "/usr/bin/gh")
+        remote_state.ci_state(ROOT, workflow="stability.yml", runner=run, which=lambda name: "/usr/bin/gh")
 
         listings = [command for command in commands if command[:3] == ["gh", "run", "list"]]
-        self.assertEqual(["ci.yml", "kararlilik.yml"], [command[command.index("--workflow") + 1] for command in listings])
+        self.assertEqual(["ci.yml", "stability.yml"], [command[command.index("--workflow") + 1] for command in listings])
         self.assertTrue(all("-R" in command for command in listings))
 
     def test_everything_unreadable_is_none(self) -> None:
@@ -278,7 +278,7 @@ class RemoteStateCheckTests(unittest.TestCase):
                 mock.patch.object(remote_state, "release_state", return_value=state), \
                 mock.patch.object(remote_state, "ci_state", return_value=ci), \
                 contextlib.redirect_stdout(output):
-            code = kapi.remote_state_check(ROOT)
+            code = gate.remote_state_check(ROOT)
 
         return code, output.getvalue()
 
@@ -292,13 +292,13 @@ class RemoteStateCheckTests(unittest.TestCase):
         code, text = self._check(remote_state.ReleaseState("1.0.0", (), ("A", "B"), 0))
 
         self.assertEqual(0, code)
-        self.assertIn("ulaşılamadı", text)
+        self.assertIn("was not reachable", text)
 
     def test_a_published_release_is_green(self) -> None:
         code, text = self._check(remote_state.ReleaseState("1.0.0", (), (), 2))
 
         self.assertEqual(0, code)
-        self.assertIn("2 paketin tamamı", text)
+        self.assertIn("all 2 packages are on nuget.org", text)
 
     def test_a_red_ci_run_warns_and_does_not_fail(self) -> None:
         ci = remote_state.CiState("completed", "failure", "https://example.test/run", "abcdef01")
@@ -306,7 +306,7 @@ class RemoteStateCheckTests(unittest.TestCase):
         code, text = self._check(remote_state.ReleaseState("1.0.0", (), (), 2), ci)
 
         self.assertEqual(0, code)
-        self.assertIn("kırmızı", text)
+        self.assertIn("The last CI run of 'origin' is red", text)
 
     def test_the_ci_line_names_the_remote_it_read_and_a_running_run_is_not_green(self) -> None:
         running = remote_state.CiState("in_progress", "", "https://example.test/run", "abcdef01")
@@ -317,7 +317,7 @@ class RemoteStateCheckTests(unittest.TestCase):
                 mock.patch.object(remote_state, "release_state", return_value=remote_state.ReleaseState("1.0.0", (), (), 1)), \
                 mock.patch.object(remote_state, "ci_state", return_value=running), \
                 contextlib.redirect_stdout(output):
-            kapi.remote_state_check(ROOT, "mirror")
+            gate.remote_state_check(ROOT, "mirror")
 
         text = output.getvalue()
 
@@ -331,7 +331,7 @@ class RemoteStateCheckTests(unittest.TestCase):
 
         def ci_state(root, remote="origin", branch="main", *, workflow="ci.yml", **kwargs):  # noqa: ANN001, ANN202
             workflows.append(workflow)
-            return stability if workflow == kapi.STABILITY_WORKFLOW else ci
+            return stability if workflow == gate.STABILITY_WORKFLOW else ci
 
         output = io.StringIO()
 
@@ -340,7 +340,7 @@ class RemoteStateCheckTests(unittest.TestCase):
                 mock.patch.object(remote_state, "release_state", return_value=remote_state.ReleaseState("1.0.0", (), (), 1)), \
                 mock.patch.object(remote_state, "ci_state", side_effect=ci_state), \
                 contextlib.redirect_stdout(output):
-            code = kapi.remote_state_check(ROOT, "mirror")
+            code = gate.remote_state_check(ROOT, "mirror")
 
         return code, output.getvalue(), workflows
 
@@ -351,11 +351,11 @@ class RemoteStateCheckTests(unittest.TestCase):
         code, text, workflows = self._check_with_stability(green, red)
 
         self.assertEqual(0, code)
-        self.assertEqual(["ci.yml", "kararlilik.yml"], workflows)
-        self.assertIn("kararlılık koşumu kırmızı", text)
+        self.assertEqual(["ci.yml", "stability.yml"], workflows)
+        self.assertIn("The last stability run of 'mirror' is red", text)
         self.assertIn("https://example.test/stability", text)
-        self.assertIn("Yeni faz açılmaz", text)
-        self.assertIn("✅ 'mirror' son CI koşumu yeşil", text)
+        self.assertIn("fix the instability first", text)
+        self.assertIn("✅ The last CI run of 'mirror' is green", text)
 
     def test_a_green_stability_run_is_reported_and_a_missing_one_is_only_information(self) -> None:
         green = remote_state.CiState("completed", "success", "u", "abcdef01")
@@ -363,31 +363,31 @@ class RemoteStateCheckTests(unittest.TestCase):
         _, text, _ = self._check_with_stability(green, green)
         _, missing, _ = self._check_with_stability(green, None)
 
-        self.assertIn("✅ 'mirror' son kararlılık koşumu yeşil", text)
-        self.assertIn("ℹ️ 'mirror' için karar vermiş bir kararlılık koşumu okunamadı", missing)
-        self.assertNotIn("Yeni faz açılmaz", missing)
+        self.assertIn("✅ The last stability run of 'mirror' is green", text)
+        self.assertIn("ℹ️ No decided stability run could be read for 'mirror'", missing)
+        self.assertNotIn("fix the instability first", missing)
 
     def test_a_stability_run_still_going_is_not_green(self) -> None:
         running = remote_state.CiState("in_progress", "", "u", "abcdef01")
 
         _, text, _ = self._check_with_stability(running, running)
 
-        self.assertNotIn("✅ 'mirror' son kararlılık", text)
-        self.assertIn("son kararlılık koşumu henüz karar vermedi", text)
+        self.assertNotIn("✅ The last stability run of 'mirror'", text)
+        self.assertIn("The last stability run of 'mirror' has not decided yet", text)
 
     def test_a_tag_tree_git_cannot_read_falls_back_to_the_working_tree_with_a_warning(self) -> None:
         output = io.StringIO()
 
         with mock.patch.object(breaking_changes, "resolve_baseline", return_value="1.0.0"), \
                 mock.patch.object(remote_state, "packable_ids_at", return_value=None), \
-                mock.patch.object(kapi, "packable_project_ids", return_value=["A"]), \
+                mock.patch.object(gate, "packable_project_ids", return_value=["A"]), \
                 mock.patch.object(remote_state, "release_state", return_value=remote_state.ReleaseState("1.0.0", (), (), 1)), \
                 mock.patch.object(remote_state, "ci_state", return_value=None), \
                 contextlib.redirect_stdout(output):
-            code = kapi.remote_state_check(ROOT)
+            code = gate.remote_state_check(ROOT)
 
         self.assertEqual(0, code)
-        self.assertIn("çalışma ağacından", output.getvalue())
+        self.assertIn("from the working tree", output.getvalue())
 
     def test_an_unresolvable_release_tag_skips_nuget_with_a_warning(self) -> None:
         output = io.StringIO()
@@ -396,7 +396,7 @@ class RemoteStateCheckTests(unittest.TestCase):
                 mock.patch.object(remote_state, "release_state") as state, \
                 mock.patch.object(remote_state, "ci_state", return_value=None), \
                 contextlib.redirect_stdout(output):
-            code = kapi.remote_state_check(ROOT)
+            code = gate.remote_state_check(ROOT)
 
         self.assertEqual(0, code)
         state.assert_not_called()
@@ -404,19 +404,19 @@ class RemoteStateCheckTests(unittest.TestCase):
 
 class ClosingRunTests(unittest.TestCase):
     def test_the_closing_run_reads_the_remote_right_after_the_scan_and_before_the_tests(self) -> None:
-        rendered = [command.display for command in kapi.closing_commands("abc123", site=False, performance=False)]
-        scan = next(index for index, text in enumerate(rendered) if text.endswith(" tarama"))
-        remote = next(index for index, text in enumerate(rendered) if text.endswith(" uzak-durum"))
+        rendered = [command.display for command in gate.closing_commands("abc123", site=False, performance=False)]
+        scan = next(index for index, text in enumerate(rendered) if text.endswith(" scan"))
+        remote = next(index for index, text in enumerate(rendered) if text.endswith(" remote-state"))
         tests = next(index for index, text in enumerate(rendered) if "dotnet test" in text)
 
         self.assertLess(scan, remote)
         self.assertLess(remote, tests)
 
     def test_a_wrapper_gets_its_own_entry_point_and_remote(self) -> None:
-        extension = kapi.Extension(program="tools/wrapper.py", ci_remote="mirror")
-        rendered = [command.display for command in kapi.closing_commands("abc123", site=False, extension=extension)]
+        extension = gate.Extension(program="tools/wrapper.py", ci_remote="mirror")
+        rendered = [command.display for command in gate.closing_commands("abc123", site=False, extension=extension)]
 
-        self.assertIn("python3 tools/wrapper.py uzak-durum", rendered)
+        self.assertIn("python3 tools/wrapper.py remote-state", rendered)
 
 
 if __name__ == "__main__":

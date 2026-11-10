@@ -10,9 +10,9 @@ namespace Tracon.Package.Tests;
 /// for how it stays isolated from every other pack/build in this project.
 /// </summary>
 /// <remarks>
-/// <c>scripts/kapi.py yayin</c>'s own early-reject step and the
+/// <c>scripts/gate.py release</c>'s own early-reject step and the
 /// staging/promote/manifest behavior it adds are pure-Python logic, covered
-/// by <c>scripts/kapi_test.py</c>'s <c>YayinTestleri</c> - not here.
+/// by <c>scripts/gate_test.py</c>'s <c>YayinTestleri</c> - not here.
 /// </remarks>
 [Collection(RepositoryTreeGate.Name)]
 public sealed class PackCleanlinessGateTests
@@ -52,7 +52,7 @@ public sealed class PackCleanlinessGateTests
 
     /// <summary>
     /// TraconSkipCleanWorkingTreeCheck is what lets `ReleaseArtifactFixture`
-    /// and `TemplateFixture` - and `kapi.py kapanis`'s own pack step - keep
+    /// and `TemplateFixture` - and `gate.py close`'s own pack step - keep
     /// working on an uncommitted tree (independent-audit finding
     /// #1: without an escape hatch, the closing gate could never pass before
     /// a commit). This fact locks the escape hatch itself so a future change

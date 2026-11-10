@@ -87,7 +87,7 @@ public sealed class ShippedDocumentationVoiceTests
     [InlineData("src/Tracon.Templates/content/.template.config/template.json", "None")]
     [InlineData("src/Tracon.Core/Nested/README.md", "None")]
     [InlineData("tests/Tracon.Core.UnitTests/FooTests.cs", "None")]
-    [InlineData("scripts/kapi.py", "None")]
+    [InlineData("scripts/gate.py", "None")]
     [InlineData("CHANGELOG.md", "None")]
     public void The_voice_rule_covers_what_reaches_a_consumer(string path, string expected)
     {

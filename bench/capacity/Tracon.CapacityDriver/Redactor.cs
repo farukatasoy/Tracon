@@ -13,7 +13,7 @@ namespace Tracon.CapacityDriver;
 /// </para>
 /// <para>
 /// The patterns match the repository's own secret gate
-/// (<c>scripts/kapi.py</c>) plus the two shapes this apparatus can produce on
+/// (<c>scripts/gate.py</c>) plus the two shapes this apparatus can produce on
 /// its own: a PostgreSQL connection string and a URI with inline credentials.
 /// </para>
 /// </remarks>

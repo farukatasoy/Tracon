@@ -6,7 +6,7 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Pins the SSE event names the server writes to <c>docs/sozlesme/sse-olaylari.txt</c>.
+/// Pins the SSE event names the server writes to <c>docs/contracts/sse-events.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -52,7 +52,7 @@ public sealed class SseEventNameSnapshotTests
             .ToList();
 
         ContractSnapshot.Verify(
-            "docs/sozlesme/sse-olaylari.txt",
+            "docs/contracts/sse-events.txt",
             "tests/Tracon.AspNetCore.FunctionalTests/SseEventNameSnapshotTests.cs",
             "The SSE event names the server writes (run-events: the recorded run stream, agent-stream: a direct run's stream)",
             names);

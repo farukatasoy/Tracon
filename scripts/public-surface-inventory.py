@@ -10,7 +10,7 @@ söylemez. Bu betik her public TİPİ (üye değil) dört sınıftan birine koya
                `SeamContractDocumentationTests`'in taradığı küme), abstract sınıf
                veya `Tracon.Testing.Contracts.Xunit` sözleşme paketi
   gerekçeli  — kanıtı yok ama bilinçli olarak public; gerekçesi
-               `scripts/public-yuzey-gerekceleri.tsv` dosyasındadır
+               `scripts/public-surface-reasons.tsv` dosyasındadır
   kanıtsız   — hiçbiri; varsayılan kaderi `internal`'dır
 
 Bir tip kalırsa, public imzasında geçen her tip de kalmak ZORUNDADIR — aksi
@@ -23,11 +23,11 @@ GA freeze turu aynı betiği koşar: `kanıtsız` sütunu o turun iş
 listesidir.
 
 Kullanım:
-    python3 scripts/public-yuzey-envanteri.py                   # paket tablosu
-    python3 scripts/public-yuzey-envanteri.py --liste kanıtsız  # adaylar
-    python3 scripts/public-yuzey-envanteri.py --tip Tracon.RunRecord
-    python3 scripts/public-yuzey-envanteri.py --json            # makine çıktısı
-    python3 scripts/public-yuzey-envanteri.py --denetle         # kanıtsız > 0 → 1
+    python3 scripts/public-surface-inventory.py                   # paket tablosu
+    python3 scripts/public-surface-inventory.py --list unproven   # adaylar
+    python3 scripts/public-surface-inventory.py --type Tracon.RunRecord
+    python3 scripts/public-surface-inventory.py --json            # makine çıktısı
+    python3 scripts/public-surface-inventory.py --check           # kanıtsız > 0 → 1
 
 OpenAPI şeması kanıt DEĞİLDİR: .NET tüketicisi bir HTTP DTO'suna
 dokunmaz, `Tracon.Client` kendi DTO'larını üretir. HTTP istek/yanıt DTO'su
@@ -37,7 +37,7 @@ dokunmaz, `Tracon.Client` kendi DTO'larını üretir. HTTP istek/yanıt DTO'su
 (bir tipin adı başka bir tipin özellik adıyla aynıysa) — yanlış pozitif tipi
 TUTAR, yani güvenli yöndedir. Yanlış negatifi (tüketicinin gerçekten
 kullandığı tipi `internal` yapmak) paketlenmiş sample'lar yakalar:
-`python3 scripts/kapi.py yayin --kuru`.
+`python3 scripts/gate.py release --dry-run`.
 """
 from __future__ import annotations
 
@@ -51,19 +51,19 @@ import sys
 from collections import deque
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-GEREKCE_YOLU = pathlib.Path("scripts") / "public-yuzey-gerekceleri.tsv"
+GEREKCE_YOLU = pathlib.Path("scripts") / "public-surface-reasons.tsv"
 
 # Karar: sözleşme paketi bu dalgaya girmez. Sözleşme
 # sınıfları tüketicinin TÜRETECEĞİ yüzeydir; tanım gereği "seam" sınıfındadır.
 SOZLESME_PAKETLERI = frozenset({"Tracon.Testing.Contracts.Xunit"})
 
-# Kayıt giriş noktası kuralı `kayit_giris_noktasi.py`'dedir;
+# Kayıt giriş noktası kuralı `capability_entry_points.py`'dedir;
 # bir geliştirme kontrolü aynı modülü kullanır, C# kopyası
 # `CapabilityEntryPoints.cs`'tir. Kayıt giriş noktası tüketicinin bir yeteneği
 # açtığı üyedir; kapsama kapısı her birinin site haritasında ve örnekte
 # göründüğünü zaten zorlar.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from kayit_giris_noktasi import UZANTI_METODU, kayit_uzantisi_mi  # noqa: E402
+from capability_entry_points import UZANTI_METODU, kayit_uzantisi_mi  # noqa: E402
 
 # Bir Unshipped satırı tip bildirimi değilse ya imza `(` ya da tip ` -> ` taşır
 # (`PublicSurfaceBaselineTests` ile aynı süzgeç).
@@ -88,9 +88,16 @@ BAGLI_KAYNAK = re.compile(r'<Compile\s+Include="\.\./(?P<dizin>[^/"]+)/\*\*/\*\.
 
 KORPUS_UZANTILARI = frozenset({".md", ".mdx", ".cs", ".razor", ".cshtml"})
 
-SINIFLAR = ("tüketici", "seam", "gerekçeli", "kanıtsız")
+SINIFLAR = ("consumer", "seam", "justified", "unproven")
 
 Anahtar = tuple[str, str]  # (paket, tam ad) — aynı tam ad birden çok pakette public olabilir
+
+# `--json` çıktısındaki alan adları.
+JSON_ALANLARI = {
+    "paket": "package", "ad": "name", "uyeler": "members", "tur": "kind", "kaynak": "source",
+    "baslik_adlari": "header_names", "belge_istisnalari": "documented_exceptions",
+    "sinif": "class", "gerekce": "reason",
+}
 
 
 # --------------------------------------------------------------------------
@@ -106,7 +113,7 @@ class Tip:
     kaynak: str | None = None    # bildirimin repo-göreli yolu
     baslik_adlari: set[str] = dataclasses.field(default_factory=set)  # taban/kısıt tam adları
     belge_istisnalari: set[str] = dataclasses.field(default_factory=set)  # `<exception cref>` tam adları
-    sinif: str = "kanıtsız"
+    sinif: str = "unproven"
     gerekce: str = ""            # ilk kanıt: `site:<yol>`, `imza:<tip>`, `istisna:<tip>`, `seam:arayuz` ...
 
     @property
@@ -306,7 +313,7 @@ def gerekceleri_oku(metin: str) -> dict[str, str]:
             continue
         ad, _, gerekce = satir.partition("\t")
         if not gerekce.strip():
-            raise ValueError(f"{GEREKCE_YOLU}:{numara}: '{ad.strip()}' gerekçesiz")
+            raise ValueError(f"{GEREKCE_YOLU}:{numara}: '{ad.strip()}' has no reason")
         gerekceler[ad.strip()] = gerekce.strip()
     return gerekceler
 
@@ -323,17 +330,17 @@ def siniflandir(
     """Kökleri bulur, imza kapanışını yayar. Öncelik: tüketici > seam > gerekçeli."""
     kokler: dict[str, list[tuple[Anahtar, str]]] = {sinif: [] for sinif in SINIFLAR[:3]}
     for tip in tipler.values():
-        tip.sinif, tip.gerekce = "kanıtsız", ""
+        tip.sinif, tip.gerekce = "unproven", ""
         kanit = _tuketici_kaniti(tip, korpus)
         if kanit:
-            kokler["tüketici"].append((tip.anahtar, kanit))
+            kokler["consumer"].append((tip.anahtar, kanit))
             continue
         kanit = _seam_kaniti(tip)
         if kanit:
             kokler["seam"].append((tip.anahtar, kanit))
             continue
         if tip.ad in gerekceler:
-            kokler["gerekçeli"].append((tip.anahtar, f"gerekçe:{gerekceler[tip.ad]}"))
+            kokler["justified"].append((tip.anahtar, f"reason:{gerekceler[tip.ad]}"))
 
     indeks = ad_indeksi(tipler)
     atanmis: set[Anahtar] = set()
@@ -346,8 +353,8 @@ def siniflandir(
                 kuyruk.append(anahtar)
         while kuyruk:
             kaynak = tipler[kuyruk.popleft()]
-            for tur, hedefler in (("imza", imza_referanslari(kaynak, indeks)),
-                                  ("istisna", istisna_referanslari(kaynak, indeks))):
+            for tur, hedefler in (("signature", imza_referanslari(kaynak, indeks)),
+                                  ("exception", istisna_referanslari(kaynak, indeks))):
                 for hedef in sorted(hedefler):
                     if hedef not in atanmis:
                         atanmis.add(hedef)
@@ -370,11 +377,11 @@ def _tuketici_kaniti(tip: Tip, korpus: Korpus) -> str | None:
         if uzanti is None:
             continue
         if kayit_uzantisi_mi(uzanti.group("ad"), uzanti.group("alici")):
-            return f"giris-noktasi:{uzanti.group('ad')}"
+            return f"entry-point:{uzanti.group('ad')}"
         # Uzantı metodunu çağıran tüketici sınıfın ADINI yazmaz, metodun adını yazar.
         kanit = korpus.bul(uzanti.group("ad"))
         if kanit:
-            return f"uzanti:{uzanti.group('ad')}@{kanit}"
+            return f"extension:{uzanti.group('ad')}@{kanit}"
     # OpenAPI şeması kanıt değildir: açıklama `[Description]` ile taşınır,
     # tip `internal` kalabilir.
     return None
@@ -382,11 +389,11 @@ def _tuketici_kaniti(tip: Tip, korpus: Korpus) -> str | None:
 
 def _seam_kaniti(tip: Tip) -> str | None:
     if tip.paket in SOZLESME_PAKETLERI:
-        return "seam:sozlesme-paketi"
+        return "seam:contract-package"
     if tip.tur == "interface":
-        return "seam:arayuz"
+        return "seam:interface"
     if tip.tur == "abstract":
-        return "seam:abstract-sinif"
+        return "seam:abstract-class"
     return None
 
 
@@ -399,10 +406,10 @@ def bayat_gerekceler(tipler: dict[Anahtar, Tip], gerekceler: dict[str, str]) -> 
     for ad in sorted(gerekceler):
         eslesen = siniflar.get(ad)
         if not eslesen:
-            sorunlar.append(f"{ad}: public değil (ya da yeniden adlandırıldı) — satırı sil")
-        elif all(tip.sinif != "gerekçeli" for tip in eslesen):
+            sorunlar.append(f"{ad}: not public (or renamed) — delete the line")
+        elif all(tip.sinif != "justified" for tip in eslesen):
             tip = eslesen[0]
-            sorunlar.append(f"{ad}: artık '{tip.sinif}' ({tip.gerekce}) — gerekçe gereksiz, satırı sil")
+            sorunlar.append(f"{ad}: now '{tip.sinif}' ({tip.gerekce}) — the reason is not needed, delete the line")
     return sorunlar
 
 
@@ -431,7 +438,7 @@ def korpus_topla(root: pathlib.Path) -> Korpus:
     # `api/` ve `http-api/` üretilir ve izlenmez: her public tipi listeler, kanıt değildir.
     ekle("site", _git_dosyalari(root, "docs-site/src/content/docs"))
     ekle("sample", _git_dosyalari(root, "samples"))
-    ekle("sablon", _git_dosyalari(root, "src/Tracon.Templates/content"))
+    ekle("template", _git_dosyalari(root, "src/Tracon.Templates/content"))
     src = _git_dosyalari(root, "src")
     ekle("readme", ["README.md"] + [
         yol for yol in src if re.fullmatch(r"src/[^/]+/README\.md", yol) and ".Shared/" not in yol])
@@ -439,7 +446,7 @@ def korpus_topla(root: pathlib.Path) -> Korpus:
         if yol.endswith(".cs") and ".Shared/" not in yol:
             ornek = xml_ornekleri(_oku(root, yol))
             if ornek:
-                girdiler.append(("ornek", yol, ornek))
+                girdiler.append(("example", yol, ornek))
     return Korpus.kur(girdiler)
 
 
@@ -483,7 +490,7 @@ def paket_tablosu(tipler: dict[Anahtar, Tip]) -> list[tuple[str, dict[str, int]]
 
 def tablo_yaz(tipler: dict[Anahtar, Tip]) -> str:
     satirlar = [
-        "| Paket | Toplam | Tüketici | Seam | Gerekçeli | Kanıtsız |",
+        "| Package | Total | Consumer | Seam | Justified | Unproven |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     toplam = {sinif: 0 for sinif in SINIFLAR}
@@ -494,13 +501,13 @@ def tablo_yaz(tipler: dict[Anahtar, Tip]) -> str:
             f"| `{paket}` | {sum(sayim.values())} | "
             + " | ".join(str(sayim[sinif]) for sinif in SINIFLAR) + " |")
     satirlar.append(
-        f"| **Toplam** | **{sum(toplam.values())}** | "
+        f"| **Total** | **{sum(toplam.values())}** | "
         + " | ".join(f"**{toplam[sinif]}**" for sinif in SINIFLAR) + " |")
     return "\n".join(satirlar)
 
 
 def kanit_zinciri(tipler: dict[Anahtar, Tip], ad: str) -> list[str]:
-    """Bir tipin neden kaldığını köke kadar izler (`imza:` ve `istisna:` adımları)."""
+    """Bir tipin neden kaldığını köke kadar izler (`signature:` ve `exception:` adımları)."""
     indeks = ad_indeksi(tipler)
     satirlar: list[str] = []
     for anahtar in indeks.get(ad, []):
@@ -509,7 +516,7 @@ def kanit_zinciri(tipler: dict[Anahtar, Tip], ad: str) -> list[str]:
             gorulen.add(adim.anahtar)
             satirlar.append(f"{adim.ad} [{adim.paket}, {adim.tur}] → {adim.sinif}: {adim.gerekce}")
             tur, _, ust = adim.gerekce.partition(":")
-            if tur not in ("imza", "istisna"):
+            if tur not in ("signature", "exception"):
                 break
             adim = tipler[indeks[ust][0]]
         satirlar.append("")
@@ -517,53 +524,54 @@ def kanit_zinciri(tipler: dict[Anahtar, Tip], ad: str) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ayristirici = argparse.ArgumentParser(description=(__doc__ or "").split("\n", 1)[0])
-    ayristirici.add_argument("--liste", choices=SINIFLAR + ("hepsi",), help="bir sınıfın tiplerini listele")
-    ayristirici.add_argument("--paket", help="yalnız bu paket")
-    ayristirici.add_argument("--tip", help="bir tipin kanıt zincirini göster (tam ad)")
-    ayristirici.add_argument("--json", action="store_true", help="tüm envanteri JSON olarak yaz")
-    ayristirici.add_argument("--denetle", action="store_true",
-                             help="kanıtsız tip veya bayat gerekçe varsa çıkış kodu 1")
+    ayristirici = argparse.ArgumentParser(
+        description="Public API surface inventory: the outside evidence for every public type.")
+    ayristirici.add_argument("--list", choices=SINIFLAR + ("all",), help="list the types of one class")
+    ayristirici.add_argument("--package", help="only this package")
+    ayristirici.add_argument("--type", help="show the evidence chain of one type (full name)")
+    ayristirici.add_argument("--json", action="store_true", help="write the whole inventory as JSON")
+    ayristirici.add_argument("--check", action="store_true",
+                             help="exit with code 1 when a type has no evidence or a reason is stale")
     args = ayristirici.parse_args(argv)
 
     tipler, gerekceler = envanter_olustur()
     sorunlar = bayat_gerekceler(tipler, gerekceler)
-    if args.paket:
-        tipler = {anahtar: tip for anahtar, tip in tipler.items() if tip.paket == args.paket}
+    if args.package:
+        tipler = {anahtar: tip for anahtar, tip in tipler.items() if tip.paket == args.package}
     sirali = sorted(tipler.values(), key=lambda tip: tip.anahtar)
 
     if args.json:
         print(json.dumps(
-            [dataclasses.asdict(tip) | {"baslik_adlari": sorted(tip.baslik_adlari),
-                                        "belge_istisnalari": sorted(tip.belge_istisnalari)}
+            [{JSON_ALANLARI[alan]: (sorted(deger) if isinstance(deger, set) else deger)
+              for alan, deger in dataclasses.asdict(tip).items()}
              for tip in sirali],
             ensure_ascii=False, indent=1))
         return 0
 
-    if args.tip:
-        zincir = kanit_zinciri(tipler, args.tip)
+    if args.type:
+        zincir = kanit_zinciri(tipler, args.type)
         if not zincir:
-            print(f"{args.tip}: envanterde yok (public değil ya da ad yanlış)", file=sys.stderr)
+            print(f"{args.type}: not in the inventory (the type is not public or the name is wrong)", file=sys.stderr)
             return 2
         print("\n".join(zincir).rstrip())
         return 0
 
-    if args.liste:
+    if args.list:
         for tip in sirali:
-            if args.liste == "hepsi" or tip.sinif == args.liste:
+            if args.list == "all" or tip.sinif == args.list:
                 print("\t".join((tip.paket, tip.ad, tip.tur, tip.sinif, tip.gerekce, tip.kaynak or "-")))
         return 0
 
     print(tablo_yaz(tipler))
     for sorun in sorunlar:
-        print(f"bayat gerekçe: {sorun}", file=sys.stderr)
-    kanitsiz = sum(1 for tip in sirali if tip.sinif == "kanıtsız")
-    if args.denetle and (kanitsiz or sorunlar):
-        print(f"denetim: {kanitsiz} kanıtsız tip, {len(sorunlar)} bayat gerekçe", file=sys.stderr)
+        print(f"stale reason: {sorun}", file=sys.stderr)
+    kanitsiz = sum(1 for tip in sirali if tip.sinif == "unproven")
+    if args.check and (kanitsiz or sorunlar):
+        print(f"check failed: {kanitsiz} type(s) without evidence, {len(sorunlar)} stale reason(s)", file=sys.stderr)
         if kanitsiz:
-            print("ipucu: HTTP istek/yanıt DTO'suysa tipi `internal` yap ve açıklamayı "
-                  "`[Description]` ile yaz; değilse bir site sayfası, sample ya da "
-                  "`<example>` ile göster ya da scripts/public-yuzey-gerekceleri.tsv'ye gerekçe yaz.",
+            print("hint: if the type is an HTTP request or response DTO, make it `internal` and write the "
+                  "description with `[Description]`; otherwise show the type in a site page, a sample or an "
+                  "`<example>`, or write a reason in scripts/public-surface-reasons.tsv.",
                   file=sys.stderr)
         return 1
     return 0

@@ -15,16 +15,16 @@ machine, at one configuration.
 ## Running it
 
 ```bash
-python3 scripts/kapi.py kapasite --profil smoke    --surum 1.0.0-preview.N
-python3 scripts/kapi.py kapasite --profil sweep    --surum 1.0.0-preview.N
-python3 scripts/kapi.py kapasite --profil arrival  --surum 1.0.0-preview.N
-python3 scripts/kapi.py kapasite --profil workers  --surum 1.0.0-preview.N
-python3 scripts/kapi.py kapasite --profil soak     --surum 1.0.0-preview.N
-python3 scripts/kapi.py kapasite --profil nodes    --surum 1.0.0-preview.N
-python3 scripts/kapi.py kapasite --profil tenant-ramp --surum 1.0.0-preview.N
+python3 scripts/gate.py capacity --profile smoke    --package-version 1.0.0-preview.N
+python3 scripts/gate.py capacity --profile sweep    --package-version 1.0.0-preview.N
+python3 scripts/gate.py capacity --profile arrival  --package-version 1.0.0-preview.N
+python3 scripts/gate.py capacity --profile workers  --package-version 1.0.0-preview.N
+python3 scripts/gate.py capacity --profile soak     --package-version 1.0.0-preview.N
+python3 scripts/gate.py capacity --profile nodes    --package-version 1.0.0-preview.N
+python3 scripts/gate.py capacity --profile tenant-ramp --package-version 1.0.0-preview.N
 ```
 
-`--surum` takes an **exact** version. A floating version (`*`, `*-*`) is
+`--package-version` takes an **exact** version. A floating version (`*`, `*-*`) is
 refused: a report that cannot say which bytes it measured is not evidence.
 
 Requirements: Docker (the run starts its own PostgreSQL container and removes
@@ -42,7 +42,7 @@ A dirty working tree has no provenance, so `dotnet pack` refuses it unless the
 version carries `dirty`:
 
 ```bash
-python3 scripts/kapi.py kapasite --profil smoke --surum 0.0.0-dirty.local
+python3 scripts/gate.py capacity --profile smoke --package-version 0.0.0-dirty.local
 ```
 
 A dirty run is for developing the apparatus. Nothing measured under one may be
@@ -231,7 +231,7 @@ Two conveniences help while developing the apparatus (neither is read by anythin
 
 - `TRACON_CAPACITY_MSBUILD_ARGS` adds MSBuild arguments to the pack and the consumer build, for example
   `-m:3 -p:TraconFrontendEnabled=false`. The value is written to the manifest.
-- `scripts/capacity.py --hazir-feed <directory>` skips the pack and uses a feed packed earlier at the same
+- `scripts/capacity.py --ready-feed <directory>` skips the pack and uses a feed packed earlier at the same
   `dirty` version. A publishable version refuses it.
 
 ## What the apparatus refuses to do

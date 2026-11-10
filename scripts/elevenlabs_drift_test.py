@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""`elevenlabs-kayma.py` testleri.
+"""`elevenlabs-drift.py` testleri.
 
 Betik canli belgeye karsi agdan koşar ve CI'da kosmaz; mantigi (`$ref` cozumu, birlesim
 duzlestirme, alan yolu ve tip karsilastirmasi) ise yalnizca elle bir negatif kontrolle
@@ -7,14 +7,18 @@ duzlestirme, alan yolu ve tip karsilastirmasi) ise yalnizca elle bir negatif kon
 """
 from __future__ import annotations
 
+import contextlib
 import copy
 import importlib.util
+import io
 import pathlib
+import re
 import sys
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-spec = importlib.util.spec_from_file_location("elevenlabs_kayma", ROOT / "scripts" / "elevenlabs-kayma.py")
+spec = importlib.util.spec_from_file_location("elevenlabs_drift", ROOT / "scripts" / "elevenlabs-drift.py")
 kayma = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = kayma
 spec.loader.exec_module(kayma)
@@ -182,6 +186,30 @@ class TipTestleri(unittest.TestCase):
                     continue
                 self.assertEqual(sorted(tipler), sorted(operasyon[taraf]), f"{etiket}: {taraf}")
                 self.assertTrue(set(tipler.values()) <= {"string", "integer", "number", "boolean", "array", "object"})
+
+
+class CommandLineTests(unittest.TestCase):
+    def _exit_code_and_text(self, *argv: str) -> tuple[object, str]:
+        out, err = io.StringIO(), io.StringIO()
+
+        with mock.patch.object(sys, "argv", ["elevenlabs-drift.py", *argv]):
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                with self.assertRaises(SystemExit) as raised:
+                    kayma.main()
+
+        return raised.exception.code, out.getvalue() + err.getvalue()
+
+    def test_the_help_text_is_english_and_names_the_english_flag(self):
+        code, text = self._exit_code_and_text("--help")
+
+        self.assertEqual(code, 0)
+        self.assertIsNone(re.search("[çğıöşüÇĞİÖŞÜ]", text))
+        self.assertIn("--file", text)
+
+    def test_the_old_turkish_flag_is_refused(self):
+        code, _ = self._exit_code_and_text("--dosya", "x.json")
+
+        self.assertEqual(code, 2)
 
 
 if __name__ == "__main__":

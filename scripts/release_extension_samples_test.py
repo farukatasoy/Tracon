@@ -2,9 +2,12 @@
 """Tests for the packed extension-sample release gate's deterministic checks."""
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import xml.etree.ElementTree as ElementTree
 import pathlib
+import re
 import sys
 import tempfile
 import unittest
@@ -325,3 +328,20 @@ class TraconBagimlilikKapanisiTestleri(unittest.TestCase):
         source = pathlib.Path(release_extension_samples.__file__).read_text(encoding="utf-8")
         self.assertNotIn('_project_assets_json(root, "Tracon.Testing.Contracts.Xunit")', source)
 
+
+class OutputLanguageTests(unittest.TestCase):
+    """Everything the gate prints is English: a contributor of the public repository reads it."""
+
+    def test_a_violated_contract_is_reported_in_english(self):
+        with tempfile.TemporaryDirectory() as root_directory, tempfile.TemporaryDirectory() as feed_directory:
+            feed = pathlib.Path(feed_directory)
+            (feed / "Tracon.Core.0.0.1.nupkg").write_bytes(b"")
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                code = release_extension_samples.verify(pathlib.Path(root_directory), feed, EXACT_VERSION)
+
+        self.assertEqual(1, code)
+        self.assertIn("The extension sample contract is violated", output.getvalue())
+        self.assertIn("release feed contains stale Tracon packages", output.getvalue())
+        self.assertIsNone(re.search("[çğıöşüÇĞİÖŞÜ]", output.getvalue()), output.getvalue())

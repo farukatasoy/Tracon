@@ -8,7 +8,7 @@ using Tracon.Core.UnitTests.Configuration;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Pins the configuration keys Tracon reads to <c>docs/sozlesme/yapilandirma.txt</c>.
+/// Pins the configuration keys Tracon reads to <c>docs/contracts/configuration.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -124,7 +124,7 @@ public sealed class ConfigurationKeySnapshotTests
     public void The_snapshot_matches_the_keys_in_the_code()
     {
         ContractSnapshot.Verify(
-            "docs/sozlesme/yapilandirma.txt",
+            "docs/contracts/configuration.txt",
             "tests/Tracon.Core.UnitTests/Architecture/ConfigurationKeySnapshotTests.cs",
             "The configuration keys Tracon reads, '*' standing for a name the consumer chooses",
             Keys());

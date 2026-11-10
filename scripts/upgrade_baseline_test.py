@@ -2,10 +2,13 @@
 """Yükseltme kapısının taban betiğinin testleri: özet algoritması ve manifestin yeniden yazımı."""
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import pathlib
+import re
 import sys
 import unittest
 from unittest import mock
@@ -114,6 +117,52 @@ class ManifestTestleri(unittest.TestCase):
         changed = ub.differing_from_head(ROOT, manifest)
 
         self.assertEqual(changed, ["sqlite/views/0001_read_views"])
+
+
+class OutputLanguageTests(unittest.TestCase):
+    """Everything the script prints is English: a contributor of the public repository reads it."""
+
+    TURKISH_LETTERS = re.compile("[çğıöşüÇĞİÖŞÜ]")
+
+    def test_the_help_text_names_the_english_flags_only(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            ub.main(["--help"])
+
+        for flag in ("--write", "--package-version", "--source"):
+            self.assertIn(flag, output.getvalue())
+        self.assertIsNone(self.TURKISH_LETTERS.search(output.getvalue()), output.getvalue())
+
+    def test_the_old_flag_names_are_gone(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+            ub.main(["--yaz"])
+
+        self.assertEqual(2, raised.exception.code)
+
+    def test_a_call_without_a_task_says_what_to_choose_in_english(self):
+        error = io.StringIO()
+        with contextlib.redirect_stderr(error), self.assertRaises(SystemExit) as raised:
+            ub.main([])
+
+        self.assertEqual(2, raised.exception.code)
+        self.assertIn("choose what to do: --write", error.getvalue())
+
+    def test_a_deleted_migration_file_is_marked_in_english(self):
+        manifest = {
+            "providers": {"sqlite": [{"name": "9999_removed_for_the_test", "statements": "0" * 64}]},
+            "optionalSets": {},
+        }
+
+        changed = ub.differing_from_head(ROOT, manifest)
+
+        self.assertEqual(["sqlite/9999_removed_for_the_test (deleted)"], changed)
+
+    def test_a_file_name_that_does_not_match_is_reported_in_english(self):
+        with self.assertRaises(ValueError) as raised:
+            ub.describe("initial.sql", b"SELECT 1;")
+
+        self.assertIn("does not match the pattern", str(raised.exception))
+        self.assertIsNone(self.TURKISH_LETTERS.search(str(raised.exception)))
 
 
 if __name__ == "__main__":

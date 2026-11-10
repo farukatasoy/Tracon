@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Breaking-change gate of the release rehearsal (`kapi.py yayin`).
+"""Breaking-change gate of the release rehearsal (`gate.py release`).
 
 Packages are validated against the last published `v*` release (ApiCompat
 package validation, driven by `Directory.Build.targets`). The SDK writes what
@@ -14,9 +14,9 @@ whatever the notes say, and a patch release may not grow the public surface.
 `release_line` decides which rule a release is judged by.
 
 Callable two ways:
-- from `kapi.py yayin` (the functions below; the rehearsal owns the pack);
+- from `gate.py release` (the functions below; the rehearsal owns the pack);
 - as a CLI over an existing report directory:
-  `python3 scripts/breaking_changes.py --rapor-dizini <dir> --taban <version> [--surum <version>]`
+  `python3 scripts/breaking_changes.py --report-directory <dir> --base <version> [--package-version <version>]`
 """
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def _git(root: pathlib.Path, *args: str) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
     except OSError as exception:
-        raise BaselineError(f"git çalıştırılamadı ({exception})") from exception
+        raise BaselineError(f"cannot run git ({exception})") from exception
 
 
 def resolve_baseline(root: pathlib.Path = ROOT) -> str:
@@ -81,10 +81,10 @@ def resolve_baseline(root: pathlib.Path = ROOT) -> str:
     """
     shallow = _git(root, "rev-parse", "--is-shallow-repository")
     if shallow.returncode:
-        reason = (shallow.stderr or shallow.stdout).strip() or f"çıkış {shallow.returncode}"
-        raise BaselineError(f"bu bir git deposu değil ({reason})")
+        reason = (shallow.stderr or shallow.stdout).strip() or f"exit {shallow.returncode}"
+        raise BaselineError(f"this is not a git repository ({reason})")
     if shallow.stdout.strip() == "true":
-        raise BaselineError("sığ klon: son 'v*' etiketi güvenilir bulunamaz; tam geçmişle klonlayın (fetch-depth: 0)")
+        raise BaselineError("shallow clone: the last 'v*' tag cannot be found reliably; clone with full history (fetch-depth: 0)")
 
     exact = _git(root, "describe", "--tags", "--exact-match", "--match", f"{TAG_PREFIX}*", "HEAD")
     start = "HEAD^" if exact.returncode == 0 else "HEAD"
@@ -95,16 +95,16 @@ def resolve_baseline(root: pathlib.Path = ROOT) -> str:
         if found.returncode:
             if burned:
                 raise BaselineError(
-                    f"yayınlanmış bir '{TAG_PREFIX}*' etiketi yok; CHANGELOG'da tarihli bölümü olmayan "
-                    f"(yanmış) etiketler atlandı: {', '.join(burned)}")
-            where = "HEAD'in üst commit'inden" if start == "HEAD^" else "HEAD'den"
-            reason = (found.stderr or found.stdout).strip() or f"çıkış {found.returncode}"
-            raise BaselineError(f"{where} erişilen bir '{TAG_PREFIX}*' etiketi yok ({reason})")
+                    f"no released '{TAG_PREFIX}*' tag exists; tags without a dated CHANGELOG section "
+                    f"(burned tags) were skipped: {', '.join(burned)}")
+            where = "the parent of HEAD" if start == "HEAD^" else "HEAD"
+            reason = (found.stderr or found.stdout).strip() or f"exit {found.returncode}"
+            raise BaselineError(f"no '{TAG_PREFIX}*' tag is reachable from {where} ({reason})")
 
         tag = found.stdout.strip()
         version = tag[len(TAG_PREFIX):]
         if not tag.startswith(TAG_PREFIX) or _parse_version(version) is None:
-            raise BaselineError(f"etiket bir sürüm adlandırmıyor: '{tag}'")
+            raise BaselineError(f"the tag does not name a version: '{tag}'")
         if released is None:
             released = _released_versions(root)
         if version in released:
@@ -113,7 +113,7 @@ def resolve_baseline(root: pathlib.Path = ROOT) -> str:
         start = f"{tag}^"
 
     if burned:
-        print(f"Taban: yanmış etiket atlandı (CHANGELOG'da tarihli bölümü yok): {', '.join(burned)}")
+        print(f"Baseline: skipped burned tags (no dated CHANGELOG section): {', '.join(burned)}")
     return version
 
 
@@ -121,7 +121,7 @@ def _released_versions(root: pathlib.Path) -> set[str]:
     """Versions with a dated CHANGELOG heading. No file is no evidence: red, never a silent fallback."""
     path = root / "CHANGELOG.md"
     if not path.is_file():
-        raise BaselineError(f"{path.name} yok: hangi etiketin yayınlandığı doğrulanamaz")
+        raise BaselineError(f"{path.name} is missing: cannot confirm which tags were released")
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     import changelog as changelog_module
 
@@ -203,12 +203,12 @@ class ReleaseLine:
 
     def describe(self) -> str:
         if self.kind == LINE_PREVIEW:
-            return "Hat: preview (kırılma notta adıyla)"
+            return "Line: preview (a break passes when the notes name it)"
         if self.kind == LINE_MAJOR:
-            return "Hat: major artışı (kırılma notta adıyla)"
+            return "Line: major bump (a break passes when the notes name it)"
         if self.patch:
-            return f"Hat: donmuş {self.major}.x yama (kırılma ve eklenen public üye reddedilir)"
-        return f"Hat: donmuş {self.major}.x (kırılma reddedilir)"
+            return f"Line: frozen {self.major}.x patch (a break or an added public member is rejected)"
+        return f"Line: frozen {self.major}.x (a break is rejected)"
 
 
 def release_line(baseline: str, version: str | None) -> ReleaseLine:
@@ -221,7 +221,7 @@ def release_line(baseline: str, version: str | None) -> ReleaseLine:
     if compare_versions(baseline, FROZEN_FROM) < 0:
         return ReleaseLine(LINE_PREVIEW, major=0)
     if version is None:
-        raise ValueError(f"sürüm gerekli: taban v{baseline} donmuş hatta, hat sürümsüz belirlenemez")
+        raise ValueError(f"a version is required: baseline v{baseline} is on the frozen line, so the line cannot be decided without one")
     base_core = _parse_version(baseline)[0]
     new_parsed = _parse_version(version)
     if new_parsed is None:
@@ -248,7 +248,7 @@ def has_first_release_flag(root: pathlib.Path, project_id: str) -> bool:
 def baseline_package_ids(root: pathlib.Path, library_ids: Iterable[str]) -> list[str]:
     """Library packages that have a published baseline to restore.
 
-    `library_ids` comes from the rehearsal (`kapi.py` owns the package profile
+    `library_ids` comes from the rehearsal (`gate.py` owns the package profile
     rule); a package flagged `TraconPackageFirstRelease` is skipped."""
     return sorted(project_id for project_id in library_ids if not has_first_release_flag(root, project_id))
 
@@ -330,15 +330,15 @@ def restore_baselines(
     try:
         result = run(command, cwd=work_dir, env=environment, capture_output=True, text=True, check=False)
     except OSError as exception:
-        raise RestoreError(f"'dotnet restore' çalıştırılamadı ({exception})") from exception
+        raise RestoreError(f"cannot run 'dotnet restore' ({exception})") from exception
     if result.returncode:
         output = f"{result.stdout or ''}\n{result.stderr or ''}"
         named = [project_id for project_id in ids if project_id.lower() in output.lower()]
         tail = "\n".join(line for line in output.splitlines() if line.strip())[-2000:]
         subject = ", ".join(named) if named else ", ".join(ids)
         raise RestoreError(
-            f"taban paketleri nuget.org'dan alınamadı (v{version}; {subject}). "
-            f"Etiket var ama yayın tamamlanmamış olabilir: önce yayını tamamlayın.\n{tail}")
+            f"baseline packages could not be restored from nuget.org (v{version}; {subject}). "
+            f"The tag exists but its release may be incomplete: finish the release first.\n{tail}")
     return cache
 
 
@@ -351,15 +351,15 @@ def baseline_source_violations(ids: Iterable[str], version: str, cache: pathlib.
         metadata = directory / ".nupkg.metadata"
         nupkg = directory / f"{project_id.lower()}.{version.lower()}.nupkg"
         if not metadata.exists() or not nupkg.exists():
-            violations.append(f"{project_id}: taban paketi izole cache'te yok ({directory})")
+            violations.append(f"{project_id}: the baseline package is not in the isolated cache ({directory})")
             continue
         try:
             source = json.loads(metadata.read_text(encoding="utf-8")).get("source")
         except (OSError, ValueError) as exception:
-            violations.append(f"{project_id}: .nupkg.metadata okunamadı ({exception})")
+            violations.append(f"{project_id}: cannot read .nupkg.metadata ({exception})")
             continue
         if source != NUGET_ORG:
-            violations.append(f"{project_id}: taban kaynağı '{source}', beklenen '{NUGET_ORG}'")
+            violations.append(f"{project_id}: the baseline source is '{source}', expected '{NUGET_ORG}'")
     return violations
 
 
@@ -387,10 +387,10 @@ def semaphore_path(root: pathlib.Path, project_id: str) -> pathlib.Path:
         if path.parent.name.lower() == "release"
     ) if project_obj.is_dir() else []
     if len(matches) != 1:
-        found = ", ".join(str(path) for path in matches) or "hiçbiri"
+        found = ", ".join(str(path) for path in matches) or "none"
         raise SemaphoreError(
-            f"{project_id}: paket doğrulama semaphore'u tek olarak bulunamadı "
-            f"(aranan: {searched}; bulunan: {found}). SDK iç adı değiştiyse kapı genişletilmeli.")
+            f"{project_id}: expected exactly one package-validation semaphore "
+            f"(searched: {searched}; found: {found}). If the SDK renamed it, the gate must learn the new name.")
     return matches[0]
 
 
@@ -409,7 +409,7 @@ def validation_not_run(root: pathlib.Path, ids: Iterable[str], since: float) -> 
             problems.append(str(exception))
             continue
         if semaphore.stat().st_mtime < threshold:
-            problems.append(f"{project_id}: paket doğrulaması bu koşumda koşmadı ({semaphore} eski)")
+            problems.append(f"{project_id}: package validation did not run in this pack ({semaphore} is older than the pack start)")
     return problems
 
 
@@ -483,7 +483,7 @@ def read_breaking_changes(report_dir: pathlib.Path) -> BreakingChanges:
         try:
             records = ET.parse(report).getroot().findall("Suppression")
         except (ET.ParseError, OSError) as exception:
-            changes.errors.append(f"{package}: rapor okunamadı ({report.name}: {exception})")
+            changes.errors.append(f"{package}: cannot read the report ({report.name}: {exception})")
             continue
         for record in records:
             diagnostic = _text(record, "DiagnosticId")
@@ -494,11 +494,11 @@ def read_breaking_changes(report_dir: pathlib.Path) -> BreakingChanges:
                 continue
             if not baseline:
                 changes.errors.append(
-                    f"{package}: TFM'ler arası (strict) uyumsuzluk {diagnostic} {target} - yüzey her TFM'de aynı olmalı")
+                    f"{package}: incompatibility between TFMs (strict mode) {diagnostic} {target} - the surface must be the same in every TFM")
                 continue
             type_name = type_of_doc_id(target) if diagnostic.startswith("CP") else None
             if type_name is None:
-                changes.errors.append(f"{package}: tanınmayan kayıt {diagnostic} {target} - kapı genişletilmeli")
+                changes.errors.append(f"{package}: unrecognized record {diagnostic} {target} - the gate must learn it")
                 continue
             changes.types.setdefault(package, set()).add(type_name)
     return changes
@@ -612,7 +612,7 @@ def unnamed_changes(changes: BreakingChanges, notes: str | None) -> list[str]:
         if missing_types:
             parts.append(", ".join(missing_types))
         if missing_frameworks:
-            parts.append("düşen TFM " + ", ".join(missing_frameworks))
+            parts.append("dropped TFM " + ", ".join(missing_frameworks))
         if parts:
             lines.append(f"{package}: {' · '.join(parts)}")
     return lines
@@ -633,7 +633,9 @@ def unnamed_changes(changes: BreakingChanges, notes: str | None) -> list[str]:
 API_FILE = re.compile(r"^src/(?P<package>[^/]+)/PublicAPI\.(?:Shipped|Unshipped)\.txt$")
 REMOVED_PREFIX = "*REMOVED*"
 CONTRACT_PACKAGE = "Tracon.Testing.Contracts.Xunit"
-REQUIRED_SNAPSHOT = pathlib.PurePosixPath("docs", "sozlesme", "required-uyeler.txt")
+REQUIRED_SNAPSHOT = pathlib.PurePosixPath("docs", "contracts", "required-members.txt")
+# Tags up to `v1.0.0-preview.8` hold the snapshot under its earlier name. The mapping stays for good: history does not change.
+REQUIRED_SNAPSHOT_LEGACY = pathlib.PurePosixPath("docs", "sozlesme", "required-uyeler.txt")
 MAX_LISTED = 8
 
 
@@ -678,23 +680,48 @@ def _show(root: pathlib.Path, tag: str, path: str) -> str | None:
     baseline. `ls-tree` tells them apart; a failure of either git call raises BaselineError."""
     listing = _git(root, "ls-tree", tag, "--", path)
     if listing.returncode:
-        reason = (listing.stderr or listing.stdout).strip() or f"çıkış {listing.returncode}"
-        raise BaselineError(f"'{tag}' ağacında '{path}' sorgulanamadı ({reason})")
+        reason = (listing.stderr or listing.stdout).strip() or f"exit {listing.returncode}"
+        raise BaselineError(f"cannot query '{path}' in the tree of '{tag}' ({reason})")
     if not listing.stdout.strip():
         return None
     shown = _git(root, "show", f"{tag}:{path}")
     if shown.returncode:
-        reason = (shown.stderr or shown.stdout).strip() or f"çıkış {shown.returncode}"
-        raise BaselineError(f"'{tag}:{path}' okunamadı ({reason})")
+        reason = (shown.stderr or shown.stdout).strip() or f"exit {shown.returncode}"
+        raise BaselineError(f"cannot read '{tag}:{path}' ({reason})")
     return shown.stdout
+
+
+def _show_first(root: pathlib.Path, tag: str, paths: Sequence[str]) -> str | None:
+    """The first of `paths` that `tag` holds, None when it holds none of them.
+
+    A snapshot file was moved once (`docs/sozlesme/` became `docs/contracts/`), and an old tag keeps the old path.
+    The current path comes first and wins; the old one is tried only when the tag has no file at the current one.
+    An unreadable path raises at once: it never falls through to the next."""
+    for path in paths:
+        text = _show(root, tag, path)
+        if text is not None:
+            return text
+    return None
+
+
+def absent_from_tag(tag: str, paths: Sequence[str]) -> str:
+    """`neither A nor B is in tag 'T'`: every path that was tried, so a reader can see the old name was tried too."""
+    if len(paths) == 1:
+        return f"{paths[0]} is not in tag '{tag}'"
+    return f"neither {' nor '.join(paths)} is in tag '{tag}'"
+
+
+def plural(count: int, noun: str) -> str:
+    """`1 line`, `2 lines`."""
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 def api_at_tag(root: pathlib.Path, tag: str) -> dict[str, set[str]]:
     """Package -> its effective public surface at `tag`."""
     listing = _git(root, "ls-tree", "-r", "--name-only", tag, "--", "src")
     if listing.returncode:
-        reason = (listing.stderr or listing.stdout).strip() or f"çıkış {listing.returncode}"
-        raise BaselineError(f"'{tag}' ağacı listelenemedi ({reason})")
+        reason = (listing.stderr or listing.stdout).strip() or f"exit {listing.returncode}"
+        raise BaselineError(f"cannot list the tree of '{tag}' ({reason})")
     files: dict[str, dict[str, str]] = {}
     for path in listing.stdout.splitlines():
         match = API_FILE.fullmatch(path)
@@ -779,17 +806,18 @@ def required_member_additions(
     comparison is skipped and a note says so - unless `snapshot_required`: a
     frozen baseline was cut after the file existed, so a missing file there is
     a hole in the gate, not a first record."""
-    previous = _show(root, tag, str(REQUIRED_SNAPSHOT))
+    paths = (str(REQUIRED_SNAPSHOT), str(REQUIRED_SNAPSHOT_LEGACY))
+    previous = _show_first(root, tag, paths)
     if previous is None:
         if snapshot_required:
             raise SurfaceError(
-                f"{REQUIRED_SNAPSHOT} '{tag}' etiketinde yok; donmuş bir tabanda anlık görüntü zorunludur "
-                "(required üye eklemesi başka türlü görünmez)")
-        return {}, [], [f"{REQUIRED_SNAPSHOT} '{tag}' etiketinde yok (ilk kayıt): required üye karşılaştırması atlandı"]
+                f"{absent_from_tag(tag, paths)}; a frozen baseline must have the snapshot "
+                "(an added required member would stay invisible)")
+        return {}, [], [f"{absent_from_tag(tag, paths)} (first record): the required-member comparison was skipped"]
     try:
         current = (root / REQUIRED_SNAPSHOT).read_text(encoding="utf-8")
     except OSError as exception:
-        raise SurfaceError(f"{REQUIRED_SNAPSHOT} okunamadı ({exception})") from exception
+        raise SurfaceError(f"cannot read {REQUIRED_SNAPSHOT} ({exception})") from exception
 
     declared_by: dict[str, str] = {}
     for package, surface in sorted(tag_api.items()):
@@ -828,7 +856,7 @@ def surface_delta(root: pathlib.Path, baseline: str) -> SurfaceDelta:
     measures documented behavior, and the notes must name it (`check`)."""
     tag = f"{TAG_PREFIX}{baseline}"
     if _git(root, "rev-parse", "--verify", "--quiet", f"{tag}^{{commit}}").returncode:
-        raise BaselineError(f"taban etiketi '{tag}' bu depoda yok; yüzey karşılaştırması yapılamaz")
+        raise BaselineError(f"baseline tag '{tag}' does not exist in this repository; the surface cannot be compared")
 
     before, after = api_at_tag(root, tag), api_now(root)
     delta = SurfaceDelta(tag=tag)
@@ -898,11 +926,11 @@ def _describe_breaking(changes: BreakingChanges) -> list[str]:
     lines = []
     for package in sorted(set(changes.types) | set(changes.dropped_frameworks)):
         parts = [
-            f"{name} (yeni required üye)" if name in changes.required.get(package, ()) else name
+            f"{name} (new required member)" if name in changes.required.get(package, ()) else name
             for name in sorted(changes.types.get(package, ()))
         ]
         if package in changes.dropped_frameworks:
-            parts.append("düşen TFM " + ", ".join(sorted(changes.dropped_frameworks[package])))
+            parts.append("dropped TFM " + ", ".join(sorted(changes.dropped_frameworks[package])))
         lines.append(f"{package}: {' · '.join(parts)}")
     return lines
 
@@ -932,20 +960,20 @@ def check(
     try:
         line = release_line(baseline, None if version == UNRELEASED else version)
     except ValueError as exception:
-        print(f"❌ Hat belirlenemedi: {exception}")
+        print(f"❌ Cannot decide the release line: {exception}")
         return 1
     print(line.describe())
 
     changes = read_breaking_changes(report_dir)
     if changes.errors:
-        print(f"❌ Paket doğrulama raporu kapının tanımadığı kayıt taşıyor (taban v{baseline}):")
+        print(f"❌ The package validation report holds a record the gate does not know (baseline v{baseline}):")
         for error in changes.errors:
             print(f"  {error}")
         return 1
 
     delta: SurfaceDelta | None = None
     if repo is None:
-        print("ℹ️ Yüzey karşılaştırması yok (depo verilmedi): eklenen üye, required üye ve contract testi denetlenmedi")
+        print("ℹ️ No surface comparison (no repository given): added members, required members and contract tests were not checked")
     else:
         try:
             delta = surface_delta(repo, baseline)
@@ -962,19 +990,19 @@ def check(
     contract = delta.contract_tests if delta is not None else []
 
     if line.frozen and not changes.is_empty:
-        print(f"❌ Donmuş hatta kırıcı değişiklik reddedilir (taban v{baseline}, sürüm {version}); sürüm notu bunu kurtarmaz:")
+        print(f"❌ A breaking change is rejected on a frozen line (baseline v{baseline}, version {version}); the release notes cannot save it:")
         for entry in _describe_breaking(changes):
             print(f"  {entry}")
         failed = True
     if line.frozen and line.patch and delta is not None and delta.added_members:
-        print(f"❌ Yama sürümünde public yüzey büyüyemez (taban v{baseline}, sürüm {version}); eklenen satırlar:")
+        print(f"❌ A patch release cannot grow the public surface (baseline v{baseline}, version {version}); added lines:")
         for package, added in sorted(delta.added_members.items()):
-            print(f"  {package}: {len(added)} satır — {_listed(added)}")
+            print(f"  {package}: {plural(len(added), 'line')} — {_listed(added)}")
         failed = True
     if line.frozen and line.patch and delta is not None and delta.required_dropped:
         print(
-            f"❌ Yama sürümünde required üye opsiyonel olamaz ya da kalkamaz (taban v{baseline}, sürüm {version}); "
-            f"anlık görüntüden düşen satırlar: {_listed(delta.required_dropped)}")
+            f"❌ A required member cannot become optional or go away in a patch release (baseline v{baseline}, version {version}); "
+            f"lines dropped from the snapshot: {_listed(delta.required_dropped)}")
         failed = True
 
     notes, heading = (None, None)
@@ -982,12 +1010,12 @@ def check(
     if breaking_needs_notes or contract:
         notes, heading = release_notes_for(changelog, version)
         if notes is None:
-            subject = "Kırıcı değişiklik var" if breaking_needs_notes else "Contract testi eklendi"
-            print(f"❌ {subject} ama '{version}' için sürüm notu yok (taban v{baseline}).")
+            subject = "A breaking change exists" if breaking_needs_notes else "A contract test was added"
+            print(f"❌ {subject} but there are no release notes for '{version}' (baseline v{baseline}).")
             cut = untagged_cut_hint(changelog, baseline)
             if cut:
                 print(
-                    f"   '## [{cut}]' bölümü var ama etiketi yok: kesim commit'i ile etiketi birlikte itin "
+                    f"   The '## [{cut}]' section exists but its tag does not: push the cut commit and the tag together "
                     f"(git push --atomic origin main v{cut}).")
             failed = True
 
@@ -995,8 +1023,8 @@ def check(
             missing = unnamed_changes(changes, notes)
             if missing:
                 print(
-                    f"❌ Kırıcı değişiklik sürüm notunda adıyla geçmiyor "
-                    f"(taban v{baseline}, not '{heading or 'yok'}'):")
+                    f"❌ The release notes do not name the breaking change "
+                    f"(baseline v{baseline}, notes '{heading or 'none'}'):")
                 for missing_line in missing:
                     print(f"  {missing_line}")
                 failed = True
@@ -1004,11 +1032,11 @@ def check(
             missing_tests = unnamed_contract_tests(contract, notes)
             if missing_tests:
                 print(
-                    f"❌ Contract testi eklemesi sürüm notunda adıyla geçmiyor "
-                    f"(taban v{baseline}, not '{heading or 'yok'}'):")
+                    f"❌ The release notes do not name the added contract test "
+                    f"(baseline v{baseline}, notes '{heading or 'none'}'):")
                 for test in missing_tests:
                     print(f"  {test}")
-                print("   Her test aynı code span içinde `Sınıf.Metot` olarak anılır.")
+                print("   Name each test as `Class.Method` in one code span.")
                 failed = True
 
     if failed:
@@ -1016,13 +1044,13 @@ def check(
 
     breaking_heading = heading if not changes.is_empty else None
     print(
-        f"✅ Kırıcı liste: {changes.type_count()} tip, {changes.framework_count()} TFM düşüşü, "
-        f"{changes.package_count()} paket — "
-        + (f"hepsi '{breaking_heading}' notunda" if breaking_heading else "not gerekmiyor"))
+        f"✅ Break list: {plural(changes.type_count(), 'type')}, {plural(changes.framework_count(), 'dropped TFM')}, "
+        f"{plural(changes.package_count(), 'package')} — "
+        + (f"all named in the '{breaking_heading}' notes" if breaking_heading else "no notes needed"))
     if delta is not None:
         print(
-            f"✅ Contract testi eklemesi (taban {delta.tag}'den beri): {len(contract)}"
-            + (f" — hepsi '{heading}' notunda" if contract else ""))
+            f"✅ Contract tests added (since baseline {delta.tag}): {len(contract)}"
+            + (f" — all named in the '{heading}' notes" if contract else ""))
         for test in contract:
             print(f"  {test}")
     if result_path is not None:
@@ -1033,26 +1061,26 @@ def check(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Kırıcı değişiklik raporunu sürüm notuna karşı denetler.")
-    parser.add_argument("--rapor-dizini", required=True, type=pathlib.Path, help="<paket>.xml bastırma raporlarının dizini")
-    parser.add_argument("--taban", required=True, help="karşılaştırılan yayınlanmış sürüm, 'v'siz")
-    parser.add_argument("--surum", help="notu okunacak sürüm; verilmezse '## [Unreleased]' (donmuş hatta sürüm gerekir)")
+    parser = argparse.ArgumentParser(description="Checks the breaking-change report against the release notes.")
+    parser.add_argument("--report-directory", required=True, type=pathlib.Path, help="directory of the <package>.xml suppression reports")
+    parser.add_argument("--base", required=True, help="released version to compare with, without the 'v'")
+    parser.add_argument("--package-version", help="version whose notes are read; without it the '## [Unreleased]' notes are used (a frozen line needs a version)")
     parser.add_argument("--changelog", type=pathlib.Path, default=ROOT / "CHANGELOG.md")
     parser.add_argument(
-        "--depo", type=pathlib.Path,
-        help="verilirse PublicAPI dosyaları, required anlık görüntüsü ve contract testleri bu deponun taban etiketiyle karşılaştırılır")
+        "--repository", type=pathlib.Path,
+        help="when given, the PublicAPI files, the required snapshot and the contract tests are compared with the baseline tag of this repository")
     args = parser.parse_args(argv)
 
-    if not args.rapor_dizini.is_dir():
-        print(f"❌ Rapor dizini yok: {args.rapor_dizini}")
+    if not args.report_directory.is_dir():
+        print(f"❌ The report directory does not exist: {args.report_directory}")
         return 1
     return check(
-        report_dir=args.rapor_dizini,
-        baseline=args.taban,
-        version=args.surum or UNRELEASED,
+        report_dir=args.report_directory,
+        baseline=args.base,
+        version=args.package_version or UNRELEASED,
         changelog=args.changelog,
         result_path=None,
-        repo=args.depo,
+        repo=args.repository,
     )
 
 

@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
 /// Pins the <c>required</c> members of the public API to the checked-in
-/// snapshot <c>docs/sozlesme/required-uyeler.txt</c>.
+/// snapshot <c>docs/contracts/required-members.txt</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -211,7 +211,7 @@ public sealed class RequiredMemberSnapshotTests
             Environment.NewLine,
             lines.Take(MaxListed).Select(line => $"{sign} {line}")) + (lines.Count > MaxListed ? $"{Environment.NewLine}  ... +{lines.Count - MaxListed} more" : "");
 
-        return $"docs/sozlesme/required-uyeler.txt is stale: {added.Count} line(s) in the code but not in the file, " +
+        return $"docs/contracts/required-members.txt is stale: {added.Count} line(s) in the code but not in the file, " +
                $"{removed.Count} in the file but not in the code.{Environment.NewLine}" +
                $"{Listed('+', added)}{Environment.NewLine}{Listed('-', removed)}{Environment.NewLine}" +
                $"A new line on an existing type is a breaking change for its consumers (CS9035): name the type in the " +
@@ -267,5 +267,5 @@ public sealed class RequiredMemberSnapshotTests
         }
     }
 
-    private static string SnapshotPath { get; } = Path.Combine(RepoRoot.Path, "docs/sozlesme/required-uyeler.txt");
+    private static string SnapshotPath { get; } = Path.Combine(RepoRoot.Path, "docs/contracts/required-members.txt");
 }

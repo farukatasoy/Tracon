@@ -8,8 +8,12 @@ küçük örnek kümeler üzerinde her kanıt türünü, imza kapanışını ve 
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
+import json
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -18,7 +22,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location(
-    "public_yuzey_envanteri", ROOT / "scripts" / "public-yuzey-envanteri.py")
+    "public_surface_inventory", ROOT / "scripts" / "public-surface-inventory.py")
 envanter = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = envanter
 spec.loader.exec_module(envanter)
@@ -185,26 +189,26 @@ class BildirimTaramaTestleri(unittest.TestCase):
 class SiniflandirmaTestleri(unittest.TestCase):
     def test_kanitsiz_varsayilandir(self):
         tipler = _envanter([])
-        self.assertEqual(_tip(tipler, "Tracon.Helper").sinif, "kanıtsız")
+        self.assertEqual(_tip(tipler, "Tracon.Helper").sinif, "unproven")
 
     def test_site_sayfasindaki_ad_tuketici_kanitidir(self):
         tipler = _envanter([("site", "docs-site/src/content/docs/a.md", "Call `Helper.Compute()`.")])
-        self.assertEqual(_tip(tipler, "Tracon.Helper").sinif, "tüketici")
+        self.assertEqual(_tip(tipler, "Tracon.Helper").sinif, "consumer")
         self.assertEqual(_tip(tipler, "Tracon.Helper").gerekce, "site:docs-site/src/content/docs/a.md")
 
     def test_ad_alt_dize_olarak_eslesmez(self):
         tipler = _envanter([("site", "a.md", "HelperResultSet and MyHelper")])
-        self.assertEqual(_tip(tipler, "Tracon.Helper").sinif, "kanıtsız")
-        self.assertEqual(_tip(tipler, "Tracon.HelperResult").sinif, "kanıtsız")
+        self.assertEqual(_tip(tipler, "Tracon.Helper").sinif, "unproven")
+        self.assertEqual(_tip(tipler, "Tracon.HelperResult").sinif, "unproven")
 
-    def test_kayit_giris_noktasi_korpus_olmadan_tuketicidir_ve_secenekleri_kapanisla_tutar(self):
+    def test_capability_entry_points_korpus_olmadan_tuketicidir_ve_secenekleri_kapanisla_tutar(self):
         tipler = _envanter([])
         uzanti = _tip(tipler, "Tracon.TraconBuilderExtensions")
-        self.assertEqual((uzanti.sinif, uzanti.gerekce), ("tüketici", "giris-noktasi:AddWidget"))
-        self.assertEqual(_tip(tipler, "Tracon.WidgetOptions").gerekce, "imza:Tracon.TraconBuilderExtensions")
-        self.assertEqual(_tip(tipler, "Tracon.WidgetMode").gerekce, "imza:Tracon.WidgetOptions")
+        self.assertEqual((uzanti.sinif, uzanti.gerekce), ("consumer", "entry-point:AddWidget"))
+        self.assertEqual(_tip(tipler, "Tracon.WidgetOptions").gerekce, "signature:Tracon.TraconBuilderExtensions")
+        self.assertEqual(_tip(tipler, "Tracon.WidgetMode").gerekce, "signature:Tracon.WidgetOptions")
 
-    def test_onek_tasimayan_builder_uzantisi_kayit_giris_noktasidir(self):
+    def test_onek_tasimayan_builder_uzantisi_capability_entry_pointsdir(self):
         # `Configure` builder uzantısı oldu; önek kuralı onu kanıtsız bırakırdı.
         unshipped = (
             "Tracon.ConfigureOnlyExtensions\n"
@@ -213,64 +217,64 @@ class SiniflandirmaTestleri(unittest.TestCase):
         kaynak = "namespace Tracon;\npublic static class ConfigureOnlyExtensions { }\n"
         tipler = _envanter([], ek_paketler={"Tracon.Extra": (unshipped, kaynak)})
         tip = _tip(tipler, "Tracon.ConfigureOnlyExtensions", paket="Tracon.Extra")
-        self.assertEqual((tip.sinif, tip.gerekce), ("tüketici", "giris-noktasi:Configure"))
+        self.assertEqual((tip.sinif, tip.gerekce), ("consumer", "entry-point:Configure"))
 
     def test_uzanti_sinifi_metot_adiyla_kanit_bulur(self):
         tipler = _envanter([("sample", "samples/A/Program.cs", 'var s = "x".Shorten();')])
         self.assertEqual(_tip(tipler, "Tracon.StringExtensions").gerekce,
-                         "uzanti:Shorten@sample:samples/A/Program.cs")
+                         "extension:Shorten@sample:samples/A/Program.cs")
 
     def test_oznitelik_kisa_adiyla_kanit_bulur(self):
         tipler = _envanter([("sample", "samples/A/Tools.cs", "[SampleTool(\"x\")] public static int F() => 1;")])
-        self.assertEqual(_tip(tipler, "Tracon.SampleToolAttribute").sinif, "tüketici")
+        self.assertEqual(_tip(tipler, "Tracon.SampleToolAttribute").sinif, "consumer")
 
     def test_oznitelik_kisa_adi_duz_metinde_kanit_degildir(self):
         tipler = _envanter([("site", "a.md", "The SampleTool mode is fast.")])
-        self.assertEqual(_tip(tipler, "Tracon.SampleToolAttribute").sinif, "kanıtsız")
+        self.assertEqual(_tip(tipler, "Tracon.SampleToolAttribute").sinif, "unproven")
 
     def test_openapi_semasi_tuketici_kaniti_degildir(self):
         # HTTP DTO'su internal doğar; sevk edilen belgede görünmesi onu public tutmaz.
         # Belge korpusa girmez (`.json` uzantısı yok) ve sınıflandırıcı şema adı almaz.
         self.assertNotIn(".json", envanter.KORPUS_UZANTILARI)
         tipler = _envanter([])
-        self.assertEqual(_tip(tipler, "Tracon.AgentDescriptor").sinif, "kanıtsız")
+        self.assertEqual(_tip(tipler, "Tracon.AgentDescriptor").sinif, "unproven")
 
     def test_arayuz_ve_abstract_sinif_seamdir_ve_imzalarini_tutar(self):
         tipler = _envanter([])
-        self.assertEqual(_tip(tipler, "Tracon.IRunStore").gerekce, "seam:arayuz")
-        self.assertEqual(_tip(tipler, "Tracon.RunStoreBase").gerekce, "seam:abstract-sinif")
+        self.assertEqual(_tip(tipler, "Tracon.IRunStore").gerekce, "seam:interface")
+        self.assertEqual(_tip(tipler, "Tracon.RunStoreBase").gerekce, "seam:abstract-class")
         self.assertEqual((_tip(tipler, "Tracon.RunRecord").sinif, _tip(tipler, "Tracon.RunRecord").gerekce),
-                         ("seam", "imza:Tracon.IRunStore"))
-        self.assertEqual(_tip(tipler, "Tracon.RunStatus").gerekce, "imza:Tracon.RunRecord")
-        self.assertEqual(_tip(tipler, "Tracon.ProbeResult").gerekce, "imza:Tracon.RunStoreBase")
+                         ("seam", "signature:Tracon.IRunStore"))
+        self.assertEqual(_tip(tipler, "Tracon.RunStatus").gerekce, "signature:Tracon.RunRecord")
+        self.assertEqual(_tip(tipler, "Tracon.ProbeResult").gerekce, "signature:Tracon.RunStoreBase")
 
     def test_tuketici_kaniti_seamden_once_gelir(self):
         tipler = _envanter([("site", "a.md", "Read a `RunRecord` from the store.")])
-        self.assertEqual(_tip(tipler, "Tracon.RunRecord").sinif, "tüketici")
+        self.assertEqual(_tip(tipler, "Tracon.RunRecord").sinif, "consumer")
 
     def test_kapanis_taban_sinifi_ve_kapsayiciyi_tutar(self):
         tipler = _envanter([("site", "a.md", "DerivedHandler and Inner")])
-        self.assertEqual(_tip(tipler, "Tracon.HandlerBase").gerekce, "imza:Tracon.DerivedHandler")
-        self.assertEqual(_tip(tipler, "Tracon.Outer").gerekce, "imza:Tracon.Outer.Inner")
+        self.assertEqual(_tip(tipler, "Tracon.HandlerBase").gerekce, "signature:Tracon.DerivedHandler")
+        self.assertEqual(_tip(tipler, "Tracon.Outer").gerekce, "signature:Tracon.Outer.Inner")
 
     def test_generic_tipin_uye_imzasi_kapanisa_girer(self):
         tipler = _envanter([("site", "a.md", "Cache")])
-        self.assertEqual(_tip(tipler, "Tracon.CacheEntry").gerekce, "imza:Tracon.Cache")
+        self.assertEqual(_tip(tipler, "Tracon.CacheEntry").gerekce, "signature:Tracon.Cache")
 
     def test_belgelenmis_istisna_ve_imzasi_kapanisa_girer(self):
         tipler = _envanter([])
         istisna = _tip(tipler, "Tracon.StoreFailedException")
-        self.assertEqual((istisna.sinif, istisna.gerekce), ("seam", "istisna:Tracon.IThrowingStore"))
-        self.assertEqual(_tip(tipler, "Tracon.StoreFailure").gerekce, "imza:Tracon.StoreFailedException")
+        self.assertEqual((istisna.sinif, istisna.gerekce), ("seam", "exception:Tracon.IThrowingStore"))
+        self.assertEqual(_tip(tipler, "Tracon.StoreFailure").gerekce, "signature:Tracon.StoreFailedException")
 
     def test_belgelenmemis_istisna_kapanisa_girmez(self):
         tipler = _envanter([])
-        self.assertEqual(_tip(tipler, "Tracon.UndocumentedException").sinif, "kanıtsız")
+        self.assertEqual(_tip(tipler, "Tracon.UndocumentedException").sinif, "unproven")
 
     def test_gerekceli_tip_kanitsizdan_ayrilir(self):
-        tipler = _envanter([], gerekceler={"Tracon.Justified": "üretilmiş kod çağırır"})
+        tipler = _envanter([], gerekceler={"Tracon.Justified": "generated code calls it"})
         self.assertEqual((_tip(tipler, "Tracon.Justified").sinif, _tip(tipler, "Tracon.Justified").gerekce),
-                         ("gerekçeli", "gerekçe:üretilmiş kod çağırır"))
+                         ("justified", "reason:generated code calls it"))
 
     def test_sozlesme_paketi_butunuyle_seamdir(self):
         tipler = _envanter([], ek_paketler={
@@ -279,15 +283,15 @@ class SiniflandirmaTestleri(unittest.TestCase):
                 "namespace Tracon.Testing.Contracts; public class StoreContract { }"),
         })
         self.assertEqual(_tip(tipler, "Tracon.Testing.Contracts.StoreContract",
-                              "Tracon.Testing.Contracts.Xunit").gerekce, "seam:sozlesme-paketi")
+                              "Tracon.Testing.Contracts.Xunit").gerekce, "seam:contract-package")
 
     def test_ayni_tam_ad_iki_pakette_iki_ayri_tiptir(self):
         paylasilan = ("Tracon.MigrationRunner\nTracon.MigrationRunner.ProviderName.get -> string!\n",
                       "namespace Tracon; public sealed class MigrationRunner { }")
         tipler = _envanter([("site", "a.md", "MigrationRunner")],
                            ek_paketler={"Tracon.PostgreSql": paylasilan, "Tracon.Sqlite": paylasilan})
-        self.assertEqual(_tip(tipler, "Tracon.MigrationRunner", "Tracon.PostgreSql").sinif, "tüketici")
-        self.assertEqual(_tip(tipler, "Tracon.MigrationRunner", "Tracon.Sqlite").sinif, "tüketici")
+        self.assertEqual(_tip(tipler, "Tracon.MigrationRunner", "Tracon.PostgreSql").sinif, "consumer")
+        self.assertEqual(_tip(tipler, "Tracon.MigrationRunner", "Tracon.Sqlite").sinif, "consumer")
 
 
 class YardimciTestleri(unittest.TestCase):
@@ -304,20 +308,20 @@ class YardimciTestleri(unittest.TestCase):
             envanter.gerekceleri_oku("Tracon.Foo\t\n")
 
     def test_gerekce_satirlari_okunur_yorumlar_atlanir(self):
-        self.assertEqual(envanter.gerekceleri_oku("# başlık\nTracon.Foo\tneden\n"), {"Tracon.Foo": "neden"})
+        self.assertEqual(envanter.gerekceleri_oku("# title\nTracon.Foo\twhy\n"), {"Tracon.Foo": "why"})
 
     def test_bayat_gerekce_raporlanir(self):
         tipler = _envanter([("site", "a.md", "Helper")])
         sorunlar = envanter.bayat_gerekceler(tipler, {"Tracon.Yok": "x", "Tracon.Helper": "y"})
         self.assertEqual(len(sorunlar), 2)
-        self.assertTrue(sorunlar[0].startswith("Tracon.Helper: artık 'tüketici'"))
-        self.assertTrue(sorunlar[1].startswith("Tracon.Yok: public değil"))
+        self.assertTrue(sorunlar[0].startswith("Tracon.Helper: now 'consumer'"))
+        self.assertTrue(sorunlar[1].startswith("Tracon.Yok: not public"))
 
     def test_tablo_toplam_satiri_siniflari_toplar(self):
         tipler = _envanter([("site", "a.md", "Helper")])
         tablo = envanter.tablo_yaz(tipler)
         self.assertIn("| `Tracon.Core` |", tablo)
-        self.assertTrue(tablo.splitlines()[-1].startswith(f"| **Toplam** | **{len(tipler)}** |"))
+        self.assertTrue(tablo.splitlines()[-1].startswith(f"| **Total** | **{len(tipler)}** |"))
 
 
 class UcUcaEnvanterTestleri(unittest.TestCase):
@@ -351,8 +355,8 @@ class UcUcaEnvanterTestleri(unittest.TestCase):
 
             tipler, _ = envanter.envanter_olustur(kok)
 
-        self.assertEqual(tipler[("Tracon.Core", "Tracon.Documented")].sinif, "tüketici")
-        self.assertEqual(tipler[("Tracon.Core", "Tracon.AgentDescriptor")].sinif, "kanıtsız")
+        self.assertEqual(tipler[("Tracon.Core", "Tracon.Documented")].sinif, "consumer")
+        self.assertEqual(tipler[("Tracon.Core", "Tracon.AgentDescriptor")].sinif, "unproven")
 
     def test_belge_okumasini_korpusa_geri_koyan_toplayici_bu_testte_kirilir(self):
         # Olumsuz kontrol: test, kendisini kıracak değişikliği gerçekten görüyor mu?
@@ -371,7 +375,47 @@ class UcUcaEnvanterTestleri(unittest.TestCase):
             with mock.patch.object(envanter, "korpus_topla", belgeyi_de_okuyan):
                 tipler, _ = envanter.envanter_olustur(kok)
 
-        self.assertNotEqual(tipler[("Tracon.Core", "Tracon.AgentDescriptor")].sinif, "kanıtsız")
+        self.assertNotEqual(tipler[("Tracon.Core", "Tracon.AgentDescriptor")].sinif, "unproven")
+
+
+class CommandLineTests(unittest.TestCase):
+    def _exit_code_and_text(self, *argv: str) -> tuple[object, str]:
+        out, err = io.StringIO(), io.StringIO()
+
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            with self.assertRaises(SystemExit) as raised:
+                envanter.main(list(argv))
+
+        return raised.exception.code, out.getvalue() + err.getvalue()
+
+    def test_the_help_text_is_english_and_names_the_english_flags(self):
+        code, text = self._exit_code_and_text("--help")
+
+        self.assertEqual(code, 0)
+        self.assertIsNone(re.search("[çğıöşüÇĞİÖŞÜ]", text))
+
+        for flag in ("--list", "--package", "--type", "--check"):
+            self.assertIn(flag, text)
+
+    def test_the_old_turkish_flags_and_class_names_are_refused(self):
+        for argv in (("--liste", "unproven"), ("--paket", "x"), ("--tip", "x"), ("--denetle",),
+                     ("--list", "kanıtsız"), ("--list", "hepsi")):
+            code, _ = self._exit_code_and_text(*argv)
+            self.assertEqual(code, 2, argv)
+
+    def test_the_class_names_are_english(self):
+        self.assertEqual(envanter.SINIFLAR, ("consumer", "seam", "justified", "unproven"))
+
+    def test_the_json_keys_are_english(self):
+        tipler = _envanter([("site", "a.md", "Helper")])
+        out = io.StringIO()
+
+        with mock.patch.object(envanter, "envanter_olustur", return_value=(tipler, {})):
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(envanter.main(["--json"]), 0)
+
+        first = json.loads(out.getvalue())[0]
+        self.assertEqual(set(first), set(envanter.JSON_ALANLARI.values()))
 
 
 if __name__ == "__main__":

@@ -22,9 +22,9 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// and every member declared on the builder interface itself.
 /// </para>
 /// <para>
-/// The same rule is written once more, in <c>scripts/public-yuzey-envanteri.py</c>
+/// The same rule is written once more, in <c>scripts/public-surface-inventory.py</c>
 /// (its predicate is
-/// <c>kayit_giris_noktasi</c>). A change here changes that copy as well. Each
+/// <c>capability_entry_points</c>). A change here changes that copy as well. Each
 /// copy has a test that finds <c>Configure</c>, <c>RequireCustomBinding</c>
 /// and <c>RequireProductionProfile</c>, the three builder entry points without
 /// a registration prefix.

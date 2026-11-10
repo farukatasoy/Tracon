@@ -1,0 +1,21 @@
+# Public types that have no outside evidence but stay public on purpose.
+#
+# `scripts/public-surface-inventory.py` reads this file: a type named here counts as
+# "justified", not "unproven", and the signature closure spreads from it too.
+# Format: <full name><TAB><reason - one sentence that names the concrete evidence>.
+# A line without a reason is an error; the line of a type that is no longer public
+# or that has found its own evidence is reported as a "stale reason" and gets deleted.
+#
+# These do NOT count as a reason to stay: being used in the BODY of another first-party
+# package (InternalsVisibleTo solves that), being used in a test project, or the guess
+# "a consumer may want it later".
+Tracon.AgentParameterValidator	The documentation of the public AgentDefinitionCompiler.CompileParameterizedAsync tells a caller that has not validated the document to call AgentParameterValidator.ValidateValues first; the site describes a parameterized run compiled outside the catalog (write-your-own-agent-decorator).
+Tracon.ApiKeyGenerator	A third-party store that implements the IApiKeyStore seam creates the key with ApiKeyGenerator.Generate, and ApiKeyAuthenticator looks the presented token up with ApiKeyGenerator.ComputeHash; the shipped ApiKeyStoreContract checks the `ap_` format and the lookup by this hash.
+Tracon.EvalRunDiffBuilder	The XML documentation of IEvalStore.DiffRunsAsync tells the implementer to delegate to EvalRunDiffBuilder.Build instead of rewriting the comparison rules.
+Tracon.JobLanes	JobLanes.Resolve is called from every IJobStore.EnqueueAsync implementation (TraconSchedulingOptions.LaneByHandlerKey is applied inside it); the documentation of seven public types ties the lane dictionary to this type.
+Tracon.RetentionTargets	The IRetentionStore documentation says the target name comes from this allow list and that an unknown target is expected to throw ArgumentException; the shipped RetentionStoreContract asks the implementer to write rows under RetentionTargets.VoiceSessions.
+Tracon.RunEventCustomTypes	The RunEventType.Custom documentation ties the CustomType rules that a consumer writes and the reserved prefix to this type; a consumer that turns on TraconQuotaOptions.PublishThresholdToRunStream recognizes the notification with RunEventCustomTypes.QuotaThreshold.
+Tracon.TraconGeneratedToolArguments	The wrapper that the [TraconTool] source generator emits calls this type, and that code enters the consumer's own assembly; InternalsVisibleTo does not work there.
+Tracon.TraconRunBudgetExceededException	In an agent that runs in-process with TraconRunOptions.Budget, this exception reaches consumer code from AIAgent.RunAsync/RunStreamingAsync without being converted.
+Tracon.TraconStructuredResponseException	When an IStructuredResponseValidator that the consumer registered rejects a response, this exception reaches the caller of the in-process AIAgent.RunAsync from RunRecordingAgent without being converted.
+Tracon.TraconToolTimeoutException	The documentation of the public TimeoutAIFunction says the wrapped call ends with this exception; a consumer that calls the tool directly or wraps it with its own function-invocation layer sees it by type.

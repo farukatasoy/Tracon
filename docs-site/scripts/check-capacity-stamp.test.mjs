@@ -320,7 +320,7 @@ test('rounding comes from one place, so the page and the gate cannot diverge', (
 });
 
 test('the gate changes no file', (t) => {
-  // `--denetle` promises to read and not write. A gate that repaired the page
+  // The check promises to read and not write. A gate that repaired the page
   // would hide exactly the drift it exists to report.
   const f = fixture(t);
   const snapshot = (dir) =>

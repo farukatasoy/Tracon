@@ -34,13 +34,13 @@ from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"
-MEASUREMENTS = ARTIFACTS / "kapi-olcum.jsonl"
+MEASUREMENTS = ARTIFACTS / "gate-timings.jsonl"
 PACKAGE_RELEASE_DIR = ARTIFACTS / "package" / "release"
-# `yayin --kuru` (pack modu) çıktısı: sürüm başına AYRI bir dizin. `release/`
+# `release --dry-run` (pack modu) çıktısı: sürüm başına AYRI bir dizin. `release/`
 # geliştirme döngüsünün feed'idir (`dotnet pack`, kapanış, paket testleri oraya
 # yazar); prova oraya promote ettiğinde her eski sürüm provanın sample kapısını
 # düşürüyordu ve hicbir dosya silinmez. Ayrı dizinde farklı sürüm hiç karışmaz.
-PACKAGE_REHEARSAL_ROOT = ARTIFACTS / "package" / "yayin"
+PACKAGE_REHEARSAL_ROOT = ARTIFACTS / "package" / "rehearsal"
 PACKABLE_SOLUTION_FILTER = ROOT / "Tracon.src.slnf"
 PACKAGE_MANIFEST_NAME = "package-manifest.json"
 PACKAGE_REPORT_DIR_NAME = "api-compat"
@@ -89,9 +89,9 @@ TEST_MAX_CPU_COUNT = 2
 # MTP 2 TRX'i test ikilisinin yanina degil `--results-directory`'ye
 # yazar; `per-module` dizilimi `<proje>/<tfm>_<mimari>/*.trx` verir. ci.yml
 # "Test et" adimlari ve "Test sonuclarini yukle" adimi AYNI yolu tasir
-# (`kapi_test.py` ikisini birlikte denetler).
+# (`gate_test.py` ikisini birlikte denetler).
 TEST_RESULTS_DIRECTORY = "artifacts/test-results"
-TEST_DURATIONS_DIRECTORY = "artifacts/test-sureleri"
+TEST_DURATIONS_DIRECTORY = "artifacts/test-durations"
 TEST_DURATIONS_KEEP = 20
 
 # Modul basina mutlak duvar suresi butcesi, saniye: TRX'in `Times start` ile `finish` arasi,
@@ -108,9 +108,9 @@ TEST_DURATIONS_KEEP = 20
 #   SqlServer 400: tam kapida iki modul ayni anda, baska modullerle birlikte (bos makine degil);
 #     en yavas kosum 361 sn. Hedef 240 sn; butce hedefe iner.
 #   TwoNode 540: ayni olcum; en yavas kosum 489 sn. Hedef 500 sn.
-#   Ui.E2ETests 40: bes `kararlilik` kosumu, 117 test, en yavas 32,3 sn x 1,10 = 35,5 sn -> 40 sn
+#   Ui.E2ETests 40: bes `stability` kosumu, 117 test, en yavas 32,3 sn x 1,10 = 35,5 sn -> 40 sn
 #     (onceki 60 sn, CI matrisinin 47,9 sn'lik olcumunden gelmisti: bu makinede degil).
-#   Asagidaki yedisi ayni bes `kararlilik` kosumundan (ayni test sayisi; en yavas kosum, CPU baskili
+#   Asagidaki yedisi ayni bes `stability` kosumundan (ayni test sayisi; en yavas kosum, CPU baskili
 #   iki kosum DAHIL, yani butce kapinin normal kosumundan comerttir): AspNetCore 359,7 sn (4296 test)
 #   -> 400 · PostgreSql 149,4 sn (1805) -> 170 · Package 275,9 sn (139) -> 310 · Core 42,1 sn (7373;
 #   bir kosumu kirmizi, yesil kosumlarin en yavasi) -> 50 · Workflows 31,2 sn (703) -> 40 ·
@@ -119,10 +119,10 @@ TEST_DURATIONS_KEEP = 20
 #     duser); Cli (10,2 sn: 20 sn'ye yuvarlama bir sinir olmaz) ve 10 sn altindaki moduller.
 #
 # 🚨 Sayi yalniz DUSER. Asan modulde butce yukseltilmez: once sebep olculur
-# (`artifacts/test-sureleri/` test basina kayit). Tek istisna kanitli yavas
+# (`artifacts/test-durations/` test basina kayit). Tek istisna kanitli yavas
 # makinedir: hicbir assert dusmedi ve format ile derleme ayni gunun normal
 # kosumunun en az 4 kati surdu. O kosum bir kez tekrarlanir ve kaydedilir.
-# Sure DEGISKENLIGI kapida denetlenmez: onu `kararlilik` komutu olcer.
+# Sure DEGISKENLIGI kapida denetlenmez: onu `stability` komutu olcer.
 TEST_MODULE_TIME_LIMITS_SECONDS: dict[str, int] = {
     "Tracon.SqlServer.IntegrationTests": 400,
     "Tracon.TwoNode.IntegrationTests": 540,
@@ -173,7 +173,7 @@ DOC_REFERENCE_FROZEN_DIR = re.compile(r"(^|[\\/])Migrations[A-Za-z]*[\\/]")
 # dokümanda asla meşru değildir, yerel kurulum deyimi ise manuel testin kendisidir.
 #
 # 🚨 Bu yorum deyimi düz yazamaz - dosya kapının KENDİ taramasına girer ve düz
-# yazılan bir örnek kapıyı kendi kaynağı üzerinde kırmızı yapar. `kapi_test.py`
+# yazılan bir örnek kapıyı kendi kaynağı üzerinde kırmızı yapar. `gate_test.py`
 # aynı sebeple fixture'ı parçalı yazar (`"Pass" + "word="`). Ölçüldü, yaşandı.
 CREDENTIAL_SHAPE_PATTERN = re.compile(
     r"sk-[a-z]+-[A-Za-z0-9_-]{24,}"
@@ -233,7 +233,7 @@ def _no_commands(base: str) -> tuple[Command, ...]:
 
 @dataclasses.dataclass(frozen=True)
 class ScanCheck:
-    """One more finding class for `tarama`: a heading and the function that returns its violations.
+    """One more finding class for `scan`: a heading and the function that returns its violations.
 
     The function gets the repository root and returns the violations; an empty result is clean. It must
     fail red, not skip: a check that cannot run returns a violation that says so.
@@ -252,18 +252,18 @@ class Extension:
     extension to `main`, so this file never has to name those steps.
     """
 
-    program: str = "scripts/kapi.py"
-    """The entry point the closing run calls for `tarama`, so the wrapper scans its own roots."""
+    program: str = "scripts/gate.py"
+    """The entry point the closing run calls for `scan`, so the wrapper scans its own roots."""
     generation: tuple[Command, ...] = ()
     """Generators that run before the public ones."""
     after_scan: Callable[[str], Sequence[Command]] = _no_commands
-    """Checks that run right after `tarama`; the argument is the `kapanis --taban` commit."""
+    """Checks that run right after `scan`; the argument is the `close --base` commit."""
     scan_checks: tuple[ScanCheck, ...] = ()
-    """More finding classes for `tarama` itself, so they run before a commit and before `after_scan`."""
+    """More finding classes for `scan` itself, so they run before a commit and before `after_scan`."""
     sync_roots: tuple[str, ...] = ()
     doc_reference_roots: tuple[str, ...] = ()
     ci_remote: str = "origin"
-    """The git remote whose CI run `uzak-durum` reads. A repository that mirrors its code elsewhere names the mirror."""
+    """The git remote whose CI run `remote-state` reads. A repository that mirrors its code elsewhere names the mirror."""
 
 
 PUBLIC = Extension()
@@ -325,10 +325,10 @@ def _execute(command: Command, runner: Runner, environment: Mapping[str, str], *
         if capture and isinstance(result.stdout, str):
             output = result.stdout
     except FileNotFoundError as exception:
-        notice = f"❌ Komut bulunamadı: {exception.filename}"
+        notice = f"❌ Command not found: {exception.filename}"
         exit_code = 127
     except OSError as exception:
-        notice = f"❌ Komut çalıştırılamadı: {exception}"
+        notice = f"❌ Command could not run: {exception}"
         exit_code = 126
     return _Outcome(command, exit_code, started, time.monotonic(), output, notice)
 
@@ -342,7 +342,7 @@ def _report(stage: str, outcome: _Outcome, measurement_path: pathlib.Path) -> in
     _record_measurement(
         stage, outcome.command, outcome.started, outcome.exit_code, measurement_path, finished=outcome.finished)
     if outcome.exit_code:
-        print(f"❌ Çıkış {outcome.exit_code} ({outcome.seconds:.2f} s): {outcome.command.display}", flush=True)
+        print(f"❌ Exit {outcome.exit_code} ({outcome.seconds:.2f} s): {outcome.command.display}", flush=True)
     else:
         print(f"✅ {outcome.seconds:.2f} s", flush=True)
     return outcome.exit_code
@@ -377,11 +377,11 @@ def _block_reports_trx(block: Sequence[Command]) -> bool:
 
 
 def _group_heading(block: Sequence[Command]) -> str:
-    return f"paralel grup «{block[0].group}»: {len(_lanes(block))} hat, {len(block)} komut"
+    return f"parallel group «{block[0].group}»: {len(_lanes(block))} lanes, {len(block)} commands"
 
 
 def _print_plan(blocks: Sequence[Sequence[Command]]) -> None:
-    """`--komutlari-bas`: every command as `$ ...`; group and lane markers are `#` lines so a parser can skip them."""
+    """`--print-commands`: every command as `$ ...`; group and lane markers are `#` lines so a parser can skip them."""
     for block in blocks:
         parallel = _is_parallel(block)
         if parallel:
@@ -390,10 +390,10 @@ def _print_plan(blocks: Sequence[Sequence[Command]]) -> None:
         for command in block:
             if parallel and command.lane is not None and command.lane != lane:
                 lane = command.lane
-                print(f"# hat {lane}")
+                print(f"# lane {lane}")
             print(f"$ {command.display}")
         if parallel:
-            print(f"# grup sonu «{block[0].group}»")
+            print(f"# group end «{block[0].group}»")
 
 
 GROUP_HEARTBEAT_SECONDS = 60.0
@@ -449,14 +449,14 @@ def _run_group(
                     now = time.monotonic()
                     outcome = _Outcome(
                         block[index], INTERNAL_ERROR_EXIT_CODE, now, now,
-                        notice=f"❌ Komut koşucusu çöktü: {exception!r}")
+                        notice=f"❌ The command runner crashed: {exception!r}")
                 outcomes[index] = outcome
                 running.pop(index, None)
                 if outcome.exit_code:
                     red.set()
             finished.put(index)
 
-    print(f"# {_group_heading(block)}; çıktı liste sırasıyla basılır", flush=True)
+    print(f"# {_group_heading(block)}; output prints in list order", flush=True)
     exit_code = 0
     group_started = time.monotonic()
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(lanes)) as pool:
@@ -469,17 +469,17 @@ def _run_group(
                 index = finished.get(timeout=GROUP_HEARTBEAT_SECONDS)
             except queue.Empty:
                 names = ", ".join(_label(block[active]) for active in sorted(running))
-                print(f"   … sürüyor ({time.monotonic() - group_started:.0f} s): {names}", flush=True)
+                print(f"   … still running ({time.monotonic() - group_started:.0f} s): {names}", flush=True)
                 continue
             done.add(index)
             early = outcomes[index]
             if index != printed and early is not None:
-                print(f"   … bitti, çıktısı sırasını bekliyor: {_label(early.command)}"
-                      f" ({early.seconds:.1f} s, çıkış {early.exit_code})", flush=True)
+                print(f"   … finished, its output waits for its turn: {_label(early.command)}"
+                      f" ({early.seconds:.1f} s, exit {early.exit_code})", flush=True)
             while printed in done:
                 outcome = outcomes[printed]
                 if outcome is None:
-                    print(f"   ⏭ atlandı (aynı grupta kırmızı var): {block[printed].display}")
+                    print(f"   ⏭ skipped (another command in the group is red): {block[printed].display}")
                 else:
                     print(f"$ {outcome.command.display}")
                     result = _report(stage, outcome, measurement_path)
@@ -497,7 +497,7 @@ def _run_block(
     return _run_sequential(stage, block, runner, environment, measurement_path)
 
 
-TRX_CHECK = Command(("kapi.py", "trx-denetimi"))
+TRX_CHECK = Command(("gate.py", "trx-check"))
 """Stands for the checks of a whole test run in the measurement file; a row exists only when they fail."""
 
 
@@ -523,7 +523,7 @@ def _run_test_stages(
         if not exit_code:
             exit_code = enforce_module_time_limits(since)
         if exit_code:
-            print(f"❌ Çıkış {exit_code}: test koşumunun TRX denetimi")
+            print(f"❌ Exit {exit_code}: TRX checks of the test run")
             _record_measurement(stage, TRX_CHECK, check_started, exit_code, measurement_path)
     record_test_durations(since)
     if exit_code:
@@ -584,10 +584,10 @@ def require_executed_tests(since: float, root: pathlib.Path = ROOT) -> int:
     degil KIRMIZI doner; ayrintiyi basar ki "yesil" sayiyla okunsun."""
     tests, modules = executed_tests_from_trx(since, root)
     if tests == 0:
-        print(f"❌ Test kosumu çıkış kodu 0 verdi ama {TEST_RESULTS_DIRECTORY} altında koşulmuş test yok"
-              f" ({modules} TRX). Kapı yeşil sayılmaz: bayrak yutulmuş ya da TRX yolu değişmiş olabilir.")
+        print(f"❌ The test run exited with code 0, but no executed test exists under {TEST_RESULTS_DIRECTORY}"
+              f" ({modules} TRX). The gate does not count as green: a flag may have been swallowed or the TRX path may have changed.")
         return ZERO_TESTS_EXIT_CODE
-    print(f"   {tests} test, {modules} modül (TRX: {TEST_RESULTS_DIRECTORY})")
+    print(f"   {tests} tests, {modules} modules (TRX: {TEST_RESULTS_DIRECTORY})")
     return 0
 
 
@@ -629,7 +629,7 @@ def enforce_module_time_limits(
 
     Her modulun duvar suresi her kosumda basilir: butceye yaklasma kirmizidan once gorunur. Butcesi
     olmayan modul yalniz raporlanir (`sinir yok`). Suresi okunamayan TRX uyarir, kapiyi kirmaz.
-    Sure degiskenligi burada denetlenmez; onu `kararlilik` olcer."""
+    Sure degiskenligi burada denetlenmez; onu `stability` olcer."""
     limits = TEST_MODULE_TIME_LIMITS_SECONDS if limits is None else limits
     results = root / TEST_RESULTS_DIRECTORY
     measured: list[tuple[float, str, int | None]] = []
@@ -637,28 +637,28 @@ def enforce_module_time_limits(
         label = trx.parent.relative_to(results).as_posix()
         seconds = trx_wall_seconds(tree)
         if seconds is None:
-            print(f"   ⚠️ {label}: TRX süresi okunamadı, süre sınırı denetlenmedi")
+            print(f"   ⚠️ {label}: the TRX duration could not be read, the time limit was not checked")
             continue
         measured.append((seconds, label, limits.get(project)))
     if measured:
-        print("   ⏱️  Modül süreleri (TRX duvar süresi; sınırı olmayan modül yalnız raporlanır):")
+        print("   ⏱️  Module times (TRX wall time; a module without a limit is only reported):")
     exceeded: list[str] = []
     for seconds, label, limit in sorted(measured, key=lambda row: (-row[0], row[1])):
         if limit is None:
-            print(f"      {label}: {seconds:.0f} s · sınır yok")
+            print(f"      {label}: {seconds:.0f} s · no limit")
             continue
         headroom = limit - seconds
-        remaining = f"kalan {headroom:.0f} s (%{100 * headroom / limit:.0f})" if headroom >= 0 else f"AŞILDI {-headroom:.0f} s"
-        print(f"      {label}: {seconds:.0f} s · sınır {limit} s · {remaining}")
+        remaining = f"left {headroom:.0f} s ({100 * headroom / limit:.0f}%)" if headroom >= 0 else f"EXCEEDED by {-headroom:.0f} s"
+        print(f"      {label}: {seconds:.0f} s · limit {limit} s · {remaining}")
         if seconds > limit:
             exceeded.append(f"{label} {seconds:.0f} s > {limit} s")
     if not exceeded:
         return 0
-    print(f"❌ Modül süre sınırı aşıldı: {'; '.join(exceeded)}.")
-    print("   → Sınırı yükseltme ve kapıyı yeniden koşturma: önce hangi testin uzadığını"
-          f" ölç ({TEST_DURATIONS_DIRECTORY}/, test başına süre). Tek istisna kanıtlı yavaş"
-          " makinedir: hiçbir assert düşmedi ve format ile derleme aynı günün normalinin"
-          " en az 4 katı sürdü.")
+    print(f"❌ Module time limit exceeded: {'; '.join(exceeded)}.")
+    print("   → Do not raise the limit and do not just rerun the gate. First measure which test got slower"
+          f" ({TEST_DURATIONS_DIRECTORY}/, time per test). The one exception is a proven slow"
+          " machine: no assert failed, and format and build took at least 4 times their normal"
+          " time that day.")
     return MODULE_TIME_LIMIT_EXIT_CODE
 
 
@@ -763,7 +763,7 @@ def find_stale_doc_references(
     return sorted(found)
 
 
-PUBLIC_SURFACE_AUDIT = pathlib.Path("scripts") / "public-yuzey-envanteri.py"
+PUBLIC_SURFACE_AUDIT = pathlib.Path("scripts") / "public-surface-inventory.py"
 
 
 def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
@@ -771,7 +771,7 @@ def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
 
     A public type must be seen by a consumer (site page, sample, template, README),
     be a seam, or carry a written reason in
-    `scripts/public-yuzey-gerekceleri.tsv`. Without this scan the audit ran only when
+    `scripts/public-surface-reasons.tsv`. Without this scan the audit ran only when
     someone remembered it, and two unproven exception types slipped in twice.
     """
     script = root / PUBLIC_SURFACE_AUDIT
@@ -781,15 +781,15 @@ def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
     # (Windows) cannot turn the audit itself into a crash.
     run = dict(cwd=root, capture_output=True, text=True, encoding="utf-8", check=False,
                env={**os.environ, "PYTHONUTF8": "1"})
-    result = subprocess.run([sys.executable, str(script), "--denetle"], **run)
+    result = subprocess.run([sys.executable, str(script), "--check"], **run)
     if result.returncode == 0:
         return []
     found = [line for line in result.stderr.splitlines() if line.strip()]
-    listing = subprocess.run([sys.executable, str(script), "--liste", "kanıtsız"], **run)
+    listing = subprocess.run([sys.executable, str(script), "--list", "unproven"], **run)
     for line in listing.stdout.splitlines():
         columns = line.split("\t")
         if len(columns) >= 2:
-            found.append(f"{columns[1]}: kanıtsız public tip ({columns[0]})")
+            found.append(f"{columns[1]}: public type without evidence ({columns[0]})")
     return found
 
 
@@ -809,13 +809,13 @@ def context7_version_drift(root: pathlib.Path = ROOT) -> list[str]:
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exception:
-        return [f"{CONTEXT7_CONFIG} okunamadı: {exception}"]
+        return [f"{CONTEXT7_CONFIG} could not be read: {exception}"]
 
     versions = config.get("previousVersions") if isinstance(config, dict) else None
     first = versions[0] if isinstance(versions, list) and versions else None
     tag = first.get("tag") if isinstance(first, dict) else first
     if not isinstance(tag, str) or not tag:
-        return [f"{CONTEXT7_CONFIG}: `previousVersions` ilk öğesi son yayının etiketi olmalı; etiket yok"]
+        return [f"{CONTEXT7_CONFIG}: the first item of `previousVersions` must be the tag of the latest release; no tag found"]
 
     sys.path.insert(0, str(ROOT / "scripts"))
     import changelog
@@ -824,9 +824,9 @@ def context7_version_drift(root: pathlib.Path = ROOT) -> list[str]:
     latest = changelog.latest_released_version(
         changelog_path.read_text(encoding="utf-8")) if changelog_path.is_file() else None
     if latest is None:
-        return [f"{CONTEXT7_CONFIG}: CHANGELOG.md tarihli bir sürüm bölümü taşımıyor; etiket doğrulanamadı"]
+        return [f"{CONTEXT7_CONFIG}: CHANGELOG.md has no dated version section; the tag could not be verified"]
     if tag != f"v{latest}":
-        return [f"{CONTEXT7_CONFIG}: `previousVersions` ilk etiketi {tag}; CHANGELOG.md son yayını v{latest}"]
+        return [f"{CONTEXT7_CONFIG}: the first `previousVersions` tag is {tag}; the latest release in CHANGELOG.md is v{latest}"]
     return []
 
 
@@ -846,11 +846,11 @@ def upgrade_baseline_drift(root: pathlib.Path = ROOT) -> list[str]:
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exception:
-        return [f"{UPGRADE_BASELINE_MANIFEST} okunamadı: {exception}"]
+        return [f"{UPGRADE_BASELINE_MANIFEST} could not be read: {exception}"]
 
     version = manifest.get("version") if isinstance(manifest, dict) else None
     if not isinstance(version, str) or not version:
-        return [f"{UPGRADE_BASELINE_MANIFEST}: `version` yok"]
+        return [f"{UPGRADE_BASELINE_MANIFEST}: no `version`"]
 
     sys.path.insert(0, str(ROOT / "scripts"))
     import changelog
@@ -859,10 +859,10 @@ def upgrade_baseline_drift(root: pathlib.Path = ROOT) -> list[str]:
     latest = changelog.latest_released_version(
         changelog_path.read_text(encoding="utf-8")) if changelog_path.is_file() else None
     if latest is None:
-        return [f"{UPGRADE_BASELINE_MANIFEST}: CHANGELOG.md tarihli bir sürüm bölümü taşımıyor; taban doğrulanamadı"]
+        return [f"{UPGRADE_BASELINE_MANIFEST}: CHANGELOG.md has no dated version section; the baseline could not be verified"]
     if version != latest:
-        return [f"{UPGRADE_BASELINE_MANIFEST}: taban {version}; CHANGELOG.md son yayını {latest}. "
-                f"`python3 scripts/upgrade_baseline.py --yaz` tabanı etiketten yeniden yazar"]
+        return [f"{UPGRADE_BASELINE_MANIFEST}: the baseline is {version}; the latest release in CHANGELOG.md is {latest}. "
+                f"`python3 scripts/upgrade_baseline.py --write` rewrites the baseline from the tag"]
     return []
 
 
@@ -877,42 +877,42 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     extra = [(check.heading, list(check.violations(root))) for check in extension.scan_checks]
     if (not copies and not secrets and not stale_docs and not public_surface and not context7
             and not upgrade_baseline and not any(violations for _, violations in extra)):
-        print("Tarama: ✅ temiz"
-              + (f" ({synthetic} işaretli sentetik credential atlandı)" if synthetic else ""))
+        print("Scan: ✅ clean"
+              + (f" ({synthetic} marked synthetic credentials skipped)" if synthetic else ""))
         return 0
 
     if copies:
-        print("Tarama: ❌ senkronizasyon kopyaları")
+        print("Scan: ❌ sync copies")
         for path in copies:
             print(f"  {path.relative_to(root)}")
     if secrets:
-        print("Tarama: ❌ olası secret")
+        print("Scan: ❌ possible secret")
         for match in secrets[:20]:
             print(f"  {match}")
         if len(secrets) > 20:
             print(f"  … +{len(secrets) - 20}")
     if stale_docs:
-        print("Tarama: ❌ bayat doküman referansı (arşivlenen faz)")
+        print("Scan: ❌ stale doc reference (the target file no longer exists)")
         for reference in stale_docs[:20]:
             print(f"  {reference}")
         if len(stale_docs) > 20:
             print(f"  … +{len(stale_docs) - 20}")
     if public_surface:
-        print("Tarama: ❌ kanıtsız public yüzey — tipi `internal` yap, rehberde adıyla an "
-              "ya da `scripts/public-yuzey-gerekceleri.tsv`'ye gerekçe yaz")
+        print("Scan: ❌ public surface without evidence — make the type `internal`, mention it by name in a guide, "
+              "or write a reason in `scripts/public-surface-reasons.tsv`")
         for violation in public_surface:
             print(f"  {violation}")
     if context7:
-        print("Tarama: ❌ Context7 sürüm kayması — yayın kesimi `context7.json` etiketini de günceller")
+        print("Scan: ❌ Context7 version drift — a release cut also updates the `context7.json` tag")
         for violation in context7:
             print(f"  {violation}")
     if upgrade_baseline:
-        print("Tarama: ❌ yükseltme kapısının tabanı son yayından geride — yayın kesimi tabanı da ilerletir")
+        print("Scan: ❌ the upgrade gate baseline is behind the latest release — a release cut also moves the baseline forward")
         for violation in upgrade_baseline:
             print(f"  {violation}")
     for heading, violations in extra:
         if violations:
-            print(f"Tarama: ❌ {heading}")
+            print(f"Scan: ❌ {heading}")
             for violation in violations[:20]:
                 print(f"  {violation}")
             if len(violations) > 20:
@@ -933,8 +933,8 @@ def _git(*args: str) -> list[str] | None:
 def changed_paths(base: str = "HEAD") -> list[str] | None:
     """Include the base..working-tree range plus untracked paths.
 
-    `base` defaults to HEAD (uncommitted changes only, used by `ic-dongu`);
-    `kapanis` passes its own `--taban` so the performance gate's trigger check
+    `base` defaults to HEAD (uncommitted changes only, used by `inner-loop`);
+    `close` passes its own `--base` so the performance gate's trigger check
     (see `performance_gate_triggered`) sees the WHOLE change set, not just, not just
     what happens to be uncommitted at closing time.
     """
@@ -955,7 +955,7 @@ def frontend_changed(paths: Iterable[str]) -> bool:
 
 
 # -----------------------------------------------------------------------------
-# `performans` - allocation gate
+# `perf` - allocation gate
 #
 # The gate compares ALLOCATED BYTES, never wall-clock duration: on a shared CI
 # runner, allocation is deterministic (same code -> same byte count) while
@@ -1000,15 +1000,15 @@ def load_baseline(path: pathlib.Path = BENCHMARK_BASELINE) -> dict:
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exception:
-        raise BaselineError(f"{path}: taban çizgisi okunamadı: {exception}") from exception
+        raise BaselineError(f"{path}: the baseline could not be read: {exception}") from exception
 
     try:
         document = json.loads(text)
     except json.JSONDecodeError as exception:
-        raise BaselineError(f"{path}: taban çizgisi geçersiz JSON: {exception}") from exception
+        raise BaselineError(f"{path}: the baseline is not valid JSON: {exception}") from exception
 
     if not isinstance(document, dict) or not isinstance(document.get("benchmarks"), dict):
-        raise BaselineError(f"{path}: taban çizgisi beklenen 'benchmarks' anahtarını taşımıyor")
+        raise BaselineError(f"{path}: the baseline lacks the expected 'benchmarks' key")
 
     return document
 
@@ -1048,11 +1048,11 @@ def compare_allocations(
 
     for name in sorted(set(baseline) | set(current)):
         if name not in current:
-            messages.append(f"❌ {name}: bu koşumda üretilmedi (baseline'da var - kaldırılmış olabilir)")
+            messages.append(f"❌ {name}: not produced in this run (it is in the baseline - it may have been removed)")
             exit_code = 1
             continue
         if name not in baseline:
-            messages.append(f"❌ {name}: taban çizgisinde yok - 'kapi.py performans --guncelle' ile ekleyin")
+            messages.append(f"❌ {name}: not in the baseline - add it with 'gate.py perf --update'")
             exit_code = 1
             continue
 
@@ -1064,19 +1064,19 @@ def compare_allocations(
         # same name under .claude/worktrees). Comparing None crashed the gate.
         if current_bytes is None:
             messages.append(
-                f"❌ {name}: ölçüm üretmedi - BenchmarkDotNet çıktısındaki hataya bak "
-                "(ör. aynı adlı ikinci bir Tracon.Benchmarks.csproj)")
+                f"❌ {name}: produced no measurement - see the error in the BenchmarkDotNet output "
+                "(for example a second Tracon.Benchmarks.csproj with the same name)")
             exit_code = 1
             continue
 
         if current_bytes > baseline_bytes:
             messages.append(
-                f"❌ {name}: tahsis arttı ({baseline_bytes} B → {current_bytes} B, +{current_bytes - baseline_bytes} B)")
+                f"❌ {name}: allocation grew ({baseline_bytes} B → {current_bytes} B, +{current_bytes - baseline_bytes} B)")
             exit_code = 1
         elif current_bytes < baseline_bytes:
             messages.append(
-                f"⚠️ {name}: tahsis azaldı ({baseline_bytes} B → {current_bytes} B) - "
-                "taban çizgisi güncellenmeli: 'python3 scripts/kapi.py performans --guncelle'")
+                f"⚠️ {name}: allocation shrank ({baseline_bytes} B → {current_bytes} B) - "
+                "update the baseline: 'python3 scripts/gate.py perf --update'")
         else:
             messages.append(f"✅ {name}: {current_bytes} B")
 
@@ -1122,12 +1122,12 @@ def performance_gate(
 
     result = _run_benchmark_project(runner=runner, report_dir=report_dir)
     if result.returncode:
-        print(f"❌ benchmark koşumu çıkış {result.returncode}")
+        print(f"❌ The benchmark run exited with {result.returncode}")
         return result.returncode
 
     report_files = _benchmark_report_files(report_dir)
     if not report_files:
-        print(f"❌ BenchmarkDotNet JSON raporu bulunamadı ({report_dir})")
+        print(f"❌ BenchmarkDotNet JSON report not found ({report_dir})")
         return 1
 
     current: dict[str, dict[str, float]] = {}
@@ -1137,7 +1137,7 @@ def performance_gate(
     if update:
         write_baseline(current, baseline_path)
         display_path = baseline_path.relative_to(ROOT) if ROOT in baseline_path.parents else baseline_path
-        print(f"✅ taban çizgisi güncellendi: {display_path}")
+        print(f"✅ baseline updated: {display_path}")
         for name, entry in sorted(current.items()):
             print(f"  {name}: {entry['allocatedBytes']} B")
         return 0
@@ -1242,7 +1242,7 @@ UI_TEST_PROJECT = "Tracon.Ui.E2ETests"
 
 # A sample directory the solution really tests, and the project that tests it
 # (via ProjectReference). Measured escape: 6e9cc8f6 - a sixth
-# embedding point, samples/Tracon.Embedded fell behind, and `ic-dongu`
+# embedding point, samples/Tracon.Embedded fell behind, and `inner-loop`
 # selected NO test project at all for a samples/ change.
 SAMPLE_TEST_PROJECTS: dict[str, str] = {
     "Tracon.Embedded": "Tracon.Embedded.Tests",
@@ -1250,7 +1250,7 @@ SAMPLE_TEST_PROJECTS: dict[str, str] = {
 
 # These ship as consumer-facing samples but are NOT in Tracon.slnx: they
 # compile against packed NuGet packages, so no closing-gate test run covers
-# them. Only `kapi.py yayin` (release_extension_samples.py) does. Saying so out
+# them. Only `gate.py release` (release_extension_samples.py) does. Saying so out
 # loud beats selecting nothing silently.
 RELEASE_ONLY_SAMPLE_PREFIX = "samples/Tracon.Samples."
 
@@ -1294,7 +1294,7 @@ def test_target_frameworks(
     else:
         match = _TEST_FRAMEWORKS_PROPERTY.search(_tests_build_props(root))
         if match is None:
-            raise ValueError(f"{TESTS_BUILD_PROPS}: TraconTestTargetFrameworks bulunamadı")
+            raise ValueError(f"{TESTS_BUILD_PROPS}: TraconTestTargetFrameworks not found")
         value = match.group("value")
     return tuple(part.strip() for part in value.split(";") if part.strip())
 
@@ -1302,7 +1302,7 @@ def test_target_frameworks(
 def single_test_target_framework(root: pathlib.Path = ROOT) -> str:
     match = _SINGLE_TEST_FRAMEWORK_PROPERTY.search(_tests_build_props(root))
     if match is None:
-        raise ValueError(f"{TESTS_BUILD_PROPS}: tekil TargetFramework bulunamadı")
+        raise ValueError(f"{TESTS_BUILD_PROPS}: single TargetFramework not found")
     return match.group("value").strip()
 
 
@@ -1331,13 +1331,13 @@ def test_output_directories(
         frameworks = test_target_frameworks(root, environ)
         if framework is not None:
             if framework not in frameworks:
-                raise ValueError(f"{project} {framework} için derlenmiyor (derlenen: {', '.join(frameworks)})")
+                raise ValueError(f"{project} is not built for {framework} (built for: {', '.join(frameworks)})")
             frameworks = (framework,)
         return [project_bin / f"release_{name}" for name in frameworks]
 
     only = single_test_target_framework(root)
     if framework is not None and framework != only:
-        raise ValueError(f"{project} yalnız {only} için derlenir; çoklu TFM kümesi {TESTS_BUILD_PROPS} içindedir")
+        raise ValueError(f"{project} is built only for {only}; the multi-TFM set lives in {TESTS_BUILD_PROPS}")
     return [project_bin / "release"]
 
 
@@ -1468,7 +1468,7 @@ def require_test_runtimes(
     system: str | None = None,
     machine: str | None = None,
     install_location_dir: pathlib.Path = DOTNET_INSTALL_LOCATION_DIR,
-    purpose: str = "Çoklu TFM test projeleri",
+    purpose: str = "Multi-TFM test projects",
 ) -> bool:
     found = installed_runtime_majors(
         environ, runner, system=system, machine=machine, install_location_dir=install_location_dir)
@@ -1478,11 +1478,11 @@ def require_test_runtimes(
     missing = _missing_frameworks(frameworks, majors)
     if not missing:
         return True
-    print(f"❌ {purpose} şu runtime'ları ister: {', '.join(missing)} — `{root}` altında yok"
-          f" (kurulu: {', '.join(str(major) for major in sorted(majors)) or 'hiçbiri'}).")
-    print("   Test apphost'u runtime'ı DOTNET_ROOT_<ARCH>/DOTNET_ROOT'tan, yoksa global kurulumdan"
-          " çözer — PATH'teki `dotnet`'ten DEĞİL."
-          " Cozum: DOTNET_ROOT'u ilgili runtime'larin kurulu oldugu dizine ayarla.")
+    print(f"❌ {purpose} need these runtimes: {', '.join(missing)} — not found under `{root}`"
+          f" (installed: {', '.join(str(major) for major in sorted(majors)) or 'none'}).")
+    print("   The test apphost resolves the runtime from DOTNET_ROOT_<ARCH>/DOTNET_ROOT, or else from the"
+          " global install — NOT from the `dotnet` on PATH."
+          " Fix: set DOTNET_ROOT to the directory where those runtimes are installed.")
     return False
 
 
@@ -1545,8 +1545,8 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
         elif path.startswith("samples/"):
             if path.startswith(RELEASE_ONLY_SAMPLE_PREFIX):
                 print(
-                    f"⚠️ {path}: bu örnek çözümde değildir; yalnız "
-                    "`python3 scripts/kapi.py yayin` onu paketlenmiş sürüme karşı koşar.")
+                    f"⚠️ {path}: this sample is not in the solution; only "
+                    "`python3 scripts/gate.py release` runs it against the packed release.")
                 continue
             match = re.match(r"samples/([^/]+)/", path)
             sample = match.group(1) if match else ""
@@ -1607,7 +1607,7 @@ def full_solution_test_command() -> Command:
 # A red stage ends the run; later stages do not start.
 CORE_TEST_PROJECT = "Tracon.Core.UnitTests"
 FAST_TEST_SOLUTION_FILTER = "Tracon.fast.slnf"
-HEAVY_TEST_GROUP = "agir-testler"
+HEAVY_TEST_GROUP = "heavy-tests"
 
 # Wall seconds of the last full gate (two modules at a time): TwoNode 444, AspNetCore 372, SqlServer 303,
 # Package 158, PostgreSql 111, Sqlite 70, E2E 33. Lane a adds up to 780, lane b to 711.
@@ -1742,7 +1742,7 @@ def record_test_durations(since: float, root: pathlib.Path = ROOT) -> pathlib.Pa
 
     Testlerin suresi iterasyonlar arasinda degismemeli; bunu olcmek icin her
     tam kosumun test basina suresi gerekir. TRX bir sonraki kosumda ezilir, bu
-    kayit ezilmez: `artifacts/test-sureleri/<utc>.json.gz`, son 20 kosum.
+    kayit ezilmez: `artifacts/test-durations/<utc>.json.gz`, son 20 kosum.
 
     Yalniz rapordur: CIKIS KODUNU DEGISTIRMEZ. Yazilamazsa uyarir. Ayni adli
     iki sonuc (ayni gorunen ada sahip `[Theory]` satirlari) en uzunuyla kalir."""
@@ -1768,9 +1768,9 @@ def record_test_durations(since: float, root: pathlib.Path = ROOT) -> pathlib.Pa
         for old in sorted(directory.glob("*.json.gz"))[:-TEST_DURATIONS_KEEP]:
             old.unlink()
     except OSError as exception:
-        print(f"⚠️ Test süre kaydı yazılamadı: {exception}")
+        print(f"⚠️ The test duration record could not be written: {exception}")
         return None
-    print(f"⏱️  Test süreleri: {path.relative_to(root).as_posix()}")
+    print(f"⏱️  Test durations: {path.relative_to(root).as_posix()}")
     return path
 
 
@@ -1802,7 +1802,7 @@ def isolate_failed_tests(
         # adi yerine bir argumani filtreye koyardi.
         method = failure.name.split("(", 1)[0].rsplit(".", 1)[-1]
         if not executable.exists():
-            print(f"   ⚠️ {failure.label}: derlenmis ikili yok, izole kosum atlandi")
+            print(f"   ⚠️ {failure.label}: no built binary, the isolated run was skipped")
             continue
         environment = os.environ.copy()
         environment["MSBUILDDISABLENODEREUSE"] = "1"
@@ -1814,17 +1814,17 @@ def isolate_failed_tests(
 
     if not verdicts:
         return verdicts
-    print("\n🔬 İzole yeniden koşum (teşhis — çıkış kodunu DEĞİŞTİRMEZ):")
+    print("\n🔬 Isolated rerun (diagnosis — does NOT change the exit code):")
     for label, name, passed in verdicts:
-        print(f"   {'✅ izole GEÇTİ' if passed else '❌ izole de DÜŞTÜ'}  {label} · {name}")
+        print(f"   {'✅ PASSED in isolation' if passed else '❌ FAILED in isolation too'}  {label} · {name}")
     if all(passed for _, _, passed in verdicts):
-        print("   → Hepsi izole geçti: test bir zaman, sıra ya da paylaşılan kaynak"
-              " varsayımı taşıyor ya da yalnız yük altında görünen bir ürün yarışı var.")
-        print("   → DUR: paketi yeniden koşturma, yeşil beklemek çözüm değildir."
-              " Hangisi olduğunu bul ve kök sebebi düzelt.")
+        print("   → All passed in isolation: the test carries a time, order, or shared-resource"
+              " assumption, or there is a product race that shows only under load.")
+        print("   → STOP: do not rerun the suite. Waiting for green is not a fix."
+              " Find out which cause it is and fix the root cause.")
     else:
-        print("   → İzole de düşen test GERÇEK regresyondur;"
-              " Kök sebebi araştır.")
+        print("   → A test that fails in isolation too is a REAL regression;"
+              " investigate the root cause.")
     return verdicts
 
 
@@ -1837,7 +1837,7 @@ def inner_loop_commands(paths: list[str]) -> list[Command]:
     frontend_flag = () if needs_frontend else ("-p:TraconFrontendEnabled=false",)
     commands = [Command(("dotnet", "build", "Tracon.slnx", "-c", "Release", *frontend_flag))]
     if needs_full:
-        print("⚠️ Etkilenen proje haritası eksik; test seçimi tam koşuma genişletildi.")
+        print("⚠️ The affected-project map is incomplete; the test selection grew to a full run.")
         return commands + [full_solution_test_command()]
     return commands + [_dotnet_test_project(project) for project in projects]
 
@@ -1858,7 +1858,7 @@ def generation_commands(extension: Extension = PUBLIC) -> list[Command]:
     ]
 
 
-READ_ONLY_GROUP = "salt-okunur"
+READ_ONLY_GROUP = "read-only"
 
 
 def closing_commands(
@@ -1867,18 +1867,18 @@ def closing_commands(
     # Cheapest first; the test run (about 20 min, November 2026) is the most expensive step
     # and runs LAST. Measured (October 2026): 11 of 42 red closing runs failed
     # in a step that used to run AFTER the tests - docs-site check 6,
-    # `performans` 4, format 1 - about 144 minutes of test time thrown away.
+    # `perf` 4, format 1 - about 144 minutes of test time thrown away.
     # Generation runs first so every later check sees the regenerated files.
     #
     # The read-only checks that follow it do not depend on each other, so they run at the same time as
     # one group (about 115 s instead of 180 s). They only read the tree and the network. Everything that
     # writes or builds (generation, restore, build, pack, site, format, performance) stays one after another.
     read_only = [
-        Command(("python3", extension.program, "tarama")),
+        Command(("python3", extension.program, "scan")),
         *extension.after_scan(base),
         # Reads the remote: the last release tag's packages and the last CI run. Early and cheap (a few
         # seconds), because a half-published release is the kind of red no local step can show.
-        Command(("python3", extension.program, "uzak-durum")),
+        Command(("python3", extension.program, "remote-state")),
         Command(("python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "*_test.py")),
     ]
     commands = [
@@ -1893,7 +1893,7 @@ def closing_commands(
         # TraconSkipCleanWorkingTreeCheck: this pack validates the
         # PACKAGING CONTRACT (README, icon) during iteration - it is not
         # a release candidate, so it must still work on an uncommitted tree.
-        # The real release rehearsal (`kapi.py yayin`) and `kapi.py paketle` -
+        # The real release rehearsal (`gate.py release`) and `gate.py pack` -
         # the build job's pack that a `v*` tag publishes - both leave
         # this unset and stay fully gated by TraconValidateCleanWorkingTree.
         Command((
@@ -1918,11 +1918,11 @@ def closing_commands(
     commands.append(Command(("dotnet", "format", "Tracon.slnx", "--verify-no-changes")))
     # Path-triggered: a fifth ALWAYS-ON gate would run BenchmarkDotNet
     # on every phase closing, even when nothing near the four hot paths
-    # changed. `kapi.py performans` stays a normal subcommand; `main()` decides
+    # changed. `gate.py perf` stays a normal subcommand; `main()` decides
     # whether THIS closing run needs it, the same way `affected_test_projects`
-    # already scopes `ic-dongu`.
+    # already scopes `inner-loop`.
     if performance:
-        commands.append(Command(("python3", "scripts/kapi.py", "performans")))
+        commands.append(Command(("python3", "scripts/gate.py", "perf")))
     commands.extend(staged_test_commands())
     return commands
 
@@ -1943,7 +1943,7 @@ def test_commands(
 
 
 # -----------------------------------------------------------------------------
-# `kararlilik` - does one set of built binaries behave the same way, run after run?
+# `stability` - does one set of built binaries behave the same way, run after run?
 #
 # The gate answers "is this tree green once". This command answers the other question: the SAME
 # bytes, run N times, must give the same results in about the same time. It never builds. It runs the
@@ -1960,7 +1960,7 @@ def test_commands(
 #     scheduler noise). Only the runs without CPU pressure are judged; pressured runs are reported.
 #
 # Shuffled order: every xunit v3 test executable of this repository offers `--seed <integer>`
-# ("Set the randomization seed"). With `--sira-karistir` each run gets a different, recorded seed, so a
+# ("Set the randomization seed"). With `--shuffle` each run gets a different, recorded seed, so a
 # failure is replayed with the same seed. xunit documents the order of test COLLECTIONS as random from
 # run to run and the order of classes, methods and cases as stable; it does not say that a seed
 # reorders them. The command therefore measures instead of assuming: it compares the order in which
@@ -1970,7 +1970,7 @@ def test_commands(
 # The thresholds below may only be tightened.
 # -----------------------------------------------------------------------------
 
-STABILITY_REPORT_DIRECTORY = ARTIFACTS / "kararlilik"
+STABILITY_REPORT_DIRECTORY = ARTIFACTS / "stability"
 STABILITY_REPORTS_KEEP = 20
 STABILITY_TRX_DIRECTORIES_KEEP = 3
 STABILITY_DEFAULT_REPEAT = 5
@@ -2166,10 +2166,10 @@ class ModuleComparison:
     @property
     def verdict(self) -> str:
         if self.result_problems:
-            return "sonuç"
+            return "result"
         if self.time_problems:
-            return "süre"
-        return "yeşil"
+            return "time"
+        return "green"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2254,10 +2254,10 @@ def _result_differences(usable: Sequence[ModuleRun]) -> list[str]:
         per_run = [run.outcomes.get(name) for run in usable]
         if len(set(per_run)) > 1:
             shown = ", ".join(
-                f"koşum {run.index}: {'/'.join(found) if found else 'yok'}" for run, found in zip(usable, per_run))
-            problems.append(f"{name} — sonuç değişti ({shown})")
+                f"run {run.index}: {'/'.join(found) if found else 'missing'}" for run, found in zip(usable, per_run))
+            problems.append(f"{name} — result changed ({shown})")
         elif per_run[0] and any(outcome not in STABILITY_PASSING_OUTCOMES for outcome in per_run[0]):
-            problems.append(f"{name} — her koşumda düştü ({'/'.join(per_run[0])})")
+            problems.append(f"{name} — failed in every run ({'/'.join(per_run[0])})")
     return problems
 
 
@@ -2268,13 +2268,13 @@ def compare_module(label: str, runs: Sequence[ModuleRun], *, shuffled: bool = Fa
         label, len(ordered), 0, sum(1 for run in ordered if run.pressured))
     for run in ordered:
         if run.problem:
-            comparison.result_problems.append(f"koşum {run.index}: {run.problem}")
+            comparison.result_problems.append(f"run {run.index}: {run.problem}")
     usable = [run for run in ordered if not run.problem]
     comparison.result_problems.extend(_result_differences(usable))
     for run in usable:
         if run.exit_code != 0 and not run.failed_tests:
             comparison.result_problems.append(
-                f"koşum {run.index}: çıkış kodu {run.exit_code} ama raporda düşen test yok")
+                f"run {run.index}: exit code {run.exit_code} but the report lists no failed test")
 
     judged = [run for run in ordered if run.clean and not run.pressured]
     comparison.judged_runs = len(judged)
@@ -2282,25 +2282,25 @@ def compare_module(label: str, runs: Sequence[ModuleRun], *, shuffled: bool = Fa
         run.wall_seconds for run in ordered if run.clean and run.pressured and run.wall_seconds is not None)
     if len(judged) < 2:
         comparison.notes.append(
-            f"süre karşılaştırılamadı: baskısız ve temiz koşum {len(judged)} (en az 2 gerekir)")
+            f"time could not be compared: {len(judged)} clean unpressured runs (at least 2 are needed)")
     else:
         spreads = duration_spreads(judged)
         comparison.slow_tests = [spread for spread in spreads if spread.exceeded]
         comparison.worst_test = spreads[0] if spreads else None
         for spread in comparison.slow_tests:
             comparison.time_problems.append(
-                f"{spread.name} — test süresi aralığı {spread.span_ms} ms > {spread.allowed_ms:.0f} ms"
-                f" (koşumlar: {', '.join(str(ms) for ms in spread.durations_ms)})")
+                f"{spread.name} — test time span {spread.span_ms} ms > {spread.allowed_ms:.0f} ms"
+                f" (runs: {', '.join(str(ms) for ms in spread.durations_ms)})")
         walls = [run.wall_seconds for run in judged if run.wall_seconds is not None]
         if len(walls) < len(judged):
-            comparison.notes.append("bazı TRX'lerde duvar süresi okunamadı; modül süresi karşılaştırılamadı")
+            comparison.notes.append("the wall time could not be read in some TRX files; the module time could not be compared")
         elif walls:
             comparison.wall_seconds = tuple(walls)
             comparison.wall_exceeded, comparison.wall_spread_percent = wall_spread_exceeded(walls)
             if comparison.wall_exceeded:
                 comparison.time_problems.insert(
-                    0, f"modül duvar süresi: en yavaş {max(walls):.1f} s, en hızlı {min(walls):.1f} s"
-                       f" (fark %{comparison.wall_spread_percent:.1f} > %{STABILITY_MODULE_WALL_PERCENT})")
+                    0, f"module wall time: slowest {max(walls):.1f} s, fastest {min(walls):.1f} s"
+                       f" (spread {comparison.wall_spread_percent:.1f}% > {STABILITY_MODULE_WALL_PERCENT}%)")
 
     if len(usable) >= 2:
         reference = usable[0].order
@@ -2312,17 +2312,17 @@ def compare_module(label: str, runs: Sequence[ModuleRun], *, shuffled: bool = Fa
                 and len(reference) >= STABILITY_SHUFFLE_MIN_TESTS
                 and min(comparison.order_similarity) >= STABILITY_SHUFFLE_NO_EFFECT):
             comparison.notes.append(
-                "karıştırmanın görünür etkisi yok: başlama sırası koşumlar arasında neredeyse aynı"
-                " (tek koleksiyon olabilir ya da sıralayıcı tohumu kullanmıyor)")
+                "shuffle has no visible effect: the start order is almost the same across runs"
+                " (there may be one collection only, or the runner ignores the seed)")
     return comparison
 
 
 def stability_exit_code(comparisons: Iterable[ModuleComparison]) -> int:
     """0 when every module is green; a result problem outranks a time problem."""
     verdicts = {comparison.verdict for comparison in comparisons}
-    if "sonuç" in verdicts:
+    if "result" in verdicts:
         return STABILITY_RESULT_EXIT_CODE
-    if "süre" in verdicts:
+    if "time" in verdicts:
         return STABILITY_TIME_EXIT_CODE
     return 0
 
@@ -2335,11 +2335,11 @@ def _stability_seconds(values: Sequence[float]) -> str:
 
 def format_stability_table(comparisons: Sequence[ModuleComparison], *, shuffled: bool) -> list[str]:
     """One human table: per module the wall times, the worst test and the verdict."""
-    symbols = {"yeşil": "✅", "süre": "⏱️ süre", "sonuç": "❌ sonuç"}
-    header = ["modül", "koşum", "duvar s (min / medyan / maks)", "fark %", "baskılı maks s", "en kötü test (aralık / sınır ms)"]
+    symbols = {"green": "✅", "time": "⏱️ time", "result": "❌ result"}
+    header = ["module", "runs", "wall s (min / median / max)", "spread %", "pressured max s", "worst test (span / limit ms)"]
     if shuffled:
-        header.append("sıra")
-    header.append("karar")
+        header.append("order")
+    header.append("verdict")
     rows: list[list[str]] = []
     for comparison in comparisons:
         worst = comparison.worst_test
@@ -2453,7 +2453,7 @@ def stability_units(
     known = {project for project, _, _ in plan}
     unknown = sorted((set(projects or ()) | set(exclude)) - known)
     if unknown:
-        raise ValueError(f"bilinmeyen test modülü: {', '.join(unknown)}")
+        raise ValueError(f"unknown test module: {', '.join(unknown)}")
     units: list[StabilityUnit] = []
     for project, stage, lane in plan:
         if (projects and project not in projects) or project in exclude:
@@ -2490,21 +2490,21 @@ def _run_stability_unit(
                 stdout=log, stderr=subprocess.STDOUT, timeout=(STABILITY_MODULE_TIMEOUT_MINUTES + 2) * 60)
         exit_code = int(result.returncode)
     except subprocess.TimeoutExpired:
-        exit_code, problem = STABILITY_RUN_TIMEOUT_EXIT_CODE, f"{STABILITY_MODULE_TIMEOUT_MINUTES} dk içinde bitmedi"
+        exit_code, problem = STABILITY_RUN_TIMEOUT_EXIT_CODE, f"did not finish within {STABILITY_MODULE_TIMEOUT_MINUTES} min"
     except FileNotFoundError as exception:
-        exit_code, problem = 127, f"ikili bulunamadı: {exception.filename}"
+        exit_code, problem = 127, f"binary not found: {exception.filename}"
     except OSError as exception:
-        exit_code, problem = STABILITY_LAUNCH_EXIT_CODE, f"süreç başlatılamadı: {exception}"
+        exit_code, problem = STABILITY_LAUNCH_EXIT_CODE, f"the process could not start: {exception}"
     except BaseException as exception:  # a defect here must not leave the calling thread waiting
-        exit_code, problem = INTERNAL_ERROR_EXIT_CODE, f"koşucu çöktü: {exception!r}"
+        exit_code, problem = INTERNAL_ERROR_EXIT_CODE, f"the runner crashed: {exception!r}"
     process_seconds = time.monotonic() - started
     report = None if problem else read_module_report(directory)
     if report is None or not report.outcomes:
         return ModuleRun(
             unit.label, index, pressured, seed, exit_code, process_seconds,
             problem=problem or (
-                f"TRX raporu yok ya da okunamadı (çıkış {exit_code})" if report is None
-                else f"raporda hiç test yok (çıkış {exit_code})"))
+                f"the TRX report is missing or unreadable (exit {exit_code})" if report is None
+                else f"the report holds no test (exit {exit_code})"))
     return ModuleRun(
         unit.label, index, pressured, seed, exit_code, process_seconds, report.wall_seconds,
         report.durations_ms, report.outcomes, report.order)
@@ -2516,8 +2516,8 @@ def _stability_progress(run: ModuleRun) -> str:
     failed = len(run.failed_tests)
     wall = "?" if run.wall_seconds is None else f"{run.wall_seconds:.1f}"
     mark = "✅" if run.clean else "❌"
-    detail = f", {failed} düşen" if failed else (f", çıkış {run.exit_code}" if run.exit_code else "")
-    return f"   {mark} {run.label}: {wall} s, {len(run.outcomes)} test{detail}"
+    detail = f", {failed} failed" if failed else (f", exit {run.exit_code}" if run.exit_code else "")
+    return f"   {mark} {run.label}: {wall} s, {len(run.outcomes)} tests{detail}"
 
 
 def _execute_stability_run(
@@ -2543,7 +2543,7 @@ def _execute_stability_run(
                 except BaseException as exception:  # the calling thread counts results: one must always arrive
                     run = ModuleRun(
                         unit.label, index, pressured, seed, INTERNAL_ERROR_EXIT_CODE, 0.0,
-                        problem=f"koşucu çöktü: {exception!r}")
+                        problem=f"the runner crashed: {exception!r}")
                 finally:
                     running.pop(unit.label, None)
                 arrived.put(run)
@@ -2559,7 +2559,7 @@ def _execute_stability_run(
                         break
                     except queue.Empty:
                         names = ", ".join(sorted(running))
-                        print(f"   … sürüyor ({time.monotonic() - began:.0f} s): {names}", flush=True)
+                        print(f"   … still running ({time.monotonic() - began:.0f} s): {names}", flush=True)
                 finished.append(run)
                 print(_stability_progress(run), flush=True)
 
@@ -2580,15 +2580,15 @@ def _execute_stability_run(
 
 def _print_stability_findings(comparisons: Sequence[ModuleComparison]) -> None:
     for comparison in comparisons:
-        findings = [("sonuç", problem) for problem in comparison.result_problems]
-        findings += [("süre", problem) for problem in comparison.time_problems]
+        findings = [("result", problem) for problem in comparison.result_problems]
+        findings += [("time", problem) for problem in comparison.time_problems]
         if not findings and not comparison.notes:
             continue
         print(f"\n{comparison.label}")
         for kind, problem in findings[:STABILITY_LISTED_PROBLEMS]:
-            print(f"   {'❌' if kind == 'sonuç' else '⏱️'} {problem}")
+            print(f"   {'❌' if kind == 'result' else '⏱️'} {problem}")
         if len(findings) > STABILITY_LISTED_PROBLEMS:
-            print(f"   … {len(findings) - STABILITY_LISTED_PROBLEMS} bulgu daha rapor dosyasında")
+            print(f"   … {len(findings) - STABILITY_LISTED_PROBLEMS} more findings in the report file")
         for note in comparison.notes:
             print(f"   ℹ️ {note}")
 
@@ -2615,16 +2615,16 @@ def stability_check(
     `STABILITY_TIME_EXIT_CODE` when only the time differs; `STABILITY_USAGE_EXIT_CODE` when the command
     itself could not be set up. CPU pressure runs only for the runs in `pressure_runs` (default: the last two)."""
     if repeat < STABILITY_MIN_REPEAT:
-        print(f"❌ --tekrar en az {STABILITY_MIN_REPEAT} olmalı.")
+        print(f"❌ --repeat must be at least {STABILITY_MIN_REPEAT}.")
         return STABILITY_USAGE_EXIT_CODE
     if not units:
-        print("❌ Koşulacak test modülü yok.")
+        print("❌ There is no test module to run.")
         return STABILITY_USAGE_EXIT_CODE
     if pressure and pressure_runs is None:
         pressure_runs = [repeat - 1, repeat] if repeat >= 3 else [repeat]
     pressured_runs = sorted(set(pressure_runs or ())) if pressure else []
     if any(number < 1 or number > repeat for number in pressured_runs):
-        print(f"❌ --baski-kosumlari 1 ile {repeat} arasında olmalı.")
+        print(f"❌ --pressure-runs must be between 1 and {repeat}.")
         return STABILITY_USAGE_EXIT_CODE
     if not shuffle:
         base_seed = None
@@ -2639,12 +2639,12 @@ def stability_check(
     environment["MSBUILDDISABLENODEREUSE"] = "1"
     burners = stability_burner_count(cpu_count)
     burner = burner_factory(burners)
-    shuffle_text = f"açık (tohum {base_seed} + koşum no - 1)" if shuffle else "kapalı"
+    shuffle_text = f"on (seed {base_seed} + run number - 1)" if shuffle else "off"
     pressure_text = (
-        "koşum " + ", ".join(str(number) for number in pressured_runs) + f" ({burners} yük işlemi)"
-        if pressured_runs else "yok")
-    print(f"Kararlılık: {repeat} koşum, {len(units)} test ikilisi; sıra karıştırma: {shuffle_text}; "
-          f"CPU baskısı: {pressure_text}", flush=True)
+        "runs " + ", ".join(str(number) for number in pressured_runs) + f" ({burners} load processes)"
+        if pressured_runs else "none")
+    print(f"Stability: {repeat} runs, {len(units)} test binaries; shuffle: {shuffle_text}; "
+          f"CPU pressure: {pressure_text}", flush=True)
     collected: dict[str, list[ModuleRun]] = {unit.label: [] for unit in units}
     try:
         for index in range(1, repeat + 1):
@@ -2653,16 +2653,16 @@ def stability_check(
                 try:
                     burner.start()
                 except OSError as exception:
-                    print(f"❌ CPU baskısı kurulamadı: {exception}")
+                    print(f"❌ CPU pressure could not be set up: {exception}")
                     return STABILITY_USAGE_EXIT_CODE
                 if burner.alive() < burner.count:
-                    print("❌ CPU baskısı kurulamadı: yük işlemleri başlar başlamaz bitti.")
+                    print("❌ CPU pressure could not be set up: the load processes ended as soon as they started.")
                     return STABILITY_USAGE_EXIT_CODE
             elif not pressured and burner.running:
                 burner.stop()
             seed = None if base_seed is None or not shuffle else base_seed + index - 1
-            print(f"\nKoşum {index}/{repeat}"
-                  f"{' · CPU baskısı' if pressured else ''}{f' · tohum {seed}' if seed is not None else ''}", flush=True)
+            print(f"\nRun {index}/{repeat}"
+                  f"{' · CPU pressure' if pressured else ''}{f' · seed {seed}' if seed is not None else ''}", flush=True)
             for run in _execute_stability_run(
                     units, index, pressured, seed, run_root / f"run-{index}", runner, environment, root):
                 collected[run.label].append(run)
@@ -2674,10 +2674,10 @@ def stability_check(
     print("\n" + "\n".join(format_stability_table(comparisons, shuffled=shuffle)))
     _print_stability_findings(comparisons)
     if pressured_runs:
-        print("\nCPU baskılı koşumların süreleri raporlanır ama kırmızı saymaz; baskı altında yalnız sonuç kırmızı sayılır.")
-    verdict = {0: "✅ Kararlı: sonuçlar aynı, süreler sınır içinde.",
-               STABILITY_TIME_EXIT_CODE: f"⏱️ Süre kararsız (çıkış {STABILITY_TIME_EXIT_CODE}): sonuçlar aynı, süre farkı sınırı aştı.",
-               STABILITY_RESULT_EXIT_CODE: f"❌ Sonuç kararsız (çıkış {STABILITY_RESULT_EXIT_CODE}): yeni faz açılmaz, önce bu giderilir."}[exit_code]
+        print("\nThe times of CPU-pressured runs are reported but do not count as red; under pressure only a result difference is red.")
+    verdict = {0: "✅ Stable: the results are the same and the times stay within the limits.",
+               STABILITY_TIME_EXIT_CODE: f"⏱️ Time unstable (exit {STABILITY_TIME_EXIT_CODE}): the results are the same, but the time spread passed the limit.",
+               STABILITY_RESULT_EXIT_CODE: f"❌ Result unstable (exit {STABILITY_RESULT_EXIT_CODE}): fix the instability before you go on."}[exit_code]
     print(verdict, flush=True)
 
     payload = stability_payload(
@@ -2688,53 +2688,53 @@ def stability_check(
         report_path = report_directory / f"{stamp}.json"
         report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         _prune_stability_reports(report_directory)
-        print(f"📄 Rapor: {report_path}")
+        print(f"📄 Report: {report_path}")
     except OSError as exception:
-        print(f"⚠️ Kararlılık raporu yazılamadı: {exception}")
+        print(f"⚠️ The stability report could not be written: {exception}")
     _record_measurement(
-        "kararlilik",
-        Command(("kapi.py", "kararlilik", "--tekrar", str(repeat), *(("--sira-karistir",) if shuffle else ()),
-                 *(("--baski",) if pressure else ()))),
+        "stability",
+        Command(("gate.py", "stability", "--repeat", str(repeat), *(("--shuffle",) if shuffle else ()),
+                 *(("--pressure",) if pressure else ()))),
         started, exit_code, measurement_path)
     return exit_code
 
 
 def stability_dry_run(units: Sequence[StabilityUnit], repeat: int, shuffle: bool, pressure: bool) -> None:
-    """`--komutlari-bas`: the commands of one run, with the markers of the run loop as `#` lines."""
-    print(f"# {repeat} koşum; her koşumda aşağıdaki komutlar, Core tek başına, hafif modüller {TEST_MAX_CPU_COUNT}'şer, ağır hatlar yan yana")
+    """`--print-commands`: the commands of one run, with the markers of the run loop as `#` lines."""
+    print(f"# {repeat} runs; each run executes the commands below: Core alone, light modules {TEST_MAX_CPU_COUNT} at a time, heavy lanes side by side")
     if pressure:
-        print(f"# CPU baskısı: son koşumlar için {stability_burner_count()} yük işlemi")
+        print(f"# CPU pressure: {stability_burner_count()} load processes for the last runs")
     for unit in units:
-        print("$ " + shlex.join(_stability_command(unit, pathlib.Path("<koşum>") / unit.slug, 1 if shuffle else None)))
+        print("$ " + shlex.join(_stability_command(unit, pathlib.Path("<run>") / unit.slug, 1 if shuffle else None)))
 
 
 def stability_from_arguments(args: argparse.Namespace) -> int:
-    """The `kararlilik` subcommand: resolve the modules, refuse to run without built binaries, then `stability_check`."""
+    """The `stability` subcommand: resolve the modules, refuse to run without built binaries, then `stability_check`."""
     try:
-        units = stability_units(args.proje, args.haric or ())
+        units = stability_units(args.project, args.exclude or ())
     except ValueError as error:
         print(f"❌ {error}")
         return STABILITY_USAGE_EXIT_CODE
-    pressure = args.baski or bool(args.baski_kosumlari)
-    if args.komutlari_bas:
-        stability_dry_run(units, args.tekrar, args.sira_karistir, pressure)
+    pressure = args.pressure or bool(args.pressure_runs)
+    if args.print_commands:
+        stability_dry_run(units, args.repeat, args.shuffle, pressure)
         return 0
     missing = [unit.label for unit in units if not unit.executable.is_file()]
     if missing:
-        print(f"❌ Derlenmiş test ikilisi yok: {', '.join(missing)}")
-        print("   `kararlilik` derlemez. Önce `dotnet build Tracon.slnx -c Release` koş.")
+        print(f"❌ No built test binary: {', '.join(missing)}")
+        print("   `stability` does not build. Run `dotnet build Tracon.slnx -c Release` first.")
         return STABILITY_USAGE_EXIT_CODE
     return stability_check(
-        units, args.tekrar, shuffle=args.sira_karistir, pressure=pressure,
-        pressure_runs=args.baski_kosumlari, base_seed=args.tohum,
-        report_directory=pathlib.Path(args.cikti) if args.cikti else None)
+        units, args.repeat, shuffle=args.shuffle, pressure=pressure,
+        pressure_runs=args.pressure_runs, base_seed=args.seed,
+        report_directory=pathlib.Path(args.output) if args.output else None)
 
 
 # -----------------------------------------------------------------------------
-# `yayin` - release rehearsal
+# `release` - release rehearsal
 #
 # Writes nothing to a network. It packs the solution (forcing a version via the
-# MinVerVersionOverride environment variable when --surum is given - no git tag
+# MinVerVersionOverride environment variable when --package-version is given - no git tag
 # is created), then reads back exactly what `dotnet pack` produced and checks it
 # against the packaging contract every published package must satisfy.
 # -----------------------------------------------------------------------------
@@ -2820,7 +2820,7 @@ def _target_frameworks(root: pathlib.Path, project_id: str) -> tuple[str, ...]:
         return own
     inherited = _frameworks_in(root / SRC_BUILD_PROPS)
     if not inherited:
-        raise ValueError(f"{SRC_BUILD_PROPS}: <TargetFrameworks> bulunamadı")
+        raise ValueError(f"{SRC_BUILD_PROPS}: <TargetFrameworks> not found")
     return inherited
 
 
@@ -2851,7 +2851,7 @@ def _sha256(path: pathlib.Path) -> str:
 # and every other entry, but a DIFFERENT raw SHA-256 - `dotnet pack` itself has
 # no deterministic-output guarantee for the outer container, only for the
 # compiler's own DLL/PDB output. Comparing raw file hashes here would make
-# `kapi.py yayin` report a false "different artifact" conflict on every
+# `gate.py release` report a false "different artifact" conflict on every
 # second run against an unchanged commit, which is precisely the false
 # positive a hand-run check of this command exists to rule out.
 _VOLATILE_OPC_ENTRY = re.compile(r"^_rels/\.rels$|^package/services/metadata/core-properties/[0-9a-f]{32}\.psmdcp$")
@@ -2875,7 +2875,7 @@ def _content_fingerprint(path: pathlib.Path) -> str:
                 digest.update(name.encode("utf-8"))
                 digest.update(archive.read(name))
     except (zipfile.BadZipFile, OSError) as exception:
-        raise PackageFileError(f"{path.name}: paket okunamadı ({exception})") from exception
+        raise PackageFileError(f"{path.name}: the package could not be read ({exception})") from exception
     return digest.hexdigest()
 
 
@@ -2896,7 +2896,7 @@ def _promote_staged_packages(
     file already carries what this run would have produced, so it is left in
     place as the one true copy.
 
-    `copy=True` (`yayin --paket-dizini`) leaves `staging_dir`
+    `copy=True` (`release --package-directory`) leaves `staging_dir`
     untouched: the input is the artifact CI verified and it must not change.
     Each file is copied under a temporary name that does not end in
     `.nupkg`/`.snupkg` and then renamed with `os.replace`, so an interrupted
@@ -2988,13 +2988,13 @@ def dependency_floor_errors(project_id: str, nuspec: str) -> list[str]:
             if match.group("id") == dependency
         ]
         if not ranges:
-            errors.append(f"{dependency} bağımlılığı nuspec'te yok (alt sınır {floor} bekleniyordu)")
+            errors.append(f"the {dependency} dependency is missing from the nuspec (lower bound {floor} expected)")
             continue
         wrong = sorted({value for value in ranges if value.replace(" ", "") not in (floor, f"[{floor},)")})
         if wrong:
             errors.append(
-                f"{dependency} alt sınırı {', '.join(wrong)}; sevk edilen alt sınır {floor} - "
-                "yükseltmek tüketiciyi xunit.v3 4'e zorlar")
+                f"the {dependency} lower bound is {', '.join(wrong)}; the shipped lower bound is {floor} - "
+                "raising it forces consumers onto xunit.v3 4")
     return errors
 
 
@@ -3002,13 +3002,13 @@ def _third_party_notice_error(root: pathlib.Path, nupkg: pathlib.Path, source: p
     """None when the package root carries the checked-in notice byte for byte."""
     expected_path = root / source
     if not expected_path.is_file():
-        return f"{source} yok - lisans bildirimi kaynağı eksik"
+        return f"{source} is missing - the license notice source is absent"
     with zipfile.ZipFile(nupkg) as archive:
         if THIRD_PARTY_NOTICE_NAME not in archive.namelist():
-            return f"{THIRD_PARTY_NOTICE_NAME} paket kökünde yok"
+            return f"{THIRD_PARTY_NOTICE_NAME} is not at the package root"
         packed = archive.read(THIRD_PARTY_NOTICE_NAME)
     if packed != expected_path.read_bytes():
-        return f"paketteki {THIRD_PARTY_NOTICE_NAME} {source} ile aynı değil"
+        return f"{THIRD_PARTY_NOTICE_NAME} in the package differs from {source}"
     return None
 
 
@@ -3019,7 +3019,7 @@ def _resolve_package_set(
 
     Prints the reason and returns None when a package is missing, the set
     spans two versions, the requested version was not produced, or a package
-    outside `project_ids` sits next to them. The pack stage (`paketle`) and the
+    outside `project_ids` sits next to them. The pack stage (`pack`) and the
     artifact stage (`_finish_release_rehearsal`) share this identity check."""
     resolved: dict[str, pathlib.Path] = {}
     missing: list[str] = []
@@ -3031,20 +3031,20 @@ def _resolve_package_set(
             resolved[project_id] = nupkg
 
     if missing:
-        print(f"❌ Paket üretilmedi: {', '.join(missing)}")
+        print(f"❌ Package not produced: {', '.join(missing)}")
         return None
 
     versions = {project_id: _nupkg_version(project_id, nupkg) for project_id, nupkg in resolved.items()}
     distinct_versions = sorted(set(versions.values()))
     if len(distinct_versions) != 1:
-        print("❌ Paketler tek bir sürüm hattında değil:")
+        print("❌ The packages are not on one version line:")
         for project_id in sorted(versions):
             print(f"  {project_id}: {versions[project_id]}")
         return None
 
     resolved_version = distinct_versions[0]
     if requested_version and resolved_version != requested_version:
-        print(f"❌ İstenen sürüm '{requested_version}' üretilmedi; üretilen: '{resolved_version}'")
+        print(f"❌ The requested version '{requested_version}' was not produced; produced: '{resolved_version}'")
         return None
 
     # İki yönlü karşılaştırma: yalnız EKSİK paket değil, beklenmeyen (fazla) bir
@@ -3058,7 +3058,7 @@ def _resolve_package_set(
     }
     unexpected = sorted(produced_ids - set(project_ids))
     if unexpected:
-        print(f"❌ Beklenmeyen paket üretildi: {', '.join(unexpected)}")
+        print(f"❌ Unexpected package produced: {', '.join(unexpected)}")
         return None
     return resolved, resolved_version
 
@@ -3093,9 +3093,9 @@ def _package_manifest_entries(directory: pathlib.Path, file_names: Mapping[str, 
 
 
 # -----------------------------------------------------------------------------
-# One build, one pack. `paketle` packs the build CI just tested;
-# `paket-dogrula` proves a directory still holds exactly what its manifest
-# names; `yayin --paket-dizini` rehearses those files without packing again.
+# One build, one pack. `pack` packs the build CI just tested;
+# `verify-packages` proves a directory still holds exactly what its manifest
+# names; `release --package-directory` rehearses those files without packing again.
 # -----------------------------------------------------------------------------
 
 
@@ -3112,25 +3112,25 @@ def _manifest_files(manifest: object) -> tuple[dict[str, str], list[str]]:
     problems: list[str] = []
     files: dict[str, str] = {}
     if not isinstance(manifest, dict):
-        return files, [f"{PACKAGE_MANIFEST_NAME}: kök bir JSON nesnesi değil"]
+        return files, [f"{PACKAGE_MANIFEST_NAME}: the root is not a JSON object"]
     if manifest.get("dirty") is not False:
-        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'dirty' false değil")
+        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'dirty' is not false")
 
     def add(owner: str, name: object, digest: object) -> None:
         if not _is_plain_relative(name) or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
-            problems.append(f"{PACKAGE_MANIFEST_NAME}: {owner} geçersiz dosya/SHA-256 kaydı taşıyor")
+            problems.append(f"{PACKAGE_MANIFEST_NAME}: {owner} carries an invalid file/SHA-256 record")
         elif name in files:
-            problems.append(f"{PACKAGE_MANIFEST_NAME}: {name} iki kez anılıyor")
+            problems.append(f"{PACKAGE_MANIFEST_NAME}: {name} is named twice")
         else:
             files[name] = digest
 
     packages = manifest.get("packages")
     if not isinstance(packages, list) or not packages:
-        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'packages' boş veya liste değil")
+        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'packages' is empty or not a list")
         packages = []
     for entry in packages:
         if not isinstance(entry, dict):
-            problems.append(f"{PACKAGE_MANIFEST_NAME}: 'packages' nesne olmayan bir öğe taşıyor")
+            problems.append(f"{PACKAGE_MANIFEST_NAME}: 'packages' holds an item that is not an object")
             continue
         owner = str(entry.get("id"))
         add(owner, entry.get("file"), entry.get("sha256"))
@@ -3139,25 +3139,25 @@ def _manifest_files(manifest: object) -> tuple[dict[str, str], list[str]]:
 
     records = manifest.get("apiCompat", [])
     if not isinstance(records, list):
-        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'apiCompat' liste değil")
+        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'apiCompat' is not a list")
         records = []
     for record in records:
         if not isinstance(record, dict):
-            problems.append(f"{PACKAGE_MANIFEST_NAME}: 'apiCompat' nesne olmayan bir öğe taşıyor")
+            problems.append(f"{PACKAGE_MANIFEST_NAME}: 'apiCompat' holds an item that is not an object")
             continue
         if record.get("report") is not None or record.get("sha256") is not None:
-            add(f"{record.get('id')} raporu", record.get("report"), record.get("sha256"))
+            add(f"{record.get('id')} report", record.get("report"), record.get("sha256"))
     return files, problems
 
 
 def _load_manifest(directory: pathlib.Path) -> tuple[object, str | None]:
     path = directory / PACKAGE_MANIFEST_NAME
     if not path.is_file():
-        return None, f"{PACKAGE_MANIFEST_NAME} yok"
+        return None, f"{PACKAGE_MANIFEST_NAME} is missing"
     try:
         return json.loads(path.read_text(encoding="utf-8")), None
     except (OSError, ValueError) as exception:
-        return None, f"{PACKAGE_MANIFEST_NAME} okunamadı: {exception}"
+        return None, f"{PACKAGE_MANIFEST_NAME} could not be read: {exception}"
 
 
 def package_directory_problems(directory: pathlib.Path) -> list[str]:
@@ -3169,9 +3169,9 @@ def package_directory_problems(directory: pathlib.Path) -> list[str]:
     measure here - unlike `_content_fingerprint` - because the chain never
     packs twice: the bytes that were hashed are the bytes that are pushed."""
     if not directory.is_dir():
-        return [f"{directory}: dizin yok"]
+        return [f"{directory}: directory not found"]
     if not any(directory.iterdir()):
-        return [f"{directory}: dizin boş"]
+        return [f"{directory}: directory is empty"]
     manifest, error = _load_manifest(directory)
     if error:
         return [error]
@@ -3179,29 +3179,29 @@ def package_directory_problems(directory: pathlib.Path) -> list[str]:
     for name, digest in sorted(files.items()):
         path = directory / name
         if not path.is_file():
-            problems.append(f"eksik: {name}")
+            problems.append(f"missing: {name}")
         elif _sha256(path) != digest:
-            problems.append(f"SHA-256 farklı: {name}")
+            problems.append(f"SHA-256 differs: {name}")
 
     for path in sorted(directory.rglob("*")):
         relative = path.relative_to(directory).as_posix()
         is_package = path.suffix in PACKAGE_FILE_SUFFIXES
         is_report = path.suffix == ".xml" and path.parent.name == PACKAGE_REPORT_DIR_NAME
         if path.is_file() and (is_package or is_report) and relative not in files:
-            problems.append(f"manifest dışı dosya: {relative}")
+            problems.append(f"file not in the manifest: {relative}")
     return problems
 
 
 def verify_package_directory(directory: pathlib.Path) -> int:
     problems = package_directory_problems(directory)
     if problems:
-        print(f"❌ {directory} manifest'iyle eşleşmiyor:")
+        print(f"❌ {directory} does not match its manifest:")
         for problem in problems:
             print(f"  {problem}")
         return 1
     manifest, _ = _load_manifest(directory)
     files, _ = _manifest_files(manifest)
-    print(f"✅ {directory}: {len(files)} dosya manifest'teki SHA-256 ile aynı")
+    print(f"✅ {directory}: {len(files)} files match the SHA-256 values in the manifest")
     return 0
 
 
@@ -3213,15 +3213,15 @@ def _dirty_tree_rejected(*, require_git: bool) -> bool:
     status_lines = _git("status", "--porcelain")
     if status_lines is None:
         if require_git:
-            print("❌ git bulunamadı veya bu bir git deposu değil; paket commit'e bağlanamaz")
+            print("❌ git was not found or this is not a git repository; the package cannot be tied to a commit")
             return True
-        print("⚠️ git bulunamadı veya bu bir git deposu değil; çalışma ağacı temizliği burada denetlenemedi")
+        print("⚠️ git was not found or this is not a git repository; the working tree could not be checked for cleanliness here")
         return False
     if status_lines:
-        print("❌ Çalışma ağacı temiz değil ('git status --porcelain'):")
+        print("❌ The working tree is not clean ('git status --porcelain'):")
         for line in status_lines:
             print(f"  {line}")
-        print("Bir yayın provasının kanıt değeri kirli bir ağaçta yoktur; commit veya stash sonrası tekrar deneyin.")
+        print("A release rehearsal proves nothing on a dirty tree; commit or stash, then try again.")
         return True
     return False
 
@@ -3243,8 +3243,8 @@ def pack_command(
 ) -> Command:
     """The ONE `dotnet pack` a release artifact comes from.
 
-    `--no-build` packs the build the caller already tested (`paketle`, CI);
-    without it the pack builds first (`yayin --kuru`, a human's rehearsal).
+    `--no-build` packs the build the caller already tested (`pack`, CI);
+    without it the pack builds first (`release --dry-run`, a human's rehearsal).
     Neither shape carries `TraconSkipCleanWorkingTreeCheck` or
     `TraconAllowDirtyPack`: a release candidate stays gated."""
     return Command((
@@ -3287,14 +3287,14 @@ def _pack_release(
     try:
         baseline = breaking_changes.resolve_baseline(root)
     except breaking_changes.BaselineError as exception:
-        print(f"❌ Taban çözülemedi: {exception}")
+        print(f"❌ The baseline could not be resolved: {exception}")
         return 1
-    print(f"Taban: v{baseline} (git describe)")
+    print(f"Baseline: v{baseline} (git describe)")
 
     stale_flags = breaking_changes.stale_first_release_flags(root, f"{breaking_changes.TAG_PREFIX}{baseline}")
     if stale_flags:
-        print(f"❌ İlk yayın bayrağı bayat - paket v{baseline} etiketinde zaten vardı; "
-              f"TraconPackageFirstRelease'i kaldırın: {', '.join(stale_flags)}")
+        print(f"❌ The first-release flag is stale - the package already existed at tag v{baseline}; "
+              f"remove TraconPackageFirstRelease: {', '.join(stale_flags)}")
         return 1
 
     library_ids = _library_ids(root, packable_project_ids(root))
@@ -3305,15 +3305,15 @@ def _pack_release(
         try:
             baseline_cache = breaking_changes.restore_baselines(baseline_ids, baseline, baseline_work)
         except breaking_changes.RestoreError as exception:
-            print(f"❌ Taban restore'u başarısız: {exception}")
+            print(f"❌ The baseline restore failed: {exception}")
             return 1
         source_violations = breaking_changes.baseline_source_violations(baseline_ids, baseline, baseline_cache)
         if source_violations:
-            print("❌ Taban paketi nuget.org'dan gelmedi:")
+            print("❌ The baseline package did not come from nuget.org:")
             for violation in source_violations:
                 print(f"  {violation}")
             return 1
-        print(f"Taban paketleri izole cache'ten: {len(baseline_ids)} paket, kaynak api.nuget.org")
+        print(f"Baseline packages from the isolated cache (source api.nuget.org): {len(baseline_ids)}")
 
         environment = os.environ.copy()
         environment["MSBUILDDISABLENODEREUSE"] = "1"
@@ -3326,17 +3326,17 @@ def _pack_release(
         pack_started = time.time()
         pack_result = subprocess.run(list(command.args), cwd=root, env=environment, check=False)
         if pack_result.returncode:
-            print(f"❌ 'dotnet pack' çıkış {pack_result.returncode}")
+            print(f"❌ 'dotnet pack' exited with {pack_result.returncode}")
             return pack_result.returncode
     finally:
         shutil.rmtree(baseline_work, ignore_errors=True)
 
     # Kanıt pack'i koşan süreçte hesaplanır: semaphore bu makinenin
     # artifacts/obj/'undadır. Artifact aşamasına TAŞINMAZ -
-    # `release-dryrun`'da obj/ yoktur; sonuç `paketle` manifest'ine girer.
+    # `release-dryrun`'da obj/ yoktur; sonuç `pack` manifest'ine girer.
     not_run = breaking_changes.validation_not_run(root, library_ids, pack_started)
     if not_run:
-        print("❌ Paket doğrulaması bu koşumda koşmadı:")
+        print("❌ The package validation did not run in this pack:")
         for line in not_run:
             print(f"  {line}")
         return 1
@@ -3344,7 +3344,7 @@ def _pack_release(
 
 
 def rehearsal_release_dir(version: str, rehearsal_root: pathlib.Path | None = None) -> pathlib.Path:
-    """`yayin --kuru` pack-mode output: one directory per version.
+    """`release --dry-run` pack-mode output: one directory per version.
 
     Never `release/`: that is the development feed every `dotnet pack`, the
     closing gate and the package tests write into, so a rehearsal promoted
@@ -3411,7 +3411,7 @@ def release_rehearsal(
             if package_set is None:
                 return 1
             release_dir = rehearsal_release_dir(package_set[1])
-            print(f"📦 Prova çıktısı: {release_dir.relative_to(root) if release_dir.is_relative_to(root) else release_dir}")
+            print(f"📦 Rehearsal output: {release_dir.relative_to(root) if release_dir.is_relative_to(root) else release_dir}")
 
         return _finish_release_rehearsal(
             root=root,
@@ -3428,16 +3428,16 @@ def release_rehearsal(
 
 
 def pack_for_ci(output_dir: pathlib.Path, *, root: pathlib.Path = ROOT) -> int:
-    """`kapi.py paketle` - packs the build the caller already tested.
+    """`gate.py pack` - packs the build the caller already tested.
 
     `output_dir` must be missing or empty: an interrupted run leaves a
     manifest-less directory that the next run REFUSES instead of deleting
     (a partial set must never be mistaken for a verified one). The manifest
     is written last and records, besides every package's raw SH, the
     baseline and one api-compat record per library package with a baseline -
-    the pack-time proof `yayin --paket-dizini` cannot recompute."""
+    the pack-time proof `release --package-directory` cannot recompute."""
     if output_dir.exists() and (not output_dir.is_dir() or any(output_dir.iterdir())):
-        print(f"❌ Çıktı dizini boş değil: {output_dir} - hiçbir şey silinmedi; boş veya yeni bir dizin verin")
+        print(f"❌ The output directory is not empty: {output_dir} - nothing was deleted; give an empty or new directory")
         return 1
     if _dirty_tree_rejected(require_git=True):
         return 1
@@ -3477,8 +3477,8 @@ def pack_for_ci(output_dir: pathlib.Path, *, root: pathlib.Path = ROOT) -> int:
         api_compat=api_compat,
     )
     reports = sum(1 for record in api_compat if record["report"])
-    print(f"📄 {manifest_path} yazıldı: {len(resolved)} paket, sürüm '{version}', "
-          f"{len(api_compat)} api-compat kaydı ({reports} rapor)")
+    print(f"📄 {manifest_path} written: {len(resolved)} packages, version '{version}', "
+          f"{len(api_compat)} api-compat records ({reports} reports)")
     return 0
 
 
@@ -3496,11 +3496,11 @@ def _report_record_problems(manifest: Mapping[str, object], expected_ids: Iterab
     for project_id in expected:
         record = records.get(project_id)
         if record is None:
-            problems.append(f"rapor eksik: {project_id}")
+            problems.append(f"report missing: {project_id}")
         elif record.get("validationRan") is not True:
-            problems.append(f"rapor eksik: {project_id} (doğrulama koştu kaydı yok)")
+            problems.append(f"report missing: {project_id} (no record that validation ran)")
     for project_id in sorted(set(records) - set(expected), key=str):
-        problems.append(f"beklenmeyen api-compat kaydı: {project_id}")
+        problems.append(f"unexpected api-compat record: {project_id}")
     return problems
 
 
@@ -3511,7 +3511,7 @@ def rehearse_package_directory(
     root: pathlib.Path = ROOT,
     release_dir: pathlib.Path | None = None,
 ) -> int:
-    """`kapi.py yayin --kuru --paket-dizini` - rehearses packages it did NOT
+    """`gate.py release --dry-run --package-directory` - rehearses packages it did NOT
     produce. `dotnet pack` never runs; `package_dir` is never modified."""
     release_dir = release_dir or PACKAGE_RELEASE_DIR
     if _dirty_tree_rejected(require_git=True):
@@ -3524,7 +3524,7 @@ def rehearse_package_directory(
     assert isinstance(manifest, dict)  # package_directory_problems proved it
 
     if manifest.get("commit") != commit:
-        print(f"❌ Paketler başka bir commit'ten: manifest '{manifest.get('commit')}', HEAD '{commit}'")
+        print(f"❌ The packages come from another commit: manifest '{manifest.get('commit')}', HEAD '{commit}'")
         return 1
 
     sys.path.insert(0, str(ROOT / "scripts"))
@@ -3533,18 +3533,18 @@ def rehearse_package_directory(
     try:
         baseline = breaking_changes.resolve_baseline(root)
     except breaking_changes.BaselineError as exception:
-        print(f"❌ Taban çözülemedi: {exception}")
+        print(f"❌ The baseline could not be resolved: {exception}")
         return 1
-    print(f"Taban: v{baseline} (git describe)")
+    print(f"Baseline: v{baseline} (git describe)")
     if manifest.get("baseline") != baseline:
-        print(f"❌ Paketler başka bir tabana karşı doğrulandı: manifest 'v{manifest.get('baseline')}', bu checkout 'v{baseline}'")
+        print(f"❌ The packages were validated against another baseline: manifest 'v{manifest.get('baseline')}', this checkout 'v{baseline}'")
         return 1
 
     project_ids = packable_project_ids(root)
     problems = _report_record_problems(
         manifest, breaking_changes.baseline_package_ids(root, _library_ids(root, project_ids)))
     if problems:
-        print("❌ Kırıcı değişiklik raporu kanıtı eksik:")
+        print("❌ The proof of the breaking-change report is missing:")
         for problem in problems:
             print(f"  {problem}")
         return 1
@@ -3558,9 +3558,9 @@ def rehearse_package_directory(
         if path.suffix in PACKAGE_FILE_SUFFIXES and path.name not in input_files
     ) if release_dir.is_dir() else []
     if foreign:
-        print(f"❌ {release_dir} girdi dışı paket taşıyor ({len(foreign)}): {', '.join(foreign[:5])}"
+        print(f"❌ {release_dir} holds packages outside the input ({len(foreign)}): {', '.join(foreign[:5])}"
               + (" …" if len(foreign) > 5 else ""))
-        print(f"   Yerel eski sürümler temizlenmez; gerekiyorsa: rm -rf {release_dir}")
+        print(f"   Old local versions are not cleaned up; if you need to: rm -rf {release_dir}")
         return 1
 
     (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
@@ -3592,8 +3592,8 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
     import breaking_changes
 
     if not breaking_changes.version_is_above_baseline(resolved_version, gate.baseline):
-        print(f"❌ Çözümlenen sürüm '{resolved_version}' tabandan (v{gate.baseline}) büyük değil; "
-              "kendisiyle karşılaştırma sessiz bir 'kırıcı değişiklik yok' üretirdi")
+        print(f"❌ The resolved version '{resolved_version}' is not above the baseline (v{gate.baseline}); "
+              "comparing a version with itself would give a silent 'no breaking changes'")
         return 1
 
     result = breaking_changes.check(
@@ -3610,9 +3610,9 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
     # ApiCompat .NET assembly'lerini okur; HTTP, SSE, telemetri, yapılandırma,
     # hata kodu ve CLI için son sürümle karşılaştırma ayrı bir okuyucudur ve ApiCompat'tan
     # SONRA koşar (hat satırı iki kez yazılır, ikincisi bu yüzeylerin hattıdır).
-    import sozlesme_kirilma
+    import contract_breaks
 
-    return sozlesme_kirilma.check(
+    return contract_breaks.check(
         repo=root,
         baseline=gate.baseline,
         version=resolved_version,
@@ -3669,12 +3669,12 @@ def _finish_release_rehearsal_unchecked(
 
     if not RELEASE_VERSION_PATTERN.fullmatch(resolved_version):
         print(
-            f"⚠️ Sürüm '1.0.0-preview.N' desenine uymuyor: '{resolved_version}' "
-            "(etiketlenmemiş bir koşumda beklenir; --surum ile zorlanmadıysa bu bir hata değildir)"
+            f"⚠️ The version does not match the '1.0.0-preview.N' pattern: '{resolved_version}' "
+            "(expected in an untagged run; not an error unless --package-version forced it)"
         )
     else:
         # Yalnız GERÇEK bir sürüm şeklinde çözümlenen koşumda zorlanır - ya
-        # `--surum` ile insan tarafından yerel bir provada, ya da gerçek bir
+        # `--package-version` ile insan tarafından yerel bir provada, ya da gerçek bir
         # `v*` etiketiyle. Etiketlenmemiş her rutin CI koşumu yukarıdaki dalı
         # alır ve bu kapıyı hiç görmez.
         sys.path.insert(0, str(ROOT / "scripts"))
@@ -3682,7 +3682,7 @@ def _finish_release_rehearsal_unchecked(
 
         changelog_path = root / "CHANGELOG.md"
         if not changelog_path.exists():
-            print("❌ CHANGELOG.md bulunamadı")
+            print("❌ CHANGELOG.md not found")
             return 1
         # Sürüm bölümü ETİKET anında yazılır: `## [Unreleased]` başlığı sürüme
         # ve sevk tarihine dönüştürülür. O ana kadar bir sonraki sürümün notları
@@ -3691,16 +3691,16 @@ def _finish_release_rehearsal_unchecked(
         _, notes_heading = changelog.read_release_notes(changelog_path, resolved_version)
         if notes_heading is None:
             print(
-                f"❌ CHANGELOG.md'de ne '## [{resolved_version}]' ne de "
-                "'## [Unreleased]' bölümü var; ikisi de yok ya da boş"
+                f"❌ CHANGELOG.md has neither a '## [{resolved_version}]' nor a "
+                "'## [Unreleased]' section; both are missing or empty"
             )
             return 1
         if notes_heading == changelog.UNRELEASED:
             print(
-                f"ℹ️ Sürüm notları '## [Unreleased]' bölümünden okundu; "
-                f"'v{resolved_version}' etiketlenirken bu başlık "
-                f"'## [{resolved_version}] - <tarih>' olarak yeniden adlandırılır "
-                "(sürüm notu kuralı)"
+                f"ℹ️ The release notes were read from the '## [Unreleased]' section; "
+                f"when 'v{resolved_version}' is tagged, this heading is renamed "
+                f"to '## [{resolved_version}] - <date>' "
+                "(release notes rule)"
             )
 
     errors: list[str] = []
@@ -3710,53 +3710,53 @@ def _finish_release_rehearsal_unchecked(
             entries = _entry_names(nupkg)
             nuspec = _read_nuspec(nupkg, project_id)
         except (zipfile.BadZipFile, KeyError, OSError) as exception:
-            errors.append(f"{project_id}: {nupkg.name} okunamadı ({exception})")
+            errors.append(f"{project_id}: {nupkg.name} could not be read ({exception})")
             continue
         profile = _package_profile(root, project_id)
 
         if "icon.png" not in entries:
-            errors.append(f"{project_id}: icon.png eksik")
+            errors.append(f"{project_id}: icon.png is missing")
         if "README.md" not in entries:
-            errors.append(f"{project_id}: README.md eksik")
+            errors.append(f"{project_id}: README.md is missing")
         # Lisans üç yönden birden doğrulanır. Yalnız .nuspec'e bakmak yetmez:
         # bir paketin BEYAN ettiği lisans ile İÇİNDEKİ dosya ayrışabilir, ve
         # ayrıştığında tüketicinin eline geçen dosya kazanır.
         expected_license = PACKAGE_LICENSES.get(project_id)
         if expected_license is None:
-            errors.append(f"{project_id}: PACKAGE_LICENSES tablosunda yok - lisansı bilinçli olarak seçilmeli")
+            errors.append(f"{project_id}: not in the PACKAGE_LICENSES table - its license must be chosen on purpose")
         else:
             if f'<license type="file">{expected_license}</license>' not in nuspec:
-                errors.append(f"{project_id}: .nuspec '<license type=\"file\">{expected_license}</license>' taşımıyor")
+                errors.append(f"{project_id}: the .nuspec does not carry '<license type=\"file\">{expected_license}</license>'")
             # Ölçüldü: NuGet requireLicenseAcceptance'ı yalnız TRUE
             # iken yazar; false varsayılandır ve element hiç görünmez. Bu yüzden
             # MIT tarafı elementin YOKLUĞU ile doğrulanır, "false" metniyle değil.
             acceptance_declared = "<requireLicenseAcceptance>true</requireLicenseAcceptance>" in nuspec
             if expected_license == MIT_LICENSE_FILE and acceptance_declared:
-                errors.append(f"{project_id}: MIT paketi requireLicenseAcceptance istememeli")
+                errors.append(f"{project_id}: an MIT package must not ask for requireLicenseAcceptance")
             if expected_license == POLYFORM_LICENSE_FILE and not acceptance_declared:
-                errors.append(f"{project_id}: requireLicenseAcceptance 'true' olmalı")
+                errors.append(f"{project_id}: requireLicenseAcceptance must be 'true'")
             if expected_license not in entries:
-                errors.append(f"{project_id}: {expected_license} paketin İÇİNDE yok")
+                errors.append(f"{project_id}: {expected_license} is not INSIDE the package")
             for other in LICENSE_FILES:
                 if other != expected_license and other in entries:
-                    errors.append(f"{project_id}: yanlış lisans dosyası da paketlenmiş: {other}")
+                    errors.append(f"{project_id}: the wrong license file is packed too: {other}")
         # Yalnız VARLIK değil, DEĞER de. PR'de iki iş aynı merge
         # commit'ini checkout eder; başka bir commit'ten gelen paket burada
         # düşer. git yoksa (commit 'unknown') yalnız varlık denetlenir.
         repository_match = REPOSITORY_COMMIT_PATTERN.search(nuspec)
         if repository_match is None:
-            errors.append(f"{project_id}: repository/commit metaverisi eksik")
+            errors.append(f"{project_id}: the repository/commit metadata is missing")
         elif commit != "unknown" and repository_match.group("commit") != commit:
             errors.append(
-                f"{project_id}: repository commit '{repository_match.group('commit')}' HEAD değil ('{commit}')")
+                f"{project_id}: the repository commit '{repository_match.group('commit')}' is not HEAD ('{commit}')")
 
         release_notes_match = RELEASE_NOTES_PATTERN.search(nuspec)
         if release_notes_match is None:
-            errors.append(f"{project_id}: releaseNotes eksik")
+            errors.append(f"{project_id}: releaseNotes is missing")
         elif "$(Version)" in release_notes_match.group("url"):
-            errors.append(f"{project_id}: releaseNotes ham $(Version) taşıyor - çözümlenmemiş")
+            errors.append(f"{project_id}: releaseNotes holds a raw $(Version) - not resolved")
         elif resolved_version not in release_notes_match.group("url"):
-            errors.append(f"{project_id}: releaseNotes çözümlenen sürümü ('{resolved_version}') taşımıyor")
+            errors.append(f"{project_id}: releaseNotes does not carry the resolved version ('{resolved_version}')")
 
         # `content` ve `meta` hicbir sey derlemez (IncludeBuildOutput=false), yani
         # sembolu olacak bir .pdb yoktur; ikisi de IncludeSymbols=false yazar.
@@ -3766,15 +3766,15 @@ def _finish_release_rehearsal_unchecked(
         snupkg_exists = nupkg.with_suffix(".snupkg").exists()
         if profile in ("content", "meta"):
             if snupkg_exists:
-                errors.append(f"{project_id}: derlenen çıktısı olmayan paket .snupkg TAŞIMAMALI")
+                errors.append(f"{project_id}: a package with no build output must NOT carry a .snupkg")
         elif not snupkg_exists:
-            errors.append(f"{project_id}: .snupkg eksik")
+            errors.append(f"{project_id}: .snupkg is missing")
 
         if profile in ("library", "tool"):
             expected_xml_count = len(_target_frameworks(root, project_id)) if profile == "library" else 1
             xml_count = sum(1 for name in entries if name.endswith(f"/{project_id}.xml"))
             if xml_count != expected_xml_count:
-                errors.append(f"{project_id}: {expected_xml_count} XML doküman dosyası bekleniyordu, {xml_count} bulundu")
+                errors.append(f"{project_id}: expected {expected_xml_count} XML doc files, found {xml_count}")
 
         prerelease = [
             (match.group("id"), match.group("range"))
@@ -3784,7 +3784,7 @@ def _finish_release_rehearsal_unchecked(
         if project_id != K008_EXEMPT_PACKAGE:
             offenders = sorted({dependency for dependency, _ in prerelease})
             if offenders:
-                errors.append(f"{project_id}: ön sürüm sınırı ihlal edildi - ön sürüm bağımlılık: {', '.join(offenders)}")
+                errors.append(f"{project_id}: the prerelease boundary was violated - prerelease dependencies: {', '.join(offenders)}")
         # ön sürüm upstream kendi önizlemeleri arasında kırar. Açık alt
         # sınır (`version="x"` = `>= x`) tüketicinin yükseltmesini uyarısız
         # restore edip çalışma anında düşürüyordu; tam aralıkta NuGet onu
@@ -3795,7 +3795,7 @@ def _finish_release_rehearsal_unchecked(
             if not EXACT_RANGE_PATTERN.fullmatch(version_range)
         })
         if open_ranges:
-            errors.append(f"{project_id}: ön sürüm bağımlılık tam aralık değil: {', '.join(open_ranges)}")
+            errors.append(f"{project_id}: a prerelease dependency is not an exact range: {', '.join(open_ranges)}")
 
         errors.extend(f"{project_id}: {error}" for error in dependency_floor_errors(project_id, nuspec))
 
@@ -3806,7 +3806,7 @@ def _finish_release_rehearsal_unchecked(
                 errors.append(f"{project_id}: {notice_error}")
 
     if errors:
-        print("❌ Metaveri/ön sürüm sözleşmesi ihlal edildi:")
+        print("❌ The metadata/prerelease contract was violated:")
         for error in errors:
             print(f"  {error}")
         return 1
@@ -3828,31 +3828,31 @@ def _finish_release_rehearsal_unchecked(
     all_file_names = [name for names in staged_file_names.values() for name in names]
     conflicts = _promote_staged_packages(staging_dir, release_dir, all_file_names, copy=input_manifest is not None)
     if conflicts:
-        print("❌ Aynı kimlikte (id+sürüm) FARKLI içerikli bir artifact zaten var - mevcut dosya korundu:")
+        print("❌ An artifact with the same identity (id+version) but DIFFERENT content already exists - the existing file was kept:")
         for name in conflicts:
             print(f"  {name}")
         if input_manifest is None:
-            print(f"   Bu sürümü bilerek yeni bir commit'ten prova ediyorsan eski adayı kaldır: rm -rf {release_dir}")
+            print(f"   If you rehearse this version from a new commit on purpose, remove the old candidate: rm -rf {release_dir}")
         return 1
 
     packages_manifest = _package_manifest_entries(release_dir, staged_file_names)
     manifest_path = _write_manifest(
         release_dir, version=resolved_version, commit=commit, baseline=breaking_gate.baseline, packages=packages_manifest)
     print(f"📄 {manifest_path.relative_to(root) if manifest_path.is_relative_to(root) else manifest_path} "
-          f"yazıldı ({len(packages_manifest)} paket)")
+          f"written ({len(packages_manifest)} packages)")
 
     if input_manifest is not None:
         written = json.loads(manifest_path.read_text(encoding="utf-8"))
         differing = [field for field in _MANIFEST_COMPARED_FIELDS if written.get(field) != input_manifest.get(field)]
         if differing:
-            print(f"❌ {release_dir} manifest'i girdi manifest'inden farklı: {', '.join(differing)}")
-            print(f"   Aynı adla eski bir kopya kalmış olabilir; gerekiyorsa: rm -rf {release_dir}")
+            print(f"❌ The manifest in {release_dir} differs from the input manifest: {', '.join(differing)}")
+            print(f"   An old copy with the same name may remain; if you need to: rm -rf {release_dir}")
             return 1
-        print(f"✅ Manifest girdiyle aynı: {len(packages_manifest)} paket, sürüm, commit, taban")
+        print(f"✅ The manifest matches the input: {len(packages_manifest)} packages, version, commit, baseline")
         if verify_package_directory(release_dir):
             return 1
 
-    print(f"✅ {len(resolved)} paket, sürüm '{resolved_version}':")
+    print(f"✅ {len(resolved)} packages, version '{resolved_version}':")
     for project_id in sorted(resolved):
         print(f"  {project_id}  {versions[project_id]}")
 
@@ -3872,7 +3872,7 @@ def _finish_release_rehearsal_unchecked(
 
 def _npm_dry_run() -> int:
     if shutil.which("npm") is None:
-        print("⚠️ npm bulunamadı; 'npm publish --dry-run' ATLANDI")
+        print("⚠️ npm was not found; 'npm publish --dry-run' was SKIPPED")
         return 0
 
     print(f"$ (cd {NPM_CLIENT_PACKAGE_DIR.relative_to(ROOT)} && npm publish --dry-run)", flush=True)
@@ -3884,11 +3884,11 @@ def _npm_dry_run() -> int:
             timeout=180,
         )
     except (OSError, subprocess.TimeoutExpired) as exception:
-        print(f"⚠️ 'npm publish --dry-run' çalıştırılamadı (ağ erişimi olmayabilir) - ATLANDI: {exception}")
+        print(f"⚠️ 'npm publish --dry-run' could not run (there may be no network access) - SKIPPED: {exception}")
         return 0
 
     if result.returncode:
-        print(f"❌ 'npm publish --dry-run' çıkış {result.returncode}")
+        print(f"❌ 'npm publish --dry-run' exited with {result.returncode}")
         return result.returncode
 
     print("✅ npm publish --dry-run")
@@ -3899,7 +3899,7 @@ def capacity_measurement(profile: str, version: str, output: pathlib.Path) -> in
     """Kapasite ölçümünü koşar.
 
     🚨 Bu bir KAPI DEĞİLDİR. Yük ve arıza ölçümlerinin rapor olduğunu,
-    sürenin hiçbir eşiğe bağlanmadığını söyler; `kapanis` bu komutu çağırmaz ve
+    sürenin hiçbir eşiğe bağlanmadığını söyler; `close` bu komutu çağırmaz ve
     hiçbir profili standart kapanışa, PR yoluna veya release hattına eklemez.
     Ölçüm mantığı `scripts/capacity.py` içindedir; burada yalnız komut yüzeyi
     tek noktada toplanır."""
@@ -3913,8 +3913,8 @@ def capacity_measurement(profile: str, version: str, output: pathlib.Path) -> in
         return 1
 
 
-STABILITY_WORKFLOW = "kararlilik.yml"
-"""The scheduled workflow of the public repository that runs `kararlilik` (see `.github/workflows`)."""
+STABILITY_WORKFLOW = "stability.yml"
+"""The scheduled workflow of the public repository that runs `stability` (see `.github/workflows`)."""
 
 
 def remote_state_check(root: pathlib.Path = ROOT, ci_remote: str = "origin") -> int:
@@ -3933,7 +3933,7 @@ def remote_state_check(root: pathlib.Path = ROOT, ci_remote: str = "origin") -> 
     try:
         version = breaking_changes.resolve_baseline(root)
     except breaking_changes.BaselineError as exception:
-        print(f"⚠️ Son yayın etiketi çözülemedi; nuget.org denetimi atlandı: {exception}")
+        print(f"⚠️ The last release tag could not be resolved; the nuget.org check was skipped: {exception}")
         version = None
 
     if version is not None:
@@ -3941,211 +3941,252 @@ def remote_state_check(root: pathlib.Path = ROOT, ci_remote: str = "origin") -> 
         package_ids = remote_state.packable_ids_at(root, f"{breaking_changes.TAG_PREFIX}{version}")
 
         if not package_ids:
-            print(f"⚠️ v{version} etiketinin ağacı okunamadı; paket kümesi çalışma ağacından alındı.")
+            print(f"⚠️ The tree of tag v{version} could not be read; the package set came from the working tree.")
             package_ids = packable_project_ids(root)
 
         state = remote_state.release_state(package_ids, version)
 
         if state.missing:
-            print(f"❌ v{version} etiketi var ama {len(state.missing)} paket nuget.org'da yok: {', '.join(state.missing)}")
-            print("   Etiket koşumu yarım kalmış olabilir; ilgili Actions koşumuna bak. Etiket taşınmaz: düzeltme bir sonraki numarayla çıkar.")
+            print(f"❌ Tag v{version} exists but {len(state.missing)} packages are missing on nuget.org: {', '.join(state.missing)}")
+            print("   The tag run may have stopped half way; check the related Actions run. The tag does not move: a fix ships under the next number.")
             exit_code = 1
 
         if state.unreachable:
-            print(f"⚠️ nuget.org'a ulaşılamadı ({len(state.unreachable)}/{len(package_ids)} paket okunamadı); yayın denetimi eksik.")
+            print(f"⚠️ nuget.org was not reachable ({len(state.unreachable)}/{len(package_ids)} packages could not be read); the release check is incomplete.")
 
         if not state.missing and not state.unreachable:
-            print(f"✅ v{version}: {state.published} paketin tamamı nuget.org'da")
+            print(f"✅ v{version}: all {state.published} packages are on nuget.org")
 
     ci = remote_state.ci_state(root, ci_remote)
 
     if ci is None:
-        print(f"ℹ️ '{ci_remote}' için karar vermiş bir CI koşumu okunamadı (gh yok, oturum ya da erişim yok, ağ yok ya da hepsi atlanmış).")
+        print(f"ℹ️ No decided CI run could be read for '{ci_remote}' (no gh, no session or access, no network, or all runs were skipped).")
     elif ci.is_red:
-        print(f"⚠️ '{ci_remote}' son CI koşumu kırmızı ({ci.conclusion}, {ci.sha}): {ci.url}")
+        print(f"⚠️ The last CI run of '{ci_remote}' is red ({ci.conclusion}, {ci.sha}): {ci.url}")
     elif ci.status == "completed" and ci.conclusion == "success":
-        print(f"✅ '{ci_remote}' son CI koşumu yeşil ({ci.sha})")
+        print(f"✅ The last CI run of '{ci_remote}' is green ({ci.sha})")
     else:
-        print(f"ℹ️ '{ci_remote}' son CI koşumu henüz karar vermedi: {ci.status} {ci.conclusion}".rstrip() + f" ({ci.sha})")
+        print(f"ℹ️ The last CI run of '{ci_remote}' has not decided yet: {ci.status} {ci.conclusion}".rstrip() + f" ({ci.sha})")
 
-    # The weekly stability run (`kararlilik.yml`) is a warning only: a red one means "do not open a new phase".
+    # The weekly stability run (`stability.yml`) is a warning only: a red one means the tests are unstable.
     stability = remote_state.ci_state(root, ci_remote, workflow=STABILITY_WORKFLOW)
 
     if stability is None:
-        print(f"ℹ️ '{ci_remote}' için karar vermiş bir kararlılık koşumu okunamadı (henüz koşmadı, gh yok ya da ağ yok).")
+        print(f"ℹ️ No decided stability run could be read for '{ci_remote}' (it has not run yet, or there is no gh or no network).")
     elif stability.is_red:
-        print(f"⚠️ '{ci_remote}' son kararlılık koşumu kırmızı ({stability.conclusion}, {stability.sha}): {stability.url}")
-        print("   Yeni faz açılmaz: önce kararsızlığı gider (raporu `kararlilik` artifact'ında).")
+        print(f"⚠️ The last stability run of '{ci_remote}' is red ({stability.conclusion}, {stability.sha}): {stability.url}")
+        print("   The tests are unstable: fix the instability first (the report is in the `stability-report` artifact).")
     elif stability.status == "completed" and stability.conclusion == "success":
-        print(f"✅ '{ci_remote}' son kararlılık koşumu yeşil ({stability.sha})")
+        print(f"✅ The last stability run of '{ci_remote}' is green ({stability.sha})")
     else:
-        print(f"ℹ️ '{ci_remote}' son kararlılık koşumu henüz karar vermedi: {stability.status} {stability.conclusion}".rstrip())
+        print(f"ℹ️ The last stability run of '{ci_remote}' has not decided yet: {stability.status} {stability.conclusion}".rstrip())
 
     return exit_code
 
 
-def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--komutlari-bas", action="store_true", help="komutları çalıştırmadan listele")
+RENAMED_COMMANDS = {
+    "tarama": "scan",
+    "uret": "generate",
+    "uzak-durum": "remote-state",
+    "ic-dongu": "inner-loop",
+    "kapanis": "close",
+    "performans": "perf",
+    "kararlilik": "stability",
+    "yayin": "release",
+    "paketle": "pack",
+    "paket-dogrula": "verify-packages",
+    "kapasite": "capacity",
+}
+"""Old sub-command name -> new name. An old name is not an alias: it fails and says the new name."""
+
+
+class _CommandLineParser(argparse.ArgumentParser):
+    """No flag abbreviations: an old flag name must not work as a short form of its new name."""
+
+    def __init__(self, **options: Any) -> None:
+        super().__init__(allow_abbrev=False, **options)
+
+
+def build_parser() -> tuple[argparse.ArgumentParser, Any]:
+    """The command line: the parser and its sub-command action (its `choices` hold the command names)."""
+    parser = _CommandLineParser(description=__doc__)
+    parser.add_argument("--print-commands", action="store_true", help="list the commands without running them")
     subparsers = parser.add_subparsers(dest="stage")
 
-    subparsers.add_parser("tarama", help="sync kopyası, secret, migration, bayat doküman, kanıtsız public yüzey ve Context7 sürüm etiketi taraması")
-    subparsers.add_parser("uret", help="üretilen dosyaları yeniden üret: agent haritası + doküman indeksleri")
-    subparsers.add_parser("uzak-durum", help="son yayın etiketinin paketleri nuget.org'da mı ve son CI koşumu ne dedi (yalnız okur)")
-    ic_dongu = subparsers.add_parser("ic-dongu", help="build ve etkilenen test projeleri")
-    ic_dongu.add_argument(
-        "--taban", default="HEAD",
-        help="değişiklik aralığının tabanı; commit edilen işi de görmek için faz öncesi commit")
-    closing = subparsers.add_parser("kapanis", help="tam doğrulama kapıları")
-    closing.add_argument("--taban", required=True, help="faz öncesi commit SHA")
-    closing.add_argument("--site-atla", action="store_true", help="docs-site kapısını atla")
-    performans = subparsers.add_parser("performans", help="tahsis kapısı - dört sıcak yolu ölçer")
-    performans.add_argument(
-        "--guncelle", action="store_true",
-        help="bench/baseline.json'ı bu koşumun sonucuyla değiştirir (karşılaştırma yapılmaz)")
-    test = subparsers.add_parser("test", help="MTP filtresiyle tek test alt kümesi")
-    # extend: `--sinif A B` ile `--sinif A --sinif B` aynıdır. Varsayılan davranış
+    subparsers.add_parser(
+        "scan",
+        help="scan for sync copies, secrets, migrations, stale doc references, public types without evidence "
+             "and the Context7 version tag")
+    subparsers.add_parser("generate", help="regenerate the generated files: the agent map and the document indexes")
+    subparsers.add_parser(
+        "remote-state",
+        help="are the packages of the last release tag on nuget.org, and what did the last CI run say (read only)")
+    inner_loop = subparsers.add_parser("inner-loop", help="build and the affected test projects")
+    inner_loop.add_argument(
+        "--base", default="HEAD",
+        help="base of the change range; to also see committed work, pass the commit before your work")
+    closing = subparsers.add_parser("close", help="the full validation gates")
+    closing.add_argument("--base", required=True, help="the commit before your work (SHA)")
+    closing.add_argument("--skip-site", action="store_true", help="skip the docs-site gate")
+    perf = subparsers.add_parser("perf", help="allocation gate - measures the four hot paths")
+    perf.add_argument(
+        "--update", action="store_true",
+        help="replace bench/baseline.json with the result of this run (no comparison)")
+    test = subparsers.add_parser("test", help="one test subset by MTP filter")
+    # extend: `--class A B` ile `--class A --class B` aynıdır. Varsayılan davranış
     # ikinci bayrakta birinciyi sessizce ezerdi (bir kapanışta ölçüldü).
-    test.add_argument("--sinif", nargs="+", action="extend", required=True, help="sınıf desenleri")
-    test.add_argument("--proje", default="Tracon.Core.UnitTests", help="test proje adı")
+    test.add_argument("--class", dest="classes", nargs="+", action="extend", required=True, help="class patterns")
+    test.add_argument("--project", default="Tracon.Core.UnitTests", help="test project name")
     test.add_argument(
         "--tfm",
-        help="çoklu TFM projesinde tek bacak (ör. net10.0); verilmezse her bacak koşar")
-    kararlilik = subparsers.add_parser(
-        "kararlilik",
-        help="aynı derlenmiş test ikilileri N kez koşar; sonuç ve süre farkını ölçer (derlemez)")
-    kararlilik.add_argument(
-        "--tekrar", type=int, default=STABILITY_DEFAULT_REPEAT,
-        help=f"koşum sayısı (varsayılan {STABILITY_DEFAULT_REPEAT}, en az {STABILITY_MIN_REPEAT})")
-    kararlilik.add_argument(
-        "--proje", nargs="+", action="extend", help="yalnız bu test modülleri (varsayılan: hepsi)")
-    kararlilik.add_argument("--haric", nargs="+", action="extend", help="bu test modüllerini koşma")
-    kararlilik.add_argument(
-        "--sira-karistir", action="store_true",
-        help="her koşuma farklı xunit `--seed` ver; tohumlar raporlanır")
-    kararlilik.add_argument(
-        "--baski", action="store_true",
-        help="bazı koşumlarda CPU'nun yarısını yük işlemleriyle meşgul et (varsayılan: son iki koşum)")
-    kararlilik.add_argument(
-        "--baski-kosumlari", nargs="+", type=int, metavar="N", help="baskı uygulanacak koşum numaraları (1 tabanlı)")
-    kararlilik.add_argument("--tohum", type=int, help="ilk koşumun tohumu (varsayılan: saatten türetilir)")
-    kararlilik.add_argument("--cikti", help=f"rapor dizini (varsayılan {STABILITY_REPORT_DIRECTORY.relative_to(ROOT).as_posix()})")
-    yayin = subparsers.add_parser("yayin", help="yayın provası - ağa hiçbir şey yazmaz")
-    yayin.add_argument(
-        "--kuru", action="store_true", required=True,
-        help="zorunlu: bu faz yalnız kuru koşumu destekler, canlı yayın yolu yok",
+        help="one leg of a multi-TFM project (for example net10.0); without it every leg runs")
+    stability = subparsers.add_parser(
+        "stability",
+        help="run the same built test binaries N times; measure the spread in results and time (does not build)")
+    stability.add_argument(
+        "--repeat", type=int, default=STABILITY_DEFAULT_REPEAT,
+        help=f"number of runs (default {STABILITY_DEFAULT_REPEAT}, at least {STABILITY_MIN_REPEAT})")
+    stability.add_argument(
+        "--project", nargs="+", action="extend", help="only these test modules (default: all)")
+    stability.add_argument("--exclude", nargs="+", action="extend", help="do not run these test modules")
+    stability.add_argument(
+        "--shuffle", action="store_true",
+        help="give every run a different xunit `--seed`; the seeds are reported")
+    stability.add_argument(
+        "--pressure", action="store_true",
+        help="keep half of the CPUs busy with load processes during some runs (default: the last two runs)")
+    stability.add_argument(
+        "--pressure-runs", nargs="+", type=int, metavar="N", help="numbers of the runs that get pressure (1-based)")
+    stability.add_argument("--seed", type=int, help="seed of the first run (default: derived from the clock)")
+    stability.add_argument(
+        "--output", help=f"report directory (default {STABILITY_REPORT_DIRECTORY.relative_to(ROOT).as_posix()})")
+    release = subparsers.add_parser("release", help="release rehearsal - writes nothing to the network")
+    release.add_argument(
+        "--dry-run", action="store_true", required=True,
+        help="required: this command supports only a dry run, there is no live release path",
     )
-    yayin.add_argument(
-        "--surum",
-        help="zorlanacak sürüm (MinVerVersionOverride); --paket-dizini ile beklenen sürüm; "
-             "verilmezse MinVer'in bugünkü değeri kullanılır")
-    yayin.add_argument(
-        "--paket-dizini",
-        help="paketlemeden doğrula: 'kapi.py paketle' çıktısı; dizin değişmez")
+    release.add_argument(
+        "--package-version",
+        help="version to force (MinVerVersionOverride); with --package-directory, the expected version; "
+             "without it the current MinVer value is used")
+    release.add_argument(
+        "--package-directory",
+        help="rehearse without packing: the output of 'gate.py pack'; the directory does not change")
     # CI'ın tek pack'i. Bypass seçeneği YOKTUR.
-    paketle = subparsers.add_parser("paketle", help="test edilen derlemeyi --no-build ile paketler + manifest")
-    paketle.add_argument("--cikti", required=True, help="boş veya olmayan çıktı dizini; doluysa ret (silinmez)")
-    paket_dogrula = subparsers.add_parser(
-        "paket-dogrula", help="dizindeki dosyalar manifest'teki SHA-256 ile aynı mı")
-    paket_dogrula.add_argument("dizin", help="package-manifest.json taşıyan dizin")
+    pack = subparsers.add_parser("pack", help="pack the tested build with --no-build, and write a manifest")
+    pack.add_argument(
+        "--output", required=True,
+        help="an empty or missing output directory; a directory with files is refused (nothing is deleted)")
+    verify_packages = subparsers.add_parser(
+        "verify-packages", help="check that the files in a directory match the SHA-256 values in the manifest")
+    verify_packages.add_argument("directory", help="directory that holds package-manifest.json")
     # Kapasite ölçümü bir KAPI DEĞİLDİR (yük ölçümü rapordur).
-    # `kapanis` onu asla koşmaz; burada olması yalnız komut yüzeyini tek yerde
+    # `close` onu asla koşmaz; burada olması yalnız komut yüzeyini tek yerde
     # tutmak içindir. Ağır profiller açık komutla, eli isteyerek koşar.
-    kapasite = subparsers.add_parser(
-        "kapasite",
-        help="HTTP kapasite ölçümü - opt-in, kapı değil (scripts/capacity.py)")
-    kapasite.add_argument("--profil", required=True,
+    capacity = subparsers.add_parser(
+        "capacity",
+        help="HTTP capacity measurement - opt-in, not a gate (scripts/capacity.py)")
+    capacity.add_argument("--profile", required=True,
                           help="smoke | sweep | arrival | workers | soak | nodes")
-    kapasite.add_argument("--surum", required=True,
-                          help="ölçülecek exact paket sürümü; kayan sürüm reddedilir")
-    kapasite.add_argument("--cikti", default=str(ARTIFACTS / "capacity"),
-                          help="artifact kökü (varsayılan artifacts/capacity)")
+    capacity.add_argument("--package-version", required=True,
+                          help="exact package version to measure; a floating version is refused")
+    capacity.add_argument("--output", default=str(ARTIFACTS / "capacity"),
+                          help="artifact root (default artifacts/capacity)")
+    return parser, subparsers
 
-    args = parser.parse_args(argv)
-    if args.stage == "tarama":
+
+def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> int:
+    parser, subparsers = build_parser()
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    requested = next((token for token in arguments if not token.startswith("-")), None)
+    if requested in RENAMED_COMMANDS:
+        parser.error(f"'{requested}' was renamed to '{RENAMED_COMMANDS[requested]}'")
+
+    args = parser.parse_args(arguments)
+    if args.stage == "scan":
         return scan(extension=extension)
-    if args.stage == "uret":
-        return run_commands("uret", generation_commands(extension), dry_run=args.komutlari_bas)
-    if args.stage == "kapasite":
-        return capacity_measurement(args.profil, args.surum, pathlib.Path(args.cikti))
-    if args.stage == "ic-dongu":
-        paths = changed_paths(args.taban)
+    if args.stage == "generate":
+        return run_commands("generate", generation_commands(extension), dry_run=args.print_commands)
+    if args.stage == "capacity":
+        return capacity_measurement(args.profile, args.package_version, pathlib.Path(args.output))
+    if args.stage == "inner-loop":
+        paths = changed_paths(args.base)
         if paths is None:
-            print("❌ git çağrısı başarısız; etkilenen proje seçilemedi.")
+            print("❌ The git call failed; the affected projects could not be selected.")
             return 1
         if not paths:
             # After a commit, HEAD..working tree is empty and only the
             # build runs - a "green" that tested nothing.
-            print(f"⚠️ {args.taban}'e karşı değişiklik yok; yalnız build koşar. "
-                  "Commit edilen işi sınamak için `--taban <faz öncesi commit>` ver.")
+            print(f"⚠️ No change against {args.base}; only the build runs. "
+                  "To test committed work, pass `--base <the commit before your work>`.")
         commands = inner_loop_commands(paths)
-        if not args.komutlari_bas and runs_multi_target_tests(commands) \
+        if not args.print_commands and runs_multi_target_tests(commands) \
                 and not require_test_runtimes(test_target_frameworks()):
             return 1
-        return run_commands("ic-dongu", commands, dry_run=args.komutlari_bas)
-    if args.stage == "kapanis":
+        return run_commands("inner-loop", commands, dry_run=args.print_commands)
+    if args.stage == "close":
         # The performance gate is path-triggered against the WHOLE change set's
-        # changes (--taban..working tree), not just what is uncommitted right
+        # changes (--base..working tree), not just what is uncommitted right
         # now - a phase that touched a hot path in an earlier commit and only
         # has unrelated uncommitted changes left must still measure it.
         # A failed git call runs it anyway rather than silently skipping.
-        paths = changed_paths(args.taban)
+        paths = changed_paths(args.base)
         performance = paths is None or performance_gate_triggered(paths)
         commands = closing_commands(
-            args.taban, site=not args.site_atla, performance=performance, extension=extension)
-        if not args.komutlari_bas and runs_multi_target_tests(commands) \
+            args.base, site=not args.skip_site, performance=performance, extension=extension)
+        if not args.print_commands and runs_multi_target_tests(commands) \
                 and not require_test_runtimes(test_target_frameworks()):
             return 1
-        return run_commands("kapanis", commands, dry_run=args.komutlari_bas)
-    if args.stage == "uzak-durum":
-        if args.komutlari_bas:
-            print("(ağ) api.nuget.org flat container + `gh run list` -> son yayın etiketi ve son CI koşumu")
+        return run_commands("close", commands, dry_run=args.print_commands)
+    if args.stage == "remote-state":
+        if args.print_commands:
+            print("(network) api.nuget.org flat container + `gh run list` -> the last release tag and the last CI run")
             return 0
         return remote_state_check(ci_remote=extension.ci_remote)
-    if args.stage == "performans":
-        if args.komutlari_bas:
+    if args.stage == "perf":
+        if args.print_commands:
             print("$ dotnet run -c Release --project bench/Tracon.Benchmarks -- --filter * --exporters json")
             return 0
-        return performance_gate(update=args.guncelle)
+        return performance_gate(update=args.update)
     if args.stage == "test":
         try:
-            commands = test_commands(args.proje, args.sinif, args.tfm)
+            commands = test_commands(args.project, args.classes, args.tfm)
         except ValueError as error:
             print(f"❌ {error}")
             return 2
-        if not args.komutlari_bas and args.proje in multi_target_test_projects():
+        if not args.print_commands and args.project in multi_target_test_projects():
             frameworks = (args.tfm,) if args.tfm else test_target_frameworks()
             if not require_test_runtimes(frameworks):
                 return 1
-        return run_commands("test", commands, dry_run=args.komutlari_bas)
-    if args.stage == "kararlilik":
+        return run_commands("test", commands, dry_run=args.print_commands)
+    if args.stage == "stability":
         return stability_from_arguments(args)
-    if args.stage == "paket-dogrula":
-        if args.komutlari_bas:
-            print(f"(dotnet çağrısı yok) {args.dizin}/{PACKAGE_MANIFEST_NAME} -> her dosyanın ham SHA-256'sı")
+    if args.stage == "verify-packages":
+        if args.print_commands:
+            print(f"(no dotnet call) {args.directory}/{PACKAGE_MANIFEST_NAME} -> the raw SHA-256 of every file")
             return 0
-        return verify_package_directory(pathlib.Path(args.dizin).resolve())
-    if args.stage == "paketle":
-        if args.komutlari_bas:
-            print(f"$ {pack_command(args.cikti, ('<187 taban özellikleri>',), no_build=True).display}")
+        return verify_package_directory(pathlib.Path(args.directory).resolve())
+    if args.stage == "pack":
+        if args.print_commands:
+            print(f"$ {pack_command(args.output, ('<baseline properties>',), no_build=True).display}")
             return 0
         # resolve(): `dotnet pack` köke göre koşar, Python cwd'ye göre çözerdi (denetim 🟢1).
-        return pack_for_ci(pathlib.Path(args.cikti).resolve())
-    if args.stage == "yayin":
-        if args.komutlari_bas:
-            if args.paket_dizini:
-                print(f"(dotnet pack yok) paket-dogrula {args.paket_dizini} -> ortak yol -> "
-                      f"{PACKAGE_RELEASE_DIR.relative_to(ROOT)}'e kopya -> paket-dogrula")
+        return pack_for_ci(pathlib.Path(args.output).resolve())
+    if args.stage == "release":
+        if args.print_commands:
+            if args.package_directory:
+                print(f"(no dotnet pack) verify-packages {args.package_directory} -> shared path -> "
+                      f"copy to {PACKAGE_RELEASE_DIR.relative_to(ROOT)} -> verify-packages")
             else:
-                print(f"$ {pack_command('<staging>', ('<187 taban özellikleri>',), no_build=False).display}")
+                print(f"$ {pack_command('<staging>', ('<baseline properties>',), no_build=False).display}")
             return 0
-        if args.paket_dizini:
-            return rehearse_package_directory(pathlib.Path(args.paket_dizini).resolve(), args.surum)
-        return release_rehearsal(args.surum)
+        if args.package_directory:
+            return rehearse_package_directory(pathlib.Path(args.package_directory).resolve(), args.package_version)
+        return release_rehearsal(args.package_version)
 
-    if args.komutlari_bas:
-        return run_commands("kapanis", closing_commands("<taban>", extension=extension), dry_run=True)
-    parser.error("bir aşama belirtin: tarama, uret, uzak-durum, ic-dongu, kapanis, performans, test, kararlilik, yayin, paketle veya paket-dogrula")
+    if args.print_commands:
+        return run_commands("close", closing_commands("<base>", extension=extension), dry_run=True)
+    parser.error(f"name a stage: {', '.join(subparsers.choices)}")
     return 2
 
 

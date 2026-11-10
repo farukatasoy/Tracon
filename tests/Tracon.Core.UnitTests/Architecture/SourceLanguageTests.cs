@@ -128,9 +128,7 @@ public sealed class SourceLanguageTests
     /// <summary>
     /// Turkish-named identifiers that are not prose and must survive translation:
     /// defect ids and manual test case ids (a prefix, letters and a number),
-    /// the names of the repository's own scripts and the flags they take (those
-    /// stay Turkish by design), and the contract snapshots under
-    /// <c>docs/sozlesme/</c>, whose file names the release gate reads.
+    /// and the names of the repository's own scripts.
     /// They are removed from a line before it is inspected — otherwise
     /// <c>HATA-</c> would forever match the word <c>hata</c> and the baseline
     /// could never reach zero.
@@ -140,7 +138,7 @@ public sealed class SourceLanguageTests
     /// the pointer a reader cannot follow, and hiding it hid the sentence around it too.
     /// </remarks>
     private static readonly Regex IdentifierMaskPattern = new(
-        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:py|sh)\b|--surum\b|docs/sozlesme/[A-Za-z0-9_./-]+",
+        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:py|sh)\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -232,7 +230,7 @@ public sealed class SourceLanguageTests
 
     [Theory]
     [InlineData("See kayit-defteri.md for the reason", true)]
-    [InlineData("python3 scripts/kapi.py kapasite --surum 1.0.0", false)]
+    [InlineData("python3 scripts/kayit-tara.py --check", false)]
     [InlineData("The reason is written in English", false)]
     public void A_line_is_offending_unless_only_a_masked_identifier_is_Turkish(string line, bool offending)
         => IsOffending(line).ShouldBe(offending);

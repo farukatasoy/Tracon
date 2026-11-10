@@ -249,7 +249,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
         errors.append(f"release feed contains stale Tracon packages: {', '.join(stale)}")
 
     if errors:
-        print("❌ Extension sample contract ihlal edildi:")
+        print("❌ The extension sample contract is violated:")
         for error in errors:
             print(f"  {error}")
         return 1
@@ -292,11 +292,11 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
 
             assets = _project_assets_json(root, project)
             if str(package_cache) not in assets.read_text(encoding="utf-8"):
-                print(f"❌ {project}: restore isolated NUGET_PACKAGES kullanmadı")
+                print(f"❌ {project}: the restore did not use the isolated NUGET_PACKAGES")
                 return 1
 
         if "Tracon.Core" in tracon_dependency_closure(release_dir, "Tracon.Testing.Contracts.Xunit", version):
-            print("❌ Testing.Contracts.Xunit graph'ına Tracon.Core sızdı")
+            print("❌ Tracon.Core leaked into the Testing.Contracts.Xunit graph")
             return 1
 
         # Native AOT publish needs a concrete RID; the samples carry none of their
@@ -320,13 +320,13 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
 
             aot_assets = _project_assets_json(root, aot_project).read_text(encoding="utf-8")
             if '"Tracon.Testing/' in aot_assets or '"Tracon.Testing.Contracts.Xunit/' in aot_assets:
-                print(f"❌ {aot_project}: graph'a testing paketi sızdı")
+                print(f"❌ {aot_project}: a testing package leaked into the graph")
                 return 1
 
             executable = publish_dir / aot_project
             if _run([str(executable)], root=root, environment=environment):
                 return 1
 
-    print(f"✅ {len(SAMPLE_TEST_PROJECTS)} exact-version packed sample ve {len(AOT_PROJECTS)} Native AOT smoke:"
+    print(f"✅ {len(SAMPLE_TEST_PROJECTS)} exact-version packed samples and {len(AOT_PROJECTS)} Native AOT smokes:"
           f" {version}")
     return 0

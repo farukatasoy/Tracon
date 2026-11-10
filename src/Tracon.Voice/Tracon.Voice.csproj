@@ -20,7 +20,7 @@
     the target-framework or AOT rule, so the
     contract is a written declaration: tests/Tracon.Voice.UnitTests/Fixtures/
     elevenlabs-operations.json. ElevenLabsOperationDriftTests proves it equals
-    what the code does; scripts/elevenlabs-kayma.py checks it against the
+    what the code does; scripts/elevenlabs-drift.py checks it against the
     provider's published OpenAPI document.
 
     A community SDK would carry maintenance and version risk to the consumer, and measured that an SDK can break SILENTLY at run time

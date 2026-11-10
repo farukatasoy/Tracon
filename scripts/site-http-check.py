@@ -6,8 +6,9 @@ import subprocess
 from pathlib import Path
 from urllib.parse import urlsplit
 
-parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('origin', help='Yerel nginx origin, ör. http://127.0.0.1:4175')
+parser = argparse.ArgumentParser(
+    description='Measures the redirect, error and preview-indexing contract of a local nginx instance.')
+parser.add_argument('origin', help='local nginx origin, for example http://127.0.0.1:4175')
 args = parser.parse_args()
 origin = urlsplit(args.origin)
 root = Path(__file__).resolve().parents[1]
@@ -37,11 +38,11 @@ for path, expected, content_type in checks:
         if response.status != expected:
             errors.append(f'{path}: {response.status} != {expected}')
         if expected == 301 and response.getheader('Location') != '/getting-started/?ref=seo':
-            errors.append(f'{path}: yanlış redirect {response.getheader("Location")}')
+            errors.append(f'{path}: wrong redirect {response.getheader("Location")}')
         if (response.getheader('X-Robots-Tag') == 'noindex') != (request_host != host):
-            errors.append(f'{request_host}{path}: yanlış X-Robots-Tag')
+            errors.append(f'{request_host}{path}: wrong X-Robots-Tag')
         if expected == 404 and ('Page not found' not in body or 'content="noindex"' not in body):
-            errors.append(f'{path}: hata HTML/noindex eksik')
+            errors.append(f'{path}: error HTML or noindex is missing')
         if content_type and not (response.getheader('Content-Type') or '').startswith(content_type):
             errors.append(f'{path}: Content-Type {response.getheader("Content-Type")} != {content_type}*')
         # Markdown kopyaları sayfanın near-duplicate'idir ve sitemap'te yoktur; sahibi
@@ -54,7 +55,7 @@ for path, expected, content_type in checks:
             if response.getheader('Link') != beklenen:
                 errors.append(f'{path}: Link {response.getheader("Link")} != {beklenen}')
         connection.close()
-print(f'HTTP: {len(checks) * 2} yanıt denetlendi; {len(errors)} hata.')
+print(f'HTTP: {len(checks) * 2} responses checked; {len(errors)} error(s).')
 for error in errors:
     print(error)
 raise SystemExit(bool(errors))

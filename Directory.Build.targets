@@ -17,8 +17,8 @@
   </PropertyGroup>
 
   <!--
-    Taban dogrulamasi - yalniz yayin paketi. `scripts/kapi.py yayin`
-    ve CI build isindeki `scripts/kapi.py paketle` ayni pack
+    Taban dogrulamasi - yalniz yayin paketi. `scripts/gate.py release`
+    ve CI build isindeki `scripts/gate.py pack` ayni pack
     kurucusuyla son yayinlanmis surumun paketlerini IZOLE bir cache'e restore
     eder ve uc ozellik gecirir: TraconPackageBaselineRoot, TraconPackageBaselineVersion,
     TraconApiCompatReportDir. Kok bossa hicbir sey turetilmez; gunluk pack
@@ -54,7 +54,7 @@
           Condition=" '$(IsPackable)' == 'true' AND '$(TraconPackageBaselineRoot)' != '' ">
     <Error Condition=" '$(TraconPackageBaselineVersion)' == '' OR '$(TraconApiCompatReportDir)' == '' "
            Code="TRACON0007"
-           Text="TraconPackageBaselineRoot was set for package '$(MSBuildProjectName)' without TraconPackageBaselineVersion and TraconApiCompatReportDir. The three properties come together; scripts/kapi.py yayin passes all of them." />
+           Text="TraconPackageBaselineRoot was set for package '$(MSBuildProjectName)' without TraconPackageBaselineVersion and TraconApiCompatReportDir. The three properties come together; scripts/gate.py release passes all of them." />
   </Target>
 
   <!--
@@ -76,7 +76,7 @@
   <Target Name="TraconValidatePackageReadme" BeforeTargets="GenerateNuspec" Condition=" '$(IsPackable)' == 'true' ">
     <Error Condition="!Exists('$(MSBuildProjectDirectory)/README.md')"
            Code="TRACON0001"
-           Text="Yayinlanabilir paket '$(MSBuildProjectName)' icin README.md eksik. NuGet paket sayfasinda gorunecek bir README.md dosyasi ekleyin." />
+           Text="The package '$(MSBuildProjectName)' has no README.md. NuGet.org shows the README.md on the package page. Add a README.md file to the project folder." />
   </Target>
 
   <!--
@@ -93,21 +93,21 @@
     never blocked by it.
 
     A source tree with no git (a source tarball) or a machine without a `git`
-    executable is deliberately NOT an error here: `scripts/kapi.py yayin` is the
+    executable is deliberately NOT an error here: `scripts/gate.py release` is the
     primary defense and performs its own git check; this MSBuild gate is the
     SECOND line, not the only one.
 
     TraconSkipCleanWorkingTreeCheck bypasses this entire target regardless
     of git state. It exists ONLY for Tracon's own iteration-loop tooling -
-    `scripts/kapi.py kapanis`'s pack step and the `dotnet pack` calls inside
+    `scripts/gate.py close`'s pack step and the `dotnet pack` calls inside
     Tracon.Package.Tests' ReleaseArtifactFixture/TemplateFixture - which
     validate the PACKAGING CONTRACT (README, icon, template
     installability) during normal development and are never the source of a
     published artifact (without this, the closing
     gate could never pass on an uncommitted tree, and this repo's own workflow
     is "commit only when asked", not "commit before every local test run").
-    A real release candidate NEVER sets this property: `scripts/kapi.py yayin`
-    (the release rehearsal) and `scripts/kapi.py paketle` - the build job's
+    A real release candidate NEVER sets this property: `scripts/gate.py release`
+    (the release rehearsal) and `scripts/gate.py pack` - the build job's
     pack whose files a `v*` tag actually publishes - both leave it
     unset, so THEY stay fully gated.
   -->

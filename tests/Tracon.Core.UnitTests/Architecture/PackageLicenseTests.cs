@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <para>
 /// The matrix is written down twice on purpose — once in
 /// <c>src/Directory.Build.props</c>, which decides what a package declares and
-/// packs, and once in <c>scripts/kapi.py</c>, which is the release gate that
+/// packs, and once in <c>scripts/gate.py</c>, which is the release gate that
 /// reads the produced <c>.nupkg</c> back. Two independent statements catch a
 /// build that silently packs the wrong file; the risk is that they drift apart,
 /// so these tests read both files from disk and require them to agree.
@@ -102,7 +102,7 @@ public sealed class PackageLicenseTests
 
         gate.Keys.Order(StringComparer.Ordinal).ShouldBe(
             packable.Order(StringComparer.Ordinal),
-            customMessage: "scripts/kapi.py PACKAGE_LICENSES does not list exactly the packable projects. " +
+            customMessage: "scripts/gate.py PACKAGE_LICENSES does not list exactly the packable projects. " +
                            "A new package has to state its licence there before it can ship.");
     }
 
@@ -119,7 +119,7 @@ public sealed class PackageLicenseTests
         fromGate.ShouldBe(
             fromBuild,
             customMessage: "TraconMitLicensed in src/Directory.Build.props and PACKAGE_LICENSES in " +
-                           "scripts/kapi.py disagree. The build decides what ships; the gate decides what " +
+                           "scripts/gate.py disagree. The build decides what ships; the gate decides what " +
                            "passes. If they drift, one of them is lying about the product.");
     }
 
@@ -142,7 +142,7 @@ public sealed class PackageLicenseTests
 
     private static IReadOnlyList<string> PackableProjectIds()
     {
-        // Mirrors _packable_ids in scripts/kapi.py exactly, including its src/*/*.csproj
+        // Mirrors _packable_ids in scripts/gate.py exactly, including its src/*/*.csproj
         // shape: ONE level down. Measured — a deeper walk also finds
         // src/Tracon.Templates/.../Tracon.Starter.csproj, which is template
         // content that `dotnet new` writes into a consumer's project, not a package.
@@ -162,13 +162,13 @@ public sealed class PackageLicenseTests
 
     private static Dictionary<string, string> ReleaseGateLicences()
     {
-        var script = File.ReadAllText(Path.Combine(RepositoryRoot, "scripts", "kapi.py"));
+        var script = File.ReadAllText(Path.Combine(RepositoryRoot, "scripts", "gate.py"));
         var start = script.IndexOf("PACKAGE_LICENSES: dict[str, str] = {", StringComparison.Ordinal);
 
-        start.ShouldBeGreaterThanOrEqualTo(0, "PACKAGE_LICENSES was not found in scripts/kapi.py.");
+        start.ShouldBeGreaterThanOrEqualTo(0, "PACKAGE_LICENSES was not found in scripts/gate.py.");
 
         var end = script.IndexOf("\n}", start, StringComparison.Ordinal);
-        end.ShouldBeGreaterThan(start, "PACKAGE_LICENSES in scripts/kapi.py is not terminated.");
+        end.ShouldBeGreaterThan(start, "PACKAGE_LICENSES in scripts/gate.py is not terminated.");
 
         return GateEntryPattern
             .Matches(script[start..end])

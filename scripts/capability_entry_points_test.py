@@ -7,7 +7,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import kayit_giris_noktasi as kural  # noqa: E402
+import capability_entry_points as kural  # noqa: E402
 
 # Tek fixture: iki betik de bu modülü kullandığı için kuralın eşliği burada
 # kanıtlanır. Her satırın beklenen sonucu yanındadır.
@@ -33,7 +33,7 @@ class KuralTestleri(unittest.TestCase):
     def test_her_fixture_satiri_beklenen_sonucu_verir(self):
         for satir, beklenen in SATIRLAR:
             with self.subTest(satir=satir):
-                self.assertEqual(kural.kayit_giris_noktasi(satir), beklenen)
+                self.assertEqual(kural.capability_entry_points(satir), beklenen)
 
     def test_builder_alicisinda_ad_onekten_bagimsizdir(self):
         self.assertTrue(kural.kayit_uzantisi_mi("Configure", "Tracon.ITraconBuilder"))

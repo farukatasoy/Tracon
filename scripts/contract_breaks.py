@@ -9,11 +9,11 @@ whatever it says: nothing compared it with the LAST RELEASE. This module does.
 
 Two readers, both against the files of the baseline tag (`git show v<tag>:<file>`):
 
-- name sets (`docs/sozlesme/*.txt`): a line that is gone or changed is a break,
+- name sets (`docs/contracts/*.txt`): a line that is gone or changed is a break,
   a new line is an addition;
 - the OpenAPI document (`docs/openapi/tracon.json`): the rules of the HTTP row
   in `reference/versioning.md`. The rule table sits in one place below.
-  A change the rules do not name is a break too (`tanınmayan değişiklik`): a
+  A change the rules do not name is a break too (`unrecognized change`): a
   gate that cannot classify a change must not pass it.
 
 The release line is the one `breaking_changes.release_line` decides;
@@ -22,9 +22,9 @@ release notes name it; in a frozen release it is red whatever the notes say, and
 a frozen patch may not add to any surface either.
 
 Callable two ways:
-- from `kapi.py yayin` (`check`, after the ApiCompat gate);
+- from `gate.py release` (`check`, after the ApiCompat gate);
 - as a CLI over any git repository:
-  `python3 scripts/sozlesme_kirilma.py --depo <dir> --taban <version> [--surum <version>]`
+  `python3 scripts/contract_breaks.py --repository <dir> --base <version> [--package-version <version>]`
 """
 from __future__ import annotations
 
@@ -94,9 +94,17 @@ class SurfaceResult:
 
 @dataclasses.dataclass(frozen=True)
 class NameSurface:
+    """One snapshot file. `legacy_path` is where a tag from before the move holds the same file."""
+
     label: str
     path: pathlib.PurePosixPath
+    legacy_path: pathlib.PurePosixPath
     ident: Callable[[str], str]
+
+    @property
+    def paths(self) -> tuple[str, str]:
+        """The current path first, then the old one: the order a tag is asked in."""
+        return str(self.path), str(self.legacy_path)
 
 
 def _last_token(line: str) -> str:
@@ -120,15 +128,27 @@ def _cli_ident(line: str) -> str:
     return rest
 
 
+def _surface(label: str, name: str, legacy_name: str, ident: Callable[[str], str]) -> NameSurface:
+    """The snapshot `docs/contracts/<name>` and the name it had under `docs/sozlesme/` before the move.
+
+    Tags up to `v1.0.0-preview.8` hold the old paths. The mapping stays for good: history does not change,
+    so a gate that reads a tag must keep asking for the old path."""
+    return NameSurface(
+        label,
+        pathlib.PurePosixPath("docs", "contracts", name),
+        pathlib.PurePosixPath("docs", "sozlesme", legacy_name),
+        ident)
+
+
 NAME_SURFACES = (
     # `run-events run.started` -> `run.started`
-    NameSurface("SSE", pathlib.PurePosixPath("docs", "sozlesme", "sse-olaylari.txt"), _last_token),
+    _surface("SSE", "sse-events.txt", "sse-olaylari.txt", _last_token),
     # `instrument tracon.runs Counter<long> …` -> `tracon.runs`; `attribute tracon.tenant.id` -> `tracon.tenant.id`
-    NameSurface("telemetri", pathlib.PurePosixPath("docs", "sozlesme", "telemetri.txt"), _second_token),
-    NameSurface("yapılandırma", pathlib.PurePosixPath("docs", "sozlesme", "yapilandirma.txt"), _whole_line),
-    NameSurface("hata kodu", pathlib.PurePosixPath("docs", "sozlesme", "hata-kodlari.txt"), _whole_line),
-    NameSurface("doğrulama kodu", pathlib.PurePosixPath("docs", "sozlesme", "dogrulama-kodlari.txt"), _whole_line),
-    NameSurface("CLI", pathlib.PurePosixPath("docs", "sozlesme", "cli.txt"), _cli_ident),
+    _surface("telemetry", "telemetry.txt", "telemetri.txt", _second_token),
+    _surface("configuration", "configuration.txt", "yapilandirma.txt", _whole_line),
+    _surface("error code", "error-codes.txt", "hata-kodlari.txt", _whole_line),
+    _surface("validation code", "validation-codes.txt", "dogrulama-kodlari.txt", _whole_line),
+    _surface("CLI", "cli.txt", "cli.txt", _cli_ident),
 )
 
 
@@ -145,25 +165,25 @@ def name_set_delta(root: pathlib.Path, tag: str, surface: NameSurface, *, snapsh
     the file existed, so a missing file there is a hole in the gate, not a
     first record."""
     result = SurfaceResult(surface.label)
-    previous = bc._show(root, tag, str(surface.path))
+    previous = bc._show_first(root, tag, surface.paths)
     if previous is None:
         if snapshot_required:
             raise SurfaceError(
-                f"{surface.path} '{tag}' etiketinde yok; donmuş bir tabanda anlık görüntü zorunludur "
-                f"({surface.label} değişikliği başka türlü görünmez)")
-        result.note = f"taban yok ({surface.path} '{tag}' etiketinde yok; ilk kayıt)"
+                f"{bc.absent_from_tag(tag, surface.paths)}; a frozen baseline must have the snapshot "
+                f"({surface.label} changes would stay invisible)")
+        result.note = f"no baseline ({bc.absent_from_tag(tag, surface.paths)}; first record)"
         return result
     try:
         current = (root / surface.path).read_text(encoding="utf-8")
     except OSError as exception:
-        raise SurfaceError(f"{surface.path} okunamadı ({exception})") from exception
+        raise SurfaceError(f"cannot read {surface.path} ({exception})") from exception
 
     before, after = snapshot_lines(previous), snapshot_lines(current)
     for line in sorted(before - after):
         result.breaks.append(Change(
-            surface.label, line, "satır kalktı ya da değişti", surface.ident(line)))
+            surface.label, line, "line removed or changed", surface.ident(line)))
     for line in sorted(after - before):
-        result.additions.append(Change(surface.label, line, "yeni satır", surface.ident(line)))
+        result.additions.append(Change(surface.label, line, "new line", surface.ident(line)))
     return result
 
 
@@ -177,8 +197,8 @@ def name_set_delta(root: pathlib.Path, tag: str, surface: NameSurface, *, snapsh
 #   ADDITION  a minor may do it, a patch may not
 #   (silent)  documentation: description, summary, tags, examples, deprecated
 #
-# A key, a keyword or a shape that is in none of the three is `tanınmayan
-# değişiklik` and counts as a BREAK. The table lists what a 1.x minor may do;
+# A key, a keyword or a shape that is in none of the three is an `unrecognized
+# change` and counts as a BREAK. The table lists what a 1.x minor may do;
 # the gate is allowed to be stricter than the table, never looser.
 
 DOCUMENTATION_KEYS = frozenset({
@@ -188,8 +208,8 @@ METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 SUCCESS = re.compile(r"^2\d\d$")
 PATH_PARAMETER = re.compile(r"\{[^}]*\}")
 
-REQUEST = "istek"
-RESPONSE = "yanıt"
+REQUEST = "request"
+RESPONSE = "response"
 
 
 class _Diff:
@@ -217,26 +237,26 @@ class _Diff:
         for key in sorted(old_ops):
             if key not in new_ops:
                 method, path = old_ops[key][0], old_ops[key][1]
-                self.broke(f"{method.upper()} {path}", "uç ya da metot silindi", path)
+                self.broke(f"{method.upper()} {path}", "endpoint or method removed", path)
                 continue
             self._operation(old_ops[key], new_ops[key])
 
         for key in sorted(new_ops.keys() - old_ops.keys()):
             method, path = new_ops[key][0], new_ops[key][1]
-            self.added(f"{method.upper()} {path}", "yeni uç", path)
+            self.added(f"{method.upper()} {path}", "new endpoint", path)
 
         # Left out on purpose: `openapi` (the generator's format version, not the wire), `info` (title, version),
         # `servers` (the base URL of the host that generated the file), `tags` (documentation) and `paths` and
         # `components`, which are compared above and below. Everything else, `security` included, is compared.
         for key in sorted((self.old.keys() | self.new.keys()) - {"openapi", "info", "servers", "paths", "components", "tags"}):
             if _strip_documentation(self.old.get(key)) != _strip_documentation(self.new.get(key)):
-                rule = "belge düzeyi güvenlik gereksinimi değişti" if key == "security" else "tanınmayan değişiklik"
-                self.broke(f"belge anahtarı '{key}'", rule, key)
+                rule = "document-level security requirement changed" if key == "security" else "unrecognized change"
+                self.broke(f"document key '{key}'", rule, key)
 
         for key in sorted(((self.old.get("components") or {}).keys() | (self.new.get("components") or {}).keys())
                           - {"schemas", "securitySchemes"}):
             if (self.old.get("components") or {}).get(key) != (self.new.get("components") or {}).get(key):
-                self.broke(f"components.{key}", "tanınmayan değişiklik", key)
+                self.broke(f"components.{key}", "unrecognized change", key)
 
         self._security_schemes()
 
@@ -245,9 +265,9 @@ class _Diff:
         new = (self.new.get("components") or {}).get("securitySchemes") or {}
         for name in sorted(old):
             if name not in new:
-                self.broke(f"güvenlik şeması '{name}'", "güvenlik şeması silindi", name)
+                self.broke(f"security scheme '{name}'", "security scheme removed", name)
             elif _strip_documentation(old[name]) != _strip_documentation(new[name]):
-                self.broke(f"güvenlik şeması '{name}'", "güvenlik şeması değişti", name)
+                self.broke(f"security scheme '{name}'", "security scheme changed", name)
 
     # -- operations ---------------------------------------------------------
 
@@ -258,7 +278,7 @@ class _Diff:
 
         if old_op.get("operationId") != new_op.get("operationId"):
             # NSwag names the generated client method from it.
-            self.broke(where, "operationId değişti (üretilen istemci yöntemi adı)", path)
+            self.broke(where, "operationId changed (the generated client method name)", path)
 
         self._parameters(where, (path, new_path), old_op.get("parameters") or [], new_op.get("parameters") or [])
         self._request_body(where, path, old_op.get("requestBody"), new_op.get("requestBody"))
@@ -267,7 +287,7 @@ class _Diff:
         handled = {"operationId", "parameters", "requestBody", "responses"} | DOCUMENTATION_KEYS
         for key in sorted((old_op.keys() | new_op.keys()) - handled):
             if old_op.get(key) != new_op.get(key):
-                self.broke(where, f"tanınmayan değişiklik: {key}", path)
+                self.broke(where, f"unrecognized change: {key}", path)
 
     def _parameters(self, where: str, paths: tuple[str, str], old: list, new: list) -> None:
         """`paths` is the template in the baseline and the template now: a path variable is matched by position."""
@@ -277,25 +297,25 @@ class _Diff:
         for key in sorted(old_by_key):
             label = f"{key[1]} ({key[0]})"
             if key not in new_by_key:
-                self.broke(where, f"istek parametresi silindi: {label}", key[1])
+                self.broke(where, f"request parameter removed: {label}", key[1])
                 continue
             before, after = old_by_key[key], new_by_key[key]
             if not before.get("required", False) and after.get("required", False):
-                self.broke(where, f"opsiyonel parametre zorunlu oldu: {label}", key[1])
+                self.broke(where, f"optional parameter became required: {label}", key[1])
             self._schema(
-                REQUEST, f"{where} parametre {key[1]}", key[1],
+                REQUEST, f"{where} parameter {key[1]}", key[1],
                 before.get("schema") or {}, after.get("schema") or {})
             handled = {"name", "in", "required", "schema"} | DOCUMENTATION_KEYS
             for other in sorted((before.keys() | after.keys()) - handled):
                 if before.get(other) != after.get(other):
-                    self.broke(where, f"tanınmayan değişiklik: parametre {key[1]} {other}", key[1])
+                    self.broke(where, f"unrecognized change: parameter {key[1]} {other}", key[1])
 
         for key in sorted(new_by_key.keys() - old_by_key.keys()):
             label = f"{key[1]} ({key[0]})"
             if new_by_key[key].get("required", False) or key[0] == "path":
-                self.broke(where, f"istekte yeni zorunlu parametre: {label}", key[1])
+                self.broke(where, f"new required parameter in the request: {label}", key[1])
             else:
-                self.added(where, f"istekte yeni opsiyonel parametre: {label}", key[1])
+                self.added(where, f"new optional parameter in the request: {label}", key[1])
 
     def _request_body(self, where: str, path: str, old: dict | None, new: dict | None) -> None:
         old = self._resolve(self.old, old) if isinstance(old, dict) and "$ref" in old else old
@@ -304,49 +324,49 @@ class _Diff:
             return
         if old is None:
             if (new or {}).get("required", False):
-                self.broke(where, "istekte yeni zorunlu gövde", path)
+                self.broke(where, "new required body in the request", path)
             else:
-                self.added(where, "istekte yeni opsiyonel gövde", path)
+                self.added(where, "new optional body in the request", path)
             return
         if new is None:
-            self.broke(where, "istek gövdesi silindi", path)
+            self.broke(where, "request body removed", path)
             return
         if not old.get("required", False) and new.get("required", False):
-            self.broke(where, "opsiyonel istek gövdesi zorunlu oldu", path)
+            self.broke(where, "optional request body became required", path)
         self._content(REQUEST, where, path, old.get("content") or {}, new.get("content") or {})
         for key in sorted((old.keys() | new.keys()) - {"content", "required"} - DOCUMENTATION_KEYS):
             if old.get(key) != new.get(key):
-                self.broke(where, f"tanınmayan değişiklik: requestBody {key}", path)
+                self.broke(where, f"unrecognized change: requestBody {key}", path)
 
     def _responses(self, where: str, path: str, old: dict, new: dict) -> None:
         old_success = {code for code in old if SUCCESS.match(code)}
         new_success = {code for code in new if SUCCESS.match(code)}
         for code in sorted(old_success - new_success):
-            self.broke(where, f"başarı durum kodu kalktı: {code}", path)
+            self.broke(where, f"success status code removed: {code}", path)
         for code in sorted(new_success - old_success):
             if old_success & new_success:
-                self.added(where, f"yeni başarı durum kodu: {code}", path)
+                self.added(where, f"new success status code: {code}", path)
 
         for code in sorted(old.keys() & new.keys()):
             before, after = self._resolve(self.old, old[code]), self._resolve(self.new, new[code])
             self._content(RESPONSE, f"{where} {code}", path, before.get("content") or {}, after.get("content") or {})
             for key in sorted((before.keys() | after.keys()) - {"content"} - DOCUMENTATION_KEYS):
                 if before.get(key) != after.get(key):
-                    self.broke(where, f"tanınmayan değişiklik: yanıt {code} {key}", path)
+                    self.broke(where, f"unrecognized change: response {code} {key}", path)
         # A documented 4xx/5xx that appears or goes is documentation: the status a
         # request really gets is proved by the endpoint tests, not by this file.
 
     def _content(self, direction: str, where: str, ident: str, old: dict, new: dict) -> None:
         for media in sorted(old):
             if media not in new:
-                self.broke(where, f"{direction} ortam türü kalktı: {media}", ident)
+                self.broke(where, f"{direction} media type removed: {media}", ident)
                 continue
             self._schema(direction, where, ident, old[media].get("schema") or {}, new[media].get("schema") or {})
             for key in sorted((old[media].keys() | new[media].keys()) - {"schema"} - DOCUMENTATION_KEYS):
                 if old[media].get(key) != new[media].get(key):
-                    self.broke(where, f"tanınmayan değişiklik: {media} {key}", ident)
+                    self.broke(where, f"unrecognized change: {media} {key}", ident)
         for media in sorted(new.keys() - old.keys()):
-            self.added(where, f"{direction} için yeni ortam türü: {media}", ident)
+            self.added(where, f"new media type for {direction}: {media}", ident)
 
     # -- schemas ------------------------------------------------------------
 
@@ -388,16 +408,16 @@ class _Diff:
 
         if before_name and after_name and before_name != after_name:
             # NSwag names a client type from it.
-            self.broke(f"{where} {label or scope}", f"şema başka bir şemaya bağlandı: {before_name} -> {after_name}", before_name)
+            self.broke(f"{where} {label or scope}", f"schema now points to another schema: {before_name} -> {after_name}", before_name)
             return
         # Nullability belongs to the PLACE a schema is used, not to the schema: `Owner` may be `oneOf[null, $ref]` in
         # one property and a plain `$ref` in another. So it is compared before the already-seen shortcut below, which
         # skips only the work that is the same at every place (the shape).
         use = label or scope
         if direction == REQUEST and before_null and not after_null:
-            self.broke(f"{where} {use}", "istek alanı artık null olamaz", use, use.rsplit(".", 1)[-1])
+            self.broke(f"{where} {use}", "request field can no longer be null", use, use.rsplit(".", 1)[-1])
         if direction == RESPONSE and not before_null and after_null:
-            self.broke(f"{where} {use}", "yanıt alanı artık null olabilir", use, use.rsplit(".", 1)[-1])
+            self.broke(f"{where} {use}", "response field can now be null", use, use.rsplit(".", 1)[-1])
 
         if before_name:
             key = (before_name, direction, "")
@@ -407,13 +427,13 @@ class _Diff:
 
         before_type, after_type = _types(before), _types(after)
         if before_type != after_type:
-            self.broke(f"{where} {scope}", f"tür değişti: {sorted(before_type)} -> {sorted(after_type)}", scope)
+            self.broke(f"{where} {scope}", f"type changed: {sorted(before_type)} -> {sorted(after_type)}", scope)
             return
 
         if before.get("format") != after.get("format"):
-            self.broke(f"{where} {scope}", f"biçim değişti: {before.get('format')} -> {after.get('format')}", scope)
+            self.broke(f"{where} {scope}", f"format changed: {before.get('format')} -> {after.get('format')}", scope)
         if before.get("pattern") != after.get("pattern"):
-            self.broke(f"{where} {scope}", "desen (pattern) değişti", scope)
+            self.broke(f"{where} {scope}", "pattern changed", scope)
 
         self._enum(direction, where, scope, before.get("enum"), after.get("enum"))
         self._properties(direction, where, scope, before, after)
@@ -422,7 +442,7 @@ class _Diff:
             if "items" in before and "items" in after:
                 self._schema(direction, where, ident, before["items"], after["items"], f"{scope}[]")
             else:
-                self.broke(f"{where} {scope}", "dizi öğe şeması eklendi ya da kalktı", scope)
+                self.broke(f"{where} {scope}", "array item schema added or removed", scope)
 
         self._additional(direction, where, ident, scope, before.get("additionalProperties"), after.get("additionalProperties"))
         self._combinators(direction, where, ident, scope, before, after)
@@ -433,27 +453,27 @@ class _Diff:
         } | DOCUMENTATION_KEYS
         for other in sorted((before.keys() | after.keys()) - handled):
             if before.get(other) != after.get(other):
-                self.broke(f"{where} {scope}", f"tanınmayan değişiklik: {other}", scope)
+                self.broke(f"{where} {scope}", f"unrecognized change: {other}", scope)
 
     def _enum(self, direction: str, where: str, scope: str, old: list | None, new: list | None) -> None:
         if old is None and new is None:
             return
         if old is None:
             if direction == REQUEST:
-                self.broke(f"{where} {scope}", "istek alanı artık sabit bir değer kümesiyle sınırlı", scope)
+                self.broke(f"{where} {scope}", "request field is now limited to a fixed set of values", scope)
             return
         if new is None:
             if direction == RESPONSE:
-                self.broke(f"{where} {scope}", "yanıt alanı artık sabit bir değer kümesi değil", scope)
+                self.broke(f"{where} {scope}", "response field is no longer a fixed set of values", scope)
             return
         removed = [value for value in old if value not in new]
         added = [value for value in new if value not in old]
         if removed:
             # A request enum loses a value a client may send; a response enum loses a member of the generated .NET
             # client (`Tracon.Client` is outside PublicAPI tracking, so this gate is its only guard).
-            self.broke(f"{where} {scope}", f"{direction} enum değeri silindi: {removed}", scope)
+            self.broke(f"{where} {scope}", f"{direction} enum value removed: {removed}", scope)
         if added:
-            self.added(f"{where} {scope}", f"{direction} enum değeri eklendi: {added}", scope)
+            self.added(f"{where} {scope}", f"{direction} enum value added: {added}", scope)
 
     def _properties(self, direction: str, where: str, scope: str, old: dict, new: dict) -> None:
         old_props = old.get("properties") or {}
@@ -464,23 +484,23 @@ class _Diff:
         for name in sorted(old_props):
             member = f"{scope}.{name}"
             if name not in new_props:
-                rule = "yanıt alanı silindi" if direction == RESPONSE else "istek alanı silindi"
+                rule = "response field removed" if direction == RESPONSE else "request field removed"
                 self.broke(f"{where} {member}", rule, member, name)
                 continue
             if direction == REQUEST and name in new_required and name not in old_required:
-                self.broke(f"{where} {member}", "opsiyonel istek alanı zorunlu oldu", member, name)
+                self.broke(f"{where} {member}", "optional request field became required", member, name)
             if direction == RESPONSE and name in old_required and name not in new_required:
-                self.broke(f"{where} {member}", "zorunlu yanıt alanı opsiyonel oldu", member, name)
+                self.broke(f"{where} {member}", "required response field became optional", member, name)
             self._schema(direction, where, member, old_props[name], new_props[name], member)
 
         for name in sorted(new_props.keys() - old_props.keys()):
             member = f"{scope}.{name}"
             if direction == REQUEST and name in new_required:
-                self.broke(f"{where} {member}", "istekte yeni zorunlu alan", member, name)
+                self.broke(f"{where} {member}", "new required field in the request", member, name)
             elif direction == REQUEST:
-                self.added(f"{where} {member}", "istekte yeni opsiyonel alan", member, name)
+                self.added(f"{where} {member}", "new optional field in the request", member, name)
             else:
-                self.added(f"{where} {member}", "yanıtta yeni alan", member, name)
+                self.added(f"{where} {member}", "new field in the response", member, name)
 
     def _additional(self, direction: str, where: str, ident: str, scope: str, old: object, new: object) -> None:
         if old == new:
@@ -488,7 +508,7 @@ class _Diff:
         if isinstance(old, dict) and isinstance(new, dict):
             self._schema(direction, where, ident, old, new, f"{scope}{{}}")
             return
-        self.broke(f"{where} {scope}", "additionalProperties değişti", scope)
+        self.broke(f"{where} {scope}", "additionalProperties changed", scope)
 
     def _combinators(self, direction: str, where: str, ident: str, scope: str, old: dict, new: dict) -> None:
         for keyword in ("oneOf", "anyOf", "allOf"):
@@ -501,14 +521,14 @@ class _Diff:
                 if member not in after:
                     # A removed alternative narrows what a response holds (safe) and what a request takes (break).
                     if direction == REQUEST or keyword == "allOf":
-                        self.broke(f"{where} {scope}", f"{keyword} üyesi kalktı: {member}", scope)
+                        self.broke(f"{where} {scope}", f"{keyword} member removed: {member}", scope)
                 else:
                     self._schema(direction, where, ident, before[member], after[member], f"{scope}|{member}")
             for member in sorted(after.keys() - before.keys()):
                 if keyword == "allOf":
-                    self.broke(f"{where} {scope}", f"allOf üyesi eklendi: {member}", scope)
+                    self.broke(f"{where} {scope}", f"allOf member added: {member}", scope)
                 else:
-                    self.added(f"{where} {scope}", f"{keyword} üyesi eklendi: {member}", scope)
+                    self.added(f"{where} {scope}", f"{keyword} member added: {member}", scope)
 
 
 def _strip_documentation(node: object) -> object:
@@ -612,14 +632,15 @@ def http_delta(root: pathlib.Path, tag: str, *, snapshot_required: bool) -> Surf
     previous = bc._show(root, tag, str(HTTP_FILE))
     if previous is None:
         if snapshot_required:
-            raise SurfaceError(f"{HTTP_FILE} '{tag}' etiketinde yok; donmuş bir tabanda HTTP karşılaştırması zorunludur")
-        result.note = f"taban yok ({HTTP_FILE} '{tag}' etiketinde yok; ilk kayıt)"
+            raise SurfaceError(
+                f"{bc.absent_from_tag(tag, [str(HTTP_FILE)])}; a frozen baseline must have the HTTP document")
+        result.note = f"no baseline ({bc.absent_from_tag(tag, [str(HTTP_FILE)])}; first record)"
         return result
     try:
         old = json.loads(previous)
         new = json.loads((root / HTTP_FILE).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exception:
-        raise SurfaceError(f"{HTTP_FILE} okunamadı ({exception})") from exception
+        raise SurfaceError(f"cannot read {HTTP_FILE} ({exception})") from exception
 
     diff = _Diff(old, new)
     diff.compare()
@@ -646,7 +667,7 @@ def surface_results(root: pathlib.Path, baseline: str) -> list[SurfaceResult]:
     a gate that cannot read its baseline must be red, never green."""
     tag = f"{bc.TAG_PREFIX}{baseline}"
     if bc._git(root, "rev-parse", "--verify", "--quiet", f"{tag}^{{commit}}").returncode:
-        raise bc.BaselineError(f"taban etiketi '{tag}' bu depoda yok; sözleşme yüzeyleri karşılaştırılamaz")
+        raise bc.BaselineError(f"baseline tag '{tag}' does not exist in this repository; the contract surfaces cannot be compared")
     required = bc.compare_versions(baseline, bc.FROZEN_FROM) >= 0
     results = [http_delta(root, tag, snapshot_required=required)]
     results.extend(name_set_delta(root, tag, surface, snapshot_required=required) for surface in NAME_SURFACES)
@@ -668,12 +689,12 @@ def _summary(results: Sequence[SurfaceResult], notes: str | None) -> str:
     parts = []
     for result in results:
         if result.note is not None:
-            parts.append(f"{result.surface}: taban yok")
+            parts.append(f"{result.surface}: no baseline")
             continue
         count = len(result.breaks)
-        text = f"{result.surface}: {count} kırılma"
+        text = f"{result.surface}: {bc.plural(count, 'break')}"
         if count and notes is not None and all(_named(change, notes) for change in result.breaks):
-            text += " (notta)"
+            text += " (named in the notes)"
         parts.append(text)
     return " · ".join(parts)
 
@@ -699,7 +720,7 @@ def check(
     try:
         line = bc.release_line(baseline, None if version == bc.UNRELEASED else version)
     except ValueError as exception:
-        print(f"❌ Hat belirlenemedi: {exception}")
+        print(f"❌ Cannot decide the release line: {exception}")
         return 1
     print(line.describe())
 
@@ -721,29 +742,29 @@ def check(
     if breaks and not line.frozen:
         notes, heading = bc.release_notes_for(changelog, version)
 
-    print(f"Sözleşme yüzeyleri: {_summary(results, notes)}")
+    print(f"Contract surfaces: {_summary(results, notes)}")
 
     failed = False
     if line.frozen and breaks:
-        print(f"❌ Donmuş hatta .NET dışı yüzeyde kırılma reddedilir (taban v{baseline}, sürüm {version}); sürüm notu bunu kurtarmaz:")
+        print(f"❌ A break on a non-.NET surface is rejected on a frozen line (baseline v{baseline}, version {version}); the release notes cannot save it:")
         for entry in _listed(breaks):
             print(entry)
         failed = True
     if line.frozen and line.patch and additions:
-        print(f"❌ Yama sürümünde .NET dışı yüzey büyüyemez (taban v{baseline}, sürüm {version}); eklenenler:")
+        print(f"❌ A patch release cannot grow a non-.NET surface (baseline v{baseline}, version {version}); added:")
         for entry in _listed(additions):
             print(entry)
         failed = True
 
     if breaks and not line.frozen:
         if notes is None:
-            print(f"❌ .NET dışı yüzeyde kırılma var ama '{version}' için sürüm notu yok (taban v{baseline}).")
+            print(f"❌ A non-.NET surface has a break but there are no release notes for '{version}' (baseline v{baseline}).")
             failed = True
         else:
             unnamed = [change for change in breaks if not _named(change, notes)]
             if unnamed:
-                print(f"❌ Kırılma sürüm notunda adıyla geçmiyor (taban v{baseline}, not '{heading or 'yok'}'); "
-                      "ad aynı code span içinde yazılır:")
+                print(f"❌ The release notes do not name the break (baseline v{baseline}, notes '{heading or 'none'}'); "
+                      "write the name in one code span:")
                 for entry in _listed(unnamed):
                     print(entry)
                 failed = True
@@ -752,26 +773,26 @@ def check(
         return 1
 
     if breaks:
-        print(f"✅ .NET dışı yüzeylerdeki {len(breaks)} kırılmanın hepsi '{heading or 'yok'}' notunda adıyla geçiyor")
+        print(f"✅ All {bc.plural(len(breaks), 'break')} on the non-.NET surfaces are named in the '{heading or 'none'}' notes")
     else:
-        print(f"✅ .NET dışı yüzeylerde kırılma yok ({len(additions)} ekleme)")
+        print(f"✅ No break on the non-.NET surfaces ({bc.plural(len(additions), 'addition')})")
     return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="HTTP, SSE, telemetri, yapılandırma, hata kodu ve CLI yüzeylerini son sürümle karşılaştırır.")
-    parser.add_argument("--depo", type=pathlib.Path, default=ROOT, help="karşılaştırılan git deposu (varsayılan: bu depo)")
-    parser.add_argument("--taban", required=True, help="karşılaştırılan yayınlanmış sürüm, 'v'siz")
-    parser.add_argument("--surum", help="notu okunacak sürüm; verilmezse '## [Unreleased]' (donmuş hatta sürüm gerekir)")
-    parser.add_argument("--changelog", type=pathlib.Path, help="varsayılan: <depo>/CHANGELOG.md")
+        description="Compares the HTTP, SSE, telemetry, configuration, error code, validation code and CLI surfaces with the last release.")
+    parser.add_argument("--repository", type=pathlib.Path, default=ROOT, help="git repository to compare (default: this repository)")
+    parser.add_argument("--base", required=True, help="released version to compare with, without the 'v'")
+    parser.add_argument("--package-version", help="version whose notes are read; without it the '## [Unreleased]' notes are used (a frozen line needs a version)")
+    parser.add_argument("--changelog", type=pathlib.Path, help="default: <repository>/CHANGELOG.md")
     args = parser.parse_args(argv)
 
-    repo = args.depo.resolve()
+    repo = args.repository.resolve()
     return check(
         repo=repo,
-        baseline=args.taban,
-        version=args.surum or bc.UNRELEASED,
+        baseline=args.base,
+        version=args.package_version or bc.UNRELEASED,
         changelog=args.changelog or repo / "CHANGELOG.md",
     )
 

@@ -129,7 +129,7 @@ policies.
 | `tests/` | Unit, contract, functional, integration, and Playwright end-to-end suites |
 | `samples/` | Runnable applications, including the ones the release gate builds against packed NuGet packages |
 | `docs-site/` | The product documentation site — **English**, Astro Starlight |
-| `scripts/` | The gate runner (`kapi.py`), the contract and package checks, and the site deploy pipeline |
+| `scripts/` | The gate runner (`gate.py`), the contract and package checks, and the site deploy pipeline |
 
 ## Reading further
 

@@ -8,8 +8,11 @@ saatler sürer ve sonunda yorumlanamayan bir rapor verir.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import pathlib
+import re
 import sys
 import tempfile
 import unittest
@@ -44,11 +47,11 @@ class ProfileValidationTests(unittest.TestCase):
 
     def test_a_profile_with_no_bound_is_refused(self):
         problems = capacity.validate_profile(profile(runsPerTenant=0, measureSeconds=0))
-        self.assertTrue(any("measureSeconds veya runsPerTenant" in p for p in problems))
+        self.assertTrue(any("one of measureSeconds or runsPerTenant" in p for p in problems))
 
     def test_two_bounds_at_once_are_refused(self):
         problems = capacity.validate_profile(profile(runsPerTenant=2, measureSeconds=60))
-        self.assertTrue(any("iki ayrı sınırdır" in p for p in problems))
+        self.assertTrue(any("two separate limits" in p for p in problems))
 
     def test_zero_repeats_is_refused(self):
         problems = capacity.validate_profile(profile(repeats=0))
@@ -68,11 +71,11 @@ class ProfileValidationTests(unittest.TestCase):
 
     def test_unknown_scenario_is_refused(self):
         problems = capacity.validate_profile(profile(scenarios=["websocket"]))
-        self.assertTrue(any("bilinmeyen senaryo" in p for p in problems))
+        self.assertTrue(any("unknown scenario" in p for p in problems))
 
     def test_unknown_seed_shape_is_refused(self):
         problems = capacity.validate_profile(profile(seedShapes=["huge"]))
-        self.assertTrue(any("bilinmeyen seed" in p for p in problems))
+        self.assertTrue(any("unknown seed shape" in p for p in problems))
 
     def test_empty_scenarios_is_refused(self):
         problems = capacity.validate_profile(profile(scenarios=[]))
@@ -98,7 +101,7 @@ class TenantRampValidationTests(unittest.TestCase):
 
     def test_a_ramp_and_a_duration_are_two_bounds_and_refused(self):
         problems = capacity.validate_profile(profile(runsPerTenant=0, measureSeconds=60, tenantRamp=ramp()))
-        self.assertTrue(any("tenantRamp sınırın kendisidir" in p for p in problems))
+        self.assertTrue(any("tenantRamp is the measurement limit itself" in p for p in problems))
 
     def test_stages_must_climb(self):
         stages = [{"tenants": 20}, {"tenants": 20}]
@@ -107,7 +110,7 @@ class TenantRampValidationTests(unittest.TestCase):
 
     def test_a_ramp_without_stages_is_refused(self):
         problems = capacity.validate_profile(profile(runsPerTenant=0, tenantRamp=ramp(stages=[])))
-        self.assertTrue(any("stages boş" in p for p in problems))
+        self.assertTrue(any("stages must not be empty" in p for p in problems))
 
     def test_a_negative_hold_is_refused(self):
         stages = [{"tenants": 2, "holdSeconds": -1}]
@@ -117,7 +120,7 @@ class TenantRampValidationTests(unittest.TestCase):
     def test_a_ramp_does_not_combine_with_another_axis(self):
         problems = capacity.validate_profile(
             profile(runsPerTenant=0, tenantRamp=ramp(), arrivalRates=[5]))
-        self.assertTrue(any("tek başına ölçülür" in p for p in problems))
+        self.assertTrue(any("is measured alone" in p for p in problems))
 
     def test_the_host_only_tag_setting_does_not_reach_the_driver(self):
         sent = capacity.driver_ramp(ramp(tenantTag=True))
@@ -247,7 +250,7 @@ class CellPlanTests(unittest.TestCase):
     def test_two_axes_together_are_refused(self):
         # Birlikte verilirse plan_cells yalnız birini koşardı ve diğeri sessizce düşerdi.
         problems = capacity.validate_profile(profile(apiHostCounts=[1, 2], workerCounts=[1, 2]))
-        self.assertTrue(any("ayrı eksen" in p for p in problems))
+        self.assertTrue(any("separate axes" in p for p in problems))
 
     def test_a_zero_host_count_is_refused(self):
         problems = capacity.validate_profile(profile(apiHostCounts=[0]))
@@ -284,6 +287,34 @@ class CanaryTests(unittest.TestCase):
     def test_the_planted_canary_is_credential_shaped(self):
         # Yakalanamayacak bir canary her redaction testini boşa çıkarır.
         self.assertIn("Password=", capacity.CANARY_CREDENTIAL)
+
+
+class CommandLineTests(unittest.TestCase):
+    def _exit_code_and_text(self, *argv: str) -> tuple[object, str]:
+        out, err = io.StringIO(), io.StringIO()
+
+        # A parse that wrongly succeeds must not start a real measurement.
+        with unittest.mock.patch.object(capacity, "measure", side_effect=AssertionError("measure must not run")):
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                with self.assertRaises(SystemExit) as raised:
+                    capacity.main(list(argv))
+
+        return raised.exception.code, out.getvalue() + err.getvalue()
+
+    def test_the_help_text_is_english_and_names_the_english_flags(self):
+        code, text = self._exit_code_and_text("--help")
+
+        self.assertEqual(code, 0)
+        self.assertIsNone(re.search("[çğıöşüÇĞİÖŞÜ]", text))
+
+        for flag in ("--profile", "--package-version", "--output", "--keep-workspace", "--ready-feed"):
+            self.assertIn(flag, text)
+
+    def test_the_old_turkish_flags_are_refused(self):
+        for old in ("--profil", "--surum", "--cikti", "--calisma-alanini-birak", "--hazir-feed"):
+            code, text = self._exit_code_and_text("--profile", "smoke", "--package-version", "1.0.0", old, "x")
+            self.assertEqual(code, 2, old)
+            self.assertIn("unrecognized arguments", text)
 
 
 if __name__ == "__main__":

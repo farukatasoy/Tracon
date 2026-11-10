@@ -13,7 +13,7 @@ static string RepositoryRoot([CallerFilePath] string sourceFilePath = "")
 
 // A plain config, not DefaultConfig.Instance: the default adds every exporter
 // (HTML, CSV, markdown) and a disassembly diagnoser this gate never reads.
-// `scripts/kapi.py performans` parses only the FULL JSON export (BytesAllocatedPerOperation).
+// `scripts/gate.py perf` parses only the FULL JSON export (BytesAllocatedPerOperation).
 var config = ManualConfig.CreateEmpty()
     .AddJob(BenchmarkDotNet.Jobs.Job.Default)
     .AddDiagnoser(MemoryDiagnoser.Default)

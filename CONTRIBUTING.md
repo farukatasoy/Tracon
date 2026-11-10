@@ -32,13 +32,13 @@ dotnet build Tracon.slnx -c Release
 A change is finished when all four are clean. Not three.
 
 ```bash
-python3 scripts/kapi.py ic-dongu     # build + the affected test projects (fast inner loop)
-python3 scripts/kapi.py tarama       # sync-copy and secret scan (seconds)
-python3 scripts/kapi.py kapanis --taban <commit before your work>   # everything, cheapest first
+python3 scripts/gate.py inner-loop                               # build + the affected test projects (fast inner loop)
+python3 scripts/gate.py scan                                     # sync-copy and secret scan (seconds)
+python3 scripts/gate.py close --base <commit before your work>   # everything, cheapest first
 ```
 
 The runner prints every command it runs, stops at the first red, and records
-timings. `--komutlari-bas` lists the commands without running any of them.
+timings. `--print-commands` lists the commands without running any of them.
 
 Underneath, the four are `dotnet build`, `dotnet test`, `dotnet pack`, and
 `dotnet format --verify-no-changes`. Each catches something the others do not:
@@ -54,11 +54,11 @@ Two environment details that will otherwise cost you an hour:
 
 - Set `MSBUILDDISABLENODEREUSE=1` when you run `dotnet` by hand. Orphaned
   MSBuild nodes hold a pipe open and make `dotnet test` hang for minutes.
-  `kapi.py` adds it to every command it runs.
+  `gate.py` adds it to every command it runs.
 - The test projects run on the **Microsoft Testing Platform**, not VSTest.
   `dotnet test --filter` does not exist there: it is swallowed silently, the
   whole suite runs, and you think you narrowed it down. Use
-  `python3 scripts/kapi.py test --proje <Project> --sinif "*Name*"`.
+  `python3 scripts/gate.py test --project <Project> --class "*Name*"`.
 
 If you are not touching the console, `-p:TraconFrontendEnabled=false` skips
 the npm, Vite, and Vitest steps. Do **not** pass it when you are touching the
@@ -116,14 +116,11 @@ IntelliSense a consumer reads.
 
 ## Language
 
-Two rules, and they do not overlap:
-
-- **Everything that ships or runs is English** — code, comments, XML
-  documentation, commit messages, package READMEs, and the `docs-site/`
-  product documentation.
-- **The maintainer tooling is Turkish.** The gate scripts under `scripts/` print
-  and document themselves in Turkish. You are not expected to write Turkish, and a
-  pull request that changes behavior does not need to translate them.
+Everything in this repository is English: code, comments, XML documentation,
+commit messages, package READMEs, the `docs-site/` product documentation, the
+gate scripts under `scripts/`, and every line those scripts print. The one
+exception is the translation dictionaries (`locales/tr`), which hold Turkish
+UI text on purpose. You never need to write Turkish to contribute.
 
 If your change alters something a consumer sees — a public type, an HTTP
 endpoint, a screen, a package — the `docs-site/` page for it changes in the same
@@ -133,7 +130,7 @@ pull request.
 
 Connection strings and API keys live in `dotnet user-secrets`, never in a file
 and never in the database. What a record stores is the **name of the
-configuration key**, never its value. `python3 scripts/kapi.py tarama` scans for
+configuration key**, never its value. `python3 scripts/gate.py scan` scans for
 leaks; when you need a fake secret in a test, pick a value that does not match
 the scanner's pattern.
 
@@ -144,7 +141,7 @@ repository. Open a branch for anything experimental or expensive to undo.
 Commit messages are English, in the imperative, and say what changed and why.
 
 Before you open a pull request, run
-`python3 scripts/kapi.py kapanis --taban <commit you branched from>`, and say in
+`python3 scripts/gate.py close --base <commit you branched from>`, and say in
 the description which gates you ran.
 A change that needs a database or the console has to have been run, not just
 compiled.

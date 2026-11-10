@@ -3,7 +3,7 @@ using System.Reflection;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Pins <c>ValidationCodes</c> to the checked-in snapshot <c>docs/sozlesme/dogrulama-kodlari.txt</c>
+/// Pins <c>ValidationCodes</c> to the checked-in snapshot <c>docs/contracts/validation-codes.txt</c>
 /// </summary>
 /// <remarks>
 /// <para>
@@ -23,7 +23,7 @@ public sealed class ValidationCodeSnapshotTests
     public void The_snapshot_matches_the_catalog()
     {
         ContractSnapshot.Verify(
-            "docs/sozlesme/dogrulama-kodlari.txt",
+            "docs/contracts/validation-codes.txt",
             "tests/Tracon.Core.UnitTests/Architecture/ValidationCodeSnapshotTests.cs",
             "The codes of the findings that validating an agent definition returns (ValidationCodes)",
             CatalogValues());

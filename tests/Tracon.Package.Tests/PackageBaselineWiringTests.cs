@@ -7,7 +7,7 @@ namespace Tracon.Package.Tests;
 /// <summary>
 /// The MSBuild side of the release rehearsal's breaking-change gate:
 /// strict mode on every library package, and the three properties
-/// <c>scripts/kapi.py yayin</c> passes (<c>TraconPackageBaselineRoot</c>,
+/// <c>scripts/gate.py release</c> passes (<c>TraconPackageBaselineRoot</c>,
 /// <c>TraconPackageBaselineVersion</c>, <c>TraconApiCompatReportDir</c>) turned
 /// into the SDK's baseline path and report path by <c>Directory.Build.targets</c>.
 /// </summary>
@@ -16,7 +16,7 @@ namespace Tracon.Package.Tests;
 /// unit tests (<c>scripts/breaking_changes_test.py</c>), which own the report
 /// parsing and the release-note matching. Every fact here evaluates the real
 /// <c>src/*/*.csproj</c>; the list of 21 packages and their profiles comes from
-/// <see cref="PackableProjects"/>, the same rule <c>kapi.py</c> applies.
+/// <see cref="PackableProjects"/>, the same rule <c>gate.py</c> applies.
 /// </remarks>
 [Collection(RepositoryTreeGate.Name)]
 public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evaluations evaluations)
@@ -125,9 +125,9 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
     [Fact]
     public void NothingIsDerivedWithoutBaselineRoot()
     {
-        // The daily loop (`kapi.py ic-dongu` and `kapi.py kapanis`) never compares with a published
+        // The daily loop (`gate.py inner-loop` and `gate.py close`) never compares with a published
         // version and never reaches the network for one. Only the release packs
-        // (`kapi.py yayin`, and `kapi.py paketle` in the CI build job) pass a root.
+        // (`gate.py release`, and `gate.py pack` in the CI build job) pass a root.
         foreach (var (id, properties) in evaluations.WithoutBaseline)
         {
             properties["PackageValidationBaselinePath"].ShouldBeEmpty(id);

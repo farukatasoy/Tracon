@@ -10,7 +10,7 @@ Tüketicinin bir yeteneği açtığı public üye bir "kayıt giriş noktası"d�
 
 C# kopyası `tests/Tracon.Core.UnitTests/Architecture/CapabilityEntryPoints.cs`
 içindedir ve bu modülü import edemez; eşliği iki taraftaki "üç ad" testleri
-tutar. Kullanan betik: `public-yuzey-envanteri.py`.
+tutar. Kullanan betik: `public-surface-inventory.py`.
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def kayit_uzantisi_mi(ad: str, alici: str) -> bool:
     return alici in KAYIT_ALICILARI and KAYIT_ONEKI.match(ad) is not None
 
 
-def kayit_giris_noktasi(satir: str) -> str | None:
+def capability_entry_points(satir: str) -> str | None:
     """Bir `PublicAPI.*.txt` satırı kayıt giriş noktasıysa üyenin adı, değilse `None`."""
     uye = BUILDER_UYESI.match(satir)
     if uye:

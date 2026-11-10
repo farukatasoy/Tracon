@@ -3,7 +3,7 @@ using System.Reflection;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Pins <see cref="TraconErrorTypes"/> to the checked-in snapshot <c>docs/sozlesme/hata-kodlari.txt</c>
+/// Pins <see cref="TraconErrorTypes"/> to the checked-in snapshot <c>docs/contracts/error-codes.txt</c>
 /// </summary>
 /// <remarks>
 /// A code is written into run records and returned over HTTP as <c>errorType</c>; a consumer matches on the
@@ -16,7 +16,7 @@ public sealed class ErrorTypeSnapshotTests
     public void The_snapshot_matches_the_catalog()
     {
         ContractSnapshot.Verify(
-            "docs/sozlesme/hata-kodlari.txt",
+            "docs/contracts/error-codes.txt",
             "tests/Tracon.Core.UnitTests/Architecture/ErrorTypeSnapshotTests.cs",
             "The machine-readable error codes Tracon writes (TraconErrorTypes)",
             CatalogValues());

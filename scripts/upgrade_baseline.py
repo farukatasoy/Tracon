@@ -10,11 +10,11 @@ değiştirir). Manifest depoda dosyadır; kapı ağa ve git'e ihtiyaç duymaz.
 Taban her yayında ilerler. Kesim commit'inde etiket henüz yoktur; migration dosyaları
 etiketin işaret edeceği commit'te (`HEAD`) okunur:
 
-    python3 scripts/upgrade_baseline.py --yaz --surum 1.0.0-rc.1 --kaynak HEAD
+    python3 scripts/upgrade_baseline.py --write --package-version 1.0.0-rc.1 --source HEAD
 
-Yayından sonra aynı manifest etiketten yeniden üretilebilir (`--kaynak` verilmezse `v<sürüm>`
-etiketi okunur; `--surum` verilmezse son yayın `breaking_changes.resolve_baseline` ile çözülür).
-`kapi.py tarama`, manifestin sürümü CHANGELOG'daki son yayından farklıysa kırmızıdır.
+Yayından sonra aynı manifest etiketten yeniden üretilebilir (`--source` verilmezse `v<sürüm>`
+etiketi okunur; `--package-version` verilmezse son yayın `breaking_changes.resolve_baseline` ile çözülür).
+`gate.py scan`, manifestin sürümü CHANGELOG'daki son yayından farklıysa kırmızıdır.
 
 Deyim özetinin algoritması `tests/Shared/Upgrade/UpgradeBaseline.cs` içindeki
 `StatementDigest` ile birebir aynıdır; biri değişirse öteki de değişir (kapı ilk
@@ -81,7 +81,7 @@ def describe(file_name: str, data: bytes) -> dict[str, object]:
     """Bir migration dosyasının manifest girdisi."""
     match = _FILE_NAME.match(file_name)
     if match is None:
-        raise ValueError(f"migration dosya adı biçime uymuyor: {file_name}")
+        raise ValueError(f"the migration file name does not match the pattern: {file_name}")
     text = read_text(data)
     return {
         "id": int(match.group("id")),
@@ -107,7 +107,7 @@ def read_tag(root: pathlib.Path, tag: str) -> dict[str, list[dict[str, object]]]
             for line in str(_git(root, "ls-tree", "--name-only", tag, directory + "/")).splitlines()
             if line.endswith(".sql"))
         if not names:
-            raise RuntimeError(f"{tag} etiketinde {directory} altında migration yok")
+            raise RuntimeError(f"tag {tag} holds no migration under {directory}")
         providers[provider] = [
             describe(name, bytes(_git(root, "show", f"{tag}:{directory}/{name}", binary=True))) for name in names
         ]
@@ -159,7 +159,7 @@ def differing_from_head(root: pathlib.Path, manifest: dict[str, object]) -> list
         for entry in entries:
             path = directory / f"{entry['name']}.sql"
             if not path.is_file():
-                changed.append(f"{provider}/{entry['name']} (silinmiş)")
+                changed.append(f"{provider}/{entry['name']} (deleted)")
             elif statement_digest(read_text(path.read_bytes())) != entry["statements"]:
                 changed.append(f"{provider}/{entry['name']}")
     optional = manifest.get("optionalSets", {})
@@ -170,22 +170,29 @@ def differing_from_head(root: pathlib.Path, manifest: dict[str, object]) -> list
             for entry in entries:
                 path = directory / f"{entry['name']}.sql"
                 if not path.is_file():
-                    changed.append(f"{provider}/{set_name}/{entry['name']} (silinmiş)")
+                    changed.append(f"{provider}/{set_name}/{entry['name']} (deleted)")
                 elif statement_digest(read_text(path.read_bytes())) != entry["statements"]:
                     changed.append(f"{provider}/{set_name}/{entry['name']}")
     return changed
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--yaz", action="store_true", help="manifesti etiketten yeniden yaz")
-    parser.add_argument("--surum", help="tabanın sürümü (varsayılan: son yayın, `breaking_changes.resolve_baseline`)")
-    parser.add_argument("--kaynak", help="migration dosyalarının okunacağı git başvurusu (varsayılan: `v<sürüm>` etiketi)")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Writes the baseline manifest of the upgrade gate from the tag of the last release.\n\n"
+            "Before the tag exists, read the migration files from the commit the tag will point to:\n\n"
+            "    python3 scripts/upgrade_baseline.py --write --package-version 1.0.0-rc.1 --source HEAD"),
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--write", action="store_true", help="rewrite the manifest from the tag")
+    parser.add_argument(
+        "--package-version", help="version of the baseline (default: the last release, `breaking_changes.resolve_baseline`)")
+    parser.add_argument(
+        "--source", help="git reference to read the migration files from (default: the `v<version>` tag)")
     args = parser.parse_args(argv)
-    if not args.yaz:
-        parser.error("yapılacak işi seç: --yaz")
+    if not args.write:
+        parser.error("choose what to do: --write")
 
-    version = args.surum
+    version = args.package_version
     if version is None:
         sys.path.insert(0, str(ROOT / "scripts"))
         import breaking_changes
@@ -194,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
 
     path = ROOT / MANIFEST
     previous = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
-    manifest = build_manifest(ROOT, version, args.kaynak, previous)
+    manifest = build_manifest(ROOT, version, args.source, previous)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
@@ -204,16 +211,16 @@ def main(argv: list[str] | None = None) -> int:
         for provider, sets in manifest["optionalSets"].items()
         for set_name, entries in sets.items())
     print(
-        f"Taban: {manifest['tag']} ({counts} migration; opsiyonel küme: {optional or 'yok'}, "
-        f"kaynak {args.kaynak or manifest['tag']}) -> {MANIFEST}")
+        f"Baseline: {manifest['tag']} ({counts} migrations; optional sets: {optional or 'none'}, "
+        f"source {args.source or manifest['tag']}) -> {MANIFEST}")
 
     changed = differing_from_head(ROOT, manifest)
     if changed:
-        print("Etiketten bugüne deyimi değişen migration dosyaları (kapıda muafiyet olarak yazılmalı, gerekçeyle):")
+        print("Migration files whose statements changed between the tag and now (the gate needs each one as an exemption, with a reason):")
         for name in changed:
             print(f"  {name}")
     else:
-        print("Etiketten bugüne hiçbir migration dosyasının deyimi değişmemiş.")
+        print("No migration file changed its statements between the tag and now.")
     return 0
 
 
