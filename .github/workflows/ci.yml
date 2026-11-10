@@ -48,8 +48,9 @@ env:
 # gecikmesi yanlis bir kirmizi uretmesin. Olcum: GitHub Actions API, 16 kosum
 # (2026-09-06..21), is ve adim sureleri.
 # Bir is sinirinin yarisini
-# gecerse once yeniden olc, sonra yukselt. `--max-parallel-test-modules 1` -> 2
-# gecisi sureyi kisaltir; sinirlar iki ayari da kapsar.
+# gecerse once yeniden olc, sonra yukselt. `--max-parallel-test-modules 1` yalniz
+# kultur isinin `--solution` kosumu icindir (moduller seri kosar); diger her test
+# isi `--project` ile tek modul kosar ve o bayragi tasimaz.
 #
 # Adim siniri yalniz kapasite adimindadir. Her test modulu ayri bir adimdir; bir
 # modul takilirsa is siniri isi keser ve log takilan adimin adini soyler. Adim
@@ -262,6 +263,10 @@ jobs:
           # Yalniz bu kosumun test isleri okur.
           retention-days: 1
           if-no-files-found: error
+          # `overwrite` BILINCLI olarak yok. Bu isi yeniden kosmak ayni adla ikinci
+          # bir yukleme dener ve 409 ile kirilir: onceki test islerinin kosmus oldugu
+          # tar'in baytlari sessizce degistirilemez. Yeni bir derleme icin tum kosum
+          # bastan baslatilir. Ayni kural `nuget-packages` yuklemesi icin de gecerlidir.
 
   # ---------------------------------------------------------------------------
   # Kultur ve saat dilimi: .NET `LC_ALL` ve `TZ`'yi Linux'ta okur, yerel ayarin
@@ -361,7 +366,7 @@ jobs:
         with:
           name: test-results-culture-${{ strategy.job-index }}
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   # ---------------------------------------------------------------------------
@@ -436,7 +441,7 @@ jobs:
         with:
           name: test-results-twonode
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   test-package:
@@ -514,7 +519,7 @@ jobs:
         with:
           name: test-results-package
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   # SQL Server ve PostgreSQL varsayilan imaj bacaklari: eski tum-proje bacaginin
@@ -569,7 +574,7 @@ jobs:
         with:
           name: test-results-sqlserver-default
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   test-postgres:
@@ -620,7 +625,7 @@ jobs:
         with:
           name: test-results-postgres-default
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   test-aspnetcore:
@@ -671,7 +676,7 @@ jobs:
         with:
           name: test-results-aspnetcore
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   test-sqlite:
@@ -726,7 +731,7 @@ jobs:
         with:
           name: test-results-sqlite
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   # Hizli moduller ve Core. Core ilk siradadir: kirmizisi isin ilk dakikalarinda
@@ -843,7 +848,7 @@ jobs:
         with:
           name: test-results-fast
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   # ---------------------------------------------------------------------------
@@ -906,7 +911,7 @@ jobs:
         with:
           name: test-results-windows-sqlite
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   test-windows-web:
@@ -984,7 +989,7 @@ jobs:
         with:
           name: test-results-windows-web
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   test-windows-core:
@@ -1103,7 +1108,7 @@ jobs:
         with:
           name: test-results-windows-core
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   # ---------------------------------------------------------------------------
@@ -1196,7 +1201,7 @@ jobs:
         with:
           name: test-results-sqlserver-${{ strategy.job-index }}
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   postgres-matrix:
@@ -1279,7 +1284,7 @@ jobs:
         with:
           name: test-results-postgres-${{ strategy.job-index }}
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   # SQLite surucusu yerel bir kutuphane tasir; surum o kutuphanenin surumudur.
@@ -1359,7 +1364,7 @@ jobs:
         with:
           name: test-results-sqlite-floor
           path: artifacts/test-results/**/*.trx
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
 
   # ---------------------------------------------------------------------------

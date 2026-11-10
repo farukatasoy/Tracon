@@ -71,8 +71,9 @@ GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # timeout uretiyordu). Sabit beklemeler kosul-beklemeye donunce
 # olculdu, ayni makine, ayni kod (d0cdd2c2): 1 modul 863 ve 879 sn,
 # 2 modul 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
-# ci.yml her test isinde BIR modul kosar (`--max-parallel-test-modules 1`) ve
-# isler birbirine paralel akar; runner donanimi olculmedi. Izole kosumda gecen bir
+# ci.yml her test isinde `--project` ile BIR modul kosar ve isler birbirine paralel
+# akar; runner donanimi olculmedi. `--max-parallel-test-modules 1` yalniz kultur
+# isinin `--solution` kosumunda (moduller seri) kullanilir. Izole kosumda gecen bir
 # kapanis kirmizisi sayiyi dusurmek icin sebep degildir: o test bir kaynak
 # ya da zaman varsayimi tasir ya da urun yarisini gosterir; duzeltilen odur.
 #

@@ -196,6 +196,47 @@ def _matris_bag_sorunlari(metin: str, varsayilan_imaj: dict[str, str]) -> list[s
     return sorunlar
 
 
+def _ci_adimlari(blok: str) -> list[str]:
+    """Bir iş bloğunun adımları: altı boşluk girintili `- ` satırlarından bölünmüş metinler."""
+    return re.split(r"(?m)^(?=      - )", blok)[1:]
+
+
+def _ci_sessiz_yesil_sorunlari(metin: str) -> list[str]:
+    """Kırmızı ya da hiç test koşmayan bir koşunun yeşil görünebileceği üç yer.
+
+    1. `steps.restore` kullanan iş, kullanımdan ÖNCE `id: restore` adımını tanımlar. Tanımsızsa
+       `steps.restore.outcome` boş kalır, her test adımı sessizce atlanır ve iş yeşil biter.
+    2. TRX yüklemesi `if-no-files-found: error` taşır (test adımları atlanırsa iş kırmızı olur) ve
+       `overwrite: true` taşır (altyapı yeniden denemesi ikinci yüklemede 409 almasın).
+    3. `nuget-packages` ve `bin-*` yüklemeleri `overwrite` TAŞIMAZ: işi yeniden koşmak ikinci yüklemede
+       409 ile kırılmalı; aksi halde önceki işlerin test ettiği baytlar sessizce değişir.
+    """
+    sorunlar = []
+    for ad in _ci_isleri(metin):
+        adimlar = _ci_adimlari(_is_blogu(metin, ad))
+        ilk_kullanim = next(
+            (i for i, adim in enumerate(adimlar) if re.search(r"(?m)^\s+if:.*steps\.restore", adim)), None)
+        if ilk_kullanim is not None:
+            tanim = next(
+                (i for i, adim in enumerate(adimlar) if re.search(r"(?m)^\s+id:\s*restore\s*$", adim)), None)
+            if tanim is None or tanim > ilk_kullanim:
+                sorunlar.append(f"`{ad}`: `steps.restore` kullanılıyor ama öncesinde `id: restore` adımı yok")
+        for adim in adimlar:
+            if "actions/upload-artifact@" not in adim:
+                continue
+            artifact = re.search(r"(?m)^\s+name:\s*(.+?)\s*$", adim)
+            yol = re.search(r"(?m)^\s+path:\s*(\S+)\s*$", adim)
+            if yol and yol.group(1).endswith(".trx"):
+                if not re.search(r"(?m)^\s+if-no-files-found:\s*error\s*$", adim):
+                    sorunlar.append(f"`{ad}`: TRX yüklemesi `if-no-files-found: error` taşımıyor")
+                if not re.search(r"(?m)^\s+overwrite:\s*true\s*$", adim):
+                    sorunlar.append(f"`{ad}`: TRX yüklemesi `overwrite: true` taşımıyor")
+            if artifact and (artifact.group(1) == "nuget-packages" or artifact.group(1).startswith("bin-")):
+                if re.search(r"(?m)^\s+overwrite:", adim):
+                    sorunlar.append(f"`{ad}`: `{artifact.group(1)}` yüklemesi `overwrite` taşıyor")
+    return sorunlar
+
+
 def _varsayilan_imajlar() -> dict[str, str]:
     """Fikstürlerin boş değişkende kullandığı imaj: bacağın boş `image:` değeri bu imajı söyler."""
     okunan = {}
@@ -837,6 +878,32 @@ class KapiTestleri(unittest.TestCase):
             self.assertIn("--results-directory-layout per-module", line)
         self.assertIn(f"path: {kapi.TEST_RESULTS_DIRECTORY}/**/*.trx", ci)
         self.assertNotIn("TestResults/*.trx", ci)
+
+    def test_ci_test_isleri_kirmizi_ya_da_bos_kosuyu_yesil_gostermez(self):
+        metin = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+        self.assertEqual(_ci_sessiz_yesil_sorunlari(metin), [])
+        # Ayrıştırıcı gerçekten okuyor (sessizce sıfır iş görmesin): restore kullanan on üç iş, on dört iş restore
+        # tanımlar, on dört TRX yüklemesi.
+        kullananlar = [ad for ad in _ci_isleri(metin) if "steps.restore" in _is_blogu(metin, ad)]
+        self.assertGreaterEqual(len(kullananlar), 13, kullananlar)
+        self.assertGreaterEqual(metin.count("        id: restore\n"), 14)
+        self.assertGreaterEqual(metin.count("path: artifacts/test-results/**/*.trx\n"), 14)
+
+        def bozulmus(eski: str, yeni: str) -> list[str]:
+            self.assertIn(eski, metin)
+            return _ci_sessiz_yesil_sorunlari(metin.replace(eski, yeni, 1))
+
+        restore = "      - name: Bagimliliklari geri yukle\n        id: restore\n"
+        self.assertEqual(len(bozulmus(restore, "      - name: Bagimliliklari geri yukle\n")), 1)
+        self.assertEqual(len(bozulmus(restore, "      - name: Bagimliliklari geri yukle\n        id: restor\n")), 1)
+        trx_sonu = "          if-no-files-found: error\n          overwrite: true\n"
+        self.assertEqual(len(bozulmus(trx_sonu, "          if-no-files-found: ignore\n          overwrite: true\n")), 1)
+        self.assertEqual(len(bozulmus(trx_sonu, "          if-no-files-found: error\n")), 1)
+        self.assertEqual(
+            len(bozulmus("          name: nuget-packages\n", "          name: nuget-packages\n          overwrite: true\n")), 1)
+        self.assertEqual(
+            len(bozulmus("          name: bin-${{ matrix.os }}\n", "          name: bin-${{ matrix.os }}\n          overwrite: true\n")), 1)
 
     def _trx(self, kok: pathlib.Path, proje: str, sonuclar: list[tuple[str, str]], cikti: str = "release") -> None:
         # MTP 2 `--results-directory-layout per-module`: <proje>/<tfm>_<mimari>/*.trx.
