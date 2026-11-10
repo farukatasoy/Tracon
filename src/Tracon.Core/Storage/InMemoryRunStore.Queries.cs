@@ -327,7 +327,11 @@ internal sealed partial class InMemoryRunStore
 
         AccumulateNonToken(record.NonTokenCost);
 
-        foreach (var candidate in _runs.Values)
+        // 🚨 Walk the table itself, not `_runs.Values`: `Values` copies every reference into a new collection on each
+        // access, and this method runs once for each row of a page. A page of 50 over the 1,000-run limit allocated about
+        // 444 KB for the copies alone. Each record is immutable, so a walk that is not a point-in-time snapshot still sees
+        // every run as it was either before or after a concurrent write, never half of one.
+        foreach (var (_, candidate) in _runs)
         {
             if (candidate.ParentRunId == record.Id)
             {

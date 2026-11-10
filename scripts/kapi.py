@@ -1056,6 +1056,8 @@ PERFORMANCE_HOT_PATHS = (
     "src/Tracon.Core/Compilation/CompiledAgentCache.cs",
     "src/Tracon.Core/Diagnostics/ChatTelemetryLanes.cs",
     "src/Tracon.Sql.Shared/Stores/SqlRunStore.cs",
+    # The in-memory store is the development default: its list query computes a tree total for each row of a page.
+    "src/Tracon.Core/Storage/InMemoryRunStore.Queries.cs",
     # Every SQLite store call opens a connection: the open is a hot path of its own.
     "src/Tracon.Sqlite/Internal/SqliteDataSource.cs",
     "src/Tracon.Sqlite/Internal/SqliteDecimalFunctions.cs",

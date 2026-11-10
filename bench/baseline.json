@@ -13,6 +13,10 @@
       "allocatedBytes": 124464,
       "meanNanoseconds": 5547632.365026596
     },
+    "Tracon.Benchmarks.InMemoryRunStoreQueryBenchmarks.QueryRuns": {
+      "allocatedBytes": 50008,
+      "meanNanoseconds": 434580.6561633695
+    },
     "Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent": {
       "allocatedBytes": 112,
       "meanNanoseconds": 693.6857783717494
