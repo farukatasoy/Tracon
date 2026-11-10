@@ -89,9 +89,10 @@ public abstract partial class TwoNodeAcceptanceContract
         probe.ResumeFirstAttempt.TrySetResult();
         await probe.FirstAttemptReturned.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
-        // Nothing the stalled node did changed the job the other node holds. A write of the stalled node that is still on its
-        // way cannot hide: the checks at the end read the store after the other node has closed the job, which a write
-        // applied by the wrong attempt would have prevented, and read every call the stalled node made.
+        // Nothing the stalled node did changed the job the other node holds. This check is probabilistic: a write of the
+        // stalled node that is still on its way is caught only if it lands before the checks at the end, which read the store
+        // after the other node has closed the job (a write applied by the wrong attempt would have prevented that close) and
+        // read every call the stalled node made. There is no event that orders a late write before them.
         var afterWake = (await jobs.GetAsync("default", job.Id, TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         afterWake.Status.ShouldBe(JobStatus.Running, "the stalled node closed or requeued the other node's attempt");

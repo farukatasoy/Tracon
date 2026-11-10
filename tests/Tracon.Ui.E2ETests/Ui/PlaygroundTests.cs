@@ -31,8 +31,10 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         await session.Page.GetByLabel("Token").FillAsync(token);
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
 
-        // The token is kept once the server accepted it. A page load started before that finds no token and shows the
-        // shell screen again, so the playground never appears (a slow runner lost this race).
+        // Wait for the signed-in screen before the page is loaded again. The playground input did not appear within
+        // 30 seconds on windows-latest three times after a reload that started right after the click; a load racing the
+        // sign-in is the suspected cause and has not been reproduced (the session's diagnostics will name the screen the
+        // page was on if it happens again).
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).First).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");

@@ -75,8 +75,14 @@ internal sealed class Session : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await WriteDiagnosticsAsync().ConfigureAwait(false);
-        await _context.CloseAsync().ConfigureAwait(false);
+        try
+        {
+            await WriteDiagnosticsAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            await _context.CloseAsync().ConfigureAwait(false);
+        }
     }
 
     private void Record(string line)
