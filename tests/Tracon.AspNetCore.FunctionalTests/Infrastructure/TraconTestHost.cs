@@ -34,6 +34,15 @@ internal sealed class TraconTestHost : IAsyncDisposable
     /// <summary>The header a test uses to set the remote IP address.</summary>
     public const string RemoteIpHeader = "X-Test-Remote-Ip";
 
+    /// <summary>The most log lines a failed test's note holds.</summary>
+    internal const int NoteLineLimit = 200;
+
+    /// <summary>The most characters a failed test's note holds.</summary>
+    internal const int NoteByteLimit = 32 * 1024;
+
+    /// <summary>The longest log line a note keeps whole.</summary>
+    internal const int NoteLineWidth = 2000;
+
     private readonly WebApplication _app;
 
     private TraconTestHost(WebApplication app, HttpClient client, RecordingLoggerProvider logs)
@@ -174,8 +183,64 @@ internal sealed class TraconTestHost : IAsyncDisposable
 
         var client = app.GetTestClient();
 
+        // The host's log lives in this object, which the test disposes before anybody reads the result.
+        TestEvidence.Register("host log", failure => FailureNote(logs.Entries, failure.Text));
+
         return new TraconTestHost(app, client, logs);
     }
+
+    /// <summary>
+    /// The part of a host's log a failed test needs: every line at <c>Warning</c> or above, and the lines that carry a
+    /// reference id the failure text names.
+    /// </summary>
+    /// <param name="entries">The log lines the host wrote, each starting with its level.</param>
+    /// <param name="failureText">What the test failed with; a <c>(ref: id)</c> in it selects the lines that carry that id.</param>
+    /// <returns>
+    /// The selected lines, or <see langword="null"/> when there are none. At most <see cref="NoteLineLimit"/> lines and
+    /// <see cref="NoteByteLimit"/> characters; the note says how many lines it left out.
+    /// </returns>
+    /// <remarks>
+    /// A job that fails with <c>(ref: 234bf944)</c> points at the line the host logged for it. That line is an
+    /// <c>Information</c> or <c>Error</c> line the failure text alone cannot show.
+    /// </remarks>
+    internal static string? FailureNote(IEnumerable<string> entries, string failureText)
+    {
+        var references = TestEvidence.References(failureText);
+        var selected = entries
+            .Where(entry => IsSerious(entry) || references.Any(reference => entry.Contains(reference, StringComparison.Ordinal)))
+            .ToArray();
+
+        if (selected.Length == 0)
+        {
+            return null;
+        }
+
+        var builder = new System.Text.StringBuilder();
+        var written = 0;
+
+        foreach (var entry in selected)
+        {
+            if (written >= NoteLineLimit || builder.Length >= NoteByteLimit)
+            {
+                break;
+            }
+
+            builder.AppendLine(entry.Length <= NoteLineWidth ? entry : entry[..NoteLineWidth] + "...");
+            written++;
+        }
+
+        if (written < selected.Length)
+        {
+            builder.Append('(').Append(selected.Length - written).Append(" more lines left out)");
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool IsSerious(string entry)
+        => entry.StartsWith("Warning ", StringComparison.Ordinal)
+           || entry.StartsWith("Error ", StringComparison.Ordinal)
+           || entry.StartsWith("Critical ", StringComparison.Ordinal);
 
     /// <summary>
     /// Builds a client that connects to the host over WebSocket.

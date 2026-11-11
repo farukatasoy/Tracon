@@ -1,0 +1,21 @@
+name: Prove the failure evidence
+description: >-
+  Fails one named test on purpose and checks that the failure left its evidence: the heartbeat file, the
+  host log note or the browser trace. The step is green only when the test went red AND the evidence is
+  there, so the diagnostics cannot rot without a run turning red.
+inputs:
+  kind:
+    description: One of `pulse`, `host`, `page`. Each names exactly one test; a whole project is never run here.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      with:
+        python-version: '3.12'
+
+    - name: Fail one test on purpose and look for its evidence
+      shell: bash
+      run: python3 scripts/evidence_selftest.py "${{ inputs.kind }}"

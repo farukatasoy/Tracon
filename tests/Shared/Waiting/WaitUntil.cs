@@ -100,10 +100,22 @@ internal static class WaitUntil
         var limit = timeout ?? DefaultTimeout;
         var token = cancellationToken.CanBeCanceled ? cancellationToken : TestContext.Current.CancellationToken;
         var elapsed = Stopwatch.StartNew();
+        var pulseFrom = PulseMonitor.Recorder?.Now ?? 0;
+        var polls = 0;
+        var longestGap = TimeSpan.Zero;
+        var lastPoll = Stopwatch.GetTimestamp();
 
         while (true)
         {
             token.ThrowIfCancellationRequested();
+
+            if (polls++ > 0)
+            {
+                var gap = Stopwatch.GetElapsedTime(lastPoll);
+                longestGap = gap > longestGap ? gap : longestGap;
+            }
+
+            lastPoll = Stopwatch.GetTimestamp();
 
             // 🚨 The bound and the token reach the probe too. A probe that never
             // returns (a stuck store call, an unanswered request) would otherwise
@@ -123,7 +135,7 @@ internal static class WaitUntil
                 throw new TimeoutException(
                     string.Create(
                         CultureInfo.InvariantCulture,
-                        $"Waited {limit.TotalSeconds:0.###} s for {description}; the probe itself never returned."),
+                        $"Waited {limit.TotalSeconds:0.###} s for {description}; the probe itself never returned.{Diagnosis(polls, longestGap, pulseFrom)}"),
                     exception);
             }
 
@@ -138,11 +150,36 @@ internal static class WaitUntil
 
                 throw new TimeoutException(string.Create(
                     CultureInfo.InvariantCulture,
-                    $"Waited {limit.TotalSeconds:0.###} s for {description}; it never happened.{last}"));
+                    $"Waited {limit.TotalSeconds:0.###} s for {description}; it never happened.{last}{Diagnosis(polls, longestGap, pulseFrom)}"));
             }
 
             await Task.Delay(PollInterval, token).ConfigureAwait(false); // delay: poll
         }
+    }
+
+    /// <summary>
+    /// What the wait itself saw, so a timeout says whether the condition never held or the process stood still.
+    /// </summary>
+    /// <remarks>
+    /// A wait that ran 1500 polls with a 20 ms gap between them and no stall waited on a condition that never held. A wait with
+    /// a long gap, or a long process stall or pool delay, waited on a machine that was not running it.
+    /// </remarks>
+    private static string Diagnosis(int polls, TimeSpan longestGap, long pulseFrom)
+    {
+        var text = string.Create(
+            CultureInfo.InvariantCulture,
+            $" Polls: {polls}; longest gap between polls: {longestGap.TotalMilliseconds:0} ms");
+
+        if (PulseMonitor.Window(pulseFrom) is { } window)
+        {
+            text += window.Measurements == 0
+                ? "; the process heartbeat recorded nothing inside this wait"
+                : string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"; longest process stall: {window.LongestStall.TotalMilliseconds:0} ms; longest thread pool delay: {window.LongestPoolDelay.TotalMilliseconds:0} ms");
+        }
+
+        return text + ".";
     }
 
     private static string Describe<T>(T value) => value?.ToString() ?? "null";

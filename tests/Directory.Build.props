@@ -104,6 +104,16 @@
   </ItemGroup>
 
   <!--
+    What a failed test leaves behind (tests/Shared/Evidence): a heartbeat thread that records
+    how long the process and the thread pool stood still, and notes that a resource writes
+    only when its test does not pass. A red run then answers "was the process stalled, what did
+    the host log, where was the page" from the artifact instead of from a guess.
+  -->
+  <ItemGroup Condition=" '$(IsTestHarnessProject)' != 'true' ">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/Evidence/*.cs" LinkBase="Shared/Evidence" />
+  </ItemGroup>
+
+  <!--
     Every multi-targeted project proves that each of its legs ran on
     the runtime it was built for. A leg rolled forward onto a newer runtime
     would pass every other test and prove nothing about its own framework.

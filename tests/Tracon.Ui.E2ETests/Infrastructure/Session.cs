@@ -5,8 +5,9 @@ namespace Tracon.Ui.E2ETests.Infrastructure;
 /// <summary>The browser context for a single test.</summary>
 /// <remarks>
 /// The session keeps what the page said while the test ran (console errors, page errors, requests that failed or were
-/// refused) and writes it, with the page's address and visible text, to the test's output when it is disposed. A test
-/// that times out waiting for an element otherwise leaves nothing to say whether the page was on the right screen.
+/// refused) and records a Playwright trace of the whole test. When the session is disposed it hands both, with the page's
+/// address and visible text, to the test's evidence; the evidence keeps them only if the test failed. A test that times out
+/// waiting for an element otherwise leaves nothing to say whether the page was on the right screen.
 /// </remarks>
 internal sealed class Session : IAsyncDisposable
 {
@@ -70,6 +71,12 @@ internal sealed class Session : IAsyncDisposable
             ColorScheme = colorScheme,
         });
 
+        // The trace is the one record that shows what the page did between two assertions. It costs a screenshot per action,
+        // so it is stopped into a temporary file and kept only for a test that failed. 🚨 No DOM snapshots: the recorder
+        // fetches every resource the page shows, a blob: preview included, and that fetch is a connect-src violation the
+        // content-security tests rightly report as a failure of the page.
+        await context.Tracing.StartAsync(new TracingStartOptions { Screenshots = true, Snapshots = false });
+
         return new Session(context, await context.NewPageAsync());
     }
 
@@ -77,7 +84,10 @@ internal sealed class Session : IAsyncDisposable
     {
         try
         {
-            await WriteDiagnosticsAsync().ConfigureAwait(false);
+            var summary = await ReadSummaryAsync().ConfigureAwait(false);
+
+            TestEvidence.Register("page", _ => summary);
+            await SaveTraceAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -93,26 +103,41 @@ internal sealed class Session : IAsyncDisposable
         }
     }
 
-    private async Task WriteDiagnosticsAsync()
+    private async Task SaveTraceAsync()
     {
-        var output = TestContext.Current.TestOutputHelper;
+        var path = Path.Combine(Path.GetTempPath(), $"tracon-trace-{Guid.NewGuid():N}.zip");
 
-        if (output is null)
+        try
         {
+            await _context.Tracing.StopAsync(new TracingStopOptions { Path = path }).ConfigureAwait(false);
+        }
+        catch (PlaywrightException)
+        {
+            // A context that is already gone has no trace to save; the page note still says what it can.
             return;
         }
+
+        if (!TestEvidence.RegisterFile("trace", path))
+        {
+            File.Delete(path);
+        }
+    }
+
+    private async Task<string> ReadSummaryAsync()
+    {
+        var summary = new List<string>();
 
         try
         {
             var body = await Page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 2000 }).ConfigureAwait(false);
             var visible = body.Length <= BodyTextLimit ? body : body[..BodyTextLimit] + "...";
 
-            output.WriteLine($"[page] {Page.Url}");
-            output.WriteLine($"[page text] {visible.ReplaceLineEndings(" | ")}");
+            summary.Add($"address: {Page.Url}");
+            summary.Add($"text: {visible.ReplaceLineEndings(" | ")}");
         }
         catch (PlaywrightException exception)
         {
-            output.WriteLine($"[page] could not be read: {exception.Message}");
+            summary.Add($"the page could not be read: {exception.Message}");
         }
 
         string[] events;
@@ -124,7 +149,9 @@ internal sealed class Session : IAsyncDisposable
 
         foreach (var line in events)
         {
-            output.WriteLine($"[page event] {line}");
+            summary.Add($"event: {line}");
         }
+
+        return string.Join(Environment.NewLine, summary);
     }
 }

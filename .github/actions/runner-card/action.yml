@@ -1,0 +1,19 @@
+name: Describe the runner
+description: >-
+  Prints the runner card: cores, memory, free disk, where the temporary directories are, and how long a
+  SQLite commit loop takes in each of them. It never fails the job. The numbers let a slow or red run be
+  read against the machine it ran on.
+
+runs:
+  using: composite
+  steps:
+    # `python3` is not guaranteed on a Windows runner (only `python`); installing it gives the same binary
+    # on both systems. The card needs nothing beyond the standard library.
+    - name: Set up Python
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      with:
+        python-version: '3.12'
+
+    - name: Print the runner card
+      shell: bash
+      run: python3 scripts/runner_card.py

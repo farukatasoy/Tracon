@@ -56,6 +56,38 @@ public sealed class WaitUntilTests
     }
 
     [Fact]
+    public async Task The_timeout_says_how_often_it_polled_and_how_far_apart_the_polls_were()
+    {
+        var timeout = await Should.ThrowAsync<TimeoutException>(
+            () => WaitUntil.TrueAsync(static () => false, "a condition that never holds", TimeSpan.FromMilliseconds(100)));
+
+        timeout.Message.ShouldMatch(@"Polls: [1-9][0-9]*; longest gap between polls: [0-9]+ ms");
+    }
+
+    [Fact]
+    public async Task The_timeout_says_what_the_process_heartbeat_saw_while_it_waited()
+    {
+        var timeout = await Should.ThrowAsync<TimeoutException>(
+            () => WaitUntil.TrueAsync(static () => false, "a condition that never holds", TimeSpan.FromMilliseconds(100)));
+
+        // Either the worst delays inside the wait, or the statement that the heartbeat had nothing inside it: the message
+        // never leaves the reader to guess whether the instrument was running.
+        timeout.Message.ShouldMatch(
+            @"(longest process stall: [0-9]+ ms; longest thread pool delay: [0-9]+ ms|the process heartbeat recorded nothing inside this wait)");
+    }
+
+    [Fact]
+    public async Task A_stuck_probe_timeout_carries_the_same_diagnosis()
+    {
+        var never = new TaskCompletionSource<bool>();
+
+        var timeout = await Should.ThrowAsync<TimeoutException>(
+            () => WaitUntil.TrueAsync(() => never.Task, "a stuck probe", TimeSpan.FromMilliseconds(100)));
+
+        timeout.Message.ShouldMatch(@"Polls: 1; longest gap between polls: 0 ms");
+    }
+
+    [Fact]
     public async Task Without_a_description_the_timeout_quotes_the_condition_itself()
     {
         var ready = false;
