@@ -5,7 +5,7 @@ slug: reference/compatibility
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.8`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 

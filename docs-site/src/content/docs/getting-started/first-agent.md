@@ -10,7 +10,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.8`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.9`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -31,7 +31,7 @@ comes from the provider's own documentation. The template writes it to
 `appsettings.json`; you do not edit any code.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.8
+dotnet new install Tracon.Templates@1.0.0-preview.9
 dotnet new tracon-api -n MyAgents --model gpt-5.4-mini
 cd MyAgents
 ```

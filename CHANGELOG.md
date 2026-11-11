@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-preview.9] - 2026-11-11
+
+This release is small. Hosts that register their own `TimeProvider` get that clock for the waits that used the system clock, and `@tracon/client` tells `onUnauthorized` which token the refused request carried, which fixes a console that dropped a token it had just been given. Neither breaks source.
+
 - **`@tracon/client`: `onUnauthorized` now receives the token the refused request carried, and the console no longer drops a token it has just been given.** The callback is called with
   `{ token }`, where `token` is the bearer token of the request the server answered 401 (`null` when the request carried none). The console sends one request without a token on load
   and is answered 401 by design; on a slow machine that answer arrived after the user had entered a token, and the console threw the new token away and said the server rejected it.
