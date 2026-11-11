@@ -2085,14 +2085,27 @@ jobs:
         run: npm run build
 
       # npm has no counterpart of NuGet's --skip-duplicate; publishing the same version twice makes
-      # `npm publish` stop with an ERROR. An existing version is checked beforehand; if found, the
-      # publish step is SKIPPED and the job does NOT fail.
+      # `npm publish` stop with an ERROR. An existing version is checked beforehand; if found on a later
+      # attempt of the run, the publish step is SKIPPED and the job does NOT fail.
+      #
+      # A version that is already there on the FIRST attempt of a run was published by ANOTHER run, whose
+      # build is not this one: skipping would leave the npm package from one build and the NuGet packages
+      # from another under one version, and nothing downstream compares the two. The job stops instead.
+      # On a later attempt (the failed jobs of this same run run again) the version is this run's own, from
+      # the attempt that failed after the publish, and skipping is right.
       - name: Check whether the version is already published
         id: exists
         working-directory: packages/tracon-client
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
-          if npm view "@tracon/client@${{ steps.version.outputs.value }}" version >/dev/null 2>&1; then
-            echo "already published - skipping the publish step"
+          if npm view "@tracon/client@$RELEASE_VERSION" version >/dev/null 2>&1; then
+            if [ "$RUN_ATTEMPT" = "1" ]; then
+              echo "::error::@tracon/client@$RELEASE_VERSION is already on npm and this is the first attempt of this run: another run published it from another build. Do not start a new run of the same version; cut the next number."
+              exit 1
+            fi
+            echo "already published by an earlier attempt of this run - skipping the publish step"
             echo "value=true" >> "$GITHUB_OUTPUT"
           else
             echo "value=false" >> "$GITHUB_OUTPUT"

@@ -3894,6 +3894,23 @@ class DispatchReleaseWorkflowTests(unittest.TestCase):
         self.assertLess(release.index("gate.py verify-published"), release.index("gh release create"))
         self.assertIn('npm view "@tracon/client@$version" version', release)
 
+    def test_a_version_already_on_npm_at_the_first_attempt_stops_the_job_and_only_a_later_attempt_skips(self):
+        """Another run published it from another build: skipping would mix two builds under one version."""
+        step = re.search(
+            r"- name: Check whether the version is already published\n(.*?)(?=\n      #|\n      - name:)",
+            self.uncommented, re.DOTALL)
+
+        self.assertIsNotNone(step)
+        body = step.group(1)
+        self.assertIn("RUN_ATTEMPT: ${{ github.run_attempt }}", body)
+        self.assertIn('if [ "$RUN_ATTEMPT" = "1" ]; then', body)
+        refuse = body.index('if [ "$RUN_ATTEMPT" = "1" ]')
+        self.assertLess(body.index("exit 1"), body.index('echo "value=true"'))
+        self.assertLess(refuse, body.index('echo "value=true"'))
+        # The version reaches the script through the environment, like the inputs it comes from.
+        self.assertIn("RELEASE_VERSION: ${{ steps.version.outputs.value }}", body)
+        self.assertNotIn("${{ steps.version.outputs.value }}\"", body)
+
     def test_the_ordinary_rehearsal_comment_does_not_promise_a_tag_first_flow(self):
         self.assertNotIn("push --atomic", self.text)
 
