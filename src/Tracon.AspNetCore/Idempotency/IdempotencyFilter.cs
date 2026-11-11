@@ -96,21 +96,23 @@ internal sealed class IdempotencyFilter : IEndpointFilter
 
         if (!options.Enabled)
         {
-            return Results.Problem(
-                title: "Idempotency support disabled",
-                detail: $"The '{HeaderName}' header was sent, but idempotency support is disabled in " +
-                        "this setup (TraconIdempotencyOptions.Enabled = false). The request was NOT " +
-                        "processed: nothing ran and nothing was stored. Send it again without the header, " +
-                        "or enable idempotency.",
-                statusCode: StatusCodes.Status501NotImplemented);
+            return OpenAIRefusalShape.Refuse(
+                httpContext,
+                "Idempotency support disabled",
+                $"The '{HeaderName}' header was sent, but idempotency support is disabled in " +
+                "this setup (TraconIdempotencyOptions.Enabled = false). The request was NOT " +
+                "processed: nothing ran and nothing was stored. Send it again without the header, " +
+                "or enable idempotency.",
+                StatusCodes.Status501NotImplemented);
         }
 
         if (key.Length > options.MaxKeyLength)
         {
-            return Results.Problem(
-                title: "Idempotency-Key too long",
-                detail: $"The key may be at most {options.MaxKeyLength} characters; received length {key.Length}.",
-                statusCode: StatusCodes.Status400BadRequest);
+            return OpenAIRefusalShape.Refuse(
+                httpContext,
+                "Idempotency-Key too long",
+                $"The key may be at most {options.MaxKeyLength} characters; received length {key.Length}.",
+                StatusCodes.Status400BadRequest);
         }
 
         // 🚨 Refused BEFORE the reservation and the run: without the preference
@@ -119,12 +121,13 @@ internal sealed class IdempotencyFilter : IEndpointFilter
         // reproduce.
         if (_requireRespondAsync && !RespondAsyncPreference.IsRequested(httpContext))
         {
-            return Results.Problem(
-                title: "Idempotency-Key requires Prefer: respond-async",
-                detail: $"This endpoint streams its answer, and a stream cannot be stored and replayed. Send the " +
-                        $"'{HeaderName}' header together with 'Prefer: respond-async': the run is queued and the " +
-                        "'202 Accepted' answer is what a repeated request gets back.",
-                statusCode: StatusCodes.Status400BadRequest);
+            return OpenAIRefusalShape.Refuse(
+                httpContext,
+                "Idempotency-Key requires Prefer: respond-async",
+                $"This endpoint streams its answer, and a stream cannot be stored and replayed. Send the " +
+                $"'{HeaderName}' header together with 'Prefer: respond-async': the run is queued and the " +
+                "'202 Accepted' answer is what a repeated request gets back.",
+                StatusCodes.Status400BadRequest);
         }
 
         var cancellationToken = httpContext.RequestAborted;
@@ -132,11 +135,12 @@ internal sealed class IdempotencyFilter : IEndpointFilter
 
         if (isStreaming)
         {
-            return Results.Problem(
-                title: "Idempotency-Key not supported on streaming requests",
-                detail: $"A request carrying the '{HeaderName}' header cannot be streaming (SSE, " +
-                        "'stream: true'). Replaying a stored SSE body is not supported.",
-                statusCode: StatusCodes.Status400BadRequest);
+            return OpenAIRefusalShape.Refuse(
+                httpContext,
+                "Idempotency-Key not supported on streaming requests",
+                $"A request carrying the '{HeaderName}' header cannot be streaming (SSE, " +
+                "'stream: true'). Replaying a stored SSE body is not supported.",
+                StatusCodes.Status400BadRequest);
         }
 
         var tenants = httpContext.RequestServices.GetRequiredService<ITenantContext>();
@@ -165,17 +169,19 @@ internal sealed class IdempotencyFilter : IEndpointFilter
                 return new IdempotencyReplayResult(reservation.Response!);
 
             case IdempotencyState.InProgress:
-                return Results.Problem(
-                    title: "Request already in progress",
-                    detail: $"A request with key '{key}' is still being processed. Retry with the same body.",
-                    statusCode: StatusCodes.Status409Conflict);
+                return OpenAIRefusalShape.Refuse(
+                    httpContext,
+                    "Request already in progress",
+                    $"A request with key '{key}' is still being processed. Retry with the same body.",
+                    StatusCodes.Status409Conflict);
 
             case IdempotencyState.FingerprintMismatch:
-                return Results.Problem(
-                    title: "Idempotency-Key used for a different request",
-                    detail: $"The key '{key}' was already used on a request that completed with a " +
-                            "DIFFERENT body. Do not reuse the same key for a different request.",
-                    statusCode: StatusCodes.Status422UnprocessableEntity);
+                return OpenAIRefusalShape.Refuse(
+                    httpContext,
+                    "Idempotency-Key used for a different request",
+                    $"The key '{key}' was already used on a request that completed with a " +
+                    "DIFFERENT body. Do not reuse the same key for a different request.",
+                    StatusCodes.Status422UnprocessableEntity);
 
             default:
                 return await ExecuteAndCaptureAsync(context, next, store, tenants.TenantId, key, reservedAt, cancellationToken)

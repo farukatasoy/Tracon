@@ -270,9 +270,13 @@ public sealed class IdempotencyTests
             new { model = "kod-agent", input = "hello", stream = true },
             Guid.NewGuid().ToString("N"));
 
+        // /v1/responses answers every error in the OpenAI shape, as the published document says (see
+        // OpenAIFilterDenialShapeTests); the same refusal on a native route is a ProblemDetails.
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("title").GetString()
-            .ShouldBe("Idempotency-Key not supported on streaming requests");
+
+        var error = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("error");
+        error.GetProperty("type").GetString().ShouldBe("invalid_request_error");
+        error.GetProperty("message").GetString().ShouldNotBeNull().ShouldContain("cannot be streaming");
     }
 
     [Fact]

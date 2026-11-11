@@ -174,13 +174,14 @@ internal sealed class TraconRateLimitFilter : IEndpointFilter, IDisposable
         httpContext.Response.Headers.RetryAfter =
             ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
 
-        return Results.Problem(
-            title: "Rate limit exceeded",
-            detail: string.Create(
+        return OpenAIRefusalShape.Refuse(
+            httpContext,
+            "Rate limit exceeded",
+            string.Create(
                 CultureInfo.InvariantCulture,
                 $"This setup allows at most {options.PermitLimit} requests per {options.Window.TotalSeconds:0} seconds. " +
                 $"Retry after {retryAfter.TotalSeconds:0} seconds."),
-            statusCode: StatusCodes.Status429TooManyRequests);
+            StatusCodes.Status429TooManyRequests);
     }
 
     private RateLimitPartitionKey ResolveDeploymentPartitionKey(HttpContext context, TraconRateLimitOptions options)

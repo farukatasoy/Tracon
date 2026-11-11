@@ -75,10 +75,7 @@ internal static class StoreUnavailableProblemMiddleware
 
             var (title, detail) = await DescribeAsync(httpContext).ConfigureAwait(false);
 
-            await TypedResults.Problem(
-                    title: title,
-                    detail: detail,
-                    statusCode: StatusCodes.Status503ServiceUnavailable)
+            await OpenAIRefusalShape.Refuse(httpContext, title, detail, StatusCodes.Status503ServiceUnavailable)
                 .ExecuteAsync(httpContext)
                 .ConfigureAwait(false);
         }

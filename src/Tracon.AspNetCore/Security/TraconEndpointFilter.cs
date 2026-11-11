@@ -76,11 +76,47 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
     }
 
     /// <inheritdoc />
-    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    public ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(next);
 
+        // Only a route marked for the OpenAI shape pays for the wrapper: every other route takes the path it always took.
+        return OpenAIRefusalShape.Applies(context.HttpContext)
+            ? InvokeInOpenAIShapeAsync(context, next)
+            : InvokeCoreAsync(context, next);
+    }
+
+    /// <summary>
+    /// Runs the filter on an OpenAI-compatible route and answers its own refusals in the OpenAI error shape.
+    /// </summary>
+    /// <remarks>
+    /// The OpenAI-compatible routes answer every error as <c>{"error":{"message":…,"type":…}}</c>, which is what the OpenAI
+    /// SDKs parse and what the published document lists. Every refusal this filter writes (a key that is unknown, expired or
+    /// lacks the scope of the route, a tenant that is malformed or not allowed, a caller outside loopback) is a
+    /// <c>ProblemDetails</c>, so on these routes it is converted here. Only a refusal is converted: a result that comes back
+    /// after the request reached the endpoint is the endpoint's own and is returned as it is.
+    /// </remarks>
+    private async ValueTask<object?> InvokeInOpenAIShapeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var reachedEndpoint = false;
+
+        var result = await InvokeCoreAsync(
+            context,
+            invocation =>
+            {
+                reachedEndpoint = true;
+
+                return next(invocation);
+            }).ConfigureAwait(false);
+
+        return !reachedEndpoint && result is ProblemHttpResult refusal
+            ? OpenAIRefusalShape.From(refusal)
+            : result;
+    }
+
+    private async ValueTask<object?> InvokeCoreAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
         var httpContext = context.HttpContext;
 
         if (_requireLoopback && !_allowRemoteAccess && !LoopbackGuard.IsLocalRequest(httpContext))

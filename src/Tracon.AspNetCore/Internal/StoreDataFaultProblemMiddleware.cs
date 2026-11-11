@@ -75,10 +75,7 @@ internal static class StoreDataFaultProblemMiddleware
                 ? (TextTooLongTitle, TextTooLongDetail)
                 : (NumberOutOfRangeTitle, NumberOutOfRangeDetail);
 
-            await TypedResults.Problem(
-                    title: title,
-                    detail: detail,
-                    statusCode: StatusCodes.Status400BadRequest)
+            await OpenAIRefusalShape.Refuse(httpContext, title, detail, StatusCodes.Status400BadRequest)
                 .ExecuteAsync(httpContext)
                 .ConfigureAwait(false);
         }

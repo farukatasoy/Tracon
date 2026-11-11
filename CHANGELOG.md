@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The OpenAI-compatible routes answer every refusal in the OpenAI error shape, not as `application/problem+json`.** `POST /v1/chat/completions`, `POST /v1/responses` and
+  the `/v1/conversations` routes already answered a refused role and their own errors as `{"error":{"message":…,"type":…}}`, which is what the OpenAI SDKs parse and what the
+  published document lists for them. The refusals that come before the route's own code did not: an API key that is unknown, expired or lacks the scope of the route (`401`,
+  `403`), a malformed or rejected tenant (`400`, `403`), an `Idempotency-Key` the route cannot honour (`400`, `409`, `422`, `501`), a request over the rate limit (`429`), a store
+  that cannot answer or refused a value (`503`, `400`), a blank path value (`404`) and a malformed body (`400`) came back as `ProblemDetails`. They now come back as an OpenAI
+  error with the types `authentication_error`, `permission_error`, `invalid_request_error`, `not_found_error`, `rate_limit_error` and `service_unavailable`. The status code and the
+  `Retry-After` and `WWW-Authenticate` headers are unchanged, and the native `/api` routes still answer `ProblemDetails`.
+  What to do:
+  - **Nothing, if the client is an OpenAI SDK.** It reads this shape already.
+  - **A client that matched `application/problem+json` or the `title` of a refusal from these routes reads `error.type` and `error.message` instead.**
+
 ## [1.0.0-preview.10] - 2026-11-11
 
 This release is small. Hosts that register their own `TimeProvider` get that clock for the waits that used the system clock, and `@tracon/client` tells `onUnauthorized` which token the refused request carried, which fixes a console that dropped a token it had just been given. Neither breaks source.

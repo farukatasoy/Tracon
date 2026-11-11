@@ -40,10 +40,11 @@ internal static class BlankRouteValueProblemMiddleware
             IsTraconEndpoint(httpContext) &&
             FindBlankRouteValue(httpContext) is not null)
         {
-            await TypedResults.Problem(
-                    title: ProblemTitle,
-                    detail: $"The '{FindBlankRouteValue(httpContext)}' part of the path is blank, and nothing is stored under a blank name.",
-                    statusCode: StatusCodes.Status404NotFound)
+            await OpenAIRefusalShape.Refuse(
+                    httpContext,
+                    ProblemTitle,
+                    $"The '{FindBlankRouteValue(httpContext)}' part of the path is blank, and nothing is stored under a blank name.",
+                    StatusCodes.Status404NotFound)
                 .ExecuteAsync(httpContext)
                 .ConfigureAwait(false);
         }
