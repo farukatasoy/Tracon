@@ -139,6 +139,88 @@ public sealed class QuotaPeriodPropertyTests
         failures.ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// Every boundary holds in the hours around every offset change that happens within an hour of a local midnight, 1990 to 2040.
+    /// </summary>
+    /// <remarks>
+    /// The sweep above reads four recent years. A zone rule that was dropped long ago (Newfoundland set its clock back at
+    /// 00:01 until 2006) still shapes the instants of 1990 to 2005, and only the random sampling of the first property
+    /// reached it, by chance, once in a while. The period of an instant can break only where a transition swallows or
+    /// repeats a midnight, which needs the clock to be within an hour of one (a rule moves it by an hour at most). So this
+    /// sweep finds every offset change of every zone with a walk in steps of three days (the offset is read at midnight UTC
+    /// and the three days are bisected to the minute when it differs; two changes that cancel inside three days escape), keeps the ones within an hour of a local midnight, and looks at every ten
+    /// minutes from three hours before to three hours after each with both period kinds. A transition at 02:00, the usual
+    /// hour, cannot break a date and would only be cost: it is thousands of changes against a few hundred.
+    /// </remarks>
+    [Fact]
+    public void The_boundaries_hold_around_every_offset_change_near_a_local_midnight_since_1990()
+    {
+        var failures = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var from = new DateTimeOffset(1990, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var until = new DateTimeOffset(2040, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var checks = 0L;
+        var changes = 0;
+
+        Parallel.ForEach(Zones, zone =>
+        {
+            var previous = zone.GetUtcOffset(from);
+
+            for (var day = from.AddDays(3); day < until; day = day.AddDays(3))
+            {
+                if (zone.GetUtcOffset(day) == previous)
+                {
+                    continue;
+                }
+
+                var low = day.AddDays(-3);
+                var high = day;
+
+                while (high - low > TimeSpan.FromMinutes(1))
+                {
+                    var middle = low + ((high - low) / 2);
+
+                    if (zone.GetUtcOffset(middle) == previous)
+                    {
+                        low = middle;
+                    }
+                    else
+                    {
+                        high = middle;
+                    }
+                }
+
+                previous = zone.GetUtcOffset(day);
+
+                var clock = TimeZoneInfo.ConvertTime(low, zone).TimeOfDay;
+
+                if (clock > TimeSpan.FromHours(1) && clock < TimeSpan.FromHours(23))
+                {
+                    continue;
+                }
+
+                Interlocked.Increment(ref changes);
+
+                for (var probe = high.AddHours(-3); probe <= high.AddHours(3); probe = probe.AddMinutes(10))
+                {
+                    foreach (var period in new[] { QuotaPeriod.Daily, QuotaPeriod.Monthly })
+                    {
+                        Interlocked.Increment(ref checks);
+                        var problem = Check(probe, period, zone);
+
+                        if (problem is not null)
+                        {
+                            failures.Add(problem);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        changes.ShouldBeGreaterThan(50, "the sweep found too few offset changes near a midnight to mean anything");
+        failures.OrderBy(static f => f, StringComparer.Ordinal).Take(20).ShouldBeEmpty($"{failures.Count} failing probes in {changes} changes, {checks} checks");
+    }
+
     private static string? Check(DateTimeOffset instant, QuotaPeriod period, TimeZoneInfo zone)
     {
         var end = QuotaPeriodCalculator.GetPeriodEnd(instant, period, zone);

@@ -45,8 +45,17 @@ internal static class QuotaPeriodCalculator
     /// <returns>The instant the next period starts (UTC).</returns>
     /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> is <see langword="null"/>.</exception>
     /// <remarks>
+    /// <para>
     /// The returned value is reflected to the client as "when it resets" in
     /// <c>Retry-After</c> and in <c>ProblemDetails</c>.
+    /// </para>
+    /// <para>
+    /// It is always after <paramref name="instant"/>. The next date normally begins at the earlier of its two midnights
+    /// (see <see cref="ToUtcInstant"/>), but a rule that sets the clock back just AFTER midnight (Newfoundland until 2006:
+    /// 00:01 became 23:01) puts the last hour of a date on the clock twice with the next midnight between the passes.
+    /// An instant in the second pass is past the earlier midnight, so its period ends at the next instant the zone puts
+    /// on the next date, the later midnight.
+    /// </para>
     /// </remarks>
     public static DateTimeOffset GetPeriodEnd(DateTimeOffset instant, QuotaPeriod period, TimeZoneInfo timeZone)
     {
@@ -60,7 +69,23 @@ internal static class QuotaPeriodCalculator
             _ => start.AddDays(1),
         };
 
-        return ToUtcInstant(nextStart, timeZone);
+        var end = ToUtcInstant(nextStart, timeZone);
+
+        if (end > instant)
+        {
+            return end;
+        }
+
+        // The earlier midnight is already behind the instant: the instant is in the repeated hour after it. Walk to the
+        // next instant that is on the next date. The repeated stretch is a few hours at most.
+        var probe = instant;
+
+        for (var step = 0; step < MaxAdjustSteps && DateOf(probe, timeZone) < nextStart; step++)
+        {
+            probe = probe.AddMinutes(1);
+        }
+
+        return FirstTickOnTheDate(probe, nextStart, timeZone);
     }
 
     /// <summary>Converts a period start into midnight in that time zone.</summary>

@@ -219,6 +219,72 @@ public sealed class QuotaPeriodCalculatorTests
         QuotaPeriodCalculator.GetPeriodStart(first - TimeSpan.FromTicks(1), QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(2023, 4, 27));
     }
 
+    /// <summary>
+    /// A rule that sets the clock back one minute AFTER midnight puts the last hour of a date on the clock twice, with the
+    /// midnight of the next date between the two passes. The period of an instant in the second pass ends at the later
+    /// midnight, not the earlier one the period of an instant in the first pass ends at.
+    /// </summary>
+    /// <remarks>
+    /// Newfoundland, 1992-10-25: 00:01 (-02:30) became 23:01 (-03:30) of the day before. On the UTC time line the date
+    /// is 24th until 02:30Z, 25th from 02:30Z to 02:31Z, the 24th again until 03:30Z, then the 25th.
+    /// </remarks>
+    [Fact]
+    public void An_instant_in_the_repeated_hour_after_a_midnight_the_clock_set_back_from_ends_at_the_later_midnight()
+    {
+        var zone = ZoneThatSetsTheClockBackOneMinuteAfterMidnight();
+        var instant = new DateTimeOffset(1992, 10, 25, 3, 3, 45, TimeSpan.Zero);
+        var laterMidnight = new DateTimeOffset(1992, 10, 25, 3, 30, 0, TimeSpan.Zero);
+
+        QuotaPeriodCalculator.GetPeriodStart(instant, QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(1992, 10, 24));
+
+        var end = QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Daily, zone);
+
+        end.ShouldBe(laterMidnight);
+        QuotaPeriodCalculator.GetPeriodStart(end, QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(1992, 10, 25));
+        QuotaPeriodCalculator.GetPeriodStart(end - TimeSpan.FromTicks(1), QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(1992, 10, 24));
+    }
+
+    [Fact]
+    public void An_instant_before_that_midnight_still_ends_at_the_earlier_one()
+    {
+        // The contract of the earlier midnight stays: a period that starts early is never written to the wrong date.
+        var zone = ZoneThatSetsTheClockBackOneMinuteAfterMidnight();
+        var instant = new DateTimeOffset(1992, 10, 25, 2, 0, 0, TimeSpan.Zero);
+
+        var end = QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Daily, zone);
+
+        end.ShouldBe(new DateTimeOffset(1992, 10, 25, 2, 30, 0, TimeSpan.Zero));
+        QuotaPeriodCalculator.GetPeriodStart(end - TimeSpan.FromTicks(1), QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(1992, 10, 24));
+    }
+
+    [Theory]
+    [InlineData(2, 30, 30)]
+    [InlineData(3, 30, 0)]
+    [InlineData(6, 0, 0)]
+    public void An_instant_on_the_new_date_ends_at_the_midnight_after_it(int hour, int minute, int second)
+    {
+        var zone = ZoneThatSetsTheClockBackOneMinuteAfterMidnight();
+        var instant = new DateTimeOffset(1992, 10, 25, hour, minute, second, TimeSpan.Zero);
+
+        var end = QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Daily, zone);
+
+        QuotaPeriodCalculator.GetPeriodStart(instant, QuotaPeriod.Daily, zone).ShouldBe(new DateOnly(1992, 10, 25));
+        end.ShouldBe(QuotaPeriodCalculator.ToUtcInstant(new DateOnly(1992, 10, 26), zone));
+        (end > instant).ShouldBeTrue();
+    }
+
+    private static TimeZoneInfo ZoneThatSetsTheClockBackOneMinuteAfterMidnight()
+    {
+        var rule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(
+            new DateTime(1992, 1, 1),
+            new DateTime(1992, 12, 31),
+            TimeSpan.FromHours(1),
+            TimeZoneInfo.TransitionTime.CreateFloatingDateRule(new DateTime(1, 1, 1, 0, 1, 0), 4, 1, DayOfWeek.Sunday),
+            TimeZoneInfo.TransitionTime.CreateFloatingDateRule(new DateTime(1, 1, 1, 0, 1, 0), 10, 5, DayOfWeek.Sunday));
+
+        return TimeZoneInfo.CreateCustomTimeZone("Sets-back-after-midnight", TimeSpan.FromHours(-3.5), "test", "test", "test", [rule]);
+    }
+
     private static TimeZoneInfo ZoneThatMovesForwardAtTheLastMillisecondOfTheDay()
     {
         var rule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(
