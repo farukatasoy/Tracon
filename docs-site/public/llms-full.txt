@@ -6375,7 +6375,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.10`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.11`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -6396,7 +6396,7 @@ comes from the provider's own documentation. The template writes it to
 `appsettings.json`; you do not edit any code.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.10
+dotnet new install Tracon.Templates@1.0.0-preview.11
 dotnet new tracon-api -n MyAgents --model gpt-5.4-mini
 cd MyAgents
 ```
@@ -6550,7 +6550,7 @@ persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
 :::note[Preview release]
-Packages and templates are published as `1.0.0-preview.10`. The
+Packages and templates are published as `1.0.0-preview.11`. The
 [first-agent guide](/getting-started/first-agent/) starts with the public template;
 pin the exact package version when reproducibility matters.
 :::
@@ -10225,7 +10225,7 @@ pointer file, set `TraconWriteLocalReference` to `false`.
 Source: https://tracon.dev/guides/cli/
 
 :::note[Preview package]
-The CLI is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+The CLI is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for a reproducible tool manifest.
 :::
 
@@ -10665,7 +10665,7 @@ credential meant for exactly this.
 Source: https://tracon.dev/guides/coding-agents/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19375,7 +19375,7 @@ and still reject a fenced payload at the application boundary.
 Source: https://tracon.dev/guides/testing/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19650,7 +19650,7 @@ mistake instead of hiding it.
 Source: https://tracon.dev/guides/typescript-client/
 
 :::note[Preview package]
-`@tracon/client` is published as `1.0.0-preview.10`. Install the `next` tag or pin
+`@tracon/client` is published as `1.0.0-preview.11`. Install the `next` tag or pin
 the exact version; do not use a floating range in production.
 :::
 
@@ -19887,7 +19887,7 @@ sync.
 Source: https://tracon.dev/guides/voice/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21097,7 +21097,7 @@ and `429`) is never retried, whatever class you return.
 Source: https://tracon.dev/guides/write-your-own-job-handler/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21337,7 +21337,7 @@ handler actually receives a queued job.
 Source: https://tracon.dev/guides/write-your-own-judge/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21482,7 +21482,7 @@ timeouts, persistence, or HTTP responses.
 Source: https://tracon.dev/guides/write-your-own-script-executor/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21684,7 +21684,7 @@ a new contract in a later package version does not go untested.
 Source: https://tracon.dev/guides/write-your-own-store/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21812,7 +21812,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.10` is extracted into your
+by package id and version, so once `1.0.0-preview.11` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.
@@ -22846,7 +22846,7 @@ Every package is MIT. Details: [Licensing](/reference/licensing/).
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.10`. The command below selects it from
+The current release is `1.0.0-preview.11`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 
@@ -23107,6 +23107,46 @@ assume.
 
 ## Releases
 
+<a id="v1.0.0-preview.11"></a>
+
+### 1.0.0-preview.11 — 2026-11-11
+
+This release moves every package to the MIT licence and changes the error body of the OpenAI-compatible routes for the refusals that come before a route's own code. It also closes two gaps: a quota period that could end before the instant it was asked about, and a job store call that could hold a worker's slot for ever. Only the error body of those refusals changes the shape of a response; no public .NET type is removed.
+
+- **Every package is MIT.** From this version on, all NuGet packages and `@tracon/client` on npm ship under the MIT licence. The `.nuspec` declares
+  `<license type="expression">MIT</license>` instead of `<license type="file">`, no package asks for licence acceptance on restore, and `LICENSE.md` at the package root is
+  the MIT text. `LICENSE-MIT.md` is gone; there is one licence file. `1.0.0-preview.10` and earlier keep the PolyForm Small Business 1.0.0 terms they shipped with.
+  What to do:
+  - **Nothing.** A licence scanner that held a PolyForm package for review now reads `MIT`.
+
+- **The OpenAI-compatible routes answer every refusal in the OpenAI error shape, not as `application/problem+json`.** `POST /v1/chat/completions`, `POST /v1/responses` and
+  the `/v1/conversations` routes already answered a refused role and their own errors as `{"error":{"message":…,"type":…}}`, which is what the OpenAI SDKs parse and what the
+  published document lists for them. The refusals that come before the route's own code did not: an API key that is unknown, expired or lacks the scope of the route (`401`,
+  `403`), a malformed or rejected tenant (`400`, `403`), an `Idempotency-Key` the route cannot honour (`400`, `409`, `422`, `501`), a request over the rate limit (`429`), a store
+  that cannot answer or refused a value (`503`, `400`), a blank path value (`404`) and a malformed body (`400`) came back as `ProblemDetails`. They now come back as an OpenAI
+  error with the types `authentication_error`, `permission_error`, `invalid_request_error`, `not_found_error`, `rate_limit_error` and `service_unavailable`. The status code and the
+  `Retry-After` and `WWW-Authenticate` headers are unchanged, and the native `/api` routes still answer `ProblemDetails`.
+  What to do:
+  - **Nothing, if the client is an OpenAI SDK.** It reads this shape already.
+  - **A client that matched `application/problem+json` or the `title` of a refusal from these routes reads `error.type` and `error.message` instead.**
+
+- **A quota period can no longer end before the instant it was asked about.** In a time zone whose rule set the clock back just after midnight, the last hour of a date is on the clock twice
+  and the next midnight falls between the two passes. A request in the second pass was already past the earlier midnight, so the `Retry-After` header and the `ResetsAt` field of the refusal
+  came out zero or negative. They now name the next instant the zone puts on the next date. A request in the first pass still ends at the earlier midnight, and a counter is still never
+  written to the wrong date. Across 1990 to 2040 only `America/St_Johns` and `America/Goose_Bay` (a change at 00:01 until 2010) and `America/Moncton` (until 2006) had such a rule.
+  What to do:
+  - **Nothing.** The case shows for an instant from the years those zones used the rule, and for a custom `TimeZoneInfo` that sets the clock back after midnight.
+
+- **A job worker bounds the store calls it makes before it starts renewing a lease.** Until the renewal starts nothing keeps the lease alive, and a call to `IJobStore` that never answered held the
+  worker's slot for ever while the job went back to another worker. The call that marks the job running, the status read, the item listing and the call that fails a job without running it now
+  get one `TraconSchedulingOptions.LeaseDuration` each. The same budget applies to the item report and the cancel check of a running handler, to the read of the outcome and to the read after a
+  refused renewal; the calls that close a job already had it.
+  What to do:
+  - **Nothing, unless your own `IJobStore` can take longer than `LeaseDuration` to answer one of these calls.** A call that exceeds the budget ends the wait with a `TimeoutException` that the
+    worker counts as any other store error, and the call is cancelled through the token it was given, as the closing calls already were. Raise `LeaseDuration` or make the store answer sooner.
+
+[Read the 1.0.0-preview.11 entry](/reference/releases/1.0.0-preview.11/)
+
 <a id="v1.0.0-preview.10"></a>
 
 ### 1.0.0-preview.10 — 2026-11-11
@@ -23241,7 +23281,7 @@ package, and the surface may still be reduced before 1.0.
 Source: https://tracon.dev/reference/compatibility/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -25411,6 +25451,54 @@ This release is small. Hosts that register their own `TimeProvider` get that clo
 - **The Aspire guide pins Aspire `13.6.5`.** The guide and the sample showed `13.6.4`, which carries a high severity advisory (GHSA-f7vh-h5g3-7jrh). Aspire is not part of any Tracon package.
   What to do:
   - **If you copied the AppHost project from the guide, move `Aspire.AppHost.Sdk` and `Aspire.Hosting.PostgreSQL` to `13.6.5`.**
+
+## Read next
+
+- [Release notes](/reference/changelog/) — every published version, newest first
+- [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
+
+---
+
+# Tracon 1.0.0-preview.11 release notes
+
+Source: https://tracon.dev/reference/releases/1.0.0-preview.11/
+
+Released on 2026-11-11. This entry covers every NuGet package of the family and the npm client
+at version 1.0.0-preview.11. [Release notes](/reference/changelog/) lists every version.
+
+This release moves every package to the MIT licence and changes the error body of the OpenAI-compatible routes for the refusals that come before a route's own code. It also closes two gaps: a quota period that could end before the instant it was asked about, and a job store call that could hold a worker's slot for ever. Only the error body of those refusals changes the shape of a response; no public .NET type is removed.
+
+- **Every package is MIT.** From this version on, all NuGet packages and `@tracon/client` on npm ship under the MIT licence. The `.nuspec` declares
+  `<license type="expression">MIT</license>` instead of `<license type="file">`, no package asks for licence acceptance on restore, and `LICENSE.md` at the package root is
+  the MIT text. `LICENSE-MIT.md` is gone; there is one licence file. `1.0.0-preview.10` and earlier keep the PolyForm Small Business 1.0.0 terms they shipped with.
+  What to do:
+  - **Nothing.** A licence scanner that held a PolyForm package for review now reads `MIT`.
+
+- **The OpenAI-compatible routes answer every refusal in the OpenAI error shape, not as `application/problem+json`.** `POST /v1/chat/completions`, `POST /v1/responses` and
+  the `/v1/conversations` routes already answered a refused role and their own errors as `{"error":{"message":…,"type":…}}`, which is what the OpenAI SDKs parse and what the
+  published document lists for them. The refusals that come before the route's own code did not: an API key that is unknown, expired or lacks the scope of the route (`401`,
+  `403`), a malformed or rejected tenant (`400`, `403`), an `Idempotency-Key` the route cannot honour (`400`, `409`, `422`, `501`), a request over the rate limit (`429`), a store
+  that cannot answer or refused a value (`503`, `400`), a blank path value (`404`) and a malformed body (`400`) came back as `ProblemDetails`. They now come back as an OpenAI
+  error with the types `authentication_error`, `permission_error`, `invalid_request_error`, `not_found_error`, `rate_limit_error` and `service_unavailable`. The status code and the
+  `Retry-After` and `WWW-Authenticate` headers are unchanged, and the native `/api` routes still answer `ProblemDetails`.
+  What to do:
+  - **Nothing, if the client is an OpenAI SDK.** It reads this shape already.
+  - **A client that matched `application/problem+json` or the `title` of a refusal from these routes reads `error.type` and `error.message` instead.**
+
+- **A quota period can no longer end before the instant it was asked about.** In a time zone whose rule set the clock back just after midnight, the last hour of a date is on the clock twice
+  and the next midnight falls between the two passes. A request in the second pass was already past the earlier midnight, so the `Retry-After` header and the `ResetsAt` field of the refusal
+  came out zero or negative. They now name the next instant the zone puts on the next date. A request in the first pass still ends at the earlier midnight, and a counter is still never
+  written to the wrong date. Across 1990 to 2040 only `America/St_Johns` and `America/Goose_Bay` (a change at 00:01 until 2010) and `America/Moncton` (until 2006) had such a rule.
+  What to do:
+  - **Nothing.** The case shows for an instant from the years those zones used the rule, and for a custom `TimeZoneInfo` that sets the clock back after midnight.
+
+- **A job worker bounds the store calls it makes before it starts renewing a lease.** Until the renewal starts nothing keeps the lease alive, and a call to `IJobStore` that never answered held the
+  worker's slot for ever while the job went back to another worker. The call that marks the job running, the status read, the item listing and the call that fails a job without running it now
+  get one `TraconSchedulingOptions.LeaseDuration` each. The same budget applies to the item report and the cancel check of a running handler, to the read of the outcome and to the read after a
+  refused renewal; the calls that close a job already had it.
+  What to do:
+  - **Nothing, unless your own `IJobStore` can take longer than `LeaseDuration` to answer one of these calls.** A call that exceeds the budget ends the wait with a `TimeoutException` that the
+    worker counts as any other store error, and the call is cancelled through the token it was given, as the closing calls already were. Raise `LeaseDuration` or make the store answer sooner.
 
 ## Read next
 
@@ -30653,7 +30741,7 @@ required](/guides/embedding/#make-a-production-decision-required).
 Source: https://tracon.dev/reference/versioning/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -31183,11 +31271,11 @@ Only a preview exists. Select it explicitly:
 dotnet add package Tracon --prerelease
 ```
 
-Pin `1.0.0-preview.10` for reproducible builds. Install the template by exact
+Pin `1.0.0-preview.11` for reproducible builds. Install the template by exact
 version too:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.10
+dotnet new install Tracon.Templates@1.0.0-preview.11
 ```
 
 ### The generated project rejects a template option

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-preview.11] - 2026-11-11
+
+This release moves every package to the MIT licence and changes the error body of the OpenAI-compatible routes for the refusals that come before a route's own code. It also closes two gaps: a quota period that could end before the instant it was asked about, and a job store call that could hold a worker's slot for ever. Only the error body of those refusals changes the shape of a response; no public .NET type is removed.
+
 - **Every package is MIT.** From this version on, all NuGet packages and `@tracon/client` on npm ship under the MIT licence. The `.nuspec` declares
   `<license type="expression">MIT</license>` instead of `<license type="file">`, no package asks for licence acceptance on restore, and `LICENSE.md` at the package root is
   the MIT text. `LICENSE-MIT.md` is gone; there is one licence file. `1.0.0-preview.10` and earlier keep the PolyForm Small Business 1.0.0 terms they shipped with.
@@ -22,6 +26,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   What to do:
   - **Nothing, if the client is an OpenAI SDK.** It reads this shape already.
   - **A client that matched `application/problem+json` or the `title` of a refusal from these routes reads `error.type` and `error.message` instead.**
+
+- **A quota period can no longer end before the instant it was asked about.** In a time zone whose rule set the clock back just after midnight, the last hour of a date is on the clock twice
+  and the next midnight falls between the two passes. A request in the second pass was already past the earlier midnight, so the `Retry-After` header and the `ResetsAt` field of the refusal
+  came out zero or negative. They now name the next instant the zone puts on the next date. A request in the first pass still ends at the earlier midnight, and a counter is still never
+  written to the wrong date. Across 1990 to 2040 only `America/St_Johns` and `America/Goose_Bay` (a change at 00:01 until 2010) and `America/Moncton` (until 2006) had such a rule.
+  What to do:
+  - **Nothing.** The case shows for an instant from the years those zones used the rule, and for a custom `TimeZoneInfo` that sets the clock back after midnight.
+
+- **A job worker bounds the store calls it makes before it starts renewing a lease.** Until the renewal starts nothing keeps the lease alive, and a call to `IJobStore` that never answered held the
+  worker's slot for ever while the job went back to another worker. The call that marks the job running, the status read, the item listing and the call that fails a job without running it now
+  get one `TraconSchedulingOptions.LeaseDuration` each. The same budget applies to the item report and the cancel check of a running handler, to the read of the outcome and to the read after a
+  refused renewal; the calls that close a job already had it.
+  What to do:
+  - **Nothing, unless your own `IJobStore` can take longer than `LeaseDuration` to answer one of these calls.** A call that exceeds the budget ends the wait with a `TimeoutException` that the
+    worker counts as any other store error, and the call is cancelled through the token it was given, as the closing calls already were. Raise `LeaseDuration` or make the store answer sooner.
 
 ## [1.0.0-preview.10] - 2026-11-11
 

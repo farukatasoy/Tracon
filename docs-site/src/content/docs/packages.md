@@ -14,7 +14,7 @@ Every package is MIT. Details: [Licensing](/reference/licensing/).
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.10`. The command below selects it from
+The current release is `1.0.0-preview.11`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 
