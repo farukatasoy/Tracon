@@ -38,7 +38,9 @@ def _write_src_build_props(root: pathlib.Path, frameworks: str = "net10.0") -> N
     """Writes the default TFM list of the packages; `_target_frameworks` reads it from here.
     It also writes the root `LICENSE.md`, because every fake repository needs one the packages can match."""
     root.mkdir(parents=True, exist_ok=True)
-    (root / "LICENSE.md").write_text(FAKE_LICENSE_TEXT, encoding="utf-8")
+    # Bytes, not text: a text-mode write turns "\n" into "\r\n" on Windows, and the gate compares this file with the
+    # packed copy byte for byte.
+    (root / "LICENSE.md").write_bytes(FAKE_LICENSE_TEXT.encode("utf-8"))
     props = root / "src" / "Directory.Build.props"
     props.parent.mkdir(parents=True, exist_ok=True)
     props.write_text(
@@ -3112,6 +3114,14 @@ class ReleaseTests(unittest.TestCase):
                 root, {"Tracon.UI": ("", {"THIRD-PARTY-NOTICES.txt": b"react\n"})})
 
         self.assertEqual(result, 0, output)
+
+    def test_the_fake_repository_holds_the_exact_licence_bytes_a_fake_package_carries(self):
+        """One clear failure where a line-ending translation would otherwise fail every rehearsal test at once."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_src_build_props(root)
+
+            self.assertEqual((root / "LICENSE.md").read_bytes(), FAKE_LICENSE_TEXT.encode("utf-8"))
 
     def _licence_case(self, extra: dict[str, bytes]):
         with tempfile.TemporaryDirectory() as directory:
