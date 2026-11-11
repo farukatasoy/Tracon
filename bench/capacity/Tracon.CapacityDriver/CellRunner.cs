@@ -463,8 +463,6 @@ public sealed class CellRunner
 
         for (var slot = 0; slot < workers.Length; slot++)
         {
-            var offset = slot;
-
             workers[slot] = Task.Run(
                 async () =>
                 {
@@ -482,7 +480,7 @@ public sealed class CellRunner
                             return;
                         }
 
-                        var scenario = _spec.Scenarios[(index + offset) % _spec.Scenarios.Count];
+                        var scenario = CapacityScenario.ForRequest(_spec.Scenarios, index);
                         string tenant;
                         int? stage = null;
 

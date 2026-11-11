@@ -426,6 +426,24 @@ public static class CapacityScenario
     /// <returns><see langword="true"/> when the name is measurable.</returns>
     public static bool IsKnown(string? name)
         => name is Buffered or Streaming or Queued;
+
+    /// <summary>The scenario of the request with a given index.</summary>
+    /// <param name="scenarios">The scenarios of the cell, in order.</param>
+    /// <param name="index">The request's index, taken from one counter shared by every worker.</param>
+    /// <returns>The scenario to run.</returns>
+    /// <remarks>
+    /// Only the index decides. Which worker takes which index is a matter of timing, so a choice that also read the worker
+    /// made the number of requests per scenario depend on that timing: a cell of twelve requests over three scenarios ran
+    /// six buffered, six streaming and no queued request in one run of a hundred, and then had no queue wait to report.
+    /// With the index alone, a budget that is a multiple of the scenario count runs every scenario exactly as often as any
+    /// other, whatever the interleaving.
+    /// </remarks>
+    public static string ForRequest(IReadOnlyList<string> scenarios, int index)
+    {
+        ArgumentNullException.ThrowIfNull(scenarios);
+
+        return scenarios[index % scenarios.Count];
+    }
 }
 
 /// <summary>The serializer context the whole apparatus shares.</summary>
