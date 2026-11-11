@@ -356,10 +356,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-culture-${{ strategy.job-index }}
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-culture-${{ strategy.job-index }}
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   # ---------------------------------------------------------------------------
@@ -435,10 +442,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-twonode
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-twonode
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   test-package:
@@ -528,10 +542,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-package
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-package
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   # SQL Server and PostgreSQL default-image legs: the database modules of the old all-project
@@ -590,10 +611,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-sqlserver-default
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-sqlserver-default
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   test-postgres:
@@ -648,10 +676,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-postgres-default
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-postgres-default
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   test-aspnetcore:
@@ -714,10 +749,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-aspnetcore
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-aspnetcore
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   test-sqlite:
@@ -776,10 +818,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-sqlite
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-sqlite
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   # Fast modules and Core. Core comes first: its red shows in the first minutes of the job.
@@ -907,10 +956,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-fast
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-fast
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   # ---------------------------------------------------------------------------
@@ -977,10 +1033,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-windows-sqlite
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-windows-sqlite
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   test-windows-web:
@@ -1077,10 +1140,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-windows-web
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-windows-web
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   test-windows-core:
@@ -1211,10 +1281,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-windows-core
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-windows-core
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   # ---------------------------------------------------------------------------
@@ -1308,10 +1385,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-sqlserver-${{ strategy.job-index }}
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-sqlserver-${{ strategy.job-index }}
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   postgres-matrix:
@@ -1398,10 +1482,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-postgres-${{ strategy.job-index }}
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-postgres-${{ strategy.job-index }}
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   # The SQLite driver carries a native library; the version is that library's version. The leg
@@ -1485,10 +1576,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-sqlite-floor
-          path: |
-            artifacts/test-results/**/*.trx
-            artifacts/test-results/**/evidence*/**
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload the failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evidence-sqlite-floor
+          path: artifacts/test-results/**/evidence*/**
+          if-no-files-found: ignore
           overwrite: true
 
   # ---------------------------------------------------------------------------
