@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { count } from '../lib/format';
 import { useT } from '../lib/i18n';
+import { refreshAfterSave } from '../lib/refresh';
 import {
   Badge,
   Button,
@@ -72,7 +73,7 @@ export function QuotaPanel(): ReactNode {
           onDone={() => {
             setOpen(false);
             setEditing(null);
-            void queryClient.invalidateQueries({ queryKey: ['quota-usage'] });
+            void refreshAfterSave(queryClient, ['quota-usage']);
           }}
         />
       )}

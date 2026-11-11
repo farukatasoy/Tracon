@@ -170,7 +170,7 @@ function toResponse(body: unknown, status: number): Response {
  */
 let activeOverrides: FixtureRoute[] = [];
 
-function resolve(method: string, path: string, url: URL, body?: unknown): Response {
+async function resolve(method: string, path: string, url: URL, body?: unknown): Promise<Response> {
   for (const route of activeOverrides) {
     if (route.method !== method) {
       continue;
@@ -179,7 +179,8 @@ function resolve(method: string, path: string, url: URL, body?: unknown): Respon
     const match = matchRoute(route.pattern, path);
 
     if (match !== null) {
-      const result = route.handler(match.params, url, body);
+      // A handler may return a promise: a test holds an answer back to show what a screen does while it is in flight.
+      const result = await route.handler(match.params, url, body);
 
       return result instanceof Response ? result : toResponse(result, route.status ?? 200);
     }
