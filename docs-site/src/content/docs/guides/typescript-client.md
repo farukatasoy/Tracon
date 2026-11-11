@@ -41,9 +41,12 @@ const client = createTraconClient({
   // "https://example.com/control" instead.
   baseUrl: 'https://example.com/tracon',
   token: 'a-secret-token', // or a function called per request
-  onUnauthorized: () => {
+  onUnauthorized: ({ token }) => {
     // The server answered 401 — your app decides what that means: drop the
-    // stored token, redirect to sign-in, or prompt for a new one.
+    // stored token, redirect to sign-in, or prompt for a new one. `token` is
+    // the one the refused request carried (`null` for none). Drop a stored
+    // token only when it still equals `token`: an answer can arrive after the
+    // user entered a new one.
   },
 });
 ```

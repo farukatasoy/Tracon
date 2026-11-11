@@ -31,10 +31,10 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         await session.Page.GetByLabel("Token").FillAsync(token);
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
 
-        // Wait for the signed-in screen before the page is loaded again. The playground input did not appear within
-        // 30 seconds on windows-latest three times after a reload that started right after the click; a load racing the
-        // sign-in is the suspected cause and has not been reproduced (the session's diagnostics will name the screen the
-        // page was on if it happens again).
+        // Wait for the signed-in screen before the page is loaded again: the sign-in is complete only when the dashboard
+        // shows. (The 30-second failures on windows-latest were not a load racing the sign-in: the answer to the console's
+        // anonymous first request arrived after the token was typed and cleared it. The console ignores that answer now;
+        // ShellTests covers it.)
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).First).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");

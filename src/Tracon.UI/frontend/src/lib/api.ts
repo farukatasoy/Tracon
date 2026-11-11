@@ -13,7 +13,7 @@ import { authHeaders, getToken, rejectToken } from './auth';
 export const client = createTraconClient({
   baseUrl: apiBase,
   token: getToken,
-  onUnauthorized: rejectToken,
+  onUnauthorized: ({ token }) => rejectToken(token),
 });
 
 /**

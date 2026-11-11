@@ -9,7 +9,12 @@ export type Schemas = components['schemas'];
 
 // Hand-written — the thin layer over the generated types.
 export { TraconError } from './error.js';
-export { createTraconClient, type TraconClient, type TraconClientOptions } from './client.js';
+export {
+  createTraconClient,
+  type TraconClient,
+  type TraconClientOptions,
+  type UnauthorizedContext,
+} from './client.js';
 
 // Streaming. A `text/event-stream` endpoint needs no special client method —
 // pass `parseAs: 'stream'`, or read the `response` every call returns — but it

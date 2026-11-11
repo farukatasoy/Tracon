@@ -22,8 +22,9 @@ const client = createTraconClient({
   // "https://example.com/control" instead.
   baseUrl: 'https://example.com/tracon',
   token: 'a-secret-token', // or a function called per request
-  onUnauthorized: () => {
-    /* the server answered 401 — your app decides what that means */
+  onUnauthorized: ({ token }) => {
+    /* the server answered 401 — your app decides what that means; `token` is
+       the one the refused request carried (`null` for none) */
   },
 });
 

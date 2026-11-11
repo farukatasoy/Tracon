@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`@tracon/client`: `onUnauthorized` now receives the token the refused request carried, and the console no longer drops a token it has just been given.** The callback is called with
+  `{ token }`, where `token` is the bearer token of the request the server answered 401 (`null` when the request carried none). The console sends one request without a token on load
+  and is answered 401 by design; on a slow machine that answer arrived after the user had entered a token, and the console threw the new token away and said the server rejected it.
+  What to do:
+  - **Nothing, unless you use `onUnauthorized` to drop a stored token.** A callback that takes no argument still compiles and runs as before. Drop the stored token only when it
+    equals `token`, so a late answer to an older request does not remove the token that is current.
+
 - **A host that registers its own `TimeProvider` now gets that clock for waits that used the system clock.** The wait between two tries of the OpenAI, Azure OpenAI and Anthropic clients
   (a `Retry-After` date is read against it too), the poll of the run-event and the workflow follow streams, the pause between retention batches, the retry of an MCP or A2A tool
   catalog listing, a tool's timeout, and the MCP connection and catalog limits all run on it.

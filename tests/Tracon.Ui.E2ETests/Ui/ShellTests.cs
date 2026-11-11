@@ -216,4 +216,41 @@ public sealed class ShellTests(BrowserFixture browsers)
 
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
     }
+
+    [Fact]
+    public async Task A_late_answer_to_the_anonymous_probe_does_not_throw_away_the_token_that_was_just_entered()
+    {
+        // 🚨 On load the console sends one request without a token and is answered 401 by design. The token prompt is
+        // already on screen by then, so on a slow machine the user signs in before that answer comes back. The late 401
+        // used to clear the new, valid token and put "the server rejected that token" over a screen whose own request
+        // had succeeded (windows-latest, three CI runs). The answer is held here until the signed-in request is sent, so
+        // it always arrives after the token was entered.
+        await using var host = await UiHost.StartAsync(authToken: "secret-token");
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        var signedInRequestSent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await session.Page.RouteAsync(
+            "**/api/agents",
+            async route =>
+            {
+                if (route.Request.Headers.ContainsKey("authorization"))
+                {
+                    await route.ContinueAsync();
+                    signedInRequestSent.TrySetResult();
+
+                    return;
+                }
+
+                await signedInRequestSent.Task;
+                await route.ContinueAsync();
+            });
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByLabel("Token", new() { Exact = true }).FillAsync("secret-token");
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
+
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).First).ToBeVisibleAsync();
+        await Expect(session.Page.Locator("[role=alert]")).ToHaveCountAsync(0);
+    }
 }

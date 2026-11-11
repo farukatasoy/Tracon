@@ -67,12 +67,16 @@ export function setToken(value: string | null): void {
  * Clears a token the server just answered with 401, marking it as rejected
  * rather than merely absent.
  *
- * A no-op when there was no token to reject: the very first anonymous probe
- * also gets a 401, and that case must not read back as "your token was
- * wrong" ({@link useTokenRejected}).
+ * `sent` is the token the refused request carried (`null` for none). The
+ * answer is acted on only when it is the token that is current now. 🚨 Two
+ * overlapping calls make the other cases real: the anonymous probe the console
+ * sends on load is answered 401 by design, and on a slow machine that answer
+ * can arrive after the user has typed a token. Clearing on token presence alone
+ * threw away the new, valid token and showed "the server rejected that token"
+ * on a screen whose own request had succeeded ({@link useTokenRejected}).
  */
-export function rejectToken(): void {
-  if (token === null) {
+export function rejectToken(sent: string | null): void {
+  if (sent === null || token === null || sent !== token) {
     return;
   }
 

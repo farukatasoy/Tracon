@@ -8,10 +8,22 @@ export interface TraconClientOptions {
   baseUrl: string;
   /** Bearer token, or a function that supplies one per request. */
   token?: string | (() => string | null);
-  /** Called when the server answers 401 — the caller decides what "reject the token" means. */
-  onUnauthorized?: () => void;
+  /**
+   * Called when the server answers 401 — the caller decides what "reject the token" means.
+   *
+   * The argument names the token the failed request was sent with (`null` when it carried none). An answer
+   * can arrive after the token changed: a request sent without a token, or with the previous one, says nothing
+   * about the token that is current now, so drop a stored token only when it equals `token`.
+   */
+  onUnauthorized?: (context: UnauthorizedContext) => void;
   /** Custom fetch, defaults to `globalThis.fetch`. */
   fetch?: typeof globalThis.fetch;
+}
+
+/** What {@link TraconClientOptions.onUnauthorized} is told about the request that was refused. */
+export interface UnauthorizedContext {
+  /** The bearer token the refused request carried, or `null` when it carried none. */
+  token: string | null;
 }
 
 /** A client typed against every Tracon management API path. */
@@ -47,7 +59,7 @@ export function createTraconClient(options: TraconClientOptions): TraconClient {
 
       return request;
     },
-    async onResponse({ response }) {
+    async onResponse({ request, response }) {
       if (response.ok) {
         return response;
       }
@@ -56,7 +68,7 @@ export function createTraconClient(options: TraconClientOptions): TraconClient {
         // The token was rejected. The caller decides what that means (drop it,
         // prompt again); this layer still throws below so the failed call does
         // not silently resolve with no data.
-        options.onUnauthorized?.();
+        options.onUnauthorized?.({ token: sentToken(request) });
       }
 
       let title = `HTTP ${response.status}`;
@@ -78,4 +90,13 @@ export function createTraconClient(options: TraconClientOptions): TraconClient {
   client.use(middleware);
 
   return client;
+}
+
+const BEARER_PREFIX = 'Bearer ';
+
+/** The token a request was sent with, read from the request itself: the token store may have moved on since. */
+function sentToken(request: Request): string | null {
+  const header = request.headers.get('Authorization');
+
+  return header !== null && header.startsWith(BEARER_PREFIX) ? header.slice(BEARER_PREFIX.length) : null;
 }
