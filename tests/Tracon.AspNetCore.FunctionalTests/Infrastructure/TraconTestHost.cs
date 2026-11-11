@@ -37,7 +37,7 @@ internal sealed class TraconTestHost : IAsyncDisposable
     /// <summary>The most log lines a failed test's note holds.</summary>
     internal const int NoteLineLimit = 200;
 
-    /// <summary>The most characters a failed test's note holds.</summary>
+    /// <summary>The most characters a failed test's note holds; the last line may pass it by one line width.</summary>
     internal const int NoteByteLimit = 32 * 1024;
 
     /// <summary>The longest log line a note keeps whole.</summary>

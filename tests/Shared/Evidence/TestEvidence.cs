@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -101,44 +102,74 @@ internal static partial class TestEvidence
     internal static void Collect(IXunitTest test)
     {
         var context = TestContext.Current;
-        var prefix = $"{KeyPrefix}{test.UniqueID}:";
-        var notes = new List<(string Name, Func<FailureContext, string?> Note)>();
+        var state = context.TestState;
 
-        foreach (var key in context.KeyValueStorage.Keys.Where(key => key.StartsWith(prefix, StringComparison.Ordinal)).ToArray())
+        Process(
+            test.UniqueID,
+            test.TestDisplayName,
+            context.KeyValueStorage,
+            state?.Result,
+            string.Join(Environment.NewLine, state?.ExceptionMessages ?? []),
+            context.TestOutputHelper,
+            EvidenceDirectory);
+    }
+
+    /// <summary>
+    /// Takes one test's notes and files out of <paramref name="storage"/> and keeps them only if the test failed.
+    /// </summary>
+    /// <param name="testId">The test's unique id; only keys that carry it are touched.</param>
+    /// <param name="displayName">The test's name.</param>
+    /// <param name="storage">The pipeline's key-value store, shared by every test that runs.</param>
+    /// <param name="result">How the test ended; <see langword="null"/> when xunit has not said.</param>
+    /// <param name="failureText">The messages the test failed with.</param>
+    /// <param name="output">Where the evidence is also written; may be <see langword="null"/>.</param>
+    /// <param name="directory">The evidence directory; <see langword="null"/> writes nothing to disk.</param>
+    /// <remarks>
+    /// A file the test registered is deleted whatever the result; a failed test's file is moved into
+    /// <paramref name="directory"/> first.
+    /// </remarks>
+    internal static void Process(
+        string testId,
+        string displayName,
+        ConcurrentDictionary<string, object?> storage,
+        TestResult? result,
+        string failureText,
+        ITestOutputHelper? output,
+        string? directory)
+    {
+        var notes = new List<(string Name, Func<FailureContext, string?> Note)>();
+        var files = new List<EvidenceFile>();
+
+        foreach (var key in storage.Keys.Where(key => key.StartsWith($"{KeyPrefix}{testId}:", StringComparison.Ordinal)).ToArray())
         {
-            if (context.KeyValueStorage.TryRemove(key, out var value) && value is Func<FailureContext, string?> note)
+            if (storage.TryRemove(key, out var value) && value is Func<FailureContext, string?> note)
             {
                 notes.Add((key[(key.LastIndexOf(':') + 1)..], note));
             }
         }
 
-        var files = new List<EvidenceFile>();
-
-        foreach (var key in context.KeyValueStorage.Keys.Where(key => key.StartsWith($"{FilePrefix}{test.UniqueID}:", StringComparison.Ordinal)).ToArray())
+        foreach (var key in storage.Keys.Where(key => key.StartsWith($"{FilePrefix}{testId}:", StringComparison.Ordinal)).ToArray())
         {
-            if (context.KeyValueStorage.TryRemove(key, out var value) && value is EvidenceFile file)
+            if (storage.TryRemove(key, out var value) && value is EvidenceFile file)
             {
                 files.Add(file);
             }
         }
 
-        var state = context.TestState;
-        var failed = state?.Result == TestResult.Failed;
-
         foreach (var file in files)
         {
-            KeepOrDelete(test, file, failed, context.TestOutputHelper);
+            KeepOrDelete(testId, displayName, file, result == TestResult.Failed, output, directory);
         }
 
-        var text = Render(test.TestDisplayName, state?.Result, string.Join(Environment.NewLine, state?.ExceptionMessages ?? []), notes);
+        var text = Render(displayName, result, failureText, notes);
 
         if (text is null)
         {
             return;
         }
 
-        context.TestOutputHelper?.WriteLine(text);
-        WriteFile(test, text);
+        output?.WriteLine(text);
+        WriteFile(testId, displayName, text, output, directory);
     }
 
     /// <summary>
@@ -196,17 +227,15 @@ internal static partial class TestEvidence
     internal static IReadOnlyList<string> References(string failureText)
         => [.. ReferencePattern().Matches(failureText).Select(static match => match.Groups["id"].Value).Distinct(StringComparer.Ordinal)];
 
-    private static void KeepOrDelete(IXunitTest test, EvidenceFile file, bool failed, ITestOutputHelper? output)
+    private static void KeepOrDelete(string testId, string displayName, EvidenceFile file, bool failed, ITestOutputHelper? output, string? directory)
     {
         try
         {
-            var directory = EvidenceDirectory;
-
             if (failed && directory is not null && File.Exists(file.Path))
             {
                 Directory.CreateDirectory(directory);
 
-                var target = Path.Combine(directory, $"{SafeName(test.TestDisplayName)}-{ShortId(test)}.{SafeName(file.Name)}{Path.GetExtension(file.Path)}");
+                var target = Path.Combine(directory, $"{SafeName(displayName)}-{ShortId(testId)}.{SafeName(file.Name)}{Path.GetExtension(file.Path)}");
 
                 File.Move(file.Path, target, overwrite: true);
                 output?.WriteLine($"[evidence] {file.Name} saved to {target}");
@@ -229,12 +258,10 @@ internal static partial class TestEvidence
         }
     }
 
-    private static string ShortId(IXunitTest test) => test.UniqueID[..Math.Min(8, test.UniqueID.Length)];
+    private static string ShortId(string testId) => testId[..Math.Min(8, testId.Length)];
 
-    private static void WriteFile(IXunitTest test, string text)
+    private static void WriteFile(string testId, string displayName, string text, ITestOutputHelper? output, string? directory)
     {
-        var directory = EvidenceDirectory;
-
         if (directory is null)
         {
             return;
@@ -244,15 +271,15 @@ internal static partial class TestEvidence
         {
             Directory.CreateDirectory(directory);
 
-            var name = SafeName(test.TestDisplayName);
+            var name = SafeName(displayName);
             var bytes = Encoding.UTF8.GetBytes(text);
             var content = bytes.Length <= FileByteLimit ? text : Encoding.UTF8.GetString(bytes, 0, FileByteLimit) + Environment.NewLine + "(truncated)";
 
-            File.WriteAllText(Path.Combine(directory, $"{name}-{ShortId(test)}.txt"), content);
+            File.WriteAllText(Path.Combine(directory, $"{name}-{ShortId(testId)}.txt"), content);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            TestContext.Current.TestOutputHelper?.WriteLine($"[evidence] could not be written to '{directory}': {exception.Message}");
+            output?.WriteLine($"[evidence] could not be written to '{directory}': {exception.Message}");
         }
     }
 

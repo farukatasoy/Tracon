@@ -81,12 +81,31 @@ class EvidenceCheckTests(unittest.TestCase):
             self.assertEqual(evidence_selftest.check_page(directory), [])
 
 
+class OutputCheckTests(unittest.TestCase):
+    MESSAGE = ("Waited 1 s for x; it never happened. Polls: 3; longest gap between polls: 889 ms; "
+               "longest process stall: 4 ms; longest thread pool delay: 884 ms.")
+
+    def test_a_message_with_the_poll_count_and_a_pool_delay_passes(self):
+        self.assertEqual(evidence_selftest.check_pulse_output(self.MESSAGE), [])
+
+    def test_a_message_without_the_numbers_is_named(self):
+        self.assertEqual(
+            evidence_selftest.check_pulse_output("Waited 1 s for x; it never happened."),
+            ["the timeout message does not carry the poll count and the longest gap",
+             "the timeout message does not name a thread pool delay above zero"])
+
+    def test_a_pool_delay_of_zero_is_not_starvation(self):
+        self.assertEqual(
+            evidence_selftest.check_pulse_output(self.MESSAGE.replace("884 ms.", "0 ms.")),
+            ["the timeout message does not name a thread pool delay above zero"])
+
+
 class RunTests(unittest.TestCase):
-    def _run(self, returncode: int, prepare=None) -> int:
+    def _run(self, returncode: int, prepare=None, stdout: str = OutputCheckTests.MESSAGE) -> int:
         def fake(command, **kwargs):  # noqa: ANN001, ANN202
             if prepare:
                 prepare(pathlib.Path(kwargs["env"][evidence_selftest.DIRECTORY_VARIABLE]))
-            return mock.Mock(returncode=returncode, stdout="", stderr="")
+            return mock.Mock(returncode=returncode, stdout=stdout, stderr="")
 
         with tempfile.TemporaryDirectory() as root, mock.patch.object(evidence_selftest.subprocess, "run", side_effect=fake):
             return evidence_selftest.run("pulse", pathlib.Path(root), {})
@@ -110,6 +129,13 @@ class RunTests(unittest.TestCase):
             _write(directory, "X.PulseSelfTests.A-1.txt")
 
         self.assertEqual(self._run(2, prepare), 0)
+
+    def test_a_pulse_failure_that_is_not_the_starved_wait_is_red_even_with_its_files(self):
+        def prepare(directory: pathlib.Path) -> None:
+            _write(directory, "pulse.txt", "thread pool delay")
+            _write(directory, "X.PulseSelfTests.A-1.txt")
+
+        self.assertEqual(self._run(2, prepare, stdout="System.InvalidOperationException: something else broke"), 1)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ namespace Tracon.Core.UnitTests.TestInfrastructure;
 /// </summary>
 /// <remarks>
 /// Skipped unless <see cref="EvidenceSelfTest.Variable"/> is set. CI sets it in one step, expects the test to be red and
-/// looks for the thread pool delay in <c>pulse.txt</c> and in the evidence file of this test.
+/// looks for the thread pool delay in <c>pulse.txt</c> and in the timeout message the test fails with.
 /// </remarks>
 public sealed class PulseSelfTests
 {

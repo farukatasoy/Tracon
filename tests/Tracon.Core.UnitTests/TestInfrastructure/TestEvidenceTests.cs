@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Tracon.Core.UnitTests.TestInfrastructure;
 
 /// <summary>
@@ -91,5 +93,90 @@ public sealed class TestEvidenceTests
         TestContext.Current.KeyValueStorage.Keys
             .Count(key => key.Contains(own, StringComparison.Ordinal) && key.EndsWith(":mine", StringComparison.Ordinal))
             .ShouldBe(1);
+    }
+
+    [Fact]
+    public void Processing_a_failed_test_writes_its_notes_and_moves_its_file_and_touches_nothing_of_another_test()
+    {
+        using var directory = new TempDirectory();
+        var storage = new ConcurrentDictionary<string, object?>(StringComparer.Ordinal);
+        var trace = directory.Write("trace.zip", "PK");
+        var otherNote = new Func<FailureContext, string?>(_ => "belongs to the other test");
+        storage["tracon-evidence:mine:aaa:page"] = new Func<FailureContext, string?>(failure => $"page after: {failure.Text}");
+        storage["tracon-evidence-file:mine:bbb"] = new EvidenceFile("trace", trace);
+        storage["tracon-evidence:other:ccc:page"] = otherNote;
+
+        TestEvidence.Process("mine", "Some.Test", storage, TestResult.Failed, "it broke", output: null, directory.Evidence);
+
+        File.Exists(trace).ShouldBeFalse();
+        Directory.GetFiles(directory.Evidence, "*.trace.zip").ShouldHaveSingleItem();
+        File.ReadAllText(Directory.GetFiles(directory.Evidence, "*.txt").Single()).ShouldContain("page after: it broke");
+        storage.Keys.ShouldBe(["tracon-evidence:other:ccc:page"]);
+        storage["tracon-evidence:other:ccc:page"].ShouldBeSameAs(otherNote);
+    }
+
+    [Theory]
+    [InlineData(TestResult.Passed)]
+    [InlineData(TestResult.Skipped)]
+    [InlineData(null)]
+    public void Processing_a_test_that_did_not_fail_deletes_its_file_and_leaves_no_evidence(TestResult? result)
+    {
+        using var directory = new TempDirectory();
+        var storage = new ConcurrentDictionary<string, object?>(StringComparer.Ordinal);
+        var trace = directory.Write("trace.zip", "PK");
+        storage["tracon-evidence-file:mine:bbb"] = new EvidenceFile("trace", trace);
+        storage["tracon-evidence:mine:aaa:page"] = new Func<FailureContext, string?>(_ => "unused");
+
+        TestEvidence.Process("mine", "Some.Test", storage, result, string.Empty, output: null, directory.Evidence);
+
+        File.Exists(trace).ShouldBeFalse();
+        Directory.Exists(directory.Evidence).ShouldBeFalse();
+        storage.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_file_is_deleted_even_when_there_is_no_evidence_directory()
+    {
+        using var directory = new TempDirectory();
+        var storage = new ConcurrentDictionary<string, object?>(StringComparer.Ordinal);
+        var trace = directory.Write("trace.zip", "PK");
+        storage["tracon-evidence-file:mine:bbb"] = new EvidenceFile("trace", trace);
+
+        TestEvidence.Process("mine", "Some.Test", storage, TestResult.Failed, "it broke", output: null, directory: null);
+
+        File.Exists(trace).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_evidence_file_is_cut_at_its_byte_limit()
+    {
+        using var directory = new TempDirectory();
+        var storage = new ConcurrentDictionary<string, object?>(StringComparer.Ordinal);
+        storage["tracon-evidence:mine:aaa:page"] = new Func<FailureContext, string?>(_ => new string('x', TestEvidence.FileByteLimit * 2));
+
+        TestEvidence.Process("mine", "Some.Test", storage, TestResult.Failed, "it broke", output: null, directory.Evidence);
+
+        var text = File.ReadAllText(Directory.GetFiles(directory.Evidence, "*.txt").Single());
+
+        text.ShouldEndWith("(truncated)");
+        text.Length.ShouldBeLessThan(TestEvidence.FileByteLimit + 100);
+    }
+
+    private sealed class TempDirectory : IDisposable
+    {
+        private readonly DirectoryInfo _root = Directory.CreateTempSubdirectory("tracon-evidence-test");
+
+        public string Evidence => Path.Combine(_root.FullName, "evidence");
+
+        public string Write(string name, string content)
+        {
+            var path = Path.Combine(_root.FullName, name);
+
+            File.WriteAllText(path, content);
+
+            return path;
+        }
+
+        public void Dispose() => _root.Delete(recursive: true);
     }
 }

@@ -22,6 +22,7 @@ import argparse
 import dataclasses
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -40,6 +41,7 @@ class SelfTest:
     project: str
     method: str
     check: Callable[[pathlib.Path], list[str]]
+    output_check: Callable[[str], list[str]] = lambda _output: []
 
 
 def _read(path: pathlib.Path) -> str:
@@ -91,8 +93,27 @@ def check_page(directory: pathlib.Path) -> list[str]:
     return problems
 
 
+def check_pulse_output(output: str) -> list[str]:
+    """Problems with the timeout message the starved wait failed with; the message is in the test run's output.
+
+    The evidence files exist for any failure of the test, so only the message proves that the wait itself carried the numbers:
+    the poll count, and a thread pool delay above zero (the pool was blocked on purpose).
+    """
+    problems: list[str] = []
+    if not re.search(r"Polls: [1-9][0-9]*; longest gap between polls: [0-9]+ ms", output):
+        problems.append("the timeout message does not carry the poll count and the longest gap")
+    if not re.search(r"longest thread pool delay: [1-9][0-9]* ms", output):
+        problems.append("the timeout message does not name a thread pool delay above zero")
+    return problems
+
+
 SELF_TESTS: Mapping[str, SelfTest] = {
-    "pulse": SelfTest("Tracon.Core.UnitTests", "A_wait_that_times_out_on_a_starved_thread_pool_names_the_starvation", check_pulse),
+    "pulse": SelfTest(
+        "Tracon.Core.UnitTests",
+        "A_wait_that_times_out_on_a_starved_thread_pool_names_the_starvation",
+        check_pulse,
+        check_pulse_output,
+    ),
     "host": SelfTest("Tracon.AspNetCore.FunctionalTests", "A_failed_job_leaves_the_line_its_reference_points_at", check_host),
     "page": SelfTest("Tracon.Ui.E2ETests", "A_failed_page_test_leaves_its_trace_and_the_page_it_was_on", check_page),
 }
@@ -131,7 +152,7 @@ def run(kind: str, root: pathlib.Path = ROOT, environ: Mapping[str, str] = os.en
             file=sys.stderr,
         )
         return 1
-    problems = test.check(directory)
+    problems = test.check(directory) + test.output_check(completed.stdout or "")
     if problems:
         for problem in problems:
             print(f"❌ {kind}: {problem}", file=sys.stderr)

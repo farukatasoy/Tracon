@@ -128,7 +128,7 @@ internal sealed class Session : IAsyncDisposable
         {
             await _context.Tracing.StopAsync(new TracingStopOptions { Path = path }).ConfigureAwait(false);
         }
-        catch (PlaywrightException)
+        catch (Exception exception) when (exception is PlaywrightException or IOException)
         {
             // A context that is already gone has no trace to save; the page note still says what it can.
             return;
@@ -136,7 +136,14 @@ internal sealed class Session : IAsyncDisposable
 
         if (!TestEvidence.RegisterFile("trace", path))
         {
-            File.Delete(path);
+            try
+            {
+                File.Delete(path);
+            }
+            catch (IOException)
+            {
+                // A temp file that cannot be deleted is the operating system's to clean up; it must not fail the test.
+            }
         }
     }
 

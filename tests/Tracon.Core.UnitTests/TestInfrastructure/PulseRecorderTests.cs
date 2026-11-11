@@ -150,6 +150,38 @@ public sealed class PulseRecorderTests
     }
 
     [Fact]
+    public void A_stall_that_has_not_ended_is_in_the_window_before_the_next_beat_writes_it()
+    {
+        var clock = new ManualClock();
+        var recorder = new PulseRecorder(clock, Interval, Threshold, static _ => { });
+
+        clock.Advance(Interval);
+        recorder.Beat();
+        var windowStart = recorder.Now;
+
+        // The process stands still for 1.5 s; the heartbeat thread has not woken up to say so yet.
+        clock.Advance(TimeSpan.FromMilliseconds(1500));
+
+        var window = recorder.Window(windowStart);
+
+        window.LongestStall.ShouldBe(TimeSpan.FromMilliseconds(1400));
+        window.Measurements.ShouldBe(2); // the beat at the start of the window and the stall that is still going on
+    }
+
+    [Fact]
+    public void A_healthy_heartbeat_between_two_beats_is_not_a_stall_in_the_window()
+    {
+        var clock = new ManualClock();
+        var recorder = new PulseRecorder(clock, Interval, Threshold, static _ => { });
+
+        clock.Advance(Interval);
+        recorder.Beat();
+        clock.Advance(TimeSpan.FromMilliseconds(60));
+
+        recorder.Window(0).LongestStall.ShouldBe(TimeSpan.Zero);
+    }
+
+    [Fact]
     public void A_pool_work_item_that_is_still_waiting_counts_in_the_window()
     {
         var clock = new ManualClock();

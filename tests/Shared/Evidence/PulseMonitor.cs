@@ -75,7 +75,7 @@ internal static class PulseMonitor
                 var probe = recorder.PoolProbeQueued();
                 ThreadPool.UnsafeQueueUserWorkItem(static (state) => state.recorder.PoolProbeStarted(state.probe), (recorder, probe), preferLocal: false);
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
                 // Evidence is a courtesy: a full disk must not turn a heartbeat into a failure.
             }

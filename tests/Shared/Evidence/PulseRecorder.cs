@@ -26,7 +26,7 @@ namespace Tracon.Tests.Common;
 /// </remarks>
 internal sealed class PulseRecorder
 {
-    /// <summary>How many measurements the ring keeps; about seven minutes at the default interval.</summary>
+    /// <summary>How many measurements the ring keeps; every beat writes two (the beat and the pool probe), so about three minutes at the default interval.</summary>
     internal const int RingCapacity = 4096;
 
     /// <summary>The most lines the sink is given, so a process that stalls all the time cannot fill a disk.</summary>
@@ -39,7 +39,7 @@ internal sealed class PulseRecorder
     private readonly List<(long Taken, TimeSpan Waited)> _poolArrivals = [];
     private readonly Dictionary<long, Outstanding> _outstanding = [];
     private long _nextProbe;
-    private long _lastBeat;
+    private long _lastBeat; // written by the heartbeat thread only; read with Volatile by Window
     private int _count;
     private int _written;
     private bool _waitingReported;
@@ -75,7 +75,7 @@ internal sealed class PulseRecorder
     {
         var now = _clock.GetTimestamp();
         var late = _clock.GetElapsedTime(_lastBeat, now) - Interval;
-        _lastBeat = now;
+        Volatile.Write(ref _lastBeat, now);
 
         if (late < TimeSpan.Zero)
         {
@@ -213,6 +213,17 @@ internal sealed class PulseRecorder
                 seen++;
                 stall = sample.Stall > stall ? sample.Stall : stall;
                 pool = sample.PoolDelay > pool ? sample.PoolDelay : pool;
+            }
+
+            // A stall that has not ended has no sample yet: the heartbeat thread writes it at its next beat, which is the very
+            // moment a process that stood still comes back. A wait that times out inside the stall must still see it.
+            var lastBeat = Volatile.Read(ref _lastBeat);
+            var ongoing = _clock.GetElapsedTime(Math.Max(lastBeat, since), _clock.GetTimestamp()) - Interval;
+
+            if (ongoing > stall)
+            {
+                stall = ongoing;
+                seen++;
             }
 
             // A work item that has not started yet is the worst case and has no sample: the pool may never recover.
