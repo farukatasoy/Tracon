@@ -1686,13 +1686,13 @@ class GateTests(unittest.TestCase):
 
         self.assertTrue(all(images.values()), images)
         self.assertEqual(_matrix_link_problems(text, images), [])
-        # The parser really reads: seven PostgreSQL cells, two SQL Server cells.
+        # The parser really reads: seven PostgreSQL cells, three SQL Server cells.
         self.assertEqual(
             [g["name"] for g in _matrix_entries(_job_block(text, "postgres-matrix"))],
             ["12", "13", "14", "15", "16", "17", "18, ICU tr-TR"])
         self.assertEqual(
             [g["name"] for g in _matrix_entries(_job_block(text, "sqlserver-matrix"))],
-            ["2019", "2022, Turkish_CI_AS"])
+            ["2019", "2022, Turkish_CI_AS", "2025"])
         self.assertEqual([g["sqlite"] for g in _matrix_entries(_job_block(text, "sqlite-floor"))], ["3.44.0"])
 
     def test_platform_leg_turns_red_when_the_tie_breaks(self):

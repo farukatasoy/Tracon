@@ -151,28 +151,28 @@ row ran to the end on it with no test failing; **not verified** means no run exi
 
 Every row names the test project that proves it and, in the Run column, the job of the CI workflow and the matrix cell
 that runs it. The lowest row of a table is the floor of that engine; [a version below it is not supported](#below-the-floor).
-A version newer than the highest row (PostgreSQL 19, SQL Server 2025) has no run behind it either. The jobs
-`postgres-matrix`, `sqlserver-matrix`, `sqlite-floor` and `culture-matrix` were written after the runs below and have
-**not run on GitHub yet**; until they do, each row rests on one run of the same command on a development machine (Apple
-silicon, 10 cores, the database servers as Linux containers), dated in the row. The test counts are those of the commit
-the page describes.
+A version newer than the highest row (PostgreSQL 19, SQL Server 2025) has no run behind it either. Unless a row says
+otherwise, its result is from one run of that workflow on `main`, on GitHub-hosted runners, on 2026-11-11, in which every
+job that ran ended green (the three jobs that publish a release are skipped on a plain push). The test counts are those
+of that run.
 
 ### PostgreSQL
 
-`Tracon.PostgreSql.IntegrationTests` applies every migration and runs every store contract, 1 808 tests, one of which is
-skipped by design (the rows dated 2026-11-04 ran the 1 594 tests of that day). The test image is `pgvector/pgvector`; the knowledge store needs the `vector` extension and every run
-turns it on.
+`Tracon.PostgreSql.IntegrationTests` applies every migration and runs every store contract, 1 805 tests. One skips on
+every server: a bounded load test that runs only when a run asks for it by name. On 12, 13 and 14 a second one skips,
+the case that needs a per-database ICU locale, which PostgreSQL has from 15. The test image is `pgvector/pgvector`; the
+knowledge store needs the `vector` extension and every run turns it on.
 
 | Server | Result | Run |
 |---|---|---|
-| 12.19, pgvector 0.7.4 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `12` · 2026-11-04 |
-| 13.23 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `13` · 2026-11-04 |
-| 14.24 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `14` · 2026-11-04 |
-| 15.19 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `15` · 2026-11-04 |
-| 16.15 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `16` · 2026-11-04 |
-| 17.11 | Verified: 1 593 passed, 1 skipped | `postgres-matrix` · cell `17` · 2026-11-04 |
-| 18.4, locale of the image | Verified: the default image of every run of the project | `test-postgres` · every push and pull request; the previous full-solution run on a development machine was 2026-11-03 |
-| 18.4, ICU locale `tr-TR` | Verified: 1 593 passed, 1 skipped in the matrix on 2026-11-04; 1 807 passed, 1 skipped on the development machine on 2026-11-08 (the whole project, the default image started with ICU `tr-TR`) | `postgres-matrix` · cell `18, ICU tr-TR` · 2026-11-04 |
+| 12.19 | Verified: 1 803 passed, 2 skipped | `postgres-matrix` · cell `12` · 2026-11-11 |
+| 13.23 | Verified: 1 803 passed, 2 skipped | `postgres-matrix` · cell `13` · 2026-11-11 |
+| 14.24 | Verified: 1 803 passed, 2 skipped | `postgres-matrix` · cell `14` · 2026-11-11 |
+| 15.19 | Verified: 1 804 passed, 1 skipped | `postgres-matrix` · cell `15` · 2026-11-11 |
+| 16.15 | Verified: 1 804 passed, 1 skipped | `postgres-matrix` · cell `16` · 2026-11-11 |
+| 17.11 | Verified: 1 804 passed, 1 skipped | `postgres-matrix` · cell `17` · 2026-11-11 |
+| 18.6, locale of the image | Verified: 1 804 passed, 1 skipped; the default image of every run of the project | `test-postgres` · every push and pull request · 2026-11-11 |
+| 18.6, ICU locale `tr-TR` | Verified: 1 804 passed, 1 skipped | `postgres-matrix` · cell `18, ICU tr-TR` · 2026-11-11 |
 
 **A Turkish-locale database that holds rows when it applies one of four released migrations is recreated, not upgraded.** `lower()` follows the locale of the database, and in a Turkish one `lower('OpenAI')` ends in a dotless i (U+0131). PostgreSQL `0038` and `0062` and SQL Server `0025` and `0050` call it without an ordinal collation, and a released migration never changes. On a new database they run on empty tables, and a database of the last release does not run them again, so nothing changes there. A Turkish-locale database that holds rows when it applies one of them would store a provider name that ends in the dotless i (U+0131) instead of `openai` in a tenant binding (`0038`, `0025`; the tenant's own key then goes unused, without an error), and PostgreSQL `0062` would not find a header written as `AUTHORIZATION`, so the key of the removed column is added beside it and the reader takes that one. SQL Server `0050` reads a column of binary collation and is not affected. On any database, `0038` and `0025` decide by the sort order of the database which of two spellings of one provider saved at the same instant stays. `ProviderNameCaseMigrationTests` and `RemoveAuthorizationConfigurationKeyMigrationTests` state the outcome for each kind of database. Every later migration names an ordinal collation, and a test refuses one that does not.
 
@@ -185,14 +185,14 @@ runs and tests these versions; whether an engine without upstream security fixes
 
 ### SQL Server
 
-`Tracon.SqlServer.IntegrationTests`, 1 805 tests (the rows dated 2026-11-04 ran the 1 558 tests of that day). The servers run in an emulated amd64 container on this machine, which is
-slower than a native one and changes no result.
+`Tracon.SqlServer.IntegrationTests`, 1 797 tests. The servers run as Linux containers on the runner. One case skips on a
+server with the default collation: it checks that the server runs the collation a run asked for.
 
 | Server | Collation | Result | Run |
 |---|---|---|---|
-| 2019 | server default | Verified: 1 557 of 1 557. One case timed out in the first full run (a migration took longer than its 30-second command timeout on the emulated server under load) and passed when run alone | `sqlserver-matrix` · cell `2019` · 2026-11-04 |
-| 2022 | server default | Verified: the default image of every run of the project | `test-sqlserver` · every push and pull request; the previous full-solution run on a development machine was 2026-11-03 |
-| 2022 | `Turkish_CI_AS`, language 1055 | Verified: 1 558 of 1 558 in the matrix on 2026-11-04 and 1 805 of 1 805 on the development machine on 2026-11-08 (the whole project, in 6 min 44 s), once the test fixture waits for the server to finish applying the collation (the image applies it after the server first accepts connections; without the wait 1 518 of 1 557 cases failed on 2026-11-04) | `sqlserver-matrix` · cell `2022, Turkish_CI_AS` · 2026-11-04 |
+| 2019 | server default | Verified: 1 796 of 1 797 (one skips) | `sqlserver-matrix` · cell `2019` · 2026-11-11 |
+| 2022 | server default | Verified: 1 796 of 1 797 (one skips); the default image of every run of the project | `test-sqlserver` · every push and pull request · 2026-11-11 |
+| 2022 | `Turkish_CI_AS`, language 1055 | Verified: 1 797 of 1 797, once the test fixture waits for the server to finish applying the collation (the image applies it after the server first accepts connections; without the wait 1 518 of 1 557 cases failed in the first run on 2026-11-04) | `sqlserver-matrix` · cell `2022, Turkish_CI_AS` · 2026-11-11 |
 
 The two settings of the Turkish cell are given together: a server started with only the collation keeps English as its language, and a pooled connection fails when it is reset. The image also applies the collation after the server first accepts connections, by rebuilding the system databases and dropping every connection; a run waits until the server reports the collation before it starts.
 `TenantAlphabetCollationTests` also asks each server which of the tenant identifiers over the allowed alphabet it
@@ -211,8 +211,8 @@ same family carried, and the project asks the engine for its version to be sure 
 
 | SQLite | Result | Run |
 |---|---|---|
-| 3.53.3, the bundled library | Verified: 1 879 of 1 880 (one skips) | `test-sqlite` · 2026-11-09 |
-| 3.44.0 | Verified: 1 880 of 1 880 | `sqlite-floor` · cell `3.44.0` · 2026-11-09 |
+| 3.53.3, the bundled library | Verified: 1 879 of 1 880 (one skips) | `test-sqlite` · 2026-11-11 |
+| 3.44.0 | Verified: 1 880 of 1 880 | `sqlite-floor` · cell `3.44.0` · 2026-11-11 |
 
 The same table applies to a SQLite library your application loads itself (a system library, or
 `SQLitePCLRaw.bundle_sqlite3`): what counts is its version. SQLite has no end-of-life date.
@@ -221,10 +221,10 @@ The same table applies to a SQLite library your application loads itself (a syst
 
 | Cell | Result | Run |
 |---|---|---|
-| Linux x64 | Not verified here: this page records no CI result for it. The jobs `test-fast`, `test-aspnetcore`, `test-sqlite`, `test-twonode`, `test-package`, `test-postgres` and `test-sqlserver` run the whole solution on `ubuntu-latest`. The database servers above are Linux containers, and the SQLite project ran in a Linux arm64 container | `test-fast` |
-| Windows x64 | **Not verified.** This page records no CI result for the `windows-latest` jobs `test-windows-core`, `test-windows-sqlite` and `test-windows-web`, which together run every project that does not need Docker | `test-windows-core` |
-| Process culture `tr-TR`, time zone `America/New_York` | Verified: the whole solution, 16 275 tests, 2026-11-01; run again on 2026-11-04 for the core unit tests (6 543 of 6 543) and the SQLite project (1 638 passed, 1 skipped) | `culture-matrix` · cell `tr-TR, America/New_York` · the projects that need no Docker |
-| Process culture `de-DE`, time zone `Australia/Lord_Howe` | Verified: the whole solution, 16 275 tests, 2026-11-01; run again on 2026-11-04 for the core unit tests (6 543 of 6 543 on the second run; the first run failed one lease case that passed in 3 runs alone and in 12 parallel runs) and the SQLite project (1 638 passed, 1 skipped) | `culture-matrix` · cell `de-DE, Australia/Lord_Howe` · the projects that need no Docker |
+| Linux x64 | Verified: `ubuntu-latest` runs the whole solution in seven jobs, and all seven ended green on 2026-11-11. `test-fast` ran 10 171 tests (10 169 passed, 2 skipped), `test-aspnetcore` 4 303 (4 302 passed, 1 skipped), `test-sqlite` 2 585 (2 584 passed, 1 skipped), `test-twonode` 108 (all passed), `test-package` 258 (256 passed, 2 skipped), and `test-postgres` and `test-sqlserver` are the default-image rows above | `test-fast` |
+| Windows x64 | Verified, with one gap. The three `windows-latest` jobs run every project that does not need Docker, and none of their tests failed on 2026-11-11: `test-windows-core` ran 10 876 tests (10 843 passed, 33 skipped), `test-windows-sqlite` 1 880 (1 879 passed, 1 skipped) and `test-windows-web` 4 561 (4 549 passed, 12 skipped). **Running a skill script on Windows is not verified:** the tests that run one need `/bin/sh` or `/bin/bash`, and 37 of the 46 skipped tests are those. The other nine skip for their own reasons (creating a symbolic link needs a privilege on Windows, for example, or the case runs only on request) | `test-windows-core` |
+| Process culture `tr-TR`, time zone `America/New_York` | Verified: 17 317 tests across 22 test projects, 17 311 passed, 6 skipped, 2026-11-11 | `culture-matrix` · cell `tr-TR, America/New_York` · the projects that need no Docker |
+| Process culture `de-DE`, time zone `Australia/Lord_Howe` | Verified: 17 317 tests across 22 test projects, 17 311 passed, 6 skipped, 2026-11-11 | `culture-matrix` · cell `de-DE, Australia/Lord_Howe` · the projects that need no Docker |
 
 The culture rows set `LC_ALL` and `TZ` for the test process; .NET reads both on every operating system. The collation and
 locale of the databases themselves are the PostgreSQL and SQL Server rows with `tr-TR` and `Turkish_CI_AS`.
