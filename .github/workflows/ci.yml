@@ -2059,11 +2059,8 @@ jobs:
           else
             npm publish --access public --tag latest
           fi
-        # Fallback: the token stays until the first OIDC publish is verified. npm tries OIDC first; an
-        # OIDC publish produces provenance, a token publish does not. When provenance shows in the log
-        # and on the version page of the package, this line (and the second one below) is removed.
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # No token: the trusted publisher registered for this workflow and the `npm` environment is the
+        # only way in, and the publish carries provenance (checked on the 1.0.0-preview.10 release).
 
       # Preview versions must not be installed silently by a bare `npm install` - but npm does NOT
       # let the `latest` tag be deleted: DELETE .../dist-tags/latest returns 403, and the FIRST
@@ -2101,8 +2098,6 @@ jobs:
           else
             npm dist-tag add "@tracon/client@$version" latest
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ---------------------------------------------------------------------------
   # GitHub release
