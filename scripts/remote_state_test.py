@@ -95,6 +95,83 @@ class ReleaseStateTests(unittest.TestCase):
         self.assertEqual(1, state.published)
 
 
+def _nuspec(commit: str | None) -> tuple[int, str]:
+    repository = f' commit="{commit}"' if commit else ""
+    return 200, (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd"><metadata><id>A</id>'
+        f'<repository type="git" url="https://example.invalid/r"{repository} /></metadata></package>')
+
+
+class ReleaseCommitsTests(unittest.TestCase):
+    def test_reads_the_commit_of_every_package_nuspec_lower_cased(self) -> None:
+        state = remote_state.release_commits(["A", "B"], "1.0.0", fetcher=lambda url: _nuspec("ABCDEF1"))
+
+        self.assertEqual({"A": "abcdef1", "B": "abcdef1"}, state.commits)
+        self.assertEqual(frozenset({"abcdef1"}), state.distinct)
+        self.assertEqual((), state.absent)
+        self.assertEqual((), state.unreachable)
+
+    def test_asks_the_flat_container_for_the_lower_case_nuspec_of_that_version(self) -> None:
+        seen: list[str] = []
+
+        def fetcher(url: str) -> tuple[int | None, str]:
+            seen.append(url)
+            return _nuspec("abc")
+
+        remote_state.release_commits(["Tracon.Core"], "1.0.0-Preview.6", fetcher=fetcher)
+
+        self.assertEqual(
+            [f"{remote_state.NUGET_FLAT_CONTAINER}/tracon.core/1.0.0-preview.6/tracon.core.nuspec"], seen)
+
+    def test_a_package_nuget_does_not_have_is_absent_not_unreachable(self) -> None:
+        def fetcher(url: str) -> tuple[int | None, str]:
+            return _nuspec("abc") if "/a/" in url else (404, "")
+
+        state = remote_state.release_commits(["A", "B"], "1.0.0", fetcher=fetcher)
+
+        self.assertEqual(("B",), state.absent)
+        self.assertEqual({"A": "abc"}, state.commits)
+        self.assertEqual((), state.unreachable)
+
+    def test_a_server_error_a_missing_answer_and_a_broken_body_are_unreachable(self) -> None:
+        for answer in ((500, ""), (None, ""), (200, "<not-closed")):
+            with self.subTest(answer=answer):
+                state = remote_state.release_commits(["A"], "1.0.0", fetcher=lambda url, a=answer: a)
+
+                self.assertEqual(("A",), state.unreachable)
+                self.assertEqual({}, state.commits)
+
+    def test_a_nuspec_that_names_no_commit_is_a_package_with_no_commit(self) -> None:
+        state = remote_state.release_commits(["A"], "1.0.0", fetcher=lambda url: _nuspec(None))
+
+        self.assertEqual({"A": None}, state.commits)
+        self.assertEqual(frozenset({None}), state.distinct)
+
+    def test_foreign_lists_the_packages_that_name_another_commit_or_none(self) -> None:
+        answers = {"/a/": "aaa", "/b/": "bbb", "/c/": None}
+
+        def fetcher(url: str) -> tuple[int | None, str]:
+            return _nuspec(next(value for key, value in answers.items() if key in url))
+
+        state = remote_state.release_commits(["A", "B", "C"], "1.0.0", fetcher=fetcher)
+
+        self.assertEqual({"B": "bbb", "C": None}, state.foreign("AAA"))
+        self.assertEqual({}, remote_state.release_commits(["A"], "1.0.0", fetcher=fetcher).foreign("aaa"))
+
+    def test_after_three_unanswered_packages_the_rest_are_not_asked(self) -> None:
+        asked: list[str] = []
+
+        def fetcher(url: str) -> tuple[int | None, str]:
+            asked.append(url)
+            return None, ""
+
+        state = remote_state.release_commits(list("ABCDEF"), "1.0.0", fetcher=fetcher)
+
+        self.assertEqual(3, len(asked))
+        self.assertEqual(tuple("ABCDEF"), state.unreachable)
+
+
 class FetchTests(unittest.TestCase):
     def test_a_missing_trust_store_falls_back_to_curl(self) -> None:
         failure = urllib.error.URLError(ssl.SSLCertVerificationError("certificate verify failed"))

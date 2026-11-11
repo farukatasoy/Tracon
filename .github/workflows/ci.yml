@@ -7,15 +7,24 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to build, pack and rehearse (1.0.0-preview.N). Empty: an ordinary run."
+        type: string
+        default: ''
+      publish:
+        description: "Publish that version to npm and nuget.org. Needs the version, the main branch and the environment approvals."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 # A newer run of the same branch (or pull request) cancels the older one: the result of the
-# older commit interests nobody and no runner minutes burn. A tag run is NEVER cancelled - a
-# release must not be cut halfway. The group of a manual trigger contains `run_id`, so runs
-# triggered one after another for a measurement do not cancel each other. A cancelled run has
-# no verdict (`remote_state` skips a cancelled run).
+# older commit interests nobody and no runner minutes burn. A tag run is NEVER cancelled - the
+# release page must not be left half written. The group of a manual trigger contains `run_id`, so
+# runs triggered one after another (a release publish included) do not cancel each other. A
+# cancelled run has no verdict (`remote_state` skips a cancelled run).
 concurrency:
   group: ci-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/') }}
@@ -60,9 +69,14 @@ jobs:
   #
   # `build` compiles, packs and puts the compiled output tree into ONE tar file
   # (`bin-<os>`). Every test job downloads THIS run's tar through `needs: build`, unpacks it and
-  # runs its modules with it; none of them compiles or packs. So the files a `v*` tag pushes
+  # runs its modules with it; none of them compiles or packs. So the files a release pushes
   # and the binaries the tests ran come from one build. `publish` depends on every test job: a
   # red module stops the release, whichever job it sits in.
+  #
+  # A release is ONE manually triggered run of this workflow on `main`: it builds, tests,
+  # rehearses and publishes, and the tag is placed afterwards on the commit the published
+  # packages name. So a red run burns no version number, and the tag run that follows only writes
+  # the GitHub release page (`build` does not run on a tag, and nothing that needs it does).
   #
   # Why a tar: `upload-artifact` zips a directory and loses the execute bit; the test binaries
   # (apphost, WorkerHarness) must be executable. The tar is already compressed, so the upload
@@ -84,7 +98,11 @@ jobs:
     # must not carry an `if:` (it runs on every push), so it relies on this chain. A new job that
     # does not carry `needs: build` must carry the same condition itself. It is an allow list, so
     # forks do not run either. If the repository moves, update this line.
-    if: github.repository == 'farukatasoy/Tracon'
+    #
+    # A tag run does not build: the packages were built, tested and published by the manual run
+    # before the tag existed, and building again would produce other bytes under the same version.
+    # Skipping `build` skips every job that needs it, which leaves `github-release` alone.
+    if: github.repository == 'farukatasoy/Tracon' && !startsWith(github.ref, 'refs/tags/')
     # Tests do not run in this job. Estimate: ubuntu ~9 min, windows ~12 min.
     timeout-minutes: 20
     strategy:
@@ -123,6 +141,18 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
+
+      # A manual run with a version input builds THAT version: MinVer reads
+      # `MinVerVersionOverride`, so `Build` and `Pack the packages` below see the stamp and the
+      # assemblies, the packages and the tar all carry it. The inputs reach the script through the
+      # environment, never through the script text, and a value that is not a release version stops the
+      # run here, before anything is built. A run that asks to publish without a version stops too.
+      - name: Stamp the release version
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_PUBLISH: ${{ inputs.publish }}
+        run: python3 scripts/gate.py release-version "$RELEASE_VERSION" --publish "$RELEASE_PUBLISH" --env-file "$GITHUB_ENV"
 
       # One OS is enough; this is a file-system check.
       - name: Run the repository scan
@@ -184,7 +214,7 @@ jobs:
         run: dotnet build Tracon.slnx -c Release --no-restore
 
       # ---------------------------------------------------------------------
-      # Single build chain. The files a `v*` tag pushes to nuget.org are the files THIS step
+      # Single build chain. The files a release pushes to nuget.org are the files THIS step
       # produces: the build is packed with `--no-build`, the test jobs run the tar of the same
       # build, `release-dryrun` verifies the packages without repacking, and `publish` pushes the
       # same bytes.
@@ -196,8 +226,8 @@ jobs:
       # slips in between can re-stamp the build. Only the ubuntu leg packs; Windows measures the
       # platform difference.
       #
-      # The baseline check belongs to the pack moment: the packages of the last `v*` tag are
-      # restored from nuget.org into an isolated cache. It needs the network.
+      # The baseline check belongs to the pack moment: the packages of the last released version
+      # are restored from nuget.org into an isolated cache. It needs the network.
       # ---------------------------------------------------------------------
       - name: Pack the packages
         if: matrix.os == 'ubuntu-latest'
@@ -206,7 +236,7 @@ jobs:
       # The set was frozen at `Pack the packages` with the manifest SHA-256s. This step proves,
       # right before the upload, that the set did not change between packing and upload. Tests do
       # not run in this job's workspace; the upload happens before a red test job, but it leaves
-      # nobody unprotected on the tag path: `publish` depends on every test job, `release-dryrun`
+      # nobody unprotected on the publish path: `publish` depends on every test job, `release-dryrun`
       # on every test job that runs on pull requests, and `nuget-verified` is uploaded only when
       # they are green.
       - name: Verify the packages
@@ -1818,10 +1848,12 @@ jobs:
   # culture) do NOT belong here - a skipped dependency would skip this job too, and the
   # rehearsal must run on every push (PRs included). Those jobs are dependencies of `publish`.
   #
-  # `--package-version` is NOT passed: this job runs on every push (PRs included) and there may
-  # be no tag at that moment. A forced version is meaningful only in the rehearsal a PERSON runs
-  # locally BEFORE the real tag. On a REAL `v*` tag the version MinVer computes itself is already
-  # the target - no forcing is needed.
+  # An ordinary run does not pass `--package-version`: the job runs on every push (PRs included)
+  # and the version is whatever MinVer computes. A manual run with a version input passes it, and
+  # the rehearsal then demands that the packages carry exactly that version and that CHANGELOG.md
+  # holds its dated section: the same checks a release has to pass before the publish jobs start.
+  # A cut release that waits for its tag is rehearsed by the ordinary run too: its notes are read
+  # from its section.
   # ---------------------------------------------------------------------------
   release-dryrun:
     name: Release rehearsal (gate.py release --dry-run --package-directory)
@@ -1870,7 +1902,14 @@ jobs:
           path: artifacts/ci-packages
 
       - name: Run the release rehearsal
-        run: python3 scripts/gate.py release --dry-run --package-directory artifacts/ci-packages
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          args=()
+          if [ -n "$RELEASE_VERSION" ]; then
+            args+=(--package-version "$RELEASE_VERSION")
+          fi
+          python3 scripts/gate.py release --dry-run --package-directory artifacts/ci-packages "${args[@]}"
 
       - name: Upload the verified packages
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -1888,7 +1927,7 @@ jobs:
   # `npm install @tracon/client`) would describe a package that does not exist. NuGet has no way
   # back; npm has a limited unpublish window - so the cheap channel goes FIRST, and if it fails
   # NuGet does not publish AT ALL. `npm-publish` skips a version that already exists, so
-  # re-pushing the same tag does not break this dependency chain.
+  # running the failed job of a release again does not break this dependency chain.
   #
   # `publish` depends DIRECTLY on EVERY test job and matrix leg of the SAME run (a repository
   # check enforces this single build chain): a red module, database version or culture leg,
@@ -1906,8 +1945,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    # Runs only on tags that start with 'v'. Example: v1.0.0-preview.1
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Runs only in a manual run on `main` that asks to publish and names the version. A tag does not
+    # publish: the tag is placed after the packages are on nuget.org.
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && inputs.version != '' && github.ref == 'refs/heads/main'
     environment: nuget
 
     # This job does NOT build or pack. It downloads the `nuget-verified` set that `release-dryrun`
@@ -1933,6 +1973,14 @@ jobs:
 
       - name: Verify the packages
         run: python3 scripts/gate.py verify-packages artifacts/nuget-verified
+
+      # nuget.org has no way back, and a second run of the same version builds new bytes: with
+      # `--skip-duplicate` it would leave the packages of two builds under one version. So the push goes
+      # on only when none of the packages is there yet, or when the ones that are there name THIS commit
+      # (the failed job of the same run, run again). A package of another commit, or a nuget.org that
+      # does not answer, stops the job. It runs before the login, like the verification above.
+      - name: Check what nuget.org already holds of this version
+        run: python3 scripts/gate.py publish-guard --package-directory artifacts/nuget-verified
 
       - name: Set up the .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
@@ -1967,8 +2015,8 @@ jobs:
   # ---------------------------------------------------------------------------
   # @tracon/client -> npm.org
   #
-  # Triggered on the SAME 'v*' tag as the NuGet release and derives its version from the SAME
-  # tag - the two channels match STRUCTURALLY; there is no separate version file. This job runs
+  # Runs in the SAME manual run as the NuGet release and takes its version from the SAME input -
+  # the two channels match STRUCTURALLY; there is no separate version file. This job runs
   # BEFORE `publish` and `publish` depends on it: the channel with no way back (NuGet)
   # publishes last. Tests no longer run inside `build`; this job depends, through
   # `release-dryrun`, on every test job that also runs on PRs, and on the matrix legs as well:
@@ -1982,7 +2030,7 @@ jobs:
     # Longest measured 0.3 min; floor 10 min. Re-running is safe: an existing version is skipped
     # ("Check whether the version is already published").
     timeout-minutes: 10
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && inputs.version != '' && github.ref == 'refs/heads/main'
     environment: npm
 
     # `id-token: write` is npm trusted publishing (OIDC): the runner gets a short-lived identity
@@ -2017,11 +2065,14 @@ jobs:
         working-directory: packages/tracon-client
         run: npm ci
 
-      # MinVer derives the .NET version from the tag; npm has no such mechanism, so the version is
-      # derived by hand from the same tag.
-      - name: Derive the version from the tag
+      # The .NET version is the stamped input; npm has no such mechanism, so the same input is carried
+      # over by hand. It was validated by `build` (this job needs it), and it reaches the shell through
+      # the environment, never through the script text.
+      - name: Take the version from the input
         id: version
-        run: echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: echo "value=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Write the version into package.json
         working-directory: packages/tracon-client
@@ -2102,21 +2153,25 @@ jobs:
   # ---------------------------------------------------------------------------
   # GitHub release
   #
-  # Runs AFTER `publish` AND `npm-publish`: the package release does not depend on this job - if
-  # the GitHub API is unreachable, only the release page is missing. The body is the section of
-  # CHANGELOG.md for that version - `scripts/changelog.py` is the SAME parser as the
-  # release-notes gate of gate.py; writing two separate parsers would produce drift. If the
-  # version section does not exist, `## [Unreleased]` is read: the section is written AT TAG
-  # time, so it may not be written yet when this job runs. If the two sides do not use the same
-  # fallback, the rehearsal would be green and the release body empty.
+  # Runs in the TAG run, which comes AFTER the publish: the tag is placed on the commit the published
+  # packages name. The package release does not depend on this job - if the GitHub API is
+  # unreachable, only the release page is missing. The job has no `needs`: `build` does not run on a
+  # tag, so nothing that depends on it does either. It therefore carries the canonical-repository
+  # condition itself, and it opens the page only after checking that every package of the version is
+  # on nuget.org from THIS commit and that npm has the version. A tag pushed on any other commit, or
+  # before the publish, leaves the page unwritten.
+  #
+  # The body is the section of CHANGELOG.md for that version - `scripts/changelog.py` is the SAME
+  # parser as the release-notes gate of gate.py; writing two separate parsers would produce drift. The
+  # release is cut before it is published, so the dated section exists at the tagged commit; if it
+  # does not, `## [Unreleased]` is read, the same fallback the rehearsal uses.
   # ---------------------------------------------------------------------------
   github-release:
     name: Create GitHub release
     runs-on: ubuntu-latest
-    needs: [publish, npm-publish]
     # Longest measured 0.1 min; floor 10 min.
     timeout-minutes: 10
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.repository == 'farukatasoy/Tracon' && startsWith(github.ref, 'refs/tags/v')
 
     permissions:
       contents: write
@@ -2129,6 +2184,15 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
+
+      - name: Check that the version is published from this commit
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          TAG_COMMIT: ${{ github.sha }}
+        run: |
+          version="${TAG_NAME#v}"
+          python3 scripts/gate.py verify-published --version "$version" --commit "$TAG_COMMIT"
+          npm view "@tracon/client@$version" version
 
       # GitHub rejects a release body longer than 125,000 characters (HTTP 422, v1.0.0-preview.4);
       # long notes are cut at whole `###` groups and the rest links to the full note on the site

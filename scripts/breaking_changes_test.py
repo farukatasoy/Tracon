@@ -636,6 +636,42 @@ class ReleaseNoteMatchingTests(unittest.TestCase):
         self.assertEqual(together, [])
 
 
+class PendingCutTests(unittest.TestCase):
+    """A cut waits for its tag when the topmost dated CHANGELOG section is above the baseline."""
+
+    def _cut(self, text: str, baseline: str = "1.0.0-preview.2") -> str | None:
+        with tempfile.TemporaryDirectory() as directory:
+            changelog = pathlib.Path(directory) / "CHANGELOG.md"
+            changelog.write_text(text, encoding="utf-8")
+            return bc.pending_cut(changelog, baseline)
+
+    def test_the_topmost_dated_section_above_the_baseline_is_the_cut(self):
+        text = "# Changelog\n\n## [Unreleased]\n\n## [1.0.0-preview.3] - 2026-10-01\n- x\n## [1.0.0-preview.2] - 2026-09-20\n- y\n"
+
+        self.assertEqual(self._cut(text), "1.0.0-preview.3")
+
+    def test_a_tagged_release_is_not_a_pending_cut(self):
+        text = "# Changelog\n\n## [Unreleased]\n- x\n## [1.0.0-preview.2] - 2026-09-20\n- y\n"
+
+        self.assertIsNone(self._cut(text))
+
+    def test_a_section_with_no_date_is_a_release_still_being_prepared_not_a_cut(self):
+        text = "# Changelog\n\n## [1.0.0-preview.3]\n- x\n## [1.0.0-preview.2] - 2026-09-20\n- y\n"
+
+        self.assertIsNone(self._cut(text))
+
+    def test_a_burned_tag_has_no_dated_section_and_is_never_a_cut(self):
+        """preview.3 burned: the tag exists, the fix took over the heading as preview.4. The baseline skips the burned
+        tag (preview.2); preview.4 is the cut that waits, and nothing about preview.3 shows up."""
+        text = "# Changelog\n\n## [1.0.0-preview.4] - 2026-10-05\n- x\n## [1.0.0-preview.2] - 2026-09-20\n- y\n"
+
+        self.assertEqual(self._cut(text), "1.0.0-preview.4")
+        self.assertIsNone(self._cut(text, baseline="1.0.0-preview.4"))
+
+    def test_a_heading_that_is_not_a_version_is_not_a_cut(self):
+        self.assertIsNone(self._cut("# Changelog\n\n## [not-a-version] - 2026-10-01\n- x\n"))
+
+
 class GateCallTests(unittest.TestCase):
     """`check`: the report dir + CHANGELOG.md -> exit code, as gate.py calls it."""
 
@@ -674,27 +710,67 @@ class GateCallTests(unittest.TestCase):
         self.assertEqual(result["types"], {"Tracon.Core": ["TextChunker"]})
 
     def test_an_untagged_run_reads_unreleased(self):
+        """The last release is tagged (baseline = its tag); the notes of the next one sit under [Unreleased]."""
         code, output, result = self._run(
             reports={"Tracon.Core": [_baseline_record("CP0001", "T:Tracon.TextChunker")]},
-            unreleased="### Removed\n- `TextChunker`.\n", section="- Other.\n", version="1.0.0-preview.2.47")
+            unreleased="### Removed\n- `TextChunker`.\n", section="- Other.\n", version="1.0.0-preview.3.47",
+            baseline="1.0.0-preview.3")
 
         self.assertEqual(code, 0, output)
         self.assertEqual(result["notesHeading"], "Unreleased")
-        self.assertEqual(result["baseline"], "1.0.0-preview.2")
+        self.assertEqual(result["baseline"], "1.0.0-preview.3")
 
-    def test_a_cut_version_pushed_without_its_tag(self):
-        """The cut commit (section renamed, empty
-        [Unreleased] above) pushed without its tag. MinVer still resolves
-        `1.0.0-preview.2.N`; the notes are not found and the message says to
-        push the cut and the tag together."""
+    def test_a_cut_waiting_for_its_tag_reads_the_notes_of_its_section(self):
+        """The cut commit (section dated, empty [Unreleased] above) before its tag exists. MinVer still resolves
+        `1.0.0-preview.2.N`, so no section carries that version; the notes come from the cut section."""
         code, output, result = self._run(
             reports={"Tracon.Core": [_baseline_record("CP0001", "T:Tracon.TextChunker")]},
             unreleased="", section="### Removed\n- `TextChunker`.\n", version="1.0.0-preview.2.48")
 
+        self.assertEqual(code, 0, output)
+        self.assertIn("all named in the '1.0.0-preview.3' notes", output)
+        self.assertEqual(result["notesHeading"], "1.0.0-preview.3")
+
+    def test_a_cut_waiting_for_its_tag_still_names_what_the_notes_leave_out(self):
+        code, output, result = self._run(
+            reports={"Tracon.Core": [_baseline_record("CP0001", "T:Tracon.TextChunker")]},
+            unreleased="", section="### Added\n- Something else.\n", version="1.0.0-preview.2.48")
+
         self.assertEqual(code, 1)
-        self.assertIn("git push --atomic origin main v1.0.0-preview.3", output)
+        self.assertIn("Tracon.Core: TextChunker", output)
+        self.assertIn("1.0.0-preview.3", output)
+        self.assertIsNone(result)
+
+    def test_changes_after_the_cut_are_named_in_unreleased_and_the_cut_notes_still_count(self):
+        """Both sections ship something since the baseline: a break named in either one is announced."""
+        code, output, result = self._run(
+            reports={"Tracon.Core": [_baseline_record("CP0001", "T:Tracon.TextChunker"),
+                                     _baseline_record("CP0001", "T:Tracon.TextSplitter")]},
+            unreleased="### Removed\n- `TextSplitter`.\n", section="### Removed\n- `TextChunker`.\n",
+            version="1.0.0-preview.2.49")
+
+        self.assertEqual(code, 0, output)
+        self.assertEqual(result["notesHeading"], "1.0.0-preview.3 and Unreleased")
+
+    def test_the_version_section_wins_over_a_cut_waiting_for_its_tag(self):
+        """A tag run of a version that has its own section never reads another section."""
+        code, output, result = self._run(
+            reports={"Tracon.Core": [_baseline_record("CP0001", "T:Tracon.TextChunker")]},
+            unreleased="### Removed\n- `TextChunker`.\n", section="- Other.\n", version="1.0.0-preview.3")
+
+        self.assertEqual(code, 1)
         self.assertIn("Tracon.Core: TextChunker", output)
         self.assertIsNone(result)
+
+    def test_a_cut_section_with_no_body_says_where_to_write_the_notes(self):
+        code, output, _ = self._run(
+            reports={"Tracon.Core": [_baseline_record("CP0001", "T:Tracon.TextChunker")]},
+            unreleased="", section="", version="1.0.0-preview.2.48")
+
+        self.assertEqual(code, 1)
+        self.assertIn("no release notes", output)
+        self.assertIn("'## [1.0.0-preview.3]' section is the cut waiting for its tag", output)
+        self.assertNotIn("git push", output)
 
     def test_an_empty_list_passes_with_empty_notes(self):
         code, output, result = self._run(reports={}, unreleased="", section="", version="1.0.0-preview.2.47",

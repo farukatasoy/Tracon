@@ -87,7 +87,8 @@ def _unguarded_jobs(jobs: dict[str, dict]) -> list[str]:
 
     The condition sits ONLY in `build`; every other job depends on it (directly or through a chain)
     with `needs`, and a skipped dependency skips them too. A status function breaks that chain:
-    such a job must carry the repository condition itself.
+    such a job must carry the repository condition itself. So must a job that has no chain to `build`
+    at all (the tag run skips `build`, and the job that writes the release page must still run there).
     """
     problems = []
     for name, job in jobs.items():
@@ -100,9 +101,9 @@ def _unguarded_jobs(jobs: dict[str, dict]) -> list[str]:
                 continue
             visited.add(current)
             pending.extend(jobs[current]["needs"])
-        if "build" not in visited:
-            problems.append(f"`{name}` job does not depend on `build`; it runs unconditionally")
         condition = job["if"] or ""
+        if "build" not in visited and (CANONICAL_REPO_CONDITION not in condition or "||" in condition):
+            problems.append(f"`{name}` job does not depend on `build` and does not carry the repository condition itself")
         # A condition joined with `||` bypasses the guard: `always() || <condition>` is true in every repository.
         if STATUS_FUNCTION.search(condition) and (CANONICAL_REPO_CONDITION not in condition or "||" in condition):
             problems.append(
@@ -1611,7 +1612,8 @@ class GateTests(unittest.TestCase):
         # No job may spend minutes on forks or other copies of the repository.
         jobs = _ci_jobs((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
 
-        self.assertEqual(jobs["build"]["if"], CANONICAL_REPO_CONDITION)
+        # A tag run does not build; the condition that skips `build` there is the only addition to the guard.
+        self.assertEqual(jobs["build"]["if"], f"{CANONICAL_REPO_CONDITION} && !startsWith(github.ref, 'refs/tags/')")
         self.assertEqual(_unguarded_jobs(jobs), [])
 
     def test_ci_guard_catches_a_job_that_breaks_the_chain(self):
@@ -1639,13 +1641,17 @@ class GateTests(unittest.TestCase):
             "    if: always() || github.repository == 'farukatasoy/Tracon'\n"
             "  detached:\n"
             "    runs-on: ubuntu-latest\n"
+            "  standalone:\n"
+            "    if: github.repository == 'farukatasoy/Tracon' && startsWith(github.ref, 'refs/tags/v')\n"
+            "  standalone-leaky:\n"
+            "    if: startsWith(github.ref, 'refs/tags/v') || github.repository == 'farukatasoy/Tracon'\n"
         )
 
         jobs = _ci_jobs(text)
         flagged = sorted({problem.split("`")[1] for problem in _unguarded_jobs(jobs)})
 
         self.assertEqual(jobs["summary"]["if"], "github.ref == 'refs/heads/main' && !cancelled()")
-        self.assertEqual(flagged, ["detached", "failed", "leaky", "report", "summary"])
+        self.assertEqual(flagged, ["detached", "failed", "leaky", "report", "standalone-leaky", "summary"])
 
     def test_every_job_of_the_unchained_workflows_carries_the_canonical_repo_guard_itself(self):
         # Weekly jobs must not spend minutes on forks or other copies either. `ci.yml` inherits the guard
@@ -3249,15 +3255,16 @@ class BuildOnceChainTests(unittest.TestCase):
             return []
         return fake
 
-    def _pack(self, root: pathlib.Path, output: pathlib.Path, *, report: bool = True, status=(), not_run=()):
+    def _pack(self, root: pathlib.Path, output: pathlib.Path, *, report: bool = True, status=(), not_run=(),
+              version: str | None = None):
         """`pack_for_ci` with the dotnet pack replaced by a writer of fake packages."""
         bc = self._bc()
         calls: list[list[str]] = []
 
         def fake_run(command, **kwargs):
             calls.append(list(command))
-            self._write_package(output, "Tracon.Core")
-            self._write_package(output, "Tracon")
+            self._write_package(output, "Tracon.Core", version=version)
+            self._write_package(output, "Tracon", version=version)
             if report:
                 (output / "api-compat" / "Tracon.Core.xml").write_text("<Suppressions />", encoding="utf-8")
             return mock.Mock(returncode=0)
@@ -3629,6 +3636,49 @@ class BuildOnceChainTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("Package not produced", text)
 
+    CUT = "1.0.0-preview.3"
+
+    def _publishing_rehearsal(self, changelog: str, *, version: str | None = CUT):
+        """The rehearsal of a manual run that publishes: packages of CUT, the version input, a CHANGELOG.md."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory, version=self.CUT)
+            (root / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+
+            result, _, text, *_ = self._rehearse(root, output, version=version)
+        return result, text
+
+    def test_publishing_a_version_needs_its_dated_section_in_the_changelog(self):
+        result, text = self._publishing_rehearsal("# Changelog\n\n## [Unreleased]\n\n- Something.\n")
+
+        self.assertEqual(result, 1)
+        self.assertIn("no dated '## [1.0.0-preview.3] - <date>' section", text)
+
+    def test_publishing_a_version_that_is_not_the_cut_waiting_for_its_tag_is_refused(self):
+        result, text = self._publishing_rehearsal(
+            "# Changelog\n\n## [Unreleased]\n\n## [1.0.0-preview.4] - 2026-10-02\n- b\n"
+            "## [1.0.0-preview.3] - 2026-10-01\n- a\n")
+
+        self.assertEqual(result, 1)
+        self.assertIn("The cut waiting for its tag is '1.0.0-preview.4', not '1.0.0-preview.3'", text)
+
+    def test_publishing_the_cut_that_waits_for_its_tag_passes(self):
+        result, text = self._publishing_rehearsal(
+            "# Changelog\n\n## [Unreleased]\n\n## [1.0.0-preview.3] - 2026-10-01\n- a\n"
+            "## [1.0.0-preview.2] - 2026-09-20\n- y\n")
+
+        self.assertEqual(result, 0, text)
+        self.assertNotIn("[Unreleased]", text)
+
+    def test_a_run_with_no_version_input_is_not_held_to_the_cut_rule(self):
+        """An ordinary run only rehearses: it never reaches the publish jobs, so no section is demanded."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory, version=self.CUT)
+            (root / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n\n- Something.\n", encoding="utf-8")
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 0, text)
+
     def test_package_directory_mode_rejects_a_package_outside_the_input_in_release_dir(self):
         """Rejection only; no file is deleted."""
         with tempfile.TemporaryDirectory() as directory:
@@ -3745,6 +3795,396 @@ class BuildOnceChainTests(unittest.TestCase):
 # the scan's own gate. The same technique is used in test_secret_scan_finds_a_value_line.
 SECRET_LINE = 'var x = "Pass' + 'word=made-up-credential-value";'
 MARKER = "SYNTHETIC" + "-CREDENTIAL"
+
+
+class DispatchReleaseWorkflowTests(unittest.TestCase):
+    """The shape of a release in `ci.yml`: one manual run on `main` builds, tests, rehearses and publishes; the tag
+    comes afterwards and only writes the release page."""
+
+    PUBLISH_CONDITION = (
+        "github.event_name == 'workflow_dispatch' && inputs.publish && inputs.version != '' "
+        "&& github.ref == 'refs/heads/main'")
+
+    def setUp(self):
+        self.text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.jobs = _ci_jobs(self.text)
+        self.uncommented = "\n".join(line for line in self.text.splitlines() if not line.lstrip().startswith("#"))
+
+    def test_the_manual_trigger_takes_a_version_and_a_publish_switch_that_defaults_to_off(self):
+        block = re.search(r"(?m)^  workflow_dispatch:\n((?:    .*\n)+)", self.uncommented + "\n")
+
+        self.assertIsNotNone(block)
+        self.assertRegex(block.group(1), r"(?m)^      version:\n(?:        .*\n)*?        type: string\n(?:        .*\n)*?        default: ''")
+        self.assertRegex(block.group(1), r"(?m)^      publish:\n(?:        .*\n)*?        type: boolean\n(?:        .*\n)*?        default: false")
+
+    def test_the_tag_trigger_stays_because_the_release_page_is_written_by_the_tag_run(self):
+        self.assertRegex(self.uncommented, r"(?m)^on:\n  push:\n    branches: \[main\]\n    tags: \['v\*'\]")
+
+    def test_a_tag_run_does_not_build_and_so_runs_nothing_that_needs_the_build(self):
+        self.assertIn("!startsWith(github.ref, 'refs/tags/')", self.jobs["build"]["if"])
+        self.assertIn(CANONICAL_REPO_CONDITION, self.jobs["build"]["if"])
+        for name, job in self.jobs.items():
+            if name not in ("build", "github-release"):
+                with self.subTest(job=name):
+                    self.assertNotIn(
+                        "refs/tags", " ".join(filter(None, [job["if"]])),
+                        f"`{name}` must not carry its own tag condition: only `build` skips on a tag")
+                    self.assertNotIn("startsWith(github.ref", job["if"] or "")
+
+    def test_the_two_publish_jobs_run_only_in_a_manual_run_on_main_that_asks_to_publish(self):
+        for name in ("publish", "npm-publish"):
+            with self.subTest(job=name):
+                self.assertEqual(self.jobs[name]["if"], self.PUBLISH_CONDITION)
+
+    def test_the_release_page_is_written_only_by_a_tag_run_and_waits_for_nothing(self):
+        job = self.jobs["github-release"]
+
+        self.assertEqual(job["needs"], [])
+        self.assertEqual(job["if"], f"{CANONICAL_REPO_CONDITION} && startsWith(github.ref, 'refs/tags/v')")
+        self.assertNotIn("workflow_dispatch", job["if"])
+
+    def test_no_job_but_the_release_page_is_decided_by_a_tag_name_any_more(self):
+        publishing = "\n".join(
+            block for block in (_job_block(self.uncommented, name) for name in ("publish", "npm-publish")))
+
+        self.assertNotIn("refs/tags", publishing)
+        self.assertNotIn("GITHUB_REF", publishing)
+        self.assertNotIn("github.ref_name", publishing)
+
+    def test_publishing_still_waits_for_every_test_job_and_every_matrix_leg_and_the_rehearsal(self):
+        tests = {name for name in self.jobs if name.startswith("test-")}
+        legs = {"postgres-matrix", "sqlserver-matrix", "sqlite-floor", "culture-matrix"}
+        needs = set(self.jobs["publish"]["needs"])
+
+        self.assertGreaterEqual(len(tests), 8)
+        self.assertEqual(sorted((tests | legs | {"release-dryrun", "npm-publish"}) - needs), [])
+        # npm goes first and NuGet last, the channel with no way back.
+        self.assertIn("npm-publish", self.jobs["publish"]["needs"])
+        self.assertTrue(legs <= set(self.jobs["npm-publish"]["needs"]))
+        self.assertIn("release-dryrun", self.jobs["npm-publish"]["needs"])
+        self.assertNotIn("publish", self.jobs["npm-publish"]["needs"])
+
+    def test_an_input_is_only_ever_handed_over_as_an_environment_value(self):
+        """An input pasted into a script could close a string and add a command; as an environment value it is data."""
+        pasted = [line for line in self.uncommented.splitlines() if "${{ inputs." in line]
+
+        self.assertGreaterEqual(len(pasted), 4)
+        for line in pasted:
+            with self.subTest(line=line.strip()):
+                self.assertRegex(line, r"^\s+[A-Z_]+: \$\{\{ inputs\.(?:version|publish) \}\}$")
+        for name in ("build", "release-dryrun", "npm-publish"):
+            with self.subTest(job=name):
+                self.assertIn("RELEASE_VERSION: ${{ inputs.version }}", _job_block(self.uncommented, name))
+
+    def test_the_build_stamps_before_it_builds_and_the_rehearsal_checks_the_same_version(self):
+        build = _job_block(self.uncommented, "build")
+        dryrun = _job_block(self.uncommented, "release-dryrun")
+
+        self.assertLess(build.index("gate.py release-version"), build.index("dotnet build Tracon.slnx"))
+        self.assertIn('--env-file "$GITHUB_ENV"', build)
+        self.assertIn('--package-version "$RELEASE_VERSION"', dryrun)
+        self.assertIn("if [ -n \"$RELEASE_VERSION\" ]", dryrun)
+
+    def test_nuget_is_checked_before_the_login_and_the_release_page_after_the_publication_is_checked(self):
+        publish = _job_block(self.uncommented, "publish")
+        release = _job_block(self.uncommented, "github-release")
+
+        self.assertLess(publish.index("gate.py verify-packages"), publish.index("gate.py publish-guard"))
+        self.assertLess(publish.index("gate.py publish-guard"), publish.index("NuGet/login@"))
+        self.assertLess(release.index("gate.py verify-published"), release.index("gh release create"))
+        self.assertIn('npm view "@tracon/client@$version" version', release)
+
+    def test_the_ordinary_rehearsal_comment_does_not_promise_a_tag_first_flow(self):
+        self.assertNotIn("push --atomic", self.text)
+
+
+class ReleaseVersionStampTests(unittest.TestCase):
+    """`release-version`: the version input of a manual run becomes `MinVerVersionOverride`, or the run stops."""
+
+    def _stamp(self, version: str, publish: str = "false"):
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = pathlib.Path(directory) / "github-env"
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = gate.stamp_release_version(version, publish, env_file)
+            written = env_file.read_text(encoding="utf-8") if env_file.exists() else ""
+        return code, written, out.getvalue()
+
+    def test_a_release_version_is_written_as_the_override_line(self):
+        code, written, _ = self._stamp("1.0.0-preview.11")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(written, "MinVerVersionOverride=1.0.0-preview.11\n")
+
+    def test_the_shape_is_the_one_the_rehearsal_enforces(self):
+        self.assertEqual(
+            gate.release_version_line("1.0.0-preview.7", publish=False)[0], "MinVerVersionOverride=1.0.0-preview.7")
+        for wrong in ("1.0.0", "1.0.0-preview.", "v1.0.0-preview.1", "2.0.0-preview.1", " 1.0.0-preview.1",
+                      "1.0.0-preview.1 ", "1.0.0-preview.1\n", "1.0.0-preview.1\nGITHUB_TOKEN=x", "1.0.0-rc.1"):
+            with self.subTest(version=wrong):
+                line, error = gate.release_version_line(wrong, publish=False)
+
+                self.assertIsNone(line)
+                self.assertIn("is not a release version", error)
+
+    def test_a_refused_version_writes_nothing_and_exits_1(self):
+        code, written, out = self._stamp("1.0.0-preview.1\nGITHUB_TOKEN=x")
+
+        self.assertEqual(code, 1)
+        self.assertEqual(written, "")
+        self.assertIn("❌", out)
+
+    def test_an_empty_version_is_an_ordinary_run_and_writes_nothing(self):
+        code, written, out = self._stamp("")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(written, "")
+        self.assertIn("ordinary run", out)
+
+    def test_a_run_asked_to_publish_needs_a_version(self):
+        code, written, out = self._stamp("", publish="true")
+
+        self.assertEqual(code, 1)
+        self.assertEqual(written, "")
+        self.assertIn("needs a release version", out)
+
+    def test_the_publish_flag_reads_the_text_the_workflow_passes(self):
+        self.assertIsNotNone(gate.release_version_line("", publish=True)[1])
+        for text in ("", "false", "False", "no"):
+            with self.subTest(text=text):
+                self.assertEqual(self._stamp("", publish=text)[0], 0)
+        self.assertEqual(self._stamp("", publish=" TRUE ")[0], 1)
+
+    def test_the_command_appends_to_the_file_and_keeps_what_was_there(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = pathlib.Path(directory) / "github-env"
+            env_file.write_text("A=1\n", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                code = gate.main(["release-version", "1.0.0-preview.2", "--env-file", str(env_file)])
+
+            self.assertEqual(code, 0)
+            self.assertEqual(env_file.read_text(encoding="utf-8"), "A=1\nMinVerVersionOverride=1.0.0-preview.2\n")
+
+
+def _nuspec_answer(commit: str | None) -> tuple[int, str]:
+    attribute = f' commit="{commit}"' if commit else ""
+    return 200, (
+        '<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd"><metadata><id>x</id>'
+        f'<repository type="git" url="https://example.invalid/r"{attribute} /></metadata></package>')
+
+
+class NuGetPublicationTests(unittest.TestCase):
+    """`publish-guard` and `verify-published`: what nuget.org already holds decides the next step."""
+
+    COMMIT = "a" * 40
+    OTHER = "b" * 40
+    IDS = ("Tracon.Core", "Tracon")
+
+    @staticmethod
+    def _fetcher(answers: dict[str, object]):
+        """`answers`: package id (lower case) -> a commit, "absent" or "down"."""
+        def fetch(url: str) -> tuple[int | None, str]:
+            package = url.rsplit("/", 1)[1].removesuffix(".nuspec")
+            answer = answers[package]
+            if answer == "absent":
+                return 404, ""
+            if answer == "down":
+                return None, ""
+            return _nuspec_answer(answer)
+        return fetch
+
+    def _directory(self, root: pathlib.Path, *, commit: str | None = None) -> pathlib.Path:
+        directory = root / "verified"
+        directory.mkdir()
+        (directory / gate.PACKAGE_MANIFEST_NAME).write_text(json.dumps({
+            "version": "1.0.0-preview.3", "commit": commit or self.COMMIT,
+            "packages": [{"id": package, "file": f"{package}.nupkg"} for package in self.IDS]}), encoding="utf-8")
+        return directory
+
+    def _guard(self, answers: dict[str, object]):
+        with tempfile.TemporaryDirectory() as temp:
+            directory = self._directory(pathlib.Path(temp))
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = gate.publish_guard(directory, fetcher=self._fetcher(answers))
+        return code, out.getvalue()
+
+    def test_a_version_nuget_does_not_have_yet_may_be_pushed(self):
+        code, text = self._guard({"tracon.core": "absent", "tracon": "absent"})
+
+        self.assertEqual(code, 0, text)
+        self.assertIn("none of the 2 packages is on nuget.org yet", text)
+
+    def test_a_job_run_again_after_a_partial_push_may_go_on(self):
+        code, text = self._guard({"tracon.core": self.COMMIT, "tracon": "absent"})
+
+        self.assertEqual(code, 0, text)
+        self.assertIn("1 of 2 packages are already on nuget.org from this commit", text)
+
+    def test_a_package_of_another_build_stops_the_push_and_names_the_commit(self):
+        code, text = self._guard({"tracon.core": self.COMMIT, "tracon": self.OTHER})
+
+        self.assertEqual(code, 1)
+        self.assertIn(f"Tracon names {self.OTHER}", text)
+        self.assertNotIn("Tracon.Core names", text)
+
+    def test_a_package_that_names_no_commit_is_not_this_build(self):
+        code, text = self._guard({"tracon.core": None, "tracon": "absent"})
+
+        self.assertEqual(code, 1)
+        self.assertIn("(no commit)", text)
+
+    def test_nuget_not_answering_stops_the_push_instead_of_guessing(self):
+        code, text = self._guard({"tracon.core": "absent", "tracon": "down"})
+
+        self.assertEqual(code, 1)
+        self.assertIn("could not say whether version 1.0.0-preview.3 is already there", text)
+
+    def test_a_manifest_that_names_no_commit_or_packages_stops_the_push(self):
+        with tempfile.TemporaryDirectory() as temp:
+            directory = pathlib.Path(temp)
+            (directory / gate.PACKAGE_MANIFEST_NAME).write_text(json.dumps({"version": "1.0.0-preview.3"}), encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                code = gate.publish_guard(directory, fetcher=lambda url: self.fail("nothing may be asked"))
+
+        self.assertEqual(code, 1)
+        self.assertIn("does not name a version, a commit and the packages", out.getvalue())
+
+    def test_the_guard_asks_for_the_version_and_the_package_ids_of_the_manifest(self):
+        seen: list[str] = []
+
+        def fetch(url: str) -> tuple[int | None, str]:
+            seen.append(url)
+            return 404, ""
+
+        with tempfile.TemporaryDirectory() as temp:
+            directory = self._directory(pathlib.Path(temp))
+            with contextlib.redirect_stdout(io.StringIO()):
+                gate.publish_guard(directory, fetcher=fetch)
+
+        self.assertEqual([url.split("/v3-flatcontainer/")[1] for url in seen], [
+            "tracon.core/1.0.0-preview.3/tracon.core.nuspec", "tracon/1.0.0-preview.3/tracon.nuspec"])
+
+    def _verify(self, answers: dict[str, object]):
+        out = io.StringIO()
+        with mock.patch.object(gate, "packable_project_ids", return_value=list(self.IDS)), \
+                contextlib.redirect_stdout(out):
+            code = gate.verify_published("1.0.0-preview.3", self.COMMIT, fetcher=self._fetcher(answers))
+        return code, out.getvalue()
+
+    def test_a_published_version_from_the_tagged_commit_opens_the_release_page(self):
+        code, text = self._verify({"tracon.core": self.COMMIT, "tracon": self.COMMIT.upper()})
+
+        self.assertEqual(code, 0, text)
+        self.assertIn(f"all 2 packages are on nuget.org and name commit {self.COMMIT}", text)
+
+    def test_a_missing_a_foreign_and_an_unreadable_package_each_keep_the_page_closed(self):
+        for answers, expected in (
+            ({"tracon.core": self.COMMIT, "tracon": "absent"}, "not on nuget.org: Tracon"),
+            ({"tracon.core": self.COMMIT, "tracon": self.OTHER}, f"Tracon names {self.OTHER}, not {self.COMMIT}"),
+            ({"tracon.core": self.COMMIT, "tracon": "down"}, "nuget.org could not be read for Tracon"),
+        ):
+            with self.subTest(expected=expected):
+                code, text = self._verify(answers)
+
+                self.assertEqual(code, 1)
+                self.assertIn(expected, text)
+
+
+class UntaggedReleaseStateTests(unittest.TestCase):
+    """`remote-state`: a cut release that nuget.org has but the repository has no tag for is red."""
+
+    CHANGELOG = (
+        "# Changelog\n\n## [Unreleased]\n\n## [1.0.0-preview.3] - 2026-10-01\n- a\n"
+        "## [1.0.0-preview.2] - 2026-09-20\n- y\n")
+
+    def _check(self, cut_state, *, changelog: str | None = None, tag_exists: bool = False, hint=None):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        breaking_changes = importlib.import_module("breaking_changes")
+        remote_state = importlib.import_module("remote_state")
+        published = remote_state.ReleaseState("1.0.0-preview.2", (), (), 2)
+
+        def release_state(ids, version, **kwargs):
+            return published if version == "1.0.0-preview.2" else cut_state
+
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            (root / "CHANGELOG.md").write_text(changelog or self.CHANGELOG, encoding="utf-8")
+            with mock.patch.object(breaking_changes, "resolve_baseline", return_value="1.0.0-preview.2"), \
+                    mock.patch.object(remote_state, "packable_ids_at", return_value=["A", "B"]), \
+                    mock.patch.object(remote_state, "release_state", side_effect=release_state), \
+                    mock.patch.object(remote_state, "ci_state", return_value=None), \
+                    mock.patch.object(gate, "packable_project_ids", return_value=["A", "B"]), \
+                    mock.patch.object(gate, "_tag_exists", return_value=tag_exists), \
+                    contextlib.redirect_stdout(out):
+                code = gate.remote_state_check(root, **({"tag_hint": hint} if hint else {}))
+        return code, out.getvalue()
+
+    @staticmethod
+    def _state(published: int, missing=(), unreachable=()):
+        remote_state = importlib.import_module("remote_state")
+        return remote_state.ReleaseState("1.0.0-preview.3", tuple(missing), tuple(unreachable), published)
+
+    def test_published_and_untagged_is_red_and_says_how_to_tag(self):
+        code, text = self._check(self._state(2), hint=lambda version: f"RUN-THE-TAG-COMMAND {version}")
+
+        self.assertEqual(code, 1)
+        self.assertIn("❌ v1.0.0-preview.3 is on nuget.org (2/2 packages) but has no tag. RUN-THE-TAG-COMMAND 1.0.0-preview.3", text)
+
+    def test_the_public_default_hint_names_no_private_tool(self):
+        code, text = self._check(self._state(2))
+
+        self.assertEqual(code, 1)
+        self.assertIn("Push the tag v1.0.0-preview.3 on the commit its packages name", text)
+
+    def test_a_half_published_cut_is_red_and_warns_against_a_new_run(self):
+        code, text = self._check(self._state(1, missing=["B"]))
+
+        self.assertEqual(code, 1)
+        self.assertIn("run its failed job again", text)
+
+    def test_nothing_on_nuget_yet_is_information_not_red(self):
+        code, text = self._check(self._state(0, missing=["A", "B"]))
+
+        self.assertEqual(code, 0)
+        self.assertIn("ℹ️ v1.0.0-preview.3 is cut and waits to be published", text)
+
+    def test_an_unreachable_nuget_only_warns(self):
+        code, text = self._check(self._state(0, unreachable=["A", "B"]))
+
+        self.assertEqual(code, 0)
+        self.assertIn("⚠️ v1.0.0-preview.3 is cut and has no tag; nuget.org was not reachable", text)
+
+    def test_a_cut_that_has_its_tag_says_nothing_about_a_missing_one(self):
+        code, text = self._check(self._state(2), tag_exists=True)
+
+        self.assertEqual(code, 0)
+        self.assertNotIn("has no tag", text)
+
+    def test_a_tagged_last_release_is_not_a_pending_cut(self):
+        code, text = self._check(self._state(2), changelog="# Changelog\n\n## [1.0.0-preview.2] - 2026-09-20\n- y\n")
+
+        self.assertEqual(code, 0)
+        self.assertNotIn("has no tag", text)
+
+    def test_a_burned_tag_with_its_number_taken_over_by_the_fix_is_not_reported(self):
+        """preview.3 burned and never reached nuget.org; preview.4 took over the heading. The baseline skips the
+        burned tag, preview.4 is the cut, and only it is asked about."""
+        changelog = ("# Changelog\n\n## [1.0.0-preview.4] - 2026-10-05\n- fix\n"
+                     "## [1.0.0-preview.2] - 2026-09-20\n- y\n")
+        code, text = self._check(self._state(0, missing=["A", "B"]), changelog=changelog)
+
+        self.assertEqual(code, 0)
+        self.assertIn("v1.0.0-preview.4 is cut and waits", text)
+        self.assertNotIn("preview.3", text)
+
+    def test_the_closing_run_hands_the_extension_hint_to_the_check(self):
+        extension = dataclasses.replace(gate.PUBLIC, tag_hint=lambda version: f"hint for {version}")
+        with mock.patch.object(gate, "remote_state_check", return_value=0) as check:
+            gate.main(["remote-state"], extension=extension)
+
+        self.assertEqual(check.call_args.kwargs["tag_hint"]("9"), "hint for 9")
 
 
 class SyntheticCredentialTests(unittest.TestCase):
@@ -5002,7 +5442,8 @@ class CommandSurfaceTests(unittest.TestCase):
 
     COMMANDS = (
         "scan", "generate", "remote-state", "inner-loop", "close", "perf",
-        "test", "stability", "release", "pack", "verify-packages", "capacity")
+        "test", "stability", "release", "pack", "verify-packages", "capacity",
+        "release-version", "publish-guard", "verify-published")
     RENAMED = {
         "tarama": "scan", "uret": "generate", "uzak-durum": "remote-state", "ic-dongu": "inner-loop",
         "kapanis": "close", "performans": "perf", "kararlilik": "stability", "yayin": "release",
@@ -5021,11 +5462,11 @@ class CommandSurfaceTests(unittest.TestCase):
                 code = stop.code
         return code, out.getvalue(), err.getvalue()
 
-    def test_the_command_set_is_exactly_the_twelve_dictionary_names(self):
+    def test_the_command_set_is_exactly_the_listed_names(self):
         _, subparsers = gate.build_parser()
 
         self.assertEqual(sorted(subparsers.choices), sorted(self.COMMANDS))
-        self.assertEqual(len(subparsers.choices), 12)
+        self.assertEqual(len(subparsers.choices), 15)
 
     def test_every_old_command_name_exits_2_and_says_the_new_name(self):
         self.assertEqual(gate.RENAMED_COMMANDS, self.RENAMED)
@@ -5087,7 +5528,8 @@ class CommandSurfaceTests(unittest.TestCase):
             for argv in (
                 ["generate"], ["remote-state"], ["perf"], ["verify-packages", "x"], ["pack", "--output", "x"],
                 ["release", "--dry-run"], ["release", "--dry-run", "--package-directory", "x"], ["stability"],
-                ["close", "--base", "HEAD"], ["inner-loop"],
+                ["close", "--base", "HEAD"], ["inner-loop"], ["release-version", "1.0.0-preview.1"],
+                ["publish-guard", "--package-directory", "x"], ["verify-published", "--version", "1", "--commit", "c"],
             ):
                 with self.subTest(command=argv):
                     code, out, _ = self._run(["--print-commands", *argv])

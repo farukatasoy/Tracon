@@ -740,7 +740,7 @@ def check(
     notes: str | None = None
     heading: str | None = None
     if breaks and not line.frozen:
-        notes, heading = bc.release_notes_for(changelog, version)
+        notes, heading = bc.release_notes_for(changelog, version, baseline)
 
     print(f"Contract surfaces: {_summary(results, notes)}")
 

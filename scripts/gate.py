@@ -232,6 +232,10 @@ def _no_commands(base: str) -> tuple[Command, ...]:
     return ()
 
 
+def _generic_tag_hint(version: str) -> str:
+    return f"Push the tag v{version} on the commit its packages name (the `commit` of their nuspec)."
+
+
 @dataclasses.dataclass(frozen=True)
 class ScanCheck:
     """One more finding class for `scan`: a heading and the function that returns its violations.
@@ -265,6 +269,8 @@ class Extension:
     doc_reference_roots: tuple[str, ...] = ()
     ci_remote: str = "origin"
     """The git remote whose CI run `remote-state` reads. A repository that mirrors its code elsewhere names the mirror."""
+    tag_hint: Callable[[str], str] = _generic_tag_hint
+    """What `remote-state` tells the maintainer to do about a release that is on nuget.org but has no tag; the argument is the version."""
     record_dirs: tuple[str, ...] = ()
     """Directory names that hold records of past runs. The credential-shape scan walks them, but the local
     setup phrase (a database password in a reproduction recipe) is legitimate there and is not searched for."""
@@ -3306,6 +3312,130 @@ def verify_package_directory(directory: pathlib.Path) -> int:
     return 0
 
 
+def release_version_line(version: str, *, publish: bool) -> tuple[str | None, str | None]:
+    """The `$GITHUB_ENV` line that stamps a manually triggered run with its release version: `(line, error)`.
+
+    An empty `version` is an ordinary run and needs no stamp, unless the run was asked to publish: a publishing
+    run without a version has nothing to publish. The shape is the one `release --dry-run` enforces
+    (`RELEASE_VERSION_PATTERN`), so the stamp and the rehearsal cannot disagree about what a release version is."""
+    if not version:
+        if publish:
+            return None, "a run that publishes needs a release version, and the version input is empty"
+        return None, None
+    if not RELEASE_VERSION_PATTERN.fullmatch(version):
+        return None, f"'{version}' is not a release version (expected 1.0.0-preview.N, no spaces)"
+    return f"MinVerVersionOverride={version}", None
+
+
+def stamp_release_version(version: str, publish: str, env_file: pathlib.Path | None) -> int:
+    """`gate.py release-version`: validate the version input of a manual run and stamp the job's environment with it.
+
+    MinVer reads `MinVerVersionOverride`, so every step after this one builds and packs that version. The value is
+    validated before it is written: nothing but a release version reaches `$GITHUB_ENV`."""
+    line, error = release_version_line(version, publish=publish.strip().lower() == "true")
+    if error:
+        print(f"❌ {error}")
+        return 1
+    if line is None:
+        print("ℹ️ No release version was given: this is an ordinary run, the version is whatever MinVer computes.")
+        return 0
+    if env_file is not None:
+        with env_file.open("a", encoding="utf-8", newline="\n") as stream:
+            stream.write(line + "\n")
+    print(f"✅ This run builds and packs version {version} ({line.split('=')[0]})")
+    return 0
+
+
+def _manifest_release(directory: pathlib.Path) -> tuple[str, str, list[str]] | None:
+    """`(version, commit, package ids)` of a package directory's manifest, or `None` after printing why not."""
+    manifest, error = _load_manifest(directory)
+    if error:
+        print(f"❌ {error}")
+        return None
+    entries = manifest.get("packages") if isinstance(manifest, dict) else None
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    commit = manifest.get("commit") if isinstance(manifest, dict) else None
+    ids = [entry.get("id") for entry in entries if isinstance(entry, dict)] if isinstance(entries, list) else []
+    if not (isinstance(version, str) and isinstance(commit, str) and ids and all(isinstance(i, str) for i in ids)):
+        print(f"❌ {PACKAGE_MANIFEST_NAME} does not name a version, a commit and the packages")
+        return None
+    return version, commit, ids
+
+
+def publish_guard(
+    directory: pathlib.Path,
+    *,
+    fetcher: Callable[[str], tuple[int | None, str]] | None = None,
+) -> int:
+    """`gate.py publish-guard`: may these packages go to nuget.org, given what the version already has there?
+
+    nuget.org has no way back. A second run of the same version builds new bytes, and `--skip-duplicate` would
+    quietly mix two builds under one version. So: no package of the version there yet, or only packages of THIS
+    commit (the failed job of the same run, run again), lets the push go on. A package of another commit stops it,
+    and so does nuget.org not answering: a push that cannot be checked is not made."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import remote_state
+
+    release = _manifest_release(directory)
+    if release is None:
+        return 1
+    version, commit, ids = release
+
+    state = remote_state.release_commits(ids, version, fetcher=fetcher or remote_state.fetch)
+    if state.unreachable:
+        print(f"❌ nuget.org could not say whether version {version} is already there "
+              f"({len(state.unreachable)}/{len(ids)} packages could not be read): {', '.join(state.unreachable)}")
+        print("   Nothing is pushed blind. Run the job again when nuget.org answers.")
+        return 1
+
+    foreign = state.foreign(commit)
+    if foreign:
+        print(f"❌ Version {version} is already on nuget.org from another build: this run packed commit {commit}, but")
+        for package, named in sorted(foreign.items()):
+            print(f"  {package} names {named or '(no commit)'}")
+        print("   A new build is new bytes and the version is taken. The release is half done: cut the next number.")
+        return 1
+
+    if not state.commits:
+        print(f"✅ Version {version}: none of the {len(ids)} packages is on nuget.org yet; the push may go on.")
+    else:
+        print(f"✅ Version {version}: {len(state.commits)} of {len(ids)} packages are already on nuget.org from this "
+              "commit (a job run again); the push skips them.")
+    return 0
+
+
+def verify_published(
+    version: str,
+    commit: str,
+    *,
+    root: pathlib.Path = ROOT,
+    fetcher: Callable[[str], tuple[int | None, str]] | None = None,
+) -> int:
+    """`gate.py verify-published`: is every package of `version` on nuget.org, and does each one name `commit`?
+
+    The release page is opened only after this: it must describe packages that exist and were built from the
+    commit the tag points at."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import remote_state
+
+    ids = packable_project_ids(root)
+    state = remote_state.release_commits(ids, version, fetcher=fetcher or remote_state.fetch)
+    problems: list[str] = []
+    if state.unreachable:
+        problems.append(f"nuget.org could not be read for {', '.join(state.unreachable)}")
+    if state.absent:
+        problems.append(f"not on nuget.org: {', '.join(state.absent)}")
+    problems.extend(f"{package} names {named or '(no commit)'}, not {commit}"
+                    for package, named in sorted(state.foreign(commit).items()))
+    if problems:
+        print(f"❌ Version {version} is not published from commit {commit}:")
+        for problem in problems:
+            print(f"  {problem}")
+        return 1
+    print(f"✅ Version {version}: all {len(ids)} packages are on nuget.org and name commit {commit}")
+    return 0
+
+
 def _dirty_tree_rejected(*, require_git: bool) -> bool:
     """The early git rejection, shared by every pack entry point.
 
@@ -3724,6 +3854,25 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
 _MANIFEST_COMPARED_FIELDS = ("version", "commit", "dirty", "baseline", "packages")
 
 
+def _release_cut_error(changelog_path: pathlib.Path, version: str, baseline: str) -> str | None:
+    """Why `CHANGELOG.md` does not back a release of `version` that is about to be published, or `None`.
+
+    A release is cut before it is published: its section carries a date, and it is the one cut waiting for its tag.
+    The given version, the changelog and the packages must name the same release; the packages are compared
+    with the version by the caller."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import breaking_changes
+    import changelog as changelog_module
+
+    if version not in changelog_module.released_versions(changelog_path.read_text(encoding="utf-8")):
+        return (f"CHANGELOG.md has no dated '## [{version}] - <date>' section: cut the release first, "
+                "because the tag is placed on the commit these packages were built from")
+    cut = breaking_changes.pending_cut(changelog_path, baseline)
+    if cut is not None and cut != version:
+        return f"The cut waiting for its tag is '{cut}', not '{version}': the version input and CHANGELOG.md disagree"
+    return None
+
+
 def _finish_release_rehearsal(
     *,
     root: pathlib.Path,
@@ -3798,10 +3947,17 @@ def _finish_release_rehearsal_unchecked(
         if notes_heading == changelog.UNRELEASED:
             print(
                 f"ℹ️ The release notes were read from the '## [Unreleased]' section; "
-                f"when 'v{resolved_version}' is tagged, this heading is renamed "
+                f"when 'v{resolved_version}' is cut, this heading is renamed "
                 f"to '## [{resolved_version}] - <date>' "
                 "(release notes rule)"
             )
+        # Packages that are about to be published (a given version over a package directory) must have been
+        # cut: the tag that follows the publish is placed on a commit whose CHANGELOG carries the dated section.
+        if input_manifest is not None and requested_version:
+            cut_error = _release_cut_error(changelog_path, requested_version, breaking_gate.baseline)
+            if cut_error:
+                print(f"❌ {cut_error}")
+                return 1
 
     errors: list[str] = []
     for project_id in sorted(resolved):
@@ -4016,12 +4172,61 @@ STABILITY_WORKFLOW = "stability.yml"
 """The scheduled workflow of the public repository that runs `stability` (see `.github/workflows`)."""
 
 
-def remote_state_check(root: pathlib.Path = ROOT, ci_remote: str = "origin") -> int:
+def _tag_exists(root: pathlib.Path, tag: str) -> bool:
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag}"], cwd=root, capture_output=True, check=False,
+        ).returncode == 0
+    except OSError:
+        return False
+
+
+def _untagged_release_state(
+    root: pathlib.Path, baseline: str, tag_hint: Callable[[str], str],
+) -> int:
+    """A cut waits for its tag: say whether it is still waiting to be published, or published and left untagged.
+
+    Fails only for a proven gap: nuget.org answered and has packages of the cut, yet the tag does not exist.
+    Nothing on nuget.org yet is a plain fact (the release is cut and the publish run comes next); a nuget.org that
+    does not answer is a warning."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import breaking_changes
+    import remote_state
+
+    changelog_path = root / "CHANGELOG.md"
+    cut = breaking_changes.pending_cut(changelog_path, baseline) if changelog_path.is_file() else None
+    tag = f"{breaking_changes.TAG_PREFIX}{cut}"
+    if cut is None or _tag_exists(root, tag):
+        return 0
+
+    package_ids = packable_project_ids(root)
+    state = remote_state.release_state(package_ids, cut)
+
+    if state.published:
+        print(f"❌ {tag} is on nuget.org ({state.published}/{len(package_ids)} packages) but has no tag. {tag_hint(cut)}")
+        if state.missing:
+            print(f"   {len(state.missing)} packages are not there: the publish run stopped half way; run its failed job again "
+                  f"(a new run of the same version would build new bytes): {', '.join(state.missing)}")
+        return 1
+    if state.unreachable:
+        print(f"⚠️ {tag} is cut and has no tag; nuget.org was not reachable ({len(state.unreachable)}/{len(package_ids)} "
+              "packages could not be read), so it is not known whether it was published.")
+        return 0
+    print(f"ℹ️ {tag} is cut and waits to be published: none of its packages is on nuget.org yet, and it has no tag.")
+    return 0
+
+
+def remote_state_check(
+    root: pathlib.Path = ROOT,
+    ci_remote: str = "origin",
+    tag_hint: Callable[[str], str] = _generic_tag_hint,
+) -> int:
     """Reads what only the remote knows: did the last release tag reach nuget.org, and what did the last CI run say.
 
     Fails only for a proven gap: nuget.org answered and a package the release tag should have pushed is not
-    there. Everything the run cannot read (no network, no `gh`) is a warning, so a closing run offline still
-    finishes, and a red CI run is a warning because the branch may be mid-repair.
+    there, or a cut release is on nuget.org and has no tag. Everything the run cannot read (no network, no `gh`)
+    is a warning, so a closing run offline still finishes, and a red CI run is a warning because the branch may
+    be mid-repair.
     """
     sys.path.insert(0, str(ROOT / "scripts"))
     import breaking_changes
@@ -4055,6 +4260,8 @@ def remote_state_check(root: pathlib.Path = ROOT, ci_remote: str = "origin") -> 
 
         if not state.missing and not state.unreachable:
             print(f"✅ v{version}: all {state.published} packages are on nuget.org")
+
+        exit_code = max(exit_code, _untagged_release_state(root, version, tag_hint))
 
     ci = remote_state.ci_state(root, ci_remote)
 
@@ -4171,6 +4378,21 @@ def build_parser() -> tuple[argparse.ArgumentParser, Any]:
     release.add_argument(
         "--package-directory",
         help="rehearse without packing: the output of 'gate.py pack'; the directory does not change")
+    release_version = subparsers.add_parser(
+        "release-version",
+        help="validate the version input of a manual run and stamp the job's environment with it (MinVerVersionOverride)")
+    release_version.add_argument("version", help="the version input; empty means an ordinary run")
+    release_version.add_argument(
+        "--publish", default="false", help="'true' when the run was asked to publish: then an empty version is refused")
+    release_version.add_argument(
+        "--env-file", help="append the environment line here ($GITHUB_ENV); without it the version is only validated")
+    guard = subparsers.add_parser(
+        "publish-guard", help="may these verified packages go to nuget.org, given what their version has there already")
+    guard.add_argument("--package-directory", required=True, help="the verified set: the directory with the manifest")
+    published = subparsers.add_parser(
+        "verify-published", help="is every package of a version on nuget.org, built from the given commit")
+    published.add_argument("--version", required=True)
+    published.add_argument("--commit", required=True, help="the commit the packages must name (a tag run: github.sha)")
     # CI's single pack. There is NO bypass option.
     pack = subparsers.add_parser("pack", help="pack the tested build with --no-build, and write a manifest")
     pack.add_argument(
@@ -4241,7 +4463,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
         if args.print_commands:
             print("(network) api.nuget.org flat container + `gh run list` -> the last release tag and the last CI run")
             return 0
-        return remote_state_check(ci_remote=extension.ci_remote)
+        return remote_state_check(ci_remote=extension.ci_remote, tag_hint=extension.tag_hint)
     if args.stage == "perf":
         if args.print_commands:
             print("$ dotnet run -c Release --project bench/Tracon.Benchmarks -- --filter * --exporters json")
@@ -4265,6 +4487,22 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             print(f"(no dotnet call) {args.directory}/{PACKAGE_MANIFEST_NAME} -> the raw SHA-256 of every file")
             return 0
         return verify_package_directory(pathlib.Path(args.directory).resolve())
+    if args.stage == "release-version":
+        if args.print_commands:
+            print("(no dotnet call) validate the version input -> MinVerVersionOverride=<version> into the environment file")
+            return 0
+        return stamp_release_version(
+            args.version, args.publish, pathlib.Path(args.env_file) if args.env_file else None)
+    if args.stage == "publish-guard":
+        if args.print_commands:
+            print("(network) api.nuget.org flat container: the nuspec commit of every package of the manifest's version")
+            return 0
+        return publish_guard(pathlib.Path(args.package_directory).resolve())
+    if args.stage == "verify-published":
+        if args.print_commands:
+            print("(network) api.nuget.org flat container: every packable package of the version names the commit")
+            return 0
+        return verify_published(args.version, args.commit)
     if args.stage == "pack":
         if args.print_commands:
             print(f"$ {pack_command(args.output, ('<baseline properties>',), no_build=True).display}")

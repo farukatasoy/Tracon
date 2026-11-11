@@ -509,33 +509,54 @@ def read_breaking_changes(report_dir: pathlib.Path) -> BreakingChanges:
 # -----------------------------------------------------------------------------
 
 
-def release_notes_for(changelog: pathlib.Path, version: str) -> tuple[str | None, str | None]:
+def release_notes_for(
+    changelog: pathlib.Path, version: str, baseline: str | None = None,
+) -> tuple[str | None, str | None]:
     """The notes a release of `version` ships and their heading.
 
     Read with `changelog.read_release_notes`, never from `[Unreleased]`
-    alone: at tag time that heading is renamed to the version."""
+    alone: at tag time that heading is renamed to the version.
+
+    A cut waits for its tag (`pending_cut`): the run of the cut commit resolves
+    to the previous tag plus a commit count, so no section carries its version.
+    With a `baseline` the notes of that cut are read, together with whatever
+    `[Unreleased]` holds, because every change since the baseline ships in one
+    of the two."""
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     import changelog as changelog_module
 
-    return changelog_module.read_release_notes(changelog, version)
+    notes, heading = changelog_module.read_release_notes(changelog, version)
+    if baseline is None or heading == version:
+        return notes, heading
+
+    cut = pending_cut(changelog, baseline)
+    if cut is None or cut == version:
+        return notes, heading
+
+    text = changelog.read_text(encoding="utf-8")
+    cut_notes = changelog_module.section_body(text, cut)
+    if not cut_notes:
+        return notes, heading
+
+    unreleased = changelog_module.section_body(text, changelog_module.UNRELEASED)
+    if not unreleased:
+        return cut_notes, cut
+    return f"{cut_notes}\n\n{unreleased}", f"{cut} and {changelog_module.UNRELEASED}"
 
 
-def untagged_cut_hint(changelog: pathlib.Path, baseline: str) -> str | None:
-    """A version section above the baseline with no tag yet.
+def pending_cut(changelog: pathlib.Path, baseline: str) -> str | None:
+    """The version of a cut that waits for its tag, or `None`.
 
-    The cut commit and its tag are pushed together; until the tag exists the
-    rehearsal cannot know the section is the one it ships."""
+    A release is cut first (its CHANGELOG section gets a date), then a run of the
+    cut commit publishes the packages, and the tag follows. Until the tag exists the
+    topmost dated section is above the baseline. A burned tag has no dated section,
+    so it never reads as a pending cut."""
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     import changelog as changelog_module
 
-    for line in changelog.read_text(encoding="utf-8").splitlines():
-        match = changelog_module.SECTION_HEADER_PATTERN.match(line)
-        if not match or match.group("version") == changelog_module.UNRELEASED:
-            continue
-        version = match.group("version")
-        if _parse_version(version) is not None and version_is_above_baseline(version, baseline):
-            return version
-        return None
+    latest = changelog_module.latest_released_version(changelog.read_text(encoding="utf-8"))
+    if latest is not None and _parse_version(latest) is not None and version_is_above_baseline(latest, baseline):
+        return latest
     return None
 
 
@@ -1008,15 +1029,13 @@ def check(
     notes, heading = (None, None)
     breaking_needs_notes = not line.frozen and not changes.is_empty
     if breaking_needs_notes or contract:
-        notes, heading = release_notes_for(changelog, version)
+        notes, heading = release_notes_for(changelog, version, baseline)
         if notes is None:
             subject = "A breaking change exists" if breaking_needs_notes else "A contract test was added"
             print(f"❌ {subject} but there are no release notes for '{version}' (baseline v{baseline}).")
-            cut = untagged_cut_hint(changelog, baseline)
+            cut = pending_cut(changelog, baseline)
             if cut:
-                print(
-                    f"   The '## [{cut}]' section exists but its tag does not: push the cut commit and the tag together "
-                    f"(git push --atomic origin main v{cut}).")
+                print(f"   The '## [{cut}]' section is the cut waiting for its tag, but it has no body: write the notes there.")
             failed = True
 
         if breaking_needs_notes:

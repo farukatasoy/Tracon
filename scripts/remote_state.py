@@ -23,6 +23,7 @@ import ssl
 import subprocess
 import urllib.error
 import urllib.request
+import xml.etree.ElementTree as ET
 from collections.abc import Callable, Sequence
 
 NUGET_FLAT_CONTAINER = "https://api.nuget.org/v3-flatcontainer"
@@ -198,6 +199,97 @@ def release_state(
             missing.append(package_id)
 
     return ReleaseState(version, tuple(missing), tuple(unreachable), published)
+
+
+@dataclasses.dataclass(frozen=True)
+class ReleaseCommits:
+    """The commit every package of one version carries, as nuget.org's nuspec names it.
+
+    Three answers per package, never two: it carries a commit, it is not there, or nuget.org could not say.
+    """
+
+    version: str
+    commits: dict[str, str | None]
+    """Package id -> the commit its nuspec names (lower-cased); `None` when the nuspec names no commit."""
+    absent: tuple[str, ...]
+    unreachable: tuple[str, ...]
+
+    @property
+    def distinct(self) -> frozenset[str | None]:
+        """Every commit the published packages name; one element when the release is clean."""
+        return frozenset(self.commits.values())
+
+    def foreign(self, commit: str) -> dict[str, str | None]:
+        """The published packages whose nuspec names a commit other than `commit`."""
+        wanted = commit.lower()
+        return {package: named for package, named in self.commits.items() if named != wanted}
+
+
+def nuspec_commit(body: str) -> str | None:
+    """The `commit` attribute of a nuspec's `<repository>` element, lower-cased; `None` when it names none.
+
+    Raises `ValueError` for a body that is not a nuspec document.
+    """
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError as error:
+        raise ValueError(f"the nuspec is not XML: {error}") from error
+
+    for element in root.iter():
+        if element.tag.rpartition("}")[2] == "repository":
+            commit = element.get("commit")
+            return commit.lower() if commit else None
+
+    return None
+
+
+def release_commits(
+    package_ids: Sequence[str],
+    version: str,
+    *,
+    fetcher: Fetcher = fetch,
+) -> ReleaseCommits:
+    """Reads the nuspec of every package of `version` and sorts the answers.
+
+    After `GIVE_UP_AFTER_UNREACHABLE` unanswered packages in a row the rest are not asked, as in `release_state`.
+    """
+    commits: dict[str, str | None] = {}
+    absent: list[str] = []
+    unreachable: list[str] = []
+    silent = 0
+    wanted = version.lower()
+
+    for package_id in package_ids:
+        if silent >= GIVE_UP_AFTER_UNREACHABLE:
+            unreachable.append(package_id)
+            continue
+
+        lowered = package_id.lower()
+        status, body = fetcher(f"{NUGET_FLAT_CONTAINER}/{lowered}/{wanted}/{lowered}.nuspec")
+
+        if status == 404:
+            silent = 0
+            absent.append(package_id)
+            continue
+
+        commit: str | None = None
+        answered = status == 200
+
+        if answered:
+            try:
+                commit = nuspec_commit(body)
+            except ValueError:
+                answered = False
+
+        if not answered:
+            silent += 1
+            unreachable.append(package_id)
+            continue
+
+        silent = 0
+        commits[package_id] = commit
+
+    return ReleaseCommits(version, commits, tuple(absent), tuple(unreachable))
 
 
 _SLUG = re.compile(r"(?:[:/])(?P<slug>[^/:]+/[^/]+?)(?:\.git)?$")
