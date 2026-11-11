@@ -967,6 +967,42 @@ class GateTests(unittest.TestCase):
         self.assertEqual(
             len(mutated("          name: bin-${{ matrix.os }}\n", "          name: bin-${{ matrix.os }}\n          overwrite: true\n")), 1)
 
+    def test_every_ci_test_job_describes_the_runner_and_uploads_the_failure_evidence(self):
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        test_jobs = [name for name in _ci_jobs(text) if "path: artifacts/test-results/**/*.trx" in _job_block(text, name)]
+        self.assertGreaterEqual(len(test_jobs), 14, test_jobs)
+        for name in test_jobs:
+            block = _job_block(text, name)
+            self.assertIn("uses: ./.github/actions/runner-card", block, name)
+            self.assertIn("path: artifacts/test-results/**/evidence*/**", block, name)
+
+    def test_windows_test_jobs_use_the_runners_own_temporary_directory_before_the_first_test(self):
+        # Measured on nine Windows jobs: a SQLite commit loop in the system temporary directory was 9 to 30 times slower
+        # than in the runner's own (the card prints both). Test databases live in the temporary directory.
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        windows = [name for name in _ci_jobs(text)
+                   if "runs-on: windows-latest" in _job_block(text, name)
+                   and "path: artifacts/test-results/**/*.trx" in _job_block(text, name)]
+        self.assertEqual(len(windows), 3, windows)
+        for name in windows:
+            block = _job_block(text, name)
+            move = block.find('echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"')
+            self.assertGreater(move, -1, name)
+            self.assertIn('echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"', block, name)
+            self.assertLess(move, block.find("dotnet test"), name)
+            # The card is taken before the move, so it keeps describing the machine as it is.
+            self.assertLess(block.find("uses: ./.github/actions/runner-card"), move, name)
+
+    def test_the_failure_evidence_is_proved_by_a_failing_test_on_ubuntu_and_on_windows(self):
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        for kind in ("pulse", "host", "page"):
+            systems = {
+                "windows" if "runs-on: windows-latest" in _job_block(text, name) else "ubuntu"
+                for name in _ci_jobs(text)
+                if f"uses: ./.github/actions/evidence-selftest\n        with:\n          kind: {kind}\n" in _job_block(text, name)
+            }
+            self.assertEqual(systems, {"ubuntu", "windows"}, kind)
+
     def _trx(self, root: pathlib.Path, project: str, results: list[tuple[str, str]], output_dir: str = "release") -> None:
         # MTP 2 `--results-directory-layout per-module`: <project>/<tfm>_<architecture>/*.trx.
         # `codeBase` carries the path of the binary the test ran from; on Windows it comes with backslashes.

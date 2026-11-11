@@ -13,6 +13,8 @@ internal sealed class Session : IAsyncDisposable
 {
     private const int BodyTextLimit = 600;
 
+    private const int EventLimit = 400;
+
     private readonly IBrowserContext _context;
     private readonly List<string> _events = [];
 
@@ -30,6 +32,18 @@ internal sealed class Session : IAsyncDisposable
         };
         page.PageError += (_, error) => Record($"page error: {error}");
         page.RequestFailed += (_, request) => Record($"request failed: {request.Method} {request.Url} ({request.Failure})");
+        page.Request += (_, request) =>
+        {
+            // The trace carries no network log (see OpenAsync), so the calls to the product's API are written down here, with
+            // whether the request carried the bearer header: a page that shows "the server rejected that token" is otherwise
+            // a 401 with nobody able to say what was sent.
+            if (request.Url.Contains("/api/", StringComparison.Ordinal))
+            {
+                var bearer = request.Headers.ContainsKey("authorization") ? "with" : "without";
+
+                Record($"request: {request.Method} {new Uri(request.Url).PathAndQuery} ({bearer} an authorization header)");
+            }
+        };
         page.Response += (_, response) =>
         {
             if (response.Status >= 400)
@@ -99,7 +113,10 @@ internal sealed class Session : IAsyncDisposable
     {
         lock (_events)
         {
-            _events.Add(line);
+            if (_events.Count < EventLimit)
+            {
+                _events.Add(line);
+            }
         }
     }
 
