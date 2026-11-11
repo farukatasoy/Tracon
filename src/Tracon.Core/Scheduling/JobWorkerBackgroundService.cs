@@ -395,6 +395,7 @@ internal sealed class JobWorkerBackgroundService(
                 now,
                 startedAt,
                 UnregisteredHandlerKeyTag,
+                CallBudgetOf(options.LeaseDuration),
                 stoppingToken).ConfigureAwait(false);
 
             return;
@@ -430,6 +431,7 @@ internal sealed class JobWorkerBackgroundService(
                 now,
                 startedAt,
                 job.HandlerKey,
+                CallBudgetOf(options.LeaseDuration),
                 stoppingToken).ConfigureAwait(false);
 
             return;
@@ -481,6 +483,7 @@ internal sealed class JobWorkerBackgroundService(
                     _clock.GetUtcNow(),
                     startedAt,
                     job.HandlerKey,
+                    CallBudgetOf(options.LeaseDuration),
                     stoppingToken).ConfigureAwait(false);
 
                 return;
@@ -502,6 +505,10 @@ internal sealed class JobWorkerBackgroundService(
     /// when it is registered; <see cref="UnregisteredHandlerKeyTag"/> when it
     /// is not, so an arbitrary key cannot give the tag unbounded cardinality.
     /// </param>
+    /// <param name="callBudget">
+    /// How long each store call may take (<see cref="CallBudgetOf"/>): no renewal runs here, so a call that never answers
+    /// would hold the worker's slot for ever; see <see cref="CallWithinAsync{T}"/>.
+    /// </param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
     private async Task FailWithoutRunningAsync(
         JobRecord job,
@@ -509,23 +516,28 @@ internal sealed class JobWorkerBackgroundService(
         DateTimeOffset completedAt,
         long startedAt,
         string handlerKeyTag,
+        TimeSpan callBudget,
         CancellationToken stoppingToken)
     {
-        var closed = await jobStore.CompleteAsync(
-            LeaseOf(job),
-            new JobCompletion
-            {
-                Status = JobStatus.Failed,
-                CompletedAt = completedAt,
-                ErrorMessage = errorMessage,
-            },
+        var completion = new JobCompletion
+        {
+            Status = JobStatus.Failed,
+            CompletedAt = completedAt,
+            ErrorMessage = errorMessage,
+        };
+
+        var closed = await CallWithinAsync(
+            job,
+            "completion without running",
+            ct => jobStore.CompleteAsync(LeaseOf(job), completion, ct),
+            callBudget,
             stoppingToken).ConfigureAwait(false);
 
         if (!closed)
         {
             // Not closed: the job was cancelled in the meantime, or its lease went to
             // another worker, which counts and publishes the outcome itself.
-            if (await IsCancelledAfterRefusalAsync(job, "fail it", Timeout.InfiniteTimeSpan, stoppingToken).ConfigureAwait(false))
+            if (await IsCancelledAfterRefusalAsync(job, "fail it", callBudget, stoppingToken).ConfigureAwait(false))
             {
                 RecordJobMetric(job, JobStatus.Cancelled, startedAt, handlerKeyTag);
             }
@@ -545,13 +557,18 @@ internal sealed class JobWorkerBackgroundService(
         long leaseRequestedAt,
         CancellationToken stoppingToken)
     {
-        if (!await jobStore.MarkRunningAsync(LeaseOf(job), stoppingToken).ConfigureAwait(false))
+        // 🚨 Nothing renews the lease until StartLeaseRenewal below, so a store call that never answers would hold this
+        // worker's slot for ever while the job went back to another worker. Each call is given one lease, as the calls of
+        // the finalization are (see CallWithinAsync).
+        var callBudget = CallBudgetOf(options.LeaseDuration);
+
+        if (!await CallWithinAsync(job, "mark running", ct => jobStore.MarkRunningAsync(LeaseOf(job), ct), callBudget, stoppingToken).ConfigureAwait(false))
         {
             // The job left Leased between the lease and here: it was cancelled,
             // or its lease went to another worker. Either way it is not this
             // worker's to run (the result used to be ignored, and a job
             // cancelled in that window ran anyway).
-            var latest = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false);
+            var latest = await CallWithinAsync(job, "status read", ct => jobStore.GetAsync(job.TenantId, job.Id, ct), callBudget, stoppingToken).ConfigureAwait(false);
 
             if (latest?.Status == JobStatus.Cancelled)
             {
@@ -565,7 +582,7 @@ internal sealed class JobWorkerBackgroundService(
             return;
         }
 
-        var items = await jobStore.ListItemsAsync(job.Id, stoppingToken).ConfigureAwait(false);
+        var items = await CallWithinAsync(job, "item listing", ct => jobStore.ListItemsAsync(job.Id, ct), callBudget, stoppingToken).ConfigureAwait(false);
 
         // The renewal stays on until the outcome below is written, not only
         // while the handler runs: a store error is retried under a live lease.
@@ -593,10 +610,27 @@ internal sealed class JobWorkerBackgroundService(
         {
             Job = job,
             Items = items,
-            ReportItemAsync = (result, ct) => jobStore.ReportItemAsync(result, ct),
+
+            // The handler's own store calls are bounded the same way: the renewal keeps the lease alive for as long as the
+            // handler runs, so a call that never answered would keep the job Running with no end, and the handler's time
+            // limit could not reach it (it cancels a token the hung call does not read).
+            ReportItemAsync = async (result, ct) =>
+            {
+                _ = await CallWithinAsync(
+                    job,
+                    "item report",
+                    async token =>
+                    {
+                        await jobStore.ReportItemAsync(result, token).ConfigureAwait(false);
+
+                        return true;
+                    },
+                    callBudget,
+                    ct).ConfigureAwait(false);
+            },
             IsCancelledAsync = async ct =>
             {
-                var current = await jobStore.GetAsync(job.TenantId, job.Id, ct).ConfigureAwait(false);
+                var current = await CallWithinAsync(job, "cancel check", token => jobStore.GetAsync(job.TenantId, job.Id, token), callBudget, ct).ConfigureAwait(false);
                 return current is null || current.Status == JobStatus.Cancelled;
             },
 
@@ -1415,7 +1449,13 @@ internal sealed class JobWorkerBackgroundService(
 
             try
             {
-                latest = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false) ?? job;
+                // No renewal runs any more: a read that never answered would hold the worker's slot for ever.
+                latest = await CallWithinAsync(
+                    job,
+                    "outcome read",
+                    ct => jobStore.GetAsync(job.TenantId, job.Id, ct),
+                    CallBudgetOf(optionsMonitor.CurrentValue.LeaseDuration),
+                    stoppingToken).ConfigureAwait(false) ?? job;
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {
@@ -1847,7 +1887,7 @@ internal sealed class JobWorkerBackgroundService(
     /// </remarks>
     private async Task StopRefusedRenewalAsync(JobRecord job, LeaseRenewal renewal, CancellationToken token)
     {
-        var current = await jobStore.GetAsync(job.TenantId, job.Id, token).ConfigureAwait(false);
+        var current = await CallWithinAsync(job, "status read after a refused renewal", ct => jobStore.GetAsync(job.TenantId, job.Id, ct), renewal.CallBudget, token).ConfigureAwait(false);
 
         if (current is null || current.Status == JobStatus.Cancelled || token.IsCancellationRequested)
         {

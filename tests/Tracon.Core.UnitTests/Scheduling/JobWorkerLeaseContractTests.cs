@@ -1383,6 +1383,173 @@ public sealed class JobWorkerLeaseContractTests
         await worker.StopAsync(TestContext.Current.CancellationToken);
     }
 
+    // --- Store calls made before the lease renewal starts, and by the handler through its context ---
+    //
+    // A call that neither answers nor throws used to hold the worker's slot for ever: nothing renews the lease before the
+    // handler starts, so the job comes back to another worker once the lease runs out, but this worker never took another
+    // one. Every such call is now given one lease, as the calls of the finalization are.
+
+    /// <summary>
+    /// A <c>MarkRunningAsync</c> that never answers is given up after one lease, its token is cancelled, and the job is run
+    /// by the next attempt.
+    /// </summary>
+    [Fact]
+    public async Task A_mark_running_call_that_never_answers_does_not_hold_the_slot_beyond_one_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new HangingStartJobStore(clock) { HoldFirstMarkRunning = true };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(ManualPoll), "the worker to arm its poll timer");
+        clock.Advance(ManualPoll);
+
+        await WaitUntil.TrueAsync(() => jobs.MarkRunningCalls >= 1, "the mark-running call to be sent");
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(ManualLease), "the worker to start timing the call");
+        clock.Advance(ManualLease);
+
+        await WaitUntil.TrueAsync(() => jobs.HeldCallCancelled, "the worker to cancel the call it gave up on");
+        await RunSecondAttemptAsync(jobs, clock, handler);
+
+        handler.Release();
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>The same for the read of the job's items that comes right after the job is marked running.</summary>
+    [Fact]
+    public async Task An_item_listing_that_never_answers_does_not_hold_the_slot_beyond_one_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new HangingStartJobStore(clock) { HoldFirstItemListing = true };
+        var handler = new StopsWhenCancelledHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(ManualPoll), "the worker to arm its poll timer");
+        clock.Advance(ManualPoll);
+
+        await WaitUntil.TrueAsync(() => jobs.ItemListingCalls >= 1, "the item listing to be sent");
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(ManualLease), "the worker to start timing the call");
+        clock.Advance(ManualLease);
+
+        await WaitUntil.TrueAsync(() => jobs.HeldCallCancelled, "the worker to cancel the call it gave up on");
+        await RunSecondAttemptAsync(jobs, clock, handler);
+
+        handler.Release();
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>The same for the write that closes a job whose handler is not registered, which runs without a renewal too.</summary>
+    [Fact]
+    public async Task A_completion_without_running_that_never_answers_does_not_hold_the_slot_beyond_one_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new HangingStartJobStore(clock) { HoldFirstCompletion = true };
+
+        // No handler is registered for the job's key, so the worker closes the job as Failed without running anything.
+        using var host = TestJobHandlerHost.For();
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(ManualPoll), "the worker to arm its poll timer");
+        clock.Advance(ManualPoll);
+
+        await WaitUntil.TrueAsync(() => jobs.CompletionCalls >= 1, "the completion to be sent");
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(ManualLease), "the worker to start timing the call");
+        clock.Advance(ManualLease);
+
+        await WaitUntil.TrueAsync(() => jobs.HeldCallCancelled, "the worker to cancel the call it gave up on");
+
+        // The slot is free again: the next attempt leases the job and closes it.
+        var record = await WaitUntil.ValueAsync(
+            () =>
+            {
+                clock.Advance(ManualPoll);
+
+                return jobs.PeekAsync(jobId).AsTask();
+            },
+            static job => job?.Status == JobStatus.Failed,
+            "the next attempt to close the job");
+
+        record!.Status.ShouldBe(JobStatus.Failed);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>
+    /// The handler's own store call is given one lease too: an item report that never answers ends in a timeout the handler sees,
+    /// where it used to keep the job Running with the lease renewed for as long as the process lived.
+    /// </summary>
+    [Fact]
+    public async Task An_item_report_the_handler_makes_that_never_answers_ends_in_a_timeout_after_one_lease()
+    {
+        var clock = new ManualClock();
+        var jobs = new HangingStartJobStore(clock) { HoldFirstItemReport = true };
+        var handler = new ReportsOneItemHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(ManualPoll), "the worker to arm its poll timer");
+        clock.Advance(ManualPoll);
+
+        await WaitUntil.TrueAsync(() => jobs.ItemReportCalls >= 1, "the item report to be sent");
+        await WaitUntil.TrueAsync(() => clock.Pending.Contains(ManualLease), "the worker to start timing the call");
+        clock.Advance(ManualLease);
+
+        var failure = await handler.Outcome.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        failure.ShouldBeOfType<TimeoutException>();
+        // The token is cancelled on the thread pool, a moment after the handler has seen the timeout.
+        await WaitUntil.TrueAsync(() => jobs.HeldCallCancelled, "the worker to cancel the call it gave up on");
+
+        // The attempt failed with the timeout and is retried: the job is not stuck Running.
+        var record = await WaitUntil.ValueAsync(
+            () =>
+            {
+                clock.Advance(ManualPoll);
+
+                return jobs.PeekAsync(jobId).AsTask();
+            },
+            static job => job is { Status: JobStatus.Completed or JobStatus.Failed },
+            "the job to be retried and finished");
+
+        record!.Status.ShouldBe(JobStatus.Completed);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>
+    /// Once the slot is free the poll leases the job again (the lease the hung call belonged to has run out) and the handler
+    /// starts. The clock is advanced until it does, because a poll on a manual clock happens only when the clock moves.
+    /// </summary>
+    private static async Task RunSecondAttemptAsync(HangingStartJobStore jobs, ManualClock clock, StopsWhenCancelledHandler handler)
+    {
+        await WaitUntil.TrueAsync(
+            () =>
+            {
+                clock.Advance(ManualPoll);
+
+                return handler.Started.IsCompleted;
+            },
+            "the next attempt to start the handler");
+
+        jobs.LeaseCalls.ShouldBeGreaterThanOrEqualTo(2);
+    }
+
     /// <summary>Starts the worker on <paramref name="clock"/>, gives it its first tick, and waits until the handler is running.</summary>
     private static async Task StartAttemptAsync(JobWorkerBackgroundService worker, ManualClock clock, Task started, TimeSpan? poll = null)
     {
@@ -1637,7 +1804,7 @@ public sealed class JobWorkerLeaseContractTests
         public virtual ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
             => Inner.ListItemsAsync(jobId, cancellationToken);
 
-        public ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
+        public virtual ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
             => Inner.ReportItemAsync(item, cancellationToken);
 
         public ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default)
@@ -1820,6 +1987,104 @@ public sealed class JobWorkerLeaseContractTests
 
     /// <summary>Waits until its token is cancelled (or it is released) and records why the worker cancelled it.</summary>
     /// <param name="returnsNormally">Returns when cancelled, as a handler that swallows the cancellation does; throws otherwise.</param>
+    /// <summary>
+    /// Answers the calls a worker makes before it renews a lease as a store that has hung would: the first call of the kind the
+    /// test names neither answers nor throws and never ends, and a cancellation of its token is recorded. Every other call
+    /// reaches the store.
+    /// </summary>
+    private sealed class HangingStartJobStore(ManualClock clock) : DelegatingJobStore(clock)
+    {
+        private int _leaseCalls;
+        private int _markRunningCalls;
+        private int _itemListingCalls;
+        private int _completionCalls;
+        private int _itemReportCalls;
+        private int _heldCallCancelled;
+
+        public bool HoldFirstMarkRunning { get; init; }
+
+        public bool HoldFirstItemListing { get; init; }
+
+        public bool HoldFirstCompletion { get; init; }
+
+        public bool HoldFirstItemReport { get; init; }
+
+        public int LeaseCalls => Volatile.Read(ref _leaseCalls);
+
+        public int MarkRunningCalls => Volatile.Read(ref _markRunningCalls);
+
+        public int ItemListingCalls => Volatile.Read(ref _itemListingCalls);
+
+        public int CompletionCalls => Volatile.Read(ref _completionCalls);
+
+        public int ItemReportCalls => Volatile.Read(ref _itemReportCalls);
+
+        public bool HeldCallCancelled => Volatile.Read(ref _heldCallCancelled) == 1;
+
+        public override ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _leaseCalls);
+
+            return base.LeaseAsync(request, cancellationToken);
+        }
+
+        public override ValueTask<bool> MarkRunningAsync(JobLease lease, CancellationToken cancellationToken = default)
+            => Interlocked.Increment(ref _markRunningCalls) == 1 && HoldFirstMarkRunning
+                ? Hold<bool>(cancellationToken)
+                : base.MarkRunningAsync(lease, cancellationToken);
+
+        public override ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
+            => Interlocked.Increment(ref _itemListingCalls) == 1 && HoldFirstItemListing
+                ? Hold<IReadOnlyList<JobItemRecord>>(cancellationToken)
+                : base.ListItemsAsync(jobId, cancellationToken);
+
+        public override ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+            => Interlocked.Increment(ref _completionCalls) == 1 && HoldFirstCompletion
+                ? Hold<bool>(cancellationToken)
+                : base.CompleteAsync(lease, completion, cancellationToken);
+
+        public override ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
+            => Interlocked.Increment(ref _itemReportCalls) == 1 && HoldFirstItemReport
+                ? new ValueTask(Hold<bool>(cancellationToken).AsTask())
+                : base.ReportItemAsync(item, cancellationToken);
+
+        private ValueTask<T> Hold<T>(CancellationToken cancellationToken)
+        {
+            // A store that has hung does not look at its token; the test only needs to know it was cancelled.
+            cancellationToken.Register(() => Volatile.Write(ref _heldCallCancelled, 1));
+
+            return new ValueTask<T>(new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously).Task);
+        }
+    }
+
+    /// <summary>Reports one item through its context, records how the first report ended, and completes on any later attempt.</summary>
+    private sealed class ReportsOneItemHandler : IJobHandler
+    {
+        private int _calls;
+
+        public TaskCompletionSource<Exception?> Outcome { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            var attempt = Interlocked.Increment(ref _calls);
+
+            try
+            {
+                await context.ReportItemAsync(
+                    new JobItemResult { JobId = context.Job.Id, Seq = 0, Status = JobItemStatus.Completed },
+                    cancellationToken);
+
+                _ = Outcome.TrySetResult(null);
+            }
+            catch (Exception exception) when (attempt == 1)
+            {
+                _ = Outcome.TrySetResult(exception);
+
+                throw;
+            }
+        }
+    }
+
     private sealed class StopsWhenCancelledHandler(bool returnsNormally = false) : IJobHandler
     {
         private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
