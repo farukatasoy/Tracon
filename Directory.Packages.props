@@ -219,11 +219,11 @@
     These packages live only under samples/ and enter the graph of no shipped package;
     Tracon exposes its own `ActivitySource` and `Meter` names, and the consumer's
     application chooses the export (docs-site guides/observability.md).
-    The `Aspire.AppHost.Sdk` version lives in the csproj's `Sdk=` attribute (13.6.4);
+    The `Aspire.AppHost.Sdk` version lives in the csproj's `Sdk=` attribute (13.6.5);
     it must match the hosting package here.
   -->
   <ItemGroup Label="Sample-only: Aspire and OpenTelemetry">
-    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.1" />

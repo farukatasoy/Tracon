@@ -34,7 +34,7 @@ The AppHost project uses `Aspire.AppHost.Sdk` and references your Tracon host pr
 package.
 
 ```xml
-<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -43,7 +43,7 @@ package.
 
   <ItemGroup>
     <ProjectReference Include="../YourTraconHost/YourTraconHost.csproj" />
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
   </ItemGroup>
 
 </Project>
