@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Tracon.Workflows.UnitTests.Fakes;
 
 namespace Tracon.Workflows.UnitTests;
@@ -339,11 +340,22 @@ public sealed class WorkflowStructuralChangeResumeTests
         (await ResumeFailureAsync(host, runAndCheckpoint, edited.Version)).ShouldNotBeNull().ShouldContain("structure differs", Case.Sensitive);
     }
 
-    /// <summary>Resumes from the checkpoint; returns the error the run reports, or <see langword="null"/> when it resumed.</summary>
+    /// <summary>
+    /// Resumes from the checkpoint; returns the error the run reports, or <see langword="null"/> when it resumed.
+    /// </summary>
+    /// <remarks>
+    /// The text of a failed run is a correlation id, never the exception (the record is read over HTTP), so a resume that
+    /// failed for a reason the test did not expect said nothing about it. The exceptions the runner logged while it ran
+    /// are added to the returned text, so a failure that shows up once on a CI leg and not again carries its own stack.
+    /// </remarks>
     private static async Task<string?> ResumeFailureAsync(WorkflowTestHost host, string runAndCheckpoint, int? definitionVersion = null)
     {
         var parts = runAndCheckpoint.Split('|');
         var events = new List<RunEvent>();
+        var logs = new CapturingLoggerProvider();
+
+        using var factory = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Warning).AddProvider(logs));
+        host.RunnerLogger = factory.CreateLogger<WorkflowRunner>();
 
         try
         {
@@ -362,8 +374,22 @@ public sealed class WorkflowStructuralChangeResumeTests
             return exception.Message;
         }
 
-        return events.FirstOrDefault(static runEvent => runEvent.Type == RunEventType.RunFailed)?.Text
-               ?? (events.Any(static runEvent => runEvent.Type == RunEventType.RunFailed) ? "failed" : null);
+        var failure = events.FirstOrDefault(static runEvent => runEvent.Type == RunEventType.RunFailed)?.Text
+                      ?? (events.Any(static runEvent => runEvent.Type == RunEventType.RunFailed) ? "failed" : null);
+
+        return failure is null ? null : failure + LoggedFaults(logs);
+    }
+
+    private static string LoggedFaults(CapturingLoggerProvider logs)
+    {
+        var faults = logs.Entries
+            .Where(static entry => entry.Exception is not null)
+            .Select(static entry => $"{entry.Exception!.GetType().Name}: {entry.Exception.Message}{Environment.NewLine}{entry.Exception.StackTrace}")
+            .ToList();
+
+        return faults.Count == 0
+            ? string.Empty
+            : $"{Environment.NewLine}[logged by the runner]{Environment.NewLine}{string.Join(Environment.NewLine, faults)}";
     }
 
     private static WorkflowHandoff Edge(string from, string to) => new() { From = from, To = to };
