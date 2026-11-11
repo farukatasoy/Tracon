@@ -37,6 +37,7 @@ public sealed partial class TestTimeRatchetTests
     // clock: it is the database server's, the operating system's, an engine's or a vendor library's.
     private static readonly RealTimeSite[] RealTimeSites =
     [
+        new("src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs", 1, "the store's own clock has to step past a mark, which a test cannot move"),
         new("src/Tracon.Testing.Contracts.Xunit/Contracts/Scripts/SkillScriptExecutorContract.cs", 4, "a real child process that the executor has to stop"),
         new("tests/Shared/Infrastructure/DeltaStreamOverLatency.cs", 4, "a stream paced in real time by a model, over a real connection"),
         new("tests/Shared/Infrastructure/SqlLeaseUnderClockSkewContract.cs", 5, "a lease ends on the database server's clock, which a test cannot move"),

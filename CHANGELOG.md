@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.0.0-preview.11] - 2026-11-11
 
-This release moves every package to the MIT licence and changes the error body of the OpenAI-compatible routes for the refusals that come before a route's own code. It also closes two gaps: a quota period that could end before the instant it was asked about, and a job store call that could hold a worker's slot for ever. Only the error body of those refusals changes the shape of a response; no public .NET type is removed.
+This release moves every package to the MIT licence and changes the error body of the OpenAI-compatible routes for the refusals that come before a route's own code. It also closes two gaps: a quota period that could end before the instant it was asked about, and a job store call that could hold a worker's slot for ever. One shipped store contract test no longer fails a correct store now and then. Only the error body of those refusals changes the shape of a response; no public .NET type is removed.
 
 - **Every package is MIT.** From this version on, all NuGet packages and `@tracon/client` on npm ship under the MIT licence. The `.nuspec` declares
   `<license type="expression">MIT</license>` instead of `<license type="file">`, no package asks for licence acceptance on restore, and `LICENSE.md` at the package root is
@@ -41,6 +41,13 @@ This release moves every package to the MIT licence and changes the error body o
   What to do:
   - **Nothing, unless your own `IJobStore` can take longer than `LeaseDuration` to answer one of these calls.** A call that exceeds the budget ends the wait with a `TimeoutException` that the
     worker counts as any other store error, and the call is cancelled through the token it was given, as the closing calls already were. Raise `LeaseDuration` or make the store answer sooner.
+
+- **The run store contract no longer expects a store clock that steps by less than a millisecond.** `RunStoreContract.ClaimOrphanedRunsAsync_takes_only_a_threshold_inside_the_range` claimed a run
+  once with the shortest threshold (one millisecond) and expected it back. A database clock moves in steps (SQL Server's UTC clock on Linux steps about four milliseconds), so the mark of a run
+  started a moment before had not always been passed yet, and a correct store failed the test now and then: 12 to 23 percent of repeated runs on a local SQL Server 2025 and 2022. The test now asks
+  again until the clock has passed the threshold, for at most ten seconds.
+  What to do:
+  - **Nothing.** A store that passed the test passes it now. A store whose clock never moves past the mark fails it after ten seconds instead of at once.
 
 ## [1.0.0-preview.10] - 2026-11-11
 

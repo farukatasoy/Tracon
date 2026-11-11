@@ -3932,7 +3932,9 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     // A threshold outside one millisecond to a little over 68 years (zero or less would call a run that is beating
     // orphaned, and the SQL stores cannot subtract TimeSpan.MinValue) is refused before the cancellation token is looked
     // at and before any run is closed; the two ends of the range are accepted. The run was started with a start time ten
-    // minutes back; a store that marks a run when it starts has a mark that is older than one millisecond by the last call.
+    // minutes back. A store that marks a run when it starts ages the mark on its own clock, and a database clock moves in
+    // steps (SQL Server's UTC clock on Linux steps about four milliseconds), so the run is older than one millisecond only
+    // once the clock has stepped past the mark: the last claim is asked again until it has, not once.
     [Fact]
     public async Task ClaimOrphanedRunsAsync_takes_only_a_threshold_inside_the_range()
     {
@@ -3958,7 +3960,30 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         // Nothing is as old as a little over 68 years; the run is older than one millisecond.
         (await Store.ClaimOrphanedRunsAsync(LeaseDurationCases.Longest, max: 10)).ShouldBeEmpty();
-        (await Store.ClaimOrphanedRunsAsync(LeaseDurationCases.Shortest, max: 10)).ShouldHaveSingleItem().Id.ShouldBe(runId);
+        (await ClaimOnceTheStoresClockHasPassedAsync(LeaseDurationCases.Shortest)).ShouldHaveSingleItem().Id.ShouldBe(runId);
+    }
+
+    /// <summary>The longest, in time, a claim with a threshold shorter than the store's clock step is asked again.</summary>
+    private static readonly TimeSpan ClockStepBudget = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Claims with a threshold that is shorter than a step of the store's clock, and asks again until the clock has passed it.
+    /// </summary>
+    /// <param name="threshold">The threshold.</param>
+    /// <returns>The runs the first claim that took one returned, or what the last claim returned when the clock did not pass the threshold in <see cref="ClockStepBudget"/>.</returns>
+    private async Task<IReadOnlyList<RunRecord>> ClaimOnceTheStoresClockHasPassedAsync(TimeSpan threshold)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew(); // real time: the store's own clock has to step past a mark, which a test cannot move
+
+        while (true)
+        {
+            var claimed = await Store.ClaimOrphanedRunsAsync(threshold, max: 10, TestContext.Current.CancellationToken);
+
+            if (claimed.Count > 0 || watch.Elapsed > ClockStepBudget)
+            {
+                return claimed;
+            }
+        }
     }
 
     [Fact]
