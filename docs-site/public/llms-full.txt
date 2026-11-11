@@ -6375,7 +6375,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.9`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.10`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -6396,7 +6396,7 @@ comes from the provider's own documentation. The template writes it to
 `appsettings.json`; you do not edit any code.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.9
+dotnet new install Tracon.Templates@1.0.0-preview.10
 dotnet new tracon-api -n MyAgents --model gpt-5.4-mini
 cd MyAgents
 ```
@@ -6550,7 +6550,7 @@ persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
 :::note[Preview release]
-Packages and templates are published as `1.0.0-preview.9`. The
+Packages and templates are published as `1.0.0-preview.10`. The
 [first-agent guide](/getting-started/first-agent/) starts with the public template;
 pin the exact package version when reproducibility matters.
 :::
@@ -10225,7 +10225,7 @@ pointer file, set `TraconWriteLocalReference` to `false`.
 Source: https://tracon.dev/guides/cli/
 
 :::note[Preview package]
-The CLI is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+The CLI is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for a reproducible tool manifest.
 :::
 
@@ -10665,7 +10665,7 @@ credential meant for exactly this.
 Source: https://tracon.dev/guides/coding-agents/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19375,7 +19375,7 @@ and still reject a fenced payload at the application boundary.
 Source: https://tracon.dev/guides/testing/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19650,7 +19650,7 @@ mistake instead of hiding it.
 Source: https://tracon.dev/guides/typescript-client/
 
 :::note[Preview package]
-`@tracon/client` is published as `1.0.0-preview.9`. Install the `next` tag or pin
+`@tracon/client` is published as `1.0.0-preview.10`. Install the `next` tag or pin
 the exact version; do not use a floating range in production.
 :::
 
@@ -19887,7 +19887,7 @@ sync.
 Source: https://tracon.dev/guides/voice/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21097,7 +21097,7 @@ and `429`) is never retried, whatever class you return.
 Source: https://tracon.dev/guides/write-your-own-job-handler/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21337,7 +21337,7 @@ handler actually receives a queued job.
 Source: https://tracon.dev/guides/write-your-own-judge/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21482,7 +21482,7 @@ timeouts, persistence, or HTTP responses.
 Source: https://tracon.dev/guides/write-your-own-script-executor/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21684,7 +21684,7 @@ a new contract in a later package version does not go untested.
 Source: https://tracon.dev/guides/write-your-own-store/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21812,7 +21812,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.9` is extracted into your
+by package id and version, so once `1.0.0-preview.10` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.
@@ -22850,7 +22850,7 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.9`. The command below selects it from
+The current release is `1.0.0-preview.10`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 
@@ -23111,9 +23111,9 @@ assume.
 
 ## Releases
 
-<a id="v1.0.0-preview.9"></a>
+<a id="v1.0.0-preview.10"></a>
 
-### 1.0.0-preview.9 — 2026-11-11
+### 1.0.0-preview.10 — 2026-11-11
 
 This release is small. Hosts that register their own `TimeProvider` get that clock for the waits that used the system clock, and `@tracon/client` tells `onUnauthorized` which token the refused request carried, which fixes a console that dropped a token it had just been given. Neither breaks source.
 
@@ -23131,7 +23131,11 @@ This release is small. Hosts that register their own `TimeProvider` get that clo
   - **Nothing, unless the registered `TimeProvider` only moves when told to.** With `TimeProvider.System` (the default) nothing changes. A host or a test that registers a clock it
     advances by hand must advance it for these waits to end. The Anthropic client library sleeps on the system clock and does not follow it.
 
-[Read the 1.0.0-preview.9 entry](/reference/releases/1.0.0-preview.9/)
+- **The Aspire guide pins Aspire `13.6.5`.** The guide and the sample showed `13.6.4`, which carries a high severity advisory (GHSA-f7vh-h5g3-7jrh). Aspire is not part of any Tracon package.
+  What to do:
+  - **If you copied the AppHost project from the guide, move `Aspire.AppHost.Sdk` and `Aspire.Hosting.PostgreSQL` to `13.6.5`.**
+
+[Read the 1.0.0-preview.10 entry](/reference/releases/1.0.0-preview.10/)
 
 <a id="v1.0.0-preview.8"></a>
 
@@ -23241,7 +23245,7 @@ package, and the surface may still be reduced before 1.0.
 Source: https://tracon.dev/reference/compatibility/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -25426,6 +25430,40 @@ package, and the surface may still be reduced before 1.0.
   `Tracon.Core`, `Tracon.PostgreSql`, `Tracon.OpenAI`,
   `Tracon.Anthropic`, `Tracon.Google`, `Tracon.Azure`, and
   `Tracon.Voice`.
+
+## Read next
+
+- [Release notes](/reference/changelog/) — every published version, newest first
+- [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
+
+---
+
+# Tracon 1.0.0-preview.10 release notes
+
+Source: https://tracon.dev/reference/releases/1.0.0-preview.10/
+
+Released on 2026-11-11. This entry covers every NuGet package of the family and the npm client
+at version 1.0.0-preview.10. [Release notes](/reference/changelog/) lists every version.
+
+This release is small. Hosts that register their own `TimeProvider` get that clock for the waits that used the system clock, and `@tracon/client` tells `onUnauthorized` which token the refused request carried, which fixes a console that dropped a token it had just been given. Neither breaks source.
+
+- **`@tracon/client`: `onUnauthorized` now receives the token the refused request carried, and the console no longer drops a token it has just been given.** The callback is called with
+  `{ token }`, where `token` is the bearer token of the request the server answered 401 (`null` when the request carried none). The console sends one request without a token on load
+  and is answered 401 by design; on a slow machine that answer arrived after the user had entered a token, and the console threw the new token away and said the server rejected it.
+  What to do:
+  - **Nothing, unless you use `onUnauthorized` to drop a stored token.** A callback that takes no argument still compiles and runs as before. Drop the stored token only when it
+    equals `token`, so a late answer to an older request does not remove the token that is current.
+
+- **A host that registers its own `TimeProvider` now gets that clock for waits that used the system clock.** The wait between two tries of the OpenAI, Azure OpenAI and Anthropic clients
+  (a `Retry-After` date is read against it too), the poll of the run-event and the workflow follow streams, the pause between retention batches, the retry of an MCP or A2A tool
+  catalog listing, a tool's timeout, and the MCP connection and catalog limits all run on it.
+  What to do:
+  - **Nothing, unless the registered `TimeProvider` only moves when told to.** With `TimeProvider.System` (the default) nothing changes. A host or a test that registers a clock it
+    advances by hand must advance it for these waits to end. The Anthropic client library sleeps on the system clock and does not follow it.
+
+- **The Aspire guide pins Aspire `13.6.5`.** The guide and the sample showed `13.6.4`, which carries a high severity advisory (GHSA-f7vh-h5g3-7jrh). Aspire is not part of any Tracon package.
+  What to do:
+  - **If you copied the AppHost project from the guide, move `Aspire.AppHost.Sdk` and `Aspire.Hosting.PostgreSQL` to `13.6.5`.**
 
 ## Read next
 
@@ -30387,36 +30425,6 @@ preview migration refuses to start: read Upgrading from 1.0.0-preview.6 first.
 
 ---
 
-# Tracon 1.0.0-preview.9 release notes
-
-Source: https://tracon.dev/reference/releases/1.0.0-preview.9/
-
-Released on 2026-11-11. This entry covers every NuGet package of the family and the npm client
-at version 1.0.0-preview.9. [Release notes](/reference/changelog/) lists every version.
-
-This release is small. Hosts that register their own `TimeProvider` get that clock for the waits that used the system clock, and `@tracon/client` tells `onUnauthorized` which token the refused request carried, which fixes a console that dropped a token it had just been given. Neither breaks source.
-
-- **`@tracon/client`: `onUnauthorized` now receives the token the refused request carried, and the console no longer drops a token it has just been given.** The callback is called with
-  `{ token }`, where `token` is the bearer token of the request the server answered 401 (`null` when the request carried none). The console sends one request without a token on load
-  and is answered 401 by design; on a slow machine that answer arrived after the user had entered a token, and the console threw the new token away and said the server rejected it.
-  What to do:
-  - **Nothing, unless you use `onUnauthorized` to drop a stored token.** A callback that takes no argument still compiles and runs as before. Drop the stored token only when it
-    equals `token`, so a late answer to an older request does not remove the token that is current.
-
-- **A host that registers its own `TimeProvider` now gets that clock for waits that used the system clock.** The wait between two tries of the OpenAI, Azure OpenAI and Anthropic clients
-  (a `Retry-After` date is read against it too), the poll of the run-event and the workflow follow streams, the pause between retention batches, the retry of an MCP or A2A tool
-  catalog listing, a tool's timeout, and the MCP connection and catalog limits all run on it.
-  What to do:
-  - **Nothing, unless the registered `TimeProvider` only moves when told to.** With `TimeProvider.System` (the default) nothing changes. A host or a test that registers a clock it
-    advances by hand must advance it for these waits to end. The Anthropic client library sleeps on the system clock and does not follow it.
-
-## Read next
-
-- [Release notes](/reference/changelog/) — every published version, newest first
-- [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
-
----
-
 # Security policy
 
 Source: https://tracon.dev/reference/security-policy/
@@ -30698,7 +30706,7 @@ required](/guides/embedding/#make-a-production-decision-required).
 Source: https://tracon.dev/reference/versioning/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.9`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.10`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -31228,11 +31236,11 @@ Only a preview exists. Select it explicitly:
 dotnet add package Tracon --prerelease
 ```
 
-Pin `1.0.0-preview.9` for reproducible builds. Install the template by exact
+Pin `1.0.0-preview.10` for reproducible builds. Install the template by exact
 version too:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.9
+dotnet new install Tracon.Templates@1.0.0-preview.10
 ```
 
 ### The generated project rejects a template option

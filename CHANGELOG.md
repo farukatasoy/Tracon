@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.0.0-preview.9] - 2026-11-11
+## [1.0.0-preview.10] - 2026-11-11
 
 This release is small. Hosts that register their own `TimeProvider` get that clock for the waits that used the system clock, and `@tracon/client` tells `onUnauthorized` which token the refused request carried, which fixes a console that dropped a token it had just been given. Neither breaks source.
 
@@ -23,6 +23,10 @@ This release is small. Hosts that register their own `TimeProvider` get that clo
   What to do:
   - **Nothing, unless the registered `TimeProvider` only moves when told to.** With `TimeProvider.System` (the default) nothing changes. A host or a test that registers a clock it
     advances by hand must advance it for these waits to end. The Anthropic client library sleeps on the system clock and does not follow it.
+
+- **The Aspire guide pins Aspire `13.6.5`.** The guide and the sample showed `13.6.4`, which carries a high severity advisory (GHSA-f7vh-h5g3-7jrh). Aspire is not part of any Tracon package.
+  What to do:
+  - **If you copied the AppHost project from the guide, move `Aspire.AppHost.Sdk` and `Aspire.Hosting.PostgreSQL` to `13.6.5`.**
 
 ## [1.0.0-preview.8] - 2026-11-08
 
