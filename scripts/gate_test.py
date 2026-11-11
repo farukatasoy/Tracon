@@ -30,8 +30,15 @@ sys.modules[spec.name] = gate
 spec.loader.exec_module(gate)
 
 
+# The licence text a fake package root and a fake package both carry; the gate compares the two byte for byte.
+FAKE_LICENSE_TEXT = "MIT License\n\nCopyright (c) test\n"
+
+
 def _write_src_build_props(root: pathlib.Path, frameworks: str = "net10.0") -> None:
-    """Writes the default TFM list of the packages; `_target_frameworks` reads it from here."""
+    """Writes the default TFM list of the packages; `_target_frameworks` reads it from here.
+    It also writes the root `LICENSE.md`, because every fake repository needs one the packages can match."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "LICENSE.md").write_text(FAKE_LICENSE_TEXT, encoding="utf-8")
     props = root / "src" / "Directory.Build.props"
     props.parent.mkdir(parents=True, exist_ok=True)
     props.write_text(
@@ -2978,13 +2985,13 @@ class ReleaseTests(unittest.TestCase):
         """Enough of a real package to pass every metadata check that runs
         before the breaking-change gate, so the gate is what decides."""
         nuspec = (
-            f'<package><metadata><id>{project_id}</id><license type="file">LICENSE.md</license>'
-            "<requireLicenseAcceptance>true</requireLicenseAcceptance>"
+            f'<package><metadata><id>{project_id}</id><license type="expression">MIT</license>'
             '<repository type="git" url="https://example.invalid" commit="abcdef1234" />'
             f"<releaseNotes>https://tracon.dev/changelog/{version}</releaseNotes></metadata></package>")
         with zipfile.ZipFile(staging_dir / f"{project_id}.{version}.nupkg", "w") as archive:
-            for entry in ("icon.png", "README.md", "LICENSE.md"):
+            for entry in ("icon.png", "README.md"):
                 archive.writestr(entry, "x")
+            archive.writestr("LICENSE.md", FAKE_LICENSE_TEXT)
             archive.writestr(f"{project_id}.nuspec", nuspec)
             archive.writestr(f"lib/net10.0/{project_id}.xml", "<doc />")
         (staging_dir / f"{project_id}.{version}.snupkg").write_bytes(b"")
@@ -3105,6 +3112,45 @@ class ReleaseTests(unittest.TestCase):
                 root, {"Tracon.UI": ("", {"THIRD-PARTY-NOTICES.txt": b"react\n"})})
 
         self.assertEqual(result, 0, output)
+
+    def _licence_case(self, extra: dict[str, bytes]):
+        with tempfile.TemporaryDirectory() as directory:
+            return self._finish_packages(pathlib.Path(directory), {"Tracon.Core": ("", extra)})
+
+    @staticmethod
+    def _nuspec(licence: str) -> dict[str, bytes]:
+        return {"Tracon.Core.nuspec": (
+            f"<package><metadata><id>Tracon.Core</id>{licence}"
+            '<repository type="git" url="https://example.invalid" commit="abcdef1234" />'
+            "<releaseNotes>https://tracon.dev/changelog/1.0.0-preview.2.47</releaseNotes>"
+            "<dependencies></dependencies></metadata></package>").encode()}
+
+    def test_licence_control_passes(self):
+        """Control for the four cases below: the same package with nothing changed is green."""
+        result, output = self._licence_case({})
+        self.assertEqual(result, 0, output)
+
+    def test_a_package_without_the_mit_expression_turns_red(self):
+        result, output = self._licence_case(self._nuspec('<license type="file">LICENSE.md</license>'))
+        self.assertEqual(result, 1, output)
+        self.assertIn('does not carry \'<license type="expression">MIT</license>\'', output)
+        self.assertIn("declares a license file", output)
+
+    def test_a_package_that_asks_for_licence_acceptance_turns_red(self):
+        result, output = self._licence_case(self._nuspec(
+            '<license type="expression">MIT</license><requireLicenseAcceptance>true</requireLicenseAcceptance>'))
+        self.assertEqual(result, 1, output)
+        self.assertIn("must not ask for requireLicenseAcceptance", output)
+
+    def test_a_packed_licence_that_differs_from_the_root_file_turns_red(self):
+        result, output = self._licence_case({"LICENSE.md": b"PolyForm Small Business License 1.0.0\n"})
+        self.assertEqual(result, 1, output)
+        self.assertIn("LICENSE.md in the package differs", output)
+
+    def test_a_package_that_packs_the_retired_licence_file_turns_red(self):
+        result, output = self._licence_case({"LICENSE-MIT.md": FAKE_LICENSE_TEXT.encode()})
+        self.assertEqual(result, 1, output)
+        self.assertIn("the retired license file is packed", output)
 
     def test_nothing_is_promoted_while_the_breaking_gate_is_red(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -3229,14 +3275,14 @@ class BuildOnceChainTests(unittest.TestCase):
         version = version or self.VERSION
         commit = commit or self.COMMIT
         library = project_id == "Tracon.Core"
-        acceptance = "<requireLicenseAcceptance>true</requireLicenseAcceptance>"
         nuspec = (
-            f'<package><metadata><id>{project_id}</id><license type="file">LICENSE.md</license>{acceptance}'
+            f'<package><metadata><id>{project_id}</id><license type="expression">MIT</license>'
             f'<repository type="git" url="https://example.invalid" commit="{commit}" />'
             f"<releaseNotes>https://tracon.dev/changelog/{version}</releaseNotes></metadata></package>")
         with zipfile.ZipFile(directory / f"{project_id}.{version}.nupkg", "w") as archive:
-            for entry in ("icon.png", "README.md", "LICENSE.md"):
+            for entry in ("icon.png", "README.md"):
                 archive.writestr(entry, "x")
+            archive.writestr("LICENSE.md", FAKE_LICENSE_TEXT)
             archive.writestr(f"{project_id}.nuspec", nuspec)
             if library:
                 archive.writestr(f"lib/net10.0/{project_id}.xml", "<doc />")
