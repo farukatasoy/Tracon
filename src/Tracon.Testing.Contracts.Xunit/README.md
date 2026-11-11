@@ -307,7 +307,5 @@ test against, and read the release notes when you move both.
   the full contract: lifetime, threading, naming, catalog semantics,
   failure classification, and who owns the returned client.
 
-Licence: MIT - deliberately permissive, so that proving your own implementation
-correct never needs a commercial licence. It depends only on `Tracon.Abstractions`,
-which is MIT for the same reason. Most Tracon packages are PolyForm Small Business
-1.0.0. Details: <https://tracon.dev/reference/licensing/>
+Licence: MIT. The text ships in the package as LICENSE.md.
+Details: <https://tracon.dev/reference/licensing/>

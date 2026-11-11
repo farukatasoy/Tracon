@@ -174,39 +174,37 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 
 ## Packages
 
-| Package | Licence | What it does |
-|---------|---------|--------------|
-| `Tracon` | PolyForm | Meta package — the common set with one reference; storage is a second reference |
-| `Tracon.Abstractions` | MIT | Contracts; enough on its own if you write your own implementations |
-| `Tracon.Core` | PolyForm | Runtime, catalog, definition compiler, tool registry, sessions. **No database required.** |
-| `Tracon.PostgreSql` | PolyForm | Embedded SQL migrations, separate `tracon` schema. **Not in the meta package.** The only built-in vector-search store |
-| `Tracon.SqlServer` | PolyForm | SQL Server 2019 and later (Azure SQL: not verified, no CI run) — same schema, its own migration set. **Not in the meta package.** Contract tests run against a real `mssql/server` |
-| `Tracon.Sqlite` | PolyForm | SQLite — one file, table prefix, its own migration set. **Not in the meta package.** Single-writer; not for a multi-instance deployment |
-| `Tracon.OpenAI` | PolyForm | OpenAI adapter — Chat Completions and Responses, tool calling, OpenTelemetry |
-| `Tracon.Anthropic` | PolyForm | Anthropic (Claude) adapter — official SDK, prompt caching, extended thinking. **Not in the meta package** |
-| `Tracon.Google` | PolyForm | Google Gemini adapter — official SDK, safety thresholds, thinking budget. **Not in the meta package**; brings a transitive `Google.Apis.Auth` chain |
-| `Tracon.Azure` | PolyForm | Azure OpenAI adapter — deployment-based model resolution, API key or Entra identity. **Not in the meta package**; `Azure.Identity` is **not** a dependency — the credential factory comes from you |
-| `Tracon.Voice` | PolyForm | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. Depends only on `Tracon.Core`, with no third-party NuGet dependency; not in the meta package. Live conversation is in `Core` (`UseVoiceConversation()`) |
-| `Tracon.Mcp` | PolyForm | Tool discovery from remote MCP servers — HTTP only, approval default |
-| `Tracon.Workflows` | PolyForm | Workflow execution — five patterns, checkpoints, resume, HITL |
-| `Tracon.AspNetCore` | PolyForm | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
-| `Tracon.UI` | PolyForm | Embedded React console — 31 screens, 37 routes, zero JS dependencies |
-| `Tracon.AGUI` | PolyForm | The AG-UI endpoint — a front end that speaks the AG-UI protocol (CopilotKit and others) runs your agents, with client-side tools and tool approvals as interrupts. Takes the AG-UI SDK (MIT); **not in the meta package** |
-| `Tracon.Templates` | MIT | The `dotnet new tracon-api` template — not in the meta package |
-| `Tracon.Testing` | PolyForm | `FakeModelProvider`, `TraconTestHost`, `RunAssertions`; framework neutral, not in the meta package |
-| `Tracon.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource` or `IJobHandler`. Not in the meta package |
-| `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 182 operations, zero Tracon dependency, no NuGet dependency beyond DI abstractions. Not in the meta package |
-| `Tracon.Cli` | PolyForm | The `tracon` global tool — `migrate`, `migrate status`, `health`, `eval`, `state-check`, `agent-skill`. Not a library; not in the meta package |
-| `@tracon/client` | PolyForm | **npm, not NuGet** — the same 182 operations as `Tracon.Client`, from the same OpenAPI document via `openapi-typescript` + `openapi-fetch` |
+| Package | What it does |
+|---------|--------------|
+| `Tracon` | Meta package — the common set with one reference; storage is a second reference |
+| `Tracon.Abstractions` | Contracts; enough on its own if you write your own implementations |
+| `Tracon.Core` | Runtime, catalog, definition compiler, tool registry, sessions. **No database required.** |
+| `Tracon.PostgreSql` | Embedded SQL migrations, separate `tracon` schema. **Not in the meta package.** The only built-in vector-search store |
+| `Tracon.SqlServer` | SQL Server 2019 and later (Azure SQL: not verified, no CI run) — same schema, its own migration set. **Not in the meta package.** Contract tests run against a real `mssql/server` |
+| `Tracon.Sqlite` | SQLite — one file, table prefix, its own migration set. **Not in the meta package.** Single-writer; not for a multi-instance deployment |
+| `Tracon.OpenAI` | OpenAI adapter — Chat Completions and Responses, tool calling, OpenTelemetry |
+| `Tracon.Anthropic` | Anthropic (Claude) adapter — official SDK, prompt caching, extended thinking. **Not in the meta package** |
+| `Tracon.Google` | Google Gemini adapter — official SDK, safety thresholds, thinking budget. **Not in the meta package**; brings a transitive `Google.Apis.Auth` chain |
+| `Tracon.Azure` | Azure OpenAI adapter — deployment-based model resolution, API key or Entra identity. **Not in the meta package**; `Azure.Identity` is **not** a dependency — the credential factory comes from you |
+| `Tracon.Voice` | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. Depends only on `Tracon.Core`, with no third-party NuGet dependency; not in the meta package. Live conversation is in `Core` (`UseVoiceConversation()`) |
+| `Tracon.Mcp` | Tool discovery from remote MCP servers — HTTP only, approval default |
+| `Tracon.Workflows` | Workflow execution — five patterns, checkpoints, resume, HITL |
+| `Tracon.AspNetCore` | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
+| `Tracon.UI` | Embedded React console — 31 screens, 37 routes, zero JS dependencies |
+| `Tracon.AGUI` | The AG-UI endpoint — a front end that speaks the AG-UI protocol (CopilotKit and others) runs your agents, with client-side tools and tool approvals as interrupts. Takes the AG-UI SDK (MIT); **not in the meta package** |
+| `Tracon.Templates` | The `dotnet new tracon-api` template — not in the meta package |
+| `Tracon.Testing` | `FakeModelProvider`, `TraconTestHost`, `RunAssertions`; framework neutral, not in the meta package |
+| `Tracon.Testing.Contracts.Xunit` | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource` or `IJobHandler`. Not in the meta package |
+| `Tracon.Client` | Typed management client generated from the OpenAPI document — 182 operations, zero Tracon dependency, no NuGet dependency beyond DI abstractions. Not in the meta package |
+| `Tracon.Cli` | The `tracon` global tool — `migrate`, `migrate status`, `health`, `eval`, `state-check`, `agent-skill`. Not a library; not in the meta package |
+| `@tracon/client` | **npm, not NuGet** — the same 182 operations as `Tracon.Client`, from the same OpenAPI document via `openapi-typescript` + `openapi-fetch` |
 
 **Target framework:** `net10.0` for every package, including `Tracon.Testing`; only the
 source generator inside `Tracon.Core` targets `netstandard2.0`. `net8.0` and `net9.0` were
 dropped after `1.0.0-preview.6`; Microsoft support for .NET 8 and .NET 9 ends on 2026-11-10.
 Detail: [compatibility matrix](https://tracon.dev/reference/compatibility/).
 
-**Licence:** the `Licence` column above; three packages are MIT so that writing and
-testing an extension, and owning what `dotnet new` generates, never needs a licence.
-Terms and thresholds: [§ Licence](#licence) below.
+**Licence:** every package is MIT — [§ Licence](#licence) below.
 
 ### AOT compatibility
 
@@ -359,17 +357,8 @@ is [`docs-site/`](docs-site/).
 
 ## Licence
 
-**PolyForm Small Business 1.0.0**, except for `Tracon.Abstractions`,
-`Tracon.Testing.Contracts.Xunit` and `Tracon.Templates`, which are MIT.
+Every package is **MIT**: [LICENSE.md](LICENSE.md). No package contains a licence key,
+an activation call or a feature gate.
 
-Use is free of charge if your company has fewer than 100 total individuals working as
-employees and independent contractors, and less than 1,000,000 USD (2019, inflation
-adjusted) total revenue in the prior tax year. An individual, a student and an open
-source project are all under that threshold. Above it, write to
-hfarukatasoy@gmail.com for a commercial licence.
-
-No package contains a licence key, an activation call or a feature gate, and the
-licence of a published version never changes.
-
-Terms: [LICENSE.md](LICENSE.md) · [LICENSE-MIT.md](LICENSE-MIT.md) · which package is
-which, and why: <https://tracon.dev/reference/licensing/>
+The licence of a published version never changes; earlier previews carried other
+terms. Details: <https://tracon.dev/reference/licensing/>

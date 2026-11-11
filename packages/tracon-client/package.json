@@ -2,7 +2,7 @@
   "name": "@tracon/client",
   "version": "0.0.0",
   "description": "Typed TypeScript client for the Tracon management API, generated from its OpenAPI document.",
-  "license": "PolyForm-Small-Business-1.0.0",
+  "license": "MIT",
   "type": "module",
   "homepage": "https://tracon.dev",
   "repository": {

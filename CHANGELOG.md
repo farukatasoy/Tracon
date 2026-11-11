@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Every package is MIT.** From this version on, all NuGet packages and `@tracon/client` on npm ship under the MIT licence. The `.nuspec` declares
+  `<license type="expression">MIT</license>` instead of `<license type="file">`, no package asks for licence acceptance on restore, and `LICENSE.md` at the package root is
+  the MIT text. `LICENSE-MIT.md` is gone; there is one licence file. `1.0.0-preview.10` and earlier keep the PolyForm Small Business 1.0.0 terms they shipped with.
+  What to do:
+  - **Nothing.** A licence scanner that held a PolyForm package for review now reads `MIT`.
+
 - **The OpenAI-compatible routes answer every refusal in the OpenAI error shape, not as `application/problem+json`.** `POST /v1/chat/completions`, `POST /v1/responses` and
   the `/v1/conversations` routes already answered a refused role and their own errors as `{"error":{"message":…,"type":…}}`, which is what the OpenAI SDKs parse and what the
   published document lists for them. The refusals that come before the route's own code did not: an API key that is unknown, expired or lacks the scope of the route (`401`,

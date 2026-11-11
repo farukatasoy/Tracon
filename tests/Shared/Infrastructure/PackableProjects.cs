@@ -72,38 +72,6 @@ internal static class PackableProjects
             : null;
     }
 
-    private static readonly System.Text.RegularExpressions.Regex MitLicensedProject = new(
-        "'\\$\\(MSBuildProjectName\\)'\\s*==\\s*'(?<id>Tracon[^']*)'",
-        System.Text.RegularExpressions.RegexOptions.ExplicitCapture,
-        TimeSpan.FromSeconds(1));
-
-    private static readonly Lazy<HashSet<string>> MitLicensedIds = new(() =>
-    {
-        // Read the matrix out of src/Directory.Build.props rather than restate it.
-        // The build is what decides which licence a package declares and packs, so
-        // a copy here could only ever be a second opinion about the same fact.
-        var props = File.ReadAllText(Path.Combine(RepoRoot.Path, "src", "Directory.Build.props"));
-        var start = props.IndexOf("<TraconMitLicensed", StringComparison.Ordinal);
-        var end = start < 0 ? -1 : props.IndexOf("</TraconMitLicensed>", start, StringComparison.Ordinal);
-
-        if (start < 0 || end < 0)
-        {
-            throw new InvalidOperationException(
-                "TraconMitLicensed was not found in src/Directory.Build.props; the licence matrix moved.");
-        }
-
-        return [.. MitLicensedProject.Matches(props[start..end]).Select(match => match.Groups["id"].Value)];
-    });
-
-    /// <summary>
-    /// The licence file this package declares and packs. Three packages are MIT so
-    /// that a third party can write and test an extension, and own what
-    /// <c>dotnet new</c> generates, without a commercial licence; everything that
-    /// runs an agent is PolyForm Small Business 1.0.0.
-    /// </summary>
-    public static string LicenceFileOf(string projectId)
-        => MitLicensedIds.Value.Contains(projectId) ? "LICENSE-MIT.md" : "LICENSE.md";
-
     private static bool IsPackable(string projectName)
     {
         var csproj = CsprojPath(projectName);

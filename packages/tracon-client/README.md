@@ -135,7 +135,5 @@ build otherwise.
 - `Tracon.Client` (the .NET counterpart, same document, same shape): <https://tracon.dev/api/>
 - Capability map: <https://tracon.dev/capabilities/>
 
-License: PolyForm Small Business 1.0.0, the same terms as its .NET counterpart
-`Tracon.Client` - free below 100 people and 1,000,000 USD (2019, inflation
-adjusted) revenue; a commercial licence applies above that. The text ships in this
-package as LICENSE.md. Details: <https://tracon.dev/reference/licensing/>
+License: MIT, the same terms as its .NET counterpart `Tracon.Client`. The text
+ships in this package as LICENSE.md. Details: <https://tracon.dev/reference/licensing/>

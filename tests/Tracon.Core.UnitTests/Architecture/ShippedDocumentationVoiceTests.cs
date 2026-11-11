@@ -21,7 +21,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// The rule covers what reaches a consumer: <c>///</c> blocks in <c>src/</c> (the build packs them as
 /// XML documentation), package READMEs (nuget.org renders them), the project template's content (it
 /// becomes the consumer's own project), <c>buildTransitive/</c> files (imported into every consumer
-/// build), the licence files and the packed OpenAPI document. Every other file is outside it.
+/// build), the licence file and the packed OpenAPI document. Every other file is outside it.
 /// </para>
 /// <para>
 /// There is no baseline: the rule starts at zero and a new offending line fails the build.
@@ -82,7 +82,6 @@ public sealed class ShippedDocumentationVoiceTests
     [InlineData("src/Tracon.Core/buildTransitive/Tracon.Core.targets", "VoiceEveryLine")]
     [InlineData("README.md", "VoiceEveryLine")]
     [InlineData("LICENSE.md", "VoiceEveryLine")]
-    [InlineData("LICENSE-MIT.md", "VoiceEveryLine")]
     [InlineData("docs/openapi/tracon.json", "VoiceEveryLine")]
     [InlineData("src/Tracon.Templates/content/.template.config/template.json", "None")]
     [InlineData("src/Tracon.Core/Nested/README.md", "None")]
@@ -140,8 +139,8 @@ public sealed class ShippedDocumentationVoiceTests
     /// <summary>
     /// What reaches a consumer: the project template's content becomes the consumer's own project and
     /// <c>buildTransitive/</c> is imported into every consumer build; a package README is
-    /// <c>PackageReadmeFile</c> and nuget.org renders it; <c>PackageLicenseFile</c> packs the licence
-    /// files; the OpenAPI document is packaged into <c>Tracon.AspNetCore</c>; and
+    /// <c>PackageReadmeFile</c> and nuget.org renders it; every package carries the licence
+    /// file at its root; the OpenAPI document is packaged into <c>Tracon.AspNetCore</c>; and
     /// <c>GenerateDocumentationFile</c> ships every <c>///</c> block as XML.
     /// </summary>
     private static Rules RulesFor(string relative)
@@ -157,7 +156,7 @@ public sealed class ShippedDocumentationVoiceTests
             relative.EndsWith("/README.md", StringComparison.Ordinal) &&
             relative.Count(character => character == '/') == 2;
 
-        var shippedFile = relative is "README.md" or "LICENSE.md" or "LICENSE-MIT.md" or "docs/openapi/tracon.json";
+        var shippedFile = relative is "README.md" or "LICENSE.md" or "docs/openapi/tracon.json";
 
         if (shippedWhole || packageReadme || shippedFile)
         {

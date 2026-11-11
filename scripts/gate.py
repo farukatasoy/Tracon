@@ -2869,40 +2869,13 @@ def _package_profile(root: pathlib.Path, project_id: str) -> str:
     return "library"
 
 
-POLYFORM_LICENSE_FILE = "LICENSE.md"
-MIT_LICENSE_FILE = "LICENSE-MIT.md"
-LICENSE_FILES = (POLYFORM_LICENSE_FILE, MIT_LICENSE_FILE)
-
-# The license of every package is written out HERE; there is no default.
-# If a new package does not get an entry in this table the gate fails - that is exactly
-# the point: a license is a conscious decision, not a result. Three packages are MIT so that
-# a third party can write and test an extension without buying a commercial license, and
-# can own the code `dotnet new` generates. Everything that runs agents is PolyForm.
-# Source: src/Directory.Build.props (TraconMitLicensed) - the two lists must be
-# IDENTICAL; `PackageLicenseTests` pins this.
-PACKAGE_LICENSES: dict[str, str] = {
-    "Tracon": POLYFORM_LICENSE_FILE,
-    "Tracon.Abstractions": MIT_LICENSE_FILE,
-    "Tracon.AGUI": POLYFORM_LICENSE_FILE,
-    "Tracon.Anthropic": POLYFORM_LICENSE_FILE,
-    "Tracon.AspNetCore": POLYFORM_LICENSE_FILE,
-    "Tracon.Azure": POLYFORM_LICENSE_FILE,
-    "Tracon.Cli": POLYFORM_LICENSE_FILE,
-    "Tracon.Client": POLYFORM_LICENSE_FILE,
-    "Tracon.Core": POLYFORM_LICENSE_FILE,
-    "Tracon.Google": POLYFORM_LICENSE_FILE,
-    "Tracon.Mcp": POLYFORM_LICENSE_FILE,
-    "Tracon.OpenAI": POLYFORM_LICENSE_FILE,
-    "Tracon.PostgreSql": POLYFORM_LICENSE_FILE,
-    "Tracon.SqlServer": POLYFORM_LICENSE_FILE,
-    "Tracon.Sqlite": POLYFORM_LICENSE_FILE,
-    "Tracon.Templates": MIT_LICENSE_FILE,
-    "Tracon.Testing": POLYFORM_LICENSE_FILE,
-    "Tracon.Testing.Contracts.Xunit": MIT_LICENSE_FILE,
-    "Tracon.UI": POLYFORM_LICENSE_FILE,
-    "Tracon.Voice": POLYFORM_LICENSE_FILE,
-    "Tracon.Workflows": POLYFORM_LICENSE_FILE,
-}
+# Every package is MIT. The .nuspec names the license by its SPDX expression; the text
+# rides along as a plain file at the package root, because MIT asks for the notice to
+# travel with every copy. NuGet refuses a declared license FILE next to an expression,
+# so the file is checked here by presence and bytes, not through the .nuspec.
+LICENSE_EXPRESSION = "MIT"
+LICENSE_FILE = "LICENSE.md"
+RETIRED_LICENSE_FILE = "LICENSE-MIT.md"
 
 
 TARGET_FRAMEWORKS_PATTERN = re.compile(r"<TargetFrameworks>([^<]+)</TargetFrameworks>")
@@ -3104,6 +3077,20 @@ def dependency_floor_errors(project_id: str, nuspec: str) -> list[str]:
                 f"the {dependency} lower bound is {', '.join(wrong)}; the shipped lower bound is {floor} - "
                 "raising it forces consumers onto xunit.v3 4")
     return errors
+
+
+def _license_file_error(root: pathlib.Path, nupkg: pathlib.Path) -> str | None:
+    """None when the package root carries the repository's license text byte for byte."""
+    expected_path = root / LICENSE_FILE
+    if not expected_path.is_file():
+        return f"{LICENSE_FILE} is missing from the repository root"
+    with zipfile.ZipFile(nupkg) as archive:
+        if LICENSE_FILE not in archive.namelist():
+            return f"{LICENSE_FILE} is not INSIDE the package"
+        packed = archive.read(LICENSE_FILE)
+    if packed != expected_path.read_bytes():
+        return f"{LICENSE_FILE} in the package differs from the repository's {LICENSE_FILE}"
+    return None
 
 
 def _third_party_notice_error(root: pathlib.Path, nupkg: pathlib.Path, source: pathlib.PurePath) -> str | None:
@@ -3974,28 +3961,24 @@ def _finish_release_rehearsal_unchecked(
             errors.append(f"{project_id}: icon.png is missing")
         if "README.md" not in entries:
             errors.append(f"{project_id}: README.md is missing")
-        # The license is verified from three sides at once. Looking only at the .nuspec is
-        # not enough: the license a package DECLARES and the file INSIDE it can diverge,
-        # and when they diverge the file that reaches the consumer wins.
-        expected_license = PACKAGE_LICENSES.get(project_id)
-        if expected_license is None:
-            errors.append(f"{project_id}: not in the PACKAGE_LICENSES table - its license must be chosen on purpose")
-        else:
-            if f'<license type="file">{expected_license}</license>' not in nuspec:
-                errors.append(f"{project_id}: the .nuspec does not carry '<license type=\"file\">{expected_license}</license>'")
-            # Measured: NuGet writes requireLicenseAcceptance only when it is TRUE;
-            # false is the default and the element never shows up. So the MIT side is
-            # verified by the ABSENCE of the element, not by a "false" text.
-            acceptance_declared = "<requireLicenseAcceptance>true</requireLicenseAcceptance>" in nuspec
-            if expected_license == MIT_LICENSE_FILE and acceptance_declared:
-                errors.append(f"{project_id}: an MIT package must not ask for requireLicenseAcceptance")
-            if expected_license == POLYFORM_LICENSE_FILE and not acceptance_declared:
-                errors.append(f"{project_id}: requireLicenseAcceptance must be 'true'")
-            if expected_license not in entries:
-                errors.append(f"{project_id}: {expected_license} is not INSIDE the package")
-            for other in LICENSE_FILES:
-                if other != expected_license and other in entries:
-                    errors.append(f"{project_id}: the wrong license file is packed too: {other}")
+        # The license is verified from three sides at once: what the .nuspec DECLARES, that
+        # it asks for no acceptance prompt, and the text INSIDE the package. A project file
+        # that overrides one of them would otherwise ship terms the others do not state.
+        if f'<license type="expression">{LICENSE_EXPRESSION}</license>' not in nuspec:
+            errors.append(
+                f"{project_id}: the .nuspec does not carry "
+                f"'<license type=\"expression\">{LICENSE_EXPRESSION}</license>'")
+        if '<license type="file">' in nuspec:
+            errors.append(f"{project_id}: the .nuspec declares a license file; the license is an expression")
+        # Measured: NuGet writes requireLicenseAcceptance only when it is TRUE; false is
+        # the default and the element never shows up.
+        if "<requireLicenseAcceptance>true</requireLicenseAcceptance>" in nuspec:
+            errors.append(f"{project_id}: an MIT package must not ask for requireLicenseAcceptance")
+        license_error = _license_file_error(root, nupkg)
+        if license_error is not None:
+            errors.append(f"{project_id}: {license_error}")
+        if RETIRED_LICENSE_FILE in entries:
+            errors.append(f"{project_id}: the retired license file is packed: {RETIRED_LICENSE_FILE}")
         # Not only EXISTENCE, the VALUE too. In a PR two jobs check out the same merge
         # commit; a package that comes from another commit fails here. Without git
         # (commit 'unknown') only existence is checked.

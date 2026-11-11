@@ -98,6 +98,5 @@ called out in the release notes before it is made.
 - Full documentation: <https://tracon.dev>
 - API reference: <https://tracon.dev/api/>
 
-License: MIT - this package is deliberately permissive so that writing and testing an
-extension never needs a commercial licence. Most Tracon packages are PolyForm
-Small Business 1.0.0. Details: <https://tracon.dev/reference/licensing/>
+License: MIT. The text ships in the package as LICENSE.md.
+Details: <https://tracon.dev/reference/licensing/>

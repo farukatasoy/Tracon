@@ -59,19 +59,19 @@ public sealed class SourceLanguageTests
 
     /// <summary>
     /// Root files that face outward: the repository's own front page, the two
-    /// files a contributor reads first, and the two licence files. They are
+    /// files a contributor reads first, and the licence file. They are
     /// English for the same reason a package README is, and nothing under
     /// <see cref="ScanRoots"/> covers them. Markdown is otherwise out of scope,
     /// so only these are matched.
     /// </summary>
     /// <remarks>
-    /// The licence files are not merely outward facing — <c>PackageLicenseFile</c>
-    /// packs one of them into every published package, which makes
-    /// them shipped artifacts in the same sense a package README is.
+    /// The licence file is not merely outward facing — every published package
+    /// carries it at its root, which makes it a shipped artifact in the same
+    /// sense a package README is.
     /// </remarks>
     private static readonly string[] ScannedRootFiles =
         [
-        "README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md", "ARCHITECTURE.md", "LICENSE.md", "LICENSE-MIT.md",
+        "README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md", "ARCHITECTURE.md", "LICENSE.md",
         ".editorconfig", ".gitattributes", ".gitignore", "Directory.Build.props", "Directory.Build.targets",
         "Directory.Packages.props", "NuGet.config", "global.json",
     ];

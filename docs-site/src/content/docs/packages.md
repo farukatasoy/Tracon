@@ -9,11 +9,7 @@ when you care about what enters your dependency graph.
 
 ## Licensing in one line
 
-`Tracon.Abstractions`, `Tracon.Testing.Contracts.Xunit` and
-`Tracon.Templates` are MIT; every other package is PolyForm Small Business
-1.0.0, which is free below 100 people and 1,000,000 USD revenue. Writing an
-extension, testing it, and owning what `dotnet new` generates therefore never
-needs a commercial licence. Details and the reasoning: [Licensing](/reference/licensing/).
+Every package is MIT. Details: [Licensing](/reference/licensing/).
 
 ## The meta package
 

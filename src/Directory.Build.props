@@ -39,30 +39,14 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <!--
-      PolyForm Small Business 1.0.0 is not OSI approved, so it cannot be named in
-      <PackageLicenseExpression> - NuGet accepts only its own allow list there.
-      <PackageLicenseFile> embeds the text in the package instead, so the licence
-      reaches the consumer with the package and needs no URL to resolve.
+      Every package is MIT. The SPDX expression is what nuget.org and a licence
+      scanner read. NuGet refuses a declared licence file next to an expression, so
+      the text is packed as a plain, undeclared file in the "Package files"
+      ItemGroup below: MIT asks for the notice to travel with every copy.
     -->
-    <!--
-      🚨 The matrix lives HERE and not in the three csproj files, because the
-      <None Include="...$(PackageLicenseFile)"> item below is in this same file:
-      an ItemGroup is evaluated in file order, before any csproj body runs, so a
-      csproj-level override would set the nuspec correctly and still pack the
-      WRONG file. Resolving the matrix above the ItemGroup keeps the two in step.
-      Three packages are MIT so that a third party can write and test an
-      extension, and own the code `dotnet new` generates, without a commercial
-      licence. Everything that actually runs an agent is PolyForm.
-    -->
-    <TraconMitLicensed Condition=" '$(MSBuildProjectName)' == 'Tracon.Abstractions'
-                                    Or '$(MSBuildProjectName)' == 'Tracon.Testing.Contracts.Xunit'
-                                    Or '$(MSBuildProjectName)' == 'Tracon.Templates' ">true</TraconMitLicensed>
-    <PackageLicenseFile Condition=" '$(TraconMitLicensed)' == 'true' ">LICENSE-MIT.md</PackageLicenseFile>
-    <PackageLicenseFile Condition=" '$(PackageLicenseFile)' == '' ">LICENSE.md</PackageLicenseFile>
-    <PackageRequireLicenseAcceptance Condition=" '$(TraconMitLicensed)' == 'true' ">false</PackageRequireLicenseAcceptance>
-    <PackageRequireLicenseAcceptance Condition=" '$(PackageRequireLicenseAcceptance)' == '' ">true</PackageRequireLicenseAcceptance>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Authors>Faruk Atasoy</Authors>
-    <!-- Copyright stays with the author; Atanova is the entity that licenses and invoices. -->
+    <!-- Copyright stays with the author; Company is the publishing entity. -->
     <Company>Atanova</Company>
     <Product>Tracon</Product>
     <Copyright>Copyright (c) Faruk Atasoy</Copyright>
@@ -183,10 +167,10 @@
     <None Include="README.md" Pack="true" PackagePath="\" Visible="true" />
     <None Include="$(RepositoryRootPath)assets/icon.png" Pack="true" PackagePath="\" Visible="false" />
     <!--
-      The licence file the package declares, and only that one: a package must
-      never carry both, or the file inside it stops answering which terms apply.
+      The MIT text, at the package root. The nuspec names the licence by its
+      SPDX expression and does not reference this file.
     -->
-    <None Include="$(RepositoryRootPath)$(PackageLicenseFile)" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(RepositoryRootPath)LICENSE.md" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
   <!--

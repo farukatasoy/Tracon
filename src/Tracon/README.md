@@ -90,6 +90,5 @@ preview, and the public API is still moving toward `1.0`.
 - Getting started: <https://tracon.dev/>
 - API reference: <https://tracon.dev/api/>
 
-License: PolyForm Small Business 1.0.0 - free below 100 people and 1,000,000 USD
-(2019, inflation adjusted) revenue; a commercial licence applies above that. Terms
-ship in the package as LICENSE.md. Details: <https://tracon.dev/reference/licensing/>
+License: MIT. The text ships in the package as LICENSE.md.
+Details: <https://tracon.dev/reference/licensing/>

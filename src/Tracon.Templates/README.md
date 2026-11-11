@@ -46,7 +46,5 @@ The generated `appsettings.json` carries empty placeholders for the `secret` val
 
 Details: <https://tracon.dev/getting-started/first-agent/>
 
-Licence: MIT - the code this template generates is yours, under no obligation to
-Tracon's terms. The packages it references carry their own licence; most are
-PolyForm Small Business 1.0.0, which is free below 100 people and 1,000,000 USD (2019,
-inflation adjusted) revenue. Details: <https://tracon.dev/reference/licensing/>
+Licence: MIT, like every Tracon package. The code this template generates is yours.
+Details: <https://tracon.dev/reference/licensing/>

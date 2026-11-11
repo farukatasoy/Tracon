@@ -362,6 +362,7 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
     public void EveryPackageCarriesMetadata()
     {
         var failures = new List<string>();
+        var rootLicence = File.ReadAllText(Path.Combine(RepoPaths.Root, "LICENSE.md"));
 
         foreach (var id in PackableProjects.Ids())
         {
@@ -374,43 +375,32 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
                 failures.Add($"{id}: missing README.md");
             }
 
-            // PolyForm is not OSI approved, so NuGet will not take it as a license
-            // EXPRESSION; the text is embedded as a file instead. Declaring one file
-            // and packing another would leave the consumer holding terms the package
-            // never claimed, so both halves are checked, and so is the absence of the
-            // other licence.
-            var licence = PackableProjects.LicenceFileOf(id);
-
-            if (!nuspec.Contains($"""<license type="file">{licence}</license>""", StringComparison.Ordinal))
+            // The licence is stated three ways and each can drift on its own: the
+            // expression the nuspec declares, the acceptance prompt it must not ask
+            // for, and the text that travels inside the package.
+            if (!nuspec.Contains("""<license type="expression">MIT</license>""", StringComparison.Ordinal))
             {
-                failures.Add($"{id}: nuspec does not declare '<license type=\"file\">{licence}</license>'");
+                failures.Add($"{id}: nuspec does not declare '<license type=\"expression\">MIT</license>'");
             }
 
-            if (!entries.Contains(licence))
+            if (!entries.Contains("LICENSE.md"))
             {
-                failures.Add($"{id}: {licence} is not inside the package");
+                failures.Add($"{id}: LICENSE.md is not inside the package");
+            }
+            else if (!string.Equals(ReadEntryText(id, "LICENSE.md"), rootLicence, StringComparison.Ordinal))
+            {
+                failures.Add($"{id}: the packed LICENSE.md differs from the repository's LICENSE.md");
             }
 
-            foreach (var other in new[] { "LICENSE.md", "LICENSE-MIT.md" })
+            if (entries.Contains("LICENSE-MIT.md"))
             {
-                if (!string.Equals(other, licence, StringComparison.Ordinal) && entries.Contains(other))
-                {
-                    failures.Add($"{id}: also packs the wrong licence file {other}");
-                }
+                failures.Add($"{id}: packs the retired licence file LICENSE-MIT.md");
             }
 
             // Measured: NuGet writes requireLicenseAcceptance only when it is true.
-            var acceptanceDeclared = nuspec.Contains(
-                "<requireLicenseAcceptance>true</requireLicenseAcceptance>", StringComparison.Ordinal);
-
-            if (string.Equals(licence, "LICENSE-MIT.md", StringComparison.Ordinal) && acceptanceDeclared)
+            if (nuspec.Contains("<requireLicenseAcceptance>true</requireLicenseAcceptance>", StringComparison.Ordinal))
             {
                 failures.Add($"{id}: an MIT package must not require licence acceptance");
-            }
-
-            if (string.Equals(licence, "LICENSE.md", StringComparison.Ordinal) && !acceptanceDeclared)
-            {
-                failures.Add($"{id}: requireLicenseAcceptance must be true");
             }
 
             if (!RepositoryCommit.IsMatch(nuspec))
@@ -593,6 +583,13 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
         var entry = archive.GetEntry($"{id}.nuspec") ?? throw new InvalidOperationException($"'{id}.nuspec' is missing from '{id}'.");
         using var reader = new StreamReader(entry.Open());
         return reader.ReadToEnd();
+    }
+
+    private static string ReadEntryText(string id, string entryName)
+    {
+        using var archive = ZipFile.OpenRead(NupkgPath(id));
+        var entry = archive.GetEntry(entryName) ?? throw new InvalidOperationException($"'{entryName}' is missing from '{id}'.");
+        return ReadText(entry);
     }
 
     private static HashSet<string> ZipEntryNames(string nupkgPath)
