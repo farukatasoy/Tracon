@@ -5848,8 +5848,7 @@ class CommandSurfaceTests(unittest.TestCase):
             "close": ["--" "taban", "--site-atla"], "inner-loop": ["--" "taban"], "perf": ["--guncelle"],
             "test": ["--" "sinif", "--" "proje"],
             "stability": ["--tekrar", "--haric", "--sira-karistir", "--baski", "--baski-kosumlari", "--tohum", "--cikti"],
-            "release": ["--kuru", "--surum", "--paket-dizini"], "pack": ["--cikti"],  # legacy-name
-            "capacity": ["--profil", "--surum", "--cikti"]}  # legacy-name
+            "release": ["--kuru", "--surum", "--paket-dizini"], "pack": ["--cikti"], "capacity": ["--profil", "--surum", "--cikti"]}  # legacy-name
         for command, flags in old_flags.items():
             for flag in flags:
                 with self.subTest(command=command, flag=flag):

@@ -397,9 +397,10 @@ class CommandLineTests(unittest.TestCase):
             self.assertIn(flag, text)
 
     def test_the_old_turkish_flags_and_class_names_are_refused(self):
-        # The old class name for "unproven" is written with unicode escapes (it carries Turkish letters).
+        # The old class name for "unproven" carries Turkish letters, so its line carries the marker.
         for argv in (("--liste", "unproven"), ("--paket", "x"), ("--tip", "x"), ("--denetle",),
-                     ("--list", "kan\u0131ts\u0131z"), ("--list", "hepsi")):
+                     ("--list", "kanıtsız"),  # legacy-name
+                     ("--list", "hepsi")):
             code, _ = self._exit_code_and_text(*argv)
             self.assertEqual(code, 2, argv)
 

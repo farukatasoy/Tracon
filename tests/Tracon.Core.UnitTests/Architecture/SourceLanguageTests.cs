@@ -173,6 +173,28 @@ public sealed class SourceLanguageTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
+    /// A Turkish letter spelled as an escape (<c>\u0131</c>, <c>\xfc</c>, <c>\U000000fc</c>), which the pattern above cannot see
+    /// because the file holds the escape and not the letter. Under the tooling roots such a line is judged as the letter
+    /// it spells: a name that has to contain the letter is written with the letter and carries the
+    /// <c># legacy-name</c> marker, so there is one way to write it and the marker ceiling counts it.
+    /// </summary>
+    private static readonly Regex EscapedTurkishLetterPattern = new(
+        @"\\u(?:00e7|011f|0131|00f6|015f|00fc|00c7|011e|0130|00d6|015e|00dc)"
+        + @"|\\x(?:e7|f6|fc|c7|d6|dc)"
+        + @"|\\U0000(?:00e7|011f|0131|00f6|015f|00fc|00c7|011e|0130|00d6|015e|00dc)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// The twelve Turkish letters as escapes inside one character class. The tests of the tooling write it to prove that an
+    /// output carries no Turkish letter, and it names no word, so it is the one escaped spelling the gate lets pass.
+    /// </summary>
+    private static readonly Regex EscapedLetterClassPattern = new(
+        Regex.Escape(@"[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]"),
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
     /// Turkish words written without Turkish letters — the dominant form in this
     /// repository. Matching is whole-word and case-insensitive. A letter or digit of any script
     /// bounds a word, an underscore or hyphen does not: <c>test_gercek_ci</c> is judged word by word,
@@ -370,6 +392,21 @@ public sealed class SourceLanguageTests
         string line, string path, bool offending)
         => IsOffending(line, HonoursLegacyNameMarker(path)).ShouldBe(offending);
 
+    [Theory]
+    // The old class name spelled with escapes was the second way past the gate: the file holds the escape, not the letter.
+    [InlineData("old = \"kan\\u0131ts\\u0131z\"", "scripts/public_surface_inventory_test.py", true)]
+    [InlineData("old = \"kan\\U00000131ts\\U00000131z\"", ".github/workflows/ci.yml", true)]
+    [InlineData("old = \"\\xe7ift\"", "scripts/gate_test.py", true)]
+    [InlineData("old = \"kan\\u0131ts\\u0131z\"  # legacy-name", "scripts/public_surface_inventory_test.py", false)]
+    // The class of the twelve letters is how a test proves that an output has none.
+    [InlineData("re.search(\"[\\u00e7\\u011f\\u0131\\u00f6\\u015f\\u00fc\\u00c7\\u011e\\u0130\\u00d6\\u015e\\u00dc]\", text)", "scripts/capacity_test.py", false)]
+    [InlineData("re.search(\"[\\u00e7\\u0131]\", text)", "scripts/capacity_test.py", true)]
+    // Outside the tooling roots an escape is how a test spells a Turkish letter on purpose; the baseline counts letters, not escapes.
+    [InlineData("var folded = \"kan\\u0131ts\\u0131z\";", "tests/Tracon.Core.UnitTests/Thing.cs", false)]
+    public void An_escaped_Turkish_letter_under_the_tooling_roots_is_judged_as_the_letter_it_spells(
+        string line, string path, bool offending)
+        => IsOffending(line, HonoursLegacyNameMarker(path)).ShouldBe(offending);
+
     [Fact]
     public void The_legacy_name_marker_stays_under_its_ceiling()
     {
@@ -551,21 +588,27 @@ public sealed class SourceLanguageTests
     private static bool HonoursLegacyNameMarker(string relativePath)
         => LegacyNameRoots.Any(root => relativePath.StartsWith(root, StringComparison.Ordinal));
 
-    private static bool IsOffending(string line, bool legacyNameMarkerHonoured = false)
+    private static bool IsOffending(string line, bool underToolingRoots = false)
     {
         if (line.Length == 0 || AllowedLinePattern.IsMatch(line))
         {
             return false;
         }
 
-        if (legacyNameMarkerHonoured && LegacyNameMarkerPattern.IsMatch(line))
+        if (underToolingRoots && LegacyNameMarkerPattern.IsMatch(line))
         {
             return false;
         }
 
         var inspected = IdentifierMaskPattern.Replace(line, string.Empty);
 
-        return TurkishLetterPattern.IsMatch(inspected) || TurkishWordPattern.IsMatch(inspected);
+        if (TurkishLetterPattern.IsMatch(inspected) || TurkishWordPattern.IsMatch(inspected))
+        {
+            return true;
+        }
+
+        return underToolingRoots
+            && EscapedTurkishLetterPattern.IsMatch(EscapedLetterClassPattern.Replace(inspected, string.Empty));
     }
 
     private static Regex BuildWordPattern()
