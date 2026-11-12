@@ -914,6 +914,34 @@ class GateTests(unittest.TestCase):
         self.assertFalse(full)
         self.assertIn("gate.py release", output.getvalue())
 
+    def test_a_change_to_the_shipped_contract_suite_says_the_samples_are_not_covered(self):
+        # The sample stores are not in the solution, and they run the shipped contract suite: a case added to
+        # the suite broke one of them while the closing run was green (a release rehearsal was the only gate).
+        warning = gate.contract_package_warning([
+            "README.md", "src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs"])
+
+        self.assertIsNotNone(warning)
+        self.assertIn("src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs", warning)
+        self.assertIn("samples/Tracon.Samples.", warning)
+        self.assertIn("gate.py release --dry-run", warning)
+        self.assertIsNone(gate.contract_package_warning(["src/Tracon.Core/Foo.cs", "tests/Shared/X.cs"]))
+
+    def test_inner_loop_and_close_print_the_contract_suite_warning(self):
+        touched = ["src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs"]
+
+        for stage in ("inner-loop", "close"):
+            with self.subTest(stage), mock.patch.object(gate, "changed_paths", return_value=touched), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                gate.main(["--print-commands", stage, "--base", "HEAD"])
+
+            self.assertIn("gate.py release --dry-run", output.getvalue(), stage)
+
+        with mock.patch.object(gate, "changed_paths", return_value=["src/Tracon.Core/Foo.cs"]), \
+                contextlib.redirect_stdout(io.StringIO()) as quiet:
+            gate.main(["--print-commands", "inner-loop"])
+
+        self.assertNotIn("samples/Tracon.Samples.", quiet.getvalue())
+
     def test_full_run_command_carries_the_mtp_flags(self):
         # `dotnet test` is in MTP mode. In this mode `-maxcpucount` exits with code 5 WITHOUT
         # RUNNING ANY TEST; the `--` separator no longer exists either.

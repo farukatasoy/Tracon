@@ -1575,6 +1575,25 @@ def runs_multi_target_tests(commands: Iterable[Command], root: pathlib.Path = RO
     return False
 
 
+CONTRACT_PACKAGE_PREFIX = "src/Tracon.Testing.Contracts.Xunit/"
+
+
+def contract_package_warning(paths: Iterable[str]) -> str | None:
+    """A warning when the shipped contract suite changed, `None` otherwise.
+
+    The sample stores under `samples/Tracon.Samples.*` run that suite and are in no solution, so neither the inner
+    loop nor the closing run covers them: a case added to the suite broke one of them while both were green. Only the
+    release rehearsal runs them against the packed suite."""
+    touched = [path for path in paths if path.startswith(CONTRACT_PACKAGE_PREFIX)]
+    if not touched:
+        return None
+    more = f" (+{len(touched) - 1} more)" if len(touched) > 1 else ""
+    return (
+        f"⚠️ {touched[0]}{more}: the shipped contract suite also runs in the samples under "
+        "samples/Tracon.Samples.*, which are not in the solution, so this run does not cover them. "
+        "Run `python3 scripts/gate.py release --dry-run` before you close.")
+
+
 def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
     projects: set[str] = set()
     needs_full = False
@@ -4492,6 +4511,9 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             # build runs - a "green" that tested nothing.
             print(f"⚠️ No change against {args.base}; only the build runs. "
                   "To test committed work, pass `--base <the commit before your work>`.")
+        warning = contract_package_warning(paths)
+        if warning:
+            print(warning)
         commands = inner_loop_commands(paths)
         if not args.print_commands and runs_multi_target_tests(commands) \
                 and not require_test_runtimes(test_target_frameworks()):
@@ -4504,6 +4526,9 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
         # has unrelated uncommitted changes left must still measure it.
         # A failed git call runs it anyway rather than silently skipping.
         paths = changed_paths(args.base)
+        warning = contract_package_warning(paths or [])
+        if warning:
+            print(warning)
         performance = paths is None or performance_gate_triggered(paths)
         commands = closing_commands(
             args.base, site=not args.skip_site, performance=performance, extension=extension)
