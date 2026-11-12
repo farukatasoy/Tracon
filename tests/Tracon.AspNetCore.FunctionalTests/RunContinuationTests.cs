@@ -255,7 +255,8 @@ public sealed class RunContinuationTests
     public async Task A_parameterized_agent_is_not_continued_with_values_its_run_never_had()
     {
         // The recorded input carries no parameter values; continuing would run
-        // the turn with the defaults, not the source run's values.
+        // the turn with the defaults, not the source run's values. The reconciler says so on the interrupted run and
+        // opens nothing: a placeholder the job could only close as Failed told the run nothing.
         ContinuationProbeTools.Reset();
 
         await using var host = await StartHostAsync(o =>
@@ -275,13 +276,51 @@ public sealed class RunContinuationTests
                 ToolNames = ["get_order_status"],
             });
 
-        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
-        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+        var blocked = await WaitForBlockedEventAsync(host, sourceRunId);
 
-        continuation.ShouldNotBeNull();
-        continuation.Status.ShouldBe(RunStatus.Failed);
-        continuation.Error.ShouldNotBeNull().Message.ShouldContain("declares parameters", Case.Sensitive);
+        blocked.ShouldContain("declares parameters", Case.Sensitive);
+        await AssertNoContinuationOpenedAsync(host);
         ContinuationProbeTools.Calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_run_whose_input_was_never_recorded_is_refused_before_a_continuation_exists()
+    {
+        // Input recording was off, or a retention policy deleted the row: there is no turn to send again.
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(o =>
+        {
+            o.Enabled = true;
+            o.MaxAttempts = 1;
+        });
+
+        var sourceRunId = await SeedCrashedRunAsync(host, recordInput: false);
+
+        var blocked = await WaitForBlockedEventAsync(host, sourceRunId);
+
+        blocked.ShouldContain("no recorded input", Case.Sensitive);
+        await AssertNoContinuationOpenedAsync(host);
+        ContinuationProbeTools.Calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_run_whose_recorded_input_is_empty_is_refused_before_a_continuation_exists()
+    {
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(o =>
+        {
+            o.Enabled = true;
+            o.MaxAttempts = 1;
+        });
+
+        var sourceRunId = await SeedCrashedRunAsync(host, emptyInput: true);
+
+        var blocked = await WaitForBlockedEventAsync(host, sourceRunId);
+
+        blocked.ShouldContain("empty input", Case.Sensitive);
+        await AssertNoContinuationOpenedAsync(host);
     }
 
     [Fact]
@@ -1090,7 +1129,9 @@ public sealed class RunContinuationTests
         (int Version, Guid ExperimentId, string Variant)? arm = null,
         IReadOnlyDictionary<string, string>? recordedParameters = null,
         string? userId = null,
-        IReadOnlyDictionary<string, string>? labels = null)
+        IReadOnlyDictionary<string, string>? labels = null,
+        bool recordInput = true,
+        bool emptyInput = false)
     {
         // A given definition replaces the seed: it has to be the ONLY version
         // before the crashed run exists, or the reconciler (scanning every
@@ -1125,14 +1166,17 @@ public sealed class RunContinuationTests
             Labels = labels,
         });
 
-        await inputs.SaveAsync(new RunInputRecord
+        if (recordInput)
         {
-            RunId = runId,
-            TenantId = tenants.TenantId,
-            Messages = [new ChatMessage(ChatRole.User, "where is ORD-7, and check ORD-8 too")],
-            Parameters = recordedParameters,
-            CreatedAt = DateTimeOffset.UtcNow,
-        });
+            await inputs.SaveAsync(new RunInputRecord
+            {
+                RunId = runId,
+                TenantId = tenants.TenantId,
+                Messages = emptyInput ? [] : [new ChatMessage(ChatRole.User, "where is ORD-7, and check ORD-8 too")],
+                Parameters = recordedParameters,
+                CreatedAt = DateTimeOffset.UtcNow,
+            });
+        }
 
         return runId;
     }

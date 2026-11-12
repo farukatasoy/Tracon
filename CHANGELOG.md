@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **An interrupted run with no recorded input, or whose parameter values were not recorded, is refused before a continuation exists.** The reconciler queued a continuation for it, and the continuation job then refused it after a `Queued` placeholder run had been opened: `GET /api/runs` listed a `Failed` run that never started and the interrupted run learned nothing. The reconciler now reads the recorded input and applies the same rules, and writes a `RunContinuationBlocked` event on the interrupted run.
+  What to do:
+  - **Nothing.** A filter that expected a `Failed` continuation row for these runs finds the `RunContinuationBlocked` event on the interrupted run instead.
+
 - **A host with content protection on stops at the start when its active key has a value that cannot be a key.** The key was read when the first protected value was written, and a recording write is best effort: a key of 31 bytes made every run answer `200`, left every protected column empty, and showed only in a counter. A value that is not base64, or that does not decode to 32 bytes, now stops the start with a message that names the configuration key and never the value. Only the active key is read, and only when it has a value: a key kept for old rows can still be missing during a rotation, and a host on in-memory stores can still start with the key name and no material.
   What to do:
   - **If a host now stops with `Content protection key '…' …`,** fix the value the message names: it was already failing on every write, silently.

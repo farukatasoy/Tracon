@@ -407,8 +407,10 @@ is opened.
 
 An agent that declares [parameters](/concepts/agents/#parameters) continues with the
 values the interrupted run recorded. A run that recorded none — input recording was
-off, or it predates parameter recording — is not continued on the defaults: the
-continuation run that is opened for it fails at once and its error says why.
+off, or it predates parameter recording — is not continued on the defaults, and neither
+is a run whose input was never recorded or was deleted by a retention policy (there is
+no turn to send again). The interrupted run stays `Failed` and a `RunContinuationBlocked`
+event on it says why; no second run is opened.
 
 | Setting | Default | Effect |
 |---|---:|---|

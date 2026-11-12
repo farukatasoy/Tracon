@@ -43,7 +43,9 @@ internal sealed class RunReconciliationService(
     TimeProvider? timeProvider = null,
     ILogger<RunReconciliationService>? logger = null,
     HostedToolRegistry? hostedTools = null,
-    IAgentDefinitionStore? definitions = null) : BackgroundService, ISwitchedLoop
+    IAgentDefinitionStore? definitions = null,
+    IRunInputStore? inputs = null,
+    ParameterizedAgentFactory? parameterFactory = null) : BackgroundService, ISwitchedLoop
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly TickOptions<RunReconciliationOptions> _tickOptions = new(optionsMonitor, logger, "run reconciliation scan");
@@ -233,6 +235,18 @@ internal sealed class RunReconciliationService(
                     : await definitions.GetAsync(record.AgentName, cancellationToken).ConfigureAwait(false);
 
                 definitionRefusal = RunContinuationEligibility.DefinitionRefusal(stored, record.AgentName, record.AgentVersion);
+
+                // The recorded input and the parameter values the turn is sent with: the handler refuses a run without
+                // them after the job exists, and the run it leaves behind is a placeholder that never started.
+                if (definitionRefusal is null && inputs is not null && stored is not null)
+                {
+                    var input = await inputs.GetAsync(tenantId, record.Id, cancellationToken).ConfigureAwait(false);
+
+                    definitionRefusal = RunContinuationEligibility.InputRefusal(record.Id, input)
+                        ?? (input is null
+                            ? null
+                            : RunContinuationEligibility.ParameterDecision(record.Id, record.AgentName, input, stored, parameterFactory).Refusal);
+                }
             }
 
             unsafeTool = await FindUnsafeToolAsync(record.Id, cancellationToken).ConfigureAwait(false);

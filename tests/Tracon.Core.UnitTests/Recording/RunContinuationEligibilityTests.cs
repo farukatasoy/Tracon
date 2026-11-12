@@ -1,3 +1,5 @@
+using Microsoft.Extensions.AI;
+
 namespace Tracon.Core.UnitTests.Recording;
 
 /// <summary>
@@ -34,6 +36,71 @@ public sealed class RunContinuationEligibilityTests
     [Fact]
     public void A_run_below_the_root_is_a_sub_run_even_when_its_parent_id_is_missing()
         => RunContinuationEligibility.Refusal(Run() with { Depth = 1 }).ShouldNotBeNull().ShouldContain("sub-run", Case.Sensitive);
+
+    [Fact]
+    public void A_run_with_no_recorded_input_is_refused_and_named()
+    {
+        var runId = TraconId.NewId();
+
+        RunContinuationEligibility.InputRefusal(runId, input: null).ShouldNotBeNull()
+            .ShouldContain($"Run '{runId}' has no recorded input", Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_run_with_an_empty_recorded_input_is_refused()
+    {
+        var runId = TraconId.NewId();
+
+        RunContinuationEligibility.InputRefusal(runId, Input(runId, messages: 0)).ShouldNotBeNull()
+            .ShouldContain("recorded an empty input", Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_run_with_a_recorded_turn_has_no_input_refusal()
+    {
+        var runId = TraconId.NewId();
+
+        RunContinuationEligibility.InputRefusal(runId, Input(runId, messages: 1)).ShouldBeNull();
+    }
+
+    [Fact]
+    public void An_agent_without_parameters_is_sent_the_turn_with_no_values()
+    {
+        var runId = TraconId.NewId();
+        var definition = new AgentDefinition { Name = "support", Instructions = "Help.", Model = new ModelBinding { Provider = "p", Model = "m" } };
+
+        var (refusal, values) = RunContinuationEligibility.ParameterDecision(runId, "support", Input(runId, messages: 1), definition, parameterFactory: null);
+
+        refusal.ShouldBeNull();
+        values.ShouldBeNull();
+    }
+
+    [Fact]
+    public void An_agent_with_parameters_and_no_way_to_resolve_the_recorded_values_is_refused()
+    {
+        var runId = TraconId.NewId();
+        var definition = new AgentDefinition
+        {
+            Name = "support",
+            Instructions = "Help {{customer}}.",
+            Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, DefaultValue = "friend" }],
+            Model = new ModelBinding { Provider = "p", Model = "m" },
+        };
+
+        var (refusal, values) = RunContinuationEligibility.ParameterDecision(runId, "support", Input(runId, messages: 1), definition, parameterFactory: null);
+
+        refusal.ShouldNotBeNull().ShouldContain("declares parameters", Case.Sensitive);
+        values.ShouldBeNull();
+    }
+
+    private static RunInputRecord Input(Guid runId, int messages)
+        => new()
+        {
+            RunId = runId,
+            TenantId = "default",
+            Messages = [.. Enumerable.Range(0, messages).Select(static number => new ChatMessage(ChatRole.User, $"turn {number}"))],
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
 
     [Fact]
     public void An_eval_run_is_refused()

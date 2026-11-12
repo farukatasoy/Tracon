@@ -128,15 +128,16 @@ internal sealed class RunContinuationJobHandler(
                 ?? throw new TraconException(
                     $"Run '{sourceRunId}' has no session; a sessionless run has no turn to continue.");
 
-            input = await inputStore.GetAsync(context.Job.TenantId, sourceRunId, cancellationToken).ConfigureAwait(false)
-                ?? throw new TraconException(
-                    $"Run '{sourceRunId}' has no recorded input (input recording may have been disabled, " +
-                    "or a retention policy deleted it); it cannot be continued.");
+            var recordedInput = await inputStore.GetAsync(context.Job.TenantId, sourceRunId, cancellationToken).ConfigureAwait(false);
 
-            if (input.Messages.Count == 0)
+            // The same rules the reconciler applies before it queues this job (a job queued earlier, or by hand, comes
+            // here without them).
+            if (RunContinuationEligibility.InputRefusal(sourceRunId, recordedInput) is { } inputRefusal)
             {
-                throw new TraconException($"Run '{sourceRunId}' recorded an empty input; it cannot be continued.");
+                throw new TraconException(inputRefusal);
             }
+
+            input = recordedInput!;
 
             agentVersion = source.AgentVersion;
 
@@ -158,35 +159,16 @@ internal sealed class RunContinuationJobHandler(
 
             var definition = stored!;
 
-            // The source run recorded the values it was bound with, and
-            // the turn continues with the SAME ones. Without a record the turn
-            // would run on the defaults (or fail on a required parameter) - a
-            // different prompt halfway through the conversation - so a
-            // definition that declares parameters
-            // and a run that recorded none stays refused.
-            if (definition.Parameters.Count > 0)
+            // The source run recorded the values it was bound with, and the turn continues with the SAME ones.
+            var (parameterRefusal, recordedValues) = RunContinuationEligibility.ParameterDecision(
+                sourceRunId, source.AgentName, input, definition, parameterFactory);
+
+            if (parameterRefusal is not null)
             {
-                var recorded = parameterFactory?.ResolveRecorded(definition.Parameters, input.Parameters, overrides: null)
-                    ?? new RecordedValues(null, RecordedValuesProblem.NotRecorded, null);
-
-                if (recorded.Problem == RecordedValuesProblem.NotRecorded)
-                {
-                    throw new TraconException(
-                        $"Agent '{source.AgentName}' declares parameters, and run '{sourceRunId}' did not record the " +
-                        "values it was bound with ('Tracon:RunRecording:RecordRunInput' was off, or the run predates " +
-                        "parameter recording); continuing it would run with different instructions. " +
-                        "This run cannot be continued.");
-                }
-
-                if (recorded.Problem == RecordedValuesProblem.Invalid)
-                {
-                    throw new TraconException(
-                        $"Run '{sourceRunId}' cannot be continued: agent '{source.AgentName}' no longer accepts the " +
-                        $"values it was bound with. {recorded.Detail}");
-                }
-
-                parameterValues = recorded.Values;
+                throw new TraconException(parameterRefusal);
             }
+
+            parameterValues = recordedValues;
 
             var invocations = await runStore.ListToolInvocationsAsync(sourceRunId, cancellationToken).ConfigureAwait(false);
             var playback = new RecordedToolPlayback(invocations, ToolPlaybackMismatchPolicy.RunLive);

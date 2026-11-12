@@ -84,6 +84,74 @@ internal static class RunContinuationEligibility
         return null;
     }
 
+    /// <summary>Returns why the input an interrupted run recorded cannot be sent again.</summary>
+    /// <param name="runId">The interrupted run.</param>
+    /// <param name="input">The recorded input; <see langword="null"/> when there is none in the store.</param>
+    /// <returns>A sentence that names the run and says why; <see langword="null"/> when there is a turn to send.</returns>
+    /// <remarks>
+    /// Input recording may have been off, or a retention policy may have deleted the row. Kept here with the other rules, so
+    /// the reconciler refuses BEFORE it queues the job, as the job's handler would refuse after it: the handler's refusal
+    /// leaves a placeholder run that is <c>Failed</c> and was never started.
+    /// </remarks>
+    public static string? InputRefusal(Guid runId, RunInputRecord? input)
+    {
+        if (input is null)
+        {
+            return $"Run '{runId}' has no recorded input (input recording may have been disabled, " +
+                   "or a retention policy deleted it); it cannot be continued.";
+        }
+
+        return input.Messages.Count == 0
+            ? $"Run '{runId}' recorded an empty input; it cannot be continued."
+            : null;
+    }
+
+    /// <summary>Decides the parameter values a continuation runs with, or says why it cannot.</summary>
+    /// <param name="runId">The interrupted run.</param>
+    /// <param name="agentName">The run's agent.</param>
+    /// <param name="input">The recorded input of the run.</param>
+    /// <param name="definition">The definition the run used.</param>
+    /// <param name="parameterFactory">Resolves the recorded values against the definition's schema; <see langword="null"/> without parameters support.</param>
+    /// <returns>
+    /// The reason, or the values to bind (<see langword="null"/> when the definition takes no parameters).
+    /// </returns>
+    /// <remarks>
+    /// The source run recorded the values it was bound with, and the turn continues with the SAME ones. Without a record the
+    /// turn would run on the defaults (or fail on a required parameter): a different prompt halfway through the
+    /// conversation. So a definition that declares parameters and a run that recorded none stays refused.
+    /// </remarks>
+    public static (string? Refusal, IReadOnlyDictionary<string, string>? Values) ParameterDecision(
+        Guid runId,
+        string agentName,
+        RunInputRecord input,
+        AgentDefinition definition,
+        ParameterizedAgentFactory? parameterFactory)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (definition.Parameters.Count == 0)
+        {
+            return (null, null);
+        }
+
+        var recorded = parameterFactory?.ResolveRecorded(definition.Parameters, input.Parameters, overrides: null)
+            ?? new RecordedValues(null, RecordedValuesProblem.NotRecorded, null);
+
+        return recorded.Problem switch
+        {
+            RecordedValuesProblem.NotRecorded =>
+                ($"Agent '{agentName}' declares parameters, and run '{runId}' did not record the " +
+                 "values it was bound with ('Tracon:RunRecording:RecordRunInput' was off, or the run predates " +
+                 "parameter recording); continuing it would run with different instructions. " +
+                 "This run cannot be continued.", null),
+            RecordedValuesProblem.Invalid =>
+                ($"Run '{runId}' cannot be continued: agent '{agentName}' no longer accepts the " +
+                 $"values it was bound with. {recorded.Detail}", null),
+            _ => (null, recorded.Values),
+        };
+    }
+
     /// <summary>Returns why a run is not continued.</summary>
     /// <param name="record">The interrupted run.</param>
     /// <returns>
