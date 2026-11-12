@@ -232,7 +232,7 @@ class FetchTests(unittest.TestCase):
 
         self.assertIsNone(request.get_header("Authorization"))
 
-    def test_curl_gets_the_headers_too(self) -> None:
+    def test_curl_gets_the_headers_too_through_its_standard_input_not_its_command_line(self) -> None:
         completed = subprocess.CompletedProcess([], 0, stdout="{}\n200", stderr="")
 
         with mock.patch.object(remote_state.subprocess, "run", return_value=completed) as run:
@@ -240,8 +240,23 @@ class FetchTests(unittest.TestCase):
 
         command = run.call_args.args[0]
         pairs = [(command[i], command[i + 1]) for i in range(len(command) - 1)]
-        self.assertIn(("--header", "Authorization: Bearer t0k"), pairs)
-        self.assertIn(("--header", "Accept: x"), pairs)
+        # The command line of a process is readable by every other user of the machine (`ps`); the token is not on it.
+        self.assertFalse(any("t0k" in argument for argument in command), command)
+        self.assertIn(("--config", "-"), pairs)
+        self.assertEqual(
+            run.call_args.kwargs["input"], 'header = "Authorization: Bearer t0k"\nheader = "Accept: x"\n')
+
+    def test_curl_config_quotes_what_would_end_the_string_and_refuses_what_would_add_a_line(self) -> None:
+        completed = subprocess.CompletedProcess([], 0, stdout="{}\n200", stderr="")
+
+        with mock.patch.object(remote_state.subprocess, "run", return_value=completed) as run:
+            remote_state._fetch_with_curl("https://example.test", {"X-A": 'say "hi" \\ there'})
+        self.assertEqual(run.call_args.kwargs["input"], 'header = "X-A: say \\"hi\\" \\\\ there"\n')
+
+        for value in ("t0k\nurl = https://evil.test", "t0k\rx"):
+            with self.subTest(value=value), mock.patch.object(remote_state.subprocess, "run") as unused:
+                self.assertEqual((None, ""), remote_state._fetch_with_curl("https://example.test", {"Authorization": value}))
+                unused.assert_not_called()
 
     def test_curl_output_is_split_into_status_and_body(self) -> None:
         completed = subprocess.CompletedProcess([], 0, stdout='{"versions":[]}\n200', stderr="")
@@ -423,6 +438,15 @@ class SlugOfTests(unittest.TestCase):
     def test_text_that_names_no_repository_has_no_slug(self) -> None:
         self.assertIsNone(remote_state.slug_of(""))
         self.assertIsNone(remote_state.slug_of("/tmp/some/bare.git"))
+
+    def test_a_url_without_a_host_or_a_file_url_names_no_repository(self) -> None:
+        # `file:///tmp/mirror.git` has a two-segment path, but it is a directory on disk and not an `owner/name`.
+        for url in ("file:///tmp/mirror.git", "file://localhost/tmp/mirror.git", "https:///owner/repo.git"):
+            with self.subTest(url=url):
+                self.assertIsNone(remote_state.slug_of(url))
+
+    def test_an_ssh_url_with_a_host_still_has_its_slug(self) -> None:
+        self.assertEqual("owner/repo", remote_state.slug_of("ssh://git@github.com/owner/repo.git"))
 
 
 class CiRunsTests(unittest.TestCase):

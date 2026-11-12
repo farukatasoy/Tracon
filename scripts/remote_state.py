@@ -108,12 +108,32 @@ def fetch(url: str, headers: dict[str, str] | None = None) -> tuple[int | None, 
         return None, ""
 
 
+def _curl_config(headers: dict[str, str]) -> str | None:
+    """The headers as the text of a curl config file, or `None` when a header could add a line of its own.
+
+    The command line of a process is readable by every other user of the machine, and the headers carry a token, so they
+    go to curl through its standard input (`--config -`). Inside a quoted config string a backslash and a double quote are
+    escaped; a carriage return or a line feed would end the setting and begin another, so a header with one is refused."""
+    lines = []
+    for name, value in headers.items():
+        text = f"{name}: {value}"
+        if "\r" in text or "\n" in text:
+            return None
+        lines.append('header = "' + text.replace("\\", "\\\\").replace('"', '\\"') + '"\n')
+
+    return "".join(lines)
+
+
 def _fetch_with_curl(url: str, headers: dict[str, str] | None = None) -> tuple[int | None, str]:
-    header_arguments = [argument for name, value in (headers or {}).items() for argument in ("--header", f"{name}: {value}")]
+    config = _curl_config(headers or {})
+
+    if config is None:
+        return None, ""
 
     try:
         completed = subprocess.run(
-            ["curl", "--silent", "--max-time", str(LOOKUP_TIMEOUT_SECONDS), *header_arguments, "--write-out", "\n%{http_code}", url],
+            ["curl", "--silent", "--max-time", str(LOOKUP_TIMEOUT_SECONDS), "--config", "-", "--write-out", "\n%{http_code}", url],
+            input=config,
             capture_output=True,
             text=True,
             timeout=LOOKUP_TIMEOUT_SECONDS + 5,
@@ -346,7 +366,14 @@ def slug_of(url: str) -> str | None:
     text = url.strip()
 
     if "://" in text:
-        path = urllib.parse.urlsplit(text).path
+        parts = urllib.parse.urlsplit(text)
+
+        # `file:///tmp/mirror.git` has two path segments too, but it is a directory and not an `owner/name`; a URL
+        # names a repository only through a host.
+        if parts.scheme == "file" or not parts.hostname:
+            return None
+
+        path = parts.path
     elif ":" in text and not text.startswith("/"):
         path = text.partition(":")[2]
     else:
