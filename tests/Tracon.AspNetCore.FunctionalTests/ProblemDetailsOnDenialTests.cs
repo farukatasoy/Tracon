@@ -27,7 +27,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// route match and Tracon's own endpoint filter. Every claim here crosses that boundary (DI order, the HTTP
 /// pipeline, an authentication scheme, a tenant), so none is proven by a unit test of the handler alone.
 /// </remarks>
-public sealed class ProblemDetailsOnDenialTests
+public sealed partial class ProblemDetailsOnDenialTests
 {
     private const string RoleHeader = "X-Test-Role";
 
