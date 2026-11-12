@@ -2031,6 +2031,53 @@ def test_commands(
     ]
 
 
+# Test classes that read the XML documentation of the packable projects from `artifacts/bin`, by test project. The
+# documentation is written by a build of those projects. A run on a tree where only the test project was built
+# (`dotnet build tests/Tracon.Core.UnitTests`) failed `Every_registration_entry_point_shows_a_worked_example` with
+# "No XML documentation was found": a missing prerequisite that reads like a defect in the examples.
+PACKAGE_DOCUMENTATION_TEST_CLASSES: dict[str, tuple[str, ...]] = {
+    "Tracon.Core.UnitTests": ("Tracon.Core.UnitTests.Architecture.CapabilityExampleTests",),
+}
+# The framework leg whose documentation those tests read; `CapabilityExampleTests.ReadTargetFramework` names the same.
+PACKAGE_DOCUMENTATION_FRAMEWORK = "net10.0"
+# A registration entry point as the tracked public API writes it: a member of the builder, or an `Add`/`Use`/`Map`
+# extension method. Wider than the test's own reader (any receiver counts), so a package the test reads is never missed;
+# a package only this pattern finds merely has to be built too.
+_REGISTRATION_ENTRY_POINT = re.compile(
+    r"^(?:Tracon\.ITraconBuilder\.|~?static [A-Za-z0-9_.]+\.(?:Add|Use|Map)[A-Za-z0-9_]*(?:<[^(]*>)?\(this )")
+
+# Exit code of `test` when a prerequisite of the selected tests is missing; 1 stays for a failed run and 2 for a usage error.
+PREREQUISITE_MISSING_EXIT_CODE = 3
+
+
+def selects_package_documentation_tests(project: str, patterns: Sequence[str]) -> bool:
+    """True if a `--class` selection can reach a test class that reads the packages' XML documentation."""
+    return any(
+        fnmatch.fnmatchcase(name, pattern)
+        for name in PACKAGE_DOCUMENTATION_TEST_CLASSES.get(project, ())
+        for pattern in patterns)
+
+
+def missing_package_documentation(root: pathlib.Path = ROOT) -> list[str]:
+    """The packages that declare a registration entry point and have no built XML documentation file."""
+    missing: list[str] = []
+    source = root / "src"
+    if not source.is_dir():
+        return missing
+    for directory in sorted(source.iterdir()):
+        files = [directory / name for name in ("PublicAPI.Shipped.txt", "PublicAPI.Unshipped.txt")]
+        if not any(
+                _REGISTRATION_ENTRY_POINT.match(line)
+                for file in files if file.is_file()
+                for line in file.read_text(encoding="utf-8").splitlines()):
+            continue
+        documentation = (root / "artifacts" / "bin" / directory.name
+                         / f"release_{PACKAGE_DOCUMENTATION_FRAMEWORK}" / f"{directory.name}.xml")
+        if not documentation.is_file():
+            missing.append(directory.name)
+    return missing
+
+
 # -----------------------------------------------------------------------------
 # `stability` - does one set of built binaries behave the same way, run after run?
 #
@@ -4556,6 +4603,14 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             frameworks = (args.tfm,) if args.tfm else test_target_frameworks()
             if not require_test_runtimes(frameworks):
                 return 1
+        if not args.print_commands and selects_package_documentation_tests(args.project, args.classes):
+            unbuilt = missing_package_documentation()
+            if unbuilt:
+                print(
+                    "❌ A prerequisite of these tests is missing, which is not a failed test: the XML documentation "
+                    f"of {', '.join(unbuilt)} is not built. Build the packable projects first: "
+                    "dotnet build Tracon.src.slnf -c Release")
+                return PREREQUISITE_MISSING_EXIT_CODE
         return run_commands("test", commands, dry_run=args.print_commands)
     if args.stage == "stability":
         return stability_from_arguments(args)

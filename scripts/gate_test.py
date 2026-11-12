@@ -286,6 +286,50 @@ class GateTests(unittest.TestCase):
 
         self.assertEqual(commands.call_args.args[1], ["*A*", "*B*", "*C*"])
 
+    def test_a_missing_documentation_prerequisite_is_not_reported_as_a_failed_test(self):
+        """Only the test project was built: the capability tests found no XML documentation and failed as if the
+        examples were wrong. The run now stops before it starts, with an exit code of its own."""
+        with mock.patch.object(gate, "missing_package_documentation", return_value=["Tracon.AspNetCore"]), \
+                mock.patch.object(gate, "require_test_runtimes", return_value=True), \
+                mock.patch.object(gate, "run_commands") as run, contextlib.redirect_stdout(io.StringIO()) as output:
+            code = gate.main(["test", "--project", "Tracon.Core.UnitTests", "--class", "*CapabilityExample*"])
+
+        self.assertEqual(code, gate.PREREQUISITE_MISSING_EXIT_CODE)
+        self.assertNotIn(code, (0, 1, 2))
+        run.assert_not_called()
+        self.assertIn("Tracon.AspNetCore", output.getvalue())
+        self.assertIn("dotnet build Tracon.src.slnf", output.getvalue())
+
+    def test_a_selection_that_cannot_reach_the_documentation_tests_is_not_blocked(self):
+        with mock.patch.object(gate, "missing_package_documentation", return_value=["Tracon.AspNetCore"]), \
+                mock.patch.object(gate, "require_test_runtimes", return_value=True), \
+                mock.patch.object(gate, "run_commands", return_value=0) as run:
+            code = gate.main(["test", "--project", "Tracon.Core.UnitTests", "--class", "*SomethingElse*"])
+
+        self.assertEqual(code, 0)
+        run.assert_called_once()
+
+    def test_a_built_documentation_file_satisfies_the_prerequisite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for package, entry in (
+                    ("Tracon.Built", "static Tracon.BuiltExtensions.AddBuilt(this Tracon.ITraconBuilder builder) -> Tracon.ITraconBuilder!"),
+                    ("Tracon.Unbuilt", "static Tracon.UnbuiltExtensions.UseUnbuilt(this Tracon.ITraconBuilder builder) -> Tracon.ITraconBuilder!"),
+                    ("Tracon.Helpers", "static Tracon.HelperExtensions.Describe(this string value) -> string!")):
+                (root / "src" / package).mkdir(parents=True)
+                (root / "src" / package / "PublicAPI.Shipped.txt").write_text(f"#nullable enable\n{entry}\n", encoding="utf-8")
+            built = root / "artifacts" / "bin" / "Tracon.Built" / "release_net10.0"
+            built.mkdir(parents=True)
+            (built / "Tracon.Built.xml").write_text("<doc />", encoding="utf-8")
+
+            self.assertEqual(gate.missing_package_documentation(root), ["Tracon.Unbuilt"])
+
+    def test_documentation_prerequisite_selects_the_capability_tests_by_class_pattern(self):
+        for pattern in ("*CapabilityExample*", "*Architecture*", "Tracon.Core.UnitTests.Architecture.CapabilityExampleTests"):
+            self.assertTrue(gate.selects_package_documentation_tests("Tracon.Core.UnitTests", [pattern]), pattern)
+        self.assertFalse(gate.selects_package_documentation_tests("Tracon.Core.UnitTests", ["*Other*"]))
+        self.assertFalse(gate.selects_package_documentation_tests("Tracon.Sqlite.IntegrationTests", ["*CapabilityExample*"]))
+
     def test_mtp_filter_emits_filter_class(self):
         commands = gate.test_commands("Tracon.Generators.UnitTests", ["*Capability*"], environ={})
 
