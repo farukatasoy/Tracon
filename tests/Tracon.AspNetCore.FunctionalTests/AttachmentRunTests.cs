@@ -69,7 +69,7 @@ public sealed class AttachmentRunTests
             new AgentRunRequest { Message = "hello", AttachmentIds = [Guid.NewGuid()] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
     }
 
     [Fact]

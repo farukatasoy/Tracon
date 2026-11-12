@@ -156,7 +156,7 @@ public sealed class OpenAiSdkDifferentialTests
 
         using var response = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, TestContext.Current.CancellationToken);
 
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
 
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 

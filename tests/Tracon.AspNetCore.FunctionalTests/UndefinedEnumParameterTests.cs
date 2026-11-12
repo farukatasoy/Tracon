@@ -170,7 +170,7 @@ public sealed class UndefinedEnumParameterTests
         using var response = await host.Client.GetAsync(new Uri(route, UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
 
         var problem = await TraconTestHost.ReadJsonAsync(response);
         problem.GetProperty("title").GetString().ShouldBe("Invalid request parameter");

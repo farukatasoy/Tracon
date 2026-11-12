@@ -273,7 +273,7 @@ public sealed class ClientToolEndpointTests
 
         using var first = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { SessionId = "s1", Message = "what is the page title?" });
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
-        first.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        first.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
 
         var firstFrames = await SseReader.ReadAllAsync(await first.Content.ReadAsStreamAsync());
         var callId = ExtractCallIdFromFrames(firstFrames);

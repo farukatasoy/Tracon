@@ -62,7 +62,7 @@ public sealed class ProviderOutageErrorHandlingTests
         using var response = await host.Client.SendAsync(request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
 
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("status").GetInt32().ShouldBe((int)HttpStatusCode.BadGateway);
@@ -98,7 +98,7 @@ public sealed class ProviderOutageErrorHandlingTests
             new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative),
             new AgentRunRequest { Message = "merhaba" });
 
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
 
         var body = await response.Content.ReadAsStringAsync();
 

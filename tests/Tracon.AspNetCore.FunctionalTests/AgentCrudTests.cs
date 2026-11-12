@@ -310,7 +310,7 @@ public sealed class AgentCrudTests
         using var response = await host.Client.PostAsJsonAsync(Agents, TestData.Request(name: string.Empty));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
     }
 
     [Fact]

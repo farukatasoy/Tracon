@@ -32,7 +32,7 @@ public sealed class ProblemDetailsTests
         using var response = await host.Client.GetAsync(new Uri(path, UriKind.Relative));
 
         response.StatusCode.ShouldBe(expected);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
 
         var json = await TraconTestHost.ReadJsonAsync(response);
 
@@ -55,7 +55,7 @@ public sealed class ProblemDetailsTests
 
         using var response = await host.Client.SendAsync(request);
 
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
         (await TraconTestHost.ReadJsonAsync(response))
             .GetProperty("status").GetInt32().ShouldBe((int)HttpStatusCode.Forbidden);
     }
@@ -70,7 +70,7 @@ public sealed class ProblemDetailsTests
             new { name = "missing-model" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class ProblemDetailsTests
             new Uri("/tracon/v1/responses", UriKind.Relative),
             new { model = "no-such-thing", input = "hello" });
 
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/json");
 
         var json = await TraconTestHost.ReadJsonAsync(response);
 

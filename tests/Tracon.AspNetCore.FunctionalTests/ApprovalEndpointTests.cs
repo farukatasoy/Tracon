@@ -239,7 +239,7 @@ public sealed class ApprovalEndpointTests
             Run,
             new AgentRunRequest { Message = "cancel the order", SessionId = "session-sync-streaming" });
 
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
         await response.Content.ReadAsStringAsync();
 
         using var runningJobs = await host.Client.GetAsync(

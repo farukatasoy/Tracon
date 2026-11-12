@@ -290,7 +290,7 @@ public sealed class WorkflowEndpointTests
             new WorkflowRunHttpRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
 
         var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
 

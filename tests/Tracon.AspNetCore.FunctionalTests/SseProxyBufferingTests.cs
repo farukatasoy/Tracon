@@ -91,7 +91,7 @@ public sealed class SseProxyBufferingTests
 
         using var response = await OpenEventsAsync(origin.Address, runId);
 
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
         response.Headers.TryGetValues("X-Accel-Buffering", out var accel).ShouldBeTrue();
         accel.ShouldNotBeNull().Any(static value => string.Equals(value, "no", StringComparison.OrdinalIgnoreCase)).ShouldBeTrue();
 

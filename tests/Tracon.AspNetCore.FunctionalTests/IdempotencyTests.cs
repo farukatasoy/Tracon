@@ -46,7 +46,7 @@ public sealed class IdempotencyTests
         using (var first = await PostWithKeyAsync(host, Run, body, key))
         {
             first.StatusCode.ShouldBe(HttpStatusCode.OK);
-            first.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
+            first.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/json");
             first.Headers.Contains("Idempotency-Replayed").ShouldBeFalse();
             firstBody = await first.Content.ReadAsStringAsync();
         }
@@ -360,7 +360,7 @@ public sealed class IdempotencyTests
         using var response = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
     }
 
     [Fact]

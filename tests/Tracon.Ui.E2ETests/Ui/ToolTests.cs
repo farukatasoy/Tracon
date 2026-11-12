@@ -111,7 +111,7 @@ public sealed class ToolTests(BrowserFixture browsers)
         using var response = await http.GetAsync("embed/embed.js");
 
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/javascript");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/javascript");
 
         var body = await response.Content.ReadAsStringAsync();
         body.Length.ShouldBeGreaterThan(0);

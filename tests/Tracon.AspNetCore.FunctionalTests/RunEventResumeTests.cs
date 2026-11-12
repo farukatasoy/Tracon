@@ -363,7 +363,7 @@ public sealed class RunEventResumeTests
         using var response = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
 
         await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token);
 

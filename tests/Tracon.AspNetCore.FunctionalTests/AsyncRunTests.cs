@@ -180,7 +180,7 @@ public sealed class AsyncRunTests
         using var response = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
         response.Headers.Contains("Preference-Applied").ShouldBeFalse();
     }
 

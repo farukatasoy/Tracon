@@ -84,7 +84,7 @@ public sealed class VoiceEndpointTests
             new Uri($"/tracon/api/attachments/{id}", UriKind.Relative));
 
         download.EnsureSuccessStatusCode();
-        download.Content.Headers.ContentType?.MediaType.ShouldBe("audio/mpeg");
+        download.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("audio/mpeg");
     }
 
     [Fact]

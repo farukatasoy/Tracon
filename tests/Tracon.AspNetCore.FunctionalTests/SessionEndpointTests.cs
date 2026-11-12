@@ -126,7 +126,7 @@ public sealed class SessionEndpointTests
             new Uri("/tracon/api/sessions/no-such-session", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
     }
 
     [Fact]

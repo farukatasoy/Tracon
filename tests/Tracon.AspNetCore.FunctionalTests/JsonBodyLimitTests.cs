@@ -118,7 +118,7 @@ public sealed class JsonBodyLimitTests
 
         using var reply = await Post(host, Padded((int)Limit + 1), chunked: false);
 
-        reply.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        reply.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
         (await TraconTestHost.ReadJsonAsync(reply)).GetProperty("detail").GetString().ShouldNotBeNull()
             .ShouldContain(Limit.ToString(System.Globalization.CultureInfo.InvariantCulture), Case.Sensitive);
     }
@@ -223,7 +223,7 @@ public sealed class JsonBodyLimitTests
         using var compatibleReply = await client.SendAsync(compatible, TestContext.Current.CancellationToken);
 
         managementReply.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
-        managementReply.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        managementReply.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
         compatibleReply.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
         (await TraconTestHost.ReadJsonAsync(compatibleReply)).TryGetProperty("error", out _).ShouldBeTrue();
     }

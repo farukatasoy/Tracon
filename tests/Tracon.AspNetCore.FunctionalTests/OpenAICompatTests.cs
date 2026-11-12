@@ -85,7 +85,7 @@ public sealed class OpenAICompatTests
         // returning ProblemDetails would produce a meaningless error on the client.
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("error").GetProperty("type").GetString().ShouldBe("model_not_found");
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/json");
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class OpenAICompatTests
             Responses,
             new { model = "kod-agent", input = "hello", stream = true });
 
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
 
         var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
         var names = frames.Select(static frame => frame.Event).ToList();

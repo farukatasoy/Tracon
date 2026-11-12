@@ -89,7 +89,7 @@ public sealed class BlankRouteParameterTests
         using var reply = await host.Client.SendAsync(request);
 
         reply.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        reply.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        reply.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
         (await TraconTestHost.ReadJsonAsync(reply)).GetProperty("title").GetString().ShouldBe(BlankRouteValueProblemMiddleware.ProblemTitle);
     }
 

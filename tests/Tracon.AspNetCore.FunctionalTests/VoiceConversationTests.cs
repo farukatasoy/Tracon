@@ -241,7 +241,7 @@ public sealed class VoiceConversationTests
             new Uri($"/tracon/api/attachments/{attachmentId}", UriKind.Relative));
 
         download.EnsureSuccessStatusCode();
-        download.Content.Headers.ContentType?.MediaType.ShouldBe("audio/mpeg");
+        download.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("audio/mpeg");
 
         // The attachment must be LINKED to the session; an orphaned
         // attachment is deleted by the retention policy.

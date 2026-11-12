@@ -121,7 +121,7 @@ public sealed class RequestBodyContentTypeTests
     [InlineData("PUT", "/tracon/api/workflows/probe")]
     [InlineData("POST", "/tracon/api/agents/validate")]
     [InlineData("PUT", "/tracon/api/quotas")]
-    public async Task A_body_that_is_not_JSON_is_refused_with_415_and_a_problem_document(string method, string route)
+    public async Task A_body_that_is_not_JSON_is_refused_with_a_bare_415(string method, string route)
     {
         await using var host = await TraconTestHost.StartAsync();
 
@@ -133,7 +133,14 @@ public sealed class RequestBodyContentTypeTests
         using var reply = await host.Client.SendAsync(request);
 
         reply.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
-        reply.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+
+        // The routing layer's own content type match answers this, before any Tracon code runs: the 415 has no body and
+        // no content type, as the attachment upload's wrong-type refusal above. The assertion used to read
+        // `ContentType?.MediaType.ShouldBe("application/problem+json")` and a missing content type passed it, so the test
+        // was named for a problem document that these four routes never sent. A problem document here would change the
+        // published answer of every route that declares a JSON body; that is a decision, not a test fix.
+        reply.Content.Headers.ContentType.ShouldBeNull();
+        (await reply.Content.ReadAsStringAsync()).ShouldBeEmpty();
     }
 
     [Theory]

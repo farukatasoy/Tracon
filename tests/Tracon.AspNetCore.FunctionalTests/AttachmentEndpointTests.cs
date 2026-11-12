@@ -74,7 +74,7 @@ public sealed class AttachmentEndpointTests
             new Uri($"/tracon/api/attachments/{id}", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("image/png");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("image/png");
         response.Headers.GetValues("X-Content-Type-Options").ShouldContain(static v => string.Equals(v, "nosniff", StringComparison.Ordinal));
         response.Content.Headers.GetValues("Content-Disposition")
             .ShouldContain(static v => v.StartsWith("attachment;", StringComparison.Ordinal) && v.Contains("test.png", StringComparison.Ordinal));

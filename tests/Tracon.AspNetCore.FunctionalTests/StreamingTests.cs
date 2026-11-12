@@ -22,7 +22,7 @@ public sealed class StreamingTests
         using var response = await PostRunAsync(host, new AgentRunRequest { Message = "merhaba" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("text/event-stream");
 
         var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
 
@@ -78,7 +78,7 @@ public sealed class StreamingTests
             new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public sealed class StreamingTests
             new Uri($"/tracon/api/runs/{Guid.NewGuid()}/events", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
     }
 
     private static Task<HttpResponseMessage> PostRunAsync(TraconTestHost host, AgentRunRequest request)
