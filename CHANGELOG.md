@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A single-answer request is no longer locked by a run row the server could not close.** A streamed answer opens the run's row before the engine takes over; when the engine fails first, the endpoint closes that row. A store error in that close escaped after the response headers had been sent, so the caller got an exception for an answer the server had already refused. It is now logged (`Run … opened for a streamed answer that never started, could not be closed`) and the response ends with its `error` frame. A queued answer whose job ended while its run stayed `Queued` (a close that failed) made every repeat of the same answer follow that run for ever; a repeat now closes such a run as `Failed` and starts the work again.
+  What to do:
+  - **Nothing.** A run row left `Queued` by a failed close is `Failed` after the next repeat of its answer.
+
 - **An interrupted run whose agent cannot be continued is refused before a continuation exists.** The reconciler queued a continuation for any root agent run it had closed, and the continuation job then refused agents with skills, callable sub-agents, agent extensions or a session workspace (their calls do not pass through the tool playback a continuation relies on) and agents with no stored definition. The refusal came after a `Queued` placeholder run had been opened, so `GET /api/runs` listed an extra `Failed` run that never started, and the interrupted run itself learned nothing. The reconciler now reads the definition and applies the same rules first: no second run is opened and the interrupted run gets a `RunContinuationBlocked` event that names the agent and the reason. The job still applies the rules to a job queued earlier or by hand, and the parameters check (it needs the recorded input) stays in the job.
   What to do:
   - **Nothing.** A filter that expected a `Failed` continuation row for these agents finds the `RunContinuationBlocked` event on the interrupted run instead.

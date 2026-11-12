@@ -310,6 +310,61 @@ public sealed class WorkflowResponseOwnershipTests
     }
 
     [Fact]
+    public async Task A_row_the_stream_cannot_close_does_not_make_the_response_fail_and_is_logged()
+    {
+        // The engine fails before its first event, so the endpoint closes the row it opened. The store refuses the
+        // close. That used to escape after the headers were sent: the caller got an exception for an answer the server had
+        // already refused, and nothing said which row was left open.
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(configureTracon: static builder =>
+            builder.Services.ThrowFrom<IRunStore>(
+                nameof(IRunStore.CompleteRunAsync),
+                static () => new InvalidOperationException("the store is unreachable"),
+                times: 1,
+                when: static args => args is [RunCompletion { Status: RunStatus.Failed }, ..]));
+        var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+        var source = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(sourceId))!;
+
+        await host.Services.GetRequiredService<IWorkflowCheckpointStore>()
+            .DeleteAsync(source.TenantId!, source.SessionId!);
+
+        using var answered = await RespondAsync(host, sourceId, new { requestId, approved = true });
+        var frames = await FramesAsync(answered);
+
+        frames[^1].Event.ShouldBe("error");
+        host.Logs.Entries.ShouldContain(
+            static entry => entry.Contains("could not be closed", StringComparison.Ordinal),
+            "the row left open is named in the log");
+    }
+
+    [Fact]
+    public async Task A_repeat_of_a_queued_answer_whose_job_ended_but_whose_row_was_never_closed_starts_the_work_again()
+    {
+        // The queued answer's job ended (here: it was cancelled in the queue) and nobody closed the row it was queued for,
+        // so the row still reads as a run in flight. A repeat that followed it waited for ever.
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(runWorker: false);
+        var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+
+        using var queued = await QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true });
+        var abandoned = await QueuedWorkflowHarness.AcceptedRunIdAsync(queued);
+
+        (await host.Services.GetRequiredService<IJobStore>().CancelAsync(QueuedWorkflowHarness.TenantOf(host), abandoned)).ShouldBeTrue();
+        (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(abandoned))!.Status.ShouldBe(RunStatus.Queued);
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var again = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
+        var restarted = RunIdOf(await FramesAsync(again));
+
+        restarted.ShouldNotBe(abandoned);
+        (await host.WaitForTerminalRunAsync(restarted)).Status.ShouldBe(RunStatus.Completed);
+
+        var closed = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(abandoned))!;
+
+        closed.Status.ShouldBe(RunStatus.Failed, "the repeat closed the row the job had left open");
+    }
+
+    [Fact]
     public async Task A_delivered_answer_whose_run_failed_before_any_checkpoint_starts_again()
     {
         // The workflow received the answer, then the run failed before it wrote

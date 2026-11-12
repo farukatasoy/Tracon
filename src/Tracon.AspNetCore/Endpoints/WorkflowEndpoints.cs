@@ -2077,20 +2077,37 @@ internal static class WorkflowEndpoints
             {
                 if (preOpened is not null && !engineStarted)
                 {
-                    await preOpened.CompleteRunAsync(
-                        new RunCompletion
-                        {
-                            RunId = runId,
-                            Status = unstarted is null ? RunStatus.Canceled : RunStatus.Failed,
-                            CompletedAt = DateTimeOffset.UtcNow,
-                            Error = unstarted ?? new RunError
+                    // Best effort, like every other close of a row the endpoint opened: a store error here used to escape
+                    // after the headers were sent, and the response ended in an exception for work that had already been
+                    // refused. The row stays as it was opened; the gate closes a queued row whose job is over when the
+                    // answer comes again (WorkflowResponseGate).
+                    try
+                    {
+                        await preOpened.CompleteRunAsync(
+                            new RunCompletion
                             {
-                                Type = nameof(OperationCanceledException),
-                                Message = "The connection closed before the run started.",
+                                RunId = runId,
+                                Status = unstarted is null ? RunStatus.Canceled : RunStatus.Failed,
+                                CompletedAt = DateTimeOffset.UtcNow,
+                                Error = unstarted ?? new RunError
+                                {
+                                    Type = nameof(OperationCanceledException),
+                                    Message = "The connection closed before the run started.",
+                                },
+                                TenantId = tenantId,
                             },
-                            TenantId = tenantId,
-                        },
-                        CancellationToken.None).ConfigureAwait(false);
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+                    {
+                        httpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("Tracon.WorkflowEndpoints")
+                            .LogWarning(
+                                exception,
+                                "Run {RunId}, opened for a streamed answer that never started, could not be closed.",
+                                runId);
+                    }
                 }
             }
         }

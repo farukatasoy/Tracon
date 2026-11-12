@@ -313,7 +313,20 @@ internal static class WorkflowResponseGate
         var last = chain[^1];
         var jobs = services.GetRequiredService<IJobStore>();
 
-        if (last.Status is not (RunStatus.Failed or RunStatus.Canceled))
+        // A queued answer's row that was never closed although its job is over: a close that failed (the store was
+        // unreachable when the worker finished, or the endpoint could not write it). Nobody holds the run, and a repeat
+        // that followed it would wait for ever. The row is closed here and the answer is judged as for any stopped run.
+        var abandoned = last.Status == RunStatus.Queued
+            && chain.Count == 1
+            && await jobs.GetAsync(tenantId, existing.ResponseRunId, cancellationToken).ConfigureAwait(false)
+                is { Status: JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled };
+
+        if (abandoned)
+        {
+            await CloseAbandonedQueuedRunAsync(last, tenantId, services).ConfigureAwait(false);
+        }
+
+        if (!abandoned && last.Status is not (RunStatus.Failed or RunStatus.Canceled))
         {
             // A queued answer's row opens Queued before its record and its job (the job id is the
             // run id). A process that stopped between the record and the enqueue, or an enqueue
@@ -354,6 +367,34 @@ internal static class WorkflowResponseGate
         }
 
         return new RecordState(Gone: false, Stopped: true, last.Id, MissingJob: false);
+    }
+
+    /// <summary>Closes a queued row whose job ended without closing it. Best-effort, as <see cref="CloseAsync"/>.</summary>
+    private static async ValueTask CloseAbandonedQueuedRunAsync(RunRecord run, string tenantId, IServiceProvider services)
+    {
+        try
+        {
+            await services.GetRequiredService<IRunStore>().CompleteRunAsync(
+                new RunCompletion
+                {
+                    RunId = run.Id,
+                    Status = RunStatus.Failed,
+                    CompletedAt = Now(services),
+                    Error = new RunError
+                    {
+                        Type = nameof(InvalidOperationException),
+                        Message = "The job of this answer ended, but the run it was queued for was never closed.",
+                    },
+                    TenantId = tenantId,
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Tracon.WorkflowEndpoints")
+                .LogWarning(exception, "Run {RunId}, whose job ended, could not be closed.", run.Id);
+        }
     }
 
     /// <summary>Whether the run has written at least one event: whether a process started it.</summary>

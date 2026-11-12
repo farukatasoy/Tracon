@@ -51,6 +51,8 @@ job is still waiting or running is followed, because the job's recovery owns tha
 queued answer whose job was never written — the process stopped after the answer was
 recorded and before the job was queued — is finished by a repeat of the same answer: the
 repeat writes the job and follows the run, and two repeats at the same time write it once.
+A queued answer whose job has ended while its run is still `Queued` (a close that failed)
+is stopped too: the repeat closes that run as `Failed` and starts the work again.
 
 The run an answer starts has its row opened before the answer is recorded, so a recorded
 answer always names a run that exists. Two answers that arrive in the same moment can
