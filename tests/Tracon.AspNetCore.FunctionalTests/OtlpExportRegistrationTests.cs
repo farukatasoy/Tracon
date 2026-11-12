@@ -14,7 +14,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Without <c>OTEL_EXPORTER_OTLP_ENDPOINT</c> the sample has to behave exactly as it did before telemetry export existed:
 /// nothing registers, and nothing tries to reach a collector. The condition is one <c>if</c>; moving the registration out
 /// of it, or dropping the length test so that an empty value counts as an endpoint, would not fail any other test, and
-/// the only reader of this rule was a manual case that counted connections.
+/// the only reader of this rule was a run by hand that counted connections.
 /// </para>
 /// <para>
 /// The sample's <c>Program</c> cannot be hosted by a test, so the registration is a method of its own
