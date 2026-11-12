@@ -4186,6 +4186,24 @@ def _tag_exists(root: pathlib.Path, tag: str) -> bool:
         return False
 
 
+def _cut_commit(root: pathlib.Path, cut: str) -> str | None:
+    """The commit that first wrote the dated `## [<cut>] - <date>` heading of CHANGELOG.md, or `None` when git cannot say.
+
+    The cut commit is the one the tag run packs, so the package set of a release that waits for its tag is the set
+    this commit held."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "--reverse", "--format=%H", f"-S## [{cut}] - ", "--", "CHANGELOG.md"],
+            cwd=root, capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    commits = result.stdout.split()
+    return commits[0] if commits else None
+
+
 def _untagged_release_state(
     root: pathlib.Path, baseline: str, tag_hint: Callable[[str], str],
 ) -> int:
@@ -4204,7 +4222,15 @@ def _untagged_release_state(
     if cut is None or _tag_exists(root, tag):
         return 0
 
-    package_ids = packable_project_ids(root)
+    # The set the cut commit held, not the working tree's: a project added after the cut is not part of the release,
+    # and counting it would call a complete publish half done.
+    cut_commit = _cut_commit(root, cut)
+    package_ids = remote_state.packable_ids_at(root, cut_commit) if cut_commit else None
+
+    if not package_ids:
+        print(f"⚠️ The tree of the commit that cut {cut} could not be read; the package set came from the working tree.")
+        package_ids = packable_project_ids(root)
+
     state = remote_state.release_state(package_ids, cut)
 
     if state.published:

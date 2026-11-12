@@ -4269,25 +4269,38 @@ class UntaggedReleaseStateTests(unittest.TestCase):
         "# Changelog\n\n## [Unreleased]\n\n## [1.0.0-preview.3] - 2026-10-01\n- a\n"
         "## [1.0.0-preview.2] - 2026-09-20\n- y\n")
 
-    def _check(self, cut_state, *, changelog: str | None = None, tag_exists: bool = False, hint=None):
+    def _check(
+        self, cut_state, *, changelog: str | None = None, tag_exists: bool = False, hint=None,
+        tree_ids=("A", "B"), cut_ids: tuple[str, ...] | None = ("A", "B"), asked_for=None,
+    ):
+        """`cut_ids` is the package set of the cut commit (None: git cannot say); `asked_for` collects the ids
+        the cut was looked up with."""
         sys.path.insert(0, str(ROOT / "scripts"))
         breaking_changes = importlib.import_module("breaking_changes")
         remote_state = importlib.import_module("remote_state")
         published = remote_state.ReleaseState("1.0.0-preview.2", (), (), 2)
 
         def release_state(ids, version, **kwargs):
+            if version != "1.0.0-preview.2" and asked_for is not None:
+                asked_for.append(list(ids))
             return published if version == "1.0.0-preview.2" else cut_state
+
+        def packable_ids_at(root, ref, **kwargs):
+            if ref == "cut-commit":
+                return None if cut_ids is None else list(cut_ids)
+            return ["A", "B"]
 
         out = io.StringIO()
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
             (root / "CHANGELOG.md").write_text(changelog or self.CHANGELOG, encoding="utf-8")
             with mock.patch.object(breaking_changes, "resolve_baseline", return_value="1.0.0-preview.2"), \
-                    mock.patch.object(remote_state, "packable_ids_at", return_value=["A", "B"]), \
+                    mock.patch.object(remote_state, "packable_ids_at", side_effect=packable_ids_at), \
                     mock.patch.object(remote_state, "release_state", side_effect=release_state), \
                     mock.patch.object(remote_state, "ci_state", return_value=None), \
-                    mock.patch.object(gate, "packable_project_ids", return_value=["A", "B"]), \
+                    mock.patch.object(gate, "packable_project_ids", return_value=list(tree_ids)), \
                     mock.patch.object(gate, "_tag_exists", return_value=tag_exists), \
+                    mock.patch.object(gate, "_cut_commit", return_value="cut-commit"), \
                     contextlib.redirect_stdout(out):
                 code = gate.remote_state_check(root, **({"tag_hint": hint} if hint else {}))
         return code, out.getvalue()
@@ -4326,6 +4339,56 @@ class UntaggedReleaseStateTests(unittest.TestCase):
 
         self.assertEqual(code, 0)
         self.assertIn("⚠️ v1.0.0-preview.3 is cut and has no tag; nuget.org was not reachable", text)
+
+    def test_the_package_set_of_a_cut_is_the_set_of_its_cut_commit_not_the_working_tree(self):
+        """A project added after the cut is not part of it; counting it called a complete publish half done."""
+        asked_for: list[list[str]] = []
+
+        code, text = self._check(
+            self._state(2), tree_ids=("A", "B", "C"), cut_ids=("A", "B"), asked_for=asked_for)
+
+        self.assertEqual(asked_for, [["A", "B"]])
+        self.assertEqual(code, 1)
+        self.assertIn("(2/2 packages)", text)
+
+    def test_a_cut_commit_that_git_cannot_read_falls_back_to_the_working_tree_and_says_so(self):
+        asked_for: list[list[str]] = []
+
+        code, text = self._check(
+            self._state(2), tree_ids=("A", "B", "C"), cut_ids=None, asked_for=asked_for)
+
+        self.assertEqual(asked_for, [["A", "B", "C"]])
+        self.assertIn("could not be read; the package set came from the working tree", text)
+
+    def test_the_cut_commit_is_the_one_that_first_wrote_the_dated_heading(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+
+            def git(*args: str) -> str:
+                return subprocess.run(
+                    ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
+                    cwd=root, env=env, check=True, capture_output=True, text=True).stdout.strip()
+
+            git("init", "-q", "-b", "main")
+            (root / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n\n- a\n", encoding="utf-8")
+            git("add", "-A")
+            git("commit", "-q", "-m", "before")
+            (root / "CHANGELOG.md").write_text(
+                "# Changelog\n\n## [Unreleased]\n\n## [1.0.0-preview.3] - 2026-10-01\n\n- a\n", encoding="utf-8")
+            git("add", "-A")
+            git("commit", "-q", "-m", "Cut 1.0.0-preview.3")
+            cut = git("rev-parse", "HEAD")
+            (root / "later.txt").write_text("x", encoding="utf-8")
+            git("add", "-A")
+            git("commit", "-q", "-m", "after")
+
+            self.assertEqual(gate._cut_commit(root, "1.0.0-preview.3"), cut)
+            self.assertIsNone(gate._cut_commit(root, "9.9.9"))
+
+    def test_a_directory_without_git_has_no_cut_commit(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.assertIsNone(gate._cut_commit(pathlib.Path(temp), "1.0.0-preview.3"))
 
     def test_a_cut_that_has_its_tag_says_nothing_about_a_missing_one(self):
         code, text = self._check(self._state(2), tag_exists=True)
