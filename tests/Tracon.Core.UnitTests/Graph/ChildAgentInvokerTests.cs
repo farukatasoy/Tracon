@@ -433,6 +433,34 @@ public sealed class ChildAgentInvokerTests
         exception.Message.ShouldContain("call depth limit was exceeded", Case.Sensitive);
     }
 
+    [Fact]
+    public async Task In_fail_mode_the_depth_limit_names_the_setting_and_does_not_speak_to_the_model()
+    {
+        var (invoker, _) = CreateInvoker(ChildRefusalMode.Fail);
+
+        SetScope(depth: 3, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var exception = await Should.ThrowAsync<TraconException>(async () => await invoker.RunAsync("run"));
+
+        // The reader of this text is an operator who must raise a limit, not a model that can finish the work itself.
+        exception.Message.ShouldContain("Tracon:AgentGraph:MaxDepth", Case.Sensitive);
+        exception.Message.ShouldNotContain("Finish the work yourself", Case.Sensitive);
+        exception.Message.ShouldContain("call depth limit was exceeded", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task In_tool_result_mode_the_depth_limit_still_speaks_to_the_model()
+    {
+        var (invoker, _) = CreateInvoker(ChildRefusalMode.ToolResult);
+
+        SetScope(depth: 3, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var response = await invoker.RunAsync("run");
+
+        response.Text.ShouldContain("Finish the work yourself", Case.Sensitive);
+        response.Text.ShouldNotContain("Tracon:AgentGraph:MaxDepth", Case.Sensitive);
+    }
+
     /// <summary>
     /// A call that finishes in time leaves no timer and no registration behind, however many updates the child streams.
     /// </summary>

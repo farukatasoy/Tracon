@@ -544,10 +544,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
         if (scope.Depth + 1 > maxDepth)
         {
-            return new ChildRefusal(
-                $"Could not call agent '{_childName}': the call depth limit was exceeded " +
-                $"(the maximum allowed depth is {maxDepth}). Finish the work yourself, or " +
-                "build a call chain with fewer layers.");
+            return DepthRefusal(maxDepth);
         }
 
         // Tenant leakage happens exactly here. The sub-call runs on another
@@ -846,6 +843,22 @@ public sealed class ChildAgentInvoker : AIAgent
             },
             _ => new TraconException(refusal.Text),
         };
+
+    /// <summary>
+    /// The refusal for a call past the depth limit. A model reads the text of a tool result and can finish the work
+    /// itself; the operator who reads a failed workflow step or reviewer must raise the limit, so the failing modes say
+    /// which setting holds it.
+    /// </summary>
+    private ChildRefusal DepthRefusal(int maxDepth)
+        => _refusalMode == ChildRefusalMode.Fail
+            ? new(
+                $"Could not call agent '{_childName}': the call depth limit was exceeded " +
+                $"(the maximum allowed depth is {maxDepth}, set by Tracon:AgentGraph:MaxDepth). " +
+                $"The {_callKind} failed; raise the limit or build a call chain with fewer layers.")
+            : new(
+                $"Could not call agent '{_childName}': the call depth limit was exceeded " +
+                $"(the maximum allowed depth is {maxDepth}). Finish the work yourself, or " +
+                "build a call chain with fewer layers.");
 
     private ChildRefusal ApprovalRefusal(string toolNames)
         => _refusalMode == ChildRefusalMode.Fail
