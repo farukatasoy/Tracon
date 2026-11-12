@@ -24,6 +24,11 @@ namespace Tracon.Core.UnitTests.Fakes;
 /// stays empty. <see cref="Outcome.Removed"/> says how many identifiers it held, and <see cref="Assert"/> fails a run that
 /// removed none: an empty "nothing came back" is only worth something when something was removed.
 /// </para>
+/// <para>
+/// The deleting thread runs for as long as the writing thread does, and not for a count of its own. It used to make the
+/// same fixed number of passes: when the machine was loaded and the writing thread started late, all of the passes listed an
+/// empty store and ended before the first write, and the run removed nothing (4 runs in 60 with three busy processes per core).
+/// </para>
 /// </remarks>
 internal static class StoreDeleteRace
 {
@@ -61,9 +66,10 @@ internal static class StoreDeleteRace
         ArgumentNullException.ThrowIfNull(delete);
 
         using var barrier = new Barrier(2);
+        var writerDone = new WriterDone();
 
-        var writing = Dedicated(() => WriteRepeatedlyAsync(write, barrier));
-        var deleting = Dedicated(() => DeleteRepeatedlyAsync(list, delete, barrier));
+        var writing = Dedicated(() => WriteRepeatedlyAsync(write, barrier, writerDone));
+        var deleting = Dedicated(() => DeleteRepeatedlyAsync(list, delete, barrier, writerDone));
 
         await Task.WhenAll(writing, deleting);
 
@@ -77,27 +83,36 @@ internal static class StoreDeleteRace
         => "a delete reported that it removed these entries, and a later listing showed them again: "
            + string.Join(", ", reappeared);
 
-    private static async Task WriteRepeatedlyAsync(Func<Task> write, Barrier barrier)
+    private static async Task WriteRepeatedlyAsync(Func<Task> write, Barrier barrier, WriterDone done)
     {
         barrier.SignalAndWait();
 
-        for (var step = 0; step < Steps; step++)
+        try
         {
-            await write();
+            for (var step = 0; step < Steps; step++)
+            {
+                await write();
+            }
+        }
+        finally
+        {
+            // Also when a write throws: the deleting thread must not wait for a writer that is gone.
+            done.Set();
         }
     }
 
     private static async Task<Outcome> DeleteRepeatedlyAsync(
         Func<Task<IReadOnlyList<Guid>>> list,
         Func<Guid, Task<bool>> delete,
-        Barrier barrier)
+        Barrier barrier,
+        WriterDone done)
     {
         var removed = new HashSet<Guid>();
         var reappeared = new HashSet<Guid>();
 
         barrier.SignalAndWait();
 
-        for (var step = 0; step < Steps; step++)
+        while (!done.IsSet)
         {
             await DeleteListedAsync(list, delete, removed, reappeared);
         }
@@ -138,6 +153,16 @@ internal static class StoreDeleteRace
 
     // The thread is dedicated, so the two callers start together even when the pool has no free worker. Every call the
     // callers make completes inline, so the continuations stay on that thread.
+    /// <summary>Whether the writing thread has made all its calls (or has failed).</summary>
+    private sealed class WriterDone
+    {
+        private int _done;
+
+        public bool IsSet => Volatile.Read(ref _done) != 0;
+
+        public void Set() => Volatile.Write(ref _done, 1);
+    }
+
     private static Task<T> Dedicated<T>(Func<Task<T>> body)
         => Task.Factory.StartNew(body, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
 
