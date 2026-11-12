@@ -51,6 +51,38 @@ public abstract class AgentSkillStoreContract : TenantIsolationContract<IAgentSk
         loaded.Enabled.ShouldBeTrue();
     }
 
+    /// <summary>
+    /// What <c>SaveAsync</c> hands back is the skill as the store holds it, the same record <c>GetAsync</c> reports an
+    /// instant later: a SQL store writes U+0000 as U+FFFD, and a <c>jsonb</c> parameter schema loses its spaces.
+    /// </summary>
+    [Fact]
+    public async Task The_saved_skill_is_the_skill_a_read_reports()
+    {
+        var saved = await Store.SaveAsync(Skill("tenant-a", "invoice") with
+        {
+            Resources =
+            [
+                new AgentSkillResourceDefinition { Name = "notes.txt", Content = "a\0b" },
+            ],
+            Scripts =
+            [
+                new AgentSkillScriptDefinition
+                {
+                    Name = "total",
+                    Extension = "py",
+                    Content = "print(1)\0",
+                    ParametersSchema = "{ \"type\" :  \"object\" }",
+                },
+            ],
+        });
+        var read = (await Store.GetAsync("tenant-a", "invoice")).ShouldNotBeNull();
+
+        saved.Resources.Select(static resource => resource.Content).ShouldBe(read.Resources.Select(static resource => resource.Content));
+        saved.Scripts.Select(static script => script.Content).ShouldBe(read.Scripts.Select(static script => script.Content));
+        saved.Scripts.Select(static script => script.ParametersSchema).ShouldBe(read.Scripts.Select(static script => script.ParametersSchema));
+        saved.UpdatedAt.ShouldBe(read.UpdatedAt);
+    }
+
     [Fact]
     public async Task Saving_the_same_name_again_increments_version()
     {

@@ -1270,7 +1270,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     last_run_at = excluded.last_run_at,
                     updated_at  = excluded.updated_at,
                     lane        = excluded.lane
-            RETURNING id, created_by, created_at;
+            RETURNING {ScheduleColumns};
             """;
 
         SelectDueJobSchedules = $"""
@@ -1293,7 +1293,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     payload_path                         = excluded.payload_path,
                     enabled                              = excluded.enabled,
                     updated_at                           = excluded.updated_at
-            RETURNING id, created_at;
+            RETURNING {InboundTriggerColumns};
             """;
 
         // Ids are generated on the C# side; the two JSON arrays are opened

@@ -99,17 +99,14 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
                 Dialect.AddTimestamp(command, "updated_at", schedule.UpdatedAt);
                 DbHelpers.Add(command, "lane", schedule.Lane);
             },
-            (command, token) => DbHelpers.ReadSingleAsync(
-                command,
-                static reader => new WrittenSchedule(
-                    reader.GetGuid(0),
-                    DbHelpers.GetNullableString(reader, 1),
-                    DbHelpers.GetTimestamp(reader, 2)),
-                token),
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadSchedule, token),
             cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"'{schedule.Name}' zamanlamasi kaydedilemedi.");
 
-        return schedule with { Id = written.Id, CreatedBy = written.CreatedBy, CreatedAt = written.CreatedAt };
+        // The row the statement wrote, read by the reader a later GET uses: the text and the times as the store holds
+        // them (U+0000 is stored as U+FFFD, PostgreSQL keeps microseconds, jsonb drops the spaces of a payload), not
+        // those of the call.
+        return written;
     }
 
     /// <inheritdoc />
@@ -222,6 +219,4 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
 
     private void AddNullableTimestamp(DbCommand command, string name, DateTimeOffset? value)
         => Dialect.AddTimestamp(command, name, value);
-
-    private sealed record WrittenSchedule(Guid Id, string? CreatedBy, DateTimeOffset CreatedAt);
 }

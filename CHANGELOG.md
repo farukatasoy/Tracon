@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The schedule, inbound trigger and skill a SQL store returns from a save are the rows it stored.** `PUT /api/schedules/{name}`, `PUT /api/triggers/{name}` and `PUT /api/skills/{name}` answered with the record the caller sent, with only the id and the creation time taken from the row. The text and the times could differ from the `GET` that follows: U+0000 is stored as U+FFFD, PostgreSQL keeps microseconds, and a `jsonb` payload or parameter schema loses its spaces. The schedule and the trigger statements now return the whole row, and the skill's resources and scripts are read back in the transaction that wrote them, so the response and the next `GET` agree. The stores of the other write paths already did this.
+  What to do:
+  - **Nothing, unless a client compares the body of a save with what it sent.** It sees the stored text and times now. The new `The_saved_*_is_the_*_a_read_reports` cases of `JobScheduleStoreContract`, `InboundTriggerStoreContract` and `AgentSkillStoreContract` apply to a custom store: the record it returns from a save must be the record it reads.
+
 - **In memory, two callers that add the same approval rule at once keep one rule, and a checkpoint is no longer lost to a delete of its session.** `InMemoryToolApprovalRuleStore.AddAsync` looked for an equal rule and then added, so two simultaneous "do not ask again" answers could both find none and keep two rules. The look and the add are now one step, as the unique key of the SQL stores makes them. `InMemoryWorkflowCheckpointStore.CreateAsync` could add a checkpoint to the list of a session that a delete had just removed, and answer success for a checkpoint that nobody could read; it now starts again on the list that is there, and a delete counts the checkpoints it removed under the list's lock. `InMemoryJobStore.EnqueueAsync` publishes the job and its items together.
   What to do:
   - **Nothing.** The SQL stores were not affected.

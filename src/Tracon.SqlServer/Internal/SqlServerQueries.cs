@@ -1460,12 +1460,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    last_run_at = @last_run_at,
                    updated_at  = @updated_at,
                    lane        = @lane
-             OUTPUT inserted.id, inserted.created_by, inserted.created_at
+             OUTPUT {QualifiedColumns(ScheduleColumns, "inserted")}
              WHERE tenant_id = @tenant_id AND name = @name;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.job_schedules ({ScheduleColumns})
-            OUTPUT inserted.id, inserted.created_by, inserted.created_at
+            OUTPUT {QualifiedColumns(ScheduleColumns, "inserted")}
             VALUES (@id, @tenant_id, @name, @handler_key, @target_name, @cron, @time_zone, @payload, @enabled,
                     @next_run_at, @last_run_at, @created_by, @created_at, @updated_at, @lane);
             """;
@@ -1489,12 +1489,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    payload_path                         = @payload_path,
                    enabled                              = @enabled,
                    updated_at                           = @updated_at
-             OUTPUT inserted.id, inserted.created_at
+             OUTPUT {QualifiedColumns(InboundTriggerColumns, "inserted")}
              WHERE tenant_id = @tenant_id AND name = @name;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.inbound_triggers ({InboundTriggerColumns})
-            OUTPUT inserted.id, inserted.created_at
+            OUTPUT {QualifiedColumns(InboundTriggerColumns, "inserted")}
             VALUES (@id, @tenant_id, @name, @target_kind, @target_name, @signing_secret_configuration_name,
                     @payload_mode, @payload_path, @enabled, @created_at, @updated_at);
             """;

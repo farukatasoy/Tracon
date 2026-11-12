@@ -1259,7 +1259,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     last_run_at = EXCLUDED.last_run_at,
                     updated_at  = EXCLUDED.updated_at,
                     lane        = EXCLUDED.lane
-            RETURNING id, created_by, created_at;
+            RETURNING {ScheduleColumns};
             """;
 
         // Not scoped by tenant: this query belongs to the worker, not to an
@@ -1286,7 +1286,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     payload_path                        = EXCLUDED.payload_path,
                     enabled                             = EXCLUDED.enabled,
                     updated_at                          = EXCLUDED.updated_at
-            RETURNING id, created_at;
+            RETURNING {InboundTriggerColumns};
             """;
 
         // Ids are generated on the C# side (gen_random_uuid() is a dependency

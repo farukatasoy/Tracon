@@ -55,6 +55,32 @@ public abstract class InboundTriggerStoreContract : TenantIsolationContract<IInb
         trigger.Enabled.ShouldBeTrue();
     }
 
+    /// <summary>
+    /// What <c>UpsertAsync</c> hands back is the trigger as the store holds it, the same record <c>GetAsync</c> reports
+    /// an instant later: a SQL store writes U+0000 as U+FFFD and PostgreSQL keeps microseconds.
+    /// </summary>
+    [Fact]
+    public async Task The_saved_trigger_is_the_trigger_a_read_reports()
+    {
+        var instant = new DateTimeOffset(2026, 11, 4, 9, 30, 15, TimeSpan.Zero).AddTicks(7);
+
+        var saved = await Store.UpsertAsync(Trigger(Tenant, "slack") with
+        {
+            TargetName = "demo\0agent",
+            PayloadMode = InboundTriggerPayloadMode.Path,
+            PayloadPath = "$.data\0text",
+            CreatedAt = instant,
+            UpdatedAt = instant,
+        });
+        var read = (await Store.GetAsync(Tenant, "slack")).ShouldNotBeNull();
+
+        saved.Id.ShouldBe(read.Id);
+        saved.TargetName.ShouldBe(read.TargetName);
+        saved.PayloadPath.ShouldBe(read.PayloadPath);
+        saved.CreatedAt.ShouldBe(read.CreatedAt);
+        saved.UpdatedAt.ShouldBe(read.UpdatedAt);
+    }
+
     [Fact]
     public async Task Path_mode_and_path_round_trip()
     {

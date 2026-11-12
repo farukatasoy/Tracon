@@ -1290,6 +1290,16 @@ internal abstract class SqlQueriesBase
             expires_at, status, answered_at, last_response_run_id, closed_at
             """;
 
+    /// <summary>Qualifies each column of a column list with a table alias or a pseudo-table (<c>inserted</c>).</summary>
+    /// <param name="columns">The column list, comma separated.</param>
+    /// <param name="alias">The alias.</param>
+    /// <returns>The column list, in the same order.</returns>
+    protected static string QualifiedColumns(string columns, string alias)
+        => string.Join(
+            ", ",
+            columns.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Select(column => $"{alias}.{column}"));
+
     /// <summary>Qualifies each column of <see cref="WorkflowRequestColumns"/> with a table alias.</summary>
     /// <param name="alias">The alias.</param>
     /// <returns>The column list, in the same order.</returns>

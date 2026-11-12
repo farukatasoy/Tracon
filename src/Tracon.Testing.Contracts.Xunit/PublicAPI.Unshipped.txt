@@ -282,6 +282,7 @@ Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Listing_returns_eve
 Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Missing_trigger_returns_null() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Path_mode_and_path_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Saved_trigger_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.The_saved_trigger_is_the_trigger_a_read_reports() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Upsert_replaces_the_existing_trigger_for_the_same_tenant_and_name() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Workflow_target_kind_round_trips() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract
@@ -293,6 +294,7 @@ Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.ListDueAsync_returns_o
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.SaveAsync_assigns_an_id_to_a_new_schedule() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.SaveAsync_keeps_the_id_and_updates_for_the_same_name() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.SaveAsync_round_trips_a_schedule_that_carries_no_payload() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.The_saved_schedule_is_the_schedule_a_read_reports() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.TryClaimNextRunAsync_a_second_claim_prevents_the_conflict() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.TryClaimNextRunAsync_fails_when_the_expected_value_does_not_match() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract
@@ -1278,6 +1280,7 @@ Tracon.Testing.Contracts.Storage.WorkflowCheckpointStoreContract.Session_and_che
 Tracon.Testing.Contracts.Storage.RunStoreContract.Runs_of_session_ids_that_differ_only_in_case_are_listed_apart() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.Names_that_differ_only_in_case_are_two_definitions() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.Names_that_differ_only_in_case_are_two_skills() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.AgentSkillStoreContract.The_saved_skill_is_the_skill_a_read_reports() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.EvalStoreContract.Names_that_differ_only_in_case_are_two_suites() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Names_that_differ_only_in_case_are_two_experiments() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.InboundTriggerStoreContract.Names_that_differ_only_in_case_are_two_triggers() -> System.Threading.Tasks.Task!

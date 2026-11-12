@@ -52,6 +52,41 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
     }
 
     /// <summary>
+    /// What <c>SaveAsync</c> hands back is the schedule as the store holds it: the same record <c>GetAsync</c> reports
+    /// an instant later, not the one the caller passed in.
+    /// </summary>
+    /// <remarks>
+    /// A SQL store writes U+0000 as U+FFFD, PostgreSQL keeps microseconds, and a <c>jsonb</c> payload loses its
+    /// spaces. A return value built from the call would carry the caller's text, the caller's ticks and the caller's
+    /// spaces, and the response of a <c>PUT</c> would differ from the <c>GET</c> that follows it.
+    /// </remarks>
+    [Fact]
+    public async Task The_saved_schedule_is_the_schedule_a_read_reports()
+    {
+        var instant = new DateTimeOffset(2026, 11, 4, 9, 30, 15, TimeSpan.Zero).AddTicks(7);
+
+        var saved = await Store.SaveAsync(TestData.Schedule() with
+        {
+            TargetName = "agent\0name",
+            Payload = TestData.State("{ \"key\" :  \"value\" }"),
+            NextRunAt = instant,
+            LastRunAt = instant,
+            UpdatedAt = instant,
+        });
+        var read = (await Store.GetAsync("default", "night-report")).ShouldNotBeNull();
+
+        saved.Id.ShouldBe(read.Id);
+        saved.TargetName.ShouldBe(read.TargetName);
+        saved.Payload.GetRawText().ShouldBe(read.Payload.GetRawText());
+        saved.NextRunAt.ShouldBe(read.NextRunAt);
+        saved.LastRunAt.ShouldBe(read.LastRunAt);
+        saved.CreatedAt.ShouldBe(read.CreatedAt);
+        saved.UpdatedAt.ShouldBe(read.UpdatedAt);
+        saved.CreatedBy.ShouldBe(read.CreatedBy);
+        saved.Lane.ShouldBe(read.Lane);
+    }
+
+    /// <summary>
     /// A schedule saved with no payload round-trips through every provider.
     /// </summary>
     /// <remarks>

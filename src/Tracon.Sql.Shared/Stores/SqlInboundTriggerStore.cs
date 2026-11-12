@@ -86,14 +86,12 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
                 Dialect.AddTimestamp(command, "created_at", trigger.CreatedAt);
                 Dialect.AddTimestamp(command, "updated_at", trigger.UpdatedAt);
             },
-            (command, token) => DbHelpers.ReadSingleAsync(
-                command,
-                static reader => new WrittenTrigger(reader.GetGuid(0), DbHelpers.GetTimestamp(reader, 1)),
-                token),
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadTrigger, token),
             cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"Failed to save the inbound trigger '{trigger.Name}'.");
 
-        return trigger with { Id = written.Id, CreatedAt = written.CreatedAt };
+        // The row the statement wrote, read by the reader a later GET uses (see SqlJobScheduleStore.SaveAsync).
+        return written;
     }
 
     /// <inheritdoc />
@@ -131,6 +129,4 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
             CreatedAt = DbHelpers.GetTimestamp(reader, 9),
             UpdatedAt = DbHelpers.GetTimestamp(reader, 10),
         };
-
-    private sealed record WrittenTrigger(Guid Id, DateTimeOffset CreatedAt);
 }

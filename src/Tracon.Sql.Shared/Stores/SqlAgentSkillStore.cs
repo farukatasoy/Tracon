@@ -137,8 +137,19 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
                     await DbHelpers.ExecuteAsync(insertScript, cancellationToken).ConfigureAwait(false);
                 }
 
+                // The resources and scripts the statements wrote, read in the transaction that wrote them: the text as the
+                // store holds it (U+0000 is stored as U+FFFD, jsonb drops the spaces of a parameter schema), the same
+                // lists GetAsync reports an instant later.
+                var readResources = _context.CreateCommand(_sql.SelectAgentSkillResources, connection, transaction);
+                DbHelpers.Add(readResources, "skill_id", saved.Id);
+                var resources = await DbHelpers.ReadListAsync(readResources, ReadResource, cancellationToken).ConfigureAwait(false);
+
+                var readScripts = _context.CreateCommand(_sql.SelectAgentSkillScripts, connection, transaction);
+                DbHelpers.Add(readScripts, "skill_id", saved.Id);
+                var scripts = await DbHelpers.ReadListAsync(readScripts, ReadScript, cancellationToken).ConfigureAwait(false);
+
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-                return saved with { Resources = skill.Resources, Scripts = skill.Scripts };
+                return saved with { Resources = resources, Scripts = scripts };
             },
             cancellationToken).ConfigureAwait(false);
     }
@@ -173,13 +184,7 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
             {
                 DbHelpers.Add(command, "skill_id", skillId);
             },
-            (command, token) => DbHelpers.ReadListAsync(command, static reader => new AgentSkillResourceDefinition
-            {
-                Name = reader.GetString(0),
-                Description = DbHelpers.GetNullableString(reader, 1),
-                MediaType = reader.GetString(2),
-                Content = reader.GetString(3),
-            }, token),
+            (command, token) => DbHelpers.ReadListAsync(command, ReadResource, token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -193,16 +198,28 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
             {
                 DbHelpers.Add(command, "skill_id", skillId);
             },
-            (command, token) => DbHelpers.ReadListAsync(command, static reader => new AgentSkillScriptDefinition
-            {
-                Name = reader.GetString(0),
-                Description = DbHelpers.GetNullableString(reader, 1),
-                Extension = reader.GetString(2),
-                Content = reader.GetString(3),
-                ParametersSchema = DbHelpers.GetNullableString(reader, 4),
-            }, token),
+            (command, token) => DbHelpers.ReadListAsync(command, ReadScript, token),
             cancellationToken).ConfigureAwait(false);
     }
+
+    private static AgentSkillResourceDefinition ReadResource(DbDataReader reader)
+        => new()
+        {
+            Name = reader.GetString(0),
+            Description = DbHelpers.GetNullableString(reader, 1),
+            MediaType = reader.GetString(2),
+            Content = reader.GetString(3),
+        };
+
+    private static AgentSkillScriptDefinition ReadScript(DbDataReader reader)
+        => new()
+        {
+            Name = reader.GetString(0),
+            Description = DbHelpers.GetNullableString(reader, 1),
+            Extension = reader.GetString(2),
+            Content = reader.GetString(3),
+            ParametersSchema = DbHelpers.GetNullableString(reader, 4),
+        };
 
     private void ConfigureSkill(DbCommand command, AgentSkillDefinition skill, DateTimeOffset now)
     {
