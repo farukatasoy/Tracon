@@ -180,6 +180,69 @@ public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLi
         (await _context.Vectors.ListSourcesAsync("tenant-a", "kb")).ShouldHaveSingleItem();
     }
 
+    /// <summary>
+    /// Several uploads of the same source at once each replace the source whole: none of them fails, and what is left is
+    /// the chunks of one upload, not a mix of two.
+    /// </summary>
+    /// <remarks>
+    /// An upload deletes the source's chunks and inserts its own in one transaction. Two of them that run together both
+    /// delete what they can see and then insert the same <c>(tenant, collection, source, chunk index)</c> keys, so the
+    /// second to commit meets the first one's rows: a unique violation, or a deadlock the server breaks by killing one
+    /// transaction. Neither is a reason to fail the upload.
+    /// </remarks>
+    [Fact]
+    public async Task Uploads_of_the_same_source_at_once_each_replace_it_whole_and_none_fails()
+    {
+        const int rounds = 15;
+        const int uploaders = 6;
+        const int chunkCount = 4;
+
+        for (var round = 0; round < rounds; round++)
+        {
+            var source = $"document-{round}";
+            using var start = new Barrier(uploaders);
+
+            var uploads = Enumerable.Range(0, uploaders)
+                .Select(uploader => Task.Run(
+                    async () =>
+                    {
+                        start.SignalAndWait();
+
+                        await _context!.Vectors.UpsertAsync(
+                            "default",
+                            "kb",
+                            source,
+                            Enumerable.Range(0, chunkCount)
+                                .Select(index => new VectorChunk
+                                {
+                                    Index = index,
+                                    Content = $"uploader-{uploader}-chunk-{index}",
+                                    Embedding = new float[] { 1f, index, uploader },
+                                })
+                                .ToArray(),
+                            TestContext.Current.CancellationToken);
+                    },
+                    TestContext.Current.CancellationToken))
+                .ToArray();
+
+            await Task.WhenAll(uploads);
+
+            var hits = await _context!.Vectors.SearchAsync(new VectorSearchRequest
+            {
+                TenantId = "default",
+                Collection = "kb",
+                QueryEmbedding = new float[] { 1f, 0f, 0f },
+                Top = 100,
+            });
+
+            var rows = hits.Where(hit => string.Equals(hit.SourceId, source, StringComparison.Ordinal)).Select(static hit => hit.Content).ToList();
+
+            rows.Count.ShouldBe(chunkCount, $"round {round}: the source holds the chunks of one upload");
+            rows.Select(static content => content.Split("-chunk-")[0]).Distinct(StringComparer.Ordinal).Count()
+                .ShouldBe(1, $"round {round}: the chunks come from one upload, not a mix of two");
+        }
+    }
+
     private static VectorChunk[] Chunks(params (string Content, float[] Embedding)[] items)
     {
         var result = new VectorChunk[items.Length];

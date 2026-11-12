@@ -29,8 +29,6 @@ public sealed class SqlTransactionSiteTests
         ["src/Tracon.Sql.Shared/Stores/SqlDataSubjectStore.cs"] =
             "deletes attachment content outside the database and calls back before its commit; " +
             "running that again is not safe",
-        ["src/Tracon.PostgreSql/Stores/PgVectorSearchStore.cs"] =
-            "writes through its own NpgsqlDataSource, not a SqlStoreContext",
     };
 
     [Fact]

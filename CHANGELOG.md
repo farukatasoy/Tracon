@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Two uploads of the same source to the PostgreSQL knowledge store no longer fail on its unique key.** `PgVectorSearchStore.UpsertAsync` deletes the source's chunks and inserts its own in one transaction. Two uploads of one source at once both deleted what they could see and then inserted the same `(tenant, collection, source, chunk index)` keys, so the second to commit failed with `23505` and the caller got an exception for a valid upload. The upload now takes a transaction-scoped advisory lock on the source, so the second waits for the first and replaces it; another source is not affected. The transaction also runs through the same store context as the other stores, so a deadlock victim is run again whole.
+  What to do:
+  - **Nothing.** A host that caught the unique violation and uploaded again can drop that code. The constructor of `PgVectorSearchStore` is internal.
+
 - **The schedule, inbound trigger and skill a SQL store returns from a save are the rows it stored.** `PUT /api/schedules/{name}`, `PUT /api/triggers/{name}` and `PUT /api/skills/{name}` answered with the record the caller sent, with only the id and the creation time taken from the row. The text and the times could differ from the `GET` that follows: U+0000 is stored as U+FFFD, PostgreSQL keeps microseconds, and a `jsonb` payload or parameter schema loses its spaces. The schedule and the trigger statements now return the whole row, and the skill's resources and scripts are read back in the transaction that wrote them, so the response and the next `GET` agree. The stores of the other write paths already did this.
   What to do:
   - **Nothing, unless a client compares the body of a save with what it sent.** It sees the stored text and times now. The new `The_saved_*_is_the_*_a_read_reports` cases of `JobScheduleStoreContract`, `InboundTriggerStoreContract` and `AgentSkillStoreContract` apply to a custom store: the record it returns from a save must be the record it reads.

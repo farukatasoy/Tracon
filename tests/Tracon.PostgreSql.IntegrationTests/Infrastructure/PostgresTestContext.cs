@@ -86,7 +86,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         Attachments = new SqlAttachmentStore(wrapped);
         AgentFiles = new SqlAgentFileStore(wrapped, TenantContext);
         Vectors = new PgVectorSearchStore(
-            dataSource,
+            wrapped,
             options,
             new TraconKnowledgeOptions { Dimensions = vectorDimensions });
         Workflows = new SqlWorkflowDefinitionStore(wrapped);

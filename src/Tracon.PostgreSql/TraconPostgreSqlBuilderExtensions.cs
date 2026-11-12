@@ -418,12 +418,11 @@ public static class TraconPostgreSqlBuilderExtensions
 
             // The shared context's DataSource is always an NpgsqlDataSource for
             // this provider (NpgsqlDataSourceFactory.Resolve enforces it above);
-            // reusing it here avoids building a second data source (and, when
-            // the consumer supplied one, a second pool) just for this store.
-            var dataSource = (NpgsqlDataSource)provider.GetRequiredService<SqlStoreContext>().DataSource;
-
+            // reusing the context avoids building a second data source (and, when
+            // the consumer supplied one, a second pool) just for this store, and
+            // gives the upload the deadlock retry the other stores have.
             return new PgVectorSearchStore(
-                dataSource,
+                provider.GetRequiredService<SqlStoreContext>(),
                 options,
                 provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>().Value);
         });

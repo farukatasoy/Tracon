@@ -14,7 +14,9 @@ namespace Tracon;
 /// Unlike the other 20 stores, this one does NOT go through
 /// <c>Tracon.Sql.Shared</c>'s provider-independent layer: it exists
 /// <strong>only</strong> for PostgreSQL, so a <see cref="SqlDialect"/> abstraction
-/// is unnecessary; it uses Npgsql directly.
+/// is unnecessary; it uses Npgsql directly. It does open its transaction through the
+/// <see cref="SqlStoreContext"/> of the other stores, which runs the whole upload again when the
+/// server picks it as a deadlock victim.
 /// </para>
 /// <para>
 /// The embedding is sent as <strong>text</strong> (<c>@embedding::vector</c> cast).
@@ -24,24 +26,28 @@ namespace Tracon;
 /// </remarks>
 internal sealed class PgVectorSearchStore : IVectorSearchStore
 {
+    private readonly SqlStoreContext _context;
     private readonly NpgsqlDataSource _dataSource;
     private readonly string _schema;
 
     /// <summary>Creates a new vector search store.</summary>
-    /// <param name="dataSource">The PostgreSQL data source.</param>
+    /// <param name="context">The shared store context, whose data source is the PostgreSQL one.</param>
     /// <param name="postgresOptions">The PostgreSQL settings carrying the schema name.</param>
     /// <param name="knowledgeOptions">The knowledge base settings carrying the embedding dimensions.</param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public PgVectorSearchStore(
-        NpgsqlDataSource dataSource,
+        SqlStoreContext context,
         TraconPostgreSqlOptions postgresOptions,
         TraconKnowledgeOptions knowledgeOptions)
     {
-        ArgumentNullException.ThrowIfNull(dataSource);
+        ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(postgresOptions);
         ArgumentNullException.ThrowIfNull(knowledgeOptions);
 
-        _dataSource = dataSource;
+        _context = context;
+
+        // The data source of this provider's context is always an NpgsqlDataSource.
+        _dataSource = (NpgsqlDataSource)context.DataSource;
         _schema = SqlIdentifier.RequireSchemaName(postgresOptions.SchemaName);
         Dimensions = knowledgeOptions.Dimensions;
     }
@@ -73,14 +79,33 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
             }
         }
 
-        var connection = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var normalizedTenant = AmbientTenantScope.Normalize(tenantId);
 
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        await _context.ExecuteInTransactionAsync(
+            async (dbConnection, transaction) =>
             {
+                var connection = (NpgsqlConnection)dbConnection;
+
+                // Two uploads of one source at once would both delete what they can see and then insert the same
+                // (tenant, collection, source, chunk index) keys: the second to commit meets the first one's rows and
+                // fails on the unique key. The lock makes the second wait for the first's commit, and its delete then
+                // removes the first's rows. It is released at the end of the transaction and costs nothing for another
+                // source. A hash collision between two sources only makes them wait for each other.
+                var lockCommand = new NpgsqlCommand(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(@key, 0));",
+                    connection,
+                    (NpgsqlTransaction)transaction);
+
+                await using (lockCommand.ConfigureAwait(false))
+                {
+                    lockCommand.Parameters.Add(new NpgsqlParameter("key", NpgsqlDbType.Text)
+                    {
+                        Value = $"{normalizedTenant}/{collection}/{sourceId}",
+                    });
+
+                    await lockCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+
                 await DeleteSourceAsync(connection, transaction, tenantId, collection, sourceId, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -101,7 +126,7 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
                     await using (insert.ConfigureAwait(false))
                     {
                         insert.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = TraconId.NewId(now) });
-                        insert.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = AmbientTenantScope.Normalize(tenantId) });
+                        insert.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = normalizedTenant });
                         insert.Parameters.Add(new NpgsqlParameter("collection", NpgsqlDbType.Text) { Value = collection });
                         insert.Parameters.Add(new NpgsqlParameter("source_id", NpgsqlDbType.Text) { Value = sourceId });
                         insert.Parameters.Add(new NpgsqlParameter("chunk_index", NpgsqlDbType.Integer) { Value = chunk.Index });
@@ -115,8 +140,8 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
                 }
 
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
