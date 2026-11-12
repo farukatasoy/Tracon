@@ -51,13 +51,67 @@ public sealed class PackageLicenseTests
             """<None Include="$(RepositoryRootPath)LICENSE.md" Pack="true" PackagePath="\" """,
             customMessage: "The MIT text must travel inside every package.");
 
-        var overrides = PackableProjectFiles()
-            .Where(path => File.ReadAllText(path).Contains("<PackageLicense", StringComparison.Ordinal)
-                || File.ReadAllText(path).Contains("<PackageRequireLicenseAcceptance", StringComparison.Ordinal))
-            .Select(Path.GetFileName)
-            .ToList();
+        var overrides = LicenceOverrides(RepositoryRoot);
 
-        overrides.ShouldBeEmpty("These project files override the licence that src/Directory.Build.props declares.");
+        overrides.ShouldBeEmpty("These files override the licence that src/Directory.Build.props declares.");
+    }
+
+    [Fact]
+    public void The_override_scan_reads_a_build_file_below_src_not_only_the_project_files()
+    {
+        var root = Directory.CreateTempSubdirectory("tracon-licence-scan");
+
+        try
+        {
+            var package = Directory.CreateDirectory(Path.Combine(root.FullName, "src", "Pkg"));
+            var nested = Directory.CreateDirectory(Path.Combine(package.FullName, "build"));
+
+            File.WriteAllText(Path.Combine(package.FullName, "Pkg.csproj"), "<Project />");
+            File.WriteAllText(Path.Combine(root.FullName, "src", "Directory.Build.props"), "<Project><PropertyGroup><PackageLicenseExpression>MIT</PackageLicenseExpression></PropertyGroup></Project>");
+
+            // The declaring file is the one place the expression belongs; nothing else is an override yet.
+            LicenceOverrides(root.FullName).ShouldBeEmpty();
+
+            File.WriteAllText(Path.Combine(nested.FullName, "Directory.Build.targets"), "<Project><PropertyGroup><PackageLicenseFile>X.md</PackageLicenseFile></PropertyGroup></Project>");
+            File.WriteAllText(Path.Combine(root.FullName, "Directory.Build.props"), "<Project><PropertyGroup><PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance></PropertyGroup></Project>");
+
+            LicenceOverrides(root.FullName).Select(path => Path.GetRelativePath(root.FullName, path).Replace('\\', '/')).Order(StringComparer.Ordinal)
+                .ShouldBe(["Directory.Build.props", "src/Pkg/build/Directory.Build.targets"]);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// The files that say something about the licence besides the one that declares it: the packable project files and
+    /// every <c>Directory.Build.props</c> or <c>.targets</c> that MSBuild imports into a package project, at the repository
+    /// root or below <c>src</c>. The declaring file, <c>src/Directory.Build.props</c>, is not an override of itself.
+    /// </summary>
+    private static List<string> LicenceOverrides(string repositoryRoot)
+    {
+        var source = Path.Combine(repositoryRoot, "src");
+        var declaring = Path.Combine(source, "Directory.Build.props");
+
+        var projects = Directory.EnumerateDirectories(source)
+            .SelectMany(directory => Directory.EnumerateFiles(directory, "*.csproj", SearchOption.TopDirectoryOnly))
+            .Where(path => !File.ReadAllText(path).Contains("<IsPackable>false</IsPackable>", StringComparison.Ordinal));
+
+        var buildFiles = Directory.EnumerateFiles(source, "Directory.Build.*", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateFiles(repositoryRoot, "Directory.Build.*", SearchOption.TopDirectoryOnly))
+            .Where(path => path.EndsWith(".props", StringComparison.Ordinal) || path.EndsWith(".targets", StringComparison.Ordinal))
+            .Where(path => !string.Equals(path, declaring, StringComparison.Ordinal))
+            .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(part => part is "obj" or "bin" or "node_modules"));
+
+        return projects.Concat(buildFiles)
+            .Where(path =>
+            {
+                var text = File.ReadAllText(path);
+                return text.Contains("<PackageLicense", StringComparison.Ordinal)
+                    || text.Contains("<PackageRequireLicenseAcceptance", StringComparison.Ordinal);
+            })
+            .ToList();
     }
 
     [Fact]
