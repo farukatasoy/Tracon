@@ -71,6 +71,10 @@ internal static class PublishedDocumentCorrections
 
     private const string AnyMediaType = "*/*";
 
+    private const string DataSubjectExportOperationId = "TraconExportDataSubject";
+
+    private const string UnresolvedConversationsHeader = "X-Tracon-Unresolved-Conversations";
+
     private const string AgUiRequestSchemaName = "RunAgentInput";
 
     private const string AgUiThreadMember = "threadId";
@@ -107,11 +111,12 @@ internal static class PublishedDocumentCorrections
         ArgumentNullException.ThrowIfNull(document);
 
         var downloadsWidened = WidenAttachmentDownload(document);
+        var headersAdded = AddExportHeader(document);
         var schemas = document.Components?.Schemas;
 
         if (schemas is null)
         {
-            return new CorrectionCounts(0, 0, downloadsWidened, 0);
+            return new CorrectionCounts(0, 0, downloadsWidened, 0, headersAdded);
         }
 
         // The enum goes first: once a component has lost its null, a property that wraps it is not a case for the
@@ -120,7 +125,7 @@ internal static class PublishedDocumentCorrections
         var anyOfRewritten = RewriteNullableAnyValue(schemas);
         var requiredAdded = RequireThreadId(schemas);
 
-        return new CorrectionCounts(enumsClosed, anyOfRewritten, downloadsWidened, requiredAdded);
+        return new CorrectionCounts(enumsClosed, anyOfRewritten, downloadsWidened, requiredAdded, headersAdded);
     }
 
     /// <summary>Gets whether a CLR type is a dictionary keyed by string whose values are <see cref="JsonElement"/>.</summary>
@@ -173,6 +178,48 @@ internal static class PublishedDocumentCorrections
                 }
 
                 content[AnyMediaType] = new OpenApiMediaType { Schema = stored.Schema };
+
+                return 1;
+            }
+        }
+
+        return 0;
+    }
+
+    // The data subject export writes the number of conversations it could not look up in a header: a header cannot be
+    // declared from endpoint metadata, so the document gets it here.
+    private static int AddExportHeader(OpenApiDocument document)
+    {
+        if (document.Paths is null)
+        {
+            return 0;
+        }
+
+        foreach (var item in document.Paths.Values)
+        {
+            if (item.Operations is not { } operations)
+            {
+                continue;
+            }
+
+            foreach (var operation in operations.Values)
+            {
+                if (!string.Equals(operation.OperationId, DataSubjectExportOperationId, StringComparison.Ordinal)
+                    || operation.Responses is null
+                    || !operation.Responses.TryGetValue("200", out var response)
+                    || response is not OpenApiResponse { } ok
+                    || ok.Headers?.ContainsKey(UnresolvedConversationsHeader) == true)
+                {
+                    continue;
+                }
+
+                ok.Headers ??= new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal);
+                ok.Headers[UnresolvedConversationsHeader] = new OpenApiHeader
+                {
+                    Description = "How many of the data subject's sessions the document holds without their conversation: an upper "
+                        + "bound, 0 when every conversation was looked up. A proxy may drop it.",
+                    Schema = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+                };
 
                 return 1;
             }
@@ -290,4 +337,5 @@ internal static class PublishedDocumentCorrections
 /// <param name="AnyOfWrappers">Wrappers rewritten from <c>oneOf</c> to <c>anyOf</c>.</param>
 /// <param name="DownloadMediaTypes">Operations whose <c>200</c> gained the <c>*/*</c> media type (0 or 1).</param>
 /// <param name="RequiredMembers">Components that gained a <c>required</c> member (0 or 1).</param>
-internal sealed record CorrectionCounts(int NullableEnumComponents, int AnyOfWrappers, int DownloadMediaTypes, int RequiredMembers);
+/// <param name="ResponseHeaders">Operations whose <c>200</c> gained the unresolved-conversations header (0 or 1).</param>
+internal sealed record CorrectionCounts(int NullableEnumComponents, int AnyOfWrappers, int DownloadMediaTypes, int RequiredMembers, int ResponseHeaders);

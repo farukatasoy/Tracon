@@ -193,6 +193,26 @@ public sealed class OpenApiDocumentShapeTests
     }
 
     [Fact]
+    public async Task The_data_subject_export_lists_its_json_document_its_refusals_and_its_header()
+    {
+        var document = await FetchDocumentAsync();
+
+        var responses = OpenApiTestHelpers.FindByOperationId(document, "TraconExportDataSubject").GetProperty("responses");
+
+        // The export was the one 2xx answer with no body schema, so a typed client had nothing to read the document with.
+        var ok = responses.GetProperty("200");
+
+        ok.GetProperty("content").GetProperty("application/json").TryGetProperty("schema", out _).ShouldBeTrue("the export lists no schema");
+
+        // 409 is what an installation with no resolver answers; it is a problem document like the 400.
+        responses.GetProperty("409").GetProperty("content").TryGetProperty("application/problem+json", out _).ShouldBeTrue();
+        responses.GetProperty("400").GetProperty("content").TryGetProperty("application/problem+json", out _).ShouldBeTrue();
+
+        // The count of conversations the export could not look up travels in a header, and the document names it.
+        ok.GetProperty("headers").TryGetProperty("X-Tracon-Unresolved-Conversations", out _).ShouldBeTrue("the document names no header");
+    }
+
+    [Fact]
     public async Task The_a2a_operations_list_their_json_answer()
     {
         await using var host = await OpenApiSnapshotTests.StartFullSurfaceHostAsync(

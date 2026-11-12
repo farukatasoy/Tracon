@@ -14691,12 +14691,25 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description How many of the data subject's sessions the document holds without their conversation: an upper bound, 0 when every conversation was looked up. A proxy may drop it. */
+                    "X-Tracon-Unresolved-Conversations"?: number;
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["JsonElement"];
+                };
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

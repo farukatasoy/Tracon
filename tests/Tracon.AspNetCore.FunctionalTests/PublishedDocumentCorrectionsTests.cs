@@ -142,6 +142,37 @@ public sealed class PublishedDocumentCorrectionsTests
     }
 
     [Fact]
+    public void The_data_subject_export_gains_its_unresolved_conversations_header_once()
+    {
+        var document = Document();
+        var export = Operation("TraconExportDataSubject", ("200", new Dictionary<string, OpenApiMediaType>(StringComparer.Ordinal)
+        {
+            ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+        }));
+        var other = Operation("TraconEraseDataSubject", ("200", new Dictionary<string, OpenApiMediaType>(StringComparer.Ordinal)
+        {
+            ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+        }));
+        document.Paths = new OpenApiPaths
+        {
+            ["/api/data-subjects/{id}/export"] = new OpenApiPathItem { Operations = new Dictionary<HttpMethod, OpenApiOperation> { [HttpMethod.Get] = export } },
+            ["/api/data-subjects/{id}"] = new OpenApiPathItem { Operations = new Dictionary<HttpMethod, OpenApiOperation> { [HttpMethod.Delete] = other } },
+        };
+
+        var counts = PublishedDocumentCorrections.Apply(document);
+
+        counts.ResponseHeaders.ShouldBe(1);
+
+        var header = export.Responses!["200"].Headers.ShouldNotBeNull()["X-Tracon-Unresolved-Conversations"];
+
+        header.Schema.ShouldNotBeNull().Type.ShouldBe(JsonSchemaType.Integer);
+
+        // No other operation gets it, and a second run adds nothing.
+        other.Responses!["200"].Headers.ShouldBeNull();
+        PublishedDocumentCorrections.Apply(document).ResponseHeaders.ShouldBe(0);
+    }
+
+    [Fact]
     public void The_agui_request_requires_the_thread_and_nothing_else()
     {
         var input = new OpenApiSchema
@@ -176,6 +207,7 @@ public sealed class PublishedDocumentCorrectionsTests
 
         counts.RequiredMembers.ShouldBe(0);
         counts.DownloadMediaTypes.ShouldBe(0);
+        counts.ResponseHeaders.ShouldBe(0);
     }
 
     [Theory]

@@ -56,9 +56,12 @@ internal static class DataSubjectEndpoints
                 "is counted the same way. An agent that is registered but cannot be compiled " +
                 "(a tenant key with no value, an egress policy that no longer allows the provider) " +
                 "fails the whole call with 400 and nothing is read.")
-            // Declaring any response removes the default 200 from the document; this keeps the one the endpoint had.
-            .Produces(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            // The document is the store's JSON text, written as it is, so its schema is open: the declaration is what lets a
+            // typed client read it. A refusal is a problem document: 400 for an agent that cannot be compiled, 409 when no
+            // resolver is registered.
+            .Produces<JsonElement>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         builder.MapDelete("/api/data-subjects/{id}", EraseAsync)
             .RequireRole(roles.Admin)
