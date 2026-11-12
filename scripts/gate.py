@@ -288,8 +288,9 @@ def _record_measurement(
     *,
     finished: float | None = None,
 ) -> None:
-    """Append one row. `finished` is the monotonic end of a command that ran on another thread."""
-    measurement_path.parent.mkdir(parents=True, exist_ok=True)
+    """Append one row. `finished` is the monotonic end of a command that ran on another thread.
+
+    The file is a report: a measurement file that cannot be written warns and never changes a command's result."""
     row = {
         "utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "stage": stage,
@@ -297,8 +298,12 @@ def _record_measurement(
         "duration_seconds": round((time.monotonic() if finished is None else finished) - started, 3),
         "exit_code": exit_code,
     }
-    with measurement_path.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(row, ensure_ascii=False) + "\n")
+    try:
+        measurement_path.parent.mkdir(parents=True, exist_ok=True)
+        with measurement_path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except OSError as exception:
+        print(f"   ⚠️ The measurement row of {command.display} could not be written to {measurement_path}: {exception}")
 
 
 @dataclasses.dataclass(frozen=True)

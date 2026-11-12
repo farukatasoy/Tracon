@@ -1333,6 +1333,19 @@ class GateTests(unittest.TestCase):
         self.assertEqual(exceeded, ["P/net10.0_arm64 600 s > 1 s"])
         self.assertIn("could not be written", output.getvalue())
 
+    def test_a_command_row_that_cannot_be_written_warns_and_the_exit_code_is_untouched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            outcome = gate._Outcome(gate.Command(("first",)), 3, 0.0, 1.0)
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                # A directory cannot be opened for appending; every command row goes through the same writer.
+                exit_code = gate._report("test", outcome, root)
+                gate._record_measurement("test", outcome.command, 0.0, 0, root)
+
+        self.assertEqual(exit_code, 3)
+        self.assertEqual(output.getvalue().count("could not be written"), 2)
+
     def test_module_under_its_time_limit_is_printed_and_leaves_no_row(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
