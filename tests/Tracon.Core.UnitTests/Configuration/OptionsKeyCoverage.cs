@@ -102,8 +102,14 @@ internal static class OptionsKeyCoverage
 
             switch (kind)
             {
-                case MemberKind.Nested when boundValue is not null && shippedValue is not null:
-                    Check(keys, key, boundValue, shippedValue, [], $"{display}.{property.Name}", failures);
+                case MemberKind.Nested when boundValue is null:
+                    failures.Add($"{display}.{property.Name}: a key is named under '{key}', but the member stayed null, so the binder never read it.");
+                    break;
+
+                case MemberKind.Nested:
+                    // A settable nested object has no shipped instance to compare with when it defaults to null; a new one is the default.
+                    var shippedNested = shippedValue ?? Activator.CreateInstance(boundValue!.GetType());
+                    Check(keys, key, boundValue!, shippedNested!, [], $"{display}.{property.Name}", failures);
                     break;
 
                 case MemberKind.Collection when SameContent(boundValue, shippedValue):
@@ -111,7 +117,10 @@ internal static class OptionsKeyCoverage
                     break;
 
                 case MemberKind.Scalar when Equals(boundValue, shippedValue):
-                    failures.Add($"{display}.{property.Name}: the test value '{boundValue}' equals the shipped default, so the test proves nothing.");
+                    // Two causes look the same from here: a test value that is the default, and a key the binder never read.
+                    failures.Add(
+                        $"{display}.{property.Name}: the bound value '{boundValue}' equals the shipped default, so the test proves nothing: " +
+                        "either the test value is the default, or the binder never read the key.");
                     break;
             }
         }
@@ -133,13 +142,15 @@ internal static class OptionsKeyCoverage
             {
                 yield return (property, MemberKind.Collection);
             }
+            else if (propertyType.IsClass && propertyType.Namespace?.StartsWith("Tracon", StringComparison.Ordinal) == true)
+            {
+                // Before the settable test: a settable options object is still a node with members of its own. Taken as a
+                // scalar it would be compared by reference and pass whatever its members held.
+                yield return (property, MemberKind.Nested);
+            }
             else if (settable)
             {
                 yield return (property, MemberKind.Scalar);
-            }
-            else if (propertyType.IsClass && propertyType.Namespace?.StartsWith("Tracon", StringComparison.Ordinal) == true)
-            {
-                yield return (property, MemberKind.Nested);
             }
 
             // A get-only scalar is computed, not configured: nothing to bind.

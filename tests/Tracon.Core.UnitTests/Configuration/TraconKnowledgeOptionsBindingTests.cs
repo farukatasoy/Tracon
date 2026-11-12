@@ -33,20 +33,23 @@ public sealed class TraconKnowledgeOptionsBindingTests
     [Fact]
     public void Every_scalar_of_the_section_is_bound()
     {
-        var options = Bind(new Dictionary<string, string?>(StringComparer.Ordinal)
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Knowledge:Dimensions"] = "3072",
             ["Tracon:Knowledge:ChunkSize"] = "800",
             ["Tracon:Knowledge:ChunkOverlap"] = "50",
             ["Tracon:Knowledge:MaxResults"] = "8",
             ["Tracon:Knowledge:EmbeddingProvider"] = "azure-openai",
-        });
+        };
+
+        var options = Bind(values);
 
         options.Dimensions.ShouldBe(3072);
         options.ChunkSize.ShouldBe(800);
         options.ChunkOverlap.ShouldBe(50);
         options.MaxResults.ShouldBe(8);
         string.Equals(options.EmbeddingProvider, "azure-openai", StringComparison.Ordinal).ShouldBeTrue();
+        OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Knowledge", options);
     }
 
     [Fact]

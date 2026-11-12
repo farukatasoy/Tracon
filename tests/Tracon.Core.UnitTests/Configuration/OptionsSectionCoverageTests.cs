@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Reflection.Emit;
 
 namespace Tracon.Core.UnitTests.Configuration;
 
@@ -36,17 +37,7 @@ public sealed class OptionsSectionCoverageTests
         // A scan that found nothing would pass for the wrong reason.
         sections.Count.ShouldBeGreaterThan(20);
 
-        var testClassNames = typeof(OptionsSectionCoverageTests).Assembly.GetTypes()
-            .Where(CountsAsBindingTest)
-            .Select(static type => type.Name)
-            .ToHashSet(StringComparer.Ordinal);
-
-        var uncovered = sections
-            .Where(type => !string.Equals(type.Name, RootSection, StringComparison.Ordinal))
-            .Where(type => !ReachableFromTraconOptions(type))
-            .Where(type => !testClassNames.Contains($"{type.Name}BindingTests"))
-            .Select(static type => type.Name)
-            .ToHashSet(StringComparer.Ordinal);
+        var uncovered = UncoveredSections(sections, typeof(OptionsSectionCoverageTests).Assembly.GetTypes());
 
         var baseline = ReadBaseline();
         var failures = new List<string>();
@@ -71,13 +62,45 @@ public sealed class OptionsSectionCoverageTests
     }
 
     [Fact]
-    public void An_empty_binding_test_class_does_not_count()
+    public void A_section_whose_only_binding_test_class_cannot_prove_a_binding_stays_uncovered()
     {
-        CountsAsBindingTest(typeof(EmptyBindingTests)).ShouldBeFalse();
+        // The gate itself, fed a section and a class that carries its name but proves nothing. The predicate alone passing
+        // is not enough: the gate has to ask it. Each shape below used to take the section off the list.
+        var section = typeof(TraconImageOptions);
+        var name = $"{section.Name}BindingTests";
 
-        // A class with a test method counts. A private nested class cannot carry
-        // [Fact] (xUnit1000 is an error), so the class under test stands in.
-        CountsAsBindingTest(typeof(OptionsSectionCoverageTests)).ShouldBeTrue();
+        foreach (var (shape, bindingTest) in new (string, Type)[]
+        {
+            ("no test method", Emit(name, []).Single()),
+            ("a skipped test", Emit(name, [Test(skip: "later", callsKeyCoverage: true)]).Single()),
+            ("an explicit test", Emit(name, [Test(explicitOnly: true, callsKeyCoverage: true)]).Single()),
+            ("a test that never calls the key coverage", Emit(name, [Test(callsKeyCoverage: false)]).Single()),
+        })
+        {
+            UncoveredSections([section], [bindingTest]).Contains(section.Name, StringComparer.Ordinal)
+                .ShouldBeTrue($"a class with {shape} took the section off the list");
+        }
+
+        // The control: the same shape with a runnable test that calls the key coverage counts.
+        UncoveredSections([section], Emit(name, [Test(callsKeyCoverage: true)])).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_binding_test_counts_only_when_it_can_run_and_names_every_member()
+    {
+        CountsAsBindingTest(Emit("Runnable", [Test(callsKeyCoverage: true)]).Single()).ShouldBeTrue();
+        CountsAsBindingTest(Emit("Skipped", [Test(skip: "later", callsKeyCoverage: true)]).Single()).ShouldBeFalse();
+        CountsAsBindingTest(Emit("Explicit", [Test(explicitOnly: true, callsKeyCoverage: true)]).Single()).ShouldBeFalse();
+        CountsAsBindingTest(Emit("Unrelated", [Test(callsKeyCoverage: false)]).Single()).ShouldBeFalse();
+        CountsAsBindingTest(Emit("Empty", []).Single()).ShouldBeFalse();
+
+        // One runnable test that calls it is enough, whatever else the class holds.
+        CountsAsBindingTest(Emit("Mixed", [Test(skip: "later", callsKeyCoverage: false), Test(callsKeyCoverage: true)]).Single())
+            .ShouldBeTrue();
+
+        // Real classes of this namespace stand in for the shapes a private nested class cannot take (xUnit1000).
+        CountsAsBindingTest(typeof(TraconQuotaOptionsBindingTests)).ShouldBeTrue();
+        CountsAsBindingTest(typeof(TraconRunRecordingOptionsBindingTests)).ShouldBeFalse();
 
         // Measured in xunit.v3 3.2.2 and held in 4.0.2: TheoryAttribute derives from FactAttribute,
         // so one check counts a [Theory]-only class too. If that ever changes,
@@ -85,18 +108,190 @@ public sealed class OptionsSectionCoverageTests
         typeof(TheoryAttribute).IsSubclassOf(typeof(FactAttribute)).ShouldBeTrue();
     }
 
+    /// <summary>The sections that are neither the root nor a node of its tree and have no counting binding test.</summary>
+    /// <param name="sections">The section types.</param>
+    /// <param name="candidates">The types that may be a section's binding test class.</param>
+    internal static HashSet<string> UncoveredSections(IEnumerable<Type> sections, IEnumerable<Type> candidates)
+    {
+        var testClassNames = candidates
+            .Where(CountsAsBindingTest)
+            .Select(static type => type.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return sections
+            .Where(type => !string.Equals(type.Name, RootSection, StringComparison.Ordinal))
+            .Where(type => !ReachableFromTraconOptions(type))
+            .Where(type => !testClassNames.Contains($"{type.Name}BindingTests"))
+            .Select(static type => type.Name)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
     /// <summary>Whether a type in this assembly counts as the binding test its name promises.</summary>
     /// <remarks>
+    /// <para>
     /// The name alone used to be enough: an empty <c>{Type}BindingTests</c> class
     /// took a section off the baseline while proving nothing. A class counts only
-    /// when it carries at least one test method.
+    /// when one of its tests can run (not skipped, not explicit) AND the class calls
+    /// <see cref="OptionsKeyCoverage.ShouldCoverEveryMember"/>: an unrelated test in a
+    /// class of the right name proves nothing about the section, and the key
+    /// coverage is what names every member.
+    /// </para>
+    /// <para>
+    /// The call is found in the compiled code, not in the source: the method of the
+    /// test, and the compiler's own nested types (closures, async state machines) of
+    /// the class, are read for a call to the helper. A class cannot satisfy the gate
+    /// by mentioning the helper in a comment or a string.
+    /// </para>
     /// </remarks>
     internal static bool CountsAsBindingTest(Type type)
-        => type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
-            .Any(static method => method.IsDefined(typeof(FactAttribute), inherit: true));
+    {
+        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
 
-    /// <summary>A binding test class in name only: it proves nothing.</summary>
-    private sealed class EmptyBindingTests;
+        var runnable = methods.Where(static method => method.GetCustomAttributes<FactAttribute>(inherit: true)
+            .Any(static attribute => string.IsNullOrEmpty(attribute.Skip) && !attribute.Explicit))
+            .ToList();
+
+        if (runnable.Count == 0)
+        {
+            return false;
+        }
+
+        var generated = type.GetNestedTypes(BindingFlags.NonPublic | BindingFlags.Public)
+            .Where(static nested => nested.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), inherit: false))
+            .SelectMany(static nested => nested.GetMethods(
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly));
+
+        return runnable.Concat(generated).Any(CallsKeyCoverage);
+    }
+
+    private static bool CallsKeyCoverage(MethodBase method)
+        => CalledMethods(method).Any(static called => called.DeclaringType == typeof(OptionsKeyCoverage)
+            && string.Equals(called.Name, nameof(OptionsKeyCoverage.ShouldCoverEveryMember), StringComparison.Ordinal));
+
+    private static readonly Dictionary<short, OpCode> OpCodesByValue = typeof(OpCodes)
+        .GetFields(BindingFlags.Public | BindingFlags.Static)
+        .Where(static field => field.FieldType == typeof(OpCode))
+        .Select(static field => (OpCode)field.GetValue(null)!)
+        .ToDictionary(static opCode => opCode.Value);
+
+    /// <summary>Every method the body of <paramref name="method"/> calls, read from its IL.</summary>
+    private static IEnumerable<MethodBase> CalledMethods(MethodBase method)
+    {
+        var il = method.GetMethodBody()?.GetILAsByteArray();
+
+        if (il is null)
+        {
+            yield break;
+        }
+
+        for (var position = 0; position < il.Length;)
+        {
+            var code = il[position] == 0xFE ? (short)(0xFE00 | il[position + 1]) : il[position];
+            position += il[position] == 0xFE ? 2 : 1;
+            var opCode = OpCodesByValue[code];
+
+            if (opCode.OperandType == OperandType.InlineMethod
+                && ResolveMethod(method, BitConverter.ToInt32(il, position)) is { } called)
+            {
+                yield return called;
+            }
+
+            position += opCode.OperandType switch
+            {
+                OperandType.InlineNone => 0,
+                OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or OperandType.ShortInlineVar => 1,
+                OperandType.InlineVar => 2,
+                OperandType.InlineI8 or OperandType.InlineR => 8,
+                OperandType.InlineSwitch => 4 + (4 * BitConverter.ToInt32(il, position)),
+                _ => 4,
+            };
+        }
+    }
+
+    private static MethodBase? ResolveMethod(MethodBase caller, int token)
+    {
+        try
+        {
+            return caller.Module.ResolveMethod(
+                token,
+                caller.DeclaringType?.IsGenericType == true ? caller.DeclaringType.GetGenericArguments() : null,
+                caller.IsGenericMethod ? caller.GetGenericArguments() : null);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>One method of a type <see cref="Emit"/> builds.</summary>
+    private readonly record struct TestShape(string? Skip, bool Explicit, bool CallsKeyCoverage);
+
+    private static TestShape Test(string? skip = null, bool explicitOnly = false, bool callsKeyCoverage = false)
+        => new(skip, explicitOnly, callsKeyCoverage);
+
+    /// <summary>
+    /// Builds a public class named <paramref name="name"/> with one <c>[Fact]</c> method per shape, in a dynamic assembly.
+    /// </summary>
+    /// <remarks>
+    /// A class that carries <c>[Fact(Skip = ...)]</c> in this assembly would be a skipped test in every run, and a private
+    /// nested class cannot carry <c>[Fact]</c> at all (xUnit1000). A dynamic assembly is never scanned by the runner, and the
+    /// types in it have exactly the shape the gate reads.
+    /// </remarks>
+    private static IReadOnlyList<Type> Emit(string name, TestShape[] shapes)
+    {
+        var assembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName($"BindingTestShapes.{Guid.NewGuid():N}"), AssemblyBuilderAccess.Run);
+        var module = assembly.DefineDynamicModule("shapes");
+        var type = module.DefineType(name, TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Sealed);
+        var factConstructor = typeof(FactAttribute).GetConstructors().Single(static constructor => constructor.GetParameters().Length == 2);
+        var skipProperty = typeof(FactAttribute).GetProperty(nameof(FactAttribute.Skip))!;
+        var explicitProperty = typeof(FactAttribute).GetProperty(nameof(FactAttribute.Explicit))!;
+        var coverage = typeof(OptionsKeyCoverage).GetMethod(nameof(OptionsKeyCoverage.ShouldCoverEveryMember))!
+            .MakeGenericMethod(typeof(ProbeOptions));
+
+        var index = 0;
+
+        foreach (var shape in shapes)
+        {
+            var method = type.DefineMethod($"Test{index++}", MethodAttributes.Public, typeof(void), Type.EmptyTypes);
+            var properties = new List<PropertyInfo>();
+            var values = new List<object?>();
+
+            if (shape.Skip is not null)
+            {
+                properties.Add(skipProperty);
+                values.Add(shape.Skip);
+            }
+
+            if (shape.Explicit)
+            {
+                properties.Add(explicitProperty);
+                values.Add(true);
+            }
+
+            // FactAttribute(string? sourceFilePath = null, int sourceLineNumber = -1)
+            method.SetCustomAttribute(new CustomAttributeBuilder(
+                factConstructor, [null, -1], properties.ToArray(), values.ToArray()));
+
+            var il = method.GetILGenerator();
+
+            if (shape.CallsKeyCoverage)
+            {
+                // OptionsKeyCoverage.ShouldCoverEveryMember<ProbeOptions>(null, null, null, null)
+                il.Emit(OpCodes.Ldnull);
+                il.Emit(OpCodes.Ldnull);
+                il.Emit(OpCodes.Ldnull);
+                il.Emit(OpCodes.Ldnull);
+                il.Emit(OpCodes.Call, coverage);
+            }
+
+            il.Emit(OpCodes.Ret);
+        }
+
+        return [type.CreateType()];
+    }
+
+    /// <summary>The options type the emitted calls are made generic over.</summary>
+    public sealed class ProbeOptions;
 
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 

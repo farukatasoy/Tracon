@@ -46,20 +46,23 @@ public sealed class TraconImageOptionsBindingTests
     [Fact]
     public void Every_scalar_of_the_section_is_bound()
     {
-        var options = Bind(new Dictionary<string, string?>(StringComparer.Ordinal)
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Images:Enabled"] = "true",
             ["Tracon:Images:Provider"] = "openai",
             ["Tracon:Images:Model"] = "gpt-image-1",
             ["Tracon:Images:MaxImagesPerRequest"] = "3",
             ["Tracon:Images:Timeout"] = "00:00:45",
-        });
+        };
+
+        var options = Bind(values);
 
         options.Enabled.ShouldBeTrue();
         string.Equals(options.Provider, "openai", StringComparison.Ordinal).ShouldBeTrue();
         string.Equals(options.Model, "gpt-image-1", StringComparison.Ordinal).ShouldBeTrue();
         options.MaxImagesPerRequest.ShouldBe(3);
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(45));
+        OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Images", options);
     }
 
     [Fact]

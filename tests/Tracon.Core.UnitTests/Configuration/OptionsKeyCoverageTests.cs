@@ -32,7 +32,7 @@ public sealed class OptionsKeyCoverageTests
         var options = new CanaryOptions { AutoRollbackEnabled = true, ScanInterval = TimeSpan.FromMinutes(5) };
 
         Should.Throw<ShouldAssertException>(() => OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Canary", options))
-            .Message.ShouldContain("CanaryOptions.ScanInterval: the test value '00:05:00' equals the shipped default");
+            .Message.ShouldContain("CanaryOptions.ScanInterval: the bound value '00:05:00' equals the shipped default");
     }
 
     [Fact]
@@ -76,6 +76,53 @@ public sealed class OptionsKeyCoverageTests
     }
 
     [Fact]
+    public void A_settable_nested_object_is_checked_member_by_member_not_as_a_scalar()
+    {
+        // The object is settable, so it used to be taken for a scalar and compared by reference: a bound instance is never
+        // the shipped one, and the test passed whatever its members held.
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Probe:Inner:Name"] = "bound",
+        };
+
+        var options = new NestedProbeOptions { Inner = new NestedProbeInner { Name = "bound" } };
+
+        Should.Throw<ShouldAssertException>(() => OptionsKeyCoverage.ShouldCoverEveryMember(values, "Probe", options))
+            .Message.ShouldContain("NestedProbeOptions.Inner.Limit: no key under 'Probe:Inner:Limit'");
+    }
+
+    [Fact]
+    public void A_settable_nested_object_the_binder_left_null_fails()
+    {
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Probe:Inner:Name"] = "bound",
+            ["Probe:Inner:Limit"] = "7",
+        };
+
+        var options = new NestedProbeOptions { Inner = null! };
+
+        Should.Throw<ShouldAssertException>(() => OptionsKeyCoverage.ShouldCoverEveryMember(values, "Probe", options))
+            .Message.ShouldContain("NestedProbeOptions.Inner: a key is named under 'Probe:Inner', but the member stayed null");
+    }
+
+    [Fact]
+    public void A_value_equal_to_the_default_names_both_causes_not_only_the_test_value()
+    {
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Probe:Inner:Name"] = "bound",
+            ["Probe:Inner:Limit"] = "7",
+        };
+
+        // The test value differs from the default (7 against 0), but the binder never read it: the bound member is the default.
+        var options = new NestedProbeOptions { Inner = new NestedProbeInner { Name = "bound" } };
+
+        Should.Throw<ShouldAssertException>(() => OptionsKeyCoverage.ShouldCoverEveryMember(values, "Probe", options))
+            .Message.ShouldContain("or the binder never read the key");
+    }
+
+    [Fact]
     public void An_exemption_for_a_member_that_does_not_exist_fails()
     {
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -88,5 +135,19 @@ public sealed class OptionsKeyCoverageTests
 
         Should.Throw<ShouldAssertException>(() => OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Canary", options, "Lanes"))
             .Message.ShouldContain("'Lanes' is exempt, but CanaryOptions has no such member.");
+    }
+
+    /// <summary>An options object whose member is a settable nested object.</summary>
+    private sealed class NestedProbeOptions
+    {
+        public NestedProbeInner Inner { get; set; } = new();
+    }
+
+    /// <summary>The nested object of <see cref="NestedProbeOptions"/>.</summary>
+    private sealed class NestedProbeInner
+    {
+        public string? Name { get; set; }
+
+        public int Limit { get; set; }
     }
 }

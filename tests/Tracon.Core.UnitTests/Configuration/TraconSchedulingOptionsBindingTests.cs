@@ -40,7 +40,7 @@ public sealed class TraconSchedulingOptionsBindingTests
     [Fact]
     public void Every_scalar_of_the_section_is_bound()
     {
-        var options = Bind(new Dictionary<string, string?>(StringComparer.Ordinal)
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Scheduling:Enabled"] = "false",
             ["Tracon:Scheduling:RunWorker"] = "false",
@@ -49,7 +49,9 @@ public sealed class TraconSchedulingOptionsBindingTests
             ["Tracon:Scheduling:LeaseDuration"] = "00:02:00",
             ["Tracon:Scheduling:MaxAttempts"] = "5",
             ["Tracon:Scheduling:MaxItemsPerJob"] = "250",
-        });
+        };
+
+        var options = Bind(values);
 
         options.Enabled.ShouldBeFalse();
         options.RunWorker.ShouldBeFalse();
@@ -58,6 +60,12 @@ public sealed class TraconSchedulingOptionsBindingTests
         options.LeaseDuration.ShouldBe(TimeSpan.FromMinutes(2));
         options.MaxAttempts.ShouldBe(5);
         options.MaxItemsPerJob.ShouldBe(250);
+
+        // The collections are bound and asserted in The_lane_collections_are_bound, and the duration limits in the
+        // test that names MaxDurationByHandlerKey.
+        OptionsKeyCoverage.ShouldCoverEveryMember(
+            values, "Tracon:Scheduling", options,
+            "Lanes", "MaxConcurrentJobsPerLane", "LaneByHandlerKey", "HttpSchedulableHandlerKeys", "MaxDurationByHandlerKey");
     }
 
     [Fact]
