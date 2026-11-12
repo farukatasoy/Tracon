@@ -53,6 +53,41 @@ public sealed class McpDisposeDuringCallTests
     }
 
     [Fact]
+    public async Task A_connection_made_after_the_catalog_was_disposed_is_closed_and_not_kept()
+    {
+        var listingStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishListing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var server = ScriptedMcpServer.Start(
+            async (method, _, _, cancellationToken) =>
+            {
+                if (!string.Equals(method, "tools/list", StringComparison.Ordinal))
+                {
+                    return "{}";
+                }
+
+                listingStarted.TrySetResult();
+                await finishListing.Task.WaitAsync(cancellationToken);
+
+                return "{\"tools\":[]}";
+            },
+            Capabilities);
+
+        var catalog = NewCatalog(await StoreAsync(server));
+
+        var refresh = catalog.RefreshAsync(TestContext.Current.CancellationToken).AsTask();
+
+        // The refresh is inside its first connection when the catalog is disposed: the dispose walks an empty
+        // dictionary, and the connection that finishes afterwards used to be written into it and left open.
+        await listingStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await catalog.DisposeAsync();
+        finishListing.SetResult();
+        await refresh;
+
+        catalog.TryGetConnection("default", "srv", out _).ShouldBeFalse("a disposed catalog keeps no connection");
+    }
+
+    [Fact]
     public async Task A_resource_read_in_flight_when_the_connection_is_disposed_returns_a_status()
     {
         var readStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

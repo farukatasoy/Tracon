@@ -66,6 +66,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private const int MaxParallelConnections = 8;
 
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private int _disposed;
 
     // ConcurrentDictionary: writes are always single-writer under
     // _refreshGate, but the Mode A context provider (McpResourceContextProvider)
@@ -267,15 +268,24 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        foreach (var connection in _connections.Values)
+        // The flag goes first: a refresh that is still connecting when the catalog is disposed finds the
+        // dictionary empty here, and reads the flag after it writes its connection (EnsureConnectionAsync) so
+        // that it closes the connection itself.
+        Volatile.Write(ref _disposed, 1);
+
+        // A connection is closed by whoever removes it: this loop and a refresh that finishes meanwhile cannot
+        // both close the same one.
+        foreach (var key in _connections.Keys.ToArray())
         {
-            await connection.DisposeAsync().ConfigureAwait(false);
+            if (_connections.TryRemove(key, out var connection))
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         // _refreshGate is not disposed: a refresh that is inside the gate when the catalog is disposed still
         // releases it in its finally, and a closed gate would turn that Release into an ObjectDisposedException
         // that replaces the refresh's own outcome. It is a binary lock with no wait handle, so it holds nothing.
-        _connections.Clear();
     }
 
     /// <summary>
@@ -403,6 +413,18 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         }
 
         _connections[key] = connection;
+
+        // The catalog was disposed while this connection was being made, after the dispose had walked the
+        // dictionary: nothing else will close it.
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            if (_connections.TryRemove(key, out var kept))
+            {
+                await kept.DisposeAsync().ConfigureAwait(false);
+            }
+
+            return (null, false);
+        }
 
         return (connection, false);
     }
