@@ -37,8 +37,9 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <item>
 /// <description>
 /// A query or request object carries the tenant as a field (<c>query.TenantId</c>, <c>info.TenantId</c>,
-/// <c>request.TenantId</c>, <c>draft.TenantId</c>, <c>batch.TenantId</c>, <c>content.TenantId</c>). Every read of
-/// such a field folds it on the same line. A hook that sends no tenant (a <see langword="null"/> query tenant
+/// <c>request.TenantId</c>, <c>draft.TenantId</c>, <c>batch.TenantId</c>, <c>content.TenantId</c>), and so does
+/// each element of a group a caller hands over (<c>events[i].TenantId</c>). Every read of such a field folds it
+/// on the same line. A hook that sends no tenant (a <see langword="null"/> query tenant
 /// means the ambient one) never reaches these lines, which is why the contract tests cannot guard them.
 /// </description>
 /// </item>
@@ -64,10 +65,10 @@ public sealed class InMemoryTenantFoldTests
 
     /// <summary>
     /// The objects that carry a tenant into a store to be read, not kept: a query, a start or request object, a
-    /// draft, a batch of spans, an upload.
+    /// draft, a batch of spans, an upload, an element of a group of events.
     /// </summary>
     private static readonly Regex CarriedTenantRead = new(
-        @"\b(?<owner>query|info|request|draft|batch|content)\.TenantId\b",
+        @"\b(?<owner>query|info|request|draft|batch|content|events\[[^\]]+\])\.TenantId\b",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 

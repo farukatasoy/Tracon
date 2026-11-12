@@ -1316,5 +1316,6 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_rejects_a_du
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_rejects_a_sequence_repeated_inside_the_group() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_stores_a_NUL_character_in_a_text_or_fails_in_neither_direction() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_does_not_write_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_takes_tenant_ids_that_differ_only_in_letter_case_as_one_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_without_an_expected_tenant_performs_no_tenant_check() -> System.Threading.Tasks.Task!
 virtual Tracon.Testing.Contracts.Storage.RunStoreContract.AppendsEventGroupsAtomically.get -> bool

@@ -63,11 +63,15 @@ internal sealed partial class InMemoryRunStore
         }
 
         var runId = events[0].RunId;
-        var tenantId = events[0].TenantId;
+
+        // A tenant is matched by its folded value, as the SQL stores do (`AmbientTenantScope`): a group whose events
+        // spell one tenant in two letter cases is one group.
+        var tenantId = AmbientTenantScope.NormalizeOrNull(events[0].TenantId);
 
         for (var i = 1; i < events.Count; i++)
         {
-            if (events[i].RunId != runId || !string.Equals(events[i].TenantId, tenantId, StringComparison.Ordinal))
+            if (events[i].RunId != runId
+                || !string.Equals(AmbientTenantScope.NormalizeOrNull(events[i].TenantId), tenantId, StringComparison.Ordinal))
             {
                 throw new ArgumentException("The events of one group must all belong to the same run and carry the same tenant.", nameof(events));
             }

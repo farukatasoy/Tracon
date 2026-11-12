@@ -552,6 +552,37 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await ReadEventsOfAsync(runId)).Count.ShouldBe(2);
     }
 
+    /// <remarks>
+    /// A store matches a tenant identifier case-insensitively everywhere else, so one group whose events spell the
+    /// tenant in two letter cases is one group. A store that compares the raw text rejects it as mixed tenants.
+    /// </remarks>
+    [Fact]
+    public async Task AppendEventsAsync_takes_tenant_ids_that_differ_only_in_letter_case_as_one_tenant()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventsAsync(
+        [
+            TestData.Event(runId, 0) with { TenantId = "Tenant-A" },
+            TestData.Event(runId, 1) with { TenantId = "TENANT-A" },
+        ]);
+
+        (await ReadEventsOfAsync(runId)).Count.ShouldBe(2);
+
+        // The fold is not a looser comparison: another tenant in the same group is still refused.
+        await Should.ThrowAsync<ArgumentException>(async () =>
+            await Store.AppendEventsAsync(
+            [
+                TestData.Event(runId, 2) with { TenantId = "Tenant-A" },
+                TestData.Event(runId, 3) with { TenantId = "Tenant-B" },
+            ]));
+
+        (await ReadEventsOfAsync(runId)).Count.ShouldBe(2);
+    }
+
     [Fact]
     public async Task AppendEventsAsync_without_an_expected_tenant_performs_no_tenant_check()
     {
