@@ -190,6 +190,33 @@ internal sealed class AesGcmContentProtector : IContentProtector
         }
     }
 
+    /// <summary>
+    /// Reads the active key now, as the first protected write would, when the configuration holds a value for it, and keeps
+    /// it for that write.
+    /// </summary>
+    /// <remarks>
+    /// A key with NO value is left alone: a host that runs on in-memory stores never calls the protector, and the reference
+    /// host and the OpenAPI fuzz run ship the key name enabled for exactly those runs. The structure (an active key id that
+    /// is set and listed) is the options validator's. What this finds is a value that is there and cannot be a key.
+    /// </remarks>
+    /// <exception cref="TraconException">
+    /// The value of the active key's configuration key is not Base64 or is not 32 bytes. The message names the
+    /// configuration key and never carries a value.
+    /// </exception>
+    internal void ValidateActiveKey()
+    {
+        var options = _options.CurrentValue;
+
+        if (string.IsNullOrWhiteSpace(options.ActiveKeyId)
+            || !options.Keys.TryGetValue(options.ActiveKeyId, out var configurationKeyName)
+            || string.IsNullOrWhiteSpace(_configuration?[configurationKeyName]))
+        {
+            return;
+        }
+
+        _ = ResolveActiveKey();
+    }
+
     private (string KeyId, byte[] Key) ResolveActiveKey()
     {
         var keyId = _options.CurrentValue.ActiveKeyId;

@@ -272,6 +272,10 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconContentProtectionOptions>, TraconContentProtectionOptionsValidator>());
 
+        // A gate that does nothing unless AddContentProtection() has put Tracon's own protector in place and switched it on:
+        // that call can come after AddTracon(), so the check is registered here and decides at the start.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ITraconStartupCheck, ContentProtectionKeyStartupValidator>());
+
         // Outside the configuration branch on purpose. An undefined
         // MaskedPii bit is refused whatever its source - configuration or an
         // AddPatternContentGuard(...) callback.

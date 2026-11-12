@@ -17,7 +17,9 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// when the first value is written or read. The scenarios are the ones that touch it: runs that write protected columns
 /// and read them back, a second host started on the same database that decrypts what the first wrote, and the three
 /// ways a key can be wrong (not Base64, the wrong length, well-formed material that is not the material a value was
-/// written with). The wrong ones matter most: their text is written for an operator who is looking at a key.
+/// written with). The wrong ones matter most: their text is written for an operator who is looking at a key. The first two
+/// stop the host at the start, so what the operator reads is the failure of the start; the third starts, and is read on
+/// the first value that carries the old key id.
 /// </para>
 /// <para>
 /// The raw bytes of the key are searched as well as its Base64 text. A database that holds ciphertext holds neither; a
@@ -134,8 +136,18 @@ public sealed class ContentProtectionKeyCanaryTests
             _ => OtherBase64,
         };
 
-        await using (var second = await StartAsync(database, wire, wrongValue, structured))
+        if (wrong is "not-base64" or "wrong-length")
         {
+            // A key that cannot be a key stops the host at the start, where the operator is watching: the active key is read
+            // then. What it says is held to the same rule as everything a running host says.
+            var failure = await Should.ThrowAsync<TraconException>(
+                async () => await (await StartAsync(database, wire, wrongValue, structured)).DisposeAsync());
+
+            seen.AppendLine(failure.ToString());
+        }
+        else
+        {
+            await using var second = await StartAsync(database, wire, wrongValue, structured);
             var drive = new CanaryDrive(second);
 
             // A run writes with the wrong key; a read decrypts with it. Neither may answer with the value.

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A host with content protection on stops at the start when its active key has a value that cannot be a key.** The key was read when the first protected value was written, and a recording write is best effort: a key of 31 bytes made every run answer `200`, left every protected column empty, and showed only in a counter. A value that is not base64, or that does not decode to 32 bytes, now stops the start with a message that names the configuration key and never the value. Only the active key is read, and only when it has a value: a key kept for old rows can still be missing during a rotation, and a host on in-memory stores can still start with the key name and no material.
+  What to do:
+  - **If a host now stops with `Content protection key '…' …`,** fix the value the message names: it was already failing on every write, silently.
+  - **A custom `IContentProtector`** registered with `AddContentProtection<TProtector>()` is not asked for a key.
+
 - **The call graph check follows the version a callable agent is pinned to.** It read the names of the callee's current version for every reference, so `a` pinned to `b@1` was saved although version 1 of `b` calls `a` (the run then spent model calls up to the depth limit), and `a` pinned to a `b@1` that calls nobody was refused with a cycle that the current version of `b` closes but the pin cannot run. A reference now follows the stored version it names, and an unpinned one follows the current version with the pins that version carries. The refusal names the pin in its path (`a -> b@1 -> a`), for a save, an import and `POST /api/agents/validate`.
   What to do:
   - **If a save that worked is now refused with `cycle`,** pin another version of the callee, remove the call from the pinned version's successor, or leave the pin out. Agents already saved are not re-checked; the depth limit still stops a cycle that was stored before.

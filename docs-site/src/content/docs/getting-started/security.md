@@ -409,6 +409,14 @@ or an environment variable:
 dotnet user-secrets set "ContentProtectionKeys:2026-08" "<32-byte base64 key>"
 ```
 
+The host reads the **active** key when it starts, if the configuration holds a value for it. A value that is not base64,
+or that does not decode to 32 bytes, stops the start, and the message names the configuration key and never the value.
+Without that check the first protected write would fail inside the run's best-effort recording: the run would answer, the
+protected columns would stay empty, and the only trace would be a counter. A key with no value at all is not an error at
+the start, because a host on in-memory stores never calls the protector; set the value before you add a database. A key you
+keep to read old rows is not read at the start either, so a rotation can add the new key before the old one is retired; a
+row that needs the old key and cannot find it fails by name when it is read.
+
 Three limits are worth knowing before you rely on this:
 
 - **It protects data at rest, not a running process.** A process holding the key

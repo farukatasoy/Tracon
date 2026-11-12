@@ -58,6 +58,7 @@ public sealed class HostedServiceInventoryTests
         ["Tracon.JobHandlerRegistryValidator"] = (Kind.StartupGate, null),
         ["Tracon.AgentSourceValidationService"] = (Kind.StartupGate, null),
         ["Tracon.AuditChainKeyStartupValidator"] = (Kind.StartupGate, null),
+        ["Tracon.ContentProtectionKeyStartupValidator"] = (Kind.StartupGate, null),
         ["Tracon.ProductionProfileValidator"] = (Kind.StartupGate, null),
         ["Tracon.RequiredBindingValidator"] = (Kind.StartupGate, null),
         ["Tracon.PackageFamilyAlignmentService"] = (Kind.StartupGate, null),
