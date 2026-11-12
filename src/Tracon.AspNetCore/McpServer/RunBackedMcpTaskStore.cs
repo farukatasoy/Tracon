@@ -110,6 +110,8 @@ internal sealed class RunBackedMcpTaskStore : IMcpTaskStore
                 Status = RunStatus.Queued,
                 StartedAt = now,
                 TenantId = provisioning.TenantId,
+                UserId = provisioning.UserId,
+                Labels = provisioning.Labels,
             },
             cancellationToken).ConfigureAwait(false);
 

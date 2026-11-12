@@ -13,7 +13,16 @@ namespace Tracon;
 /// </param>
 /// <param name="AgentName">Best-effort parsed agent name, for the placeholder run row.</param>
 /// <param name="TenantId">The calling tenant, resolved from the original inbound request.</param>
-internal sealed record McpTaskRunProvisioning(Guid RunId, string AgentName, string TenantId);
+/// <param name="UserId">
+/// The user the request resolved, read while the request is current; <see langword="null"/> when there is none.
+/// </param>
+/// <param name="Labels">The labels the request resolved, frozen; <see langword="null"/> when there are none.</param>
+internal sealed record McpTaskRunProvisioning(
+    Guid RunId,
+    string AgentName,
+    string TenantId,
+    string? UserId = null,
+    IReadOnlyDictionary<string, string>? Labels = null);
 
 /// <summary>
 /// Carries <see cref="McpTaskRunProvisioning"/> from the pre-Tasks call-tool filter
@@ -86,7 +95,11 @@ internal static class McpTaskRunProvisioningFilter
         var tenantId = services.GetRequiredService<ITenantContext>().TenantId;
         var previous = McpTaskRunAmbient.Current;
 
-        McpTaskRunAmbient.SetCurrent(new McpTaskRunProvisioning(TraconId.NewId(), agentName, tenantId));
+        // Read HERE, inside the request: the placeholder row opens now and a call that is turned away never reaches the agent,
+        // so nothing later would say who asked. Through the reader, so a faulty consumer implementation drops the attribution.
+        var (userId, labels) = RunAttributionReader.Read(services.GetService<IRunAttributionContext>());
+
+        McpTaskRunAmbient.SetCurrent(new McpTaskRunProvisioning(TraconId.NewId(), agentName, tenantId, userId, labels));
 
         try
         {

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The run row of an MCP task carries the user and labels of the request that created it.** `UseMcpServer` with `EnableTasks` opens a queued row for the task inside the request, and that row had neither. A task that the server turned away before its agent started (an approval-requiring tool, for one) never got them later, so `GET /api/runs` filtered by `userId` or a label did not list it. The row now takes the attribution the request resolved, through the same reader the other queued rows use.
+  What to do:
+  - **Nothing.** A task whose agent ran keeps the user and labels the run recorded.
+
 - **A queued continuation of an interrupted run carries the user and labels of the run it continues.** The recovery pass opens a queued row for the continuation before a worker takes the job, and that row had neither, so `GET /api/runs` filtered by `userId` or a label did not list it while it waited, nor when it closed without ever running. The worker already recorded both once the run started; the queued row now says so from the start.
   What to do:
   - **Nothing.** A continuation that already ran keeps the user and labels the worker wrote.

@@ -381,6 +381,73 @@ public sealed class McpTasksEndpointTests
         text.ShouldContain("cannot respond to an approval request", Case.Sensitive);
     }
 
+    [Fact]
+    public async Task The_row_of_a_task_that_never_reaches_its_agent_carries_the_user_and_labels_of_the_request()
+    {
+        // The placeholder row opens inside the request and is the only row such a task ever has: the call is turned away
+        // before the agent starts, so nothing later fills in who asked. A list filtered by user or label must still find it.
+        const string ApprovalModel = "approval-model";
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder =>
+            {
+                builder
+                    .AddTool(
+                        (Func<string, string>)(orderId => $"canceled: {orderId}"),
+                        name: "cancel_order",
+                        description: "Cancels an order.",
+                        configure: options => options.RequiresApproval = true)
+                    .AddModelProvider(new Tracon.Testing.FakeModelProvider("routing")
+                        .ForModel(ApprovalModel, cfg => cfg.CallsTool("cancel_order", new { orderId = "123" })))
+                    .UseMcpServer(o =>
+                    {
+                        o.ExposedAgents.Add("db-agent");
+                        o.EnableTasks = true;
+                    });
+            },
+            configureServices: static services =>
+            {
+                services.AddHttpContextAccessor();
+                services.AddSingleton<IRunAttributionContext>(static provider =>
+                    new RequestBoundAttribution(provider.GetRequiredService<IHttpContextAccessor>()));
+            },
+            configureAfterMap: app => app.MapTraconMcpServer());
+
+        (await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents", UriKind.Relative),
+            TestData.Request() with { Model = new ModelBinding { Provider = "routing", Model = ApprovalModel } })).EnsureSuccessStatusCode();
+        (await host.Client.PutAsJsonAsync(
+            new Uri("/tracon/api/agents/db-agent", UriKind.Relative),
+            TestData.Request() with
+            {
+                Model = new ModelBinding { Provider = "routing", Model = ApprovalModel },
+                ToolNames = ["cancel_order"],
+            })).EnsureSuccessStatusCode();
+
+        await using var client = await McpTaskTestClient.ConnectAsync(host.Client, "/tracon/mcp");
+
+        var outcome = await client.CallToolAsTaskAsync(
+            new CallToolRequestParams { Name = "tracon_db-agent", Arguments = Arguments("cancel my order") });
+        var taskId = outcome.TaskCreated!.TaskId;
+
+        await Poll(() => client.GetTaskAsync(taskId), r => r is CompletedTaskResult or FailedTaskResult);
+
+        var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(Guid.Parse(taskId))).ShouldNotBeNull();
+
+        run.UserId.ShouldBe("ada");
+        run.Labels.ShouldNotBeNull().ShouldContainKeyAndValue("team", "payments");
+    }
+
+    private sealed class RequestBoundAttribution(IHttpContextAccessor accessor) : IRunAttributionContext
+    {
+        public string? UserId => accessor.HttpContext is null ? AmbientRunAttributionScope.CurrentUserId : "ada";
+
+        public IReadOnlyDictionary<string, string>? Labels
+            => accessor.HttpContext is null
+                ? AmbientRunAttributionScope.CurrentLabels
+                : new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" };
+    }
+
     private static Dictionary<string, JsonElement> Arguments(string message)
         => new(StringComparer.Ordinal) { ["message"] = JsonSerializer.SerializeToElement(message) };
 
