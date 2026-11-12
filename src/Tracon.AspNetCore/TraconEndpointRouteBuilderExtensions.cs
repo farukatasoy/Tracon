@@ -151,6 +151,10 @@ public static class TraconEndpointRouteBuilderExtensions
         // see JsonBindingProblemMiddleware.
         app.Use(JsonBindingProblemMiddleware.InvokeAsync);
 
+        // A content type no route accepts is answered by the routing layer with a bare 415 before any code of ours runs;
+        // this gives that answer the body every other refusal has. See UnsupportedMediaTypeProblemMiddleware.
+        UnsupportedMediaTypeProblemMiddleware.Map(app, normalizedPrefix);
+
         // A store that cannot answer must say so. Attached OUTSIDE
         // the binding mapping above so that it also covers a DbException thrown
         // while that middleware is unwinding.
@@ -205,6 +209,9 @@ public static class TraconEndpointRouteBuilderExtensions
         // The same for a number, flag, date or GUID that cannot be read: the binder marks the request 400 and says nothing
         // about which parameter, so the answer names it.
         group.AddEndpointFilterFactory(ScalarQueryParameter.Filter);
+
+        // The document lists the 415 of every route that takes a body.
+        ((IEndpointConventionBuilder)group).Finally(UnsupportedMediaTypeProblemMiddleware.Declare);
 
         if (options.AuthorizationPolicy is { Length: > 0 } policy)
         {

@@ -82,7 +82,8 @@ GATING_CHECKS = (
 # Measured and printed with a count on every run, never failing a leg. Each stays here for a reason that is written
 # in the code, not in a flag, and the reason is what has to change before it can gate:
 #   * status_code_conformance: most operations list no 4xx at all (124 of 182 when this was written; the document
-#     names the statuses of a handler's own answers, not the shared ones: 400, 401, 403, 404, 415, 503), so the
+#     names the statuses of a handler's own answers, not the shared ones: 400, 401, 403, 404, 503; 415 is listed on
+#     every operation that takes a body), so the
 #     check cannot pass without documenting every shared answer on every operation. That is a decision about the
 #     published document and about the generated clients (each listed status becomes a typed exception), and it is
 #     not taken yet. The 401 and 403 of a refused role carry a problem document only for a host that calls
