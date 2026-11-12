@@ -58,6 +58,31 @@ public sealed partial class SqlStatementSiteTests
     }
 
     [Fact]
+    public void The_tenant_free_api_key_hash_query_is_read_by_the_authentication_lookup_alone()
+    {
+        // SelectApiKeyByHash has no tenant filter on purpose: the tenant is its output. A store call that already knows
+        // the tenant (the read-back of a key it has just written) takes the row by its id and tenant instead, so that
+        // the one query that cannot enforce a tenant has exactly one caller, whose job it is.
+        var sites = new List<string>();
+
+        foreach (var (relative, lines) in StoreFiles())
+        {
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (lines[i].Contains("SelectApiKeyByHash", StringComparison.Ordinal))
+                {
+                    sites.Add($"{relative}:{i + 1}: {lines[i].Trim()}");
+                }
+            }
+        }
+
+        sites.Count.ShouldBe(
+            1,
+            $"SelectApiKeyByHash is the authentication lookup's query alone; its callers:{Environment.NewLine}{string.Join(Environment.NewLine, sites)}");
+        sites[0].ShouldStartWith("src/Tracon.Sql.Shared/Stores/SqlApiKeyStore.cs:", Case.Sensitive);
+    }
+
+    [Fact]
     public void Every_exception_still_builds_an_autocommit_command()
     {
         // A stale entry would silently exempt a file that was rewritten later.

@@ -1013,6 +1013,9 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that looks an API key up by its hash. There is NO tenant filter.</summary>
     public string SelectApiKeyByHash { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that reads one API key of a tenant by its identifier.</summary>
+    public string SelectApiKeyById { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that revokes an API key within the tenant boundary.</summary>
     public string RevokeApiKey { get; protected set; } = string.Empty;
 
@@ -2266,6 +2269,12 @@ internal abstract class SqlQueriesBase
             SELECT {ApiKeyColumns}
             FROM {Table("api_keys")}
             WHERE key_hash = @key_hash;
+            """;
+
+        SelectApiKeyById = $"""
+            SELECT {ApiKeyColumns}
+            FROM {Table("api_keys")}
+            WHERE tenant_id = @tenant_id AND id = @id;
             """;
 
         RevokeApiKey = $"""

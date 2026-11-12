@@ -51,7 +51,9 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
 
         // The record that goes back to the caller is the row, read in the transaction that wrote it: the name and the
         // times as the store holds them (U+0000 is stored as U+FFFD, PostgreSQL keeps microseconds), the same record
-        // ListAsync reports an instant later. The digest is read as a parameter and never enters the record.
+        // ListAsync reports an instant later. It is read by its id and tenant, not by the hash: the hash query has no
+        // tenant filter on purpose and belongs to authentication alone. The digest is a parameter of the insert and
+        // never enters the record.
         var stored = await _context.ExecuteInTransactionAsync(
             async (connection, transaction) =>
             {
@@ -68,8 +70,9 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
                 Dialect.AddTimestamp(insert, "created_at", record.CreatedAt);
                 await DbHelpers.ExecuteAsync(insert, cancellationToken).ConfigureAwait(false);
 
-                var select = _context.CreateCommand(_sql.SelectApiKeyByHash, connection, transaction);
-                Dialect.AddBinary(select, "key_hash", generated.KeyHash);
+                var select = _context.CreateCommand(_sql.SelectApiKeyById, connection, transaction);
+                DbHelpers.Add(select, "id", record.Id);
+                DbHelpers.AddTenant(select, record.TenantId);
 
                 var row = await DbHelpers.ReadSingleAsync(select, ReadRecord, cancellationToken).ConfigureAwait(false)
                     ?? throw new TraconException($"The API key {record.Id} could not be read back after it was written.");

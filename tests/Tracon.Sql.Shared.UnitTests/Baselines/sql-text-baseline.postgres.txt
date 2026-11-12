@@ -108,6 +108,7 @@ SelectAgentSkillResources	SELECT name, description, media_type, content\nFROM tr
 SelectAgentSkillScripts	SELECT name, description, extension, content, parameters_schema\nFROM tracon.agent_skill_scripts\nWHERE skill_id = @skill_id\nORDER BY name;
 SelectAgentSkills	SELECT id, tenant_id, name, description, instructions, compatibility, license,\n       allowed_tools, metadata, enabled, version, created_at, updated_at\nFROM tracon.agent_skills\nWHERE tenant_id = @tenant_id\nORDER BY name;
 SelectApiKeyByHash	SELECT id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,\nlast_used_at, created_at\nFROM tracon.api_keys\nWHERE key_hash = @key_hash;
+SelectApiKeyById	SELECT id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,\nlast_used_at, created_at\nFROM tracon.api_keys\nWHERE tenant_id = @tenant_id AND id = @id;
 SelectApiKeys	SELECT id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,\nlast_used_at, created_at\nFROM tracon.api_keys\nWHERE tenant_id = @tenant_id\nORDER BY created_at;
 SelectAppliedMigrations	SELECT set_name, id, name, checksum FROM tracon.__migrations ORDER BY set_name, id;
 SelectAttachment	SELECT id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, created_by, created_at\nFROM tracon.attachments\nWHERE tenant_id = @tenant_id AND id = @id;
