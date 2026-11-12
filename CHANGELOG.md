@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A response-cache read that fails is counted as `error`, not as `miss`.** The `tracon.model.cache` counter tagged a lookup whose read of the distributed cache threw as `miss`, so an unreachable cache store looked like a cold cache and moved a hit-ratio dashboard the same way a miss does. `tracon.model.cache.result` now also takes the value `error`; the call still goes on to the model, as before.
+  What to do:
+  - **A panel or alert that divides `hit` by all lookups** now sees fewer lookups when the store is down. Add `error` to the denominator if you want it counted, or alert on it by itself.
+
 - **The run row of an MCP task carries the user and labels of the request that created it.** `UseMcpServer` with `EnableTasks` opens a queued row for the task inside the request, and that row had neither. A task that the server turned away before its agent started (an approval-requiring tool, for one) never got them later, so `GET /api/runs` filtered by `userId` or a label did not list it. The row now takes the attribution the request resolved, through the same reader the other queued rows use.
   What to do:
   - **Nothing.** A task whose agent ran keeps the user and labels the run recorded.

@@ -122,6 +122,7 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
         JsonSerializerOptions.MakeReadOnly();
 
         ChatResponse? result = null;
+        var failed = false;
 
         try
         {
@@ -138,9 +139,10 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger?.LogWarning(ex, "Response-cache read failed for provider '{Provider}'; treated as a miss.", _provider);
+            failed = true;
         }
 
-        _metrics?.RecordModelCacheLookup(_provider, _tenantId ?? DefaultTenantId, hit: result is not null);
+        RecordLookup(result is not null, failed);
 
         return result;
     }
@@ -152,6 +154,7 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
         JsonSerializerOptions.MakeReadOnly();
 
         IReadOnlyList<ChatResponseUpdate>? result = null;
+        var failed = false;
 
         try
         {
@@ -170,11 +173,29 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger?.LogWarning(ex, "Response-cache read failed for provider '{Provider}'; treated as a miss.", _provider);
+            failed = true;
         }
 
-        _metrics?.RecordModelCacheLookup(_provider, _tenantId ?? DefaultTenantId, hit: result is not null);
+        RecordLookup(result is not null, failed);
 
         return result;
+    }
+
+    private void RecordLookup(bool hit, bool failed)
+    {
+        if (_metrics is null)
+        {
+            return;
+        }
+
+        if (failed)
+        {
+            _metrics.RecordModelCacheLookupError(_provider, _tenantId ?? DefaultTenantId);
+        }
+        else
+        {
+            _metrics.RecordModelCacheLookup(_provider, _tenantId ?? DefaultTenantId, hit);
+        }
     }
 
     /// <summary>Removes the aggregate usage and every per-message usage content a cache hit would otherwise re-report.</summary>

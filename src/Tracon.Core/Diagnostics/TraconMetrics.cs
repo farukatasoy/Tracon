@@ -350,11 +350,24 @@ internal sealed class TraconMetrics : IDisposable
     /// <param name="tenantId">Tenant identifier.</param>
     /// <param name="hit">Whether the lookup found a cached response.</param>
     public void RecordModelCacheLookup(string provider, string tenantId, bool hit)
+        => RecordModelCacheLookup(provider, tenantId, hit ? "hit" : "miss");
+
+    /// <summary>Records a response-cache lookup whose read of the store failed.</summary>
+    /// <remarks>
+    /// Counted apart from a miss: a miss is a cache working as designed, an error is a store that is down, and a hit ratio
+    /// that mixed the two would show an outage as a cold cache.
+    /// </remarks>
+    /// <param name="provider">Model provider name.</param>
+    /// <param name="tenantId">Tenant identifier.</param>
+    public void RecordModelCacheLookupError(string provider, string tenantId)
+        => RecordModelCacheLookup(provider, tenantId, "error");
+
+    private void RecordModelCacheLookup(string provider, string tenantId, string result)
     {
         var tags = new TagList
         {
             { TraconDiagnostics.Tags.Provider, provider },
-            { TraconDiagnostics.Tags.CacheResult, hit ? "hit" : "miss" },
+            { TraconDiagnostics.Tags.CacheResult, result },
         };
 
         AddTenantTag(ref tags, tenantId);

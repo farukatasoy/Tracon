@@ -74,7 +74,7 @@ variables, and the span tree that the Aspire dashboard shows for one run.
 | `tracon.quota.limit` | Current quota limit gauge when enabled |
 | `tracon.judge.cost` | Cost reported for evaluation judges |
 | `tracon.judge.score` | Judge score distribution |
-| `tracon.model.cache` | Response-cache lookups, tagged hit or miss |
+| `tracon.model.cache` | Response-cache lookups, tagged hit, miss or error |
 | `tracon.agent_source.failures` | Agent-source failure and contract-violation count |
 | `tracon.job.executions` | Background jobs that reached a terminal status |
 | `tracon.job.duration` | Duration of a single background-job attempt, in seconds |
@@ -103,7 +103,7 @@ metric names above.
 | `tracon.quota.scope` · `tracon.quota.period` · `tracon.quota.metric` | Quota gauges | Which quota the gauge reports |
 | `tracon.judge.name` | `tracon.judge.cost`, `tracon.judge.score` | The judge that produced the score |
 | `tracon.model.provider` | `tracon.model.cache` | The model provider name |
-| `tracon.model.cache.result` | `tracon.model.cache` | `hit` or `miss` |
+| `tracon.model.cache.result` | `tracon.model.cache` | `hit`, `miss`, or `error` when the read of the cache store failed |
 | `tracon.skill.name` | Skill signals | The loaded skill |
 | `tracon.script.name` · `tracon.script.exit_code` · `tracon.script.duration_ms` | Skill-script span | The script, how it ended, and how long it took |
 | `tracon.script.denial_reason` | Skill-script span | Present only when a gate stopped the run before it started: which gate, and why. The span's status is `Error` and it carries no exit code or duration, because no process ran |

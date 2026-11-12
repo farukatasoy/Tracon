@@ -35,6 +35,35 @@ public sealed class ResponseCacheUsageTests
     }
 
     [Fact]
+    public async Task A_cache_whose_read_fails_is_counted_as_an_error_and_not_as_a_miss()
+    {
+        using var meterFactory = new TestMeterFactory();
+        using var collector = new MetricCollector(meterFactory.Meter);
+        var metrics = new TraconMetrics(meterFactory);
+        var cache = new FakeDistributedCache { ThrowOnGet = new InvalidOperationException("store unavailable") };
+        var inner = new FakeChatClient(_ => BuildResponseWithUsage());
+
+        using var client = new TraconResponseCachingChatClient(inner, cache, "openai", "tenant-a", Settings, metrics);
+        var options = new ChatOptions { ModelId = "gpt-5" };
+
+        // Non-streaming and streaming both read the store: the read fails, the call goes on to the provider.
+        await client.GetResponseAsync(Messages, options, TestContext.Current.CancellationToken);
+        await foreach (var update in client.GetStreamingResponseAsync(Messages, options, TestContext.Current.CancellationToken))
+        {
+            _ = update;
+        }
+
+        // The store is back: the first call wrote its answer, so the same request is a hit, another one a miss.
+        cache.ThrowOnGet = null;
+        await client.GetResponseAsync(Messages, options, TestContext.Current.CancellationToken);
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "another question")], options, TestContext.Current.CancellationToken);
+
+        collector.LongTags(TraconDiagnostics.ModelCacheLookupCounterName)
+            .Select(static tags => (string?)tags[TraconDiagnostics.Tags.CacheResult])
+            .ShouldBe(["error", "error", "hit", "miss"]);
+    }
+
+    [Fact]
     public async Task Cache_hit_strips_both_the_aggregate_usage_and_the_per_message_usage_content()
     {
         var cache = new FakeDistributedCache();

@@ -199,7 +199,7 @@ public static class TraconDiagnostics
         /// <summary>Gets the model provider name tag name.</summary>
         public const string Provider = "tracon.model.provider";
 
-        /// <summary>Gets the response-cache lookup result tag name: <c>hit</c> or <c>miss</c>.</summary>
+        /// <summary>Gets the response-cache lookup result tag name: <c>hit</c>, <c>miss</c>, or <c>error</c> when the read of the cache store failed.</summary>
         public const string CacheResult = "tracon.model.cache.result";
 
         /// <summary>Gets the agent-source name tag.</summary>
