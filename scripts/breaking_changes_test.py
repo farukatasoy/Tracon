@@ -513,6 +513,22 @@ class BreakingChangeListTests(unittest.TestCase):
         self.assertEqual(len(changes.errors), 1)
         self.assertIn("unrecognized record PKV007", changes.errors[0])
 
+    def test_a_package_validation_record_without_the_baseline_flag_is_unrecognized_not_a_strict_error(self):
+        """PKV006 is written without `IsBaselineSuppression`, and so can be any other package
+        validation record. Only a `CP*` record outside the baseline is a strict-mode error between
+        two target frameworks; a record that is neither must say the gate does not know it."""
+        with tempfile.TemporaryDirectory() as directory:
+            reports = pathlib.Path(directory)
+            _report(reports, "Tracon.Core", (
+                "  <Suppression>\n    <DiagnosticId>PKV007</DiagnosticId>\n    <Target>net10.0-linux-x64</Target>\n"
+                "  </Suppression>"))
+
+            changes = bc.read_breaking_changes(reports)
+
+        self.assertEqual(len(changes.errors), 1)
+        self.assertIn("unrecognized record PKV007", changes.errors[0])
+        self.assertNotIn("strict", changes.errors[0])
+
     def test_a_target_that_is_not_a_doc_id_is_red(self):
         with tempfile.TemporaryDirectory() as directory:
             reports = pathlib.Path(directory)
@@ -624,6 +640,27 @@ class ReleaseNoteMatchingTests(unittest.TestCase):
         missing = bc.unnamed_changes(changes, "- `Tracon.Core`: the `net8.0` target is removed.\n")
 
         self.assertEqual(missing, ["Tracon: dropped TFM net8.0"])
+
+    def test_a_nested_item_is_read_with_the_items_it_sits_under(self):
+        """A framework written as the parent item and the packages as its children is one statement."""
+        changes = bc.BreakingChanges()
+        changes.dropped_frameworks["Tracon.Core"] = {"net8.0"}
+        changes.dropped_frameworks["Tracon.Voice"] = {"net8.0"}
+
+        nested = bc.unnamed_changes(changes, (
+            "- The `net8.0` target is removed from:\n"
+            "  - `Tracon.Core`\n"
+            "  - `Tracon.Voice`\n"))
+        under_another_framework = bc.unnamed_changes(changes, (
+            "- The `net9.0` target is removed from:\n"
+            "  - `Tracon.Core`\n"
+            "- The `net8.0` target is removed.\n"))
+
+        self.assertEqual(nested, [])
+        self.assertEqual(under_another_framework, [
+            "Tracon.Core: dropped TFM net8.0",
+            "Tracon.Voice: dropped TFM net8.0",
+        ])
 
     def test_the_tfm_and_the_package_must_be_in_the_same_item(self):
         changes = bc.BreakingChanges()

@@ -474,9 +474,9 @@ def read_breaking_changes(report_dir: pathlib.Path) -> BreakingChanges:
 
     A record is handled by the first rule that matches:
     `PKV006` -> dropped framework (the SDK writes it without
-    `IsBaselineSuppression`) · not a baseline record -> a strict-mode
-    incompatibility, which the pack would otherwise have failed on ·
-    `CP*` with a documentation ID -> broken type · anything else -> unknown."""
+    `IsBaselineSuppression`) · a `CP*` record that is not a baseline record ->
+    a strict-mode incompatibility, which the pack would otherwise have failed
+    on · `CP*` with a documentation ID -> broken type · anything else -> unknown."""
     changes = BreakingChanges()
     for report in sorted(report_dir.glob("*.xml")):
         package = report.stem
@@ -493,8 +493,13 @@ def read_breaking_changes(report_dir: pathlib.Path) -> BreakingChanges:
                 changes.dropped_frameworks.setdefault(package, set()).add(target)
                 continue
             if not baseline:
-                changes.errors.append(
-                    f"{package}: incompatibility between TFMs (strict mode) {diagnostic} {target} - the surface must be the same in every TFM")
+                # Only a `CP*` record is a strict-mode error between two frameworks. Another package
+                # validation record (PKV006 is one) can come without the flag too and is unknown.
+                if diagnostic.startswith("CP"):
+                    changes.errors.append(
+                        f"{package}: incompatibility between TFMs (strict mode) {diagnostic} {target} - the surface must be the same in every TFM")
+                else:
+                    changes.errors.append(f"{package}: unrecognized record {diagnostic} {target} - the gate must learn it")
                 continue
             type_name = type_of_doc_id(target) if diagnostic.startswith("CP") else None
             if type_name is None:
@@ -586,14 +591,23 @@ def _type_parts(span: str) -> set[str]:
 
 
 def _list_items(text: str) -> list[str]:
-    """Markdown list items, each with its indented or lazy continuation lines."""
-    items: list[list[str]] = []
+    """Markdown list items, each with its indented or lazy continuation lines.
+
+    A nested item is returned together with the items it sits under, so a framework written as
+    the parent item and the packages written as its children read as one statement. Siblings
+    do not share text."""
+    items: list[list[list[str]]] = []
+    open_items: list[tuple[int, list[str]]] = []
     current: list[str] | None = None
     blank = False
     for line in text.splitlines():
         if _LIST_ITEM.match(line):
+            indent = len(line.expandtabs(4)) - len(line.expandtabs(4).lstrip())
+            while open_items and open_items[-1][0] >= indent:
+                open_items.pop()
             current = [line]
-            items.append(current)
+            open_items.append((indent, current))
+            items.append([lines for _, lines in open_items])
             blank = False
         elif current is None:
             continue
@@ -601,12 +615,14 @@ def _list_items(text: str) -> list[str]:
             blank = True
         elif line.startswith("#"):
             current = None
+            open_items.clear()
         elif blank and not line[:1].isspace():
             current = None
+            open_items.clear()
         else:
             current.append(line)
             blank = False
-    return ["\n".join(item) for item in items]
+    return ["\n".join("\n".join(lines) for lines in chain) for chain in items]
 
 
 def unnamed_changes(changes: BreakingChanges, notes: str | None) -> list[str]:
