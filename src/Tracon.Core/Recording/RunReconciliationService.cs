@@ -351,6 +351,11 @@ internal sealed class RunReconciliationService(
         var continuationRunId = TraconId.NewId();
         var now = _clock.GetUtcNow();
 
+        // The continuation belongs to the user and carries the labels of the run it continues, as the worker will
+        // record them when it opens the run; the queued row says so from the start, so a list that filters by user or
+        // label finds it while it waits and when it closes without ever running.
+        var (userId, labels) = QueuedRunAttribution.FromRecord(record);
+
         // A placeholder row, same rationale as the HTTP queued-run path
         // (AgentEndpoints.RunQueuedAsync): if enqueuing below fails, there
         // must be a row to close back to Failed.
@@ -362,6 +367,8 @@ internal sealed class RunReconciliationService(
                 Status = RunStatus.Queued,
                 StartedAt = now,
                 TenantId = tenantId,
+                UserId = userId,
+                Labels = labels,
                 SessionId = record.SessionId,
                 ContinuedFromRunId = record.Id,
             },

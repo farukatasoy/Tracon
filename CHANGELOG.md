@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A queued continuation of an interrupted run carries the user and labels of the run it continues.** The recovery pass opens a queued row for the continuation before a worker takes the job, and that row had neither, so `GET /api/runs` filtered by `userId` or a label did not list it while it waited, nor when it closed without ever running. The worker already recorded both once the run started; the queued row now says so from the start.
+  What to do:
+  - **Nothing.** A continuation that already ran keeps the user and labels the worker wrote.
+
 - **The in-memory run store takes a group of events whose tenant differs only in letter case as one group.** `AppendEventsAsync` compared the tenant of each event as written, so a group that spelled one tenant two ways (`Tenant-A`, `tenant-a`) was refused as mixed tenants, while the SQLite, PostgreSQL and SQL Server stores fold the tenant first and wrote it. The in-memory store now folds the tenant the same way; a group of two different tenants is still refused. The run writer stamps one tenant on a group, so a host that records through Tracon is not affected.
   What to do:
   - **Nothing, unless you wrote an `IRunStore`.** A store that overrides `AppendEventsAsync` and compares the tenants of the events as written must fold them (`AmbientTenantScope.Normalize`). New contract test, which a store that compares them as written fails: `RunStoreContract.AppendEventsAsync_takes_tenant_ids_that_differ_only_in_letter_case_as_one_tenant`.

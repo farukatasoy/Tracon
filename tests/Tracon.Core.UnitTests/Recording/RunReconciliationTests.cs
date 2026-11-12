@@ -166,6 +166,57 @@ public sealed class RunReconciliationTests
     }
 
     [Fact]
+    public async Task The_continuation_placeholder_carries_the_user_and_labels_of_the_run_it_continues()
+    {
+        var store = new InMemoryRunStore();
+        var runId = TraconId.NewId();
+
+        await store.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "test-agent",
+            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
+            SessionId = "session-attribution",
+            UserId = "user-7",
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "billing" },
+        });
+
+        var service = new RunReconciliationService(
+            store,
+            new InMemorySingletonLeaseStore(),
+            new ThrowingJobStore(),
+            new EmptyToolRegistry(),
+            Options(new RunReconciliationOptions
+            {
+                Enabled = true,
+                ScanInterval = TimeSpan.FromMilliseconds(30),
+                OrphanThreshold = TimeSpan.FromMinutes(5),
+                HeartbeatInterval = TimeSpan.FromSeconds(30),
+            }),
+            Options(new SingletonExecutionOptions()),
+            Options(new TraconRunContinuationOptions { Enabled = true }),
+            new SchemaReadyGate([]),
+            logger: NullLogger<RunReconciliationService>.Instance);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(
+            async () => (await store.QueryRunsAsync(new RunQuery { SessionId = "session-attribution", OnlyRootRuns = false })).Count == 2,
+            "the continuation placeholder to open");
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        // The row sits in the queue before a worker has opened the run, so a list that filters by user or label
+        // must already find it; the row used to carry neither until the worker started.
+        var all = await store.QueryRunsAsync(new RunQuery { SessionId = "session-attribution", OnlyRootRuns = false });
+        var placeholder = all.Single(record => record.Id != runId);
+
+        placeholder.ContinuedFromRunId.ShouldBe(runId);
+        placeholder.UserId.ShouldBe("user-7");
+        var labels = placeholder.Labels.ShouldNotBeNull();
+        labels.Count.ShouldBe(1);
+        labels["team"].ShouldBe("billing");
+    }
+
+    [Fact]
     public async Task Reconciliation_runs_on_only_one_of_two_instances()
     {
         var innerStore = new InMemoryRunStore();
