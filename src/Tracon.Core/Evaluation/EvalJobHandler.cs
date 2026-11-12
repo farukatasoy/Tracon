@@ -31,14 +31,10 @@ namespace Tracon;
 internal sealed class EvalJobHandler(
     IEvalStore evalStore,
     IAgentCatalog catalog,
-    IAgentDefinitionStore definitionStore,
-    AgentDefinitionCompiler compiler,
+    ParameterizedAgentFactory parameterized,
     EvalCheckRegistry checkRegistry,
     IEvalEvaluatorFactory evaluatorFactory,
-    IOptions<TraconOptions> options,
-    IEnumerable<IAgentDecorator> decorators,
     ILogger<EvalJobHandler>? logger = null,
-    IEnumerable<CodeAgentRegistration>? codeRegistrations = null,
     IWebhookPublisher? webhookPublisher = null,
     IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null,
     TimeProvider? timeProvider = null,
@@ -179,8 +175,8 @@ internal sealed class EvalJobHandler(
         //
         // The same lookup as the /run gate: a definition registered in code
         // wins over a stored one, as it does in the catalog.
-        var (sourceDefinition, sourceOrigin) = await AgentDefinitionLookup
-            .FindAsync(codeRegistrations ?? [], definitionStore, suite.AgentName, agentVersion, cancellationToken)
+        var (sourceDefinition, sourceOrigin) = await parameterized
+            .FindAsync(suite.AgentName, agentVersion, cancellationToken)
             .ConfigureAwait(false);
 
         // The version is pinned: an eval run must answer "how good is this
@@ -406,10 +402,7 @@ internal sealed class EvalJobHandler(
         // all: schema.Count == 0 short-circuits inside ValidateValues.
         if (sourceDefinition is { Parameters.Count: > 0 } schemaDefinition)
         {
-            var validation = AgentParameterValidator.ValidateValues(
-                schemaDefinition.Parameters,
-                evalCase.Parameters,
-                options.Value.MaxParameterValueLength);
+            var validation = parameterized.Validate(schemaDefinition.Parameters, evalCase.Parameters);
 
             if (!validation.IsValid)
             {
@@ -445,20 +438,12 @@ internal sealed class EvalJobHandler(
             // remarks. Each case in the suite can carry different values, so
             // this compiles fresh once per case, not once per suite the way
             // the shared `agent` above does. This bypasses IAgentCatalog
-            // entirely (not just the cache), so AgentDecoratorPipeline is
-            // applied by hand below - otherwise this case's run goes out
+            // entirely (not just the cache); the factory applies the decorator
+            // chain itself - otherwise this case's run would go out
             // undecorated: no run recording, no telemetry.
-            agent = await compiler
-                .CompileParameterizedAsync(schemaDefinition, culture: null, evalCase.Parameters, cancellationToken)
+            agent = await parameterized
+                .CompileAsync(schemaDefinition, sourceOrigin, culture: null, evalCase.Parameters, cancellationToken)
                 .ConfigureAwait(false);
-
-            agent = AgentDecoratorPipeline.Apply(
-                agent,
-                AgentDescriptorProjection.FromDefinition(
-                    schemaDefinition,
-                    sourceOrigin,
-                    AgentDefinitionLookup.SourceName(sourceOrigin)),
-                decorators);
 
             boundValues = ParameterValueSet.Resolve(schemaDefinition.Parameters, evalCase.Parameters);
         }

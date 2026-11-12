@@ -189,12 +189,9 @@ public sealed class EvalJobHandlerTests
         var handler = new EvalJobHandler(
             evalStore,
             new SingleAgentCatalog(new MapAgent(), version: 7, modelId: "gpt-test"),
-            new InMemoryAgentDefinitionStore(),
-            CreateCompiler(),
+            Parameterized(new InMemoryAgentDefinitionStore(), CreateCompiler()),
             new EvalCheckRegistry([]),
             evaluatorFactory,
-            Options.Create(new TraconOptions()),
-            [],
             NullLogger<EvalJobHandler>.Instance);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
@@ -285,12 +282,9 @@ public sealed class EvalJobHandlerTests
         var handler = new EvalJobHandler(
             evalStore,
             catalog,
-            new InMemoryAgentDefinitionStore(),
-            CreateCompiler(),
+            Parameterized(new InMemoryAgentDefinitionStore(), CreateCompiler()),
             new EvalCheckRegistry([]),
             new LocalEvalEvaluatorFactory(),
-            Options.Create(new TraconOptions()),
-            [],
             NullLogger<EvalJobHandler>.Instance);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty","minLength":1}]""")));
@@ -333,12 +327,9 @@ public sealed class EvalJobHandlerTests
         var handler = new EvalJobHandler(
             evalStore,
             new SingleAgentCatalog(new MapAgent(), version: 1, modelId: "gpt-test"),
-            definitionStore,
-            compiler,
+            Parameterized(definitionStore, compiler),
             new EvalCheckRegistry([]),
             new LocalEvalEvaluatorFactory(),
-            Options.Create(new TraconOptions()),
-            [],
             NullLogger<EvalJobHandler>.Instance);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
@@ -385,12 +376,9 @@ public sealed class EvalJobHandlerTests
         var handler = new EvalJobHandler(
             evalStore,
             new SingleAgentCatalog(new MapAgent(), version: 1, modelId: "gpt-test"),
-            definitionStore,
-            compiler,
+            Parameterized(definitionStore, compiler, new TraconOptions(), decorator),
             new EvalCheckRegistry([]),
             new LocalEvalEvaluatorFactory(),
-            Options.Create(new TraconOptions()),
-            [decorator],
             NullLogger<EvalJobHandler>.Instance);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
@@ -464,12 +452,9 @@ public sealed class EvalJobHandlerTests
         var handler = new EvalJobHandler(
             evalStore,
             new SingleAgentCatalog(new MapAgent(), version: 1, modelId: "gpt-test"),
-            definitionStore,
-            compiler,
+            Parameterized(definitionStore, compiler),
             new EvalCheckRegistry([]),
             new LocalEvalEvaluatorFactory(),
-            Options.Create(new TraconOptions()),
-            [],
             NullLogger<EvalJobHandler>.Instance);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
@@ -510,12 +495,9 @@ public sealed class EvalJobHandlerTests
         var handler = new EvalJobHandler(
             evalStore,
             new SingleAgentCatalog(new MapAgent(), version: 1, modelId: "gpt-test"),
-            definitionStore,
-            compiler,
+            Parameterized(definitionStore, compiler, new TraconOptions { MaxParameterValueLength = 4 }),
             new EvalCheckRegistry([]),
             new LocalEvalEvaluatorFactory(),
-            Options.Create(new TraconOptions { MaxParameterValueLength = 4 }),
-            [],
             NullLogger<EvalJobHandler>.Instance);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
@@ -549,13 +531,17 @@ public sealed class EvalJobHandlerTests
         => new(
             evalStore,
             new SingleAgentCatalog(agent, agentVersion, modelId),
-            new InMemoryAgentDefinitionStore(),
-            CreateCompiler(),
+            Parameterized(new InMemoryAgentDefinitionStore(), CreateCompiler()),
             new EvalCheckRegistry([]),
             new LocalEvalEvaluatorFactory(),
-            Options.Create(new TraconOptions()),
-            [],
             NullLogger<EvalJobHandler>.Instance);
+
+    private static ParameterizedAgentFactory Parameterized(
+        IAgentDefinitionStore definitions,
+        AgentDefinitionCompiler compiler,
+        TraconOptions? options = null,
+        params IAgentDecorator[] decorators)
+        => new([], definitions, compiler, decorators, new StaticOptionsMonitor<TraconOptions>(options ?? new TraconOptions()));
 
     private static AgentDefinitionCompiler CreateCompiler()
         => new(TestData.Providers(new FakeModelProvider()), TestData.Registry());

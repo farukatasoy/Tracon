@@ -11,7 +11,6 @@ Tracon.AspNetCore:Tracon.DefinitionImportPlanner | 14 | The definition transfer 
 Tracon.Core:Tracon.AgentRunJobHandler | 11 | The container builds it as the built-in agent run job handler, registered under its job key.
 Tracon.Core:Tracon.ApprovalResumeJobHandler | 12 | The container builds it as the built-in approval resume job handler, registered under its job key.
 Tracon.Core:Tracon.ChildAgentInvoker | 15 | The agent compiler and the workflow agent cache build one for each child agent they expose as a tool.
-Tracon.Core:Tracon.EvalJobHandler | 14 | The container builds it as the built-in evaluation job handler, registered under its job key.
 Tracon.Core:Tracon.JobWorkerBackgroundService | 12 | The container builds it as the hosted service that leases and runs jobs; a test builds it with a manual clock.
 Tracon.Core:Tracon.LiveVoiceSessionHost | 12 | The live voice session launcher builds one host for each live voice session it opens.
 Tracon.Core:Tracon.LiveVoiceSessionLauncher | 15 | The container builds it with a factory registration when live voice is added to the builder.

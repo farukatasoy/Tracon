@@ -335,8 +335,8 @@ internal static class WorkflowRequestDescriptor
             : $"{toolName}: {detail}";
     }
 
-    /// <summary>The marker <c>RunEventWriter</c> appends to a value it cut.</summary>
-    private const string TruncationMarker = "…[truncated]";
+    /// <summary>The marker <c>RunEventWriter</c> appends to a value it cut: the writer's own constant, so the two cannot drift.</summary>
+    private const string TruncationMarker = RunEventWriter.TruncationMarker;
 
     /// <summary>Reports whether the request is a Magentic plan review.</summary>
     /// <param name="request">The Microsoft Agent Framework request.</param>

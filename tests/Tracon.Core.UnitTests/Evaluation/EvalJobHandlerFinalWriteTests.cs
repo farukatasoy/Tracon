@@ -179,12 +179,14 @@ public sealed class EvalJobHandlerFinalWriteTests
         => new(
             store,
             new SingleAgentCatalog(new ChatClientAgent(chat, new ChatClientAgentOptions { Name = AgentName })),
-            new InMemoryAgentDefinitionStore(),
-            new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry()),
+            new ParameterizedAgentFactory(
+                [],
+                new InMemoryAgentDefinitionStore(),
+                new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry()),
+                [],
+                new StaticOptionsMonitor<TraconOptions>(new TraconOptions())),
             new EvalCheckRegistry([]),
             evaluators ?? new LocalEvalEvaluatorFactory(),
-            Options.Create(new TraconOptions()),
-            [],
             NullLogger<EvalJobHandler>.Instance,
             webhookPublisher: publisher,
             schedulingOptions: new StaticOptionsMonitor<TraconSchedulingOptions>(
