@@ -149,13 +149,15 @@ jobs:
       # `MinVerVersionOverride`, so `Build` and `Pack the packages` below see the stamp and the
       # assemblies, the packages and the tar all carry it. The inputs reach the script through the
       # environment, never through the script text, and a value that is not a release version stops the
-      # run here, before anything is built. A run that asks to publish without a version stops too.
+      # run here, before anything is built. A run that asks to publish without a version stops too, and so
+      # does one that asks to publish from another branch than main (the publish jobs only run there).
       - name: Stamp the release version
         shell: bash
         env:
           RELEASE_VERSION: ${{ inputs.version }}
           RELEASE_PUBLISH: ${{ inputs.publish }}
-        run: python3 scripts/gate.py release-version "$RELEASE_VERSION" --publish "$RELEASE_PUBLISH" --env-file "$GITHUB_ENV"
+          RELEASE_REF: ${{ github.ref }}
+        run: python3 scripts/gate.py release-version "$RELEASE_VERSION" --publish "$RELEASE_PUBLISH" --ref "$RELEASE_REF" --env-file "$GITHUB_ENV"
 
       # One OS is enough; this is a file-system check.
       - name: Run the repository scan

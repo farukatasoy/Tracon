@@ -3972,6 +3972,14 @@ class DispatchReleaseWorkflowTests(unittest.TestCase):
             with self.subTest(job=name):
                 self.assertIn("RELEASE_VERSION: ${{ inputs.version }}", _job_block(self.uncommented, name))
 
+    def test_the_stamp_step_hands_the_branch_over_so_a_publishing_run_off_main_stops_early(self):
+        step = re.search(r"- name: Stamp the release version\n(.*?)(?=\n      #|\n      - name:|\Z)",
+                         _job_block(self.uncommented, "build"), re.DOTALL)
+
+        self.assertIsNotNone(step)
+        self.assertIn("RELEASE_REF: ${{ github.ref }}", step.group(1))
+        self.assertIn('--ref "$RELEASE_REF"', step.group(1))
+
     def test_a_step_output_is_only_ever_handed_over_as_an_environment_value(self):
         """A step output pasted into a script is data that became code; the value is handed over as `KEY: value`."""
         pasted = [line for line in self.uncommented.splitlines() if "${{ steps." in line]
@@ -4086,6 +4094,37 @@ class ReleaseVersionStampTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertEqual(env_file.read_text(encoding="utf-8"), "A=1\nMinVerVersionOverride=1.0.0-preview.2\n")
+
+    def test_a_run_asked_to_publish_from_another_branch_than_main_stops_before_it_builds(self):
+        # The publish jobs only run on main, so such a run would build and test everything and then publish nothing.
+        for ref in ("refs/heads/next", "refs/heads/feature/x", "refs/tags/v1.0.0-preview.2", "main", "refs/heads/main2"):
+            with self.subTest(ref=ref):
+                line, error = gate.release_version_line("1.0.0-preview.2", publish=True, ref=ref)
+
+                self.assertIsNone(line)
+                self.assertIn("must start from main", error)
+                self.assertIn(ref, error)
+
+    def test_main_a_rehearsal_and_a_missing_ref_are_not_refused(self):
+        self.assertEqual(
+            gate.release_version_line("1.0.0-preview.2", publish=True, ref="refs/heads/main")[0],
+            "MinVerVersionOverride=1.0.0-preview.2")
+        # A rehearsal (publish false) may run from any branch; so may a caller that gives no ref (a local run).
+        for publish, ref in ((False, "refs/heads/next"), (False, "refs/heads/main"), (True, None), (True, "")):
+            with self.subTest(publish=publish, ref=ref):
+                self.assertIsNone(gate.release_version_line("1.0.0-preview.2", publish=publish, ref=ref)[1])
+
+    def test_the_command_refuses_a_publishing_run_on_another_branch_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = pathlib.Path(directory) / "github-env"
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = gate.main([
+                    "release-version", "1.0.0-preview.2", "--publish", "true", "--ref", "refs/heads/next",
+                    "--env-file", str(env_file)])
+
+            self.assertEqual(code, 1)
+            self.assertFalse(env_file.exists())
+            self.assertIn("must start from main", output.getvalue())
 
 
 def _nuspec_answer(commit: str | None) -> tuple[int, str]:

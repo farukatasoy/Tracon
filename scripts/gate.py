@@ -3304,12 +3304,22 @@ def verify_package_directory(directory: pathlib.Path) -> int:
     return 0
 
 
-def release_version_line(version: str, *, publish: bool) -> tuple[str | None, str | None]:
+PUBLISH_REF = "refs/heads/main"
+"""The only ref the publish jobs run from. A run asked to publish from another one would finish the whole build
+and test run and then skip the publish without a word."""
+
+
+def release_version_line(
+        version: str, *, publish: bool, ref: str | None = None) -> tuple[str | None, str | None]:
     """The `$GITHUB_ENV` line that stamps a manually triggered run with its release version: `(line, error)`.
 
     An empty `version` is an ordinary run and needs no stamp, unless the run was asked to publish: a publishing
-    run without a version has nothing to publish. The shape is the one `release --dry-run` enforces
+    run without a version has nothing to publish. A publishing run must also start from `PUBLISH_REF`; a caller
+    that gives no `ref` (a local run) is not checked. The shape is the one `release --dry-run` enforces
     (`RELEASE_VERSION_PATTERN`), so the stamp and the rehearsal cannot disagree about what a release version is."""
+    if publish and ref and ref != PUBLISH_REF:
+        return None, (f"a run that publishes must start from main, and this one starts from '{ref}': "
+                      "the publish jobs only run there, so the whole run would end without a publish")
     if not version:
         if publish:
             return None, "a run that publishes needs a release version, and the version input is empty"
@@ -3319,12 +3329,13 @@ def release_version_line(version: str, *, publish: bool) -> tuple[str | None, st
     return f"MinVerVersionOverride={version}", None
 
 
-def stamp_release_version(version: str, publish: str, env_file: pathlib.Path | None) -> int:
+def stamp_release_version(
+        version: str, publish: str, env_file: pathlib.Path | None, ref: str | None = None) -> int:
     """`gate.py release-version`: validate the version input of a manual run and stamp the job's environment with it.
 
     MinVer reads `MinVerVersionOverride`, so every step after this one builds and packs that version. The value is
     validated before it is written: nothing but a release version reaches `$GITHUB_ENV`."""
-    line, error = release_version_line(version, publish=publish.strip().lower() == "true")
+    line, error = release_version_line(version, publish=publish.strip().lower() == "true", ref=ref)
     if error:
         print(f"❌ {error}")
         return 1
@@ -4391,6 +4402,9 @@ def build_parser() -> tuple[argparse.ArgumentParser, Any]:
     release_version.add_argument(
         "--publish", default="false", help="'true' when the run was asked to publish: then an empty version is refused")
     release_version.add_argument(
+        "--ref", default=None,
+        help="the ref the run starts from (github.ref); a run that publishes must start from main. Without it nothing is checked")
+    release_version.add_argument(
         "--env-file", help="append the environment line here ($GITHUB_ENV); without it the version is only validated")
     guard = subparsers.add_parser(
         "publish-guard", help="may these verified packages go to nuget.org, given what their version has there already")
@@ -4498,7 +4512,7 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
             print("(no dotnet call) validate the version input -> MinVerVersionOverride=<version> into the environment file")
             return 0
         return stamp_release_version(
-            args.version, args.publish, pathlib.Path(args.env_file) if args.env_file else None)
+            args.version, args.publish, pathlib.Path(args.env_file) if args.env_file else None, args.ref)
     if args.stage == "publish-guard":
         if args.print_commands:
             print("(network) api.nuget.org flat container: the nuspec commit of every package of the manifest's version")
