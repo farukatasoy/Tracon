@@ -156,9 +156,11 @@ internal static partial class TestEvidence
             }
         }
 
+        var claimed = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var file in files)
         {
-            KeepOrDelete(testId, displayName, file, result == TestResult.Failed, output, directory);
+            KeepOrDelete(testId, displayName, file, result == TestResult.Failed, output, directory, claimed);
         }
 
         var text = Render(displayName, result, failureText, notes);
@@ -227,7 +229,8 @@ internal static partial class TestEvidence
     internal static IReadOnlyList<string> References(string failureText)
         => [.. ReferencePattern().Matches(failureText).Select(static match => match.Groups["id"].Value).Distinct(StringComparer.Ordinal)];
 
-    private static void KeepOrDelete(string testId, string displayName, EvidenceFile file, bool failed, ITestOutputHelper? output, string? directory)
+    private static void KeepOrDelete(
+        string testId, string displayName, EvidenceFile file, bool failed, ITestOutputHelper? output, string? directory, HashSet<string> claimed)
     {
         try
         {
@@ -235,7 +238,16 @@ internal static partial class TestEvidence
             {
                 Directory.CreateDirectory(directory);
 
-                var target = Path.Combine(directory, $"{SafeName(displayName)}-{ShortId(testId)}.{SafeName(file.Name)}{Path.GetExtension(file.Path)}");
+                // Two files of one test under the same name (two sessions each save a "trace") would replace each other.
+                // A file of an earlier run under the same name is still replaced: the target is the same test's own.
+                var stem = $"{SafeName(displayName)}-{ShortId(testId)}.{SafeName(file.Name)}";
+                var extension = Path.GetExtension(file.Path);
+                var target = Path.Combine(directory, $"{stem}{extension}");
+
+                for (var copy = 2; !claimed.Add(target); copy++)
+                {
+                    target = Path.Combine(directory, $"{stem}-{copy}{extension}");
+                }
 
                 File.Move(file.Path, target, overwrite: true);
                 output?.WriteLine($"[evidence] {file.Name} saved to {target}");

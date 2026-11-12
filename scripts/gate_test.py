@@ -1045,6 +1045,35 @@ class GateTests(unittest.TestCase):
             }
             self.assertEqual(systems, {"ubuntu", "windows"}, kind)
 
+    @staticmethod
+    def _selftest_condition_problems(text: str) -> list[str]:
+        """The self-test steps whose `if:` is not the one that runs them after a red test step."""
+        expected = "        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}\n"
+        uses = "        uses: ./.github/actions/evidence-selftest\n"
+        problems = []
+        position = text.find(uses)
+        while position != -1:
+            if not text[:position].endswith(expected):
+                problems.append(f"line {text.count(chr(10), 0, position) + 1}")
+            position = text.find(uses, position + 1)
+        return problems
+
+    def test_the_failure_evidence_proof_runs_after_a_red_test_step(self):
+        # A step without `if:` (or with `success()`) is skipped when the test step before it fails, and a
+        # real red would then also skip the proof that the evidence exists: the one case it is there for.
+        text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        steps = text.count("uses: ./.github/actions/evidence-selftest\n")
+        condition = "        if: ${{ !cancelled() && steps.restore.outcome == 'success' }}\n        uses: ./.github/actions/evidence-selftest\n"
+
+        self.assertGreaterEqual(steps, 6)
+        self.assertEqual(self._selftest_condition_problems(text), [])
+        for broken in (
+            "        if: ${{ success() }}\n        uses: ./.github/actions/evidence-selftest\n",
+            "        uses: ./.github/actions/evidence-selftest\n",
+            "        if: ${{ !cancelled() }}\n        uses: ./.github/actions/evidence-selftest\n",
+        ):
+            self.assertEqual(len(self._selftest_condition_problems(text.replace(condition, broken, 1))), 1, broken)
+
     def _trx(self, root: pathlib.Path, project: str, results: list[tuple[str, str]], output_dir: str = "release") -> None:
         # MTP 2 `--results-directory-layout per-module`: <project>/<tfm>_<architecture>/*.trx.
         # `codeBase` carries the path of the binary the test ran from; on Windows it comes with backslashes.

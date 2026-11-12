@@ -16,7 +16,7 @@ internal sealed class Session : IAsyncDisposable
     private const int EventLimit = 400;
 
     private readonly IBrowserContext _context;
-    private readonly List<string> _events = [];
+    private readonly EventLog _events = new(EventLimit);
 
     private Session(IBrowserContext context, IPage page)
     {
@@ -109,16 +109,7 @@ internal sealed class Session : IAsyncDisposable
         }
     }
 
-    private void Record(string line)
-    {
-        lock (_events)
-        {
-            if (_events.Count < EventLimit)
-            {
-                _events.Add(line);
-            }
-        }
-    }
+    private void Record(string line) => _events.Record(line);
 
     private async Task SaveTraceAsync()
     {
@@ -164,14 +155,7 @@ internal sealed class Session : IAsyncDisposable
             summary.Add($"the page could not be read: {exception.Message}");
         }
 
-        string[] events;
-
-        lock (_events)
-        {
-            events = [.. _events];
-        }
-
-        foreach (var line in events)
+        foreach (var line in _events.Lines())
         {
             summary.Add($"event: {line}");
         }

@@ -67,13 +67,14 @@ public sealed class WaitUntilTests
     [Fact]
     public async Task The_timeout_says_what_the_process_heartbeat_saw_while_it_waited()
     {
+        // The wait is several heartbeat intervals long (100 ms each), so the heartbeat has a measurement inside it, or the
+        // wait stood inside a stall it can see. The sentence "recorded nothing" would be what a heartbeat that does not run
+        // looks like, and it is not accepted here.
         var timeout = await Should.ThrowAsync<TimeoutException>(
-            () => WaitUntil.TrueAsync(static () => false, "a condition that never holds", TimeSpan.FromMilliseconds(100)));
+            () => WaitUntil.TrueAsync(static () => false, "a condition that never holds", TimeSpan.FromMilliseconds(600)));
 
-        // Either the worst delays inside the wait, or the statement that the heartbeat had nothing inside it: the message
-        // never leaves the reader to guess whether the instrument was running.
-        timeout.Message.ShouldMatch(
-            @"(longest process stall: [0-9]+ ms; longest thread pool delay: [0-9]+ ms|the process heartbeat recorded nothing inside this wait)");
+        timeout.Message.ShouldMatch(@"longest process stall: [0-9]+ ms; longest thread pool delay: [0-9]+ ms");
+        timeout.Message.ShouldNotContain("recorded nothing");
     }
 
     [Fact]

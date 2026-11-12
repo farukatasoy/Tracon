@@ -115,6 +115,22 @@ public sealed class TestEvidenceTests
         storage["tracon-evidence:other:ccc:page"].ShouldBeSameAs(otherNote);
     }
 
+    [Fact]
+    public void Two_files_of_one_failed_test_under_the_same_name_are_both_kept()
+    {
+        using var directory = new TempDirectory();
+        var storage = new ConcurrentDictionary<string, object?>(StringComparer.Ordinal);
+        storage["tracon-evidence-file:mine:bbb"] = new EvidenceFile("trace", directory.Write("first.zip", "first"));
+        storage["tracon-evidence-file:mine:ccc"] = new EvidenceFile("trace", directory.Write("second.zip", "second"));
+
+        TestEvidence.Process("mine", "Some.Test", storage, TestResult.Failed, "it broke", output: null, directory.Evidence);
+
+        var kept = Directory.GetFiles(directory.Evidence, "*.zip");
+
+        kept.Length.ShouldBe(2);
+        kept.Select(File.ReadAllText).Order(StringComparer.Ordinal).ShouldBe(["first", "second"]);
+    }
+
     [Theory]
     [InlineData(TestResult.Passed)]
     [InlineData(TestResult.Skipped)]
