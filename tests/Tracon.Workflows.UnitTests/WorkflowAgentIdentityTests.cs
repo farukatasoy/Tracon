@@ -85,4 +85,38 @@ public sealed class WorkflowAgentIdentityTests
 
         second.ShouldBe(first);
     }
+
+    [Fact]
+    public void A_workflow_edited_with_a_new_timeout_each_time_keeps_a_bounded_number_of_wrappers_and_the_newest()
+    {
+        // The timeout and the pin come from a stored definition, so every edit adds a wrapper to the cache and nothing took
+        // one out: the cache grew by one for each value a workflow ever had.
+        var host = new WorkflowTestHost("summarizer");
+        ChildAgentInvoker? newest = null;
+
+        for (var seconds = 1; seconds <= 50; seconds++)
+        {
+            newest = host.AgentCache.Get("chain", "summarizer", description: null, timeout: TimeSpan.FromSeconds(seconds));
+        }
+
+        host.AgentCache.Count.ShouldBe(WorkflowAgentCache.MaxVariantsPerAgent);
+        host.AgentCache.Get("chain", "summarizer", description: null, timeout: TimeSpan.FromSeconds(50))
+            .ShouldBeSameAs(newest, "the newest wrapper stays: the next compile asks for it");
+        host.AgentCache.NameOf(newest!.Id).ShouldBe("summarizer", "a pending request still finds the agent behind its executor id");
+    }
+
+    [Fact]
+    public void Wrappers_of_other_agents_are_not_pruned_by_a_busy_one()
+    {
+        var host = new WorkflowTestHost("summarizer", "reviewer");
+        var other = host.AgentCache.Get("chain", "reviewer", description: null);
+
+        for (var seconds = 1; seconds <= 20; seconds++)
+        {
+            _ = host.AgentCache.Get("chain", "summarizer", description: null, timeout: TimeSpan.FromSeconds(seconds));
+        }
+
+        host.AgentCache.Get("chain", "reviewer", description: null).ShouldBeSameAs(other);
+        host.AgentCache.Count.ShouldBe(WorkflowAgentCache.MaxVariantsPerAgent + 1);
+    }
 }

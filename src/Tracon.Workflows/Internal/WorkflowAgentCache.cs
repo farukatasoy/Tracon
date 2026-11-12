@@ -41,7 +41,11 @@ namespace Tracon;
 /// </remarks>
 internal sealed class WorkflowAgentCache
 {
-    private readonly ConcurrentDictionary<AgentKey, ChildAgentInvoker> _agents = new();
+    /// <summary>How many wrappers of one <c>(tenant, workflow, agent)</c> the cache keeps: the newest ones.</summary>
+    internal const int MaxVariantsPerAgent = 8;
+
+    private readonly ConcurrentDictionary<AgentKey, CachedInvoker> _agents = new();
+    private long _sequence;
     private readonly CallableAgentResolver _resolver;
     private readonly ITenantContext _tenantContext;
     private readonly ILoggerFactory _loggerFactory;
@@ -138,17 +142,63 @@ internal sealed class WorkflowAgentCache
         int? agentVersion = null,
         bool hostsApproval = false,
         string? agentVersionParameter = null)
-        => _agents.GetOrAdd(
-            new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout, agentVersion, hostsApproval, agentVersionParameter),
-            static (key, state) => Create(key, state),
-            (
-                Resolver: _resolver,
-                TenantContext: _tenantContext,
-                LoggerFactory: _loggerFactory,
-                Description: description,
-                AgentGraph: _agentGraph,
-                TimeProvider: _timeProvider,
-                ParameterFactory: _parameterFactory));
+    {
+        var key = new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout, agentVersion, hostsApproval, agentVersionParameter);
+
+        if (_agents.TryGetValue(key, out var existing))
+        {
+            return existing.Invoker;
+        }
+
+        var made = new CachedInvoker(
+            Create(
+                key,
+                (_resolver, _tenantContext, _loggerFactory, description, _agentGraph, _timeProvider, _parameterFactory)),
+            Interlocked.Increment(ref _sequence));
+        var cached = _agents.GetOrAdd(key, made);
+
+        // The wrapper that won the race is the one that is kept; only its maker prunes.
+        if (ReferenceEquals(cached, made))
+        {
+            Prune(key);
+        }
+
+        return cached.Invoker;
+    }
+
+    /// <summary>The number of wrappers the cache holds.</summary>
+    internal int Count => _agents.Count;
+
+    /// <summary>
+    /// Drops the oldest wrappers of a <c>(tenant, workflow, agent)</c> once it has more than
+    /// <see cref="MaxVariantsPerAgent"/>.
+    /// </summary>
+    /// <param name="added">The key of the wrapper that was just added.</param>
+    /// <remarks>
+    /// The timeout and the pin are part of the key and come from a stored definition, so a workflow that is edited
+    /// again and again would add a wrapper for each value it ever had, and nothing took one out. A graph holds the
+    /// wrappers it was compiled with, so dropping a cache entry never changes a graph that exists; the newest ones are
+    /// kept because the next compile asks for them. <see cref="NameOf"/> needs only one wrapper of a pair (they all
+    /// carry the same identity), and the newest is never dropped.
+    /// </remarks>
+    private void Prune(AgentKey added)
+    {
+        var group = _agents
+            .Where(pair => string.Equals(pair.Key.TenantId, added.TenantId, StringComparison.Ordinal)
+                && string.Equals(pair.Key.WorkflowName, added.WorkflowName, StringComparison.Ordinal)
+                && string.Equals(pair.Key.AgentName, added.AgentName, StringComparison.Ordinal))
+            .ToList();
+
+        if (group.Count <= MaxVariantsPerAgent)
+        {
+            return;
+        }
+
+        foreach (var stale in group.OrderByDescending(static pair => pair.Value.Sequence).Skip(MaxVariantsPerAgent))
+        {
+            _agents.TryRemove(stale.Key, out _);
+        }
+    }
 
     /// <summary>
     /// Finds the real name of the agent a Microsoft Agent Framework executor id stands for.
@@ -166,11 +216,11 @@ internal sealed class WorkflowAgentCache
     /// </remarks>
     public string? NameOf(string identity)
     {
-        foreach (var wrapper in _agents.Values)
+        foreach (var cached in _agents.Values)
         {
-            if (string.Equals(wrapper.Id, identity, StringComparison.Ordinal))
+            if (string.Equals(cached.Invoker.Id, identity, StringComparison.Ordinal))
             {
-                return wrapper.Name;
+                return cached.Invoker.Name;
             }
         }
 
@@ -248,6 +298,8 @@ internal sealed class WorkflowAgentCache
     // The version PARAMETER enters as its name and never as a run's value. A value in the key would make one
     // wrapper per version a caller ever asked for - a number the caller controls, so the cache would grow
     // without a bound - and the wrapper reads the value from the running scope anyway.
+    private sealed record CachedInvoker(ChildAgentInvoker Invoker, long Sequence);
+
     private readonly record struct AgentKey(
         string TenantId,
         string WorkflowName,
