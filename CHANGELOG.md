@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The call graph check follows the version a callable agent is pinned to.** It read the names of the callee's current version for every reference, so `a` pinned to `b@1` was saved although version 1 of `b` calls `a` (the run then spent model calls up to the depth limit), and `a` pinned to a `b@1` that calls nobody was refused with a cycle that the current version of `b` closes but the pin cannot run. A reference now follows the stored version it names, and an unpinned one follows the current version with the pins that version carries. The refusal names the pin in its path (`a -> b@1 -> a`), for a save, an import and `POST /api/agents/validate`.
+  What to do:
+  - **If a save that worked is now refused with `cycle`,** pin another version of the callee, remove the call from the pinned version's successor, or leave the pin out. Agents already saved are not re-checked; the depth limit still stops a cycle that was stored before.
+  - **A custom `IAgentDefinitionStore`** is asked for `GetVersionAsync` of each pinned callee on a save and for `GetAsync` of an unpinned callee that calls other agents.
+
 - **The console's token breakdown draws cache writes as a slice of their own.** The bar split the input into "cache hit" and "input", and the tokens a run wrote to the provider's cache (short and long retention together) are counted inside the input total, so they were drawn as plain input. The bar now has five slices (cache hit, cache write, input, reasoning, output), the cache write is cut out of the plain input like the cache hit is, and the legend names it in English and Turkish.
   What to do:
   - **Nothing.**

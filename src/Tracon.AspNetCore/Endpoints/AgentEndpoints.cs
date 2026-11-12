@@ -518,7 +518,7 @@ internal static class AgentEndpoints
             return invalid.ToProblem();
         }
 
-        if (await AgentDefinitionWriteRules.ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
+        if (await AgentDefinitionWriteRules.ValidateCallGraphAsync(catalog, definitions, request, cancellationToken).ConfigureAwait(false) is { } cycle)
         {
             return cycle.ToProblem();
         }
@@ -616,7 +616,7 @@ internal static class AgentEndpoints
             return conflict.ToProblem();
         }
 
-        if (await AgentDefinitionWriteRules.ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
+        if (await AgentDefinitionWriteRules.ValidateCallGraphAsync(catalog, definitions, request, cancellationToken).ConfigureAwait(false) is { } cycle)
         {
             return cycle.ToProblem();
         }

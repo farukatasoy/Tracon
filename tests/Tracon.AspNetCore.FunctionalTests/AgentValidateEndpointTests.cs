@@ -76,6 +76,44 @@ public sealed class AgentValidateEndpointTests
     }
 
     [Fact]
+    public async Task A_cycle_that_exists_only_through_a_pinned_version_is_invalid_with_the_cycle_code()
+    {
+        // The report reads the stored version a pin names, not the callee's current one: a -> b@1 -> a is a cycle
+        // although b's current version calls nobody.
+        await using var host = await TraconTestHost.StartAsync();
+        var agents = new Uri("/tracon/api/agents", UriKind.Relative);
+
+        using (var created = await host.Client.PostAsJsonAsync(agents, TestData.Request(name: "a")))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        using (var created = await host.Client.PostAsJsonAsync(agents, TestData.Request(name: "b") with { CallableAgents = ["a"] }))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        using (var updated = await host.Client.PutAsJsonAsync(new Uri("/tracon/api/agents/b", UriKind.Relative), TestData.Request(name: "b")))
+        {
+            updated.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var response = await host.Client.PostAsJsonAsync(
+            Validate,
+            TestData.Request(name: "a") with { CallableAgents = [new CallableAgentReference { Name = "b", Version = 1 }] });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await TraconTestHost.ReadJsonAsync(response);
+        json.GetProperty("valid").GetBoolean().ShouldBeFalse();
+
+        var message = json.GetProperty("messages").EnumerateArray()
+            .Single(static entry => string.Equals(entry.GetProperty("code").GetString(), "cycle", StringComparison.Ordinal));
+
+        message.GetProperty("message").GetString().ShouldNotBeNull().ShouldContain("a -> b@1 -> a", Case.Sensitive);
+    }
+
+    [Fact]
     public async Task Empty_name_returns_400()
     {
         await using var host = await TraconTestHost.StartAsync();

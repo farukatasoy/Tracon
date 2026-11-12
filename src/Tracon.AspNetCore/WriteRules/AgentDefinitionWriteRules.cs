@@ -48,6 +48,10 @@ internal static class AgentDefinitionWriteRules
 
     /// <summary>Validates the definition's call graph.</summary>
     /// <param name="catalog">The agent catalog; an overlay catalog for an import.</param>
+    /// <param name="definitions">
+    /// The store of the agents' versions, read for the callees a definition pins; an overlay store for an import.
+    /// <see langword="null"/> when the host has none.
+    /// </param>
     /// <param name="request">The definition to write.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The refusal; <see langword="null"/> when the graph is valid.</returns>
@@ -58,6 +62,7 @@ internal static class AgentDefinitionWriteRules
     /// </remarks>
     public static async ValueTask<WriteRuleFinding?> ValidateCallGraphAsync(
         IAgentCatalog catalog,
+        IAgentDefinitionStore? definitions,
         AgentDefinitionRequest request,
         CancellationToken cancellationToken)
     {
@@ -70,9 +75,10 @@ internal static class AgentDefinitionWriteRules
         }
 
         var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
-        var names = request.CallableAgents.Select(static agent => agent.Name).ToList();
 
-        return AgentCallGraph.ValidateDetailed(request.Name, names, descriptors) is { } problem
+        return await AgentCallGraph
+            .ValidateAsync(request.Name, request.CallableAgents, descriptors, definitions, cancellationToken)
+            .ConfigureAwait(false) is { } problem
             ? WriteRuleFinding.BadRequest("Call graph invalid", problem.Message, problem.Code, "callableAgents")
             : null;
     }

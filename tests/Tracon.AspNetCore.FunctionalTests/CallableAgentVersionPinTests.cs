@@ -216,63 +216,72 @@ public sealed class CallableAgentVersionPinTests
     }
 
     [Fact]
-    public async Task A_cycle_that_exists_only_through_a_pinned_version_is_saved_and_the_depth_limit_stops_the_run()
+    public async Task A_cycle_that_exists_only_through_a_pinned_version_is_refused_at_save()
     {
-        // The call graph reads the names of the callees' CURRENT versions. cycle-b's current version calls nobody, so
-        // cycle-a -> cycle-b@1 -> cycle-a is not seen when cycle-a is saved. The run-time depth limit is the second line.
-        var provider = new FakeModelProvider(ProviderName);
+        // cycle-b's version 1 calls cycle-a; its current version calls nobody. cycle-a -> cycle-b@1 -> cycle-a would run
+        // until the depth limit and spend tokens on every turn, so the save refuses it, with the pin in the path. The
+        // graph used to read the names of the callee's CURRENT version and saw no cycle.
+        await using var host = await StartAsync(new FakeModelProvider(ProviderName));
 
-        provider.ForModel("cycle-a-model", static agent => agent
-            .CallsTool("cycle_b", new { query = "go" })
-            .CallsTool("cycle_b", new { query = "go" })
-            .EchoesLastToolResult("A: "));
-        provider.ForModel("cycle-b-model", static agent => agent
-            .CallsTool("cycle_a", new { query = "go" })
-            .CallsTool("cycle_a", new { query = "go" })
-            .EchoesLastToolResult("B: "));
+        await SendAsync(host, HttpMethod.Post, "/tracon/api/agents", CycleDefinition("cycle-a"), HttpStatusCode.Created);
+        await SendAsync(host, HttpMethod.Post, "/tracon/api/agents", CycleDefinition("cycle-b", new CallableAgentReference { Name = "cycle-a" }), HttpStatusCode.Created);
+        await SendAsync(host, HttpMethod.Put, "/tracon/api/agents/cycle-b", CycleDefinition("cycle-b"), HttpStatusCode.OK);
 
-        await using var host = await StartAsync(provider);
+        // The names of the current versions form no cycle; the pinned version does.
+        using var refused = await host.Client.PutAsJsonAsync(
+            "/tracon/api/agents/cycle-a",
+            CycleDefinition("cycle-a", new CallableAgentReference { Name = "cycle-b", Version = 1 }));
 
-        static AgentDefinitionRequest Definition(string name, string model, params CallableAgentReference[] callable)
-            => new()
-            {
-                Name = name,
-                Instructions = "Delegate.",
-                Model = Binding(model),
-                CallableAgents = callable,
-                SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
-            };
+        await AssertInvalidAsync(refused, "cycle-a -> cycle-b@1 -> cycle-a");
 
-        async Task SendAsync(HttpMethod method, string path, AgentDefinitionRequest body, HttpStatusCode expected)
+        // Nothing was written: cycle-a still has its one version, with no callee.
+        using var versions = await host.Client.GetAsync("/tracon/api/agents/cycle-a/versions");
+        (await TraconTestHost.ReadJsonAsync(versions)).GetArrayLength().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_pin_that_steps_around_the_cycle_the_current_version_closes_is_saved()
+    {
+        // The reverse. cycle-b's version 1 calls nobody and its current version calls cycle-a: the name-based graph
+        // refused cycle-a -> cycle-b with a cycle that a pin to version 1 cannot run.
+        await using var host = await StartAsync(new FakeModelProvider(ProviderName));
+
+        await SendAsync(host, HttpMethod.Post, "/tracon/api/agents", CycleDefinition("cycle-a"), HttpStatusCode.Created);
+        await SendAsync(host, HttpMethod.Post, "/tracon/api/agents", CycleDefinition("cycle-b"), HttpStatusCode.Created);
+        await SendAsync(host, HttpMethod.Put, "/tracon/api/agents/cycle-b", CycleDefinition("cycle-b", new CallableAgentReference { Name = "cycle-a" }), HttpStatusCode.OK);
+
+        // Without the pin the current version closes the cycle, and the save says so.
+        using (var unpinned = await host.Client.PutAsJsonAsync(
+            "/tracon/api/agents/cycle-a",
+            CycleDefinition("cycle-a", new CallableAgentReference { Name = "cycle-b" })))
         {
-            using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
-            using var sent = await host.Client.SendAsync(request);
-
-            sent.StatusCode.ShouldBe(expected, await sent.Content.ReadAsStringAsync());
+            await AssertInvalidAsync(unpinned, "cycle-a -> cycle-b -> cycle-a");
         }
 
-        await SendAsync(HttpMethod.Post, "/tracon/api/agents", Definition("cycle-a", "cycle-a-model"), HttpStatusCode.Created);
-        await SendAsync(HttpMethod.Post, "/tracon/api/agents", Definition("cycle-b", "cycle-b-model", "cycle-a"), HttpStatusCode.Created);
-        await SendAsync(HttpMethod.Put, "/tracon/api/agents/cycle-b", Definition("cycle-b", "cycle-b-model"), HttpStatusCode.OK);
-
-        // Saved: the names of the current versions form no cycle.
         await SendAsync(
+            host,
             HttpMethod.Put,
             "/tracon/api/agents/cycle-a",
-            Definition("cycle-a", "cycle-a-model", new CallableAgentReference { Name = "cycle-b", Version = 1 }),
+            CycleDefinition("cycle-a", new CallableAgentReference { Name = "cycle-b", Version = 1 }),
             HttpStatusCode.OK);
+    }
 
-        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var root = (await catalog.ResolveAsync("cycle-a", culture: null, CancellationToken.None)).ShouldNotBeNull();
-        var answer = await root.RunAsync("start");
+    private static AgentDefinitionRequest CycleDefinition(string name, params CallableAgentReference[] callable)
+        => new()
+        {
+            Name = name,
+            Instructions = "Delegate.",
+            Model = Binding($"{name}-model"),
+            CallableAgents = callable,
+            SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
+        };
 
-        answer.Text.ShouldContain("call depth limit was exceeded", Case.Sensitive);
+    private static async Task SendAsync(TraconTestHost host, HttpMethod method, string path, AgentDefinitionRequest body, HttpStatusCode expected)
+    {
+        using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
+        using var sent = await host.Client.SendAsync(request);
 
-        var rows = await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 });
-
-        rows.Count.ShouldBe(4, "cycle-a, cycle-b, cycle-a and cycle-b: the fifth call is refused");
-        rows.Max(static run => run.Depth).ShouldBe(3);
-        rows.ShouldAllBe(static run => run.Status == RunStatus.Completed);
+        sent.StatusCode.ShouldBe(expected, await sent.Content.ReadAsStringAsync());
     }
 
     // --- The save refuses a pin that cannot hold ---

@@ -369,9 +369,10 @@ internal sealed partial class AgentDefinitionValidator
         }
 
         var descriptors = await _catalog.ListAsync(cancellationToken).ConfigureAwait(false);
-        var names = definition.CallableAgents.Select(static agent => agent.Name).ToList();
 
-        if (AgentCallGraph.ValidateDetailed(definition.Name, names, descriptors) is { } problem)
+        if (await AgentCallGraph
+            .ValidateAsync(definition.Name, definition.CallableAgents, descriptors, _definitions, cancellationToken)
+            .ConfigureAwait(false) is { } problem)
         {
             messages.Add(new ValidationMessage
             {

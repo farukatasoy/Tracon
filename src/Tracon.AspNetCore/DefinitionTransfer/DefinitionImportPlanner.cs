@@ -746,6 +746,7 @@ internal sealed class DefinitionImportPlanner
         CancellationToken cancellationToken)
     {
         var catalog = new OverlayAgentCatalog(overlay, _catalog);
+        var definitions = new OverlayAgentDefinitionStore(overlay, _agents);
 
         foreach (var item in agentItems)
         {
@@ -775,7 +776,7 @@ internal sealed class DefinitionImportPlanner
             }
 
             var finding = AgentDefinitionWriteRules.Validate(request)
-                ?? await AgentDefinitionWriteRules.ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false);
+                ?? await AgentDefinitionWriteRules.ValidateCallGraphAsync(catalog, definitions, request, cancellationToken).ConfigureAwait(false);
 
             if (finding is not null)
             {
