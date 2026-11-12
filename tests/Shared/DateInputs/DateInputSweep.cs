@@ -77,6 +77,36 @@ internal static class DateInputSweep
     /// </summary>
     public static readonly IReadOnlyList<int> RetentionDays = [1, 739_000, 739_500, 3_652_059, 10_675_199, 10_675_200, int.MaxValue];
 
+    /// <summary>
+    /// The cron expressions a schedule is saved with: ones that fire never or rarely, one with seconds, and ones that do
+    /// not parse.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CronExpressions =
+    [
+        "0 0 31 2 *",
+        "0 0 29 2 *",
+        "0 0 1 1 *",
+        "* * * * * *",
+        "@yearly",
+        "61 * * * *",
+        "not a cron",
+    ];
+
+    /// <summary>The time zones a schedule is saved with: ones with an unusual offset, a missing one and an unknown one.</summary>
+    public static readonly IReadOnlyList<string> TimeZones = ["UTC", "Pacific/Apia", "Etc/GMT-14", "Antarctica/Troll", "Invalid/Zone", string.Empty];
+
+    /// <summary>The lengths of time a workflow's run timeout, request timeout and node timeout are saved with.</summary>
+    public static readonly IReadOnlyList<string> Durations =
+    [
+        "00:00:01",
+        "1.00:00:00",
+        "10675199.02:48:05.4775807",
+        "99999999.00:00:00",
+        "00:00:00",
+        "-00:00:01",
+        "not-a-span",
+    ];
+
     /// <summary>Gets every request of the sweep, as a verb, a path with its query, and a body.</summary>
     /// <returns>The requests.</returns>
     public static IEnumerable<SweepRequest> Requests()
@@ -88,6 +118,13 @@ internal static class DateInputSweep
             yield return new SweepRequest("PUT", "/retention/run_events", new Dictionary<string, object?>(StringComparer.Ordinal) { ["maxAgeDays"] = days, ["enabled"] = true });
             yield return new SweepRequest("GET", "/retention/preview", null);
             yield return new SweepRequest("POST", "/retention/run", null);
+        }
+
+        // A cron expression, a time zone and a length of time are dates once the server adds them to now: the schedule's
+        // next run, a workflow's deadline, the time a request is given to be answered.
+        foreach (var request in DurationRequests())
+        {
+            yield return request;
         }
 
         foreach (var input in Inputs)
@@ -192,6 +229,41 @@ internal static class DateInputSweep
         }
 
         return failures;
+    }
+
+    private static IEnumerable<SweepRequest> DurationRequests()
+    {
+        foreach (var cron in CronExpressions)
+        {
+            foreach (var zone in TimeZones)
+            {
+                yield return new SweepRequest(
+                    "PUT",
+                    "/schedules/edge-schedule",
+                    new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["handlerKey"] = "tracon.agent-batch",
+                        ["targetName"] = "edge-agent",
+                        ["cron"] = cron,
+                        ["timeZone"] = zone,
+                        ["enabled"] = true,
+                    });
+            }
+        }
+
+        foreach (var duration in Durations)
+        {
+            yield return new SweepRequest(
+                "PUT",
+                "/workflows/edge-workflow",
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["kind"] = "Sequential",
+                    ["nodes"] = new[] { new Dictionary<string, object?>(StringComparer.Ordinal) { ["name"] = "edge-function", ["kind"] = "Function", ["timeout"] = duration } },
+                    ["runTimeout"] = duration,
+                    ["requestTimeout"] = duration,
+                });
+        }
     }
 
     private static string[] ExtraQueryFor(DateInput input) => input.Path switch
