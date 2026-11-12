@@ -478,14 +478,18 @@ class GateTests(unittest.TestCase):
         with mock.patch.object(gate.subprocess, "run", runner):
             self.assertEqual(gate.public_surface_violations(), [])
 
-    def test_scan_returns_red_for_an_unproven_public_type(self):
-        with tempfile.TemporaryDirectory() as directory, \
-                mock.patch.object(gate, "public_surface_violations", return_value=["Tracon.SampleType: unproven"]), \
-                contextlib.redirect_stdout(io.StringIO()) as output:
-            result = gate.scan(pathlib.Path(directory))
+    def test_scan_exit_code_follows_the_public_surface_finding_alone(self):
+        # Every other finding class is emptied, so only the surface finding tells the two outcomes apart: with a
+        # temporary root that fails for another reason, `scan` would return 1 both times and prove nothing.
+        for violations, expected in (([], 0), (["Tracon.SampleType: unproven"], 1)):
+            with self.subTest(violations=violations), tempfile.TemporaryDirectory() as directory, \
+                    contextlib.ExitStack() as stack, contextlib.redirect_stdout(io.StringIO()) as output:
+                root = self._empty_scan(stack, directory)
+                stack.enter_context(mock.patch.object(gate, "public_surface_violations", return_value=violations))
+                result = gate.scan(root)
 
-        self.assertEqual(result, 1)
-        self.assertIn("Tracon.SampleType", output.getvalue())
+            self.assertEqual(result, expected, output.getvalue())
+            self.assertEqual("Tracon.SampleType" in output.getvalue(), expected == 1)
 
     def test_repo_public_surface_has_no_unproven_type(self):
         # CLASS GATE: the check that is real in this repository.
