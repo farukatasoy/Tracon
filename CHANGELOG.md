@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A repeated single-answer request follows a job that runs its run a second time under the same id.** With workflow recovery off, a queued answer whose first attempt ended is leased again and runs the same run id: the row goes back to `Running` and its events continue the sequence. The stream that follows the answer had read the run to its end and then waited for a continuation run that never comes, so it ended with `done` without a word of the second attempt. It now looks for events it has not written (and for a row that is running again) while the job is unfinished and reads on from its last event, without announcing a second `run` frame.
+  What to do:
+  - **Nothing.** A client that followed such a request now receives the second attempt's events before `done`.
+
 - **A single-answer request is no longer locked by a run row the server could not close.** A streamed answer opens the run's row before the engine takes over; when the engine fails first, the endpoint closes that row. A store error in that close escaped after the response headers had been sent, so the caller got an exception for an answer the server had already refused. It is now logged (`Run … opened for a streamed answer that never started, could not be closed`) and the response ends with its `error` frame. A queued answer whose job ended while its run stayed `Queued` (a close that failed) made every repeat of the same answer follow that run for ever; a repeat now closes such a run as `Failed` and starts the work again.
   What to do:
   - **Nothing.** A run row left `Queued` by a failed close is `Failed` after the next repeat of its answer.

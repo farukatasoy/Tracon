@@ -365,6 +365,113 @@ public sealed class WorkflowResponseOwnershipTests
     }
 
     [Fact]
+    public async Task A_follower_sees_the_events_of_a_job_that_runs_its_run_a_second_time_under_the_same_id()
+    {
+        // Workflow recovery is off, so a job whose first attempt ended is leased again and runs the SAME run id: the row
+        // goes back to Running and its events go on from the last one. The follower had read the run to its end and waited
+        // for a continuation that never comes; it ended without a word of the second attempt.
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(runWorker: false);
+        var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+
+        using var queued = await QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true });
+        var head = await QueuedWorkflowHarness.AcceptedRunIdAsync(queued);
+        var tenant = QueuedWorkflowHarness.TenantOf(host);
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var first = (await runs.GetRunAsync(head))!;
+
+        // The first attempt wrote its start and ended Failed; its job is still waiting to be leased again.
+        await runs.AppendEventAsync(new RunEvent
+        {
+            RunId = head,
+            Sequence = 0,
+            Type = RunEventType.RunStarted,
+            Timestamp = DateTimeOffset.UtcNow,
+            TenantId = tenant,
+        });
+        await runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = head,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError { Type = "test", Message = "the first attempt stopped" },
+            TenantId = tenant,
+        });
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var follower = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
+
+        await using var stream = await follower.Content.ReadAsStreamAsync(timeout.Token);
+        await using var frames = SseReader.ReadAsync(stream, timeout.Token).GetAsyncEnumerator(timeout.Token);
+
+        // The first attempt's event arrives; then the follower waits for the job.
+        while (await frames.MoveNextAsync())
+        {
+            if (string.Equals(frames.Current.Event, "event", StringComparison.Ordinal))
+            {
+                break;
+            }
+        }
+
+        // The job is leased again: the same row runs a second time.
+        await runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = head,
+            AgentName = first.AgentName,
+            Kind = first.Kind,
+            WorkflowName = first.WorkflowName,
+            Status = RunStatus.Running,
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = first.TenantId,
+            SessionId = first.SessionId,
+            AgentVersion = first.AgentVersion,
+        });
+        await runs.AppendEventAsync(new RunEvent
+        {
+            RunId = head,
+            Sequence = 1,
+            Type = RunEventType.MessageDelta,
+            Text = "second attempt",
+            Timestamp = DateTimeOffset.UtcNow,
+            TenantId = tenant,
+        });
+        await runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = head,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            TenantId = tenant,
+        });
+
+        var sawSecondAttempt = false;
+
+        while (await frames.MoveNextAsync())
+        {
+            if (string.Equals(frames.Current.Event, "event", StringComparison.Ordinal) && frames.Current.Data.Contains("second attempt", StringComparison.Ordinal))
+            {
+                sawSecondAttempt = true;
+
+                break;
+            }
+        }
+
+        sawSecondAttempt.ShouldBeTrue("the follower read on from the last event of the run the job ran again");
+
+        // The job ends; the stream ends with done and announced no second run.
+        (await host.Services.GetRequiredService<IJobStore>().CancelAsync(tenant, head)).ShouldBeTrue();
+
+        var rest = new List<SseFrame>();
+
+        while (await frames.MoveNextAsync())
+        {
+            rest.Add(frames.Current);
+        }
+
+        rest.ShouldNotContain(static frame => string.Equals(frame.Event, "run", StringComparison.Ordinal), "the same run is not announced a second time");
+        rest[^1].Event.ShouldBe("done");
+    }
+
+    [Fact]
     public async Task A_delivered_answer_whose_run_failed_before_any_checkpoint_starts_again()
     {
         // The workflow received the answer, then the run failed before it wrote

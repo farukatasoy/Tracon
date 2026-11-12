@@ -2262,6 +2262,10 @@ internal static class WorkflowEndpoints
             var current = startRunId;
             var readAny = false;
 
+            // The first stored event of `current` that was not written yet. A run the job runs again under the same id
+            // continues its own sequence, so it is read on from here and not from the start.
+            long nextStored = 0;
+
             try
             {
                 await writer.WriteEventAsync(
@@ -2272,11 +2276,13 @@ internal static class WorkflowEndpoints
 
                 while (true)
                 {
+                    var readUpTo = nextStored;
+
                     await foreach (var (stored, run) in RunEventTail
                                        .ReadAsync(
                                            runs,
                                            current,
-                                           next: 0,
+                                           next: nextStored,
                                            pollInterval,
                                            timeProvider,
                                            token => new ValueTask(writer.WriteKeepAliveAsync("waiting", token)),
@@ -2284,6 +2290,7 @@ internal static class WorkflowEndpoints
                                        .ConfigureAwait(false))
                     {
                         readAny = true;
+                        nextStored = stored.Sequence + 1;
 
                         var runEvent = stored.Type == RunEventType.RunStarted && run is not null
                             ? stored with { Text = run.WorkflowName ?? run.AgentName, Payload = run.SessionId }
@@ -2308,13 +2315,25 @@ internal static class WorkflowEndpoints
                         break;
                     }
 
-                    current = next;
+                    // The same run again is the job running it a second time under its id (workflow recovery off): its
+                    // events go on from the last one written, and the stream announces no new run.
+                    if (next == current && nextStored == readUpTo)
+                    {
+                        // The same run, and the read found nothing new: pause rather than ask the store again at once.
+                        await Task.Delay(pollInterval, timeProvider, cancellationToken).ConfigureAwait(false);
+                    }
 
-                    await writer.WriteEventAsync(
-                        sequence++,
-                        "run",
-                        JsonSerializer.Serialize(new FollowedRun(current), JsonOptions),
-                        cancellationToken).ConfigureAwait(false);
+                    if (next != current)
+                    {
+                        current = next;
+                        nextStored = 0;
+
+                        await writer.WriteEventAsync(
+                            sequence++,
+                            "run",
+                            JsonSerializer.Serialize(new FollowedRun(current), JsonOptions),
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 if (!readAny)
@@ -2378,6 +2397,21 @@ internal static class WorkflowEndpoints
                         { Status: JobStatus.Pending or JobStatus.Leased or JobStatus.Running })
                     {
                         return null;
+                    }
+
+                    // With workflow recovery off, a job whose first attempt ended is leased again and runs the SAME run id:
+                    // the row goes back to Running and writes on from its last event. Without this look the stream waited
+                    // for a continuation that never comes and ended without a word of the second attempt. An event we have
+                    // not written is the sign (a short second attempt can be over between two polls, so the status alone
+                    // would miss it); a row that runs again with no event yet is the other.
+                    if (await runs.GetLastEventSequenceAsync(current, token).ConfigureAwait(false) is { } last && last >= nextStored)
+                    {
+                        return current;
+                    }
+
+                    if (await runs.GetRunAsync(current, token).ConfigureAwait(false) is { Status: RunStatus.Running or RunStatus.Queued })
+                    {
+                        return current;
                     }
 
                     await sse.WriteKeepAliveAsync("waiting", token).ConfigureAwait(false);
