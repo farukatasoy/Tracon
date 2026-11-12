@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
@@ -80,8 +82,59 @@ public sealed class PackageLicenseTests
             customMessage: "packages/tracon-client/LICENSE.md has drifted from the root LICENSE.md.");
     }
 
+    /// <summary>A line that says the README's licence and names MIT in it: <c>License: MIT.</c>, <c>**Licence:** every package is MIT</c>.</summary>
+    private static readonly Regex LicenceLine = new(
+        @"(?im)^(?:\*\*)?Licen[cs]e:?(?:\*\*)?:?[ \t]+[^\n]*\bMIT\b",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    /// <summary>A <c>## Licence</c> heading whose first line of text names MIT.</summary>
+    private static readonly Regex LicenceHeading = new(
+        @"(?im)^##[ \t]+Licen[cs]e[ \t]*\r?\n(?:[ \t]*\r?\n)+[^\n]*\bMIT\b",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
     [Fact]
-    public void No_shipped_readme_claims_another_licence()
+    public void Every_shipped_readme_states_the_MIT_licence()
+    {
+        // The test above only forbids two old phrases; a README that says nothing, or names another licence in new
+        // words, passed it. A package page on nuget.org is the one place a reader meets the terms before the text file.
+        var silent = ShippedReadmes()
+            .Where(path =>
+            {
+                var text = File.ReadAllText(path);
+                return !LicenceLine.IsMatch(text) && !LicenceHeading.IsMatch(text);
+            })
+            .Select(path => Path.GetRelativePath(RepositoryRoot, path).Replace('\\', '/'))
+            .ToList();
+
+        silent.ShouldBeEmpty("These shipped READMEs do not state the MIT licence (a 'License: MIT.' line or a '## Licence' section that names MIT).");
+    }
+
+    [Fact]
+    public void The_licence_statement_pattern_accepts_the_forms_the_readmes_use_and_refuses_the_rest()
+    {
+        foreach (var text in new[]
+        {
+            "License: MIT. The text ships in the package as LICENSE.md.",
+            "Licence: MIT, like every Tracon package.",
+            "**Licence:** every package is MIT - see below",
+        })
+        {
+            LicenceLine.IsMatch(text).ShouldBeTrue(text);
+        }
+
+        LicenceHeading.IsMatch("## Licence\n\nMIT. The text ships in the package as LICENSE.md.").ShouldBeTrue();
+
+        foreach (var text in new[] { "License: Apache-2.0. The text ships in the package.", "Licence: see the repository", "The MIT licence is nice." })
+        {
+            LicenceLine.IsMatch(text).ShouldBeFalse(text);
+        }
+
+        LicenceHeading.IsMatch("## Licence\n\nApache-2.0.").ShouldBeFalse();
+    }
+
+    private static List<string> ShippedReadmes()
     {
         // The directory is the source, not a list: a new package README is checked
         // the day it appears.
@@ -93,6 +146,14 @@ public sealed class PackageLicenseTests
             .ToList();
 
         readmes.Count.ShouldBeGreaterThan(2, "No package README was found; the walk is broken, not the READMEs clean.");
+
+        return readmes;
+    }
+
+    [Fact]
+    public void No_shipped_readme_claims_another_licence()
+    {
+        var readmes = ShippedReadmes();
 
         var stale = readmes
             .Where(path =>

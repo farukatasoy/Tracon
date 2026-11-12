@@ -67,3 +67,6 @@ stream began is a `RUN_ERROR` event that carries a correlation id the server log
 - The package takes `AGUI.Server` and `AGUI.Abstractions` (MIT, published by the AG-UI protocol project). It is not part of the
   `Tracon` meta package, so an application whose front end does not speak AG-UI carries neither.
 - It does not support Native AOT.
+
+License: MIT. The text ships in the package as LICENSE.md.
+Details: <https://tracon.dev/reference/licensing/>
