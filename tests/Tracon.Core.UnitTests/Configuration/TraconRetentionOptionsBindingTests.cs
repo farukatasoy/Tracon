@@ -16,10 +16,14 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// binder the same way.
 /// </para>
 /// <para>
-/// So the targets are not listed here by hand. They are counted by reflection from
-/// the options type, and the count is tied to <see cref="RetentionTargets.All"/>: a
-/// seventeenth target that is added to the options but not to the binder fails
-/// <see cref="Every_retention_target_is_bound"/>.
+/// The configuration keys are written out by hand in <see cref="TargetNames"/>, not
+/// derived from the options type. A key built from a property name makes the check
+/// that every member is named by a key pass by construction, so a target added to the
+/// options and to neither the binder nor this test would stay silent. With the
+/// literal list, <see cref="OptionsKeyCoverage"/> fails on the new member, and
+/// <see cref="The_literal_target_names_are_the_targets_of_the_options_type"/> fails
+/// on a rename. The list is tied to <see cref="RetentionTargets.All"/> too, so a
+/// target the purge knows cannot hide from either test.
 /// </para>
 /// </remarks>
 public sealed class TraconRetentionOptionsBindingTests
@@ -54,14 +58,19 @@ public sealed class TraconRetentionOptionsBindingTests
 
         var failures = new List<string>();
 
-        foreach (var (target, index) in Targets().Select(static (target, index) => (target, index)))
+        for (var index = 0; index < TargetNames.Length; index++)
         {
-            var bound = (RetentionTargetOptions)target.GetValue(options)!;
+            var name = TargetNames[index];
+            var bound = TargetOf(options, name);
 
-            if (bound.MaxAgeDays != MaxAgeDaysFor(index) || !bound.Archive)
+            if (bound is null)
+            {
+                failures.Add($"Tracon:Retention:{name}: the options type has no target of this name.");
+            }
+            else if (bound.MaxAgeDays != MaxAgeDaysFor(index) || !bound.Archive)
             {
                 failures.Add(
-                    $"Tracon:Retention:{target.Name}: expected MaxAgeDays={MaxAgeDaysFor(index)} and Archive=true, " +
+                    $"Tracon:Retention:{name}: expected MaxAgeDays={MaxAgeDaysFor(index)} and Archive=true, " +
                     $"got MaxAgeDays={bound.MaxAgeDays?.ToString(CultureInfo.InvariantCulture) ?? "null"} and Archive={bound.Archive}. " +
                     "The binder does not read this target.");
             }
@@ -71,11 +80,23 @@ public sealed class TraconRetentionOptionsBindingTests
     }
 
     [Fact]
+    public void The_literal_target_names_are_the_targets_of_the_options_type()
+    {
+        // The keys above are literal, so the options type is the thing to compare
+        // them with: a renamed or added target fails here, naming both sides.
+        var declared = Targets().Select(static target => target.Name).Order(StringComparer.Ordinal).ToArray();
+
+        declared.ShouldBe(
+            TargetNames.Order(StringComparer.Ordinal).ToArray(),
+            customMessage: "TargetNames and the RetentionTargetOptions properties of TraconRetentionOptions differ.");
+    }
+
+    [Fact]
     public void The_target_count_matches_the_purge_targets()
     {
-        // The reflective count above is only as good as what it counts: tie it to
-        // the purge's own list, so a target the purge knows cannot hide from it.
-        Targets().Count.ShouldBe(RetentionTargets.All.Count);
+        // Tie the literal list to the purge's own list, so a target the purge knows
+        // cannot hide from the binding test.
+        TargetNames.Length.ShouldBe(RetentionTargets.All.Count);
     }
 
     [Fact]
@@ -90,8 +111,37 @@ public sealed class TraconRetentionOptionsBindingTests
         options.IdempotencyKeys.MaxAgeDays.ShouldBe(1);
         options.Sessions.MaxAgeDays.ShouldBeNull();
         options.DocumentEmbeddings.MaxAgeDays.ShouldBeNull();
-        Targets().ShouldAllBe(target => !((RetentionTargetOptions)target.GetValue(options)!).Archive);
+        TargetNames.ShouldAllBe(name => !TargetOf(options, name)!.Archive);
     }
+
+    /// <summary>
+    /// The seventeen targets of <c>Tracon:Retention</c>, as they are written in a configuration file.
+    /// </summary>
+    private static readonly string[] TargetNames =
+    [
+        "RunEvents",
+        "ToolInvocations",
+        "Spans",
+        "Jobs",
+        "WebhookDeliveries",
+        "EvalCaseResults",
+        "WorkflowCheckpoints",
+        "SkillScriptGrants",
+        "Attachments",
+        "Sessions",
+        "Conversations",
+        "IdempotencyKeys",
+        "RunInputs",
+        "VoiceSessions",
+        "RunScores",
+        "DocumentEmbeddings",
+        "WorkflowRequests",
+    ];
+
+    /// <summary>The target a configuration key names, or <see langword="null"/> when the options type has none.</summary>
+    private static RetentionTargetOptions? TargetOf(TraconRetentionOptions options, string name)
+        => typeof(TraconRetentionOptions).GetProperty(name, BindingFlags.Public | BindingFlags.Instance)?.GetValue(options)
+            as RetentionTargetOptions;
 
     /// <summary>Every public <see cref="RetentionTargetOptions"/> property, in declaration order.</summary>
     private static List<PropertyInfo> Targets()
@@ -109,10 +159,10 @@ public sealed class TraconRetentionOptionsBindingTests
     {
         var values = new Dictionary<string, string?>(StringComparer.Ordinal);
 
-        foreach (var (target, index) in Targets().Select(static (target, index) => (target, index)))
+        for (var index = 0; index < TargetNames.Length; index++)
         {
-            values[$"Tracon:Retention:{target.Name}:MaxAgeDays"] = MaxAgeDaysFor(index).ToString(CultureInfo.InvariantCulture);
-            values[$"Tracon:Retention:{target.Name}:Archive"] = "true";
+            values[$"Tracon:Retention:{TargetNames[index]}:MaxAgeDays"] = MaxAgeDaysFor(index).ToString(CultureInfo.InvariantCulture);
+            values[$"Tracon:Retention:{TargetNames[index]}:Archive"] = "true";
         }
 
         return values;
