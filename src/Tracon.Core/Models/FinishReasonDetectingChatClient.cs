@@ -88,6 +88,12 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     {
         var response = await base.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
 
+        // A fallback link's own detector has judged this answer, in the link's name.
+        if (AnsweredByFallbackLink.Take(response))
+        {
+            return response;
+        }
+
         if (IsContentFilter(response.FinishReason))
         {
             if (!HasContent(response))
@@ -121,11 +127,15 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     {
         ChatFinishReason? finishReason = null;
         var sawContent = false;
+        var judgedByLink = false;
         UsageDetails? usage = null;
 
         await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancellationToken)
             .ConfigureAwait(false))
         {
+            // A fallback link's own detector has judged this stream, in the link's name.
+            judgedByLink |= AnsweredByFallbackLink.Take(update);
+
             // The LAST reported reason wins: a tool-call turn reports its own
             // reason before the loop starts the next turn (see the remarks).
             if (update.FinishReason is { } reported)
@@ -151,6 +161,11 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         // The decision is made at the END of the stream: the finish reason
         // arrives in the last frame for most providers, and text may have been
         // produced before it.
+        if (judgedByLink)
+        {
+            yield break;
+        }
+
         if (IsContentFilter(finishReason))
         {
             if (!sawContent)

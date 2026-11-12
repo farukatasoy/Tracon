@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A filtered or cut-off answer that a fallback model gave is reported once, in the fallback's name.** A fallback model is built through the same pipeline as the primary, so it judges its own answer (a content filter, an output cut off) and writes the `tracon.output.filtered` or `tracon.output.truncated` run event naming itself. The detector outside the fallback chain then saw the same answer and judged it again as the primary, so the run held a second event whose `provider` was the model that had failed. The chain now marks an answer a fallback gave and the outer detector leaves it alone. An answer the primary gave is judged once, as before; the error a fallback's empty filtered answer raises is unchanged.
+  What to do:
+  - **Nothing, unless a dashboard counted the second event.** A run that fell back and was filtered or cut off holds one event now, not two.
+
 - **Two uploads of the same source to the PostgreSQL knowledge store no longer fail on its unique key.** `PgVectorSearchStore.UpsertAsync` deletes the source's chunks and inserts its own in one transaction. Two uploads of one source at once both deleted what they could see and then inserted the same `(tenant, collection, source, chunk index)` keys, so the second to commit failed with `23505` and the caller got an exception for a valid upload. The upload now takes a transaction-scoped advisory lock on the source, so the second waits for the first and replaces it; another source is not affected. The transaction also runs through the same store context as the other stores, so a deadlock victim is run again whole.
   What to do:
   - **Nothing.** A host that caught the unique violation and uploaded again can drop that code. The constructor of `PgVectorSearchStore` is internal.

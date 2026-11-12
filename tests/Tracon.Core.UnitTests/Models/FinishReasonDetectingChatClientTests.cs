@@ -663,6 +663,132 @@ public sealed class FinishReasonDetectingChatClientTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_filter_notice_for_an_answer_a_fallback_link_gave_names_that_link_once(bool stream)
+    {
+        // The link has a pipeline of its own, and the chain's outer detector sees the same answer again: the run
+        // must hold ONE notice and it must name the model that answered, not the primary that failed.
+        var partial = new ChatResponse
+        {
+            Messages = [new ChatMessage(ChatRole.Assistant, "partial answer")],
+            FinishReason = ChatFinishReason.ContentFilter,
+        };
+
+        using var chatClient = RegistryWithFallback(
+            new StreamFailingChatClient(),
+            new FakeChatClient(
+                _ => partial,
+                streamingUpdates: [new ChatResponseUpdate(ChatRole.Assistant, "partial answer") { FinishReason = ChatFinishReason.ContentFilter }]));
+
+        var (store, runId, scope) = await OpenRunAsync();
+        TraconRunContext.SetCurrent(scope);
+
+        try
+        {
+            if (stream)
+            {
+                await foreach (var _ in chatClient.GetStreamingResponseAsync(
+                    [new ChatMessage(ChatRole.User, "hi")],
+                    cancellationToken: TestContext.Current.CancellationToken))
+                {
+                    // The decision is made at the end of the stream.
+                }
+            }
+            else
+            {
+                await chatClient.GetResponseAsync(
+                    [new ChatMessage(ChatRole.User, "hi")],
+                    cancellationToken: TestContext.Current.CancellationToken);
+            }
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        var notice = (await EventsAsync(store, runId))
+            .Where(static runEvent => string.Equals(runEvent.CustomType, RunEventCustomTypes.OutputFiltered, StringComparison.Ordinal))
+            .ShouldHaveSingleItem();
+
+        using var payload = JsonDocument.Parse(notice.Payload!);
+        payload.RootElement.GetProperty("provider").GetString().ShouldBe("fallback");
+    }
+
+    [Fact]
+    public async Task A_later_call_the_primary_answers_names_the_primary_even_after_an_earlier_call_fell_back()
+    {
+        // The run remembers the last link that answered; this call was answered by the primary.
+        var primaryCalls = 0;
+
+        using var chatClient = RegistryWithFallback(
+            new FakeChatClient(_ => ++primaryCalls == 1
+                ? throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" }
+                : FilteredEmpty()),
+            new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "fallback answer"))));
+
+        (await chatClient.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken))
+            .Text.ShouldBe("fallback answer");
+
+        var exception = await Should.ThrowAsync<TraconContentFilteredException>(
+            () => chatClient.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken));
+
+        exception.ProviderName.ShouldBe("primary");
+    }
+
+    [Fact]
+    public async Task The_marker_that_names_the_answering_link_does_not_reach_the_caller()
+    {
+        using var chatClient = RegistryWithFallback(
+            new FakeChatClient(_ => throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" }),
+            new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "fallback answer"))));
+
+        var response = await chatClient.GetResponseAsync(
+            [new ChatMessage(ChatRole.User, "hi")],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        (response.AdditionalProperties?.Count ?? 0).ShouldBe(0);
+    }
+
+    /// <summary>A model client that is unavailable for a call and for a stream, the way an open circuit is.</summary>
+    private sealed class StreamFailingChatClient : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" };
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" };
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private static ChatResponse FilteredEmpty()
+        => new()
+        {
+            Messages = [new ChatMessage(ChatRole.Assistant, string.Empty)],
+            FinishReason = ChatFinishReason.ContentFilter,
+        };
+
+    private static IChatClient RegistryWithFallback(IChatClient primaryClient, IChatClient fallbackClient)
+    {
+        var primary = new FakeModelProvider(primaryClient, name: "primary");
+        var fallback = new FakeModelProvider(fallbackClient, name: "fallback");
+
+        return new ModelProviderRegistry([primary, fallback]).CreateChatClient(new ModelBinding
+        {
+            Provider = "primary",
+            Model = "fake-model",
+            Fallbacks = [new ModelFallback { Provider = "fallback", Model = "fake-model" }],
+        });
+    }
+
     private static ModelBinding Binding => new() { Provider = "fake", Model = "fake-model" };
 
     private static IChatClient Registry(FakeChatClient inner)

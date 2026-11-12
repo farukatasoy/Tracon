@@ -22,9 +22,12 @@ namespace Tracon;
 /// content-filter detector means a provider-filtered response — which is
 /// <em>not</em> an exception at this layer, only a <see cref="ChatResponse"/>
 /// with <see cref="ChatFinishReason.ContentFilter"/> — passes straight
-/// through untouched, and the outer detector makes the one filtering decision
-/// for whichever link actually answered. This client never special-cases
-/// content filtering because it never sees it as a failure.
+/// through untouched. The decision for an answer the PRIMARY gave is the outer
+/// detector's; a link built through the same pipeline carries a detector of its
+/// own that has judged its answer already, so this client marks it
+/// (<see cref="AnsweredByFallbackLink"/>) and the outer detector does not decide
+/// again. This client never special-cases content filtering because it never
+/// sees it as a failure.
 /// </para>
 /// <para>
 /// <strong>Because the loop is behind this client, not in front of it, a
@@ -167,6 +170,9 @@ internal sealed class FallbackChatClient : DelegatingChatClient
                 if (index > 0)
                 {
                     await RecordFallbackUsedAsync(_fallbacks[index - 1], firstFailureReason, cancellationToken).ConfigureAwait(false);
+
+                    // The link's own pipeline has judged this answer; see AnsweredByFallbackLink.
+                    AnsweredByFallbackLink.Mark(response);
                 }
 
                 return response;
@@ -312,6 +318,12 @@ internal sealed class FallbackChatClient : DelegatingChatClient
                         {
                             await RecordFallbackUsedAsync(_fallbacks[index - 1], firstFailureReason, cancellationToken).ConfigureAwait(false);
                         }
+                    }
+
+                    if (index > 0)
+                    {
+                        // The link's own pipeline judges its stream; see AnsweredByFallbackLink.
+                        AnsweredByFallbackLink.Mark(update);
                     }
 
                     yield return update;

@@ -726,9 +726,10 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // primary's circuit is open, which only the ring outside it can see.
         // It sits INSIDE content-filter detection: a provider-filtered
         // response is not an exception at this layer, only a ChatResponse
-        // with ChatFinishReason.ContentFilter, so it passes straight through
-        // and the outer detector makes the ONE filtering decision for
-        // whichever link actually answered — see FallbackChatClient's remarks.
+        // with ChatFinishReason.ContentFilter, so it passes straight through.
+        // The outer detector decides for an answer the primary gave; a link's
+        // pipeline has a detector of its own and the chain marks its answers so
+        // the outer one leaves them alone — see AnsweredByFallbackLink.
         // Empty by default: with no configured fallback this line does
         // nothing, and today's "an open circuit throws" behavior is unchanged.
         if (binding.Fallbacks.Count > 0)
