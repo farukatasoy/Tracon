@@ -51,6 +51,7 @@ public sealed class McpDisposeDuringCallTests
         var outcome = await refresh;
 
         outcome.ToolCount.ShouldBe(0);
+        outcome.HadUnreachableServers.ShouldBeFalse("the listing was in flight, not refused: the server answered it");
     }
 
     [Fact]
@@ -130,7 +131,9 @@ public sealed class McpDisposeDuringCallTests
 
         var (status, _) = await read;
 
-        Enum.IsDefined(status).ShouldBeTrue();
+        // The read's own status: the dispose closed the gate and the client under it, and the read reports a failed connection
+        // instead of an ObjectDisposedException from its own finally.
+        status.ShouldBe(McpOperationStatus.ConnectionFailed);
     }
 
     [Fact]

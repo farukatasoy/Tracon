@@ -8,6 +8,7 @@ using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using Tracon.Tests.Workflows;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHarness;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -61,13 +62,13 @@ namespace Tracon.AspNetCore.FunctionalTests;
 public sealed class WorkflowTwoQuestionStallMeasurement
 {
     /// <summary>The workflow name.</summary>
-    private const string Name = "two-questions";
+    private const string Name = TwoQuestionGraph.Name;
 
     /// <summary>The port of the question the iteration answers.</summary>
-    private const string FirstPort = "first-port";
+    private const string FirstPort = TwoQuestionGraph.FirstPort;
 
     /// <summary>The port of the question that stays open.</summary>
-    private const string SecondPort = "second-port";
+    private const string SecondPort = TwoQuestionGraph.SecondPort;
 
     private const string RunsVariable = "TRACON_STALL_RUNS";
 
@@ -96,7 +97,7 @@ public sealed class WorkflowTwoQuestionStallMeasurement
                 builder.UseWorkflows();
                 builder.AddWorkflow(
                     Name,
-                    static _ => BuildTwoQuestions(),
+                    static _ => TwoQuestionGraph.Build(),
                     static options => options.ResponseMode = WorkflowResponseMode.SingleAnswer);
             });
 
@@ -350,38 +351,6 @@ public sealed class WorkflowTwoQuestionStallMeasurement
         => int.TryParse(Environment.GetEnvironmentVariable(name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0
             ? value
             : fallback;
-
-    /// <summary>
-    /// A start step that sends its message to two request ports, so one run publishes two
-    /// requests. The same shape as the two-question graph of the workflow unit tests, whose
-    /// code registration type is not visible to this project.
-    /// </summary>
-    private static Workflow BuildTwoQuestions()
-    {
-        var first = RequestPort.Create<string, bool>(FirstPort).BindAsExecutor(allowWrappedRequests: false);
-        var second = RequestPort.Create<string, bool>(SecondPort).BindAsExecutor(allowWrappedRequests: false);
-
-        var start = ExecutorBindingExtensions.BindAsExecutor<List<ChatMessage>, string>(
-            static messages => $"Approve: {messages.LastOrDefault()?.Text ?? string.Empty}",
-            id: "start");
-
-        var endFirst = ExecutorBindingExtensions.BindAsExecutor<bool, string>(
-            static approved => approved ? "first approved" : "first rejected",
-            id: "end-first");
-
-        var endSecond = ExecutorBindingExtensions.BindAsExecutor<bool, string>(
-            static approved => approved ? "second approved" : "second rejected",
-            id: "end-second");
-
-        return new WorkflowBuilder(start)
-            .AddEdge(start, first)
-            .AddEdge(start, second)
-            .AddEdge(first, endFirst)
-            .AddEdge(second, endSecond)
-            .WithOutputFrom(endFirst, endSecond)
-            .WithName(Name)
-            .Build();
-    }
 
     /// <summary>How the streams that ended as they should ended, for the summary line.</summary>
     private sealed class EndTally

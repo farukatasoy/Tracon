@@ -104,4 +104,39 @@ public sealed class WorkflowCancellationSweepSqliteTests
 
         (await backend.FindLeaksAsync(TimeSpan.FromSeconds(3))).ShouldBeEmpty();
     }
+
+    /// <summary>
+    /// The check for the write-ahead log has to see a leak too. A read transaction nobody ended does not block a writer, but it
+    /// keeps the log from being truncated, which is what a run cancelled in the middle of a read would leave behind.
+    /// </summary>
+    [Fact]
+    public async Task A_read_transaction_that_is_never_ended_is_reported_as_a_leak_of_the_write_ahead_log()
+    {
+        await using var backend = await SqliteSweepBackend.CreateAsync();
+
+        await using (var reader = backend.OpenConnectionOutsideTheStores())
+        await using (var writer = backend.OpenConnectionOutsideTheStores())
+        {
+            await reader.OpenAsync(TestContext.Current.CancellationToken);
+            await writer.OpenAsync(TestContext.Current.CancellationToken);
+
+            // The reader takes its snapshot; the writer then commits past it, so the log holds frames the reader still needs.
+            await ExecuteAsync(reader, "BEGIN; SELECT count(*) FROM sqlite_master;");
+            await ExecuteAsync(writer, "CREATE TABLE sweep_probe (id INTEGER); INSERT INTO sweep_probe VALUES (1);");
+
+            (await backend.FindLeaksAsync(TimeSpan.FromMilliseconds(200)))
+                .ShouldContain(static leak => leak.Contains("write-ahead log", StringComparison.Ordinal));
+
+            await ExecuteAsync(reader, "ROLLBACK;");
+        }
+
+        (await backend.FindLeaksAsync(TimeSpan.FromSeconds(3))).ShouldBeEmpty();
+    }
+
+    private static async Task ExecuteAsync(Microsoft.Data.Sqlite.SqliteConnection connection, string sql)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
 }
