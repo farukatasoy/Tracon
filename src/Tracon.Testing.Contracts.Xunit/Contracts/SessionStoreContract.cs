@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 
 namespace Tracon.Testing.Contracts.Storage;
 
@@ -264,19 +266,26 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
         // requests generated different conversation IDs for the same NEW
         // session. TryCreateAsync must be atomic: of N concurrent calls,
         // exactly one must win.
-        const int Concurrency = 8;
+        //
+        // The callers start on threads of their own, released together, and the group is released at a fresh id many
+        // times: calls started one after the other on one thread, as Task.WhenAll over a store that answers at once does,
+        // never overlap, and a store that looks and then writes passes a single round by luck.
+        const int Callers = 8;
+        const int Rounds = 20;
 
-        var attempts = Enumerable.Range(0, Concurrency)
-            .Select(i => Store.TryCreateAsync(
-                    TestData.Session("race") with { State = TestData.State($$"""{"turn":{{i}}}""") })
-                .AsTask());
+        for (var round = 0; round < Rounds; round++)
+        {
+            var id = $"race-{round}";
 
-        var results = await Task.WhenAll(attempts);
+            var results = SimultaneousCalls.Run(
+                Callers,
+                i => Store.TryCreateAsync(TestData.Session(id) with { State = TestData.State($$"""{"turn":{{i}}}""") })
+                    .AsTask().GetAwaiter().GetResult());
 
-        results.Count(static won => won).ShouldBe(1);
+            results.Count(static won => won).ShouldBe(1, $"round {round}: two creations of the same new session won");
 
-        var loaded = await Store.GetAsync("race");
-        loaded.ShouldNotBeNull();
+            (await Store.GetAsync(id)).ShouldNotBeNull();
+        }
     }
 
     [Fact]
@@ -349,22 +358,27 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
         // EXISTING session both reported success and one was silently
         // overwritten. Of N concurrent updates from the same generation,
         // exactly one must win.
-        const int Concurrency = 8;
+        //
+        // Many rounds of callers released together, each on a session of its own (see the create case above).
+        const int Callers = 8;
+        const int Rounds = 20;
 
-        await Store.TryCreateAsync(TestData.Session("update-race"));
+        for (var round = 0; round < Rounds; round++)
+        {
+            var id = $"update-race-{round}";
 
-        var version = (await Store.GetAsync("update-race")).ShouldNotBeNull().Version;
+            await Store.TryCreateAsync(TestData.Session(id));
 
-        var attempts = Enumerable.Range(0, Concurrency)
-            .Select(i => Store.TryUpdateAsync(
-                    TestData.Session("update-race") with { State = TestData.State($$"""{"turn":{{i}}}""") },
-                    version)
-                .AsTask());
+            var version = (await Store.GetAsync(id)).ShouldNotBeNull().Version;
 
-        var results = await Task.WhenAll(attempts);
+            var results = SimultaneousCalls.Run(
+                Callers,
+                i => Store.TryUpdateAsync(TestData.Session(id) with { State = TestData.State($$"""{"turn":{{i}}}""") }, version)
+                    .AsTask().GetAwaiter().GetResult());
 
-        results.Count(static won => won).ShouldBe(1);
-        (await Store.GetAsync("update-race")).ShouldNotBeNull().Version.ShouldBe(version + 1);
+            results.Count(static won => won).ShouldBe(1, $"round {round}: two updates from the same generation won");
+            (await Store.GetAsync(id)).ShouldNotBeNull().Version.ShouldBe(version + 1, $"round {round}");
+        }
     }
 
     [Fact]

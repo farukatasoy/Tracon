@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -347,13 +349,22 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     [Fact]
     public async Task Concurrent_writes_of_the_SAME_name_leave_exactly_one_row()
     {
-        var runId = TraconId.NewId();
+        // The writers start on threads of their own, released together, at a run of their own each round: writers
+        // started one after the other on one thread never overlap, and a store that looks and then inserts passes a
+        // single round by luck.
+        const int Writers = 8;
+        const int Rounds = 20;
 
-        await Task.WhenAll(
-            Enumerable.Range(0, 8).Select(attempt =>
-                Store.UpsertAsync(Score(runId) with { Value = attempt % 2 }).AsTask()));
+        for (var round = 0; round < Rounds; round++)
+        {
+            var runId = TraconId.NewId();
 
-        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
+            SimultaneousCalls.Run(
+                Writers,
+                attempt => Store.UpsertAsync(Score(runId) with { Value = attempt % 2 }).AsTask().GetAwaiter().GetResult());
+
+            (await Store.ListAsync(Tenant, runId)).Count.ShouldBe(1, $"round {round}: concurrent writes of one name left more than one row");
+        }
     }
 
     /// <remarks>
@@ -365,17 +376,24 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     [Fact]
     public async Task Concurrent_writes_with_null_and_empty_MessageId_leave_exactly_one_row()
     {
-        var runId = TraconId.NewId();
+        // Rounds of writers released together, as in the case above.
+        const int Writers = 8;
+        const int Rounds = 20;
 
-        await Task.WhenAll(
-            Enumerable.Range(0, 8).Select(attempt =>
-                Store.UpsertAsync(Score(runId) with
+        for (var round = 0; round < Rounds; round++)
+        {
+            var runId = TraconId.NewId();
+
+            SimultaneousCalls.Run(
+                Writers,
+                attempt => Store.UpsertAsync(Score(runId) with
                 {
                     MessageId = attempt % 2 == 0 ? null : string.Empty,
                     Value = attempt % 2,
-                }).AsTask()));
+                }).AsTask().GetAwaiter().GetResult());
 
-        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
+            (await Store.ListAsync(Tenant, runId)).Count.ShouldBe(1, $"round {round}: the two spellings of no message id left more than one row");
+        }
     }
 
     [Fact]

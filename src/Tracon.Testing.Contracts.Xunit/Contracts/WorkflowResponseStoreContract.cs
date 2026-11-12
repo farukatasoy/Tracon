@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -172,22 +174,33 @@ public abstract class WorkflowResponseStoreContract : TenantIsolationContract<IW
     [Fact]
     public async Task Concurrent_answers_to_one_request_leave_exactly_one_claim()
     {
-        var source = await SourceAsync(TenantA, "session-1");
-        var records = Enumerable.Range(0, 8)
-            .Select(_ => Record(TenantA, source, "session-1", "request-1", claimScope: "session-1"))
-            .ToList();
+        // Rounds of answerers released together, each round on a session and a request of its own: answers started one
+        // after the other on one thread never overlap.
+        const int Answerers = 8;
+        const int Rounds = 10;
 
-        var claims = await Task.WhenAll(records.Select(record => Store.AddAsync(record).AsTask()));
+        for (var round = 0; round < Rounds; round++)
+        {
+            var session = $"session-answers-{round}";
+            var source = await SourceAsync(TenantA, session);
+            var records = Enumerable.Range(0, Answerers)
+                .Select(_ => Record(TenantA, source, session, "request-1", claimScope: session))
+                .ToList();
 
-        var winner = records[claims.ToList().FindIndex(static claim => claim.Claimed)];
+            var claims = SimultaneousCalls.Run(
+                Answerers,
+                i => Store.AddAsync(records[i]).AsTask().GetAwaiter().GetResult());
 
-        claims.Count(static claim => claim.Claimed).ShouldBe(1);
-        claims.Where(static claim => !claim.Claimed)
-            .ShouldAllBe(claim => claim.Existing != null && claim.Existing.ResponseRunId == winner.ResponseRunId);
+            var winner = records[claims.ToList().FindIndex(static claim => claim.Claimed)];
 
-        AmbientTenant.TenantId = TenantA;
+            claims.Count(static claim => claim.Claimed).ShouldBe(1, $"round {round}: two answers to one request were claimed");
+            claims.Where(static claim => !claim.Claimed)
+                .ShouldAllBe(claim => claim.Existing != null && claim.Existing.ResponseRunId == winner.ResponseRunId, $"round {round}");
 
-        (await Store.ListBySourceRunAsync(source)).ShouldHaveSingleItem().ResponseRunId.ShouldBe(winner.ResponseRunId);
+            AmbientTenant.TenantId = TenantA;
+
+            (await Store.ListBySourceRunAsync(source)).ShouldHaveSingleItem().ResponseRunId.ShouldBe(winner.ResponseRunId, $"round {round}");
+        }
     }
 
     [Fact]
@@ -277,26 +290,35 @@ public abstract class WorkflowResponseStoreContract : TenantIsolationContract<IW
     [Fact]
     public async Task Concurrent_replacements_of_one_record_leave_exactly_one_claim()
     {
-        var source = await SourceAsync(TenantA, "session-1");
-        var first = Record(TenantA, source, "session-1", "request-1", claimScope: "session-1");
+        // Rounds of replacers released together, each round on a record of its own (see the answers case above).
+        const int Replacers = 8;
+        const int Rounds = 10;
 
-        await Store.AddAsync(first);
+        for (var round = 0; round < Rounds; round++)
+        {
+            var session = $"session-replace-{round}";
+            var source = await SourceAsync(TenantA, session);
+            var first = Record(TenantA, source, session, "request-1", claimScope: session);
 
-        AmbientTenant.TenantId = TenantA;
+            await Store.AddAsync(first);
 
-        var replacements = Enumerable.Range(0, 8)
-            .Select(_ => Record(TenantA, source, "session-1", "request-1", claimScope: "session-1"))
-            .ToList();
+            AmbientTenant.TenantId = TenantA;
 
-        var results = await Task.WhenAll(
-            replacements.Select(replacement => Store.ReplaceAsync(first.ResponseRunId, replacement).AsTask()));
+            var replacements = Enumerable.Range(0, Replacers)
+                .Select(_ => Record(TenantA, source, session, "request-1", claimScope: session))
+                .ToList();
 
-        results.Count(static replaced => replaced).ShouldBe(1);
+            var results = SimultaneousCalls.Run(
+                Replacers,
+                i => Store.ReplaceAsync(first.ResponseRunId, replacements[i]).AsTask().GetAwaiter().GetResult());
 
-        var winner = replacements[Array.IndexOf(results, true)];
+            results.Count(static replaced => replaced).ShouldBe(1, $"round {round}: two replacements of one record won");
 
-        (await Store.FindClaimAsync("session-1", "request-1")).ShouldNotBeNull().ResponseRunId.ShouldBe(winner.ResponseRunId);
-        (await Store.ListBySourceRunAsync(source)).Count.ShouldBe(2);
+            var winner = replacements[Array.IndexOf(results, true)];
+
+            (await Store.FindClaimAsync(session, "request-1")).ShouldNotBeNull().ResponseRunId.ShouldBe(winner.ResponseRunId, $"round {round}");
+            (await Store.ListBySourceRunAsync(source)).Count.ShouldBe(2, $"round {round}");
+        }
     }
 
     [Fact]
