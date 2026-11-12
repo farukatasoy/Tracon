@@ -1,3 +1,4 @@
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -132,8 +133,8 @@ internal sealed partial class AgentDefinitionValidator
         var messages = new List<ValidationMessage>();
         var inconclusive = false;
 
-        await CheckModelAsync(definition, messages, cancellationToken).ConfigureAwait(false);
-        await CheckOutputLimitsAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        var modelClient = await CheckModelAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        await CheckOutputLimitsAsync(definition, messages, modelClient, cancellationToken).ConfigureAwait(false);
         var responseSchemas = CheckResponseSchemas(definition, messages, cancellationToken);
 
         await CheckToolsAsync(
@@ -183,7 +184,7 @@ internal sealed partial class AgentDefinitionValidator
         return false;
     }
 
-    private async ValueTask CheckModelAsync(AgentDefinition definition, List<ValidationMessage> messages, CancellationToken cancellationToken)
+    private async ValueTask<IChatClient?> CheckModelAsync(AgentDefinition definition, List<ValidationMessage> messages, CancellationToken cancellationToken)
     {
         var providers = _models.List();
         var registered = false;
@@ -212,15 +213,16 @@ internal sealed partial class AgentDefinitionValidator
                 Path = "model.provider",
             });
 
-            return;
+            return null;
         }
 
         try
         {
             // This is the same call as the real path (including the
             // requesting tenant's own provider credential and egress policy).
-            // It creates the chat client but sends no request.
-            _ = await _models.CreateChatClientAsync(definition.Model, cancellationToken).ConfigureAwait(false);
+            // It creates the chat client but sends no request. The output-limit check reads the limit from this same
+            // client, so it is returned instead of being built a second time.
+            return await _models.CreateChatClientAsync(definition.Model, cancellationToken).ConfigureAwait(false);
         }
         catch (TraconException ex)
         {
@@ -231,6 +233,8 @@ internal sealed partial class AgentDefinitionValidator
                 Message = ex.Message,
                 Path = "model.providerSettings",
             });
+
+            return null;
         }
     }
 

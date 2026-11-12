@@ -50,6 +50,7 @@ internal sealed partial class AgentDefinitionValidator
     private async ValueTask CheckOutputLimitsAsync(
         AgentDefinition definition,
         List<ValidationMessage> messages,
+        IChatClient? modelClient,
         CancellationToken cancellationToken)
     {
         // An unknown provider or a binding the registry cannot build is already
@@ -62,7 +63,7 @@ internal sealed partial class AgentDefinitionValidator
         CheckSampling(definition, messages);
         CheckSamplingSupport(definition, messages);
 
-        await CheckOutputTruncationRiskAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        CheckOutputTruncationRisk(definition, messages, modelClient);
     }
 
     private void CheckSampling(AgentDefinition definition, List<ValidationMessage> messages)
@@ -110,28 +111,16 @@ internal sealed partial class AgentDefinitionValidator
         Path = path,
     };
 
-    private async ValueTask CheckOutputTruncationRiskAsync(
+    private void CheckOutputTruncationRisk(
         AgentDefinition definition,
         List<ValidationMessage> messages,
-        CancellationToken cancellationToken)
+        IChatClient? client)
     {
         var binding = definition.Model;
 
-        if (binding.MaxOutputTokens is not null)
-        {
-            return;
-        }
-
-        IChatClient client;
-
-        try
-        {
-            // The same call as CheckModelAsync and the real path: the client is
-            // built for THIS binding, so it can state the limit its own settings
-            // lead to. No request is sent.
-            client = await _models.CreateChatClientAsync(binding, cancellationToken).ConfigureAwait(false);
-        }
-        catch (TraconException)
+        // The client CheckModelAsync built for THIS binding, so it can state the limit its own settings lead to. No request
+        // is sent. A null client means that check reported why there is none.
+        if (binding.MaxOutputTokens is not null || client is null)
         {
             return;
         }

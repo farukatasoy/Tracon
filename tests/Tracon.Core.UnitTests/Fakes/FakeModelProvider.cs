@@ -56,6 +56,9 @@ internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISampl
     /// <summary>The last requested binding. Tests verify option mapping through this.</summary>
     public ModelBinding? LastBinding { get; private set; }
 
+    /// <summary>Gets how many chat clients the provider has been asked to build.</summary>
+    public int CreateCount { get; private set; }
+
     /// <summary>The last credential passed in (BYOK). Tests verify tenant resolution through this.</summary>
     public ModelProviderCredential? LastCredential { get; private set; }
 
@@ -69,6 +72,7 @@ internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISampl
     {
         LastBinding = binding;
         LastCredential = credential;
+        CreateCount++;
         return _client;
     }
 }

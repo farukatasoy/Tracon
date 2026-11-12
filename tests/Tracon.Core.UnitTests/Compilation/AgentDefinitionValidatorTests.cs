@@ -38,6 +38,18 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
+    public async Task One_validation_builds_the_model_client_the_model_and_the_output_limit_checks_share()
+    {
+        var provider = new FakeModelProvider();
+        var (validator, _, _) = CreateValidator(providers: [provider]);
+
+        var report = await validator.ValidateAsync(TestData.Definition(), TestContext.Current.CancellationToken);
+
+        report.Valid.ShouldBeTrue();
+        provider.CreateCount.ShouldBe(2, "one client for the model and output-limit checks, one for the compiler, whose rings differ");
+    }
+
+    [Fact]
     public async Task Unknown_tool_produces_unknown_tool()
     {
         var (validator, _, _) = CreateValidator();
