@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A webhook subscription that a failed delivery switched off is reported in the log even when the write's answer was lost on the way back.** The delivery that reaches the failure threshold asks the store to count it, and the store answers whether this call switched the subscription off. When the call committed and the connection dropped before the answer arrived, the write was tried again, the store found the subscription off already and answered `false`, and the `Webhook subscription '…' was disabled` warning was never written. After a write that threw once, the handler now reads the subscription back and writes the warning when it is disabled. The failure counter can still be counted twice in that case (the second try is a second count); that part is unchanged.
+  What to do:
+  - **Nothing.** A log alert on that warning now fires in the case it missed.
+
 - **In memory and on SQLite a run that keeps its heartbeat is not closed as orphaned because the wall clock stepped forward.** The heartbeat was stamped with the wall clock and aged with the wall clock, so a clock moved ahead by a time service or a resumed virtual machine made every beating run look older than the threshold, and the next orphan pass closed it `Failed`. It is now stamped and aged on the reading a step of the wall clock does not move, the same one the lease stores already use. A run that never beat is still aged by its start time on the wall clock, because that time belongs to the run's own record. PostgreSQL and SQL Server are unchanged: they read the database server's clock.
   What to do:
   - **A test that expires a heartbeat by advancing a fake `TimeProvider` has to advance the monotonic reading (`GetTimestamp`) as well as `GetUtcNow`**; `Microsoft.Extensions.Time.Testing.FakeTimeProvider` does. A fake that moves only `GetUtcNow` no longer ages a heartbeat.

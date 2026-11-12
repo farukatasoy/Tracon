@@ -42,6 +42,31 @@ public sealed class WebhookDeliveryOutcomeWarningTests
         warning.ShouldContain($"after {new TraconWebhookOptions().DisableAfterConsecutiveFailures} consecutive failed deliveries");
     }
 
+    [Fact]
+    public async Task A_write_that_committed_and_lost_its_answer_still_produces_the_disabled_warning()
+    {
+        // The write that switches the subscription off commits and the connection drops before the answer arrives. The
+        // write is tried again, and the store answers false to it, because this call did not switch anything: it was
+        // off already. Nobody would hear that the subscription was disabled.
+        var logger = new CollectingLogger();
+        var store = new AnswerLostWebhookStore(new InMemoryWebhookStore());
+        var delivery = await ArrangeDeliveryAsync(store);
+        using var client = new WebhookHttpClient(new Recipient(HttpStatusCode.InternalServerError));
+        var options = new TraconWebhookOptions { DisableAfterConsecutiveFailures = 1 };
+        var handler = new WebhookDeliveryJobHandler(
+            store,
+            client,
+            new StaticOptionsMonitor<TraconWebhookOptions>(options),
+            Options.Create(new TraconOptions()),
+            logger: logger);
+
+        await Should.ThrowAsync<TraconException>(
+            async () => await handler.ExecuteAsync(BuildContext(delivery, options.RetryDelays.Count), TestContext.Current.CancellationToken));
+
+        store.OutcomeCalls.ShouldBeGreaterThan(1, "the lost answer made the handler write again");
+        logger.DisabledWarnings.ShouldHaveSingleItem().ShouldContain("'orders'");
+    }
+
     private static async Task RunFinalFailedDeliveryAsync(bool disabledByThisCall, CollectingLogger logger)
     {
         var store = new FixedOutcomeWebhookStore(new InMemoryWebhookStore(), disabledByThisCall);
@@ -144,6 +169,61 @@ public sealed class WebhookDeliveryOutcomeWarningTests
             Interlocked.Increment(ref _outcomeCalls);
 
             return ValueTask.FromResult(answer);
+        }
+
+        public ValueTask<IReadOnlyList<WebhookSubscription>> ListSubscriptionsAsync(string tenantId, CancellationToken cancellationToken = default)
+            => inner.ListSubscriptionsAsync(tenantId, cancellationToken);
+
+        public ValueTask<WebhookSubscription?> GetSubscriptionAsync(string tenantId, string name, CancellationToken cancellationToken = default)
+            => inner.GetSubscriptionAsync(tenantId, name, cancellationToken);
+
+        public ValueTask<IReadOnlyList<WebhookSubscription>> FindForEventAsync(string tenantId, string eventType, CancellationToken cancellationToken = default)
+            => inner.FindForEventAsync(tenantId, eventType, cancellationToken);
+
+        public ValueTask<WebhookSubscription> SaveSubscriptionAsync(WebhookSubscription subscription, CancellationToken cancellationToken = default)
+            => inner.SaveSubscriptionAsync(subscription, cancellationToken);
+
+        public ValueTask<bool> DeleteSubscriptionAsync(string tenantId, string name, CancellationToken cancellationToken = default)
+            => inner.DeleteSubscriptionAsync(tenantId, name, cancellationToken);
+
+        public ValueTask<WebhookDelivery> CreateDeliveryAsync(WebhookDelivery delivery, CancellationToken cancellationToken = default)
+            => inner.CreateDeliveryAsync(delivery, cancellationToken);
+
+        public ValueTask<WebhookDelivery?> GetDeliveryAsync(Guid deliveryId, CancellationToken cancellationToken = default)
+            => inner.GetDeliveryAsync(deliveryId, cancellationToken);
+
+        public ValueTask RecordDeliveryResultAsync(WebhookDeliveryResult result, CancellationToken cancellationToken = default)
+            => inner.RecordDeliveryResultAsync(result, cancellationToken);
+
+        public ValueTask<IReadOnlyList<WebhookDelivery>> QueryDeliveriesAsync(WebhookDeliveryQuery query, CancellationToken cancellationToken = default)
+            => inner.QueryDeliveriesAsync(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// A webhook store whose first write of an outcome commits and then fails, as a connection that drops before the
+    /// answer arrives. Every other call goes through.
+    /// </summary>
+    private sealed class AnswerLostWebhookStore(IWebhookStore inner) : IWebhookStore
+    {
+        private int _outcomeCalls;
+
+        public int OutcomeCalls => Volatile.Read(ref _outcomeCalls);
+
+        public async ValueTask<bool> RecordSubscriptionOutcomeAsync(
+            Guid subscriptionId,
+            bool succeeded,
+            int disableThreshold,
+            DateTimeOffset updatedAt,
+            CancellationToken cancellationToken = default)
+        {
+            var written = await inner.RecordSubscriptionOutcomeAsync(subscriptionId, succeeded, disableThreshold, updatedAt, cancellationToken);
+
+            if (Interlocked.Increment(ref _outcomeCalls) == 1)
+            {
+                throw new InvalidOperationException("the connection dropped after the commit");
+            }
+
+            return written;
         }
 
         public ValueTask<IReadOnlyList<WebhookSubscription>> ListSubscriptionsAsync(string tenantId, CancellationToken cancellationToken = default)

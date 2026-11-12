@@ -195,15 +195,35 @@ internal sealed class WebhookDeliveryJobHandler(
         if (isFinalAttempt)
         {
             var disabled = false;
+            var unsure = false;
 
             await TryRecordAsync(
                 recording,
-                async () => disabled = await store
-                    .RecordSubscriptionOutcomeAsync(subscription.Id, succeeded: false, options.DisableAfterConsecutiveFailures, now, CancellationToken.None)
-                    .ConfigureAwait(false),
+                async () =>
+                {
+                    try
+                    {
+                        disabled = await store
+                            .RecordSubscriptionOutcomeAsync(subscription.Id, succeeded: false, options.DisableAfterConsecutiveFailures, now, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // The write may have committed and only its answer been lost. The next try then answers false
+                        // ("not this call"), and the warning would never be written; the subscription is read afterwards.
+                        unsure = true;
+
+                        throw;
+                    }
+                },
                 $"record the failure on webhook subscription '{subscription.Name}'",
                 delivery.Id,
                 cancellationToken).ConfigureAwait(false);
+
+            if (!disabled && unsure)
+            {
+                disabled = await IsDisabledAsync(subscription, cancellationToken).ConfigureAwait(false);
+            }
 
             if (disabled && logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
@@ -504,6 +524,31 @@ internal sealed class WebhookDeliveryJobHandler(
             $"report webhook delivery {delivery.Id}'s job item",
             delivery.Id,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads whether a subscription is switched off, after a write whose answer was lost.</summary>
+    /// <param name="subscription">The subscription, as the attempt loaded it.</param>
+    /// <param name="cancellationToken">The worker's shutdown token.</param>
+    /// <returns><see langword="true"/> when the store holds the subscription as disabled; a read that fails is <see langword="false"/>.</returns>
+    /// <remarks>
+    /// A store error is not worth failing the attempt: the delivery was sent and its result is recorded, and the
+    /// warning is only a log line. The subscription may also have been switched off by a delivery that ran at the same
+    /// time; it is disabled either way, and the warning says what is true.
+    /// </remarks>
+    private async ValueTask<bool> IsDisabledAsync(WebhookSubscription subscription, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var current = await store
+                .GetSubscriptionAsync(subscription.TenantId, subscription.Name, cancellationToken)
+                .ConfigureAwait(false);
+
+            return current is { Enabled: false };
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            return false;
+        }
     }
 
     /// <summary>Runs one write that follows a send, accepted or not; a write that still fails is logged.</summary>
