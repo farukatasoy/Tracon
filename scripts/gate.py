@@ -1915,9 +1915,15 @@ def generation_commands(extension: Extension = PUBLIC) -> list[Command]:
     generator removes it. CI keeps checking the same files (`ci.yml` runs
     `build-agent-map.mjs --check`), so a
     regenerated file that was never committed is still caught there.
+
+    The agent map reads the release-notes pages (`reference/changelog.md`, `reference/releases/`),
+    which are generated from CHANGELOG.md and ignored by git. On a fresh worktree they do not
+    exist, so the map was written without them and differed from the committed one; CI builds
+    them first for the same reason. The changelog build needs no npm dependency.
     """
     return [
         *extension.generation,
+        Command(("node", "docs-site/scripts/build-changelog.mjs")),
         Command(("node", "docs-site/scripts/build-agent-map.mjs")),
     ]
 

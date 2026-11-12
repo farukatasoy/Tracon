@@ -1595,6 +1595,16 @@ class GateTests(unittest.TestCase):
         self.assertIn("node docs-site/scripts/build-agent-map.mjs", rendered)
         self.assertNotIn("node docs-site/scripts/build-agent-map.mjs --check", rendered)
 
+    def test_generation_builds_the_changelog_pages_before_the_agent_map_reads_them(self):
+        # The agent map reads `reference/changelog.md` and `reference/releases/`, which are generated
+        # from CHANGELOG.md and ignored by git. On a fresh worktree they are missing, so the map was
+        # written without them and differed from the committed one. CI runs the changelog build first.
+        rendered = [c.display for c in gate.generation_commands()]
+
+        self.assertIn("node docs-site/scripts/build-changelog.mjs", rendered)
+        self.assertLess(rendered.index("node docs-site/scripts/build-changelog.mjs"),
+                        rendered.index("node docs-site/scripts/build-agent-map.mjs"))
+
     def test_public_command_lists_call_no_script_outside_the_public_tree(self):
         # The public tree runs with its own files only: a shipped gate that called a
         # script outside it would fail at its first step.
