@@ -139,6 +139,8 @@ the scanner's pattern.
 Work on `main` is fine for small changes — this is a single-maintainer
 repository. Open a branch for anything experimental or expensive to undo.
 Commit messages are English, in the imperative, and say what changed and why.
+The default branch `main` only moves to a commit whose CI run passed: every change is published to `next` first, and
+`main` is fast-forwarded to the newest commit of `next` that is green. Open pull requests against `main`.
 
 Before you open a pull request, run
 `python3 scripts/gate.py close --base <commit you branched from>`, and say in
