@@ -2301,7 +2301,7 @@ jobs:
     name: Docs site gates
     runs-on: ubuntu-latest
     needs: build
-    # Longest measured 7.9 min.
+    # Longest measured 7.9 min; twice that is 15.8, rounded up to 5 min is 20 (the rule at the top of the file).
     timeout-minutes: 20
     if: (github.ref == 'refs/heads/next' || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
 
