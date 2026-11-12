@@ -377,10 +377,19 @@ public sealed class SubAgentToolModeTests
             .CallsTool(ChildTool, new { query = "sub task" })
             .EchoesLastToolResult("Delegated: "));
 
-        await using var host = await StartAsync(
-            provider, childProvider: hanging, childDeadline: TimeSpan.FromMilliseconds(50));
+        var clock = new ManualClock();
+        var deadline = TimeSpan.FromMilliseconds(50);
 
-        var text = await RunRouterAsync(host, streaming: false).WaitAsync(TimeSpan.FromSeconds(10));
+        // The deadline counts on the host's clock, so it cannot pass before the child is inside its model call: a real
+        // 50 ms deadline once passed while a loaded machine was still starting the child.
+        await using var host = await StartAsync(
+            provider, childProvider: hanging, childDeadline: deadline, clock: clock);
+
+        var running = RunRouterAsync(host, streaming: false);
+
+        await ChildLimits.ExpireAsync(clock, hanging.Started, deadline);
+
+        var text = await running.WaitAsync(TimeSpan.FromSeconds(10));
 
         text.ShouldContain("did not respond in time", Case.Sensitive);
 
@@ -481,7 +490,8 @@ public sealed class SubAgentToolModeTests
         int maxRuns = 25,
         bool withApprovalTool = false,
         IModelProvider? childProvider = null,
-        TimeSpan? childDeadline = null)
+        TimeSpan? childDeadline = null,
+        TimeProvider? clock = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -532,11 +542,19 @@ public sealed class SubAgentToolModeTests
                     Origin = AgentDefinitionOrigin.Code,
                 });
             },
-            configureServices: services => services.Configure<TraconOptions>(options =>
+            configureServices: services =>
             {
-                options.AgentGraph.MaxDepth = maxDepth;
-                options.AgentGraph.MaxTotalRuns = maxRuns;
-            }));
+                if (clock is not null)
+                {
+                    services.AddSingleton<TimeProvider>(clock);
+                }
+
+                services.Configure<TraconOptions>(options =>
+                {
+                    options.AgentGraph.MaxDepth = maxDepth;
+                    options.AgentGraph.MaxTotalRuns = maxRuns;
+                });
+            });
 
     private static ModelBinding Binding(string model) => new() { Provider = ProviderName, Model = model };
 }

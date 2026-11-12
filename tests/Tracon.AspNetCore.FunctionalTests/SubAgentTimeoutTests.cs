@@ -31,12 +31,18 @@ public sealed class SubAgentTimeoutTests
     [Fact]
     public async Task Cooperative_layer_cancels_a_child_that_reads_the_token()
     {
+        var clock = new ManualClock();
         var hanging = new HangingModelProvider(ResearcherProviderName, respectsCancellation: true);
         await using var host = await StartAsync(
-            hanging, harness: false, childDeadline: TimeSpan.FromMilliseconds(50), waitTimeout: TimeSpan.FromSeconds(5));
+            hanging, harness: false, childDeadline: ShortDeadline, waitTimeout: TimeSpan.FromSeconds(5), clock: clock);
 
         var agent = await ResolveRouterAsync(host);
-        var response = await agent.RunAsync("start").WaitAsync(TimeSpan.FromSeconds(10));
+        var running = agent.RunAsync("start", cancellationToken: TestContext.Current.CancellationToken);
+
+        // The deadline counts on the host's clock: moved once the child is inside its model call, never before.
+        await ChildLimits.ExpireAsync(clock, hanging.Started, ShortDeadline);
+
+        var response = await running.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         response.Text.ShouldContain("did not respond in time", Case.Sensitive);
 
@@ -174,12 +180,17 @@ public sealed class SubAgentTimeoutTests
     [Fact]
     public async Task Harness_path_produces_the_same_cooperative_layer_behavior()
     {
+        var clock = new ManualClock();
         var hanging = new HangingModelProvider(ResearcherProviderName, respectsCancellation: true);
         await using var host = await StartAsync(
-            hanging, harness: true, childDeadline: TimeSpan.FromMilliseconds(50), waitTimeout: TimeSpan.FromSeconds(5));
+            hanging, harness: true, childDeadline: ShortDeadline, waitTimeout: TimeSpan.FromSeconds(5), clock: clock);
 
         var agent = await ResolveRouterAsync(host);
-        var response = await agent.RunAsync("start").WaitAsync(TimeSpan.FromSeconds(10));
+        var running = agent.RunAsync("start", cancellationToken: TestContext.Current.CancellationToken);
+
+        await ChildLimits.ExpireAsync(clock, hanging.Started, ShortDeadline);
+
+        var response = await running.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         response.Text.ShouldContain("did not respond in time", Case.Sensitive);
 

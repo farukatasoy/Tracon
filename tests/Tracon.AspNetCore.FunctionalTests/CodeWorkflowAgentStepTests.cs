@@ -34,12 +34,15 @@ public sealed class CodeWorkflowAgentStepTests
     public async Task A_steps_timeout_replaces_the_installations_child_deadline_for_that_step()
     {
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var clock = new ManualClock();
 
         // The installation's deadline is far away: only the step's can fire.
-        await using var host = await StartHangingAsync(hanging, childDeadline: TimeSpan.FromMinutes(10), step => step.Timeout = TimeSpan.FromMilliseconds(300));
+        await using var host = await StartHangingAsync(
+            hanging, clock, childDeadline: TimeSpan.FromMinutes(10), step => step.Timeout = TimeSpan.FromMilliseconds(300));
 
-        var run = await RunAsync(host);
+        var (run, waited) = await RunAsync(host, clock, within: TimeSpan.FromSeconds(1));
 
+        waited.ShouldBe([TimeSpan.FromMilliseconds(300)], "the step ended at its own timeout, not at the installation's");
         run.Status.ShouldBe(RunStatus.Failed);
 
         var error = run.Error.ShouldNotBeNull();
@@ -54,11 +57,13 @@ public sealed class CodeWorkflowAgentStepTests
     public async Task A_step_without_a_timeout_keeps_the_installations_child_deadline()
     {
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var clock = new ManualClock();
 
-        await using var host = await StartHangingAsync(hanging, childDeadline: TimeSpan.FromMilliseconds(300), configure: null);
+        await using var host = await StartHangingAsync(hanging, clock, childDeadline: TimeSpan.FromMilliseconds(300), configure: null);
 
-        var run = await RunAsync(host);
+        var (run, waited) = await RunAsync(host, clock, within: TimeSpan.FromSeconds(1));
 
+        waited.ShouldBe([TimeSpan.FromMilliseconds(300)], "the step ended at the installation's deadline");
         run.Status.ShouldBe(RunStatus.Failed);
 
         var error = run.Error.ShouldNotBeNull();
@@ -376,6 +381,7 @@ public sealed class CodeWorkflowAgentStepTests
 
     private static Task<TraconTestHost> StartHangingAsync(
         HangingModelProvider hanging,
+        ManualClock clock,
         TimeSpan childDeadline,
         Action<WorkflowAgentStepOptions>? configure)
         => TraconTestHost.StartAsync(
@@ -391,11 +397,15 @@ public sealed class CodeWorkflowAgentStepTests
                 builder.UseWorkflows();
                 builder.AddWorkflow(Flow, services => Single(services, Slow, configure));
             },
-            configureServices: services => services.Configure<TraconOptions>(options =>
+            configureServices: services =>
             {
-                options.AgentGraph.ChildDeadline = childDeadline;
-                options.AgentGraph.WaitTimeout = childDeadline + TimeSpan.FromSeconds(30);
-            }));
+                services.AddSingleton<TimeProvider>(clock);
+                services.Configure<TraconOptions>(options =>
+                {
+                    options.AgentGraph.ChildDeadline = childDeadline;
+                    options.AgentGraph.WaitTimeout = childDeadline + TimeSpan.FromSeconds(30);
+                });
+            });
 
     private static Task<TraconTestHost> StartPinnedAsync(FakeModelProvider provider, int? version, Action<ITraconBuilder>? configure = null)
         => TraconTestHost.StartAsync(builder =>
@@ -455,6 +465,24 @@ public sealed class CodeWorkflowAgentStepTests
             Model = new ModelBinding { Provider = "pin-provider", Model = "pin-model" },
             Parameters = parameters ?? [],
         };
+
+    /// <summary>
+    /// Runs the workflow and moves the host's clock to the timers that fall within <paramref name="within"/>, the step's
+    /// deadline among them, and no further.
+    /// </summary>
+    /// <returns>The run, and the amounts the clock was moved by for this run.</returns>
+    private static async Task<(RunRecord Run, IReadOnlyList<TimeSpan> Waited)> RunAsync(
+        TraconTestHost host,
+        ManualClock clock,
+        TimeSpan within)
+    {
+        var movedBefore = clock.Steps.Count;
+        var running = RunAsync(host);
+
+        await clock.AdvanceUntilAsync(running, within);
+
+        return (await running, [.. clock.Steps.Skip(movedBefore)]);
+    }
 
     private static async Task<RunRecord> RunAsync(TraconTestHost host, Dictionary<string, string>? parameters = null)
     {

@@ -37,12 +37,13 @@ public sealed class WorkflowStepRefusalTests
     public async Task An_agent_step_past_its_wait_limit_fails_the_workflow(WorkflowKind kind)
     {
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var clock = new ManualClock();
 
-        await using var host = await StartAsync(hanging);
+        await using var host = await StartAsync(hanging, clock);
 
         await SaveAsync(host, new WorkflowSaveRequest { Kind = kind, AgentNames = [SlowAgent, FastAgent] });
 
-        var workflow = await RunAsync(host);
+        var workflow = await RunAsync(host, clock);
 
         workflow.Status.ShouldBe(RunStatus.Failed);
         workflow.Error.ShouldNotBeNull();
@@ -57,10 +58,12 @@ public sealed class WorkflowStepRefusalTests
     public async Task A_node_after_a_step_past_its_wait_limit_never_runs()
     {
         var hanging = new HangingModelProvider("hanging", respectsCancellation: true);
+        var clock = new ManualClock();
         var spoken = 0;
 
         await using var host = await StartAsync(
             hanging,
+            clock,
             builder => builder
                 .UseWorkflows()
                 .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
@@ -82,7 +85,7 @@ public sealed class WorkflowStepRefusalTests
             ],
         });
 
-        var workflow = await RunAsync(host);
+        var workflow = await RunAsync(host, clock);
 
         spoken.ShouldBe(0, "the refusal sentence reached the next node as its input");
         workflow.Status.ShouldBe(RunStatus.Failed);
@@ -94,6 +97,7 @@ public sealed class WorkflowStepRefusalTests
     {
         await using var host = await StartAsync(
             new HangingModelProvider("hanging", respectsCancellation: true),
+            clock: null,
             configureGraph: static graph => graph.MaxTotalRuns = 1);
 
         await SaveAsync(host, new WorkflowSaveRequest
@@ -151,6 +155,7 @@ public sealed class WorkflowStepRefusalTests
 
     private static Task<TraconTestHost> StartAsync(
         HangingModelProvider hanging,
+        ManualClock? clock,
         Action<ITraconBuilder>? configure = null,
         Action<TraconAgentGraphOptions>? configureGraph = null)
         => TraconTestHost.StartAsync(
@@ -174,18 +179,40 @@ public sealed class WorkflowStepRefusalTests
                     configure(builder);
                 }
             },
-            configureServices: services => services.Configure<TraconOptions>(options =>
+            configureServices: services =>
             {
-                options.AgentGraph.ChildDeadline = TimeSpan.FromMilliseconds(200);
-                options.AgentGraph.WaitTimeout = TimeSpan.FromSeconds(10);
-                configureGraph?.Invoke(options.AgentGraph);
-            }));
+                if (clock is not null)
+                {
+                    services.AddSingleton<TimeProvider>(clock);
+                }
+
+                services.Configure<TraconOptions>(options =>
+                {
+                    options.AgentGraph.ChildDeadline = TimeSpan.FromMilliseconds(200);
+                    options.AgentGraph.WaitTimeout = TimeSpan.FromSeconds(10);
+                    configureGraph?.Invoke(options.AgentGraph);
+                });
+            });
 
     private static async Task SaveAsync(TraconTestHost host, WorkflowSaveRequest request)
     {
         using var saved = await host.Client.PutAsJsonAsync("/tracon/api/workflows/steps", request);
 
         saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>
+    /// Runs the workflow and moves the host's clock to the timers within a second, the step's deadline among them: the
+    /// step's wait limit counts on the clock, so it cannot pass before the child is inside its model call. The wait
+    /// timeout of ten seconds is left alone.
+    /// </summary>
+    private static async Task<RunRecord> RunAsync(TraconTestHost host, ManualClock clock)
+    {
+        var running = RunAsync(host);
+
+        await clock.AdvanceUntilAsync(running, within: TimeSpan.FromSeconds(1));
+
+        return await running;
     }
 
     private static async Task<RunRecord> RunAsync(TraconTestHost host)
