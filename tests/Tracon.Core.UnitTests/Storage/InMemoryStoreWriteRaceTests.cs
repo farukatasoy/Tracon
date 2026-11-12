@@ -3,8 +3,9 @@ using System.Text.Json;
 namespace Tracon.Core.UnitTests.Storage;
 
 /// <summary>
-/// Two in-memory stores whose write was two steps that another caller could land between: a rule added twice, a checkpoint
-/// added to a list a delete had just taken away.
+/// In-memory stores whose write was two steps that another caller could land between: a rule added twice, a checkpoint
+/// added to a list a delete had just taken away. The experiment store is here for the same reason in the other direction:
+/// its writes are one step each, under one lock, and the three pairs of writes that can overlap are held to it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -103,6 +104,134 @@ public sealed class InMemoryStoreWriteRaceTests
 
         (await deleting + kept).ShouldBe(created, "a checkpoint that was created was neither kept nor counted by a delete");
     }
+
+    [Fact]
+    public async Task Two_experiments_of_one_agent_started_at_once_leave_one_of_them_running()
+    {
+        const int rounds = 2_000;
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        for (var round = 0; round < rounds; round++)
+        {
+            var store = new InMemoryExperimentStore();
+            await store.SaveAsync(Draft("first"), cancellationToken);
+            await store.SaveAsync(Draft("second"), cancellationToken);
+            using var start = new Barrier(2);
+
+            var started = await Task.WhenAll(
+                Dedicated(() => StartedAsync(store, "first", start, cancellationToken)),
+                Dedicated(() => StartedAsync(store, "second", start, cancellationToken)));
+
+            started.Count(static won => won).ShouldBe(1, $"round {round}: both starts saw no running experiment of the agent");
+            (await store.ListAsync(Tenant, cancellationToken)).Count(static experiment => experiment.Status == ExperimentStatus.Running)
+                .ShouldBe(1, $"round {round}: two experiments of one agent are running");
+        }
+    }
+
+    [Fact]
+    public async Task A_draft_saved_while_it_is_started_stays_started()
+    {
+        const int rounds = 2_000;
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        for (var round = 0; round < rounds; round++)
+        {
+            var store = new InMemoryExperimentStore();
+            await store.SaveAsync(Draft("checkout"), cancellationToken);
+            using var start = new Barrier(2);
+
+            await Task.WhenAll(
+                Dedicated(() => StartedAsync(store, "checkout", start, cancellationToken)),
+                Dedicated(async () =>
+                {
+                    start.SignalAndWait(cancellationToken);
+
+                    try
+                    {
+                        await store.SaveAsync(Draft("checkout"), cancellationToken);
+                    }
+                    catch (TraconException)
+                    {
+                        // The start came first and a running experiment is not edited: refused, as it must be.
+                    }
+
+                    return true;
+                }));
+
+            var kept = (await store.GetAsync(Tenant, "checkout", cancellationToken)).ShouldNotBeNull();
+
+            kept.Status.ShouldBe(ExperimentStatus.Running, $"round {round}: the save wrote the draft back over the start");
+            kept.StartedAt.ShouldNotBeNull($"round {round}: the start time was lost");
+        }
+    }
+
+    [Fact]
+    public async Task A_canary_rule_set_while_the_canary_is_rolled_back_leaves_the_experiment_stopped()
+    {
+        const int rounds = 2_000;
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var policy = new CanaryPolicy { CanaryVariant = "candidate", MaxErrorRateDelta = 0.1, MinSampleSize = 20 };
+
+        for (var round = 0; round < rounds; round++)
+        {
+            var store = new InMemoryExperimentStore();
+            await store.SaveAsync(Draft("checkout"), cancellationToken);
+            await store.StartAsync(Tenant, "checkout", cancellationToken);
+            using var start = new Barrier(2);
+
+            await Task.WhenAll(
+                Dedicated(async () =>
+                {
+                    start.SignalAndWait(cancellationToken);
+                    await store.SetCanaryPolicyAsync(Tenant, "checkout", policy, cancellationToken);
+
+                    return true;
+                }),
+                Dedicated(async () =>
+                {
+                    start.SignalAndWait(cancellationToken);
+                    await store.RollbackCanaryAsync(Tenant, "checkout", Draft("checkout").Variants, "error rate", cancellationToken);
+
+                    return true;
+                }));
+
+            var kept = (await store.GetAsync(Tenant, "checkout", cancellationToken)).ShouldNotBeNull();
+
+            kept.Status.ShouldBe(ExperimentStatus.Stopped, $"round {round}: the rule write brought a rolled-back experiment back to life");
+            kept.RollbackReason.ShouldBe("error rate", $"round {round}: the reason of the rollback was lost");
+        }
+    }
+
+    // Both threads have read the store when the first write lands: the one that finds the agent taken is refused, as it must be.
+    private static async Task<bool> StartedAsync(InMemoryExperimentStore store, string name, Barrier start, CancellationToken cancellationToken)
+    {
+        start.SignalAndWait(cancellationToken);
+
+        try
+        {
+            await store.StartAsync(Tenant, name, cancellationToken);
+
+            return true;
+        }
+        catch (TraconException)
+        {
+            return false;
+        }
+    }
+
+    private static Experiment Draft(string name)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Tenant,
+            Name = name,
+            AgentName = "support",
+            Variants =
+            [
+                new ExperimentVariant { Name = "control", Version = 1, Weight = 50 },
+                new ExperimentVariant { Name = "candidate", Version = 2, Weight = 50 },
+            ],
+        };
 
     private static Task<T> Dedicated<T>(Func<Task<T>> work)
         => Task.Factory.StartNew(
