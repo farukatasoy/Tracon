@@ -1,3 +1,4 @@
+using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Tracon.Workflows.UnitTests.Fakes;
 using static Tracon.Workflows.UnitTests.Fakes.TimeoutRuns;
@@ -174,6 +175,62 @@ public sealed class WorkflowDefinitionRunTimeoutTests
         var secondRun = await RunOf(host, await second.WaitAsync(TestContext.Current.CancellationToken));
 
         secondRun.Status.ShouldBe(RunStatus.Completed);
+    }
+
+    [Fact]
+    public async Task A_code_run_timeout_above_a_lowered_ceiling_still_runs_cut_to_the_ceiling_and_the_reason_names_the_registration()
+    {
+        // The registration is checked when the host starts, so a ceiling lowered afterwards leaves a value above it. The
+        // run is cut to the ceiling (the same rule as a stored definition's), and the reason it carries names the
+        // setting of the registration, not the definition's.
+        var clock = new ManualClock();
+        var host = Host(clock);
+        var started = Signal();
+
+        var registration = new CodeWorkflowRegistration(
+            "hanging",
+            "Waits until it is stopped.",
+            _ => HangingGraph(started),
+            RunTimeout: TimeSpan.FromMinutes(45));
+
+        var runner = host.CreateRunnerWithTimeProvider(
+            clock,
+            static options =>
+            {
+                options.RunTimeout = Installation;
+                options.MaxRunTimeout = TimeSpan.FromMinutes(20);
+            },
+            services: null,
+            registration);
+        var collecting = Collect(runner, "hanging");
+
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        clock.Pending.ShouldBe([TimeSpan.FromMinutes(20)], "the registration's 45 minutes are cut to the ceiling");
+
+        clock.Advance(TimeSpan.FromMinutes(20));
+
+        var run = await RunOf(host, await collecting.WaitAsync(TestContext.Current.CancellationToken));
+
+        run.Status.ShouldBe(RunStatus.Canceled);
+        run.Error!.Type.ShouldBe(nameof(TimeoutException));
+        run.Error.Message.ShouldContain(nameof(WorkflowRegistrationOptions.RunTimeout), Case.Sensitive);
+        run.Error.Message.ShouldNotContain("'runTimeout'", Case.Sensitive);
+    }
+
+    private static Workflow HangingGraph(TaskCompletionSource started)
+    {
+        var step = ExecutorBindingExtensions.BindAsExecutor<List<ChatMessage>, string>(
+            async (_, _, cancellationToken) =>
+            {
+                started.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
+
+                return "never";
+            },
+            id: "hang");
+
+        return new WorkflowBuilder(step).WithOutputFrom(step).WithName("hanging").Build();
     }
 
     private static async Task SaveRunTimeoutAsync(WorkflowTestHost host, TimeSpan runTimeout)
