@@ -1,5 +1,5 @@
 import { Fragment, useState, type ChangeEvent, type ReactNode } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { useT, type MessageKey } from '../lib/i18n';
 import { DiffView } from '../components/diff-view';
@@ -203,8 +203,12 @@ const ACTION_TONES: Record<string, StatusTone> = {
   skipped: 'neutral',
 };
 
+/** The query keys of everything an import can write: the lists the console reads definitions from. */
+const IMPORTED_QUERY_KEYS = ['agents', 'workflows', 'skills', 'mcp-servers', 'tools'] as const;
+
 function ImportPanel({ canApply }: { canApply: boolean }): ReactNode {
   const t = useT();
+  const queryClient = useQueryClient();
   const [bundle, setBundle] = useState<DefinitionBundle | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -218,7 +222,17 @@ function ImportPanel({ canApply }: { canApply: boolean }): ReactNode {
           body: bundle as DefinitionBundle,
         }),
       ),
-    onSuccess: setReport,
+    onSuccess: (result) => {
+      setReport(result);
+
+      // A check writes nothing. A write that landed, whole or half way, changes what every list shows, and the
+      // cache would keep the old one for up to five seconds.
+      if (!result.dryRun && (result.written?.length ?? 0) > 0) {
+        for (const queryKey of IMPORTED_QUERY_KEYS) {
+          void queryClient.invalidateQueries({ queryKey: [queryKey] });
+        }
+      }
+    },
   });
 
   const choose = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
@@ -246,8 +260,10 @@ function ImportPanel({ canApply }: { canApply: boolean }): ReactNode {
     }
   };
 
-  // The apply button is only ever lit by a CHECKED file: the report it answers is the one on screen.
-  const applicable = canApply && report !== null && report.dryRun && report.valid;
+  // The apply button is lit by a CHECKED file, and again by a write that stopped half way: the report on screen says
+  // "apply again to write the rest", and writing again is safe (what was written is `unchanged` the second time). A
+  // report of a write that went through whole lights nothing; the file has to be checked again.
+  const applicable = canApply && report !== null && report.valid && (report.dryRun || !report.applied);
 
   return (
     <Panel title={t('transfer.import.title')}>

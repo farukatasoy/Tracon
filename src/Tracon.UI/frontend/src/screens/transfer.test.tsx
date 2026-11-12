@@ -149,6 +149,85 @@ describe('TransferScreen import', () => {
     expect((await screen.findByTestId('transfer-written')).textContent).toBe('agent:worker, agent:triage');
   });
 
+  // The report says "Apply again to write the rest": a write that stopped half way leaves a valid, partial report on
+  // screen, and the button that sentence points to has to be lit. Writing again is safe, the planner marks what was
+  // written `unchanged`.
+  it('keeps Apply lit after a write that stopped half way, and writes again', async () => {
+    mount(validDryRun, undefined, {
+      ...validDryRun,
+      dryRun: false,
+      applied: false,
+      partial: true,
+      written: ['agent:worker'],
+    });
+
+    const user = userEvent.setup();
+
+    await user.upload(screen.getByTestId('transfer-file'), file(JSON.stringify(BUNDLE)));
+    await user.click(screen.getByTestId('transfer-check'));
+    await screen.findByTestId('transfer-report');
+    await user.click(screen.getByTestId('transfer-apply'));
+
+    await waitFor(() => expect((screen.getByTestId('transfer-written')).textContent).toBe('agent:worker'));
+    expect(screen.getByText(/Apply again to write the rest/)).toBeTruthy();
+    expect((screen.getByTestId('transfer-apply') as HTMLButtonElement).disabled).toBe(false);
+
+    await user.click(screen.getByTestId('transfer-apply'));
+
+    await waitFor(() => expect(imports.map((entry) => entry.dryRun)).toStrictEqual(['true', 'false', 'false']));
+  });
+
+  it('does not light Apply for a report that was applied whole', async () => {
+    mount(validDryRun, undefined, { ...validDryRun, dryRun: false, applied: true, written: ['agent:worker', 'agent:triage'] });
+
+    const user = userEvent.setup();
+
+    await user.upload(screen.getByTestId('transfer-file'), file(JSON.stringify(BUNDLE)));
+    await user.click(screen.getByTestId('transfer-check'));
+    await screen.findByTestId('transfer-report');
+    await user.click(screen.getByTestId('transfer-apply'));
+    await screen.findByTestId('transfer-written');
+
+    expect((screen.getByTestId('transfer-apply') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // The export panel on the same screen and every other screen list the definitions from the query cache, which is
+  // five seconds old at most; a write that lands new ones has to make them reload.
+  it('reloads the definition lists after a write, and not after a check', async () => {
+    const reads: string[] = [];
+
+    restoreFetch = installApiMock([
+      { method: 'GET', pattern: 'api/agents', handler: () => { reads.push('agents'); return []; } },
+      { method: 'GET', pattern: 'api/workflows', handler: () => { reads.push('workflows'); return []; } },
+      {
+        method: 'POST',
+        pattern: 'api/definitions/import',
+        handler: (_params, url) =>
+          url.searchParams.get('dryRun') === 'false'
+            ? { ...validDryRun, dryRun: false, applied: true, written: ['agent:worker'] }
+            : validDryRun,
+      },
+    ]);
+
+    renderScreen(<TransferScreen meta={{ ...testMeta, roles: { canRead: true, canOperate: true, canAdminister: true } }} />);
+
+    const user = userEvent.setup();
+
+    await waitFor(() => expect(reads.slice().sort()).toStrictEqual(['agents', 'workflows']));
+
+    await user.upload(screen.getByTestId('transfer-file'), file(JSON.stringify(BUNDLE)));
+    await user.click(screen.getByTestId('transfer-check'));
+    await screen.findByTestId('transfer-report');
+
+    // A check writes nothing: no reload.
+    expect(reads).toHaveLength(2);
+
+    await user.click(screen.getByTestId('transfer-apply'));
+    await screen.findByTestId('transfer-written');
+
+    await waitFor(() => expect(reads.slice().sort()).toStrictEqual(['agents', 'agents', 'workflows', 'workflows']));
+  });
+
   it('never lights Apply for a file that is not valid, and shows the finding', async () => {
     mount(invalidDryRun);
 
