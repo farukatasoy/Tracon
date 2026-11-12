@@ -27,14 +27,19 @@ namespace Tracon;
 internal sealed class McpElicitingTool : DelegatingAIFunction
 {
     private readonly string _serverName;
+    private readonly Func<bool>? _connectionClosed;
 
     /// <summary>Wraps a discovered tool.</summary>
     /// <param name="remote">The tool as the MCP client discovered it.</param>
     /// <param name="serverName">The server the tool belongs to.</param>
-    public McpElicitingTool(AIFunction remote, string serverName)
+    /// <param name="connectionClosed">
+    /// Tells whether the connection the tool calls through has been closed; <see langword="null"/> when it cannot be.
+    /// </param>
+    public McpElicitingTool(AIFunction remote, string serverName, Func<bool>? connectionClosed = null)
         : base(remote)
     {
         _serverName = serverName;
+        _connectionClosed = connectionClosed;
     }
 
     /// <summary>Gets the tool as the MCP client discovered it.</summary>
@@ -72,6 +77,19 @@ internal sealed class McpElicitingTool : DelegatingAIFunction
         catch (Exception) when (scope.Pending is not null && !cancellationToken.IsCancellationRequested)
         {
             return Suspend(scope, loop, run!);
+        }
+
+        // The client of a closed connection fails its calls with a cancellation the caller never asked for. Read as such it
+        // looks like the run was stopped, and the operator is told "TaskCanceledException"; the cause is the closed connection.
+        catch (Exception exception) when (
+            exception is OperationCanceledException or ObjectDisposedException
+            && !cancellationToken.IsCancellationRequested
+            && _connectionClosed?.Invoke() == true)
+        {
+            throw new TraconException(
+                $"The connection to MCP server '{_serverName}' is closed, so the call to '{Name}' did not run. " +
+                "A refresh of the server list or a stopping host closed it while the run still held the tool.",
+                exception);
         }
         finally
         {

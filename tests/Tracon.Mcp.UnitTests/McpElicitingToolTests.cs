@@ -157,6 +157,39 @@ public sealed class McpElicitingToolTests
         };
 
     /// <summary>A tool whose body asks the way the SDK's retry loop does: through the connection's handler.</summary>
+    [Fact]
+    public async Task A_call_that_is_cancelled_because_its_connection_was_closed_says_the_connection_is_closed()
+    {
+        var inner = AIFunctionFactory.Create(
+            static () => Task.FromException<string>(new TaskCanceledException("A task was canceled.")), "srv_ping");
+        var tool = new McpElicitingTool(inner, "srv", connectionClosed: static () => true);
+
+        var failure = await Should.ThrowAsync<TraconException>(async () => await tool.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), TestContext.Current.CancellationToken));
+
+        failure.Message.ShouldContain("'srv'", Case.Sensitive);
+        failure.Message.ShouldContain("closed", Case.Sensitive);
+        ToolFailureText.Get(failure).ShouldBe(failure.Message, "the model and the operator read the explanation, not 'TaskCanceledException'");
+    }
+
+    [Fact]
+    public async Task A_cancellation_on_an_open_connection_or_by_the_caller_stays_a_cancellation()
+    {
+        var inner = AIFunctionFactory.Create(
+            static () => Task.FromException<string>(new TaskCanceledException("A task was canceled.")), "srv_ping");
+        var open = new McpElicitingTool(inner, "srv", connectionClosed: static () => false);
+        var unknown = new McpElicitingTool(inner, "srv");
+        var closed = new McpElicitingTool(inner, "srv", connectionClosed: static () => true);
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await open.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<OperationCanceledException>(async () => await unknown.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), TestContext.Current.CancellationToken));
+
+        // The caller stopped the call itself: that is its own cancellation, whatever state the connection is in.
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await closed.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), cancellation.Token));
+    }
+
     private static McpElicitingTool HandlerBackedTool()
     {
         var handler = new McpElicitationHandler("srv", NullLogger.Instance);

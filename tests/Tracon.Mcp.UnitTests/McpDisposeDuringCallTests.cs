@@ -1,3 +1,4 @@
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -130,6 +131,38 @@ public sealed class McpDisposeDuringCallTests
         var (status, _) = await read;
 
         Enum.IsDefined(status).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task The_read_resource_tool_of_a_closed_connection_says_the_connection_is_closed()
+    {
+        await using var server = ScriptedMcpServer.Start(
+            static (method, _, _, _) => Task.FromResult<string?>(method switch
+            {
+                "tools/list" => "{\"tools\":[]}",
+                "resources/list" => "{\"resources\":[{\"uri\":\"res://1\",\"name\":\"one\"}]}",
+                _ => "{}",
+            }),
+            Capabilities);
+
+        var catalog = NewCatalog(await StoreAsync(server));
+
+        await catalog.RefreshAsync(TestContext.Current.CancellationToken);
+
+        var tools = catalog.ForTenant("default");
+        var name = tools.Descriptors.Select(static tool => tool.Name).Single(static name => name.EndsWith("read_resource", StringComparison.Ordinal));
+
+        tools.TryGet(name, out var declared).ShouldBeTrue();
+
+        // A refresh that replaced the connection, or a host that stopped, closed it; a run still holds the tool.
+        await catalog.DisposeAsync();
+
+        var failure = await Should.ThrowAsync<Exception>(async () => await ((AIFunction)declared!).InvokeAsync(
+            new AIFunctionArguments(new Dictionary<string, object?>(StringComparer.Ordinal) { ["uri"] = "res://1" }, StringComparer.Ordinal),
+            TestContext.Current.CancellationToken));
+
+        failure.Message.ShouldContain("closed", Case.Sensitive);
+        failure.Message.ShouldNotContain("not among the resources declared", Case.Sensitive);
     }
 
     private static McpToolCatalog NewCatalog(InMemoryMcpServerStore servers)

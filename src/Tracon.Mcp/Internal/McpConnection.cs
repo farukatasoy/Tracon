@@ -43,6 +43,7 @@ internal sealed class McpConnection : IAsyncDisposable
     private readonly HashSet<string> _subscribedUris = new(StringComparer.Ordinal);
     private readonly List<IAsyncDisposable> _subscriptions = [];
     private readonly SemaphoreSlim _resourceGate = new(1, 1);
+    private volatile bool _closed;
 
     private List<Resource> DeclaredResourceCache { get; set; } = [];
 
@@ -433,6 +434,9 @@ internal sealed class McpConnection : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        // First, so a call that fails because of what follows can say why: the client is about to be closed.
+        _closed = true;
+
         Tools = [];
         DeclaredResourceCache = [];
         _resourceCache.Clear();
@@ -572,6 +576,13 @@ internal sealed class McpConnection : IAsyncDisposable
         string uri,
         CancellationToken cancellationToken)
     {
+        // A closed connection holds no declared resources, which read as "not among the resources declared": a message about
+        // the server's list when the connection is what is gone.
+        if (_closed)
+        {
+            throw new InvalidOperationException($"The connection to MCP server '{_serverName}' is closed, so '{uri}' was not read.");
+        }
+
         var (status, content) = await ReadDeclaredResourceAsync(
             uri,
             _options.MaxResourceBytesPerResource,
@@ -667,7 +678,7 @@ internal sealed class McpConnection : IAsyncDisposable
             // and the server can change it at any time. This is why
             // approval defaults to required.
             registrations.Add(CreateRegistration(
-                new McpElicitingTool(new McpClientTool(_client, tool, serializerOptions: null).WithName(qualified), _serverName),
+                new McpElicitingTool(new McpClientTool(_client, tool, serializerOptions: null).WithName(qualified), _serverName, () => _closed),
                 _serverName,
                 _requiresApproval));
         }
