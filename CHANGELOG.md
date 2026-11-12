@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **In memory, two callers that add the same approval rule at once keep one rule, and a checkpoint is no longer lost to a delete of its session.** `InMemoryToolApprovalRuleStore.AddAsync` looked for an equal rule and then added, so two simultaneous "do not ask again" answers could both find none and keep two rules. The look and the add are now one step, as the unique key of the SQL stores makes them. `InMemoryWorkflowCheckpointStore.CreateAsync` could add a checkpoint to the list of a session that a delete had just removed, and answer success for a checkpoint that nobody could read; it now starts again on the list that is there, and a delete counts the checkpoints it removed under the list's lock. `InMemoryJobStore.EnqueueAsync` publishes the job and its items together.
+  What to do:
+  - **Nothing.** The SQL stores were not affected.
+
 - **A webhook subscription that a failed delivery switched off is reported in the log even when the write's answer was lost on the way back.** The delivery that reaches the failure threshold asks the store to count it, and the store answers whether this call switched the subscription off. When the call committed and the connection dropped before the answer arrived, the write was tried again, the store found the subscription off already and answered `false`, and the `Webhook subscription '…' was disabled` warning was never written. After a write that threw once, the handler now reads the subscription back and writes the warning when it is disabled. The failure counter can still be counted twice in that case (the second try is a second count); that part is unchanged.
   What to do:
   - **Nothing.** A log alert on that warning now fires in the case it missed.

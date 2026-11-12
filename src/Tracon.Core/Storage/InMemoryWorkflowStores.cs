@@ -253,19 +253,32 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
 
         record = record with { TenantId = AmbientTenantScope.Normalize(record.TenantId) };
 
-        var list = _checkpoints.GetOrAdd(new SessionKey(record.TenantId, record.SessionId), static _ => []);
+        var key = new SessionKey(record.TenantId, record.SessionId);
 
-        lock (list)
+        while (true)
         {
-            list.Add(record);
+            var list = _checkpoints.GetOrAdd(key, static _ => []);
 
-            if (list.Count > MaxCheckpointsPerSession)
+            lock (list)
             {
-                list.RemoveAt(0);
-            }
-        }
+                // A delete that ran between the look-up and the lock took this list out of the dictionary. A checkpoint
+                // added to it now would be lost though the caller was told it was kept, so the add starts again on
+                // the list that is there. A delete that comes later counts this checkpoint (it reads the count under the lock).
+                if (!_checkpoints.TryGetValue(key, out var current) || !ReferenceEquals(current, list))
+                {
+                    continue;
+                }
 
-        return new ValueTask<WorkflowCheckpointRecord>(record);
+                list.Add(record);
+
+                if (list.Count > MaxCheckpointsPerSession)
+                {
+                    list.RemoveAt(0);
+                }
+            }
+
+            return new ValueTask<WorkflowCheckpointRecord>(record);
+        }
     }
 
     /// <inheritdoc />
@@ -369,8 +382,16 @@ internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
 
         tenantId = AmbientTenantScope.Normalize(tenantId);
 
-        return new ValueTask<int>(
-            _checkpoints.TryRemove(new SessionKey(tenantId, sessionId), out var removed) ? removed.Count : 0);
+        if (!_checkpoints.TryRemove(new SessionKey(tenantId, sessionId), out var removed))
+        {
+            return new ValueTask<int>(0);
+        }
+
+        // The count is read under the list's lock: an add that holds the lock finishes first and is counted.
+        lock (removed)
+        {
+            return new ValueTask<int>(removed.Count);
+        }
     }
 
     /// <summary>

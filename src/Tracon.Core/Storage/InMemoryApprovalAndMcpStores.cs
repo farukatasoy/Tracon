@@ -42,15 +42,20 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
 
         rule = rule with { TenantId = AmbientTenantScope.Normalize(rule.TenantId) };
 
-        foreach (var existing in _rules.Values)
+        // The look for an equal rule and the add are one step: two callers that add the same rule at once would both
+        // find none and keep two (the SQL stores' unique key refuses the second and answers with the first).
+        lock (_rules)
         {
-            if (Matches(existing, rule))
+            foreach (var existing in _rules.Values)
             {
-                return new ValueTask<ToolApprovalRule>(existing);
+                if (Matches(existing, rule))
+                {
+                    return new ValueTask<ToolApprovalRule>(existing);
+                }
             }
-        }
 
-        _rules[rule.Id] = rule;
+            _rules[rule.Id] = rule;
+        }
 
         return new ValueTask<ToolApprovalRule>(rule);
     }
