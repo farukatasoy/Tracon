@@ -89,26 +89,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 
-// Telemetry export. Tracon does not choose an exporter; this application does. The OTLP exporter is
-// registered ONLY when `OTEL_EXPORTER_OTLP_ENDPOINT` is set - the Aspire AppHost (samples/Tracon.AppHost) sets it, and
-// so can any collector setup. Without it nothing below runs and the sample behaves exactly as before.
-//
-// `UseOtlpExporter()` reads the standard `OTEL_*` variables (endpoint, protocol, headers, service name), so no address
-// is written here. If the endpoint is unreachable the SDK drops what it cannot send; it does not stop the application.
-if (builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] is { Length: > 0 })
-{
-    builder.Services.AddOpenTelemetry()
-        .WithTracing(tracing => tracing
-            // The request span is the parent of `tracon.run`, so the dashboard shows one tree per request.
-            .AddAspNetCoreInstrumentation()
-            .AddSource(TraconDiagnostics.ActivitySourceName)
-            // The framework's own workflow spans, for a graph built in code with `WithOpenTelemetry()`.
-            .AddSource("Microsoft.Agents.AI.Workflows"))
-        .WithMetrics(metrics => metrics
-            .AddAspNetCoreInstrumentation()
-            .AddMeter(TraconDiagnostics.MeterName))
-        .UseOtlpExporter();
-}
+// Telemetry export: the OTLP exporter, registered only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (see `OtlpExport`).
+OtlpExport.AddWhenConfigured(builder.Services, builder.Configuration);
 
 // Role-based authorization.
 //

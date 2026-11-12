@@ -70,6 +70,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      The reference host's OTLP registration, which only the host's Program calls and no test project can host (the file
+      holds one method, so a test reads what it registers). The packages are the three the host references.
+    -->
+    <Compile Include="../../samples/Tracon.Api/Telemetry/OtlpExport.cs" LinkBase="Shared" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The committed snapshots of the surfaces that are not .NET API. -->
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
     <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" LinkBase="Shared" />
