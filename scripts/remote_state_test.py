@@ -340,12 +340,186 @@ class CiStateTests(unittest.TestCase):
         self.assertEqual(["ci.yml", "stability.yml"], [command[command.index("--workflow") + 1] for command in listings])
         self.assertTrue(all("-R" in command for command in listings))
 
+    def test_the_branch_defaults_to_next_and_is_a_parameter(self) -> None:
+        commands: list[list[str]] = []
+
+        def run(command, **kwargs):  # noqa: ANN001, ANN202
+            commands.append(list(command))
+
+            if command[:2] == ["git", "remote"]:
+                return subprocess.CompletedProcess(command, 0, stdout="https://github.com/owner/repo.git\n", stderr="")
+
+            return subprocess.CompletedProcess(command, 0, stdout="[]", stderr="")
+
+        remote_state.ci_state(ROOT, runner=run, which=lambda name: "/usr/bin/gh")
+        remote_state.ci_state(ROOT, branch="main", runner=run, which=lambda name: "/usr/bin/gh")
+
+        listings = [command for command in commands if command[:3] == ["gh", "run", "list"]]
+        self.assertEqual(["next", "main"], [command[command.index("--branch") + 1] for command in listings])
+
     def test_everything_unreadable_is_none(self) -> None:
         self.assertIsNone(self._state([], gh_code=1))
         self.assertIsNone(self._state([]))
         self.assertIsNone(remote_state.ci_state(ROOT, runner=self._runner([]), which=lambda name: None))
 
 
+def _run(sha: str, *, event: str = "push", branch: str = "next", repository: str = "owner/repo",
+         status: str = "completed", conclusion: str = "success") -> dict[str, object]:
+    return {
+        "head_sha": sha, "event": event, "head_branch": branch, "status": status, "conclusion": conclusion,
+        "html_url": f"https://github.com/owner/repo/actions/runs/{sha}", "head_repository": {"full_name": repository},
+    }
+
+
+def _runs_answer(*runs: dict[str, object]) -> tuple[int, str]:
+    return 200, json.dumps({"workflow_runs": list(runs)})
+
+
+class SlugOfTests(unittest.TestCase):
+    def test_reads_the_owner_and_name_of_every_url_shape_without_asking_git(self) -> None:
+        for url in ("https://github.com/owner/repo.git", "https://github.com/owner/repo", "git@github.com:owner/repo.git"):
+            self.assertEqual("owner/repo", remote_state.slug_of(url))
+
+    def test_text_that_names_no_repository_has_no_slug(self) -> None:
+        self.assertIsNone(remote_state.slug_of(""))
+        self.assertIsNone(remote_state.slug_of("/tmp/some/bare.git"))
+
+
+class CiRunsTests(unittest.TestCase):
+    def test_asks_the_runs_api_for_one_workflow_and_one_branch_without_pull_requests(self) -> None:
+        urls: list[str] = []
+
+        def fetcher(url: str) -> tuple[int, str]:
+            urls.append(url)
+            return _runs_answer()
+
+        remote_state.ci_runs("owner/repo", "next", fetcher=fetcher)
+
+        self.assertEqual(1, len(urls))
+        self.assertIn("/repos/owner/repo/actions/workflows/ci.yml/runs", urls[0])
+        self.assertIn("branch=next", urls[0])
+        self.assertIn("exclude_pull_requests=true", urls[0])
+
+    def test_reads_what_decides_a_run(self) -> None:
+        runs = remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: _runs_answer(_run("abc123", event="workflow_dispatch")))
+
+        self.assertEqual(
+            [remote_state.CiRun("abc123", "workflow_dispatch", "next", "owner/repo", "completed", "success",
+                                "https://github.com/owner/repo/actions/runs/abc123")],
+            runs,
+        )
+
+    def test_a_run_whose_head_repository_is_gone_has_none(self) -> None:
+        body = _run("abc123")
+        body["head_repository"] = None
+
+        runs = remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: _runs_answer(body))
+
+        self.assertEqual("", runs[0].repository)
+
+    def test_no_answer_a_server_error_and_a_broken_body_are_unreadable(self) -> None:
+        self.assertIsNone(remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: (None, "")))
+        self.assertIsNone(remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: (403, "rate limit")))
+        self.assertIsNone(remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: (200, "not json")))
+        self.assertIsNone(remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: (200, json.dumps({"runs": []}))))
+
+
+class GreenShasTests(unittest.TestCase):
+    def _green(self, *runs: dict[str, object]) -> set[str]:
+        parsed = remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: _runs_answer(*runs))
+
+        return remote_state.green_shas(parsed, slug="owner/repo", branch="next")
+
+    def test_a_completed_success_of_a_push_is_green(self) -> None:
+        self.assertEqual({"a"}, self._green(_run("a")))
+
+    def test_a_dispatch_run_is_green_too(self) -> None:
+        self.assertEqual({"a"}, self._green(_run("a", event="workflow_dispatch")))
+
+    def test_only_a_success_decides_green(self) -> None:
+        runs = [_run("f", conclusion="failure"), _run("c", conclusion="cancelled"), _run("s", conclusion="skipped"),
+                _run("t", conclusion="timed_out"), _run("n", conclusion="neutral")]
+
+        self.assertEqual(set(), self._green(*runs))
+
+    def test_a_run_that_has_not_finished_is_not_green_whatever_its_conclusion_says(self) -> None:
+        self.assertEqual(set(), self._green(_run("a", status="in_progress", conclusion=""), _run("b", status="queued", conclusion="success")))
+
+    def test_a_pull_request_run_is_not_green(self) -> None:
+        self.assertEqual(set(), self._green(_run("a", event="pull_request")))
+
+    def test_a_fork_run_with_the_same_branch_name_is_not_green(self) -> None:
+        self.assertEqual(set(), self._green(_run("a", repository="stranger/repo")))
+
+    def test_a_run_of_another_branch_is_not_green(self) -> None:
+        self.assertEqual(set(), self._green(_run("a", branch="main")))
+
+    def test_the_repository_compares_without_regard_to_case(self) -> None:
+        self.assertEqual({"a"}, self._green(_run("a", repository="Owner/Repo")))
+
+    def test_one_failed_run_of_a_sha_that_another_run_passed_does_not_unmake_it(self) -> None:
+        self.assertEqual({"a"}, self._green(_run("a", conclusion="failure"), _run("a")))
+
+    def test_nothing_read_is_nothing_green(self) -> None:
+        self.assertEqual(set(), remote_state.green_shas(None, slug="owner/repo", branch="next"))
+
+
+class PromotionStateTests(unittest.TestCase):
+    @staticmethod
+    def _fetcher(commits: list[str], *runs: dict[str, object]):
+        def fetch(url: str) -> tuple[int, str]:
+            if "/compare/" in url:
+                return 200, json.dumps({"ahead_by": len(commits), "commits": [{"sha": sha} for sha in commits]})
+
+            return _runs_answer(*runs)
+
+        return fetch
+
+    def test_main_level_with_next_is_not_behind(self) -> None:
+        state = remote_state.promotion_state("owner/repo", fetcher=self._fetcher([]))
+
+        self.assertEqual(remote_state.Promotion(0, None), state)
+
+    def test_the_newest_green_commit_ahead_of_main_is_the_one_to_promote(self) -> None:
+        state = remote_state.promotion_state(
+            "owner/repo", fetcher=self._fetcher(["old", "mid", "new"], _run("old"), _run("mid"), _run("new", conclusion="failure")))
+
+        self.assertEqual(remote_state.Promotion(3, "mid"), state)
+
+    def test_main_behind_next_with_nothing_green_has_nothing_to_promote(self) -> None:
+        state = remote_state.promotion_state("owner/repo", fetcher=self._fetcher(["a", "b"], _run("a", conclusion="failure")))
+
+        self.assertEqual(remote_state.Promotion(2, None), state)
+
+    def test_the_compare_asks_main_against_next(self) -> None:
+        urls: list[str] = []
+
+        def fetch(url: str) -> tuple[int, str]:
+            urls.append(url)
+            return self._fetcher([])(url)
+
+        remote_state.promotion_state("owner/repo", fetcher=fetch)
+
+        self.assertTrue(any("/repos/owner/repo/compare/main...next" in url for url in urls))
+
+    def test_an_unreadable_compare_or_run_list_is_no_answer(self) -> None:
+        self.assertIsNone(remote_state.promotion_state("owner/repo", fetcher=lambda url: (None, "")))
+        self.assertIsNone(remote_state.promotion_state("owner/repo", fetcher=lambda url: (200, json.dumps({"x": 1}))))
+
+
+class GithubHeadersTests(unittest.TestCase):
+    def test_a_token_in_the_environment_is_sent_only_to_the_api_host(self) -> None:
+        with mock.patch.dict("os.environ", {"GITHUB_TOKEN": "t0k"}, clear=True):
+            self.assertEqual("Bearer t0k", remote_state.github_headers("https://api.github.com/repos/o/r")["Authorization"])
+            self.assertNotIn("Authorization", remote_state.github_headers("https://api.nuget.org/v3/index.json"))
+
+    def test_without_a_token_the_request_is_anonymous(self) -> None:
+        with mock.patch.dict("os.environ", {}, clear=True):
+            self.assertNotIn("Authorization", remote_state.github_headers("https://api.github.com/repos/o/r"))
+            self.assertIn("Accept", remote_state.github_headers("https://api.github.com/repos/o/r"))
+
+
+@mock.patch.object(remote_state, "promotion_state", new=lambda *args, **kwargs: None)
 class RemoteStateCheckTests(unittest.TestCase):
     def _check(self, state: remote_state.ReleaseState, ci: remote_state.CiState | None = None) -> tuple[int, str]:
         output = io.StringIO()
@@ -383,7 +557,7 @@ class RemoteStateCheckTests(unittest.TestCase):
         code, text = self._check(remote_state.ReleaseState("1.0.0", (), (), 2), ci)
 
         self.assertEqual(0, code)
-        self.assertIn("The last CI run of 'origin' is red", text)
+        self.assertIn("The last CI run of 'origin' on next is red", text)
 
     def test_the_ci_line_names_the_remote_it_read_and_a_running_run_is_not_green(self) -> None:
         running = remote_state.CiState("in_progress", "", "https://example.test/run", "abcdef01")
@@ -432,7 +606,7 @@ class RemoteStateCheckTests(unittest.TestCase):
         self.assertIn("The last stability run of 'mirror' is red", text)
         self.assertIn("https://example.test/stability", text)
         self.assertIn("fix the instability first", text)
-        self.assertIn("✅ The last CI run of 'mirror' is green", text)
+        self.assertIn("✅ The last CI run of 'mirror' on next is green", text)
 
     def test_a_green_stability_run_is_reported_and_a_missing_one_is_only_information(self) -> None:
         green = remote_state.CiState("completed", "success", "u", "abcdef01")
@@ -477,6 +651,88 @@ class RemoteStateCheckTests(unittest.TestCase):
 
         self.assertEqual(0, code)
         state.assert_not_called()
+
+
+@mock.patch.object(remote_state, "repository_slug", new=lambda *args, **kwargs: "owner/repo")
+class PromotionLinesTests(unittest.TestCase):
+    """`remote-state` says how far `main` is behind `next` and what the next promotion would move it to; information, never a failure."""
+
+    def _check(self, promotion: remote_state.Promotion | None) -> tuple[int, str]:
+        output = io.StringIO()
+
+        with mock.patch.object(breaking_changes, "resolve_baseline", return_value="1.0.0"), \
+                mock.patch.object(remote_state, "packable_ids_at", return_value=["A"]), \
+                mock.patch.object(remote_state, "release_state", return_value=remote_state.ReleaseState("1.0.0", (), (), 1)), \
+                mock.patch.object(remote_state, "ci_state", return_value=None), \
+                mock.patch.object(remote_state, "promotion_state", return_value=promotion) as asked, \
+                contextlib.redirect_stdout(output):
+            code = gate.remote_state_check(ROOT)
+
+        self.assertEqual([mock.call("owner/repo")], asked.call_args_list)
+
+        return code, output.getvalue()
+
+    def test_main_level_with_next_is_green(self) -> None:
+        code, text = self._check(remote_state.Promotion(0, None))
+
+        self.assertEqual(0, code)
+        self.assertIn("✅ main is level with next", text)
+
+    def test_main_behind_next_names_the_commit_the_next_promotion_moves_it_to(self) -> None:
+        code, text = self._check(remote_state.Promotion(3, "abcdef0123456789"))
+
+        self.assertEqual(0, code)
+        self.assertIn("main is 3 commit(s) behind next", text)
+        self.assertIn("awaiting promotion is abcdef01", text)
+
+    def test_main_behind_next_with_nothing_green_says_nothing_can_be_promoted(self) -> None:
+        code, text = self._check(remote_state.Promotion(2, None))
+
+        self.assertEqual(0, code)
+        self.assertIn("main is 2 commit(s) behind next", text)
+        self.assertIn("nothing can be promoted", text)
+
+    def test_an_unreadable_answer_is_information_and_does_not_fail_the_check(self) -> None:
+        code, text = self._check(None)
+
+        self.assertEqual(0, code)
+        self.assertIn("How far main is behind next on 'origin' could not be read", text)
+
+    def test_a_remote_with_no_repository_name_is_not_asked(self) -> None:
+        output = io.StringIO()
+
+        with mock.patch.object(breaking_changes, "resolve_baseline", return_value="1.0.0"), \
+                mock.patch.object(remote_state, "packable_ids_at", return_value=["A"]), \
+                mock.patch.object(remote_state, "release_state", return_value=remote_state.ReleaseState("1.0.0", (), (), 1)), \
+                mock.patch.object(remote_state, "ci_state", return_value=None), \
+                mock.patch.object(remote_state, "repository_slug", return_value=None), \
+                mock.patch.object(remote_state, "promotion_state") as asked, \
+                contextlib.redirect_stdout(output):
+            code = gate.remote_state_check(ROOT)
+
+        self.assertEqual(0, code)
+        asked.assert_not_called()
+        self.assertIn("could not be read", output.getvalue())
+
+    def test_the_ci_line_names_the_branch_it_read_and_the_stability_line_reads_main(self) -> None:
+        branches: list[str] = []
+
+        def ci_state(root, remote="origin", branch=remote_state.CI_BRANCH, *, workflow="ci.yml", **kwargs):  # noqa: ANN001, ANN202
+            branches.append(f"{workflow}:{branch}")
+            return remote_state.CiState("completed", "success", "u", "abcdef0123456789")
+
+        output = io.StringIO()
+
+        with mock.patch.object(breaking_changes, "resolve_baseline", return_value="1.0.0"), \
+                mock.patch.object(remote_state, "packable_ids_at", return_value=["A"]), \
+                mock.patch.object(remote_state, "release_state", return_value=remote_state.ReleaseState("1.0.0", (), (), 1)), \
+                mock.patch.object(remote_state, "ci_state", side_effect=ci_state), \
+                mock.patch.object(remote_state, "promotion_state", return_value=None), \
+                contextlib.redirect_stdout(output):
+            gate.remote_state_check(ROOT)
+
+        self.assertEqual(["ci.yml:next", f"{gate.STABILITY_WORKFLOW}:main"], branches)
+        self.assertIn("The last CI run of 'origin' on next is green", output.getvalue())
 
 
 class ClosingRunTests(unittest.TestCase):

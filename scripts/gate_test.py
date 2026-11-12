@@ -3874,7 +3874,30 @@ class DispatchReleaseWorkflowTests(unittest.TestCase):
         self.assertRegex(block.group(1), r"(?m)^      publish:\n(?:        .*\n)*?        type: boolean\n(?:        .*\n)*?        default: false")
 
     def test_the_tag_trigger_stays_because_the_release_page_is_written_by_the_tag_run(self):
-        self.assertRegex(self.uncommented, r"(?m)^on:\n  push:\n    branches: \[main\]\n    tags: \['v\*'\]")
+        self.assertRegex(self.uncommented, r"(?m)^on:\n  push:\n    branches: \[next\]\n    tags: \['v\*'\]")
+
+    def test_a_push_to_main_starts_no_run_because_next_is_where_the_run_decides(self):
+        """The mirror pushes to `next` and `main` only follows a commit that passed here: a run on `main` would
+        repeat a verdict `next` already gave, and a branch list that gained `main` again would double every run."""
+        push = re.search(r"(?m)^on:\n  push:\n    branches: \[([^\]]*)\]", self.uncommented)
+
+        self.assertIsNotNone(push)
+        self.assertEqual(["next"], [name.strip() for name in push.group(1).split(",")])
+        self.assertRegex(self.uncommented, r"(?m)^  pull_request:\n    branches: \[main\]\n")
+
+    def test_the_site_job_runs_on_next_and_on_a_manual_run_on_main_and_never_for_a_pull_request(self):
+        condition = self.jobs["site"]["if"]
+
+        self.assertIn("refs/heads/next", condition)
+        self.assertIn("refs/heads/main", condition)
+        self.assertIn("github.event_name != 'pull_request'", condition)
+
+    def test_only_the_two_publish_jobs_and_the_site_job_name_main_in_a_condition(self):
+        """A job that waits for `main` runs only in a manual run there; naming it anywhere else would mean a push to
+        `main` is expected to start work, which it does not."""
+        named = {name for name, job in self.jobs.items() if "refs/heads/main" in (job.get("if") or "")}
+
+        self.assertEqual({"publish", "npm-publish", "site"}, named)
 
     def test_a_tag_run_does_not_build_and_so_runs_nothing_that_needs_the_build(self):
         self.assertIn("!startsWith(github.ref, 'refs/tags/')", self.jobs["build"]["if"])
@@ -5646,6 +5669,7 @@ class CommandSurfaceTests(unittest.TestCase):
                     mock.patch.object(remote_state, "packable_ids_at", return_value=["A", "B"]), \
                     mock.patch.object(remote_state, "release_state", return_value=release), \
                     mock.patch.object(remote_state, "ci_state", side_effect=ci_state), \
+                    mock.patch.object(remote_state, "promotion_state", return_value=None), \
                     contextlib.redirect_stdout(output):
                 code = gate.remote_state_check(ROOT)
             return code, output.getvalue()

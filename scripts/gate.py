@@ -4246,19 +4246,37 @@ def remote_state_check(
 
         exit_code = max(exit_code, _untagged_release_state(root, version, tag_hint))
 
+    # The public CI decides on `next`; `main` only follows a commit of it that passed.
     ci = remote_state.ci_state(root, ci_remote)
+    branch = remote_state.CI_BRANCH
 
     if ci is None:
-        print(f"ℹ️ No decided CI run could be read for '{ci_remote}' (no gh, no session or access, no network, or all runs were skipped).")
+        print(f"ℹ️ No decided CI run could be read for '{ci_remote}' on {branch} (no gh, no session or access, no network, or all runs were skipped).")
     elif ci.is_red:
-        print(f"⚠️ The last CI run of '{ci_remote}' is red ({ci.conclusion}, {ci.sha}): {ci.url}")
+        print(f"⚠️ The last CI run of '{ci_remote}' on {branch} is red ({ci.conclusion}, {ci.sha}): {ci.url}")
     elif ci.status == "completed" and ci.conclusion == "success":
-        print(f"✅ The last CI run of '{ci_remote}' is green ({ci.sha})")
+        print(f"✅ The last CI run of '{ci_remote}' on {branch} is green ({ci.sha})")
     else:
-        print(f"ℹ️ The last CI run of '{ci_remote}' has not decided yet: {ci.status} {ci.conclusion}".rstrip() + f" ({ci.sha})")
+        print(f"ℹ️ The last CI run of '{ci_remote}' on {branch} has not decided yet: {ci.status} {ci.conclusion}".rstrip() + f" ({ci.sha})")
+
+    # How far the promoted branch is behind the one CI decides on, and what the next promotion would move it to. Information
+    # only: a `main` that waits is the model working, and the mirror's own run promotes it.
+    slug = remote_state.repository_slug(root, ci_remote)
+    promotion = remote_state.promotion_state(slug) if slug else None
+    promoted = remote_state.PROMOTED_BRANCH
+
+    if promotion is None:
+        print(f"ℹ️ How far {promoted} is behind {branch} on '{ci_remote}' could not be read (no network, or the GitHub API did not answer).")
+    elif promotion.behind == 0:
+        print(f"✅ {promoted} is level with {branch} on '{ci_remote}'")
+    elif promotion.candidate:
+        print(f"ℹ️ {promoted} is {promotion.behind} commit(s) behind {branch} on '{ci_remote}'; the newest green commit awaiting promotion is {promotion.candidate[:8]}")
+    else:
+        print(f"ℹ️ {promoted} is {promotion.behind} commit(s) behind {branch} on '{ci_remote}'; no commit of {branch} has a green run yet, so nothing can be promoted")
 
     # The weekly stability run (`stability.yml`) is a warning only: a red one means the tests are unstable.
-    stability = remote_state.ci_state(root, ci_remote, workflow=STABILITY_WORKFLOW)
+    # A scheduled workflow runs on the default branch, which is `main`.
+    stability = remote_state.ci_state(root, ci_remote, branch=remote_state.PROMOTED_BRANCH, workflow=STABILITY_WORKFLOW)
 
     if stability is None:
         print(f"ℹ️ No decided stability run could be read for '{ci_remote}' (it has not run yet, or there is no gh or no network).")

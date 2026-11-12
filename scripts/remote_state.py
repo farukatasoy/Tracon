@@ -16,12 +16,14 @@ from __future__ import annotations
 import dataclasses
 import http.client
 import json
+import os
 import pathlib
 import re
 import shutil
 import ssl
 import subprocess
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Sequence
@@ -31,6 +33,13 @@ LOOKUP_TIMEOUT_SECONDS = 15
 GIVE_UP_AFTER_UNREACHABLE = 3
 """Consecutive packages nuget.org could not answer for before the rest are not asked: 21 lookups of 15 seconds each is five minutes of waiting for a network that is not there."""
 CI_TIMEOUT_SECONDS = 25
+
+GITHUB_API = "https://api.github.com"
+CI_BRANCH = "next"
+"""The branch the public CI decides on: the mirror pushes here and `main` only follows a green commit of it."""
+PROMOTED_BRANCH = "main"
+GREEN_EVENTS = frozenset({"push", "workflow_dispatch"})
+"""The events whose run can make a commit green; a pull request run proves a different tree."""
 
 Fetcher = Callable[[str], "tuple[int | None, str]"]
 """Reads a URL and returns the HTTP status and the body; the status is `None` when nothing answered."""
@@ -64,30 +73,32 @@ class CiState:
         return self.status == "completed" and self.conclusion in {"failure", "timed_out", "startup_failure"}
 
 
-def fetch(url: str) -> tuple[int | None, str]:
+def fetch(url: str, headers: dict[str, str] | None = None) -> tuple[int | None, str]:
     """Reads a URL: Python's own TLS first, `curl` when this machine's Python has no trust store.
 
     A Python installed without its certificates fails every HTTPS call with a verification error.
     Reading that as "no network" would switch the check off on exactly the machines that have one.
     """
     try:
-        with urllib.request.urlopen(url, timeout=LOOKUP_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {}), timeout=LOOKUP_TIMEOUT_SECONDS) as response:
             return response.status, response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
         return error.code, ""
     except urllib.error.URLError as error:
         if isinstance(error.reason, ssl.SSLCertVerificationError) and shutil.which("curl"):
-            return _fetch_with_curl(url)
+            return _fetch_with_curl(url, headers)
         return None, ""
     except (TimeoutError, OSError, http.client.HTTPException, UnicodeDecodeError):
         # A cut-off answer (IncompleteRead) and a body that is not UTF-8 are no answer either.
         return None, ""
 
 
-def _fetch_with_curl(url: str) -> tuple[int | None, str]:
+def _fetch_with_curl(url: str, headers: dict[str, str] | None = None) -> tuple[int | None, str]:
+    header_arguments = [argument for name, value in (headers or {}).items() for argument in ("--header", f"{name}: {value}")]
+
     try:
         completed = subprocess.run(
-            ["curl", "--silent", "--max-time", str(LOOKUP_TIMEOUT_SECONDS), "--write-out", "\n%{http_code}", url],
+            ["curl", "--silent", "--max-time", str(LOOKUP_TIMEOUT_SECONDS), *header_arguments, "--write-out", "\n%{http_code}", url],
             capture_output=True,
             text=True,
             timeout=LOOKUP_TIMEOUT_SECONDS + 5,
@@ -99,6 +110,26 @@ def _fetch_with_curl(url: str) -> tuple[int | None, str]:
     body, _, status = completed.stdout.rpartition("\n")
 
     return (int(status), body) if status.isdigit() and status != "000" else (None, "")
+
+
+def github_headers(url: str) -> dict[str, str]:
+    """The headers of a GitHub API read: the JSON media type, and the token of the environment for the API host only.
+
+    The token raises the rate limit of an anonymous read (60 an hour) and is never offered to another host. A run in
+    GitHub Actions has `GITHUB_TOKEN`; a developer's shell may have `GH_TOKEN`.
+    """
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "tracon-remote-state"}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+
+    if token and urllib.parse.urlsplit(url).hostname == urllib.parse.urlsplit(GITHUB_API).hostname:
+        headers["Authorization"] = f"Bearer {token}"
+
+    return headers
+
+
+def fetch_github(url: str) -> tuple[int | None, str]:
+    """`fetch` with the GitHub headers."""
+    return fetch(url, github_headers(url))
 
 
 def lookup_package(package_id: str, *, fetcher: Fetcher = fetch) -> PackageLookup:
@@ -292,7 +323,23 @@ def release_commits(
     return ReleaseCommits(version, commits, tuple(absent), tuple(unreachable))
 
 
-_SLUG = re.compile(r"(?:[:/])(?P<slug>[^/:]+/[^/]+?)(?:\.git)?$")
+def slug_of(url: str) -> str | None:
+    """`owner/name` of a repository URL, from an https URL, an ssh URL or an ssh alias; `None` when it names none.
+
+    A path on disk (`/tmp/mirror.git`) names no repository: the tests and a rehearsal point at one.
+    """
+    text = url.strip()
+
+    if "://" in text:
+        path = urllib.parse.urlsplit(text).path
+    elif ":" in text and not text.startswith("/"):
+        path = text.partition(":")[2]
+    else:
+        return None
+
+    segments = path.strip("/").removesuffix(".git").split("/")
+
+    return "/".join(segments) if len(segments) == 2 and all(segments) else None
 
 
 def repository_slug(root: pathlib.Path, remote: str, *, runner: Runner = subprocess.run) -> str | None:
@@ -303,15 +350,13 @@ def repository_slug(root: pathlib.Path, remote: str, *, runner: Runner = subproc
     except (OSError, subprocess.TimeoutExpired):
         return None
 
-    match = _SLUG.search(completed.stdout.strip()) if completed.returncode == 0 else None
-
-    return match.group("slug") if match else None
+    return slug_of(completed.stdout) if completed.returncode == 0 else None
 
 
 def ci_state(
     root: pathlib.Path,
     remote: str = "origin",
-    branch: str = "main",
+    branch: str = CI_BRANCH,
     *,
     workflow: str = "ci.yml",
     runner: Runner = subprocess.run,
@@ -373,3 +418,135 @@ def ci_state(
         )
 
     return None
+
+
+@dataclasses.dataclass(frozen=True)
+class CiRun:
+    """One run of a workflow, with the fields that decide whether its commit counts as green."""
+
+    sha: str
+    event: str
+    branch: str
+    repository: str
+    """`owner/name` of the repository the run's commit came from; empty when GitHub no longer knows it."""
+    status: str
+    conclusion: str
+    url: str
+
+
+def ci_runs(
+    slug: str,
+    branch: str,
+    *,
+    workflow: str = "ci.yml",
+    fetcher: Fetcher = fetch_github,
+) -> list[CiRun] | None:
+    """The newest runs of `workflow` on `branch` of `slug`, from the public Actions API; `None` when it could not be read.
+
+    Pull request runs are left out by the API itself. The anonymous limit is 60 reads an hour, so a caller that runs often
+    sets `GITHUB_TOKEN`.
+    """
+    query = urllib.parse.urlencode({"branch": branch, "per_page": 100, "exclude_pull_requests": "true"})
+    status, body = fetcher(f"{GITHUB_API}/repos/{slug}/actions/workflows/{workflow}/runs?{query}")
+
+    if status != 200:
+        return None
+
+    try:
+        document = json.loads(body)
+    except ValueError:
+        return None
+
+    entries = document.get("workflow_runs") if isinstance(document, dict) else None
+
+    if not isinstance(entries, list):
+        return None
+
+    runs: list[CiRun] = []
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+
+        repository = entry.get("head_repository")
+
+        runs.append(CiRun(
+            sha=str(entry.get("head_sha", "")),
+            event=str(entry.get("event", "")),
+            branch=str(entry.get("head_branch", "")),
+            repository=str(repository.get("full_name", "")) if isinstance(repository, dict) else "",
+            status=str(entry.get("status", "")),
+            conclusion=str(entry.get("conclusion") or ""),
+            url=str(entry.get("html_url", "")),
+        ))
+
+    return runs
+
+
+def green_shas(runs: Sequence[CiRun] | None, *, slug: str, branch: str) -> set[str]:
+    """The commits with a run that passed, on `branch` of `slug` itself.
+
+    Only a completed `success` of a push or a manual run counts. A run that failed, was cancelled or skipped, is
+    still going, belongs to a pull request, ran in a fork whose branch has the same name, or ran on another branch
+    decides nothing: a commit is green because one run of its own passed, not because the others did not fail.
+    """
+    wanted = slug.lower()
+
+    return {
+        run.sha
+        for run in runs or ()
+        if run.status == "completed"
+        and run.conclusion == "success"
+        and run.event in GREEN_EVENTS
+        and run.branch == branch
+        and run.repository.lower() == wanted
+    }
+
+
+@dataclasses.dataclass(frozen=True)
+class Promotion:
+    """How far the promoted branch is behind the CI branch, and the newest commit it could move to."""
+
+    behind: int
+    candidate: str | None
+    """The newest green commit between the two branches; `None` when there is none."""
+
+
+def promotion_state(
+    slug: str,
+    *,
+    fetcher: Fetcher = fetch_github,
+    base: str = PROMOTED_BRANCH,
+    head: str = CI_BRANCH,
+    workflow: str = "ci.yml",
+) -> Promotion | None:
+    """Reads, without a clone, how many commits `base` is behind `head` and which green commit would be promoted.
+
+    `None` when the compare or the run list could not be read: a closing run offline must still finish.
+    """
+    status, body = fetcher(f"{GITHUB_API}/repos/{slug}/compare/{base}...{head}")
+
+    if status != 200:
+        return None
+
+    try:
+        document = json.loads(body)
+    except ValueError:
+        return None
+
+    commits = document.get("commits") if isinstance(document, dict) else None
+    behind = document.get("ahead_by") if isinstance(document, dict) else None
+
+    if not isinstance(commits, list) or not isinstance(behind, int):
+        return None
+
+    runs = ci_runs(slug, head, workflow=workflow, fetcher=fetcher)
+
+    if runs is None:
+        return None
+
+    green = green_shas(runs, slug=slug, branch=head)
+    ahead = [str(commit.get("sha", "")) for commit in commits if isinstance(commit, dict)]
+    candidate = next((sha for sha in reversed(ahead) if sha in green), None)
+
+    return Promotion(behind, candidate)

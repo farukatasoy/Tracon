@@ -1,8 +1,11 @@
 name: CI
 
+# The mirror pushes every development commit to `next`, and this workflow decides on it there. `main` only moves by promotion:
+# the mirror fast-forwards it to a commit of `next` whose run here passed, so `main` never carries a commit this workflow
+# has not passed and a push to `main` starts no run. Pull requests still target `main`. A manual run (a release) is made on `main`.
 on:
   push:
-    branches: [main]
+    branches: [next]
     tags: ['v*']
   pull_request:
     branches: [main]
@@ -2300,7 +2303,7 @@ jobs:
     needs: build
     # Longest measured 7.9 min.
     timeout-minutes: 20
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: (github.ref == 'refs/heads/next' || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
 
     permissions:
       contents: read
