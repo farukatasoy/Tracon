@@ -123,7 +123,29 @@ def _unguarded_jobs(jobs: dict[str, dict]) -> list[str]:
 
 # The jobs of `ci.yml` inherit the repository condition through `build` (`_unguarded_jobs`). Every job of a
 # workflow file that is not chained to it -- the weekly fuzz, the SDK conformance job -- must carry the condition itself.
-UNCHAINED_EXCLUDED_FILES = {"ci.yml", "ayna.yml"}
+# A workflow whose jobs are all pinned to another repository (`_pinned_to_another_repository`) is not a workflow of this tree.
+UNCHAINED_EXCLUDED_FILES = {"ci.yml"}
+
+_REPOSITORY_PIN = re.compile(r"github\.repository\s*==\s*'([^']+)'")
+
+
+def _pinned_to_another_repository(jobs: dict[str, dict]) -> bool:
+    """True when every job names a repository in its `if:` and none of them is the canonical one.
+
+    Such a workflow never runs in this repository and the published tree does not receive it, so the check that a job
+    cannot run on a fork has nothing to say about it. The rule reads the pin the file carries; no test that ships
+    writes the file name of a private workflow.
+    """
+    pins = [_REPOSITORY_PIN.findall(job["if"] or "") for job in jobs.values()]
+    return bool(pins) and all(found and all(f"github.repository == '{name}'" != CANONICAL_REPO_CONDITION for name in found) for found in pins)
+
+
+def _unchained_workflow_files(workflows: pathlib.Path) -> list[pathlib.Path]:
+    """The workflow files of this tree whose jobs have to carry the canonical repository condition themselves."""
+    return sorted(
+        path for path in workflows.glob("*.yml")
+        if path.name not in UNCHAINED_EXCLUDED_FILES
+        and not _pinned_to_another_repository(_ci_jobs(path.read_text(encoding="utf-8"))))
 
 
 def _unchained_unguarded_jobs(jobs: dict[str, dict]) -> list[str]:
@@ -1709,16 +1731,15 @@ class GateTests(unittest.TestCase):
     def test_public_command_lists_call_no_script_outside_the_public_tree(self):
         # The public tree runs with its own files only: a shipped gate that called a
         # script outside it would fail at its first step.
-        for rendered in (
-            [c.display for c in gate.closing_commands("abc123", site=True, performance=True)],
-            [c.display for c in gate.generation_commands()],
-        ):
-            for command in rendered:
-                self.assertNotIn(".agents", command)
-            # Every script the public lists run exists in the public `scripts/` directory.
-            for command in [*gate.closing_commands("abc123", site=True, performance=True), *gate.generation_commands()]:
-                if command.args[0] == "python3" and command.args[1].endswith(".py"):
-                    self.assertTrue((ROOT / command.args[1]).is_file(), command.args[1])
+        commands = [*gate.closing_commands("abc123", site=True, performance=True), *gate.generation_commands()]
+        public_script_roots = ("scripts/", "docs-site/scripts/")
+
+        for command in commands:
+            # The check names what the public tree has, not what a private tree has: a script a public list runs is
+            # under one of its script directories.
+            if command.args[0] in ("python3", "node") and command.args[1].endswith((".py", ".mjs")):
+                self.assertTrue(command.args[1].startswith(public_script_roots), command.args[1])
+                self.assertTrue((ROOT / command.args[1]).is_file(), command.args[1])
 
     def test_extension_steps_are_added_to_the_public_list(self):
         extension = gate.Extension(
@@ -1792,10 +1813,9 @@ class GateTests(unittest.TestCase):
 
     def test_every_job_of_the_unchained_workflows_carries_the_canonical_repo_guard_itself(self):
         # Weekly jobs must not spend minutes on forks or other copies either. `ci.yml` inherits the guard
-        # through `build`, and the other excluded workflow is not part of the public tree; every remaining
+        # through `build`, and a workflow pinned to another repository does not run here at all; every remaining
         # workflow file must carry the guard itself.
-        files = sorted(
-            p for p in (ROOT / ".github" / "workflows").glob("*.yml") if p.name not in UNCHAINED_EXCLUDED_FILES)
+        files = _unchained_workflow_files(ROOT / ".github" / "workflows")
 
         self.assertIn("sdk-conformance.yml", [p.name for p in files])
         self.assertIn("openapi-fuzz.yml", [p.name for p in files])
@@ -1804,6 +1824,19 @@ class GateTests(unittest.TestCase):
             with self.subTest(file=file.name):
                 self.assertTrue(jobs, "no job found: the parser could not read the file")
                 self.assertEqual(_unchained_unguarded_jobs(jobs), [])
+
+    def test_a_workflow_pinned_to_another_repository_is_not_a_workflow_of_this_tree(self):
+        elsewhere = "jobs:\n  one:\n    if: github.repository == 'someone/Other'\n"
+        here = f"jobs:\n  one:\n    if: {CANONICAL_REPO_CONDITION}\n"
+        mixed = elsewhere + "  two:\n    if: " + CANONICAL_REPO_CONDITION + "\n"
+        unpinned = "jobs:\n  one:\n    runs-on: ubuntu-latest\n"
+        half = elsewhere + "  two:\n    runs-on: ubuntu-latest\n"
+
+        self.assertTrue(_pinned_to_another_repository(_ci_jobs(elsewhere)))
+        # Anything that does not clearly belong to another repository stays under the check.
+        for text in (here, mixed, unpinned, half, ""):
+            with self.subTest(text=text):
+                self.assertFalse(_pinned_to_another_repository(_ci_jobs(text)))
 
     def test_unchained_guard_check_catches_a_missing_and_a_leaky_guard(self):
         genuine = (ROOT / ".github" / "workflows" / "sdk-conformance.yml").read_text(encoding="utf-8")
@@ -5753,7 +5786,7 @@ class StabilityWorkflowTests(unittest.TestCase):
         self.assertTrue((self.WORKFLOWS / gate.STABILITY_WORKFLOW).is_file())
 
     def test_the_unchained_workflows_test_also_covers_this_file(self):
-        files = [p.name for p in self.WORKFLOWS.glob("*.yml") if p.name not in UNCHAINED_EXCLUDED_FILES]
+        files = [p.name for p in _unchained_workflow_files(self.WORKFLOWS)]
 
         self.assertIn("stability.yml", files)
 

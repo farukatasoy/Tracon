@@ -103,9 +103,6 @@ public sealed class SourceLanguageTests
     [
         "tests/Tracon.Core.UnitTests/Architecture/SourceLanguageTests.cs",
         "tests/Tracon.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs",
-        // The mirror workflow runs in the development repository only and never enters the public tree;
-        // it calls the Turkish command line of the private mirror script.
-        ".github/workflows/ayna.yml",
         "src/Tracon.UI/frontend/src/locales/tr.ts",
         // The monolithic tr.ts was split into domain fragments. It keeps its status as
         // the Turkish dictionary but is now an aggregate-only file with no dictionary text
@@ -307,7 +304,7 @@ public sealed class SourceLanguageTests
                 (".github/workflows/ci.yml", $"# {Turkish}"),
                 ("Directory.Build.props", $"<!-- {Turkish} -->"),
                 (Path.Combine("docs", "notes.md"), Turkish),
-                (Path.Combine(".agents", "betikler", "tool.py"), $"# {Turkish}"),
+                (Path.Combine("elsewhere", "tool", "tool.py"), $"# {Turkish}"),
                 ("docs-site/src/content/docs/guides/clean.md", "Everything here is English."),
             })
             {
@@ -406,6 +403,34 @@ public sealed class SourceLanguageTests
     public void An_escaped_Turkish_letter_under_the_tooling_roots_is_judged_as_the_letter_it_spells(
         string line, string path, bool offending)
         => IsOffending(line, HonoursLegacyNameMarker(path)).ShouldBe(offending);
+
+    [Fact]
+    public void A_workflow_pinned_to_another_repository_is_skipped_and_one_pinned_here_is_scanned()
+    {
+        var root = Directory.CreateTempSubdirectory("tracon-source-language-").FullName;
+
+        try
+        {
+            const string Turkish = "bu yeni dosya icin yazildi";
+            var workflows = Directory.CreateDirectory(Path.Combine(root, ".github", "workflows")).FullName;
+
+            File.WriteAllText(Path.Combine(workflows, "elsewhere.yml"), $"# {Turkish}\njobs:\n  one:\n    if: github.repository == 'someone/Other'\n");
+            File.WriteAllText(Path.Combine(workflows, "here.yml"), $"# {Turkish}\njobs:\n  one:\n    if: github.repository == '{CanonicalRepository}'\n");
+            File.WriteAllText(Path.Combine(workflows, "mixed.yml"), $"# {Turkish}\njobs:\n  one:\n    if: github.repository == 'someone/Other'\n  two:\n    if: github.repository == '{CanonicalRepository}'\n");
+            File.WriteAllText(Path.Combine(workflows, "unpinned.yml"), $"# {Turkish}\njobs:\n  one:\n    runs-on: ubuntu-latest\n");
+
+            Scan(root).Keys.ShouldBe(
+            [
+                ".github/workflows/here.yml",
+                ".github/workflows/mixed.yml",
+                ".github/workflows/unpinned.yml",
+            ]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 
     [Fact]
     public void The_legacy_name_marker_stays_under_its_ceiling()
@@ -509,7 +534,7 @@ public sealed class SourceLanguageTests
                     continue;
                 }
 
-                if (IsSkipped(relative))
+                if (IsSkipped(relative, repositoryRoot))
                 {
                     continue;
                 }
@@ -543,9 +568,49 @@ public sealed class SourceLanguageTests
         return results;
     }
 
-    private static bool IsSkipped(string relativePath)
+    /// <summary>The repository a workflow job names in its <c>if:</c> condition.</summary>
+    private static readonly Regex RepositoryPinPattern = new(
+        @"github\.repository\s*==\s*'(?<repository>[^']+)'",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>The repository the shipped tree lives in; a workflow pinned to any other one is not a workflow of this tree.</summary>
+    private const string CanonicalRepository = "farukatasoy/Tracon";
+
+    /// <summary>
+    /// Whether a workflow file runs only in a repository other than this one. Such a workflow never runs here, and the tree
+    /// that is published does not receive it: it belongs to the repository its jobs are pinned to, and it may call that
+    /// repository's own tooling, which is not written in English. The rule reads the pin the file carries, so no file
+    /// name of a private workflow is written in a test that ships.
+    /// </summary>
+    private static bool IsPinnedToAnotherRepository(string repositoryRoot, string relativePath)
+    {
+        if (!relativePath.StartsWith(".github/workflows/", StringComparison.Ordinal)
+            || !relativePath.EndsWith(".yml", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var path = Path.Combine(repositoryRoot, relativePath);
+
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        var pins = RepositoryPinPattern.Matches(File.ReadAllText(path)).Select(static match => match.Groups["repository"].Value).ToList();
+
+        return pins.Count > 0 && pins.All(static pin => !string.Equals(pin, CanonicalRepository, StringComparison.Ordinal));
+    }
+
+    private static bool IsSkipped(string relativePath, string? repositoryRoot = null)
     {
         if (SkippedFiles.Contains(relativePath, StringComparer.Ordinal))
+        {
+            return true;
+        }
+
+        if (IsPinnedToAnotherRepository(repositoryRoot ?? RepositoryRoot, relativePath))
         {
             return true;
         }
