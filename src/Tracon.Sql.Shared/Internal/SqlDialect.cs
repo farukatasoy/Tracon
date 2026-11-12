@@ -765,11 +765,24 @@ internal abstract class SqlDialect
     /// takes no duration (a run's heartbeat).
     /// </summary>
     /// <param name="command">The command.</param>
-    /// <param name="now">The application's reading of the time; a provider that reads the database server's clock does not use it.</param>
+    /// <param name="clock">The application clock; a provider that reads the database server's clock does not use it.</param>
     /// <remarks>The default binds nothing: the statement reads the database server's clock itself. See <see cref="AddLeaseWindow"/>.</remarks>
-    public virtual void AddLeaseNow(DbCommand command, DateTimeOffset now)
+    public virtual void AddLeaseNow(DbCommand command, TimeProvider clock)
     {
     }
+
+    /// <summary>
+    /// Binds the thresholds the claim of orphaned runs compares a run's last sign of life with: <c>stale_before</c> for a run
+    /// that has a heartbeat, and where a run that never beat is aged by its start time, the one for that time.
+    /// </summary>
+    /// <param name="command">The command.</param>
+    /// <param name="clock">The application clock; a provider that reads the database server's clock does not use it.</param>
+    /// <param name="staleAfter">How long a run may go without a sign of life.</param>
+    /// <remarks>
+    /// The default binds <c>stale_before</c> as <see cref="AddLeaseInstant"/> does. See <see cref="AddLeaseWindow"/>.
+    /// </remarks>
+    public virtual void AddOrphanThreshold(DbCommand command, TimeProvider clock, TimeSpan staleAfter)
+        => AddLeaseInstant(command, "stale_before", clock, -staleAfter);
 
     /// <summary>
     /// Binds the instant that lies <paramref name="after"/> from now on the lease clock, for a statement that writes it

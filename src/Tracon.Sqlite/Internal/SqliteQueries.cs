@@ -467,7 +467,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 event_count       = event_count + 1
             WHERE id IN (
                 SELECT id FROM {Schema}runs
-                WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < @stale_before)
+                WHERE ((status = @status_running AND ((heartbeat_at IS NOT NULL AND heartbeat_at < @stale_before)
+                                                       OR (heartbeat_at IS NULL AND started_at < @stale_before_start)))
                     OR (status = @status_queued AND heartbeat_at < @stale_before))
                 ORDER BY COALESCE(heartbeat_at, started_at) ASC
                 LIMIT @max

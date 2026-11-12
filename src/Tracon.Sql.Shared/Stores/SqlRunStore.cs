@@ -453,7 +453,7 @@ internal sealed class SqlRunStore : IRunStore
                 command =>
                 {
                     DbHelpers.Add(command, "id", runId);
-                    Dialect.AddLeaseNow(command, _clock.GetUtcNow());
+                    Dialect.AddLeaseNow(command, _clock);
                     DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
                     DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
                 },
@@ -527,8 +527,9 @@ internal sealed class SqlRunStore : IRunStore
                 DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
                 DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
                 // The threshold is measured back from the lease clock: the database server's on PostgreSQL and SQL Server (the
-                // clock the heartbeat was stamped with), this store's clock on SQLite (the clock the heartbeat writer stamps with).
-                Dialect.AddLeaseInstant(command, "stale_before", _clock, -staleAfter);
+                // clock the heartbeat was stamped with), this store's steady reading of its clock on SQLite (the reading the
+                // heartbeat writer stamps with).
+                Dialect.AddOrphanThreshold(command, _clock, staleAfter);
                 DbHelpers.Add(command, "max", Math.Max(max, 0));
             },
             (command, token) => DbHelpers.ReadListAsync(command, ReadOrphanedRun, token),

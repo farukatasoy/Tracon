@@ -172,7 +172,9 @@ internal sealed partial class InMemoryRunStore
             // exist or is in another status is silently skipped (a maintenance signal).
             if (_runs.TryGetValue(runId, out var run) && run.Status is RunStatus.Running or RunStatus.Queued)
             {
-                _heartbeats[runId] = _clock.GetUtcNow();
+                // A heartbeat is a sign of life, so it is stamped on the reading a step of the wall clock does not move,
+                // as a lease is (SteadyClock): a wall clock stepped forward must not make a run that is beating look dead.
+                _heartbeats[runId] = SteadyClock.For(_clock).Now;
 
                 if (run.CancelRequestedAt is { } requestedAt)
                 {
@@ -240,10 +242,12 @@ internal sealed partial class InMemoryRunStore
         LeaseTimeRange.ThrowIfInvalid(staleAfter, nameof(staleAfter));
         cancellationToken.ThrowIfCancellationRequested();
 
-        // The heartbeat is marked with this store's clock (TouchHeartbeatAsync reads it), which is the registered one,
-        // so the age is read from the same clock.
+        // The heartbeat is stamped on this store's steady reading of its clock (TouchHeartbeatAsync reads it), so a
+        // heartbeat is aged on the same reading. A run that never beat is aged by its start time, a wall-clock time its own
+        // record holds, so that one is compared with the wall clock: the two never meet on one line.
         var now = _clock.GetUtcNow();
-        var staleBefore = now - staleAfter;
+        var beatBefore = SteadyClock.For(_clock).Now - staleAfter;
+        var startedBefore = now - staleAfter;
 
         // A Running row that never sent a heartbeat falls back to its start time. A Queued row is the
         // job queue's unless it sent one: then it is a run waiting in a process for a workflow slot
@@ -251,15 +255,18 @@ internal sealed partial class InMemoryRunStore
         var candidates = _runs.Values
             .Where(record => record.Status == RunStatus.Running
                 || (record.Status == RunStatus.Queued && _heartbeats.ContainsKey(record.Id)))
-            .Select(record => (Record: record, LastSeen: _heartbeats.TryGetValue(record.Id, out var hb) ? hb : record.StartedAt))
-            .Where(candidate => candidate.LastSeen < staleBefore)
+            .Select(record => (
+                Record: record,
+                LastSeen: _heartbeats.TryGetValue(record.Id, out var hb) ? hb : record.StartedAt,
+                Beat: _heartbeats.ContainsKey(record.Id)))
+            .Where(candidate => candidate.LastSeen < (candidate.Beat ? beatBefore : startedBefore))
             .OrderBy(static candidate => candidate.LastSeen)
             .Take(Math.Max(max, 0))
             .ToList();
 
         var claimed = new List<RunRecord>(candidates.Count);
 
-        foreach (var (record, lastSeen) in candidates)
+        foreach (var (record, lastSeen, _) in candidates)
         {
             var message = $"The process running the run is not responding; last heartbeat: {lastSeen:O}.";
             var error = new RunError

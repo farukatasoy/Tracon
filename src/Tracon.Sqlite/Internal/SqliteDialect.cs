@@ -447,7 +447,30 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     }
 
     /// <inheritdoc />
-    public override void AddLeaseNow(DbCommand command, DateTimeOffset now) => AddTimestamp(command, "now", now);
+    /// <remarks>
+    /// A heartbeat is a sign of life, so it is stamped on the reading a step of the wall clock does not move
+    /// (<see cref="SteadyClock"/>), as a lease is.
+    /// </remarks>
+    public override void AddLeaseNow(DbCommand command, TimeProvider clock)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
+
+        AddTimestamp(command, "now", SteadyClock.For(clock).Now);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A run with a heartbeat is aged on the same reading the heartbeat was stamped with (<c>stale_before</c>). A run that
+    /// never beat is aged by its start time, which is a wall-clock time the run's own record holds, so it is compared with
+    /// the wall clock (<c>stale_before_start</c>): the two never meet on one line.
+    /// </remarks>
+    public override void AddOrphanThreshold(DbCommand command, TimeProvider clock, TimeSpan staleAfter)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
+
+        AddTimestamp(command, "stale_before", SteadyClock.For(clock).Now - staleAfter);
+        AddTimestamp(command, "stale_before_start", clock.GetUtcNow() - staleAfter);
+    }
 
     /// <inheritdoc />
     public override void AddLeaseInstant(DbCommand command, string name, TimeProvider clock, TimeSpan? after)

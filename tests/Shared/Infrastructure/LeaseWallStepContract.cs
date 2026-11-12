@@ -4,7 +4,8 @@ namespace Tracon.Tests.Common;
 
 /// <summary>
 /// What the lease stores that read the application's clock (the in-memory stores and SQLite, whose file one process uses) do
-/// when the wall clock steps while a lease is held, written once for every such store.
+/// when the wall clock steps while a lease is held, written once for every such store. A run's heartbeat is a lease of the
+/// same kind: the run store is opened beside them and the same scenarios hold for it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,10 +26,17 @@ public abstract class LeaseWallStepContract
 
     private static readonly TimeSpan SingletonLease = TimeSpan.FromSeconds(30);
 
+    private static readonly TimeSpan OrphanThreshold = TimeSpan.FromMinutes(5);
+
     /// <summary>Opens the stores over one empty schema, reading <paramref name="clock"/>.</summary>
     /// <param name="clock">The application clock the stores read.</param>
     /// <returns>The job store and the single-executor lease store.</returns>
     protected abstract ValueTask<(IJobStore Jobs, ISingletonLeaseStore Leases)> OpenAsync(TimeProvider clock);
+
+    /// <summary>Opens the run store over the empty schema <see cref="OpenAsync"/> opens, reading <paramref name="clock"/>.</summary>
+    /// <param name="clock">The application clock the store reads.</param>
+    /// <returns>The run store.</returns>
+    protected abstract ValueTask<IRunStore> OpenRunsAsync(TimeProvider clock);
 
     /// <summary>A running job is not leased again, and its lease can be renewed, after the wall clock steps past the lease.</summary>
     [Fact]
@@ -152,11 +160,78 @@ public abstract class LeaseWallStepContract
         (await leases.TryAcquireAsync("step", "second", SingletonLease, TestContext.Current.CancellationToken)).ShouldBeTrue();
     }
 
+    /// <summary>A run that keeps its heartbeat is not closed as orphaned because the wall clock stepped forward past the threshold.</summary>
+    [Fact]
+    public async Task A_wall_clock_stepped_past_the_orphan_threshold_does_not_close_a_run_that_is_beating()
+    {
+        var clock = new ManualClock();
+        var runs = await OpenRunsAsync(clock);
+        var run = await StartRunAsync(runs, clock);
+
+        await runs.TouchHeartbeatAsync([run], TestContext.Current.CancellationToken);
+
+        clock.StepWallClock(TimeSpan.FromHours(2));
+
+        (await runs.ClaimOrphanedRunsAsync(OrphanThreshold, 10, TestContext.Current.CancellationToken))
+            .ShouldBeEmpty("the run beat a moment ago: a wall clock step does not make its heartbeat old");
+        (await runs.GetRunAsync(run, TestContext.Current.CancellationToken))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    /// <summary>A run whose heartbeat stopped is closed once the threshold has passed, whatever the wall clock reads.</summary>
+    [Fact]
+    public async Task A_wall_clock_stepped_back_does_not_keep_a_silent_run_alive_once_the_threshold_has_passed()
+    {
+        var clock = new ManualClock();
+        var runs = await OpenRunsAsync(clock);
+        var run = await StartRunAsync(runs, clock);
+
+        await runs.TouchHeartbeatAsync([run], TestContext.Current.CancellationToken);
+
+        clock.StepWallClock(-TimeSpan.FromHours(1));
+        clock.Advance(OrphanThreshold - TimeSpan.FromSeconds(1));
+
+        (await runs.ClaimOrphanedRunsAsync(OrphanThreshold, 10, TestContext.Current.CancellationToken))
+            .ShouldBeEmpty("the last heartbeat is a second short of the threshold");
+
+        clock.Advance(TimeSpan.FromSeconds(2));
+
+        (await runs.ClaimOrphanedRunsAsync(OrphanThreshold, 10, TestContext.Current.CancellationToken))
+            .ShouldHaveSingleItem().Id.ShouldBe(run);
+    }
+
+    /// <summary>A run that never beat is aged by the start time its record holds, which is a time on the calendar.</summary>
+    [Fact]
+    public async Task A_run_that_never_beat_is_aged_by_its_start_time_on_the_wall_clock()
+    {
+        var clock = new ManualClock();
+        var runs = await OpenRunsAsync(clock);
+        var run = await StartRunAsync(runs, clock);
+
+        (await runs.ClaimOrphanedRunsAsync(OrphanThreshold, 10, TestContext.Current.CancellationToken))
+            .ShouldBeEmpty("the run started a moment ago");
+
+        clock.StepWallClock(OrphanThreshold + TimeSpan.FromMinutes(1));
+
+        (await runs.ClaimOrphanedRunsAsync(OrphanThreshold, 10, TestContext.Current.CancellationToken))
+            .ShouldHaveSingleItem().Id.ShouldBe(run);
+    }
+
     private static async Task<JobRecord> EnqueueAsync(IJobStore jobs, ManualClock clock, DateTimeOffset? scheduledFor = null)
     {
         var job = TestData.Job(scheduledFor: scheduledFor ?? clock.GetUtcNow() - TimeSpan.FromMinutes(1));
 
         return await jobs.EnqueueAsync(job, ["input"], TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<Guid> StartRunAsync(IRunStore runs, TimeProvider clock)
+    {
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(
+            new RunStartInfo { RunId = runId, AgentName = "wall-step-agent", StartedAt = clock.GetUtcNow() },
+            TestContext.Current.CancellationToken);
+
+        return runId;
     }
 
     private static JobLeaseRequest Request(string owner, JobTenantCap? cap = null)

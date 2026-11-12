@@ -17,4 +17,12 @@ public sealed class SqliteLeaseWallStepTests(SqliteSchemaFixture schema)
 
         return (new SqlJobStore(context, timeProvider: clock), new SqlSingletonLeaseStore(context, clock));
     }
+
+    /// <inheritdoc />
+    protected override async ValueTask<IRunStore> OpenRunsAsync(TimeProvider clock)
+    {
+        await schema.ResetAsync();
+
+        return new SqlRunStore(schema.Context.StoreContext, schema.Context.TenantContext, clock);
+    }
 }

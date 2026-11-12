@@ -7,4 +7,8 @@ public sealed class InMemoryLeaseWallStepTests : LeaseWallStepContract
     /// <inheritdoc />
     protected override ValueTask<(IJobStore Jobs, ISingletonLeaseStore Leases)> OpenAsync(TimeProvider clock)
         => new(((IJobStore)new InMemoryJobStore(clock), (ISingletonLeaseStore)new InMemorySingletonLeaseStore(clock)));
+
+    /// <inheritdoc />
+    protected override ValueTask<IRunStore> OpenRunsAsync(TimeProvider clock)
+        => new(new InMemoryRunStore(timeProvider: clock));
 }
