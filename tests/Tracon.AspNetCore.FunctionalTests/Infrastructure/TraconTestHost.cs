@@ -102,9 +102,13 @@ internal sealed class TraconTestHost : IAsyncDisposable
     {
         var logs = new RecordingLoggerProvider();
 
-        var builder = environment is null
-            ? WebApplication.CreateSlimBuilder()
-            : WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = environment });
+        // The content root is the test binaries, not the working directory: a few tests change the working directory to a
+        // directory they delete, and a host built from it would keep a root that is gone.
+        var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
+        {
+            ContentRootPath = AppContext.BaseDirectory,
+            EnvironmentName = environment,
+        });
         builder.WebHost.UseTestServer();
 
         if (validateServiceProvider)

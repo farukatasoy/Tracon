@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
@@ -42,6 +43,22 @@ public sealed class HarnessDefaultsTests
 
     // MAF names the tool in a string literal; the type exposes no constant for it.
     private const string StartTaskToolName = "background_agents_start_task";
+
+    [Fact]
+    public async Task The_test_host_takes_its_content_root_from_the_test_binaries_and_not_from_the_working_directory()
+    {
+        // The tests of this class change the working directory to a directory that is deleted when the test ends. A host that
+        // built its content root from it would hold a path that no longer exists for the rest of its life.
+        using var directory = new TemporaryWorkingDirectory();
+
+        await using var host = await TraconTestHost.StartAsync(configureTracon: static _ => { });
+
+        var root = host.Services.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(root))
+            .ShouldBe(Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory)));
+        Path.GetFullPath(root).ShouldNotStartWith(Path.GetFullPath(directory.Path), Case.Sensitive);
+    }
 
     [Fact]
     public async Task A_harness_agent_that_names_no_skill_does_not_read_skills_from_the_working_directory()
