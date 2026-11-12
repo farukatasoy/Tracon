@@ -42,13 +42,17 @@ to 9, 10, and 11 runs against the packed packages in Tracon's own CI.
 
 Tracon follows Microsoft's own .NET support lifecycle and does not extend it. A
 target framework normally stays in the matrix while Microsoft still supports it;
-once that support ends, a later Tracon release may drop it. One drop was not
+once that support ends, a later Tracon release may drop it (a major release, once the line is frozen). One drop was not
 tied to that date: `net8.0` and `net9.0`, described below.
 
 Plan for this before it happens, because it changes what you can upgrade to:
 
-- **Dropping an out-of-support target framework is not treated as a breaking
-  change** under the versioning policy. It can land in a minor release.
+- **Dropping an out-of-support target framework is a breaking change** under
+  the versioning policy ([Versioning](/reference/versioning/)): once the release
+  line is frozen (`1.0.0-rc.1` and later) it lands in a major release, and the
+  release process rejects it in a minor or a patch. Before the line is frozen a
+  preview may drop one, as the first release after `1.0.0-preview.6` did for
+  `net8.0` and `net9.0`.
 - A release that drops one says so in its changelog entry, and the package's
   own assets for that framework simply stop appearing.
 - Your application keeps working on the release it already resolved; nothing
