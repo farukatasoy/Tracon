@@ -7,17 +7,18 @@ namespace Tracon.Package.Tests.Infrastructure;
 /// <remarks>
 /// <para>
 /// The local feed already holds two stamps of the same source:
-/// <see cref="ReleaseArtifactFixture.Version"/> (<c>1.0.0-preview.1</c>) and the
+/// <see cref="ReleaseArtifactFixture.Version"/> (<c>0.0.0-release-fixture.1</c>) and the
 /// MinVer height <see cref="TemplateFixture"/> packs. No third <c>dotnet pack</c>
 /// is added for these shapes.
 /// </para>
 /// <para>
-/// 🚨 nuget.org serves a DIFFERENT <c>1.0.0-preview.1</c> of the same package
-/// ids. Every restore that resolves the local preview.1 runs against an isolated
+/// Every restore that resolves a local stamp runs against an isolated
 /// <c>NUGET_PACKAGES</c> directory (<see cref="IsolatedPackageCache"/>) and a
-/// <c>packageSourceMapping</c> that binds <c>Tracon*</c> to the local feed only;
-/// without both, the global package folder keeps whichever preview.1 it saw
-/// first and every later consumer on this machine reads it.
+/// <c>packageSourceMapping</c> that binds <c>Tracon*</c> to the local feed only.
+/// The release stamp is a version no published release carries, so a leftover
+/// cannot shadow nuget.org; the isolation keeps the local files out of the
+/// developer's global package folder all the same, and a consumer that mixes in a
+/// published release reads that release from nuget.org, not from the local feed.
 /// </para>
 /// </remarks>
 internal static class MixedVersionConsumerProject
@@ -132,8 +133,8 @@ internal static class MixedVersionConsumerProject
 }
 
 /// <summary>
-/// A <c>NUGET_PACKAGES</c> directory for one test class, so a restore of the
-/// local <c>1.0.0-preview.1</c> never reaches the global package folder.
+/// A <c>NUGET_PACKAGES</c> directory for one test class, so a restore of a
+/// locally packed stamp never reaches the global package folder.
 /// </summary>
 /// <remarks>
 /// Shared by the facts of one class: the third-party packages every shape needs

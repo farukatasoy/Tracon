@@ -18,7 +18,7 @@ namespace Tracon.Package.Tests.Infrastructure;
 /// <para>
 /// The collection owns the one <see cref="ReleaseArtifactFixture"/> pack.
 /// <see cref="ReleaseArtifactTests"/> reads its packages, and
-/// <see cref="MixedVersionGraphTests"/> restores its <c>1.0.0-preview.1</c> next to
+/// <see cref="MixedVersionGraphTests"/> restores its release stamp next to
 /// the <see cref="TemplateFixture"/> stamp; as a class fixture each of the two
 /// would pack the whole solution again.
 /// </para>

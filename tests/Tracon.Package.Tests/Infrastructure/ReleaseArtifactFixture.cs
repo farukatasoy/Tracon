@@ -16,7 +16,12 @@ namespace Tracon.Package.Tests.Infrastructure;
 public sealed class ReleaseArtifactFixture : IAsyncLifetime
 {
     /// <summary>The version this fixture forces onto every package.</summary>
-    public const string Version = "1.0.0-preview.1";
+    /// <remarks>
+    /// A stamp no published release carries and every published release outranks. A published version number
+    /// would give the packed local files the identity of a package nuget.org serves, and a restore that
+    /// resolved them into the developer's global package folder would keep them there as that release.
+    /// </remarks>
+    public const string Version = "0.0.0-release-fixture.1";
 
     private static readonly TimeSpan PackTimeout = TimeSpan.FromMinutes(20);
 
