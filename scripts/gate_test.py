@@ -5543,6 +5543,26 @@ class StabilityWorkflowTests(unittest.TestCase):
         self.assertNotIn("continue-on-error", self.uncommented)
         self.assertNotIn("||", step.group(1))
         self.assertNotRegex(step.group(1), r"set \+e|\bexit 0\b")
+        self.assertEqual(self._pipe_without_pipefail(step.group(1)), [])
+
+    @staticmethod
+    def _pipe_without_pipefail(step_text: str) -> list[str]:
+        """Command lines that pipe the stability command into another one without `set -o pipefail`.
+
+        The default shell of a step is `bash -e` without pipefail: `cmd | tee file` returns the exit code of `tee`,
+        so a red stability run would end the step green. The `run: |` block marker is not a pipe."""
+        body = re.sub(r"(?m)^\s*run:\s*[|>][+-]?\s*$", "", step_text)
+        if "pipefail" in body:
+            return []
+        return [line.strip() for line in body.splitlines() if re.search(r"(?<![|])[|](?![|])", line)]
+
+    def test_a_pipe_into_another_command_is_caught_unless_the_step_sets_pipefail(self):
+        piped = "        run: |\n          python3 scripts/gate.py stability --repeat 5 | tee out.txt\n"
+
+        self.assertEqual(
+            self._pipe_without_pipefail(piped), ["python3 scripts/gate.py stability --repeat 5 | tee out.txt"])
+        self.assertEqual(self._pipe_without_pipefail("        run: |\n          set -o pipefail\n          a | tee b\n"), [])
+        self.assertEqual(self._pipe_without_pipefail("        run: >-\n          python3 scripts/gate.py stability\n"), [])
 
     def test_stability_command_does_not_change_the_ci_tests_or_the_closing(self):
         ci = (self.WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
