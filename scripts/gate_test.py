@@ -3972,6 +3972,15 @@ class DispatchReleaseWorkflowTests(unittest.TestCase):
             with self.subTest(job=name):
                 self.assertIn("RELEASE_VERSION: ${{ inputs.version }}", _job_block(self.uncommented, name))
 
+    def test_a_step_output_is_only_ever_handed_over_as_an_environment_value(self):
+        """A step output pasted into a script is data that became code; the value is handed over as `KEY: value`."""
+        pasted = [line for line in self.uncommented.splitlines() if "${{ steps." in line]
+
+        self.assertGreaterEqual(len(pasted), 1)
+        for line in pasted:
+            with self.subTest(line=line.strip()):
+                self.assertRegex(line, r"^\s+[A-Za-z_]+: \$\{\{ steps\.[\w-]+\.outputs\.[\w-]+ \}\}$")
+
     def test_the_build_stamps_before_it_builds_and_the_rehearsal_checks_the_same_version(self):
         build = _job_block(self.uncommented, "build")
         dryrun = _job_block(self.uncommented, "release-dryrun")

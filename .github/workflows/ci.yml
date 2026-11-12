@@ -2016,9 +2016,11 @@ jobs:
           user: farukatasoy
 
       - name: Push the packages to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ steps.nuget_login.outputs.NUGET_API_KEY }}
         run: >
           dotnet nuget push "artifacts/nuget-verified/*.nupkg"
-          --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}"
+          --api-key "$NUGET_API_KEY"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
 
@@ -2086,7 +2088,9 @@ jobs:
 
       - name: Write the version into package.json
         working-directory: packages/tracon-client
-        run: npm version "${{ steps.version.outputs.value }}" --no-git-tag-version --allow-same-version
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+        run: npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version
 
       # `npm run generate` does NOT run here - src/schema.ts is committed and the schema-drift test
       # in `build` already verified it. Build only.
@@ -2126,8 +2130,10 @@ jobs:
       - name: Publish to npm
         if: steps.exists.outputs.value == 'false'
         working-directory: packages/tracon-client
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
         run: |
-          version="${{ steps.version.outputs.value }}"
+          version="$RELEASE_VERSION"
           if [[ "$version" == *-* ]]; then
             npm publish --access public --tag next
           else
@@ -2155,8 +2161,10 @@ jobs:
       # corner.
       - name: Align the npm dist-tags
         working-directory: packages/tracon-client
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
         run: |
-          version="${{ steps.version.outputs.value }}"
+          version="$RELEASE_VERSION"
           if npm view "@tracon/client@>$version" version >/dev/null 2>&1; then
             echo "::notice::$version is not the newest release - the dist-tags stay as they are"
             exit 0
