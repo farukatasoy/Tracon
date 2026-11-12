@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client as apiClient, unwrap } from '../lib/api';
 import { count, relativeTime } from '../lib/format';
 import { useT, type MessageKey } from '../lib/i18n';
+import { isValidLimit, toLimit } from '../lib/limits';
 import {
   Badge,
   Button,
@@ -312,8 +313,8 @@ function PolicyForm({
         apiClient.PUT('/api/retention/{target}', {
           params: { path: { target } },
           body: {
-            maxAgeDays: maxAgeDays.trim() === '' ? null : Number(maxAgeDays),
-            maxRows: maxRows.trim() === '' ? null : Number(maxRows),
+            maxAgeDays: toLimit(maxAgeDays),
+            maxRows: toLimit(maxRows),
             archive,
             enabled,
           },
@@ -327,21 +328,37 @@ function PolicyForm({
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-4">
-        <Field label={t('retention.maxAgeDays')} hint={t('retention.maxAgeHint')}>
-          <TextInput
-            value={maxAgeDays}
-            inputMode="numeric"
-            placeholder={t('retention.maxAgePlaceholder')}
-            onChange={(event) => setMaxAgeDays(event.target.value)}
-          />
+        <Field
+          label={t('retention.maxAgeDays')}
+          hint={t('retention.maxAgeHint')}
+          error={isValidLimit(maxAgeDays) ? undefined : t('limit.invalid')}
+        >
+          {(ids) => (
+            <TextInput
+              {...ids}
+              value={maxAgeDays}
+              inputMode="numeric"
+              placeholder={t('retention.maxAgePlaceholder')}
+              data-testid="retention-max-age-days"
+              onChange={(event) => setMaxAgeDays(event.target.value)}
+            />
+          )}
         </Field>
-        <Field label={t('retention.maxRows')} hint={t('retention.maxRowsHint')}>
-          <TextInput
-            value={maxRows}
-            inputMode="numeric"
-            placeholder={t('retention.maxRowsPlaceholder')}
-            onChange={(event) => setMaxRows(event.target.value)}
-          />
+        <Field
+          label={t('retention.maxRows')}
+          hint={t('retention.maxRowsHint')}
+          error={isValidLimit(maxRows) ? undefined : t('limit.invalid')}
+        >
+          {(ids) => (
+            <TextInput
+              {...ids}
+              value={maxRows}
+              inputMode="numeric"
+              placeholder={t('retention.maxRowsPlaceholder')}
+              data-testid="retention-max-rows"
+              onChange={(event) => setMaxRows(event.target.value)}
+            />
+          )}
         </Field>
         <label className="flex items-end gap-2 pb-1.5 text-base">
           <input
@@ -368,7 +385,7 @@ function PolicyForm({
       <div className="flex items-center gap-2">
         <Button
           tone="primary"
-          disabled={!hasThreshold}
+          disabled={!hasThreshold || !isValidLimit(maxAgeDays) || !isValidLimit(maxRows)}
           busy={save.isPending}
           onClick={() => save.mutate()}
         >

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { count } from '../lib/format';
 import { useT } from '../lib/i18n';
+import { isValidLimit, toLimit } from '../lib/limits';
 import {
   Badge,
   Button,
@@ -230,8 +231,8 @@ function QuotaForm({
           body: {
             agentName: agentName.trim() === '' ? null : agentName.trim(),
             period,
-            maxRuns: parseLimit(maxRuns),
-            maxTokens: parseLimit(maxTokens),
+            maxRuns: toLimit(maxRuns),
+            maxTokens: toLimit(maxTokens),
             maxCost: parseLimit(maxCost),
             // 🚨 Carried, not assumed. The PUT is a full replace and the form
             // has no switch for this field; a constant `true` turned a rule
@@ -270,22 +271,29 @@ function QuotaForm({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label={t('quota.maxRuns')}>
-          <TextInput
-            value={maxRuns}
-            inputMode="numeric"
-            placeholder={t('quota.unlimited')}
-            data-testid="quota-max-runs"
-            onChange={(event) => setMaxRuns(event.target.value)}
-          />
+        <Field label={t('quota.maxRuns')} error={isValidLimit(maxRuns) ? undefined : t('limit.invalid')}>
+          {(ids) => (
+            <TextInput
+              {...ids}
+              value={maxRuns}
+              inputMode="numeric"
+              placeholder={t('quota.unlimited')}
+              data-testid="quota-max-runs"
+              onChange={(event) => setMaxRuns(event.target.value)}
+            />
+          )}
         </Field>
-        <Field label={t('quota.maxTokens')}>
-          <TextInput
-            value={maxTokens}
-            inputMode="numeric"
-            placeholder={t('quota.unlimited')}
-            onChange={(event) => setMaxTokens(event.target.value)}
-          />
+        <Field label={t('quota.maxTokens')} error={isValidLimit(maxTokens) ? undefined : t('limit.invalid')}>
+          {(ids) => (
+            <TextInput
+              {...ids}
+              value={maxTokens}
+              inputMode="numeric"
+              placeholder={t('quota.unlimited')}
+              data-testid="quota-max-tokens"
+              onChange={(event) => setMaxTokens(event.target.value)}
+            />
+          )}
         </Field>
         <Field label={t('quota.maxCost')} hint={t('quota.maxCostHint')}>
           <TextInput
@@ -302,7 +310,7 @@ function QuotaForm({
       <div className="flex items-center gap-2">
         <Button
           tone="primary"
-          disabled={save.isPending}
+          disabled={save.isPending || !isValidLimit(maxRuns) || !isValidLimit(maxTokens)}
           testId="quota-save"
           onClick={() => save.mutate()}
         >

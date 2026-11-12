@@ -47,6 +47,30 @@ describe('QuotaPanel', () => {
     expect(screen.getByTestId('quota-period')).toHaveProperty('disabled', true);
   });
 
+  // The limit is a 64-bit number on the server and a JavaScript number here: a value above 2^53 used to be rounded, and
+  // text that is not a number became an empty field, which the server reads as no limit at all.
+  it('refuses a limit that would be rounded or turned into no limit, and says so', async () => {
+    restoreFetch = installApiMock([fixture('GET', 'api/quotas/usage', usage)]);
+
+    renderScreen(<QuotaPanel />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Add quota' }));
+    await userEvent.type(screen.getByTestId('quota-max-runs'), '9223372036854775807');
+
+    expect(screen.getByTestId('quota-max-runs').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByTestId('quota-save')).toHaveProperty('disabled', true);
+
+    await userEvent.clear(screen.getByTestId('quota-max-runs'));
+    await userEvent.type(screen.getByTestId('quota-max-tokens'), 'abc');
+
+    expect(screen.getByTestId('quota-save')).toHaveProperty('disabled', true);
+
+    await userEvent.clear(screen.getByTestId('quota-max-tokens'));
+    await userEvent.type(screen.getByTestId('quota-max-runs'), '250');
+
+    expect(screen.getByTestId('quota-save')).toHaveProperty('disabled', false);
+  });
+
   it('leaves the agent and the period open for a new rule', async () => {
     restoreFetch = installApiMock([fixture('GET', 'api/quotas/usage', usage)]);
 

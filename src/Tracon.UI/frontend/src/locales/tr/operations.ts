@@ -84,6 +84,7 @@ export const trOperations: Pick<Messages, keyof typeof enOperations> = {
   "quota.period": 'Dönem',
   "quota.daily": 'Günlük',
   "quota.monthly": 'Aylık',
+  "limit.invalid": '0 ile 9007199254740991 arasında bir tam sayı girin ya da sınır istemiyorsanız alanı boş bırakın.',
   "quota.maxRuns": 'En fazla çalıştırma',
   "quota.maxTokens": 'En fazla token',
   "quota.maxCost": 'En fazla tutar',

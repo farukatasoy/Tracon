@@ -79,6 +79,7 @@ export const enOperations = {
   "quota.period": 'Period',
   "quota.daily": 'Daily',
   "quota.monthly": 'Monthly',
+  "limit.invalid": 'Enter a whole number from 0 up to 9007199254740991, or leave the field empty for no limit.',
   "quota.maxRuns": 'Max runs',
   "quota.maxTokens": 'Max tokens',
   "quota.maxCost": 'Max cost',
