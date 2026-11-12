@@ -39,12 +39,10 @@ public sealed partial class ProblemDetailsOnDenialTests
 
         // The challenge names no authorization server, so the library has nothing to discover: it must give up with the
         // refusal and not wait for a flow nobody started.
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(20));
+        var refused = await Should.ThrowAsync<Exception>(
+            async () => await ConnectMcpAsync(host, role: null).WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken));
 
-        var refused = await Should.ThrowAsync<Exception>(async () => await ConnectMcpAsync(host, role: null, deadline.Token));
-
-        deadline.IsCancellationRequested.ShouldBeFalse("the library waited instead of raising the refusal");
+        refused.ShouldNotBeOfType<TimeoutException>("the library waited instead of raising the refusal");
         StatusOf(refused).ShouldBe(HttpStatusCode.Unauthorized, refused.ToString());
         refused.ToString().ShouldContain(ProblemDetailsOnDenialHandler.UnauthorizedDetail, Case.Sensitive);
     }
@@ -103,7 +101,7 @@ public sealed partial class ProblemDetailsOnDenialTests
                 app.MapTraconA2A();
             });
 
-    private static Task<McpClient> ConnectMcpAsync(TraconTestHost host, string? role, CancellationToken cancellationToken = default)
+    private static Task<McpClient> ConnectMcpAsync(TraconTestHost host, string? role)
     {
         var headers = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -122,7 +120,7 @@ public sealed partial class ProblemDetailsOnDenialTests
                 host.Client,
                 ownsHttpClient: false),
             new McpClientOptions { DiscoverProbeTimeout = TimeSpan.FromSeconds(30) },
-            cancellationToken: cancellationToken == default ? TestContext.Current.CancellationToken : cancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
     }
 
     private static HttpStatusCode? StatusOf(Exception exception)
