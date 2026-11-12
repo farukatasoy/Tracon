@@ -310,6 +310,57 @@ public sealed class SourceLanguageTests
         }
     }
 
+    /// <summary>
+    /// The root files the scan reads, written out here as well. A list that decides what the gate covers must not shrink
+    /// because an entry was deleted or renamed in one place: removing a name from <c>ScannedRootFiles</c> fails this test
+    /// until the name is removed here on purpose.
+    /// </summary>
+    private static readonly string[] PinnedRootFiles =
+    [
+        "README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md", "ARCHITECTURE.md", "LICENSE.md",
+        ".editorconfig", ".gitattributes", ".gitignore", "Directory.Build.props", "Directory.Build.targets",
+        "Directory.Packages.props", "NuGet.config", "global.json",
+    ];
+
+    [Fact]
+    public void Every_pinned_root_file_and_every_scanned_extension_is_read_by_the_scan()
+    {
+        ScannedRootFiles.Order(StringComparer.Ordinal).ShouldBe(
+            PinnedRootFiles.Order(StringComparer.Ordinal),
+            "ScannedRootFiles and the names pinned in this test differ: a root file left the gate, or a new one joined it.");
+
+        var root = Directory.CreateTempSubdirectory("tracon-source-language-roots-").FullName;
+
+        try
+        {
+            const string Turkish = "bu yeni dosya icin yazildi";
+
+            foreach (var name in PinnedRootFiles)
+            {
+                File.WriteAllText(
+                    Path.Combine(root, name),
+                    name.EndsWith(".json", StringComparison.Ordinal) ? $"{{\"note\": \"{Turkish}\"}}"
+                    : name.EndsWith(".props", StringComparison.Ordinal) || name.EndsWith(".targets", StringComparison.Ordinal) || name.EndsWith(".config", StringComparison.Ordinal)
+                        ? $"<!-- {Turkish} -->"
+                    : name.EndsWith(".md", StringComparison.Ordinal) ? Turkish
+                    : $"# {Turkish}");
+            }
+
+            // The two extensions the scan reads that no other test covers.
+            Directory.CreateDirectory(Path.Combine(root, "scripts"));
+            File.WriteAllText(Path.Combine(root, "scripts", "table.tsv"), $"# {Turkish}");
+            File.WriteAllText(Path.Combine(root, "scripts", "run.sh"), $"# {Turkish}");
+
+            string[] expected = [.. PinnedRootFiles, "scripts/run.sh", "scripts/table.tsv"];
+
+            Scan(root).Keys.Order(StringComparer.Ordinal).ShouldBe(expected.Order(StringComparer.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("old = \"--dosya\"  # legacy-name", "scripts/gate_test.py", false)]
     [InlineData("old = \"--dosya\"  # legacy-name", ".github/workflows/ci.yml", false)]
