@@ -142,6 +142,10 @@ Commit messages are English, in the imperative, and say what changed and why.
 The default branch `main` only moves to a commit whose CI run passed: every change is published to `next` first, and
 `main` is fast-forwarded to the newest commit of `next` that is green. Open pull requests against `main`.
 
+The public repository is a published copy, so a pull request is not merged here: the maintainer applies an accepted change
+in the development repository, the next publication brings it, and the pull request is closed with a note naming you
+as co-author.
+
 Before you open a pull request, run
 `python3 scripts/gate.py close --base <commit you branched from>`, and say in
 the description which gates you ran.
