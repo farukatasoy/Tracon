@@ -1,0 +1,9 @@
+# Package configuration sections that are bound BY HAND with nothing proving every
+# scalar reaches them. One name per line. The list may only SHRINK: a new section
+# here fails PackageOptionsSectionCoverageTests, and a section that gains a
+# '<TypeName>BindingTests' class has to leave the file.
+#
+#
+# Emptied 2026-11-12: the gate moved to this project, which references the packages the core
+# project does not, and the eleven sections it found got their binding tests. The rule is the one the
+# core baseline answers to.

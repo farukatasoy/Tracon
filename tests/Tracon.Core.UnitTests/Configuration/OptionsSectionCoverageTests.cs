@@ -23,12 +23,6 @@ namespace Tracon.Core.UnitTests.Configuration;
 /// </remarks>
 public sealed class OptionsSectionCoverageTests
 {
-    /// <summary>
-    /// The root section itself: <see cref="TraconOptionsBindingCoverageTests"/>
-    /// walks its whole tree.
-    /// </summary>
-    private const string RootSection = "TraconOptions";
-
     [Fact]
     public void No_configuration_section_loses_its_binding_test()
     {
@@ -37,24 +31,11 @@ public sealed class OptionsSectionCoverageTests
         // A scan that found nothing would pass for the wrong reason.
         sections.Count.ShouldBeGreaterThan(20);
 
-        var uncovered = UncoveredSections(sections, typeof(OptionsSectionCoverageTests).Assembly.GetTypes());
-
-        var baseline = ReadBaseline();
-        var failures = new List<string>();
-
-        foreach (var name in uncovered.Except(baseline, StringComparer.Ordinal))
-        {
-            failures.Add(
-                $"+ {name}: a new configuration section bound by hand, with nothing proving every scalar " +
-                $"reaches it. Add a '{name}BindingTests' class in this namespace.");
-        }
-
-        foreach (var name in baseline.Except(uncovered, StringComparer.Ordinal))
-        {
-            failures.Add($"- {name}: now has a binding test - remove it from the baseline.");
-        }
-
-        failures.Sort(StringComparer.Ordinal);
+        var failures = OptionsSectionCoverage.BaselineDifferences(
+            sections,
+            typeof(OptionsSectionCoverageTests).Assembly.GetTypes(),
+            OptionsSectionCoverage.ReadBaseline(BaselinePath),
+            "in this namespace");
 
         failures.ShouldBeEmpty(
             customMessage: $"The options-section coverage baseline is stale.{Environment.NewLine}" +
@@ -77,150 +58,35 @@ public sealed class OptionsSectionCoverageTests
             ("a test that never calls the key coverage", Emit(name, [Test(callsKeyCoverage: false)]).Single()),
         })
         {
-            UncoveredSections([section], [bindingTest]).Contains(section.Name, StringComparer.Ordinal)
+            OptionsSectionCoverage.UncoveredSections([section], [bindingTest]).Contains(section.Name, StringComparer.Ordinal)
                 .ShouldBeTrue($"a class with {shape} took the section off the list");
         }
 
         // The control: the same shape with a runnable test that calls the key coverage counts.
-        UncoveredSections([section], Emit(name, [Test(callsKeyCoverage: true)])).ShouldBeEmpty();
+        OptionsSectionCoverage.UncoveredSections([section], Emit(name, [Test(callsKeyCoverage: true)])).ShouldBeEmpty();
     }
 
     [Fact]
     public void A_binding_test_counts_only_when_it_can_run_and_names_every_member()
     {
-        CountsAsBindingTest(Emit("Runnable", [Test(callsKeyCoverage: true)]).Single()).ShouldBeTrue();
-        CountsAsBindingTest(Emit("Skipped", [Test(skip: "later", callsKeyCoverage: true)]).Single()).ShouldBeFalse();
-        CountsAsBindingTest(Emit("Explicit", [Test(explicitOnly: true, callsKeyCoverage: true)]).Single()).ShouldBeFalse();
-        CountsAsBindingTest(Emit("Unrelated", [Test(callsKeyCoverage: false)]).Single()).ShouldBeFalse();
-        CountsAsBindingTest(Emit("Empty", []).Single()).ShouldBeFalse();
+        OptionsSectionCoverage.CountsAsBindingTest(Emit("Runnable", [Test(callsKeyCoverage: true)]).Single()).ShouldBeTrue();
+        OptionsSectionCoverage.CountsAsBindingTest(Emit("Skipped", [Test(skip: "later", callsKeyCoverage: true)]).Single()).ShouldBeFalse();
+        OptionsSectionCoverage.CountsAsBindingTest(Emit("Explicit", [Test(explicitOnly: true, callsKeyCoverage: true)]).Single()).ShouldBeFalse();
+        OptionsSectionCoverage.CountsAsBindingTest(Emit("Unrelated", [Test(callsKeyCoverage: false)]).Single()).ShouldBeFalse();
+        OptionsSectionCoverage.CountsAsBindingTest(Emit("Empty", []).Single()).ShouldBeFalse();
 
         // One runnable test that calls it is enough, whatever else the class holds.
-        CountsAsBindingTest(Emit("Mixed", [Test(skip: "later", callsKeyCoverage: false), Test(callsKeyCoverage: true)]).Single())
+        OptionsSectionCoverage.CountsAsBindingTest(Emit("Mixed", [Test(skip: "later", callsKeyCoverage: false), Test(callsKeyCoverage: true)]).Single())
             .ShouldBeTrue();
 
         // Real classes of this namespace stand in for the shapes a private nested class cannot take (xUnit1000).
-        CountsAsBindingTest(typeof(TraconQuotaOptionsBindingTests)).ShouldBeTrue();
-        CountsAsBindingTest(typeof(TraconRunRecordingOptionsBindingTests)).ShouldBeFalse();
+        OptionsSectionCoverage.CountsAsBindingTest(typeof(TraconQuotaOptionsBindingTests)).ShouldBeTrue();
+        OptionsSectionCoverage.CountsAsBindingTest(typeof(TraconRunRecordingOptionsBindingTests)).ShouldBeFalse();
 
         // Measured in xunit.v3 3.2.2 and held in 4.0.2: TheoryAttribute derives from FactAttribute,
         // so one check counts a [Theory]-only class too. If that ever changes,
         // this line fails before a [Theory]-only binding test class goes uncounted.
         typeof(TheoryAttribute).IsSubclassOf(typeof(FactAttribute)).ShouldBeTrue();
-    }
-
-    /// <summary>The sections that are neither the root nor a node of its tree and have no counting binding test.</summary>
-    /// <param name="sections">The section types.</param>
-    /// <param name="candidates">The types that may be a section's binding test class.</param>
-    internal static HashSet<string> UncoveredSections(IEnumerable<Type> sections, IEnumerable<Type> candidates)
-    {
-        var testClassNames = candidates
-            .Where(CountsAsBindingTest)
-            .Select(static type => type.Name)
-            .ToHashSet(StringComparer.Ordinal);
-
-        return sections
-            .Where(type => !string.Equals(type.Name, RootSection, StringComparison.Ordinal))
-            .Where(type => !ReachableFromTraconOptions(type))
-            .Where(type => !testClassNames.Contains($"{type.Name}BindingTests"))
-            .Select(static type => type.Name)
-            .ToHashSet(StringComparer.Ordinal);
-    }
-
-    /// <summary>Whether a type in this assembly counts as the binding test its name promises.</summary>
-    /// <remarks>
-    /// <para>
-    /// The name alone used to be enough: an empty <c>{Type}BindingTests</c> class
-    /// took a section off the baseline while proving nothing. A class counts only
-    /// when one of its tests can run (not skipped, not explicit) AND the class calls
-    /// <see cref="OptionsKeyCoverage.ShouldCoverEveryMember"/>: an unrelated test in a
-    /// class of the right name proves nothing about the section, and the key
-    /// coverage is what names every member.
-    /// </para>
-    /// <para>
-    /// The call is found in the compiled code, not in the source: the method of the
-    /// test, and the compiler's own nested types (closures, async state machines) of
-    /// the class, are read for a call to the helper. A class cannot satisfy the gate
-    /// by mentioning the helper in a comment or a string.
-    /// </para>
-    /// </remarks>
-    internal static bool CountsAsBindingTest(Type type)
-    {
-        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
-
-        var runnable = methods.Where(static method => method.GetCustomAttributes<FactAttribute>(inherit: true)
-            .Any(static attribute => string.IsNullOrEmpty(attribute.Skip) && !attribute.Explicit))
-            .ToList();
-
-        if (runnable.Count == 0)
-        {
-            return false;
-        }
-
-        var generated = type.GetNestedTypes(BindingFlags.NonPublic | BindingFlags.Public)
-            .Where(static nested => nested.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), inherit: false))
-            .SelectMany(static nested => nested.GetMethods(
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly));
-
-        return runnable.Concat(generated).Any(CallsKeyCoverage);
-    }
-
-    private static bool CallsKeyCoverage(MethodBase method)
-        => CalledMethods(method).Any(static called => called.DeclaringType == typeof(OptionsKeyCoverage)
-            && string.Equals(called.Name, nameof(OptionsKeyCoverage.ShouldCoverEveryMember), StringComparison.Ordinal));
-
-    private static readonly Dictionary<short, OpCode> OpCodesByValue = typeof(OpCodes)
-        .GetFields(BindingFlags.Public | BindingFlags.Static)
-        .Where(static field => field.FieldType == typeof(OpCode))
-        .Select(static field => (OpCode)field.GetValue(null)!)
-        .ToDictionary(static opCode => opCode.Value);
-
-    /// <summary>Every method the body of <paramref name="method"/> calls, read from its IL.</summary>
-    private static IEnumerable<MethodBase> CalledMethods(MethodBase method)
-    {
-        var il = method.GetMethodBody()?.GetILAsByteArray();
-
-        if (il is null)
-        {
-            yield break;
-        }
-
-        for (var position = 0; position < il.Length;)
-        {
-            var code = il[position] == 0xFE ? (short)(0xFE00 | il[position + 1]) : il[position];
-            position += il[position] == 0xFE ? 2 : 1;
-            var opCode = OpCodesByValue[code];
-
-            if (opCode.OperandType == OperandType.InlineMethod
-                && ResolveMethod(method, BitConverter.ToInt32(il, position)) is { } called)
-            {
-                yield return called;
-            }
-
-            position += opCode.OperandType switch
-            {
-                OperandType.InlineNone => 0,
-                OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or OperandType.ShortInlineVar => 1,
-                OperandType.InlineVar => 2,
-                OperandType.InlineI8 or OperandType.InlineR => 8,
-                OperandType.InlineSwitch => 4 + (4 * BitConverter.ToInt32(il, position)),
-                _ => 4,
-            };
-        }
-    }
-
-    private static MethodBase? ResolveMethod(MethodBase caller, int token)
-    {
-        try
-        {
-            return caller.Module.ResolveMethod(
-                token,
-                caller.DeclaringType?.IsGenericType == true ? caller.DeclaringType.GetGenericArguments() : null,
-                caller.IsGenericMethod ? caller.GetGenericArguments() : null);
-        }
-        catch (ArgumentException)
-        {
-            return null;
-        }
     }
 
     /// <summary>One method of a type <see cref="Emit"/> builds.</summary>
@@ -293,35 +159,14 @@ public sealed class OptionsSectionCoverageTests
     /// <summary>The options type the emitted calls are made generic over.</summary>
     public sealed class ProbeOptions;
 
-    private static string RepositoryRoot { get; } = FindRepositoryRoot();
-
     /// <remarks>
     /// Read from the repository tree, not from the build output: the file is
     /// edited by hand and a stale copy in <c>bin/</c> would let a removed entry
-    /// keep passing. Same pattern as the other baseline gates. A static field
-    /// initialiser runs in DECLARATION order, so the root is declared first.
+    /// keep passing. Same pattern as the other baseline gates.
     /// </remarks>
     private static string BaselinePath { get; } = Path.Combine(
-        RepositoryRoot, "tests", "Tracon.Core.UnitTests", "Configuration",
+        OptionsSectionCoverage.FindRepositoryRoot(), "tests", "Tracon.Core.UnitTests", "Configuration",
         "options-section-coverage-baseline.txt");
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Tracon.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Tracon.slnx not found.");
-    }
-
-    private static HashSet<string> ReadBaseline()
-        => File.ReadAllLines(BaselinePath)
-            .Select(static line => line.Trim())
-            .Where(static line => line.Length > 0 && !line.StartsWith('#'))
-            .ToHashSet(StringComparer.Ordinal);
 
     /// <summary>Every options type that names a <c>Tracon:</c> section.</summary>
     private static IEnumerable<Type> SectionTypes()
@@ -333,42 +178,4 @@ public sealed class OptionsSectionCoverageTests
                 && field.GetRawConstantValue() is string name
                 && name.StartsWith("Tracon", StringComparison.Ordinal))
             .Distinct();
-
-    /// <summary>
-    /// Whether the type is a node of the <c>TraconOptions</c> tree, which
-    /// <see cref="TraconOptionsBindingCoverageTests"/> already walks.
-    /// </summary>
-    private static bool ReachableFromTraconOptions(Type target)
-    {
-        var seen = new HashSet<Type>();
-        var queue = new Queue<Type>();
-        queue.Enqueue(typeof(TraconOptions));
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-
-            if (!seen.Add(current))
-            {
-                continue;
-            }
-
-            foreach (var property in current.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-            {
-                var type = property.PropertyType;
-
-                if (type == target)
-                {
-                    return true;
-                }
-
-                if (type.IsClass && type.Namespace?.StartsWith("Tracon", StringComparison.Ordinal) == true)
-                {
-                    queue.Enqueue(type);
-                }
-            }
-        }
-
-        return false;
-    }
 }

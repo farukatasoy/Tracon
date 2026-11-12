@@ -28,6 +28,9 @@
     <Compile Include="../Tracon.Core.UnitTests/Configuration/ConfigurationPermutationTests.cs" Link="Linked/ConfigurationPermutationTests.cs" />
     <Compile Include="../Tracon.Core.UnitTests/Configuration/OptionScalarCatalog.cs" Link="Linked/OptionScalarCatalog.cs" />
     <Compile Include="../Tracon.Core.UnitTests/Configuration/SectionBinding.cs" Link="Linked/SectionBinding.cs" />
+    <!-- The binding-test rule and the key coverage it looks for: the same ones the core sections answer to. -->
+    <Compile Include="../Tracon.Core.UnitTests/Configuration/OptionsSectionCoverage.cs" Link="Linked/OptionsSectionCoverage.cs" />
+    <Compile Include="../Tracon.Core.UnitTests/Configuration/OptionsKeyCoverage.cs" Link="Linked/OptionsKeyCoverage.cs" />
   </ItemGroup>
 
 </Project>

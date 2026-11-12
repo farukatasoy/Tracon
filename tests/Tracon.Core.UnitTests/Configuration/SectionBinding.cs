@@ -42,6 +42,34 @@ internal static class SectionBinding
         return provider.GetRequiredService<IOptions<TOptions>>().Value;
     }
 
+    /// <summary>Returns the options the registered configuration steps build from <paramref name="values"/>, without the validators.</summary>
+    /// <typeparam name="TOptions">The options type.</typeparam>
+    /// <param name="values">The configuration, keys written in full (<c>Tracon:Mcp:OAuthTokenStore</c>).</param>
+    /// <param name="compose">The rest of the Tracon chain.</param>
+    /// <returns>The options after every <see cref="IConfigureOptions{TOptions}"/> step has run on a new instance.</returns>
+    /// <remarks>
+    /// For a test that gives every member a value that differs from the default. That combination is not always a valid
+    /// setup (a token store that needs a cache the test did not register, resuming runs with checkpointing off), and the
+    /// test is about the reading, not the rule: <see cref="Bind{TOptions}"/> reads <c>IOptions&lt;T&gt;.Value</c>, which
+    /// runs the validators.
+    /// </remarks>
+    public static TOptions BindWithoutValidation<TOptions>(
+        IReadOnlyDictionary<string, string?> values,
+        Action<ITraconBuilder, IConfigurationSection>? compose = null)
+        where TOptions : class, new()
+    {
+        using var provider = Build(values, compose);
+
+        var options = new TOptions();
+
+        foreach (var step in provider.GetServices<IConfigureOptions<TOptions>>())
+        {
+            step.Configure(options);
+        }
+
+        return options;
+    }
+
     /// <summary>Runs the startup validation the host runs and returns its failure.</summary>
     /// <param name="values">The configuration.</param>
     /// <param name="compose">The rest of the Tracon chain.</param>
