@@ -289,11 +289,14 @@ internal static class AgentEndpoints
                 "the feedback as well as the answer. After each iteration the loop evaluated, the stream sends a " +
                 "'loop.iteration-completed' event, between that iteration's last 'update' and the first 'update' of the " +
                 "next. Its data is the event GET /api/runs/{id}/events serves; its 'payload' holds 'iteration', " +
-                "'continued', 'continuedBy', 'failedCriterion' and 'ceilingReached', and is null when " +
+                "'continued', 'continuedBy', 'hasFeedback', 'failedCriterion', 'ceilingReached', 'failsRun' and " +
+                "'criteria' (every criterion evaluated in the iteration, each with its 'kind' and its 'decision'), " +
+                "and is null when " +
                 "'RunRecording:RecordToolPayloads' is off. The answer is the iteration the last " +
                 "event closes, when that event has 'continued' false. When the last event has 'ceilingReached' true, the " +
                 "answer is the iteration after it, because the turn at the ceiling is not evaluated and has no event of " +
-                "its own. After an event with 'continued' true, the next 'update' carries the feedback the loop gives the " +
+                "its own. With 'OnExhausted' set to 'FailRun' no turn follows, and the stream ends with an 'error' event. " +
+                "After an event with 'continued' true, the next 'update' carries the feedback the loop gives the " +
                 "model (role 'user'), not the model's answer. " +
                 "A run that does not record its events, or whose store could not take the event, sends no " +
                 "'loop.iteration-completed' event. " +
