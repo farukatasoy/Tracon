@@ -15,6 +15,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1029,9 +1030,14 @@ CONTRACT_API_V1 = (
 
 def _baseline_repo(
     directory: str, *, with_snapshot: str | None = "", contract_api: str | None = CONTRACT_API_V1, tag: str = "v1.0.0",
+    projects: tuple[str, ...] = (),
 ) -> pathlib.Path:
-    """A repo whose baseline tag carries a PublicAPI surface and a `required` snapshot (None: no snapshot)."""
+    """A repo whose baseline tag carries a PublicAPI surface and a `required` snapshot (None: no snapshot).
+
+    `projects` are packable projects the tag holds (a project file each)."""
     repo = _repo(directory)
+    for project in projects:
+        _write_csproj(repo, project)
     _write(repo, f"{CORE_API}/PublicAPI.Shipped.txt", "#nullable enable\n")
     _write(repo, f"{CORE_API}/PublicAPI.Unshipped.txt", "#nullable enable\nTracon.Options\nTracon.Options.Name.get -> string!\n")
     if contract_api is not None:
@@ -1116,6 +1122,25 @@ class SurfaceReaderTests(unittest.TestCase):
             delta = bc.surface_delta(repo, "1.0.0")
 
         self.assertEqual(delta.required_dropped, ["Tracon.Options.Other"])
+
+    def test_a_package_the_tag_packed_and_the_tree_no_longer_has_is_listed_as_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, projects=("Tracon.Core", "Tracon.Voice"))
+            shutil.rmtree(repo / "src" / "Tracon.Voice")
+            _write_csproj(repo, "Tracon.Added")
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        self.assertEqual(delta.removed_packages, ["Tracon.Voice"])
+
+    def test_a_package_that_stops_being_packable_counts_as_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, projects=("Tracon.Core", "Tracon.Voice"))
+            _write_csproj(repo, "Tracon.Voice", "<PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>")
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        self.assertEqual(delta.removed_packages, ["Tracon.Voice"])
 
     def test_a_new_contract_test_is_not_an_added_member_but_another_line_is(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1241,9 +1266,12 @@ class SurfaceReaderTests(unittest.TestCase):
 class SurfaceGateTests(unittest.TestCase):
     """`check` with a repo: the line decides what the surface readers may do."""
 
-    def _run(self, *, version: str, notes: str, baseline: str = "1.0.0", edit=None, snapshot: str | None = ""):
+    def _run(
+        self, *, version: str, notes: str, baseline: str = "1.0.0", edit=None, snapshot: str | None = "",
+        projects: tuple[str, ...] = (),
+    ):
         with tempfile.TemporaryDirectory() as directory:
-            repo = _baseline_repo(directory, with_snapshot=snapshot, tag=f"v{baseline}")
+            repo = _baseline_repo(directory, with_snapshot=snapshot, tag=f"v{baseline}", projects=projects)
             if edit is not None:
                 edit(repo)
             reports = pathlib.Path(directory) / "reports"
@@ -1310,6 +1338,55 @@ class SurfaceGateTests(unittest.TestCase):
         self.assertIn("A required member cannot become optional or go away in a patch release", output)
         self.assertIn("Tracon.Options.Other", output)
         self.assertEqual(minor, 0, minor_output)
+
+    @staticmethod
+    def _remove_voice(repo: pathlib.Path) -> None:
+        shutil.rmtree(repo / "src" / "Tracon.Voice")
+
+    def test_a_package_removed_on_a_frozen_line_is_red_whatever_the_notes_say(self):
+        for version in ("1.0.1", "1.1.0"):
+            code, output = self._run(
+                version=version, notes="- `Tracon.Voice` is removed.", edit=self._remove_voice,
+                projects=("Tracon.Core", "Tracon.Voice"))
+
+            self.assertEqual(code, 1, output)
+            self.assertIn("A package cannot be removed on a frozen line", output)
+            self.assertIn("Tracon.Voice", output)
+
+    def test_a_package_removed_on_the_preview_line_must_be_named_in_the_notes(self):
+        unnamed_code, unnamed_output = self._run(
+            version="1.0.0-preview.6", baseline="1.0.0-preview.5", notes="- Something else.",
+            edit=self._remove_voice, projects=("Tracon.Core", "Tracon.Voice"))
+        named_code, named_output = self._run(
+            version="1.0.0-preview.6", baseline="1.0.0-preview.5", notes="- `Tracon.Voice` is removed.",
+            edit=self._remove_voice, projects=("Tracon.Core", "Tracon.Voice"))
+        substring_code, substring_output = self._run(
+            version="1.0.0-preview.6", baseline="1.0.0-preview.5", notes="- `Tracon.Voice.Extras` is removed.",
+            edit=self._remove_voice, projects=("Tracon.Core", "Tracon.Voice"))
+
+        self.assertEqual(unnamed_code, 1)
+        self.assertIn("The release notes do not name the removed package", unnamed_output)
+        self.assertIn("Tracon.Voice", unnamed_output)
+        self.assertEqual(named_code, 0, named_output)
+        self.assertEqual(substring_code, 1, substring_output)
+
+    def test_the_result_file_lists_the_removed_packages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, tag="v1.0.0-preview.5", projects=("Tracon.Core", "Tracon.Voice"))
+            self._remove_voice(repo)
+            reports = pathlib.Path(directory) / "reports"
+            reports.mkdir()
+            changelog = pathlib.Path(directory) / "CHANGELOG.md"
+            changelog.write_text("# Changelog\n\n## [Unreleased]\n\n- `Tracon.Voice` is removed.\n", encoding="utf-8")
+            result_path = pathlib.Path(directory) / "result.json"
+
+            code, output = _quiet(lambda: bc.check(
+                report_dir=reports, baseline="1.0.0-preview.5", version="1.0.0-preview.6", changelog=changelog,
+                result_path=result_path, repo=repo))
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(code, 0, output)
+        self.assertEqual(result["removedPackages"], ["Tracon.Voice"])
 
     def test_a_member_added_in_a_minor_release_is_green(self):
         code, output = self._run(version="1.1.0", notes="", edit=self._add_member)

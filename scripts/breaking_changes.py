@@ -880,6 +880,29 @@ class SurfaceDelta:
     required_types: dict[str, set[str]] = dataclasses.field(default_factory=dict)
     required_dropped: list[str] = dataclasses.field(default_factory=list)
     notes: list[str] = dataclasses.field(default_factory=list)
+    # Package ids the tag packed and the working tree no longer packs. The baseline of the
+    # validation is taken from the packages that exist now, so a removed package is never
+    # compared and ApiCompat cannot report it.
+    removed_packages: list[str] = dataclasses.field(default_factory=list)
+
+
+def removed_packages(root: pathlib.Path, tag: str) -> list[str]:
+    """Package ids the tag packed that the working tree does not pack any more.
+
+    Both sides read the same rule as the rehearsal: `src/<id>/<id>.csproj` that does not say
+    `<IsPackable>false</IsPackable>`. Raises SurfaceError when git cannot list the tag's projects:
+    a gate that cannot read its baseline must be red."""
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import remote_state
+
+    at_tag = remote_state.packable_ids_at(root, tag)
+    if at_tag is None:
+        raise SurfaceError(f"cannot list the packable projects of tag '{tag}'")
+    now = {
+        project.stem for project in (root / "src").glob("*/*.csproj")
+        if "<IsPackable>false</IsPackable>" not in project.read_text(encoding="utf-8")
+    }
+    return sorted(set(at_tag) - now)
 
 
 def surface_delta(root: pathlib.Path, baseline: str) -> SurfaceDelta:
@@ -909,6 +932,7 @@ def surface_delta(root: pathlib.Path, baseline: str) -> SurfaceDelta:
             delta.added_members[package] = added
     delta.required_types, delta.required_dropped, delta.notes = required_member_additions(
         root, tag, before, snapshot_required=compare_versions(baseline, FROZEN_FROM) >= 0)
+    delta.removed_packages = removed_packages(root, tag)
     return delta
 
 
@@ -921,6 +945,12 @@ def unnamed_contract_tests(tests: Iterable[str], notes: str | None) -> list[str]
         test for test in tests
         if not any(set(test.split(".")) <= parts for parts in spans)
     )
+
+
+def unnamed_removed_packages(packages: Iterable[str], notes: str | None) -> list[str]:
+    """Removed packages the notes do not name: the id must be a code span of its own, never a part of a longer one."""
+    spans = set(_code_spans(notes or ""))
+    return sorted(package for package in packages if package not in spans)
 
 
 def write_result(
@@ -945,6 +975,7 @@ def write_result(
         result["line"] = line.kind
     if delta is not None:
         result["contractTests"] = list(delta.contract_tests)
+        result["removedPackages"] = list(delta.removed_packages)
     path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return path
 
@@ -987,8 +1018,9 @@ def check(
     release a broken type or dropped framework passes when the notes name it
     (the gate rejects the unannounced break, not the break). In a
     frozen release it is red whatever the notes say, and a frozen patch also
-    rejects an added public member. A contract test added since the baseline
-    must be named in the notes on every line.
+    rejects an added public member. A package the baseline tag packed and the tree
+    no longer packs is red on a frozen line and must be named on the others. A
+    contract test added since the baseline must be named in the notes on every line.
 
     `repo` switches on the readers the report cannot replace: the PublicAPI
     files, the `required` snapshot and the contract tests, all against the
@@ -1025,7 +1057,13 @@ def check(
 
     failed = False
     contract = delta.contract_tests if delta is not None else []
+    removed = delta.removed_packages if delta is not None else []
 
+    if line.frozen and removed:
+        print(
+            f"❌ A package cannot be removed on a frozen line (baseline v{baseline}, version {version}); "
+            f"the release notes cannot save it: {_listed(removed)}")
+        failed = True
     if line.frozen and not changes.is_empty:
         print(f"❌ A breaking change is rejected on a frozen line (baseline v{baseline}, version {version}); the release notes cannot save it:")
         for entry in _describe_breaking(changes):
@@ -1044,10 +1082,14 @@ def check(
 
     notes, heading = (None, None)
     breaking_needs_notes = not line.frozen and not changes.is_empty
-    if breaking_needs_notes or contract:
+    removal_needs_notes = not line.frozen and bool(removed)
+    if breaking_needs_notes or removal_needs_notes or contract:
         notes, heading = release_notes_for(changelog, version, baseline)
         if notes is None:
-            subject = "A breaking change exists" if breaking_needs_notes else "A contract test was added"
+            subject = (
+                "A breaking change exists" if breaking_needs_notes
+                else "A package was removed" if removal_needs_notes
+                else "A contract test was added")
             print(f"❌ {subject} but there are no release notes for '{version}' (baseline v{baseline}).")
             cut = pending_cut(changelog, baseline)
             if cut:
@@ -1063,6 +1105,16 @@ def check(
                 for missing_line in missing:
                     print(f"  {missing_line}")
                 failed = True
+        if removal_needs_notes:
+            missing_packages = unnamed_removed_packages(removed, notes)
+            if missing_packages:
+                print(
+                    f"❌ The release notes do not name the removed package "
+                    f"(baseline v{baseline}, notes '{heading or 'none'}'):")
+                for package in missing_packages:
+                    print(f"  {package}")
+                print("   Name each package as its id in one code span.")
+                failed = True
         if contract:
             missing_tests = unnamed_contract_tests(contract, notes)
             if missing_tests:
@@ -1077,7 +1129,7 @@ def check(
     if failed:
         return 1
 
-    breaking_heading = heading if not changes.is_empty else None
+    breaking_heading = heading if not changes.is_empty or removal_needs_notes else None
     print(
         f"✅ Break list: {plural(changes.type_count(), 'type')}, {plural(changes.framework_count(), 'dropped TFM')}, "
         f"{plural(changes.package_count(), 'package')} — "
