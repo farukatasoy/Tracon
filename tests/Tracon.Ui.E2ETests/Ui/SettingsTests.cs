@@ -296,6 +296,12 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await session.Page.GetByTestId("webhook-secret-key")
             .FillAsync("Tracon:WebhookSecrets:order-service");
 
+        // A new subscription opens switched off: nothing is delivered to an address until someone turns it on, and a test
+        // send to a subscription that is off is refused.
+        var enabled = session.Page.GetByTestId("webhook-enabled");
+        await Expect(enabled, "The webhook form opened with the subscription switched on.").Not.ToBeCheckedAsync();
+        await enabled.CheckAsync();
+
         await session.Page.GetByTestId("webhook-save").ClickAsync();
 
         await Expect(session.Page.GetByTestId("webhook-row").First).ToBeVisibleAsync();

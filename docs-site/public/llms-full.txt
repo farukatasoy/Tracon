@@ -887,11 +887,13 @@ agent that has versions.
   arm still applies only to the agent it was set on, not to the agents that agent calls; to
   compare a callee's versions, run an experiment on the callee directly.
 - Only a stored agent has versions. Pinning an agent defined in code is refused.
-- The call graph and the cycle check read the names of the callees' **current** versions. A pin
-  does not change them, so a cycle that exists only through a pinned older version is not found
-  when the definition is saved: the depth limit stops it while the run goes on, after the model
-  calls it spent. The same rule can refuse a definition whose pinned version does not close the
-  cycle that the current version does.
+- The call graph and the cycle check follow the version a reference names. A pinned callee's
+  callable agents are those of **that stored version**; an unpinned callee's are those of its
+  current version, pins included. A cycle that exists only through a pinned older version is
+  refused when the definition is saved, with the pin in the path
+  (`There is a cycle in the call graph: a -> b@1 -> a`), and a pin that steps around the cycle
+  the current version closes is saved. An agent defined in code has no stored definition, so the
+  check follows the names the catalog reports for it; the depth limit is the second line there.
 
 A save returns `400`, and `POST /api/agents/validate` reports each finding with the path of
 the entry:
