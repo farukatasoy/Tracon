@@ -42,7 +42,8 @@ internal sealed class RunReconciliationService(
     SchemaReadyGate schemaReadyGate,
     TimeProvider? timeProvider = null,
     ILogger<RunReconciliationService>? logger = null,
-    HostedToolRegistry? hostedTools = null) : BackgroundService, ISwitchedLoop
+    HostedToolRegistry? hostedTools = null,
+    IAgentDefinitionStore? definitions = null) : BackgroundService, ISwitchedLoop
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly TickOptions<RunReconciliationOptions> _tickOptions = new(optionsMonitor, logger, "run reconciliation scan");
@@ -214,6 +215,7 @@ internal sealed class RunReconciliationService(
         // (K memory note), and the chain walk stops at the first ancestor, so
         // MaxAttempts above 1 never sees the older links.
         string? unsafeTool;
+        string? definitionRefusal = null;
 
         using (AmbientTenantScope.Begin(tenantId))
         {
@@ -222,7 +224,24 @@ internal sealed class RunReconciliationService(
                 return;
             }
 
+            // The rules the continuation job applies to the definition, applied before the job exists: a job its handler
+            // refuses leaves a placeholder run that is Failed and never started, and the interrupted run learns nothing.
+            if (definitions is not null)
+            {
+                var stored = record.AgentVersion is { } version
+                    ? await definitions.GetVersionAsync(record.AgentName, version, cancellationToken).ConfigureAwait(false)
+                    : await definitions.GetAsync(record.AgentName, cancellationToken).ConfigureAwait(false);
+
+                definitionRefusal = RunContinuationEligibility.DefinitionRefusal(stored, record.AgentName, record.AgentVersion);
+            }
+
             unsafeTool = await FindUnsafeToolAsync(record.Id, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (definitionRefusal is not null)
+        {
+            await WriteBlockedEventAsync(record, definitionRefusal, cancellationToken).ConfigureAwait(false);
+            return;
         }
 
         if (unsafeTool is not null)

@@ -289,7 +289,7 @@ public sealed class RunContinuationTests
     {
         // An extension's context provider can add a tool of its own. That tool never passes
         // through the playback wrapper, so a continuation could run an already completed call
-        // a second time. The handler refuses, as it does for skills and sub-agents.
+        // a second time. The reconciler refuses before a job exists, as it does for skills and sub-agents.
         ContinuationProbeTools.Reset();
 
         var configured = 0;
@@ -316,13 +316,42 @@ public sealed class RunContinuationTests
         // Saving the seed definition compiles it once; the continuation must not add a compilation.
         var afterSeed = configured;
 
-        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
-        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+        var blocked = await WaitForBlockedEventAsync(host, sourceRunId);
 
-        continuation.ShouldNotBeNull();
-        continuation.Status.ShouldBe(RunStatus.Failed);
-        continuation.Error.ShouldNotBeNull().Message.ShouldContain("agent extensions", Case.Sensitive);
+        blocked.ShouldContain("agent extensions", Case.Sensitive);
+        await AssertNoContinuationOpenedAsync(host);
         configured.ShouldBe(afterSeed);
+        ContinuationProbeTools.Calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task An_agent_with_skills_or_a_callable_sub_agent_is_refused_before_a_continuation_exists()
+    {
+        // The reconciler applies the rules the continuation job applies, so the interrupted run is told why and no
+        // placeholder run is opened that the job would only close as Failed.
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(o =>
+        {
+            o.Enabled = true;
+            o.MaxAttempts = 1;
+        });
+
+        var sourceRunId = await SeedCrashedRunAsync(
+            host,
+            new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Give a short answer.",
+                Model = new ModelBinding { Provider = "cont-model", Model = ModelId },
+                ToolNames = ["get_order_status"],
+                CallableAgents = ["researcher"],
+            });
+
+        var blocked = await WaitForBlockedEventAsync(host, sourceRunId);
+
+        blocked.ShouldContain("skills or callable sub-agents", Case.Sensitive);
+        await AssertNoContinuationOpenedAsync(host);
         ContinuationProbeTools.Calls.ShouldBe(0);
     }
 
@@ -351,12 +380,10 @@ public sealed class RunContinuationTests
                 Workspace = new WorkspaceSettings { Enabled = true },
             });
 
-        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
-        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+        var blocked = await WaitForBlockedEventAsync(host, sourceRunId);
 
-        continuation.ShouldNotBeNull();
-        continuation.Status.ShouldBe(RunStatus.Failed);
-        continuation.Error.ShouldNotBeNull().Message.ShouldContain("session workspace", Case.Sensitive);
+        blocked.ShouldContain("session workspace", Case.Sensitive);
+        await AssertNoContinuationOpenedAsync(host);
         ContinuationProbeTools.Calls.ShouldBe(0);
     }
 
@@ -1108,6 +1135,39 @@ public sealed class RunContinuationTests
         });
 
         return runId;
+    }
+
+    /// <summary>Waits for the <see cref="RunEventType.RunContinuationBlocked"/> event the reconciler writes on the interrupted run.</summary>
+    private static async Task<string> WaitForBlockedEventAsync(TraconTestHost host, Guid sourceRunId)
+    {
+        var runs = host.Services.GetRequiredService<IRunStore>();
+
+        var blocked = await WaitUntil.ValueAsync<RunEvent?>(
+            async () =>
+            {
+                await foreach (var runEvent in runs.ReadEventsAsync(sourceRunId))
+                {
+                    if (runEvent.Type == RunEventType.RunContinuationBlocked)
+                    {
+                        return runEvent;
+                    }
+                }
+
+                return null;
+            },
+            static runEvent => runEvent is not null,
+            "a RunContinuationBlocked event on the source run");
+
+        return blocked.ShouldNotBeNull().Text.ShouldNotBeNull();
+    }
+
+    /// <summary>The session holds the interrupted run and nothing else: no continuation, not even a failed placeholder.</summary>
+    private static async Task AssertNoContinuationOpenedAsync(TraconTestHost host)
+    {
+        var all = await host.Services.GetRequiredService<IRunStore>()
+            .QueryRunsAsync(new RunQuery { SessionId = SessionId, OnlyRootRuns = false });
+
+        all.Count.ShouldBe(1);
     }
 
     private static async Task<Guid> WaitForContinuationAsync(TraconTestHost host, Guid sourceRunId)

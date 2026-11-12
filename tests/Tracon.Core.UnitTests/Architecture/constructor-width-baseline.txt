@@ -17,7 +17,7 @@ Tracon.Core:Tracon.LiveVoiceSessionLauncher | 15 | The container builds it with 
 Tracon.Core:Tracon.ModelProviderRegistry | 16 | The container builds it with a factory registration; a test builds it with a list of providers.
 Tracon.Core:Tracon.QueuedTurn | 11 | The job handlers that run an agent turn from a queued job build one for each job they execute.
 Tracon.Core:Tracon.RunContinuationJobHandler | 13 | The container builds it as the built-in run continuation job handler, registered under its job key.
-Tracon.Core:Tracon.RunReconciliationService | 11 | The container builds it as the hosted service that closes runs a stopped process left open.
+Tracon.Core:Tracon.RunReconciliationService | 12 | The container builds it as the hosted service that closes runs a stopped process left open.
 Tracon.Core:Tracon.TraconDiagnosticsCollector | 17 | The container builds it with a factory registration for the diagnostics endpoint and the startup report.
 Tracon.Core:Tracon.VoiceConversationDriver | 12 | The container builds it with a factory registration when the voice conversation is added to the builder.
 Tracon.Mcp:Tracon.McpOAuthAuthorizationCoordinator | 11 | The container builds it as the MCP OAuth coordinator when MCP is added to the builder.

@@ -145,13 +145,18 @@ internal sealed class RunContinuationJobHandler(
             experimentId = source.ExperimentId;
             variant = source.Variant;
 
-            var definition = (agentVersion is { } version
+            var stored = agentVersion is { } version
                 ? await definitions.GetVersionAsync(source.AgentName, version, cancellationToken).ConfigureAwait(false)
-                : await definitions.GetAsync(source.AgentName, cancellationToken).ConfigureAwait(false))
-                ?? throw new TraconException(
-                    $"Agent '{source.AgentName}' has no persistent definition" +
-                    (agentVersion is { } v ? $" version {v}" : string.Empty) +
-                    "; a code-defined or deleted agent cannot be continued.");
+                : await definitions.GetAsync(source.AgentName, cancellationToken).ConfigureAwait(false);
+
+            // The same rules the reconciler applies before it queues this job (a job queued earlier, or by hand, comes
+            // here without them).
+            if (RunContinuationEligibility.DefinitionRefusal(stored, source.AgentName, agentVersion) is { } definitionRefusal)
+            {
+                throw new TraconException(definitionRefusal);
+            }
+
+            var definition = stored!;
 
             // The source run recorded the values it was bound with, and
             // the turn continues with the SAME ones. Without a record the turn
@@ -181,33 +186,6 @@ internal sealed class RunContinuationJobHandler(
                 }
 
                 parameterValues = recorded.Values;
-            }
-
-            // Skills, callable sub-agents and agent extensions can run through an
-            // AIContextProvider, not through the tool-calling pipeline
-            // RecordedToolPlayback wraps — see the class documentation.
-            if (definition.SkillNames.Count > 0 || definition.CallableAgents.Count > 0)
-            {
-                throw new TraconException(
-                    $"Agent '{source.AgentName}' uses skills or callable sub-agents, which do not go " +
-                    "through tool playback; continuing it could silently repeat a completed skill or " +
-                    "sub-agent call. This run cannot be continued.");
-            }
-
-            if (definition.ExtensionNames.Count > 0)
-            {
-                throw new TraconException(
-                    $"Agent '{source.AgentName}' uses agent extensions, whose context providers can add tools " +
-                    "that do not go through tool playback; continuing it could silently repeat a completed " +
-                    "tool call. This run cannot be continued.");
-            }
-
-            if (definition.Workspace is { Enabled: true })
-            {
-                throw new TraconException(
-                    $"Agent '{source.AgentName}' has a session workspace, whose file tools come from a context " +
-                    "provider and do not go through tool playback; continuing it could silently repeat a " +
-                    "completed write or delete. This run cannot be continued.");
             }
 
             var invocations = await runStore.ListToolInvocationsAsync(sourceRunId, cancellationToken).ConfigureAwait(false);

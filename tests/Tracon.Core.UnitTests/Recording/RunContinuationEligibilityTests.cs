@@ -39,6 +39,45 @@ public sealed class RunContinuationEligibilityTests
     public void An_eval_run_is_refused()
         => RunContinuationEligibility.Refusal(Run() with { Kind = RunKind.Eval }).ShouldNotBeNull().ShouldContain("'Eval'", Case.Sensitive);
 
+    [Fact]
+    public void A_plain_definition_may_be_continued()
+        => RunContinuationEligibility.DefinitionRefusal(Definition(), "support", agentVersion: null).ShouldBeNull();
+
+    [Fact]
+    public void A_missing_definition_is_refused_and_names_the_pinned_version()
+    {
+        RunContinuationEligibility.DefinitionRefusal(null, "support", agentVersion: null)
+            .ShouldNotBeNull().ShouldContain("Agent 'support' has no persistent definition;", Case.Sensitive);
+        RunContinuationEligibility.DefinitionRefusal(null, "support", agentVersion: 3)
+            .ShouldNotBeNull().ShouldContain("persistent definition version 3;", Case.Sensitive);
+    }
+
+    [Fact]
+    public void An_agent_with_skills_or_callable_sub_agents_is_refused()
+    {
+        RunContinuationEligibility.DefinitionRefusal(Definition() with { SkillNames = ["invoices"] }, "support", null)
+            .ShouldNotBeNull().ShouldContain("skills or callable sub-agents", Case.Sensitive);
+        RunContinuationEligibility.DefinitionRefusal(Definition() with { CallableAgents = ["researcher"] }, "support", null)
+            .ShouldNotBeNull().ShouldContain("skills or callable sub-agents", Case.Sensitive);
+    }
+
+    [Fact]
+    public void An_agent_with_an_extension_or_a_session_workspace_is_refused()
+    {
+        RunContinuationEligibility.DefinitionRefusal(Definition() with { ExtensionNames = ["adds-a-tool"] }, "support", null)
+            .ShouldNotBeNull().ShouldContain("agent extensions", Case.Sensitive);
+        RunContinuationEligibility.DefinitionRefusal(Definition() with { Workspace = new WorkspaceSettings { Enabled = true } }, "support", null)
+            .ShouldNotBeNull().ShouldContain("session workspace", Case.Sensitive);
+    }
+
+    private static AgentDefinition Definition()
+        => new()
+        {
+            Name = "support",
+            Instructions = "Help.",
+            Model = new ModelBinding { Provider = "fake", Model = "fake-model" },
+        };
+
     private static RunRecord Run()
         => new()
         {

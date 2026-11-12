@@ -398,10 +398,17 @@ event, and the run at the root of its tree is the one that is continued or resum
 The new run's record links back to the interrupted one, so an operator reading the
 run tree can see that a run continued another rather than starting fresh.
 
+An agent whose tools do not all pass through the tool-calling pipeline is not continued
+either, because a continuation could repeat a call that already completed: an agent with
+skills, callable sub-agents, agent extensions or a session workspace, and one that has no
+stored definition (a code-defined or deleted agent). The interrupted run stays `Failed`
+and a `RunContinuationBlocked` event on it names the agent and the reason; no second run
+is opened.
+
 An agent that declares [parameters](/concepts/agents/#parameters) continues with the
 values the interrupted run recorded. A run that recorded none — input recording was
-off, or it predates parameter recording — stays `Failed` rather than continue on the
-defaults, and the event stream says why.
+off, or it predates parameter recording — is not continued on the defaults: the
+continuation run that is opened for it fails at once and its error says why.
 
 | Setting | Default | Effect |
 |---|---:|---|

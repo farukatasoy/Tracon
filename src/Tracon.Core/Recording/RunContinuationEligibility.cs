@@ -36,6 +36,54 @@ namespace Tracon;
 /// </remarks>
 internal static class RunContinuationEligibility
 {
+    /// <summary>Returns why the definition an interrupted run used cannot be continued.</summary>
+    /// <param name="definition">The definition the run used; <see langword="null"/> when there is none in the store.</param>
+    /// <param name="agentName">The run's agent.</param>
+    /// <param name="agentVersion">The version the run was pinned to, if any.</param>
+    /// <returns>
+    /// A sentence that names the agent and says why, as the continuation job fails with it;
+    /// <see langword="null"/> when the definition may be continued.
+    /// </returns>
+    /// <remarks>
+    /// The rules the job applies after it has read the definition, kept here so the reconciler applies the same ones
+    /// BEFORE it queues the job: a job refused by its handler leaves a placeholder run that is <c>Failed</c> and was never
+    /// started, and the run that was interrupted learns nothing. Skills, callable sub-agents, agent extensions and a
+    /// session workspace come through a context provider, not through the tool-calling pipeline that tool playback wraps,
+    /// so a continuation could repeat a call that already completed.
+    /// </remarks>
+    public static string? DefinitionRefusal(AgentDefinition? definition, string agentName, int? agentVersion)
+    {
+        if (definition is null)
+        {
+            return $"Agent '{agentName}' has no persistent definition" +
+                   (agentVersion is { } version ? $" version {version}" : string.Empty) +
+                   "; a code-defined or deleted agent cannot be continued.";
+        }
+
+        if (definition.SkillNames.Count > 0 || definition.CallableAgents.Count > 0)
+        {
+            return $"Agent '{agentName}' uses skills or callable sub-agents, which do not go " +
+                   "through tool playback; continuing it could silently repeat a completed skill or " +
+                   "sub-agent call. This run cannot be continued.";
+        }
+
+        if (definition.ExtensionNames.Count > 0)
+        {
+            return $"Agent '{agentName}' uses agent extensions, whose context providers can add tools " +
+                   "that do not go through tool playback; continuing it could silently repeat a completed " +
+                   "tool call. This run cannot be continued.";
+        }
+
+        if (definition.Workspace is { Enabled: true })
+        {
+            return $"Agent '{agentName}' has a session workspace, whose file tools come from a context " +
+                   "provider and do not go through tool playback; continuing it could silently repeat a " +
+                   "completed write or delete. This run cannot be continued.";
+        }
+
+        return null;
+    }
+
     /// <summary>Returns why a run is not continued.</summary>
     /// <param name="record">The interrupted run.</param>
     /// <returns>
