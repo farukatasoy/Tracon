@@ -1005,6 +1005,48 @@ public sealed class JobWorkerLeaseContractTests
     }
 
     /// <summary>
+    /// A callback of the handler that throws <see cref="ObjectDisposedException"/> is the handler's bug as much as any other
+    /// exception, and is logged: only the disposal of the renewal's own token source means "nobody is left to tell".
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The announcement catches <see cref="ObjectDisposedException"/> as "the attempt ended while the loop was answering".
+    /// That catch reads like a net that also takes a callback's own <see cref="ObjectDisposedException"/>, but it does not:
+    /// cancelling a source wraps what its callbacks throw in an <see cref="AggregateException"/>, and the only bare
+    /// <see cref="ObjectDisposedException"/> is the one the disposed source itself throws. This test pins the half that
+    /// matters for a handler's bug: a change that lets the callbacks' exceptions arrive bare turns it red instead of
+    /// silencing them.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task A_callback_that_throws_an_ObjectDisposedException_when_the_lease_is_lost_is_logged_like_any_other()
+    {
+        var clock = new ManualClock();
+        var jobs = new LeaseLossJobStore(clock) { Renewal = RenewalAnswer.Throw };
+        var handler = new ThrowingCallbackHandler(static () => new ObjectDisposedException("the callback used a closed connection"));
+        var logger = new CollectingLogger();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: ManualPoll, logger: logger);
+
+        await StartAttemptAsync(worker, clock, handler.Started);
+
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.RenewCalls >= 1, "the first renewal to be sent");
+        clock.Advance(ManualInterval);
+        await handler.Cancelled.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
+        logger.Entries.ShouldContain(
+            entry => entry.Level == LogLevel.Warning
+                && entry.Message.Contains("a callback on the handler's token threw", StringComparison.Ordinal),
+            "an ObjectDisposedException the callback threw was swallowed as if the attempt had ended");
+    }
+
+    /// <summary>
     /// The lease is lost and the time limit passes while the handler is still running: the lease wins, and nothing is
     /// written for the attempt, whatever the handler returns.
     /// </summary>
@@ -2306,8 +2348,9 @@ public sealed class JobWorkerLeaseContractTests
     }
 
     /// <summary>Puts a callback on its token that throws, and records why the worker cancelled it.</summary>
-    private sealed class ThrowingCallbackHandler : IJobHandler
+    private sealed class ThrowingCallbackHandler(Func<Exception>? exception = null) : IJobHandler
     {
+        private readonly Func<Exception> _exception = exception ?? (static () => new InvalidOperationException("the callback broke on the lost lease"));
         private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -2323,8 +2366,7 @@ public sealed class JobWorkerLeaseContractTests
             // own bug; the other tells the test the token was cancelled. Neither registration is disposed: the delay below
             // ends this method the moment the token is cancelled, and a disposal on that path can remove a callback before
             // the cancelling thread has run it. The token's source drops them.
-            _ = cancellationToken.Register(
-                static () => throw new InvalidOperationException("the callback broke on the lost lease"));
+            _ = cancellationToken.Register(() => throw _exception());
             _ = cancellationToken.Register(
                 () =>
                 {
