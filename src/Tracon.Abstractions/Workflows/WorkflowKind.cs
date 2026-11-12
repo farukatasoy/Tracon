@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
@@ -21,6 +22,7 @@ namespace Tracon;
 /// changes is not acceptable.
 /// </para>
 /// </remarks>
+[Description("The built-in workflow patterns a workflow definition can use: sequential, concurrent, handoff, group chat and magentic.")]
 [JsonConverter(typeof(JsonStringEnumConverter<WorkflowKind>))]
 public enum WorkflowKind
 {

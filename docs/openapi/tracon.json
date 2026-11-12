@@ -12037,7 +12037,8 @@
           "FailedRun",
           "NegativeScore",
           "ReferenceRun"
-        ]
+        ],
+        "description": "Why an evaluation case was promoted from a production run: a failed run, a negative score or a reference run."
       },
       "EvalExpectedToolCall": {
         "required": [
@@ -16163,7 +16164,8 @@
           "LoopUnsatisfied",
           "OutputTruncated",
           "TenantProviderRefused"
-        ]
+        ],
+        "description": "The class of a run error: a small, stable set; Unknown means no rule matched."
       },
       "RunErrorCluster": {
         "required": [
@@ -17068,7 +17070,8 @@
           "Hour",
           "Day",
           "Week"
-        ]
+        ],
+        "description": "The width of a bucket in a score trend series: an hour, a day or a week, all computed in UTC."
       },
       "RunScoreBucketAggregate": {
         "required": [
@@ -17150,7 +17153,8 @@
           "Any",
           "Run",
           "Message"
-        ]
+        ],
+        "description": "Which scores a query counts: run-level scores, message-level scores, or both."
       },
       "RunStatistics": {
         "required": [
@@ -18589,7 +18593,8 @@
         "enum": [
           "Hour",
           "Day"
-        ]
+        ],
+        "description": "The bucket width of a time-series query: an hour or a day."
       },
       "TimeSeriesPoint": {
         "required": [
@@ -20134,7 +20139,8 @@
           "ServerShutdown",
           "Abandoned",
           "Provider"
-        ]
+        ],
+        "description": "Why a voice session ended: the client stopped it, it idled too long, it reached its duration limit, the server shut down, it was abandoned, or an error or the provider ended it."
       },
       "VoiceSessionRecord": {
         "required": [
@@ -21027,7 +21033,8 @@
           "Handoff",
           "GroupChat",
           "Magentic"
-        ]
+        ],
+        "description": "The built-in workflow patterns a workflow definition can use: sequential, concurrent, handoff, group chat and magentic."
       },
       "WorkflowNodeKind": {
         "enum": [

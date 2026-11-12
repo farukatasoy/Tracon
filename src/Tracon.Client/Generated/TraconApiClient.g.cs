@@ -21347,6 +21347,9 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// Why an evaluation case was promoted from a production run: a failed run, a negative score or a reference run.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<EvalCaseSource>))]
     public enum EvalCaseSource
@@ -25408,6 +25411,9 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// The class of a run error: a small, stable set; Unknown means no rule matched.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<RunErrorClass>))]
     public enum RunErrorClass
@@ -26276,6 +26282,9 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// The width of a bucket in a score trend series: an hour, a day or a week, all computed in UTC.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<RunScoreBucket>))]
     public enum RunScoreBucket
@@ -26379,6 +26388,9 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// Which scores a query counts: run-level scores, message-level scores, or both.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<RunScoreTarget>))]
     public enum RunScoreTarget
@@ -27696,6 +27708,9 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// The bucket width of a time-series query: an hour or a day.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<TimeSeriesBucket>))]
     public enum TimeSeriesBucket
@@ -29173,6 +29188,9 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// Why a voice session ended: the client stopped it, it idled too long, it reached its duration limit, the server shut down, it was abandoned, or an error or the provider ended it.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<VoiceSessionEndReason>))]
     public enum VoiceSessionEndReason
@@ -30099,6 +30117,9 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// The built-in workflow patterns a workflow definition can use: sequential, concurrent, handoff, group chat and magentic.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowKind>))]
     public enum WorkflowKind

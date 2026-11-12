@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
@@ -20,6 +21,7 @@ namespace Tracon;
 /// rows. A new class is added to the end of the list, not inserted in order.
 /// </para>
 /// </remarks>
+[Description("The class of a run error: a small, stable set; Unknown means no rule matched.")]
 [JsonConverter(typeof(JsonStringEnumConverter<RunErrorClass>))]
 public enum RunErrorClass
 {

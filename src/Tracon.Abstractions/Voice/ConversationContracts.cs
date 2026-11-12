@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
@@ -131,6 +132,7 @@ public sealed record VoiceSessionCost
 /// Written <strong>as a name</strong> in JSON; stored as <c>smallint</c> in
 /// the database. The numeric values are <strong>stable</strong> and must not change.
 /// </remarks>
+[Description("Why a voice session ended: the client stopped it, it idled too long, it reached its duration limit, the server shut down, it was abandoned, or an error or the provider ended it.")]
 [JsonConverter(typeof(JsonStringEnumConverter<VoiceSessionEndReason>))]
 public enum VoiceSessionEndReason
 {

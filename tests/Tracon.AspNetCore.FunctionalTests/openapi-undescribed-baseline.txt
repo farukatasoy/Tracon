@@ -215,7 +215,6 @@ DeletedResource
 DeletedResource.deleted
 DeletedResource.id
 DeletedResource.object
-EvalCaseSource
 IFormFile
 ItemContent
 ItemContent.text
@@ -248,11 +247,7 @@ ProblemDetails.instance
 ProblemDetails.status
 ProblemDetails.title
 ProblemDetails.type
-RunErrorClass
-RunScoreBucket
-RunScoreTarget
 Stream
-TimeSeriesBucket
 ToolCallContent
 ToolCallContentBase
 ToolCallContentBase.additionalProperties
@@ -302,5 +297,3 @@ UsageDetails.outputTextTokenCount
 UsageDetails.outputTokenCount
 UsageDetails.reasoningTokenCount
 UsageDetails.totalTokenCount
-VoiceSessionEndReason
-WorkflowKind

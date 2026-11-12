@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
@@ -7,6 +8,7 @@ namespace Tracon;
 /// Written as a name in JSON, stored as <c>smallint</c> in the database. The
 /// value order <strong>must not change</strong> — only append.
 /// </remarks>
+[Description("Why an evaluation case was promoted from a production run: a failed run, a negative score or a reference run.")]
 [JsonConverter(typeof(JsonStringEnumConverter<EvalCaseSource>))]
 public enum EvalCaseSource
 {

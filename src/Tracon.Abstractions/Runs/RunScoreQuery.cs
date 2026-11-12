@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
@@ -59,6 +60,7 @@ public sealed record RunScoreQuery
 }
 
 /// <summary>Which target a score belongs to — the filter <see cref="RunScoreQuery.Target"/> narrows to.</summary>
+[Description("Which scores a query counts: run-level scores, message-level scores, or both.")]
 [JsonConverter(typeof(JsonStringEnumConverter<RunScoreTarget>))]
 public enum RunScoreTarget
 {
@@ -79,6 +81,7 @@ public enum RunScoreTarget
 /// silently drift between them. Every bucket boundary is computed in UTC; a
 /// week starts on Monday (ISO 8601), independent of server locale.
 /// </remarks>
+[Description("The width of a bucket in a score trend series: an hour, a day or a week, all computed in UTC.")]
 [JsonConverter(typeof(JsonStringEnumConverter<RunScoreBucket>))]
 public enum RunScoreBucket
 {

@@ -4453,7 +4453,10 @@ export interface components {
             /** @description The failure reason. Populated only when `Passed` is `false`. */
             failureReason?: null | string;
         };
-        /** @enum {unknown} */
+        /**
+         * @description Why an evaluation case was promoted from a production run: a failed run, a negative score or a reference run.
+         * @enum {unknown}
+         */
         EvalCaseSource: "FailedRun" | "NegativeScore" | "ReferenceRun";
         /** @description A tool call an EvalCase expects the agent to make. */
         EvalExpectedToolCall: {
@@ -6602,7 +6605,10 @@ export interface components {
              */
             fingerprint?: null | string;
         };
-        /** @enum {unknown} */
+        /**
+         * @description The class of a run error: a small, stable set; Unknown means no rule matched.
+         * @enum {unknown}
+         */
         RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | "LoopUnsatisfied" | "OutputTruncated" | "TenantProviderRefused";
         /** @description The summary of runs sharing the same fingerprint. */
         RunErrorCluster: {
@@ -7072,7 +7078,10 @@ export interface components {
              */
             truncatedCategoryCount?: number | string;
         };
-        /** @enum {unknown} */
+        /**
+         * @description The width of a bucket in a score trend series: an hour, a day or a week, all computed in UTC.
+         * @enum {unknown}
+         */
         RunScoreBucket: "Hour" | "Day" | "Week";
         /** @description One time bucket of the trend series (IReadOnlyList&lt;RunScoreBucketAggregate&gt; RunScoreSummary.Series). */
         RunScoreBucketAggregate: {
@@ -7111,7 +7120,10 @@ export interface components {
              */
             series?: components["schemas"]["RunScoreBucketAggregate"][];
         };
-        /** @enum {unknown} */
+        /**
+         * @description Which scores a query counts: run-level scores, message-level scores, or both.
+         * @enum {unknown}
+         */
         RunScoreTarget: "Any" | "Run" | "Message";
         /** @description A summary of the runs in a time range. */
         RunStatistics: {
@@ -7862,7 +7874,10 @@ export interface components {
              */
             requirePolicy: boolean;
         };
-        /** @enum {unknown} */
+        /**
+         * @description The bucket width of a time-series query: an hour or a day.
+         * @enum {unknown}
+         */
         TimeSeriesBucket: "Hour" | "Day";
         /**
          * @description A summary of the runs in a time bucket. The result unit of
@@ -8574,7 +8589,10 @@ export interface components {
             /** @description The currency the amounts are in. */
             currency?: null | string;
         };
-        /** @enum {unknown} */
+        /**
+         * @description Why a voice session ended: the client stopped it, it idled too long, it reached its duration limit, the server shut down, it was abandoned, or an error or the provider ended it.
+         * @enum {unknown}
+         */
         VoiceSessionEndReason: "Client" | "IdleTimeout" | "DurationLimit" | "Error" | "ServerShutdown" | "Abandoned" | "Provider";
         /** @description The summary record of a real-time voice connection. */
         VoiceSessionRecord: {
@@ -9070,7 +9088,10 @@ export interface components {
              */
             reason?: null | string;
         };
-        /** @enum {unknown} */
+        /**
+         * @description The built-in workflow patterns a workflow definition can use: sequential, concurrent, handoff, group chat and magentic.
+         * @enum {unknown}
+         */
         WorkflowKind: "Sequential" | "Concurrent" | "Handoff" | "GroupChat" | "Magentic";
         /**
          * @description Represents the role of a graph node.
