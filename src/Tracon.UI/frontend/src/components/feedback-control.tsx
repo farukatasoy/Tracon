@@ -155,7 +155,9 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
     onSuccess: () => void client.invalidateQueries({ queryKey }),
   });
 
-  const busy = rate.isPending || remove.isPending;
+  // 🚨 Until the list has come back the control does not know the reviewer's own row, so a thumb pressed now would add a
+  // second Binary row where it should remove the first. The buttons and the comment wait for the list.
+  const busy = feedback.isPending || rate.isPending || remove.isPending;
 
   const toggle = (value: 0 | 1): void => {
     if (mine?.value === value) {

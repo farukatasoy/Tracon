@@ -81,6 +81,62 @@ describe('FeedbackControl', () => {
     expect(screen.getAllByTestId('feedback-up')).toHaveLength(1);
   });
 
+  it('does not take a score before the existing ones have loaded', async () => {
+    // 🚨 Before the list came back, the control did not know the reviewer's own row, so a thumb pressed in that
+    // window created a second Binary row where it should have removed the first. The buttons and the comment field
+    // wait for the list.
+    const sent: string[] = [];
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    restoreFetch = installApiMock([
+      {
+        method: 'GET',
+        pattern: 'api/runs/:runId/feedback',
+        handler: async () => {
+          await held;
+
+          return [score({ id: 'binary-row', name: 'overall', kind: 'Binary', value: 1 })];
+        },
+      },
+      {
+        method: 'POST',
+        pattern: 'api/runs/:runId/feedback',
+        handler: () => {
+          sent.push('POST');
+          return score({});
+        },
+      },
+      {
+        method: 'DELETE',
+        pattern: 'api/runs/:runId/feedback/:scoreId',
+        handler: (params) => {
+          sent.push(`DELETE ${params.scoreId}`);
+          return null;
+        },
+        status: 204,
+      },
+    ]);
+
+    renderScreen(<FeedbackControl runId={RUN_ID} />);
+
+    const up = await screen.findByTestId('feedback-up');
+
+    expect(up).toHaveProperty('disabled', true);
+    expect(screen.getByTestId('feedback-down')).toHaveProperty('disabled', true);
+    expect(screen.getByTestId('feedback-comment')).toHaveProperty('disabled', true);
+
+    release();
+
+    await waitFor(() => expect(up).toHaveProperty('disabled', false));
+    await userEvent.click(up);
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toBe('DELETE binary-row');
+  });
+
   it('removes its own score when a Stars score shares the overall name', async () => {
     // 🚨 A Stars score may carry the same `name` as the Binary one this control
     // owns; the API does not forbid it and `ListAsync` documents no order.
@@ -120,7 +176,9 @@ describe('FeedbackControl', () => {
 
     renderScreen(<FeedbackControl runId={RUN_ID} />);
 
-    await userEvent.click(await screen.findByTestId('feedback-up'));
+    const up = await screen.findByTestId('feedback-up');
+    await waitFor(() => expect(up).toHaveProperty('disabled', false));
+    await userEvent.click(up);
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toBe('DELETE binary-row');

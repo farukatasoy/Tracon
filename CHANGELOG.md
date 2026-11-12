@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The run page's thumbs and comment box wait for the run's scores.** The feedback control of the embedded console took a click before the list of the run's scores had come back, so it did not know the reviewer's own row: a thumb pressed in that window added a second `Binary` score where it should have removed the first. The two thumbs and the comment box are now disabled until the list has loaded.
+  What to do:
+  - **Nothing.** The control is part of the console that `Tracon.UI` embeds; a host that talks to the API with `@tracon/client` is not affected. A run that already carries duplicate scores keeps them; remove the extra rows through the feedback endpoint.
+
 ## [1.0.0-preview.11] - 2026-11-11
 
 This release moves every package to the MIT licence and changes the error body of the OpenAI-compatible routes for the refusals that come before a route's own code. It also closes two gaps: a quota period that could end before the instant it was asked about, and a job store call that could hold a worker's slot for ever. One shipped store contract test no longer fails a correct store now and then. Only the error body of those refusals changes the shape of a response; no public .NET type is removed.
