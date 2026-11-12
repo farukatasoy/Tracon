@@ -289,6 +289,12 @@ Keep these effects in mind:
   internal error (`-32603`). Send the messages one after the other.
 - **Refusals.** A refusal reaches the caller as the same opaque `-32603` error. The
   cause is in the server log at `Error` level.
+- **An agent that cannot be compiled.** A provider binding whose key has no value, or an
+  egress policy that no longer allows the provider, answers `-32603` with a text of its
+  own: `Agent '<name>' cannot be run: it could not be compiled (<error type>). This is a
+  configuration error on the server and a retry will not succeed. (ref: <id>)`. The `ref`
+  finds the full failure in the server log. The text never names the configuration key. An
+  MCP tool call gets the same text as a tool error.
 - **Session ownership.** When session ownership is on and
   `RequireAuthenticatedOwner` is `true`, a message whose identity Tracon cannot
   attribute is refused **before** the model is called, and so is a message that resumes

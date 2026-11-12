@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using A2A;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -217,7 +218,24 @@ internal sealed class ExternalAgentProxy : AIAgent
         }
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
-        var agent = await catalog.ResolveAsync(_agentName, culture: null, cancellationToken).ConfigureAwait(false)
+        AIAgent? resolved;
+
+        try
+        {
+            resolved = await catalog.ResolveAsync(_agentName, culture: null, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconException ex) when (UncompilableAgentCall.Matches(ex))
+        {
+            // The protocol's own error, with a text a caller can act on and no word about the configuration: the
+            // exception's message names the key a tenant's operator mis-typed.
+            throw new A2AException(
+                UncompilableAgentCall.Describe(
+                    ex, _agentName, "a2a", services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.a2a.ExternalCall")),
+                ex,
+                A2AErrorCode.InternalError);
+        }
+
+        var agent = resolved
             ?? throw new TraconExternalCallException($"There is no agent named '{_agentName}' in the catalog.")
             {
                 AgentName = _agentName,

@@ -10,12 +10,16 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// What the MCP server and the A2A endpoint answer when the agent they were asked for cannot be compiled: the protocol's own
-/// error, never a server failure, and no word about the configuration that is missing.
+/// error, never a server failure, a text that tells a configuration error from a passing one, and no word about the
+/// configuration that is missing.
 /// </summary>
 /// <remarks>
 /// A tenant provider binding whose configuration key has no value makes the catalog refuse the agent. The agent card and the
 /// tool list do not compile an agent and answer as they always do; a call to the agent answers a protocol-level error with
-/// a fixed text, so the name of the key a tenant's operator mis-typed does not reach a remote agent or tool caller.
+/// a fixed text, so the name of the key a tenant's operator mis-typed does not reach a remote agent or tool caller. The text
+/// names the agent and the error type, says that a retry will not succeed, and carries a reference that finds the full
+/// failure in the server's log. It used to be the protocol library's own sentence ("An internal error occurred."), which a
+/// remote caller cannot tell from a failure that a second try would cure.
 /// </remarks>
 public sealed class ExternalSurfacesUncompilableAgentTests
 {
@@ -41,6 +45,12 @@ public sealed class ExternalSurfacesUncompilableAgentTests
         body.ShouldNotContain(MissingKey);
         body.ShouldNotContain("provider binding");
 
+        // A configuration error says so; the library's "An internal error occurred." did not.
+        body.ShouldContain($"Agent '{Doomed}' cannot be run", Case.Sensitive);
+        body.ShouldContain("tenant_provider_refused", Case.Sensitive);
+        body.ShouldContain("a retry will not succeed", Case.Sensitive);
+        body.ShouldContain("(ref: ", Case.Sensitive);
+
         using var healthy = await SendAsync(host, Healthy);
         (await healthy.Content.ReadAsStringAsync()).ShouldContain("\"result\"");
     }
@@ -58,6 +68,10 @@ public sealed class ExternalSurfacesUncompilableAgentTests
         var doomed = await CallAsync(mcp, $"tracon_{Doomed}");
         doomed.IsError.ShouldBe(true);
         TextOf(doomed).ShouldNotContain(MissingKey);
+        TextOf(doomed).ShouldContain($"Agent '{Doomed}' cannot be run", Case.Sensitive);
+        TextOf(doomed).ShouldContain("tenant_provider_refused", Case.Sensitive);
+        TextOf(doomed).ShouldContain("a retry will not succeed", Case.Sensitive);
+        TextOf(doomed).ShouldContain("(ref: ", Case.Sensitive);
 
         var healthy = await CallAsync(mcp, $"tracon_{Healthy}");
         healthy.IsError.ShouldNotBe(true);

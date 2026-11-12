@@ -78,7 +78,19 @@ internal static class CatalogToolCallHandler
         }
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
-        var agent = await catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false);
+        AIAgent? agent;
+
+        try
+        {
+            agent = await catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconException ex) when (UncompilableAgentCall.Matches(ex))
+        {
+            // 🚨 Not SafeErrorText.ForPersistence: it keeps the message of a Tracon exception, and this one names the
+            // configuration key a tenant's operator mis-typed.
+            return Error(UncompilableAgentCall.Describe(
+                ex, agentName, "mcp", services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.McpServer")));
+        }
 
         if (agent is null)
         {
