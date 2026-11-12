@@ -126,7 +126,7 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
                     await using (insert.ConfigureAwait(false))
                     {
                         insert.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = TraconId.NewId(now) });
-                        insert.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = normalizedTenant });
+                        insert.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = AmbientTenantScope.Normalize(tenantId) });
                         insert.Parameters.Add(new NpgsqlParameter("collection", NpgsqlDbType.Text) { Value = collection });
                         insert.Parameters.Add(new NpgsqlParameter("source_id", NpgsqlDbType.Text) { Value = sourceId });
                         insert.Parameters.Add(new NpgsqlParameter("chunk_index", NpgsqlDbType.Integer) { Value = chunk.Index });
