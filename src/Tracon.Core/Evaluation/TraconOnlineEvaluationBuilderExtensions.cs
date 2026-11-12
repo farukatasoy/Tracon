@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI.Evaluation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -61,6 +62,7 @@ public static class TraconOnlineEvaluationBuilderExtensions
 
         builder.AddRunJudge<ModelRunJudge>();
         builder.Services.Configure(configure);
+        AddJudgeOptionsValidation(builder.Services);
 
         return builder;
     }
@@ -175,8 +177,18 @@ public static class TraconOnlineEvaluationBuilderExtensions
 
         builder.AddEvaluatorJudge(name, evaluator);
         builder.Services.Configure(configure);
+        AddJudgeOptionsValidation(builder.Services);
 
         return builder;
+    }
+
+    // The judge options are validated when the host starts: the catalog says which models reject the sampling fields the
+    // binding sets, and finding out on the first sampled run would only stop the scores.
+    private static void AddJudgeOptionsValidation(IServiceCollection services)
+    {
+        services.AddOptions<ModelRunJudgeOptions>().ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<ModelRunJudgeOptions>, ModelRunJudgeOptionsValidator>());
     }
 
     /// <summary>

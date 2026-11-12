@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A model judge whose model rejects sampling stops the host at start.** `AddModelRunJudge` and `AddEvaluatorJudge` with options take a `ModelBinding`, and the binding could set `Temperature` or `TopP` on a model whose catalog entry says it rejects sampling; the host started and the judge failed on its first sampled run with the provider's `400`, so the scores stopped. The same rule an agent definition has now applies to the judge, and a binding that breaks it fails `ValidateOnStart` with the model named.
+  What to do:
+  - **If a host fails at start with `ModelRunJudgeOptions.Model sets Temperature or TopP`**, remove the two fields from the judge's binding. A judge that never set them, or one on a model the catalog does not mark as rejecting sampling, is not affected.
+
 - **The time limit of a sub-agent call runs on the `TimeProvider` registered in the container.** The limit a workflow step or a sub-agent call puts on its child, and the hard cutoff behind it, were armed on the real clock whatever `TimeProvider` the host registered. They now follow the registered one, as the rest of Tracon's timers do.
   What to do:
   - **Nothing, unless you registered a `FakeTimeProvider`** (a test host, usually) and relied on the real clock to end a slow child. Advance the registered clock past the limit instead.
