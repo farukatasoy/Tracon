@@ -238,14 +238,23 @@ internal sealed class JobWorkerBackgroundService(
 
             try
             {
-                job = await jobStore.LeaseAsync(
-                    new JobLeaseRequest
-                    {
-                        Owner = _ownerId,
-                        LeaseDuration = options.LeaseDuration,
-                        Lanes = lanes,
-                        TenantCap = tenantCapSource?.Current,
-                    },
+                // Bounded: a lease call that never answers held this loop, and every job behind it, for as long as the
+                // store took. One lease duration is the longest a call under the worker's care may take. A lease the
+                // store grants after the worker gave up on the call belongs to nobody; it ends with its duration and
+                // the job is leased again then (its attempt count has grown by one).
+                job = await CallWithinAsync(
+                    job: null,
+                    "lease",
+                    ct => jobStore.LeaseAsync(
+                        new JobLeaseRequest
+                        {
+                            Owner = _ownerId,
+                            LeaseDuration = options.LeaseDuration,
+                            Lanes = lanes,
+                            TenantCap = tenantCapSource?.Current,
+                        },
+                        ct),
+                    CallBudgetOf(options.LeaseDuration),
                     stoppingToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
@@ -1252,7 +1261,7 @@ internal sealed class JobWorkerBackgroundService(
     /// </para>
     /// </remarks>
     private async Task<T> CallWithinAsync<T>(
-        JobRecord job,
+        JobRecord? job,
         string what,
         Func<CancellationToken, ValueTask<T>> call,
         TimeSpan budget,
@@ -1537,7 +1546,8 @@ internal sealed class JobWorkerBackgroundService(
     private async Task DispatchDueSchedulesAsync(CancellationToken stoppingToken)
     {
         var now = _clock.GetUtcNow();
-        var due = await scheduleStore.ListDueAsync(now, stoppingToken).ConfigureAwait(false);
+        var budget = CallBudgetOf(optionsMonitor.CurrentValue.LeaseDuration);
+        var due = await CallWithinAsync(job: null, "due-schedule list", ct => scheduleStore.ListDueAsync(now, ct), budget, stoppingToken).ConfigureAwait(false);
 
         foreach (var schedule in due)
         {
@@ -1586,33 +1596,37 @@ internal sealed class JobWorkerBackgroundService(
 
         // Another instance may have claimed the same schedule at the same
         // time; the job is only created if this instance's claim wins.
-        var claimed = await scheduleStore
-            .TryClaimNextRunAsync(schedule.Id, nextRunAt, newNextRunAt, now, stoppingToken)
-            .ConfigureAwait(false);
+        var budget = CallBudgetOf(optionsMonitor.CurrentValue.LeaseDuration);
+        var claimed = await CallWithinAsync(
+            job: null,
+            "schedule claim",
+            ct => scheduleStore.TryClaimNextRunAsync(schedule.Id, nextRunAt, newNextRunAt, now, ct),
+            budget,
+            stoppingToken).ConfigureAwait(false);
 
         if (!claimed)
         {
             return;
         }
 
-        await jobStore.EnqueueAsync(
-            new JobRecord
-            {
-                Id = TraconId.NewId(),
-                TenantId = schedule.TenantId,
-                ScheduleId = schedule.Id,
-                HandlerKey = schedule.HandlerKey,
-                Lane = schedule.Lane,
-                TargetName = schedule.TargetName,
-                Status = JobStatus.Pending,
-                Payload = schedule.Payload,
-                ScheduledFor = nextRunAt,
-                CreatedAt = now,
-            },
-            // The schedule's payload is copied as written; an attribution
-            // envelope in it travels to the handler with the job.
-            JobPayload.Read(schedule.HandlerKey, schedule.Payload).Items,
-            stoppingToken).ConfigureAwait(false);
+        var queued = new JobRecord
+        {
+            Id = TraconId.NewId(),
+            TenantId = schedule.TenantId,
+            ScheduleId = schedule.Id,
+            HandlerKey = schedule.HandlerKey,
+            Lane = schedule.Lane,
+            TargetName = schedule.TargetName,
+            Status = JobStatus.Pending,
+            Payload = schedule.Payload,
+            ScheduledFor = nextRunAt,
+            CreatedAt = now,
+        };
+
+        // The schedule's payload is copied as written; an attribution envelope in it travels to the handler with the job.
+        var items = JobPayload.Read(schedule.HandlerKey, schedule.Payload).Items;
+
+        _ = await CallWithinAsync(job: null, "schedule enqueue", ct => jobStore.EnqueueAsync(queued, items, ct), budget, stoppingToken).ConfigureAwait(false);
     }
 
     private LeaseRenewal StartLeaseRenewal(
@@ -1804,7 +1818,7 @@ internal sealed class JobWorkerBackgroundService(
     /// <param name="call">The call that has not ended.</param>
     /// <param name="callSource">The call's token source; disposed once the call has ended, not before, because the call may still read its token.</param>
     /// <returns>A task that ends with the call and never faults.</returns>
-    private async Task AbandonCallAsync(JobRecord job, string what, Task call, CancellationTokenSource callSource)
+    private async Task AbandonCallAsync(JobRecord? job, string what, Task call, CancellationTokenSource callSource)
     {
         // The token that governs the call, read while the source is alive.
         var callToken = callSource.Token;
@@ -1839,11 +1853,11 @@ internal sealed class JobWorkerBackgroundService(
         }
     }
 
-    private void LogAbandonedCall(JobRecord job, string what, Exception exception)
+    private void LogAbandonedCall(JobRecord? job, string what, Exception exception)
     {
         if (logger is not null && logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug(exception, "The {Call} call of job {JobId} that the worker gave up on ended with an error.", what, job.Id);
+            logger.LogDebug(exception, "The {Call} call of job {JobId} that the worker gave up on ended with an error.", what, job?.Id);
         }
     }
 

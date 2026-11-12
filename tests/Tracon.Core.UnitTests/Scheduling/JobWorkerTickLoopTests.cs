@@ -109,6 +109,51 @@ public sealed class JobWorkerTickLoopTests
     }
 
     [Fact]
+    public async Task A_lease_that_never_answers_is_given_up_after_one_lease_duration_and_the_loop_leases_again()
+    {
+        // A call that never answers held the loop for as long as the store took: no later tick leased anything, and the
+        // jobs behind the call waited with it. One lease duration is the longest a call under the worker's care may take.
+        var leaseDuration = TimeSpan.FromMinutes(5);
+        var clock = new ManualClock();
+        var store = new ProbeJobStore(new InMemoryJobStore());
+        var calls = 0;
+
+        store.BeforeLease = async token =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false); // delay: simulated
+            }
+        };
+
+        var (worker, host) = Worker(
+            store,
+            new TokenProbeHandler(),
+            o =>
+            {
+                o.PollInterval = Interval;
+                o.LeaseDuration = leaseDuration;
+            },
+            clock: clock);
+
+        using (host)
+        using (worker)
+        {
+            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await WaitUntil.TrueAsync(() => clock.Pending.Contains(Interval), "the worker to arm its poll timer");
+
+            clock.Advance(Interval);
+            await WaitUntil.TrueAsync(() => Volatile.Read(ref calls) >= 1, "the worker to reach the lease that hangs");
+
+            // The call is given up when its budget is spent; the loop then leases on its next tick, which is due.
+            clock.Advance(leaseDuration);
+            await WaitUntil.TrueAsync(() => Volatile.Read(ref calls) >= 2, "the worker to lease again after it gave up on the hung call");
+
+            await worker.StopAsync(CancellationToken.None).WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        }
+    }
+
+    [Fact]
     public async Task A_change_of_the_poll_interval_applies_from_the_next_tick()
     {
         var shorter = TimeSpan.FromSeconds(10);
