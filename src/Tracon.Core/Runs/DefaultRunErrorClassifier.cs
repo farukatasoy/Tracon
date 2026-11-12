@@ -105,6 +105,9 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         };
     }
 
+    /// <summary>The error type a plain <see cref="TraconException"/> records: its full name, with no identity of its own.</summary>
+    private static readonly string PlainTraconExceptionType = typeof(TraconException).FullName!;
+
     private static RunErrorClass ClassifyCore(RunError runError)
     {
         if (StableIdentities.TryGetValue(runError.Type, out var stable))
@@ -156,7 +159,15 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         // canceled.") does not match the timeout pattern. Reversed, every
         // provider timeout was filed as Canceled and disappeared from the
         // failure dashboards.
-        if (TimeoutPattern().IsMatch(runError.Type) || TimeoutPattern().IsMatch(runError.Message))
+        //
+        // 🚨 The words "timed out" and "rate limit" are NOT read from a message Tracon wrote itself. A plain
+        // TraconException has no stable identity (the ones that mean a timeout or a rate limit have), and its
+        // message names whatever the failure is about: "Agent 'timeout-bot' has no persistent definition" read as a
+        // timeout, and a workflow node's retry policy treats a timeout as worth another try, so a refusal that can
+        // never succeed was retried. The type decides for such an error; its message can still say quota or tool.
+        var ownMessage = string.Equals(runError.Type, PlainTraconExceptionType, StringComparison.Ordinal);
+
+        if (TimeoutPattern().IsMatch(runError.Type) || (!ownMessage && TimeoutPattern().IsMatch(runError.Message)))
         {
             return RunErrorClass.Timeout;
         }
@@ -166,7 +177,7 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
             return RunErrorClass.Canceled;
         }
 
-        if (RateLimitPattern().IsMatch(runError.Message) || RateLimitPattern().IsMatch(runError.Type))
+        if ((!ownMessage && RateLimitPattern().IsMatch(runError.Message)) || RateLimitPattern().IsMatch(runError.Type))
         {
             return RunErrorClass.RateLimited;
         }

@@ -21,6 +21,11 @@ public sealed class DefaultRunErrorClassifierTests
     [InlineData("System.Exception", "rate limit exceeded, retry later", RunErrorClass.RateLimited)]
     [InlineData("System.Exception", "The quota defined for this tenant was exceeded.", RunErrorClass.QuotaExceeded)]
     [InlineData("System.Exception", "An error occurred while running tool 'refund_order'", RunErrorClass.ToolError)]
+    // A plain TraconException has no identity of its own, and its message names what the failure is ABOUT: an agent
+    // called "timeout-bot" is not a timeout, and a timeout is what a node's retry policy tries again.
+    [InlineData("Tracon.TraconException", "Agent 'timeout-bot' has no persistent definition; a code-defined agent cannot be continued.", RunErrorClass.Unknown)]
+    [InlineData("Tracon.TraconException", "Tool 'rate-limit-lookup' is not registered.", RunErrorClass.ToolError)]
+    [InlineData("Tracon.TraconException", "Agent 'rate-limit-bot' was not found.", RunErrorClass.Unknown)]
     [InlineData("System.TimeoutException", "the operation timed out", RunErrorClass.Timeout)]
     [InlineData("System.Exception", "the operation has timed out", RunErrorClass.Timeout)]
     [InlineData("System.OperationCanceledException", "canceled", RunErrorClass.Canceled)]

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A refusal Tracon raises as a plain `TraconException` is no longer filed as a timeout or a rate limit because its message contains those words.** The default error classifier reads the words "timed out" and "rate limit" (and `429`) from the message of an error that has no stable identity, and the message of a Tracon refusal names what it is about: `Agent 'timeout-bot' has no persistent definition` was classified `Timeout`. A workflow node's retry policy treats `Timeout` and `RateLimited` as worth another try, so such a refusal was retried although it could never succeed, and the `GET /api/stats` bucket of timeouts counted it. For an error whose type is exactly `Tracon.TraconException`, the type decides and those three words in the message do not; the quota and tool patterns still read the message, and every error with a stable identity (the timeout and rate-limit exceptions among them) keeps its class.
+  What to do:
+  - **Nothing, unless a dashboard or an alert counted a plain `TraconException` as a timeout or a rate limit.** It is `Unknown` (or `ToolError` or `QuotaExceeded` when the message says tool or quota) from this version on; a row written before keeps its class.
+
 - **A filtered or cut-off answer that a fallback model gave is reported once, in the fallback's name.** A fallback model is built through the same pipeline as the primary, so it judges its own answer (a content filter, an output cut off) and writes the `tracon.output.filtered` or `tracon.output.truncated` run event naming itself. The detector outside the fallback chain then saw the same answer and judged it again as the primary, so the run held a second event whose `provider` was the model that had failed. The chain now marks an answer a fallback gave and the outer detector leaves it alone. An answer the primary gave is judged once, as before; the error a fallback's empty filtered answer raises is unchanged.
   What to do:
   - **Nothing, unless a dashboard counted the second event.** A run that fell back and was filtered or cut off holds one event now, not two.
