@@ -310,6 +310,52 @@ public sealed class BudgetLineageTests
     }
 
     [Fact]
+    public async Task A_run_priced_in_more_than_one_currency_adds_no_cost_and_the_log_says_so_once()
+    {
+        var (store, clock) = Setup();
+        var root = Guid.NewGuid();
+        var logs = new CapturingLoggerProvider();
+
+        await OpenAsync(store, root, minutesAgo: 10);
+
+        foreach (var (currency, amount) in new[] { ("USD", 1m), ("EUR", 2m), ("GBP", 3m) })
+        {
+            var child = Guid.NewGuid();
+
+            await store.StartRunAsync(new RunStartInfo
+            {
+                RunId = child,
+                AgentName = "writer",
+                ParentRunId = root,
+                RootRunId = root,
+                Depth = 1,
+                StartedAt = Start - TimeSpan.FromMinutes(9),
+                TenantId = Tenant,
+            });
+            await store.CompleteRunAsync(new RunCompletion
+            {
+                RunId = child,
+                Status = RunStatus.Completed,
+                CompletedAt = Start - TimeSpan.FromMinutes(8),
+                Usage = new RunUsage { InputTokens = 1, TotalTokens = 1 },
+                Cost = new RunCost { InputCost = amount, Currency = currency, Source = PricingSource.Catalog },
+                TenantId = Tenant,
+            });
+        }
+
+        await CloseAsync(store, root, minutes: 3);
+
+        (await store.GetRunAsync(root)).ShouldNotBeNull().TreeCost.ShouldNotBeNull().CurrencyCount.ShouldBe(3);
+
+        var carry = await ReadAsync(store, clock, root, logs.CreateLogger("lineage"));
+
+        carry.Cost.ShouldBe(0m, "a tree priced in several currencies has no total");
+        logs.Entries
+            .Count(static entry => entry.Level == LogLevel.Warning && entry.Message.Contains("more than one currency", StringComparison.Ordinal))
+            .ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Another_tenants_run_is_not_read()
     {
         var (store, clock) = Setup();

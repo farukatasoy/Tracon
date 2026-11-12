@@ -89,6 +89,7 @@ internal static class BudgetLineage
         var runs = 0;
         var active = TimeSpan.Zero;
         var seen = new HashSet<Guid>();
+        var mixedCurrenciesLogged = false;
 
         try
         {
@@ -126,6 +127,18 @@ internal static class BudgetLineage
                 }
 
                 tokens = AddSaturating(tokens, run.TreeUsage?.TotalTokens ?? 0);
+
+                // A tree priced in several currencies has no total, and a partial one would read as the whole bill, so it adds
+                // nothing to the carried cost. The chain does not stop, but the operator is told once why the ceiling counts less.
+                if (run.TreeCost is { CurrencyCount: > 1 } && !mixedCurrenciesLogged)
+                {
+                    mixedCurrenciesLogged = true;
+                    logger.LogWarning(
+                        "Run {RunId}, which the chain of the new run continues, was priced in more than one currency, so its cost " +
+                        "is not counted toward the cost ceiling the new run carries over.",
+                        id);
+                }
+
                 cost += RunSpend.Total(
                             run.TreeCost,
                             WorkflowTreeSpend.NonTokenCost(
