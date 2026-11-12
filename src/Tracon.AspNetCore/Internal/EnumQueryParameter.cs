@@ -88,7 +88,11 @@ internal static class EnumQueryParameter
         };
     }
 
-    private static string? RawText(HttpContext httpContext, string name)
+    /// <summary>Gets the text the caller sent for a parameter: the first query value, or the route value of that name.</summary>
+    /// <param name="httpContext">The current request.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <returns>The text, or <see langword="null"/> when the request carries none.</returns>
+    internal static string? RawText(HttpContext httpContext, string name)
     {
         if (httpContext.Request.Query.TryGetValue(name, out var query) && query.Count > 0)
         {

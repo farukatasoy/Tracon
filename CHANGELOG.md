@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A query parameter that cannot be read as the number, flag, GUID or date it stands for is answered with a problem document that names it.** For a nullable parameter the framework marks the request `400` and says nothing, in every environment: `?startedAfter=yesterday` got a bare `400` with no body. An endpoint filter on the group, the sibling of the one for enums, now answers `400` `Invalid request parameter` with a detail such as `'take' must be a whole number.`, `'startedAfter' must be a date and time in ISO 8601 format, for example 2026-11-12T08:00:00Z.` or `'parentRunId' must be a GUID.`; the OpenAI-compatible routes answer in their error envelope. A parameter that is not nullable keeps the framework's own sentence in Development.
+  What to do:
+  - **Nothing.** A client that matched the empty `400` body finds a problem document; the status is the same.
+
 - **Breaking (`Tracon.Client`, binary): `TraconExportDataSubjectAsync` returns the exported document as a `JsonElement`, and the published document lists the export's answers.** `GET /api/data-subjects/{id}/export` declared `200` with no body schema, so the generated client returned `Task` and the document could only be read by a hand-made request. The document now lists the JSON answer (`application/json`, an open schema), the `409` problem an installation with no `IDataSubjectResolver` answers, and the `X-Tracon-Unresolved-Conversations` response header. The TypeScript schema carries all three; the C# client does not read response headers and raises the `409` as `TraconApiException<ProblemDetails>`.
   What to do:
   - **Source that only awaits the call still compiles;** a build against the old `Task` signature as a delegate type or an interface does not. Use the returned `JsonElement` instead of reading the response by hand.

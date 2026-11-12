@@ -202,6 +202,10 @@ public static class TraconEndpointRouteBuilderExtensions
         // without anyone remembering to ask. It runs after the caller is known, so it answers nobody who may not call.
         group.AddEndpointFilterFactory(EnumQueryParameter.Filter);
 
+        // The same for a number, flag, date or GUID that cannot be read: the binder marks the request 400 and says nothing
+        // about which parameter, so the answer names it.
+        group.AddEndpointFilterFactory(ScalarQueryParameter.Filter);
+
         if (options.AuthorizationPolicy is { Length: > 0 } policy)
         {
             group.RequireAuthorization(policy);
