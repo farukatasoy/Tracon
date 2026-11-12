@@ -25,12 +25,12 @@ public sealed class InMemoryQuotaStoreDeleteRaceTests
         var store = new InMemoryQuotaStore();
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        var reappeared = await StoreDeleteRace.RunAsync(
+        var outcome = await StoreDeleteRace.RunAsync(
             write: async () => await store.SaveAsync(Rule(Guid.NewGuid()), cancellationToken),
             list: async () => [.. (await store.ListAsync(Tenant, cancellationToken)).Select(static rule => rule.Id)],
             delete: async id => await store.DeleteAsync(Tenant, id, cancellationToken));
 
-        reappeared.ShouldBeEmpty(StoreDeleteRace.Describe(reappeared));
+        StoreDeleteRace.Assert(outcome);
     }
 
     private static QuotaDefinition Rule(Guid id)

@@ -593,7 +593,7 @@ public sealed class ChildAgentInvokerTests
 
         (await RunAsync(invoker, streaming)).ShouldNotContain("did not respond in time", Case.Sensitive);
 
-        clock.CreatedTimers.ShouldBeGreaterThan(0, "the deadline arms a timer on the invoker's clock");
+        clock.CreatedTimers.ShouldBeGreaterThanOrEqualTo(2, "the deadline and the hard cutoff each arm a timer on the invoker's clock");
         clock.RunningTimers.ShouldBe(0);
     }
 

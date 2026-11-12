@@ -19,17 +19,39 @@ namespace Tracon.Core.UnitTests.Fakes;
 /// the delete: an identifier a delete freed is never written again, because a write that finds no entry uses an
 /// identifier that was never used before.
 /// </para>
+/// <para>
+/// A run in which no delete ever returned <see langword="true"/> checks nothing, because the set of identifiers to look for
+/// stays empty. <see cref="Outcome.Removed"/> says how many identifiers it held, and <see cref="Assert"/> fails a run that
+/// removed none: an empty "nothing came back" is only worth something when something was removed.
+/// </para>
 /// </remarks>
 internal static class StoreDeleteRace
 {
     private const int Steps = 20_000;
 
+    /// <summary>What a race left behind.</summary>
+    /// <param name="Reappeared">The identifiers a listing showed after a delete of them had returned <see langword="true"/>.</param>
+    /// <param name="Removed">How many identifiers a delete removed during the run; the check looked for exactly those.</param>
+    public sealed record Outcome(IReadOnlyCollection<Guid> Reappeared, int Removed);
+
+    /// <summary>Fails when an entry came back, and when the run removed nothing so that nothing could have.</summary>
+    /// <param name="outcome">The result of <see cref="RunAsync"/>.</param>
+    public static void Assert(Outcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+
+        outcome.Removed.ShouldBeGreaterThan(
+            0,
+            "no delete of the run returned true, so the check had no identifier to look for and proved nothing");
+        outcome.Reappeared.ShouldBeEmpty(Describe(outcome.Reappeared));
+    }
+
     /// <summary>Runs the writes and the deletes at the same time.</summary>
     /// <param name="write">One call of the write. It carries an identifier of its own, new on every call.</param>
     /// <param name="list">The identifiers of the entries the store lists now.</param>
     /// <param name="delete">One call of the delete for the entry with the given identifier.</param>
-    /// <returns>The identifiers a listing showed after a delete of them had returned <see langword="true"/>; empty when none came back.</returns>
-    public static async Task<IReadOnlyCollection<Guid>> RunAsync(
+    /// <returns>The identifiers that came back after a delete, and how many identifiers a delete removed.</returns>
+    public static async Task<Outcome> RunAsync(
         Func<Task> write,
         Func<Task<IReadOnlyList<Guid>>> list,
         Func<Guid, Task<bool>> delete)
@@ -65,7 +87,7 @@ internal static class StoreDeleteRace
         }
     }
 
-    private static async Task<IReadOnlyCollection<Guid>> DeleteRepeatedlyAsync(
+    private static async Task<Outcome> DeleteRepeatedlyAsync(
         Func<Task<IReadOnlyList<Guid>>> list,
         Func<Guid, Task<bool>> delete,
         Barrier barrier)
@@ -89,7 +111,7 @@ internal static class StoreDeleteRace
             }
         }
 
-        return reappeared;
+        return new Outcome(reappeared, removed.Count);
     }
 
     private static async Task DeleteListedAsync(

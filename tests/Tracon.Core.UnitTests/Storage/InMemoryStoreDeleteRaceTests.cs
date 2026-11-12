@@ -21,12 +21,12 @@ public sealed class InMemoryStoreDeleteRaceTests
         var runId = Guid.NewGuid();
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        var reappeared = await StoreDeleteRace.RunAsync(
+        var outcome = await StoreDeleteRace.RunAsync(
             write: async () => await store.UpsertAsync(Score(runId, Guid.NewGuid()), cancellationToken),
             list: async () => [.. (await store.ListAsync(Tenant, runId, cancellationToken)).Select(static score => score.Id)],
             delete: async id => await store.DeleteAsync(Tenant, id, cancellationToken));
 
-        reappeared.ShouldBeEmpty(StoreDeleteRace.Describe(reappeared));
+        StoreDeleteRace.Assert(outcome);
     }
 
     [Fact]
@@ -35,12 +35,12 @@ public sealed class InMemoryStoreDeleteRaceTests
         var store = new InMemoryMcpServerStore();
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        var reappeared = await StoreDeleteRace.RunAsync(
+        var outcome = await StoreDeleteRace.RunAsync(
             write: async () => await store.SaveAsync(Server(Guid.NewGuid()), cancellationToken),
             list: async () => [.. (await store.ListAsync(Tenant, cancellationToken)).Select(static server => server.Id)],
             delete: async _ => await store.DeleteAsync(Tenant, "search", cancellationToken));
 
-        reappeared.ShouldBeEmpty(StoreDeleteRace.Describe(reappeared));
+        StoreDeleteRace.Assert(outcome);
     }
 
     [Fact]
@@ -49,12 +49,12 @@ public sealed class InMemoryStoreDeleteRaceTests
         var store = new InMemoryTenantStore();
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        var reappeared = await StoreDeleteRace.RunAsync(
+        var outcome = await StoreDeleteRace.RunAsync(
             write: async () => await store.SaveAsync(Descriptor(Guid.NewGuid()), cancellationToken),
             list: async () => [.. (await store.ListAsync(cancellationToken)).Select(static tenant => tenant.Id)],
             delete: async _ => await store.DeleteAsync(Tenant, cancellationToken));
 
-        reappeared.ShouldBeEmpty(StoreDeleteRace.Describe(reappeared));
+        StoreDeleteRace.Assert(outcome);
     }
 
     /// <summary>
@@ -68,7 +68,7 @@ public sealed class InMemoryStoreDeleteRaceTests
         var store = new InMemoryExperimentStore();
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        var reappeared = await StoreDeleteRace.RunAsync(
+        var outcome = await StoreDeleteRace.RunAsync(
             write: async () =>
             {
                 await RefusedAsync(async () => await store.SaveAsync(Draft(Guid.NewGuid()), cancellationToken));
@@ -78,7 +78,7 @@ public sealed class InMemoryStoreDeleteRaceTests
             list: async () => [.. (await store.ListAsync(Tenant, cancellationToken)).Select(static experiment => experiment.Id)],
             delete: async _ => await DeletedAsync(store, cancellationToken));
 
-        reappeared.ShouldBeEmpty(StoreDeleteRace.Describe(reappeared));
+        StoreDeleteRace.Assert(outcome);
     }
 
     // The steps of one experiment are refused in every order but the right one, as they must be.
