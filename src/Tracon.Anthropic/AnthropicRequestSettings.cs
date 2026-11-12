@@ -107,8 +107,8 @@ internal sealed record AnthropicRequestSettings
             AnthropicProviderNames.SupportedSettings);
 
         var promptCaching = ModelProviderSettings.ReadBoolean(binding, AnthropicProviderNames.PromptCachingSetting) ?? false;
-        var ttl = ReadChoice(binding, AnthropicProviderNames.PromptCachingTtlSetting, CacheTtlValues);
-        var placement = ReadChoice(binding, AnthropicProviderNames.PromptCachingPlacementSetting, [RequestPlacement, SystemPlacement]);
+        var ttl = ModelProviderSettings.ReadChoice(binding, AnthropicProviderNames.PromptCachingTtlSetting, CacheTtlValues);
+        var placement = ModelProviderSettings.ReadChoice(binding, AnthropicProviderNames.PromptCachingPlacementSetting, [RequestPlacement, SystemPlacement]);
 
         if (!promptCaching && (ttl is not null || placement is not null))
         {
@@ -128,7 +128,7 @@ internal sealed record AnthropicRequestSettings
             throw Invalid($"'{AnthropicProviderNames.ThinkingBudgetTokensSetting}' must be greater than zero.");
         }
 
-        var mode = ReadChoice(binding, AnthropicProviderNames.ThinkingModeSetting, [EnabledMode, AdaptiveMode]) switch
+        var mode = ModelProviderSettings.ReadChoice(binding, AnthropicProviderNames.ThinkingModeSetting, [EnabledMode, AdaptiveMode]) switch
         {
             EnabledMode => AnthropicThinkingMode.Enabled,
             AdaptiveMode => AnthropicThinkingMode.Adaptive,
@@ -161,30 +161,8 @@ internal sealed record AnthropicRequestSettings
                 : AnthropicCachePlacement.Request,
             ThinkingMode = mode,
             ThinkingBudgetTokens = mode == AnthropicThinkingMode.Enabled ? budget : null,
-            Effort = ReadChoice(binding, AnthropicProviderNames.EffortSetting, EffortValues),
+            Effort = ModelProviderSettings.ReadChoice(binding, AnthropicProviderNames.EffortSetting, EffortValues),
         };
-    }
-
-    /// <summary>Reads a text setting that must be one of <paramref name="allowed"/>.</summary>
-    /// <returns>The allowed value as it is written on the wire, or <see langword="null"/> when not set.</returns>
-    private static string? ReadChoice(ModelBinding binding, string key, IReadOnlyList<string> allowed)
-    {
-        if (ModelProviderSettings.ReadString(binding, key) is not { } value)
-        {
-            return null;
-        }
-
-        foreach (var candidate in allowed)
-        {
-            if (string.Equals(candidate, value.Trim(), StringComparison.OrdinalIgnoreCase))
-            {
-                return candidate;
-            }
-        }
-
-        // The value is not repeated: it can be a credential pasted into the wrong
-        // field, and the message reaches logs and run records.
-        throw Invalid($"'{key}' has a value outside its set. Valid values: {string.Join(", ", allowed)}.");
     }
 
     private static ProviderSettingsValidationException Invalid(string message) => new(message);

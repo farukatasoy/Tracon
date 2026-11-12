@@ -670,9 +670,14 @@ support. A provider that supports no key rejects them all. Call
 `CreateChatClient`, and pass an empty list when you support none. Its exception is
 the one the registry passes through with the key named. The registry masks the
 message of any other exception thrown while a client is built, so a hand-rolled
-check reaches the author as a generic provider failure. When you refuse a value of a
-supported key yourself, name the key and the accepted values, not the value:
-`ModelProviderSettingsContract` fails a provider whose message repeats it.
+check reaches the author as a generic provider failure. To refuse a value of a key
+that takes one of a few texts, read it with `ModelProviderSettings.ReadChoice(binding, key,
+accepted)`: it matches the accepted values without regard to case, returns the one you
+spell, and raises the same pass-through exception, naming the key and the accepted values and
+never the value that was given. `ReadBoolean`, `ReadInt32` and `ReadString` refuse a value of
+the wrong kind the same way. A refusal of any other kind has to name the key and the accepted
+values, not the value (`ModelProviderSettingsContract` fails a provider whose message
+repeats it), and its text will be masked by the registry.
 
 **Default output limit.** If your client sends an output-token limit of its own
 when `ModelBinding.MaxOutputTokens` is empty, return a `ModelOutputLimit` from

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Added `ModelProviderSettings.ReadChoice(binding, key, accepted)`, the way for a provider outside this repository to refuse a setting value by name.** The registry in front of a provider answers a caller with the message of an exception Tracon raised itself and replaces any other exception, a `TraconException` raised by provider code included, with a generic upstream error. A third-party provider that rejected `contoso.mode: turbo` therefore showed the caller (and `POST /api/agents/validate`) only "the model provider request failed", without the key. `ReadChoice` matches the accepted values without regard to case and raises the exception the registry lets through, with a message that names the key and the accepted values and never the value given. The Anthropic provider uses it for its own closed-set settings; the text of its refusals is unchanged.
+  What to do:
+  - **A provider that refuses a value of a closed-set setting** should read it with `ReadChoice` instead of throwing its own exception.
+
 - **An interrupted run with no recorded input, or whose parameter values were not recorded, is refused before a continuation exists.** The reconciler queued a continuation for it, and the continuation job then refused it after a `Queued` placeholder run had been opened: `GET /api/runs` listed a `Failed` run that never started and the interrupted run learned nothing. The reconciler now reads the recorded input and applies the same rules, and writes a `RunContinuationBlocked` event on the interrupted run.
   What to do:
   - **Nothing.** A filter that expected a `Failed` continuation row for these runs finds the `RunContinuationBlocked` event on the interrupted run instead.

@@ -7598,6 +7598,14 @@ or an environment variable:
 dotnet user-secrets set "ContentProtectionKeys:2026-08" "<32-byte base64 key>"
 ```
 
+The host reads the **active** key when it starts, if the configuration holds a value for it. A value that is not base64,
+or that does not decode to 32 bytes, stops the start, and the message names the configuration key and never the value.
+Without that check the first protected write would fail inside the run's best-effort recording: the run would answer, the
+protected columns would stay empty, and the only trace would be a counter. A key with no value at all is not an error at
+the start, because a host on in-memory stores never calls the protector; set the value before you add a database. A key you
+keep to read old rows is not read at the start either, so a rotation can add the new key before the old one is retired; a
+row that needs the old key and cannot find it fails by name when it is read.
+
 Three limits are worth knowing before you rely on this:
 
 - **It protects data at rest, not a running process.** A process holding the key
@@ -14770,9 +14778,14 @@ support. A provider that supports no key rejects them all. Call
 `CreateChatClient`, and pass an empty list when you support none. Its exception is
 the one the registry passes through with the key named. The registry masks the
 message of any other exception thrown while a client is built, so a hand-rolled
-check reaches the author as a generic provider failure. When you refuse a value of a
-supported key yourself, name the key and the accepted values, not the value:
-`ModelProviderSettingsContract` fails a provider whose message repeats it.
+check reaches the author as a generic provider failure. To refuse a value of a key
+that takes one of a few texts, read it with `ModelProviderSettings.ReadChoice(binding, key,
+accepted)`: it matches the accepted values without regard to case, returns the one you
+spell, and raises the same pass-through exception, naming the key and the accepted values and
+never the value that was given. `ReadBoolean`, `ReadInt32` and `ReadString` refuse a value of
+the wrong kind the same way. A refusal of any other kind has to name the key and the accepted
+values, not the value (`ModelProviderSettingsContract` fails a provider whose message
+repeats it), and its text will be masked by the registry.
 
 **Default output limit.** If your client sends an output-token limit of its own
 when `ModelBinding.MaxOutputTokens` is empty, return a `ModelOutputLimit` from
@@ -18399,8 +18412,10 @@ is opened.
 
 An agent that declares [parameters](/concepts/agents/#parameters) continues with the
 values the interrupted run recorded. A run that recorded none — input recording was
-off, or it predates parameter recording — is not continued on the defaults: the
-continuation run that is opened for it fails at once and its error says why.
+off, or it predates parameter recording — is not continued on the defaults, and neither
+is a run whose input was never recorded or was deleted by a retention policy (there is
+no turn to send again). The interrupted run stays `Failed` and a `RunContinuationBlocked`
+event on it says why; no second run is opened.
 
 | Setting | Default | Effect |
 |---|---:|---|

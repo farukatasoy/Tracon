@@ -162,6 +162,61 @@ public static class ModelProviderSettings
         return ReadString(binding.ProviderSettings, key);
     }
 
+    /// <summary>Reads a text setting that must be one of a closed set of values.</summary>
+    /// <param name="binding">The model binding.</param>
+    /// <param name="key">The full key, for example <c>contoso.mode</c>.</param>
+    /// <param name="accepted">The values the provider accepts, as it spells them on the wire.</param>
+    /// <returns>
+    /// The accepted value that matches the setting without regard to case or surrounding white space, as spelled in
+    /// <paramref name="accepted"/>; <see langword="null"/> when the setting is not defined or is empty.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="binding"/> or <paramref name="accepted"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="key"/> is empty, or <paramref name="accepted"/> has no value.</exception>
+    /// <exception cref="TraconException">
+    /// The value is not text, or it is outside the set. The message names the key and the accepted values and never the
+    /// value given: it can be text a user wrote or a credential pasted into the wrong field.
+    /// </exception>
+    /// <remarks>
+    /// The way for a provider outside this repository to reject a setting by name. The registry in front of a provider
+    /// answers a caller with the message of an exception it recognizes as written by Tracon, and replaces any other
+    /// exception, <see cref="TraconException"/> raised by the provider included, with a generic upstream error: a message
+    /// that foreign code wrote could carry an address, a token or an account. The exception this method raises is the one
+    /// the registry lets through, and only this type of rejection can raise it.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var binding = new ModelBinding { Provider = "contoso", Model = "contoso-1" };
+    /// var mode = ModelProviderSettings.ReadChoice(binding, "contoso.mode", ["fast", "careful"]);
+    /// </code>
+    /// </example>
+    public static string? ReadChoice(ModelBinding binding, string key, IReadOnlyCollection<string> accepted)
+    {
+        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(accepted);
+
+        if (accepted.Count == 0)
+        {
+            throw new ArgumentException("A closed set needs at least one accepted value.", nameof(accepted));
+        }
+
+        if (ReadString(binding.ProviderSettings, key) is not { } value)
+        {
+            return null;
+        }
+
+        foreach (var candidate in accepted)
+        {
+            if (string.Equals(candidate, value.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        throw new ProviderSettingsValidationException(
+            $"'{key}' has a value outside its set. Valid values: {string.Join(", ", accepted)}.");
+    }
+
     // The dictionary readers below are internal: a first-party provider package
     // (InternalsVisibleTo) reads a speech request's settings with the same type rule the
     // public binding readers apply. A third-party provider reads the JsonElement itself.

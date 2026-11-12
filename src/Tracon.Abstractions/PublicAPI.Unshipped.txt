@@ -5365,6 +5365,7 @@ static Tracon.ModelProviderDescriptor.operator ==(Tracon.ModelProviderDescriptor
 static Tracon.ModelProviderHealth.operator !=(Tracon.ModelProviderHealth? left, Tracon.ModelProviderHealth? right) -> bool
 static Tracon.ModelProviderHealth.operator ==(Tracon.ModelProviderHealth? left, Tracon.ModelProviderHealth? right) -> bool
 static Tracon.ModelProviderSettings.ReadBoolean(Tracon.ModelBinding! binding, string! key) -> bool?
+static Tracon.ModelProviderSettings.ReadChoice(Tracon.ModelBinding! binding, string! key, System.Collections.Generic.IReadOnlyCollection<string!>! accepted) -> string?
 static Tracon.ModelProviderSettings.ReadInt32(Tracon.ModelBinding! binding, string! key) -> int?
 static Tracon.ModelProviderSettings.ReadString(Tracon.ModelBinding! binding, string! key) -> string?
 static Tracon.ModelProviderSettings.Validate(System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>! settings, string! providerPrefix, System.Collections.Generic.IReadOnlyCollection<string!>! supportedKeys) -> void
