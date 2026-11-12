@@ -86,11 +86,7 @@ internal static class QueuedRunPlaceholder
                         RunId = job.Id,
                         Status = RunStatus.Failed,
                         CompletedAt = (timeProvider ?? TimeProvider.System).GetUtcNow(),
-                        Error = new RunError
-                        {
-                            Type = exception.GetType().Name,
-                            Message = SafeErrorText.ForPersistence(exception, correlationId),
-                        },
+                        Error = ClosingRunError.From(exception, correlationId),
                         TenantId = job.TenantId,
                     },
                     CancellationToken.None).ConfigureAwait(false);

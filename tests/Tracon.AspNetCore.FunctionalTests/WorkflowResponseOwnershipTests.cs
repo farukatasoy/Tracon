@@ -716,7 +716,9 @@ public sealed class WorkflowResponseOwnershipTests
             nameof(IRunStore.CompleteRunAsync),
             static () => new ProcessStoppedException(),
             times: 1,
-            when: static args => args[0] is RunCompletion { Error.Type: nameof(ProcessStoppedException) });
+            // The type a closing write records for a failure that is not a Tracon exception: the full name of its class.
+            when: static args => args[0] is RunCompletion { Error: { } error }
+                && string.Equals(error.Type, typeof(ProcessStoppedException).FullName, StringComparison.Ordinal));
     }
 
     /// <summary>

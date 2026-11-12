@@ -283,11 +283,7 @@ internal sealed class WorkflowRecovery(
         return CloseIfQueuedAsync(
             runId,
             RunStatus.Failed,
-            new RunError
-            {
-                Type = exception.GetType().Name,
-                Message = SafeErrorText.ForPersistence(exception, correlationId),
-            });
+            ClosingRunError.From(exception, correlationId));
     }
 
     /// <summary>

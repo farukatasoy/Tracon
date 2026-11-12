@@ -2169,11 +2169,7 @@ internal static class WorkflowEndpoints
 
                 if (!startedSeen)
                 {
-                    failedBeforeStart(new RunError
-                    {
-                        Type = ex.GetType().Name,
-                        Message = SafeErrorText.ForPersistence(ex, correlationId),
-                    });
+                    failedBeforeStart(ClosingRunError.From(ex, correlationId));
                 }
 
                 await writer.WriteEventAsync(

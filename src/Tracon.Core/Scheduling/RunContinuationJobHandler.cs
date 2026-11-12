@@ -310,11 +310,7 @@ internal sealed class RunContinuationJobHandler(
                     RunId = runId,
                     Status = RunStatus.Failed,
                     CompletedAt = _clock.GetUtcNow(),
-                    Error = new RunError
-                    {
-                        Type = exception.GetType().Name,
-                        Message = SafeErrorText.ForPersistence(exception, correlationId),
-                    },
+                    Error = ClosingRunError.From(exception, correlationId),
                     TenantId = tenantId,
                 },
                 cancellationToken).ConfigureAwait(false);

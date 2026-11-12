@@ -52,6 +52,33 @@ public sealed class AgentRunJobHandlerTests
         record.Error.ShouldNotBeNull();
     }
 
+    [Fact]
+    public async Task A_queued_run_that_fails_before_it_starts_is_recorded_under_the_stable_identity_of_the_error()
+    {
+        var runs = new InMemoryRunStore();
+        var refusal = new TraconTenantProviderRefusedException("the tenant's provider rules refused the call");
+        var handler = NewHandler(new ThrowingCatalog(refusal), runs);
+        var runId = TraconId.NewId();
+
+        await runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "any-agent",
+            Status = RunStatus.Queued,
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = "default",
+        });
+
+        await Should.ThrowAsync<TraconTenantProviderRefusedException>(
+            () => handler.ExecuteAsync(BuildContext(runId, "hello", targetName: "any-agent")).AsTask());
+
+        var error = (await runs.GetRunAsync(runId)).ShouldNotBeNull().Error.ShouldNotBeNull();
+
+        // The identity every other run path writes for this error, not the CLR short name of its class.
+        error.Type.ShouldBe(refusal.ErrorType);
+        error.Class.ShouldBe(RunErrorClass.TenantProviderRefused);
+    }
+
     /// <summary>
     /// A registered <see cref="IToolApprovalPresenter"/> reaches the
     /// PERSISTED <see cref="PendingApproval"/> row, not just the closing run event.
@@ -520,6 +547,18 @@ public sealed class AgentRunJobHandlerTests
             ReportItemAsync = (_, _) => default,
             IsCancelledAsync = _ => new ValueTask<bool>(false),
         };
+
+    private sealed class ThrowingCatalog(Exception failure) : IAgentCatalog
+    {
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<AgentDescriptor>)[]);
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
+            => throw failure;
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+            => throw failure;
+    }
 
     private sealed class SingleAgentCatalog(AIAgent? agent) : IAgentCatalog
     {

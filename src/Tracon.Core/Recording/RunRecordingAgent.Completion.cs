@@ -400,9 +400,7 @@ public sealed partial class RunRecordingAgent
     private static RunError ToRunError(Exception exception, string correlationId)
         => new()
         {
-            Type = exception is TraconException traconException
-                ? traconException.ErrorType
-                : exception.GetType().FullName ?? exception.GetType().Name,
+            Type = SafeErrorText.TypeOf(exception),
             Message = SafeErrorText.ForPersistence(exception, correlationId),
         };
 }

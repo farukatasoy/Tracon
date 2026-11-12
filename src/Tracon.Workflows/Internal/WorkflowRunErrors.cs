@@ -72,9 +72,7 @@ internal sealed class WorkflowRunErrors
         // where the row closes (CompleteAsync), for every error, not only this one.
         return new RunError
         {
-            Type = unwrapped is TraconException traconException
-                ? traconException.ErrorType
-                : unwrapped.GetType().FullName ?? unwrapped.GetType().Name,
+            Type = SafeErrorText.TypeOf(unwrapped),
             Message = SafeErrorText.ForPersistence(unwrapped, correlationId),
         };
     }

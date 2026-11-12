@@ -204,11 +204,7 @@ internal sealed class EvaluatorRunJudge(
                     Cost = cost,
                     Error = failure is null
                         ? null
-                        : new RunError
-                        {
-                            Type = failure.GetType().Name,
-                            Message = SafeErrorText.ForPersistence(failure, SafeErrorText.NewCorrelationId()),
-                        },
+                        : ClosingRunError.From(failure, SafeErrorText.NewCorrelationId()),
                     TenantId = tenantId,
                 },
                 CancellationToken.None).ConfigureAwait(false);

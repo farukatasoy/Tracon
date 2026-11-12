@@ -243,11 +243,7 @@ internal sealed class AgentRunJobHandler(
                     RunId = runId,
                     Status = RunStatus.Failed,
                     CompletedAt = _clock.GetUtcNow(),
-                    Error = new RunError
-                    {
-                        Type = exception.GetType().Name,
-                        Message = SafeErrorText.ForPersistence(exception, correlationId),
-                    },
+                    Error = ClosingRunError.From(exception, correlationId),
 
                     // The job's own tenant; the party that enqueued it wrote it.
                     TenantId = tenantId,

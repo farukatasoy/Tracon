@@ -42,6 +42,21 @@ internal static class SafeErrorText
             : $"{exception.GetType().Name} failed. (ref: {correlationId})";
     }
 
+    /// <summary>The stable name a run row records for <paramref name="exception"/>.</summary>
+    /// <param name="exception">The exception the run failed with.</param>
+    /// <returns>
+    /// The <see cref="TraconException.ErrorType"/> of a Tracon exception, so the same refusal reads the same on every path
+    /// that writes it, and the full name of any other type.
+    /// </returns>
+    public static string TypeOf(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return exception is TraconException traconException
+            ? traconException.ErrorType
+            : exception.GetType().FullName ?? exception.GetType().Name;
+    }
+
     /// <summary>Produces a new correlation id to tag a log entry and the safe text derived from it.</summary>
     public static string NewCorrelationId() => Guid.NewGuid().ToString("N")[..8];
 }

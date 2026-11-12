@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A run that fails before it starts records the same error type and class as one that failed while running.** A queued agent run, a continuation, an approval resume, a workflow recovery and the reconciliation pass close a row that never started, and they wrote the short CLR name of the exception (`TraconTenantProviderRefusedException`) as `error.type` and no class, so `GET /api/runs?errorType=tenant_provider_refused` and the `Unknown` bucket of the statistics told the wrong story. They now write what every other path writes: the `ErrorType` of a Tracon exception, the full name of any other, and the class and fingerprint of the built-in classifier.
+  What to do:
+  - **A filter or an alert that matches `error.type` on those rows** by the short name (`InvalidOperationException`) matches the full name (`System.InvalidOperationException`) from this version on; a row written before keeps the old value.
+
 - **A response-cache read that fails is counted as `error`, not as `miss`.** The `tracon.model.cache` counter tagged a lookup whose read of the distributed cache threw as `miss`, so an unreachable cache store looked like a cold cache and moved a hit-ratio dashboard the same way a miss does. `tracon.model.cache.result` now also takes the value `error`; the call still goes on to the model, as before.
   What to do:
   - **A panel or alert that divides `hit` by all lookups** now sees fewer lookups when the store is down. Add `error` to the denominator if you want it counted, or alert on it by itself.
