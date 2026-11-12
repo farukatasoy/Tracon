@@ -236,7 +236,7 @@ cases have all run is not marked `Failed` because the write that closes it faile
 the handler tries that write again for a third of the lease, and if it still fails,
 the next attempt of the job runs no case again and only repeats the write. A webhook
 delivery the receiver accepted is not sent again because its result could not be
-written ([webhooks](/concepts/governance/#webhooks)).
+written ([webhooks](/concepts/webhooks/#delivery)).
 
 ## Queue one workflow run
 

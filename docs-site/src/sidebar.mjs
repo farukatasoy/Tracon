@@ -99,6 +99,7 @@ export const sidebar = [
       { label: 'Reliable runs', slug: 'guides/reliability' },
       { label: 'Observability and cost', slug: 'guides/observability' },
       { label: 'Governance', slug: 'concepts/governance' },
+      { label: 'Webhooks', slug: 'concepts/webhooks' },
       { label: 'Typed client and CLI', slug: 'guides/cli' },
       { label: 'Move definitions', slug: 'guides/move-definitions' },
       { label: 'TypeScript client', slug: 'guides/typescript-client' },

@@ -21,8 +21,9 @@ import { base } from '../site.config.mjs';
 const here = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const dist = resolve(here, '../dist');
 
-// The ceiling is the measured worst page plus headroom. Last measured 2026-11-10: concepts/runs, the
-// heaviest page, at 59 367 B gzip on a local build, 133 B under the ceiling. A CI build of the same commit
+// The ceiling is the measured worst page plus headroom. Last measured 2026-11-12: concepts/runs, the
+// heaviest page, at 59 381 B gzip on a local build, 119 B under the ceiling (concepts/governance, the heaviest before
+// its Webhooks section became a page of its own, now weighs 57 860 B). A CI build of the same commit
 // weighs about 56 B more than a local one (every page also carries the same 23 925 B of shared assets), so the
 // headroom must never shrink below that gap.
 //

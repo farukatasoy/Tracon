@@ -3,7 +3,7 @@ title: Inbound triggers
 description: Let an external system such as Slack start a queued agent or workflow run over a signed HTTP request, with no bearer token.
 ---
 
-An inbound trigger is the reverse of an [outbound webhook](/concepts/governance/#webhooks):
+An inbound trigger is the reverse of an [outbound webhook](/concepts/webhooks/):
 instead of Tracon notifying another system, another system starts a run in
 Tracon. A Slack slash command, a support-desk ticket event, or a queue
 consumer can all become the start of an agent or workflow run without holding
@@ -90,7 +90,7 @@ curl -sS -i -X POST \
 ```
 
 The signature is the same HMAC-SHA256 contract
-[outbound webhooks](/concepts/governance/#webhooks) use, in the reverse
+[outbound webhooks](/concepts/webhooks/#signature-and-secrets) use, in the reverse
 direction — sign `{unixTimestamp}.{rawBody}` with the trigger's secret:
 
 ```csharp

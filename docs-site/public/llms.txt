@@ -285,6 +285,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Runs and recording](https://tracon.dev/concepts/runs/) — Understand default-on run recording, ordered events, streaming, queues, errors, replay, comparison, and traces.
 - [Sessions and conversations](https://tracon.dev/concepts/sessions/) — Learn how sessions carry conversation state, how branching copies history, and how attachments are owned and removed.
 - [Tools, skills, and MCP](https://tracon.dev/concepts/tools/) — The ways an agent gains a capability, and the guards on the ones that cross the code-only boundary.
+- [Webhooks](https://tracon.dev/concepts/webhooks/) — Subscribe an endpoint to signed Tracon events. Which events exist, what a payload carries, how the signature and secrets work, and what a delivery guarantees.
 - [Answering a workflow](https://tracon.dev/concepts/workflow-answers/) — How an answer to a waiting workflow is audited and recorded, how a one-answer workflow treats a repeat, and how to answer a tool call that waits for approval.
 - [Workflow function nodes](https://tracon.dev/concepts/workflow-function-nodes/) — Run your own .NET code as a step of a Sequential workflow, with settings, cost reporting, budget checks, retries, and timeouts.
 - [Workflow parameters](https://tracon.dev/concepts/workflow-parameters/) — Declare run parameters on a workflow, bind them into each agent step, read them in a function node, and have a resume or an answer reuse them.
