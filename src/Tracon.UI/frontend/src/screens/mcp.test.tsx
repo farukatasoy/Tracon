@@ -65,6 +65,8 @@ describe('McpScreen create form', () => {
     await user.type(screen.getByLabelText(/^Name/), 'github');
     await user.type(screen.getByLabelText(/^Endpoint/), 'https://mcp.example.com/mcp');
     await fill(user);
+    // Save is not available until the stored list has answered: the headers it keeps come from that list.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(sent).toBeDefined());
@@ -108,6 +110,60 @@ describe('McpScreen create form', () => {
     );
 
     expect(body.headerConfigurationKeys).toStrictEqual({
+      'X-Api-Key': 'Tracon:McpSecrets:SearchKey',
+      Authorization: 'Tracon:McpSecrets:NewToken',
+    });
+  });
+
+  // 🚨 The stored list is where the headers to keep come from. A save made before it answered sent no map of the
+  // stored ones, and the filled map REPLACES the stored one: `X-Api-Key` was erased without a word.
+  it('does not let a server be saved before the stored list has answered', async () => {
+    let releaseList: () => void = () => undefined;
+    const listHeld = new Promise<void>((resolve) => {
+      releaseList = resolve;
+    });
+    const sent: unknown[] = [];
+
+    restoreFetch = installApiMock([
+      {
+        method: 'GET',
+        pattern: 'api/mcp-servers',
+        handler: async () => {
+          await listHeld;
+          return [stored('github', { 'X-Api-Key': 'Tracon:McpSecrets:SearchKey' })];
+        },
+      },
+      fixture('GET', 'api/approvals/rules', []),
+      {
+        method: 'PUT',
+        pattern: 'api/mcp-servers/:name',
+        handler: (_params, _url, body) => {
+          sent.push(body);
+          return {};
+        },
+      },
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<McpScreen meta={testMeta} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add server' }));
+    await user.type(screen.getByLabelText(/^Name/), 'github');
+    await user.type(screen.getByLabelText(/^Endpoint/), 'https://mcp.example.com/mcp');
+    await user.type(screen.getByLabelText(/Authorization configuration key/), 'Tracon:McpSecrets:NewToken');
+
+    // The list has not answered: the button is off, and Enter in a field does not submit around it.
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', true);
+    await user.type(screen.getByLabelText(/^Endpoint/), '{Enter}');
+    expect(sent).toHaveLength(0);
+
+    releaseList();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    expect((sent[0] as { headerConfigurationKeys: unknown }).headerConfigurationKeys).toStrictEqual({
       'X-Api-Key': 'Tracon:McpSecrets:SearchKey',
       Authorization: 'Tracon:McpSecrets:NewToken',
     });

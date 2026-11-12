@@ -376,6 +376,13 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
             className="grid gap-3 p-4 sm:grid-cols-2"
             onSubmit={(event) => {
               event.preventDefault();
+
+              // 🚨 The credential headers to keep come from the stored list. A save made before the list has answered
+              // sends no map of them, and a filled map REPLACES the stored one: `X-Api-Key` would be erased silently.
+              if (!servers.isSuccess) {
+                return;
+              }
+
               save.mutate();
             }}
           >
@@ -503,7 +510,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
             )}
 
             <div className="sm:col-span-2 flex items-center gap-2">
-              <Button type="submit" tone="primary" busy={save.isPending}>
+              <Button type="submit" tone="primary" busy={save.isPending} disabled={!servers.isSuccess}>
                 {t('common.save')}
               </Button>
               <Button tone="ghost" onClick={() => setShowForm(false)}>
