@@ -33,7 +33,7 @@ public sealed class StructuredResponseRepairEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -94,7 +94,7 @@ public sealed class StructuredResponseRepairEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -227,7 +227,7 @@ public sealed class StructuredResponseRepairEndpointTests
         // before this decorator sees the result, so a repaired run would return
         // an answer its own session never recorded - the next turn would then
         // read a response the caller never received. The run fails instead.
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         // Exactly ONE model call: the repair turn never opened.
         provider.Requests.Count.ShouldBe(1);

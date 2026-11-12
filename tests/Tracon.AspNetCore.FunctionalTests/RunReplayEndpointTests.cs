@@ -240,6 +240,30 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
+    public async Task A_replay_of_an_agent_whose_loop_ends_unsatisfied_is_answered_with_422_and_leaves_a_failed_run()
+    {
+        // The loop's ceiling is the agent's own rule, not an upstream failure: it was a 502 "Replay failed" with no error
+        // type. The answer names the new run, whose record ends Failed with the loop's identity.
+        await using var host = await TraconTestHost.StartAsync(ConfigureLoopAgent);
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "go")]);
+
+        using var response = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "NoTools" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity, await response.Content.ReadAsStringAsync());
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
+
+        var body = await TraconTestHost.ReadJsonAsync(response);
+
+        body.GetProperty("errorType").GetString().ShouldBe(TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType);
+
+        var record = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(body.GetProperty("runId").GetGuid());
+
+        record.ShouldNotBeNull().Status.ShouldBe(RunStatus.Failed);
+        record.ReplayOfRunId.ShouldBe(runId);
+        record.Error.ShouldNotBeNull().Type.ShouldBe(TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType);
+    }
+
+    [Fact]
     public async Task A_tool_requiring_approval_returns_409_with_LiveTools()
     {
         await using var host = await TraconTestHost.StartAsync(ConfigureApprovalAgent);
@@ -364,6 +388,36 @@ public sealed class RunReplayEndpointTests
             Instructions = "Give a short answer.",
             Model = new ModelBinding { Provider = "tool-echo", Model = ModelId },
             ToolNames = ["get_order_status"],
+        });
+    }
+
+    private static void ConfigureLoopAgent(ITraconBuilder builder)
+    {
+        var provider = new FakeModelProvider("loop-echo");
+        provider.ForModel(ModelId, static cfg =>
+        {
+            for (var turn = 0; turn < 3; turn++)
+            {
+                cfg.RespondsWith("working");
+            }
+        });
+
+        builder.AddModelProvider(provider);
+
+        SaveDefinition(builder, new AgentDefinition
+        {
+            Name = AgentName,
+            Instructions = "Work.",
+            Model = new ModelBinding { Provider = "loop-echo", Model = ModelId },
+            Harness = new HarnessSettings
+            {
+                Loop = new LoopSettings
+                {
+                    Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "NEVER APPEARS" }],
+                    MaxIterations = 2,
+                    OnExhausted = LoopOutcome.FailRun,
+                },
+            },
         });
     }
 

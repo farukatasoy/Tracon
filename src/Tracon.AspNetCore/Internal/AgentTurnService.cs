@@ -581,6 +581,23 @@ internal static class AgentTurnService
                         ["errorType"] = budget.ErrorType,
                     });
 
+            case TraconLoopUnsatisfiedException or TraconStructuredResponseException:
+                // The run ended because its own rule was not met: the loop reached its ceiling with a criterion unsatisfied,
+                // or the model's answer was not the structured response the agent asked for. The request was understood and
+                // the provider answered; a 502 would say "upstream is broken" and send the caller to the wrong system. The
+                // run record holds the rest, so the answer names the run.
+                var unmet = (TraconException)exception;
+
+                return Results.Problem(
+                    title: exception is TraconLoopUnsatisfiedException ? "Loop not satisfied" : "Structured response invalid",
+                    detail: unmet.Message,
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["errorType"] = unmet.ErrorType,
+                        ["runId"] = runId,
+                    });
+
             case TraconSessionOwnerRequiredException ownerRequired:
                 // 🚨 403, not 500: session ownership is on and the deployment asked for exactly this refusal, so it is a
                 // policy decision and not a fault. Not 401 either - the caller cleared the endpoint's own role policy

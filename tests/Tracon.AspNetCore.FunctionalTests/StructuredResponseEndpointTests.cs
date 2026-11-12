@@ -41,11 +41,9 @@ public sealed class StructuredResponseEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        // No bespoke ProblemDetails mapping exists for this exception (unlike
-        // TraconContentBlockedException's 422): it falls into the SAME
-        // generic "Agent run failed" 502 every other unmapped run-ending
-        // exception gets on the buffered path. What matters is the run record.
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        // The model answered and the request was understood: the answer is not the structured response the agent asked for,
+        // which is the caller's rule and not an upstream failure. 422, as for a loop that ends unsatisfied.
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -81,7 +79,7 @@ public sealed class StructuredResponseEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -122,7 +120,7 @@ public sealed class StructuredResponseEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -164,7 +162,7 @@ public sealed class StructuredResponseEndpointTests
         // Core's default 200 with an empty body - a failure that looked like a
         // success. The status now comes from the run's own token, not from the
         // exception type, so this is a failure and says so.
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -189,7 +187,7 @@ public sealed class StructuredResponseEndpointTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 

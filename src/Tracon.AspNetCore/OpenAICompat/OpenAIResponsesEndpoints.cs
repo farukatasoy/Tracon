@@ -379,6 +379,15 @@ internal static class OpenAIResponsesEndpoints
                 ex.Message,
                 type: ex.ErrorType);
         }
+        catch (TraconException ex) when (ex is TraconLoopUnsatisfiedException or TraconStructuredResponseException)
+        {
+            // The run ended because its own rule was not met (a loop criterion, a structured answer): the provider
+            // answered, so a 502 would send the caller to the wrong system. The message is written for the caller.
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status422UnprocessableEntity,
+                ex.Message,
+                type: ex.ErrorType);
+        }
         catch (Exception ex)
         {
             // the fix covered only the streaming

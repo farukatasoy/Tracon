@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Breaking: a run that ends because its own rule was not met is answered `422` with its error type, not `502`, on every endpoint that answers before a stream begins.** A loop that reached its ceiling with a criterion unsatisfied (`TraconLoopUnsatisfiedException`) and an answer that is not the structured response the agent asked for (`TraconStructuredResponseException`) fell into the default branch: `502 Bad Gateway` with no `errorType`, which says "the provider is broken" and sends the caller to the wrong system although the provider answered. The agent run endpoint (with `Idempotency-Key`), Chat Completions, Responses and the replay endpoint now answer `422` with `errorType` `loop_unsatisfied` or `structured_response_invalid`; the problem document and the replay answer name the failed run in `runId`, and the OpenAI-compatible endpoints use their error envelope. A streamed answer still tells the refusal in an SSE `error` frame, unchanged.
+  What to do:
+  - **A client that retried or alerted on `502` for these runs** should treat `422` with these error types as the agent's own rule failing: a retry with the same input will not change the rule, and the failed run holds the detail.
+  - **A test that expected `502`** for a loop that cannot be satisfied or a rejected structured answer expects `422`.
+
 - **A call to an agent that cannot be compiled is answered with a text that says so, over A2A and MCP.** A tenant provider binding whose key has no value, or an egress policy that no longer allows the provider, makes the catalog refuse the agent. The A2A endpoint answered `-32603 "An internal error occurred."` and the MCP server `An error occurred invoking '<tool>'.`, the libraries' own sentences, which a remote caller cannot tell from a failure that a second try would cure. Both now answer `Agent '<name>' cannot be run: it could not be compiled (<error type>). This is a configuration error on the server and a retry will not succeed. (ref: <id>)`; the A2A code stays `-32603`. The text names no configuration key, and the full failure is in the server log under the reference.
   What to do:
   - **A client that matched the library sentence** should match the error type or the phrase `a retry will not succeed`.

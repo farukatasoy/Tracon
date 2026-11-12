@@ -848,6 +848,20 @@ internal static class RunEndpoints
                     ["runId"] = newRunId,
                 });
         }
+        catch (TraconException ex) when (ex is TraconLoopUnsatisfiedException or TraconStructuredResponseException)
+        {
+            // The replayed run ended because its own rule was not met: the provider answered, so a 502 would send the
+            // caller to the wrong system. The new run is a Failed record the caller can open.
+            return Results.Problem(
+                title: ex is TraconLoopUnsatisfiedException ? "Loop not satisfied" : "Structured response invalid",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["errorType"] = ex.ErrorType,
+                    ["runId"] = newRunId,
+                });
+        }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // 🚨 The exception type is deliberately NOT caught with a narrow

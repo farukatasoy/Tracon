@@ -308,7 +308,7 @@ public sealed class OutputTruncationTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
