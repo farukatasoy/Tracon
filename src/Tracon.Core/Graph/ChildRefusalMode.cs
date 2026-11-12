@@ -20,8 +20,8 @@ internal enum ChildRefusalMode
 
     /// <summary>
     /// The refusal is thrown, failing the step that made the call. For a
-    /// workflow step, where no model reads the answer and the next node would
-    /// take the refusal's text as content.
+    /// workflow step and for the reviewer agent of an agent's loop, where no model reads the answer
+    /// and the next node (or the loop's verdict) would take the refusal's text as content.
     /// </summary>
     Fail = 1,
 }

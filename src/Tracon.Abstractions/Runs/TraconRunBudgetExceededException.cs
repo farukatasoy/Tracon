@@ -2,7 +2,7 @@ namespace Tracon;
 
 /// <summary>
 /// Thrown when a run tree's budget runs out: its token or cost budget between two
-/// model turns, or a workflow step or function node that the budget refuses to start.
+/// model turns, or a workflow step, a loop's reviewer agent or a function node that the budget refuses to start.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,8 +19,8 @@ namespace Tracon;
 /// that hit it.
 /// </para>
 /// <para>
-/// A workflow step has no calling model to recover, so there the refused
-/// reservation throws this exception too, and the workflow run ends
+/// A workflow step, or the reviewer agent of an agent's loop, has no calling model to recover, so there the refused
+/// reservation throws this exception too, and the run that made the call ends
 /// <c>Failed</c> with the same class as any other budget exhaustion.
 /// </para>
 /// <para>

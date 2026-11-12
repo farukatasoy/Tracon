@@ -306,8 +306,8 @@ public sealed class TraconToolTimeoutException : TraconException
 }
 
 /// <summary>
-/// Thrown when an agent step of a workflow does not answer within the
-/// sub-agent wait limit.
+/// Thrown when an agent step of a workflow, or the reviewer agent of an agent's loop, does not answer
+/// within the sub-agent wait limit.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -316,7 +316,9 @@ public sealed class TraconToolTimeoutException : TraconException
 /// ignores its cancellation token. A node that sets its own
 /// <see cref="WorkflowNodeReference.Timeout"/> replaces both for that step: the
 /// timeout, and the timeout plus 30 seconds as the hard cutoff. The exception
-/// fails the step, so the workflow run ends <c>Failed</c> and no later node runs.
+/// fails the step, so the workflow run ends <c>Failed</c> and no later node runs. A loop's
+/// reviewer agent has no node of its own: it takes the limits of the agent's own
+/// <see cref="AgentDefinition.SubAgents"/> or the installation's, and the exception fails the run that runs the loop.
 /// </para>
 /// <para>
 /// An agent called as a TOOL by another agent hits the same limit without this
