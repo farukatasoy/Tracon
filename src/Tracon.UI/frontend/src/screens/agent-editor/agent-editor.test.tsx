@@ -28,6 +28,28 @@ const fullDefinition = {
 };
 
 /** Empty catalogue lists for every section — enough for the screen to settle without a section-specific override. */
+/**
+ * The provider list is a query of its own, and the field is on the screen before the list is: choosing at once finds no
+ * option. Wait for the option, then choose it.
+ */
+async function chooseProvider(user: ReturnType<typeof userEvent.setup>, provider: string): Promise<void> {
+  const select = screen.getByLabelText(/^Provider/);
+
+  await waitFor(() => expect(select.querySelector(`option[value="${provider}"]`)).not.toBeNull());
+  await user.selectOptions(select, provider);
+}
+
+/**
+ * A loop criterion's kind list comes from the catalog, a query of its own, and the criterion's row is drawn from the stored
+ * agent before it: choosing at once finds no option. Wait for the option, then choose it.
+ */
+async function chooseCriterionKind(user: ReturnType<typeof userEvent.setup>, index: number, kind: string): Promise<void> {
+  const select = (await screen.findByTestId(`loop-criterion-kind-${index}`)) as HTMLSelectElement;
+
+  await waitFor(() => expect(Array.from(select.options).some((option) => option.value === kind)).toBe(true));
+  await user.selectOptions(select, kind);
+}
+
 function baseOverrides() {
   return [
     fixture('GET', 'api/tools', []),
@@ -494,7 +516,7 @@ describe('AgentEditorScreen', () => {
 
     await user.type(await screen.findByTestId('agent-name'), 'demo');
     await user.type(screen.getByTestId('agent-model'), 'claude');
-    await user.selectOptions(screen.getByLabelText(/^Provider/), 'anthropic');
+    await chooseProvider(user, 'anthropic');
     await user.selectOptions(screen.getByTestId('agent-response-format'), 'JsonSchema');
 
     const schema = screen.getByTestId('agent-response-schema');
@@ -520,7 +542,7 @@ describe('AgentEditorScreen', () => {
 
     await user.type(await screen.findByTestId('agent-name'), 'demo');
     await user.type(screen.getByTestId('agent-model'), 'claude');
-    await user.selectOptions(screen.getByLabelText(/^Provider/), 'anthropic');
+    await chooseProvider(user, 'anthropic');
 
     await user.click(screen.getByTestId('agent-validate'));
 
@@ -1181,7 +1203,7 @@ describe('AgentEditorScreen', () => {
       renderScreen(<AgentEditorScreen name="support" />);
 
       await user.click(await screen.findByTestId('loop-criterion-down-0'));
-      await user.selectOptions(screen.getByTestId('loop-criterion-kind-0'), 'reviewed');
+      await chooseCriterionKind(user, 0, 'reviewed');
       await user.click(screen.getByTestId('agent-validate'));
 
       await waitFor(() => {
@@ -1222,7 +1244,12 @@ describe('AgentEditorScreen', () => {
 
       renderScreen(<AgentEditorScreen name="support" />);
 
-      const first = (await screen.findByTestId('loop-criterion-kind-0')) as HTMLSelectElement;
+      // The criteria come with the stored agent and their descriptions with the catalog, a query of its own: wait for the later one.
+      await waitFor(() =>
+        expect(screen.getByTestId('loop-criterion-description-1').textContent).toContain('The reviewer agent approves the draft.'),
+      );
+
+      const first = screen.getByTestId('loop-criterion-kind-0') as HTMLSelectElement;
 
       expect(first.value).toBe('aijudge');
       expect((screen.getByTestId('loop-criterion-kind-1') as HTMLSelectElement).value).toBe('Reviewed');
@@ -1408,14 +1435,14 @@ describe('AgentEditorScreen', () => {
 
         renderScreen(<AgentEditorScreen name="support" />);
 
-        await user.selectOptions(await screen.findByTestId('loop-criterion-kind-0'), 'aiJudge');
+        await chooseCriterionKind(user, 0, 'aiJudge');
         expect(screen.queryByTestId('loop-criterion-reviewer-0')).toBeNull();
 
-        await user.selectOptions(screen.getByTestId('loop-criterion-kind-0'), 'agentReview');
+        await chooseCriterionKind(user, 0, 'agentReview');
         expect((screen.getByTestId('loop-criterion-reviewer-0') as HTMLSelectElement).value).toBe('');
         expect((screen.getByTestId('loop-criterion-reviewer-version-0') as HTMLInputElement).value).toBe('');
 
-        await user.selectOptions(screen.getByTestId('loop-criterion-kind-0'), 'completionMarker');
+        await chooseCriterionKind(user, 0, 'completionMarker');
         await user.click(screen.getByTestId('agent-validate'));
 
         await waitFor(() => {
@@ -1581,7 +1608,7 @@ describe('AgentEditorScreen', () => {
 
     await user.type(await screen.findByTestId('agent-name'), 'demo');
     await user.type(screen.getByTestId('agent-model'), 'claude');
-    await user.selectOptions(screen.getByLabelText(/^Provider/), 'anthropic');
+    await chooseProvider(user, 'anthropic');
 
     await user.click(screen.getByTestId('agent-save'));
 
@@ -1613,7 +1640,7 @@ describe('AgentEditorScreen', () => {
     async function fillNewAgent(user: ReturnType<typeof userEvent.setup>): Promise<void> {
       await user.type(await screen.findByTestId('agent-name'), 'demo');
       await user.type(screen.getByTestId('agent-model'), 'claude');
-      await user.selectOptions(screen.getByLabelText(/^Provider/), 'anthropic');
+      await chooseProvider(user, 'anthropic');
     }
 
     it('is not offered for a seed outside the safe integer range, and is again once the seed is fixed', async () => {

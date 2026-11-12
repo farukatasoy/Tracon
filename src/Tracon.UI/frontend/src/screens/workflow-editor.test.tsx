@@ -233,7 +233,7 @@ describe('WorkflowEditorScreen - the stored form', () => {
     open(agentsOnly);
     await loaded();
 
-    await user.selectOptions(screen.getByTestId('workflow-add-function'), 'word-count');
+    await user.selectOptions(await screen.findByTestId('workflow-add-function'), 'word-count');
 
     expect(screen.getByTestId('workflow-form-notice').textContent).toContain('node list');
 
@@ -318,7 +318,7 @@ describe('WorkflowEditorScreen - the pattern', () => {
     open(mixed);
     await loaded();
 
-    const picker = screen.getByTestId('workflow-add-function');
+    const picker = await screen.findByTestId('workflow-add-function');
 
     expect(within(picker).queryByRole('option', { name: 'word-count' })).toBeNull();
     within(picker).getByRole('option', { name: 'pass-through' });
@@ -421,7 +421,7 @@ describe('WorkflowEditorScreen - the settings field', () => {
     open(agentsOnly);
     await loaded();
 
-    await user.selectOptions(screen.getByTestId('workflow-add-function'), 'pass-through');
+    await user.selectOptions(await screen.findByTestId('workflow-add-function'), 'pass-through');
 
     expect(screen.queryByTestId('workflow-settings-pass-through')).toBeNull();
     screen.getByText('This function takes no settings.');
@@ -438,7 +438,8 @@ describe('WorkflowEditorScreen - the settings field', () => {
     );
 
     expect(await screen.findByTestId('workflow-settings-pass-through')).toHaveProperty('value', JSON.stringify({ old: true }, null, 2));
-    expect(screen.getAllByText('This function takes no settings.').length).toBeGreaterThan(0);
+    // The note comes from the function catalog, a query of its own: the field above is drawn from the stored chain.
+    expect((await screen.findAllByText('This function takes no settings.')).length).toBeGreaterThan(0);
   });
 
   it('flags a function the server does not have, at its own step', async () => {

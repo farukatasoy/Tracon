@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { fixture, installApiMock, testMeta } from '../test/api-fixtures';
+import { fixture, installApiMock, testMeta, type FixtureRoute } from '../test/api-fixtures';
 import { renderScreen, screen } from '../test/render';
 import { EvalSuiteDetailScreen } from './eval-detail';
 
@@ -8,6 +8,33 @@ function pendingJsonResponse(): Response {
   return new Response(new ReadableStream(), {
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+/**
+ * The cases answer once the screen is on display, which is the order a slow cases query gives: the screen (its save and add
+ * buttons) comes first and the cases come after. A test written for the other order passes on a fast machine and fails on
+ * a slow one, so every test here is made to run in this one.
+ */
+function casesOnceTheScreenIsUp(cases: unknown[]): FixtureRoute {
+  return {
+    method: 'GET',
+    pattern: 'api/evals/:name/cases',
+    handler: async () => {
+      await screen.findByRole('button', { name: 'Save cases' });
+
+      return cases;
+    },
+  };
+}
+
+/**
+ * The save button is on the screen before the cases are (it stays disabled until they have loaded), so finding it says nothing
+ * about them. The first case's query field is on the screen with the cases and not before: wait for that.
+ */
+async function saveButtonOnceTheCasesAreShown(): Promise<HTMLElement> {
+  await screen.findByRole('textbox', { name: /^Query/ });
+
+  return screen.getByRole('button', { name: 'Save cases' });
 }
 
 describe('EvalSuiteDetailScreen', () => {
@@ -56,7 +83,7 @@ describe('EvalSuiteDetailScreen', () => {
         agentName: 'support',
         checks: [],
       }),
-      fixture('GET', 'api/evals/:name/cases', [
+      casesOnceTheScreenIsUp([
         {
           id: '11111111-1111-1111-1111-111111111111',
           suiteId: '22222222-2222-2222-2222-222222222222',
@@ -81,7 +108,7 @@ describe('EvalSuiteDetailScreen', () => {
 
     renderScreen(<EvalSuiteDetailScreen name="support-eval" meta={testMeta} />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Save cases' }));
+    await userEvent.click(await saveButtonOnceTheCasesAreShown());
 
     await expect.poll(() => sent).toBeDefined();
 
@@ -113,7 +140,7 @@ describe('EvalSuiteDetailScreen', () => {
         agentName: 'support',
         checks: [],
       }),
-      fixture('GET', 'api/evals/:name/cases', [
+      casesOnceTheScreenIsUp([
         {
           id: '11111111-1111-1111-1111-111111111111',
           suiteId: '22222222-2222-2222-2222-222222222222',
@@ -158,7 +185,7 @@ describe('EvalSuiteDetailScreen', () => {
           agentName: 'support',
           checks: [{ kind: 'toolCallArgsMatch' }],
         }),
-        fixture('GET', 'api/evals/:name/cases', [
+        casesOnceTheScreenIsUp([
           {
             id: '11111111-1111-1111-1111-111111111111',
             suiteId: '22222222-2222-2222-2222-222222222222',
@@ -192,7 +219,7 @@ describe('EvalSuiteDetailScreen', () => {
 
       renderScreen(<EvalSuiteDetailScreen name="support-eval" meta={testMeta} />);
 
-      await userEvent.click(await screen.findByRole('button', { name: 'Save cases' }));
+      await userEvent.click(await saveButtonOnceTheCasesAreShown());
       await expect.poll(sent).toBeDefined();
 
       expect(sent()).toEqual([
@@ -234,7 +261,7 @@ describe('EvalSuiteDetailScreen', () => {
 
       renderScreen(<EvalSuiteDetailScreen name="support-eval" meta={testMeta} />);
 
-      const save = await screen.findByRole('button', { name: 'Save cases' });
+      const save = await saveButtonOnceTheCasesAreShown();
       const argumentsBox = screen.getByRole('textbox', { name: /^Arguments/ });
 
       expect(save).toHaveProperty('disabled', false);
@@ -275,7 +302,7 @@ describe('EvalSuiteDetailScreen', () => {
 
       renderScreen(<EvalSuiteDetailScreen name="support-eval" meta={testMeta} />);
 
-      const save = await screen.findByRole('button', { name: 'Save cases' });
+      const save = await saveButtonOnceTheCasesAreShown();
       const alerts = screen.getAllByRole('alert');
 
       // Only the first call holds an unsafe number: a safe integer and a fraction pass.
@@ -303,7 +330,7 @@ describe('EvalSuiteDetailScreen', () => {
 
       renderScreen(<EvalSuiteDetailScreen name="support-eval" meta={testMeta} />);
 
-      const save = await screen.findByRole('button', { name: 'Save cases' });
+      const save = await saveButtonOnceTheCasesAreShown();
 
       await userEvent.click(screen.getByRole('textbox', { name: /^Arguments/ }));
       await userEvent.paste('{"id": 1e999}');

@@ -170,6 +170,17 @@ function toResponse(body: unknown, status: number): Response {
  */
 let activeOverrides: FixtureRoute[] = [];
 
+/**
+ * Answers every GET after a random wait of up to `VITE_TEST_API_JITTER_MS` milliseconds, 60 unless it is set;
+ * `VITE_TEST_API_JITTER_MS=0 npx vitest run` turns it off, to read a failure without the noise.
+ *
+ * A mocked API answers in the order the requests were made and at once, which hides every test that takes one answer for
+ * all of them: it finds a button that is on the screen before the data it acts on, and clicks it. A slow server or a loaded
+ * CI runner shows that order, and the test then fails there and never on a laptop. With the wait on, the answers arrive in
+ * any order and late, and the test that depends on the order fails here.
+ */
+const apiJitterMs = Number(import.meta.env['VITE_TEST_API_JITTER_MS'] ?? 60);
+
 async function resolve(method: string, path: string, url: URL, body?: unknown): Promise<Response> {
   for (const route of activeOverrides) {
     if (route.method !== method) {
@@ -181,6 +192,12 @@ async function resolve(method: string, path: string, url: URL, body?: unknown): 
     if (match !== null) {
       // A handler may return a promise: a test holds an answer back to show what a screen does while it is in flight.
       const result = await route.handler(match.params, url, body);
+
+      // The wait is on the answer, not on the request: the handler sees the requests in the order they were made, as a
+      // server does, and the answers arrive late and out of order.
+      if (method === 'GET' && apiJitterMs > 0) {
+        await new Promise((done) => setTimeout(done, Math.floor(Math.random() * apiJitterMs)));
+      }
 
       return result instanceof Response ? result : toResponse(result, route.status ?? 200);
     }

@@ -47,6 +47,16 @@ afterEach(() => {
   cleanup();
 });
 
+// The address outlives a test: a screen that writes the run it started into the query string (`navigate`, replace) leaves
+// it there, and the next test's screen opens on that address, restores a run it never started and draws a card for it.
+// The test then finds that card, the run it starts replaces it, and the click lands on a detached button. Every test
+// starts on the address the document was loaded with.
+const initialAddress = window.location.href;
+
+afterEach(() => {
+  window.history.replaceState(null, '', initialAddress);
+});
+
 // jsdom does not implement `matchMedia` at all. `lib/theme.ts` reads it at
 // module load time (`applyTheme` runs on import, the same reason
 // `initialiseLocale()` runs before the first render) to pick the starting
