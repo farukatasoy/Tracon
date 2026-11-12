@@ -137,7 +137,7 @@ function round(value: number): number {
 /** One slice of the token breakdown bar. */
 export interface TokenSlice {
   /** Message key naming this slice. */
-  key: 'cachedInput' | 'input' | 'reasoning' | 'output';
+  key: 'cachedInput' | 'cacheWrite' | 'input' | 'reasoning' | 'output';
   /** Token count in this slice. */
   tokens: number;
   /** Share of the whole bar, 0-1. */
@@ -149,6 +149,8 @@ export interface TokenTotals {
   inputTokens: number;
   outputTokens: number;
   cachedInputTokens: number;
+  /** Input written to the provider's cache, short and long retention together. Counted inside `inputTokens`. */
+  cacheWriteInputTokens?: number;
   reasoningTokens: number;
 }
 
@@ -207,12 +209,12 @@ export function primaryScoreIdentity(series: readonly ScoreBucket[]): { key: str
 }
 
 /**
- * Splits input/output totals into the four disjoint slices of a breakdown bar.
+ * Splits input/output totals into the five disjoint slices of a breakdown bar.
  *
- * 🚨 `cachedInputTokens` and `reasoningTokens` are counted INSIDE the input and
- * output totals, so the bar is built by SUBTRACTION: the plain "input" slice is
- * the input that was NOT served from cache. Stacking the four raw counters would
- * draw a bar longer than the tokens actually spent.
+ * 🚨 `cachedInputTokens`, the cache-write tokens and `reasoningTokens` are counted
+ * INSIDE the input and output totals, so the bar is built by SUBTRACTION: the plain
+ * "input" slice is the input that was neither served from cache nor written to it.
+ * Stacking the raw counters would draw a bar longer than the tokens actually spent.
  *
  * A breakdown larger than the total it belongs to is a provider data fault; the
  * slice is floored at zero rather than drawn as a negative width, and the
@@ -223,13 +225,15 @@ export function primaryScoreIdentity(series: readonly ScoreBucket[]): { key: str
  */
 export function tokenBreakdown(totals: TokenTotals): TokenSlice[] {
   const cached = Math.max(0, Math.min(totals.cachedInputTokens, totals.inputTokens));
+  const written = Math.max(0, Math.min(totals.cacheWriteInputTokens ?? 0, totals.inputTokens - cached));
   const reasoning = Math.max(0, Math.min(totals.reasoningTokens, totals.outputTokens));
 
-  const freshInput = Math.max(0, totals.inputTokens - cached);
+  const freshInput = Math.max(0, totals.inputTokens - cached - written);
   const plainOutput = Math.max(0, totals.outputTokens - reasoning);
 
   const slices: { key: TokenSlice['key']; tokens: number }[] = [
     { key: 'cachedInput', tokens: cached },
+    { key: 'cacheWrite', tokens: written },
     { key: 'input', tokens: freshInput },
     { key: 'reasoning', tokens: reasoning },
     { key: 'output', tokens: plainOutput },

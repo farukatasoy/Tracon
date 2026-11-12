@@ -310,9 +310,9 @@ export function ModelBreakdownChart({
 }
 
 /**
- * Where the tokens actually went: cache hits, fresh input, reasoning, plain output.
+ * Where the tokens actually went: cache hits, cache writes, fresh input, reasoning, plain output.
  *
- * 🚨 The four slices are DISJOINT, produced by subtraction in
+ * 🚨 The five slices are DISJOINT, produced by subtraction in
  * {@link tokenBreakdown}. `cachedInputTokens` and `reasoningTokens` are counted
  * INSIDE the input and output totals, so stacking the raw counters would draw a
  * bar longer than the tokens that were spent.
@@ -329,6 +329,7 @@ export function TokenBreakdownChart({ stats }: { stats: RunStatistics }): ReactN
         inputTokens: stats.inputTokens,
         outputTokens: stats.outputTokens,
         cachedInputTokens: stats.cachedInputTokens,
+        cacheWriteInputTokens: Number(stats.cacheWriteInputTokens ?? 0) + Number(stats.cacheWriteLongInputTokens ?? 0),
         reasoningTokens: stats.reasoningTokens,
       }),
     [stats],
@@ -338,10 +339,11 @@ export function TokenBreakdownChart({ stats }: { stats: RunStatistics }): ReactN
     return <EmptyChart height={80} />;
   }
 
-  // Solid tokens, not tints: four adjacent slices have to stay apart from each
+  // Solid tokens, not tints: five adjacent slices have to stay apart from each
   // other. Every one of these is defined in BOTH themes in styles.css.
   const colours: Record<string, string> = {
     cachedInput: 'var(--tracon-series-6)',
+    cacheWrite: 'var(--tracon-series-3)',
     input: 'var(--tracon-series-1)',
     reasoning: 'var(--tracon-series-5)',
     output: 'var(--tracon-series-4)',
@@ -349,6 +351,7 @@ export function TokenBreakdownChart({ stats }: { stats: RunStatistics }): ReactN
 
   const labels: Record<string, string> = {
     cachedInput: t('dashboard.tokens.cachedInput'),
+    cacheWrite: t('dashboard.tokens.cacheWrite'),
     input: t('dashboard.tokens.input'),
     reasoning: t('dashboard.tokens.reasoning'),
     output: t('dashboard.tokens.output'),

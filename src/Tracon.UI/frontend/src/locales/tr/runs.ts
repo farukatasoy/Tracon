@@ -202,6 +202,7 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "dashboard.tokens.title": 'Token kırılımı',
   "dashboard.tokens.label": 'Token nereye gitti',
   "dashboard.tokens.cachedInput": 'Cache isabeti',
+  "dashboard.tokens.cacheWrite": 'Cache yazımı',
   "dashboard.tokens.input": 'Girdi',
   "dashboard.tokens.reasoning": 'Akıl yürütme',
   "dashboard.tokens.output": 'Çıktı',

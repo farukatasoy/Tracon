@@ -111,6 +111,41 @@ describe('tokenBreakdown', () => {
     expect(slices.reduce((sum, slice) => sum + slice.tokens, 0)).toBe(150);
   });
 
+  it('draws the tokens written to the cache as a slice of their own, out of the plain input', () => {
+    // Cache-write tokens are counted inside the input total: without a slice of their own they were drawn as plain input.
+    const slices = tokenBreakdown({
+      inputTokens: 100,
+      outputTokens: 50,
+      cachedInputTokens: 40,
+      cacheWriteInputTokens: 25,
+      reasoningTokens: 30,
+    });
+
+    expect(slices.map((slice) => [slice.key, slice.tokens])).toEqual([
+      ['cachedInput', 40],
+      ['cacheWrite', 25],
+      ['input', 35],
+      ['reasoning', 30],
+      ['output', 20],
+    ]);
+    expect(slices.reduce((sum, slice) => sum + slice.tokens, 0)).toBe(150);
+  });
+
+  it('floors a cache write larger than the input that is left at what is left', () => {
+    const slices = tokenBreakdown({
+      inputTokens: 100,
+      outputTokens: 0,
+      cachedInputTokens: 90,
+      cacheWriteInputTokens: 500,
+      reasoningTokens: 0,
+    });
+
+    expect(slices.map((slice) => [slice.key, slice.tokens])).toEqual([
+      ['cachedInput', 90],
+      ['cacheWrite', 10],
+    ]);
+  });
+
   it('sums the shares to one', () => {
     const slices = tokenBreakdown({
       inputTokens: 100,

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The console's token breakdown draws cache writes as a slice of their own.** The bar split the input into "cache hit" and "input", and the tokens a run wrote to the provider's cache (short and long retention together) are counted inside the input total, so they were drawn as plain input. The bar now has five slices (cache hit, cache write, input, reasoning, output), the cache write is cut out of the plain input like the cache hit is, and the legend names it in English and Turkish.
+  What to do:
+  - **Nothing.**
+
 - **The console refuses a quota or retention limit it cannot send exactly, instead of rounding it or saving it as no limit.** The quota form's `maxRuns` and `maxTokens` and the retention form's `maxAgeDays` and `maxRows` are 64-bit numbers on the server and JavaScript numbers in the browser. `9223372036854775807` went out as `9223372036854775808`, and text that is not a number (`abc`, `-5`) became an empty field, which the server reads as no limit at all, so a typo removed the limit. Each field now shows a message (English and Turkish) and the save button stays disabled until the field is empty (no limit) or a whole number from 0 up to 9007199254740991.
   What to do:
   - **Nothing.** A limit already stored above that number reads back rounded by the browser, as it always did, and now fails the same check until it is replaced.

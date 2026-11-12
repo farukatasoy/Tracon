@@ -197,6 +197,7 @@ export const enRuns = {
   "dashboard.tokens.title": 'Token breakdown',
   "dashboard.tokens.label": 'Where the tokens went',
   "dashboard.tokens.cachedInput": 'Cache hit',
+  "dashboard.tokens.cacheWrite": 'Cache write',
   "dashboard.tokens.input": 'Input',
   "dashboard.tokens.reasoning": 'Reasoning',
   "dashboard.tokens.output": 'Output',
