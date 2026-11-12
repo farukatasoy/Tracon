@@ -29,6 +29,25 @@ public sealed class SingletonExecutionOptionsValidatorTests
     }
 
     [Fact]
+    public void A_blank_owner_and_a_zero_lease_are_both_reported()
+    {
+        // One start-up failure should name everything wrong, as the other option validators do, so the operator fixes the
+        // configuration once instead of once per restart.
+        var result = Validate(new SingletonExecutionOptions
+        {
+            OwnerId = "   ",
+            LeaseDuration = TimeSpan.Zero,
+        });
+
+        result.Succeeded.ShouldBeFalse();
+        result.Failures!.Count().ShouldBe(2);
+        result.Failures!.ShouldContain(
+            failure => failure.Contains(nameof(SingletonExecutionOptions.OwnerId), StringComparison.Ordinal));
+        result.Failures!.ShouldContain(
+            failure => failure.Contains(nameof(SingletonExecutionOptions.LeaseDuration), StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void The_shortest_accepted_lease_is_accepted()
     {
         var result = Validate(new SingletonExecutionOptions

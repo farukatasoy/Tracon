@@ -16,34 +16,30 @@ internal sealed class SingletonExecutionOptionsValidator : IValidateOptions<Sing
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        // Every failure is collected, so one start-up error names all of them. The lease checks are one chain: a value that
+        // is zero cannot also be too short or too long.
         // The owner names the instance in the lease store; two instances that write blanks are one owner.
-        List<string>? ownerFailures = null;
+        List<string>? failures = null;
         OptionText.AddWhenOnlyWhiteSpace(
-            options.OwnerId, nameof(SingletonExecutionOptions), nameof(SingletonExecutionOptions.OwnerId), ref ownerFailures);
-
-        if (ownerFailures is not null)
-        {
-            return ValidateOptionsResult.Fail(ownerFailures);
-        }
+            options.OwnerId, nameof(SingletonExecutionOptions), nameof(SingletonExecutionOptions.OwnerId), ref failures);
 
         if (options.LeaseDuration <= TimeSpan.Zero)
         {
-            return ValidateOptionsResult.Fail(
+            (failures ??= []).Add(
                 $"{nameof(SingletonExecutionOptions)}.{nameof(SingletonExecutionOptions.LeaseDuration)} " +
                 $"must be greater than zero. Actual value: {options.LeaseDuration}.");
         }
-
-        // 🚨 Renewal happens at one third of the lease but never faster than
-        // SingletonGuard.MinimumRenewInterval. Below the minimum the renewal
-        // lands ON or AFTER the expiry: the lease looks expired while its owner
-        // is alive, a second instance takes it over, and the work that had to
-        // run on ONE instance starts alternating between them.
-        // Only the running hazard is gated on Enabled - while selection is off,
-        // the renewal loop never starts. The zero check above stays
-        // unconditional: that value is nonsense either way.
-        if (options.Enabled && options.LeaseDuration < SingletonGuard.MinimumLeaseDuration)
+        else if (options.Enabled && options.LeaseDuration < SingletonGuard.MinimumLeaseDuration)
         {
-            return ValidateOptionsResult.Fail(
+            // 🚨 Renewal happens at one third of the lease but never faster than
+            // SingletonGuard.MinimumRenewInterval. Below the minimum the renewal
+            // lands ON or AFTER the expiry: the lease looks expired while its owner
+            // is alive, a second instance takes it over, and the work that had to
+            // run on ONE instance starts alternating between them.
+            // Only the running hazard is gated on Enabled - while selection is off,
+            // the renewal loop never starts. The zero check above stays
+            // unconditional: that value is nonsense either way.
+            (failures ??= []).Add(
                 $"{nameof(SingletonExecutionOptions)}.{nameof(SingletonExecutionOptions.LeaseDuration)} " +
                 $"must be at least {SingletonGuard.MinimumLeaseDuration} while " +
                 $"{nameof(SingletonExecutionOptions.Enabled)} is true: renewal runs at one third of it and " +
@@ -51,16 +47,20 @@ internal sealed class SingletonExecutionOptionsValidator : IValidateOptions<Sing
                 $"under a live owner and another instance would take it over. " +
                 $"Actual value: {options.LeaseDuration}.");
         }
-
-        // The renewal loop runs on a PeriodicTimer; a lease longer than three
-        // times the timer's ceiling gives it a period it refuses.
-        if (options.Enabled && !TimerPeriod.IsValid(SingletonGuard.ComputeRenewInterval(options.LeaseDuration)))
+        else if (options.Enabled && !TimerPeriod.IsValid(SingletonGuard.ComputeRenewInterval(options.LeaseDuration)))
         {
-            return ValidateOptionsResult.Fail(
+            // The renewal loop runs on a PeriodicTimer; a lease longer than three
+            // times the timer's ceiling gives it a period it refuses.
+            (failures ??= []).Add(
                 $"{nameof(SingletonExecutionOptions)}.{nameof(SingletonExecutionOptions.LeaseDuration)} " +
                 $"must be at most {TimerPeriod.MaxMilliseconds * 3} milliseconds while " +
                 $"{nameof(SingletonExecutionOptions.Enabled)} is true: renewal runs at one third of it on a timer. " +
                 $"Actual value: {options.LeaseDuration}.");
+        }
+
+        if (failures is not null)
+        {
+            return ValidateOptionsResult.Fail(failures);
         }
 
         return ValidateOptionsResult.Success;
