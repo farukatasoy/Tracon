@@ -67,7 +67,7 @@ internal sealed class McpOAuthTokenStoreValidator(IServiceProvider services, ILo
         {
             (failures ??= []).Add(
                 $"{Setting} is {nameof(McpOAuthTokenStore.DistributedCache)}, but content protection is off. " +
-                "A token is not written to the cache as plain text. Call AddContentProtection(...) or set Tracon:ContentProtection:Enabled.");
+                "A token is not written to the cache as plain text. Call AddContentProtection(options => ...) with an active key id, or call AddContentProtection() and set Tracon:ContentProtection:Enabled to true.");
         }
 
         if (failures is not null)

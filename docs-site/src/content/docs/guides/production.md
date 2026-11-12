@@ -327,7 +327,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Multi-tenancy | Off | Every request resolves to the single default tenant until `UseTenancy` turns it on. Decide before a second tenant's data exists |
 | Session ownership | Off | `Tracon:SessionOwnership:Enabled`. **Not retroactive**: a session opened while it was off keeps a null owner forever, so turn it on before sessions accumulate rather than after |
 | Request rate limiting | Off | `Tracon:RateLimit:Enabled`, 60 permits per window once on. A quota caps spend over a period; a rate limit caps a burst. They are not substitutes for one another |
-| At-rest content encryption | Off | `Tracon:ContentProtection:Enabled` (AES-256-GCM). Turning it on does not encrypt rows already written, and turning it off does not decrypt them |
+| At-rest content encryption | Off | `AddContentProtection()` and `Tracon:ContentProtection:Enabled` (AES-256-GCM); the flag alone installs no protector. Turning it on does not encrypt rows already written, and turning it off does not decrypt them |
 | Content inspection | Off | `AddTracon()` registers no guard and never adds the inspection wrapper. Even once added, the built-in guard carries no rules until you choose pattern families |
 | Run event poll interval | 250 ms | Lower values reduce SSE latency but increase database reads |
 | Background job worker | On, concurrency 2 per process | Separate or size workers deliberately |

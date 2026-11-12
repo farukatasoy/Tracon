@@ -25,8 +25,9 @@ public static class TraconContentProtectionExtensions
     /// <para>
     /// <strong>This call is the no-surprises rule's gate.</strong> <c>AddTracon()</c>
     /// alone registers a no-op protector that writes plaintext unchanged; without
-    /// this call (or a matching <c>Tracon:ContentProtection:Enabled</c>
-    /// configuration section), nothing is encrypted.
+    /// this call nothing is encrypted, whatever <c>Tracon:ContentProtection:Enabled</c>
+    /// says: the flag decides whether the registered protector is on, and it
+    /// installs none.
     /// </para>
     /// <para>
     /// With a <paramref name="configure"/> delegate the call also turns protection on:

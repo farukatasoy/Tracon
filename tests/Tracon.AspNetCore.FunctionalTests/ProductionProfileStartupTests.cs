@@ -418,6 +418,76 @@ public sealed class ProductionProfileStartupTests
     }
 
     [Fact]
+    public async Task The_flag_alone_does_not_answer_the_content_protection_decision()
+    {
+        // AddTracon() registers a protector that writes the text unchanged, and only AddContentProtection() replaces
+        // it. A host that sets the flag and never makes the call stores clear text, so the decision cannot be read
+        // from the flag.
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, TraconProductionRisk.UnencryptedContentAtRest);
+
+                    builder.Services.Configure<TraconContentProtectionOptions>(static options =>
+                    {
+                        options.Enabled = true;
+                        options.ActiveKeyId = "test";
+                        options.Keys["test"] = "TestContentProtectionKeys:test";
+                    });
+
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain(nameof(TraconProductionRisk.UnencryptedContentAtRest));
+        exception.Message.ShouldContain("AddContentProtection");
+    }
+
+    [Fact]
+    public async Task A_registered_protector_that_reports_itself_on_answers_the_content_protection_decision()
+    {
+        // The protector is what the stores ask, so it is what the decision asks. This one reports itself on while
+        // the flag is off: a protector that owns its keys has no use for the flag.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, TraconProductionRisk.UnencryptedContentAtRest);
+                builder.AddContentProtection<ReportingOnProtector>();
+                builder.RequireProductionProfile();
+            });
+
+        var response = await host.Client.GetAsync(
+            "/tracon/api/meta",
+            TestContext.Current.CancellationToken);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task A_registered_protector_that_reports_itself_off_leaves_the_content_protection_decision_open()
+    {
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder =>
+                {
+                    AnswerAllExcept(builder, TraconProductionRisk.UnencryptedContentAtRest);
+
+                    // The flag is on (with the key id its own validation asks for) and a protector is registered,
+                    // but the protector says it is not ready.
+                    builder.Services.Configure<TraconContentProtectionOptions>(static options =>
+                    {
+                        options.Enabled = true;
+                        options.ActiveKeyId = "test";
+                        options.Keys["test"] = "TestContentProtectionKeys:test";
+                    });
+                    builder.AddContentProtection<ReportingOffProtector>();
+                    builder.RequireProductionProfile();
+                }));
+
+        exception.Message.ShouldContain(nameof(TraconProductionRisk.UnencryptedContentAtRest));
+    }
+
+    [Fact]
     public async Task The_phase_259_decisions_name_their_settings_and_carry_no_configured_value()
     {
         // Each new check reads a setting that holds a string the deployment chose: the header name and the
@@ -1244,9 +1314,9 @@ public sealed class ProductionProfileStartupTests
                 break;
 
             case TraconProductionRisk.UnencryptedContentAtRest:
-                builder.Services.Configure<TraconContentProtectionOptions>(static options =>
+                // The protector is what the stores ask, so it is registered, not only switched on by the flag.
+                builder.AddContentProtection(static options =>
                 {
-                    options.Enabled = true;
                     options.ActiveKeyId = "test";
                     options.Keys["test"] = "TestContentProtectionKeys:test";
                 });
@@ -1451,6 +1521,24 @@ public sealed class ProductionProfileStartupTests
         public ValueTask<ToolAuthorizationResult> AuthorizeAsync(
             ToolAuthorizationRequest request, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(ToolAuthorizationResult.Allow());
+    }
+
+    private class ReportingOnProtector : IContentProtector
+    {
+        public virtual bool IsEnabled => true;
+
+        public string Protect(string plaintext) => plaintext;
+
+        public string Unprotect(string stored) => stored;
+
+        public byte[] ProtectBytes(ReadOnlySpan<byte> plaintext) => plaintext.ToArray();
+
+        public byte[] UnprotectBytes(ReadOnlySpan<byte> stored) => stored.ToArray();
+    }
+
+    private sealed class ReportingOffProtector : ReportingOnProtector
+    {
+        public override bool IsEnabled => false;
     }
 
     private sealed class StricterRetentionCheck : IProductionProfileCheck
