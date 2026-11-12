@@ -2,10 +2,11 @@ import type { ReactElement, ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderOptions } from '@testing-library/react';
 import { LocaleProvider } from '../lib/i18n';
+import { createQueryClient } from '../lib/query-client';
 import { RouterProvider } from '../lib/router';
 
 function createTestQueryClient(): QueryClient {
-  return new QueryClient({
+  return createQueryClient({
     defaultOptions: {
       // A retried failed query would leave a screen stuck on its loading
       // state well past this test's own timeout; every fixture failure here
