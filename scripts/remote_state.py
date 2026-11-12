@@ -73,6 +73,21 @@ class CiState:
         return self.status == "completed" and self.conclusion in {"failure", "timed_out", "startup_failure"}
 
 
+def _request(url: str, headers: dict[str, str] | None) -> urllib.request.Request:
+    """A request whose `Authorization` header does not follow a redirect.
+
+    `urllib` copies a request's headers onto the request it makes after a redirect, to whatever host the redirect names,
+    and does not copy the unredirected ones. A credential goes in the second kind.
+    """
+    request = urllib.request.Request(url, headers={name: value for name, value in (headers or {}).items() if name.lower() != "authorization"})
+
+    for name, value in (headers or {}).items():
+        if name.lower() == "authorization":
+            request.add_unredirected_header(name, value)
+
+    return request
+
+
 def fetch(url: str, headers: dict[str, str] | None = None) -> tuple[int | None, str]:
     """Reads a URL: Python's own TLS first, `curl` when this machine's Python has no trust store.
 
@@ -80,7 +95,7 @@ def fetch(url: str, headers: dict[str, str] | None = None) -> tuple[int | None, 
     Reading that as "no network" would switch the check off on exactly the machines that have one.
     """
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {}), timeout=LOOKUP_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(_request(url, headers), timeout=LOOKUP_TIMEOUT_SECONDS) as response:
             return response.status, response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
         return error.code, ""
@@ -115,8 +130,8 @@ def _fetch_with_curl(url: str, headers: dict[str, str] | None = None) -> tuple[i
 def github_headers(url: str) -> dict[str, str]:
     """The headers of a GitHub API read: the JSON media type, and the token of the environment for the API host only.
 
-    The token raises the rate limit of an anonymous read (60 an hour) and is never offered to another host. A run in
-    GitHub Actions has `GITHUB_TOKEN`; a developer's shell may have `GH_TOKEN`.
+    The token raises the rate limit of an anonymous read (60 an hour). It is offered to the API host only, and `fetch` sends it
+    so that a redirect does not carry it elsewhere. A run in GitHub Actions has `GITHUB_TOKEN`; a developer's shell may have `GH_TOKEN`.
     """
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "tracon-remote-state"}
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
@@ -443,8 +458,9 @@ def ci_runs(
 ) -> list[CiRun] | None:
     """The newest runs of `workflow` on `branch` of `slug`, from the public Actions API; `None` when it could not be read.
 
-    Pull request runs are left out by the API itself. The anonymous limit is 60 reads an hour, so a caller that runs often
-    sets `GITHUB_TOKEN`.
+    Only the newest 100 runs are read. `exclude_pull_requests` does not drop the runs of pull requests (it empties the
+    `pull_requests` list of each run), so a caller decides by `event`, as `green_shas` does. The anonymous limit is 60 reads an
+    hour, so a caller that runs often sets `GITHUB_TOKEN`.
     """
     query = urllib.parse.urlencode({"branch": branch, "per_page": 100, "exclude_pull_requests": "true"})
     status, body = fetcher(f"{GITHUB_API}/repos/{slug}/actions/workflows/{workflow}/runs?{query}")

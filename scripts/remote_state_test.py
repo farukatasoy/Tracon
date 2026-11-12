@@ -203,6 +203,46 @@ class FetchTests(unittest.TestCase):
         with mock.patch.object(remote_state.urllib.request, "urlopen", side_effect=error):
             self.assertEqual((404, ""), remote_state.fetch("https://example.test/index.json"))
 
+    def test_the_headers_reach_the_request_and_the_token_stays_out_of_the_redirectable_ones(self) -> None:
+        seen: list[urllib.request.Request] = []
+
+        def urlopen(request, timeout=None):  # noqa: ANN001, ANN202
+            seen.append(request)
+            raise urllib.error.URLError("no route")
+
+        with mock.patch.object(remote_state.urllib.request, "urlopen", side_effect=urlopen):
+            remote_state.fetch("https://api.github.com/repos/o/r", {"Accept": "application/json", "Authorization": "Bearer t0k"})
+
+        self.assertEqual("application/json", seen[0].get_header("Accept"))
+        self.assertEqual("Bearer t0k", seen[0].get_header("Authorization"))
+        self.assertNotIn("Authorization", {name.title() for name in seen[0].headers})
+
+    def test_a_redirect_to_another_host_does_not_carry_the_token(self) -> None:
+        request = remote_state._request("https://api.github.com/repos/o/r", {"Accept": "application/json", "Authorization": "Bearer t0k"})
+
+        followed = urllib.request.HTTPRedirectHandler().redirect_request(
+            request, None, 302, "Found", {}, "https://elsewhere.example/x")
+
+        self.assertIsNotNone(followed)
+        self.assertIsNone(followed.get_header("Authorization"))
+        self.assertEqual("application/json", followed.get_header("Accept"))
+
+    def test_a_request_without_a_token_adds_no_authorization(self) -> None:
+        request = remote_state._request("https://api.nuget.org/v3/index.json", None)
+
+        self.assertIsNone(request.get_header("Authorization"))
+
+    def test_curl_gets_the_headers_too(self) -> None:
+        completed = subprocess.CompletedProcess([], 0, stdout="{}\n200", stderr="")
+
+        with mock.patch.object(remote_state.subprocess, "run", return_value=completed) as run:
+            remote_state._fetch_with_curl("https://example.test", {"Authorization": "Bearer t0k", "Accept": "x"})
+
+        command = run.call_args.args[0]
+        pairs = [(command[i], command[i + 1]) for i in range(len(command) - 1)]
+        self.assertIn(("--header", "Authorization: Bearer t0k"), pairs)
+        self.assertIn(("--header", "Accept: x"), pairs)
+
     def test_curl_output_is_split_into_status_and_body(self) -> None:
         completed = subprocess.CompletedProcess([], 0, stdout='{"versions":[]}\n200', stderr="")
 

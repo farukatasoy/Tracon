@@ -197,7 +197,7 @@ jobs:
         working-directory: docs-site
         run: node scripts/check-content.mjs
 
-      # Not on the `site` job: that job runs on pushes to main only, so a gate
+      # Not on the `site` job: that job runs on pushes to `next` and on manual runs, never on a pull request, so a gate
       # placed there would stop no pull request.
       - name: Script tests
         run: python3 -m unittest discover -s scripts -p "*_test.py" -v
@@ -297,7 +297,7 @@ jobs:
   # below.
   #
   # The condition is the same chain as `build`: every leg carries `needs: build`. It does not
-  # run on pull requests (so no PR burns ten legs); it runs on `main`, tags and manual triggers.
+  # run on pull requests (so no PR burns ten legs); it runs on `next`, tags and manual triggers.
   # This is the longest job (all modules in one job, one module at a time), so it comes first
   # in the file.
   # ---------------------------------------------------------------------------
@@ -1367,7 +1367,7 @@ jobs:
   # The condition is the same as `build`: the canonical repository only. Every leg carries
   # `needs: build`, because the repository guard sits only in `build` and a skipped dependency
   # skips them too; a gate test enforces this chain. They do not run on pull requests (so no PR
-  # burns ten legs); they run on `main`, tags and manual triggers. The default-image legs
+  # burns ten legs); they run on `next`, tags and manual triggers. The default-image legs
   # (`test-postgres`, `test-sqlserver`) also run on PRs and are outside these matrices.
   #
   # A leg is a set of environment variables. The test class does not change: `SqlServerFixture`
