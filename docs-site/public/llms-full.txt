@@ -299,10 +299,10 @@ since it cannot reach `AgentSession` directly.
 
 ## Coding-agent support
 
-A coding agent working in your repository cannot use a capability it does not know
-exists. Three channels tell it. The first two are generated from this page and
-wait to be read; the third is a procedure the agent's harness loads before the
-agent writes code, which is the only one that speaks first.
+A coding agent cannot use a capability it does not know exists. Three channels
+tell it. The first two are generated from this page and wait to be read; the
+third is a procedure the agent's harness loads before the agent writes code,
+which is the only one that speaks first.
 
 | Capability | Enable it | Boundary |
 |---|---|---|
@@ -4765,6 +4765,8 @@ job is still waiting or running is followed, because the job's recovery owns tha
 queued answer whose job was never written — the process stopped after the answer was
 recorded and before the job was queued — is finished by a repeat of the same answer: the
 repeat writes the job and follows the run, and two repeats at the same time write it once.
+A queued answer whose job has ended while its run is still `Queued` (a close that failed)
+is stopped too: the repeat closes that run as `Failed` and starts the work again.
 
 The run an answer starts has its row opened before the answer is recorded, so a recorded
 answer always names a run that exists. Two answers that arrive in the same moment can
@@ -12864,8 +12866,8 @@ layer it plugs into, the tenant's checks and the dialogue contract are in [Voice
 conversation](/guides/voice/).
 
 `UseGoogleSpeech` registers a Gemini text-to-speech model as a named provider. It shares the
-client of `UseGoogle`, so call that first. The same provider speaks one voice and voices a
-dialogue of two.
+client of `UseGoogle`, so add that to the same chain; a host that registers speech without it
+fails when it starts. The same provider speaks one voice and voices a dialogue of two.
 
 ```mermaid
 flowchart LR
@@ -18357,10 +18359,17 @@ event, and the run at the root of its tree is the one that is continued or resum
 The new run's record links back to the interrupted one, so an operator reading the
 run tree can see that a run continued another rather than starting fresh.
 
+An agent whose tools do not all pass through the tool-calling pipeline is not continued
+either, because a continuation could repeat a call that already completed: an agent with
+skills, callable sub-agents, agent extensions or a session workspace, and one that has no
+stored definition (a code-defined or deleted agent). The interrupted run stays `Failed`
+and a `RunContinuationBlocked` event on it names the agent and the reason; no second run
+is opened.
+
 An agent that declares [parameters](/concepts/agents/#parameters) continues with the
 values the interrupted run recorded. A run that recorded none — input recording was
-off, or it predates parameter recording — stays `Failed` rather than continue on the
-defaults, and the event stream says why.
+off, or it predates parameter recording — is not continued on the defaults: the
+continuation run that is opened for it fails at once and its error says why.
 
 | Setting | Default | Effect |
 |---|---:|---|
@@ -23325,13 +23334,17 @@ to 9, 10, and 11 runs against the packed packages in Tracon's own CI.
 
 Tracon follows Microsoft's own .NET support lifecycle and does not extend it. A
 target framework normally stays in the matrix while Microsoft still supports it;
-once that support ends, a later Tracon release may drop it. One drop was not
+once that support ends, a later Tracon release may drop it (a major release, once the line is frozen). One drop was not
 tied to that date: `net8.0` and `net9.0`, described below.
 
 Plan for this before it happens, because it changes what you can upgrade to:
 
-- **Dropping an out-of-support target framework is not treated as a breaking
-  change** under the versioning policy. It can land in a minor release.
+- **Dropping an out-of-support target framework is a breaking change** under
+  the versioning policy ([Versioning](/reference/versioning/)): once the release
+  line is frozen (`1.0.0-rc.1` and later) it lands in a major release, and the
+  release process rejects it in a minor or a patch. Before the line is frozen a
+  preview may drop one, as the first release after `1.0.0-preview.6` did for
+  `net8.0` and `net9.0`.
 - A release that drops one says so in its changelog entry, and the package's
   own assets for that framework simply stop appearing.
 - Your application keeps working on the release it already resolved; nothing

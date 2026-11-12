@@ -288,10 +288,10 @@ since it cannot reach `AgentSession` directly.
 
 ## Coding-agent support
 
-A coding agent working in your repository cannot use a capability it does not know
-exists. Three channels tell it. The first two are generated from this page and
-wait to be read; the third is a procedure the agent's harness loads before the
-agent writes code, which is the only one that speaks first.
+A coding agent cannot use a capability it does not know exists. Three channels
+tell it. The first two are generated from this page and wait to be read; the
+third is a procedure the agent's harness loads before the agent writes code,
+which is the only one that speaks first.
 
 | Capability | Enable it | Boundary |
 |---|---|---|

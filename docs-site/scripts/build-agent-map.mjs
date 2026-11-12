@@ -371,23 +371,23 @@ function renderMap({ lead, sections }, packages, fullTextKilobytes) {
   lines.push('## Where to look');
   lines.push('');
   lines.push('- Exact local paths for the version you have: Tracon.LocalReference.md, beside each project that references Tracon');
-  lines.push(`- Capability map, with the boundary of each capability: ${siteUrl}capabilities/`);
+  lines.push(`- Capability map with boundaries: ${siteUrl}capabilities/`);
   lines.push(`- Guides, concepts, and configuration reference: ${siteUrl}`);
   lines.push(`- Which page answers what, one line per page: ${siteUrl}llms.txt`);
   lines.push(
-    `- Full text of every hand-written page (about ${fullTextKilobytes} KB - prefer one page above): ${siteUrl}llms-full.txt`,
+    `- Full text of every hand-written page (about ${fullTextKilobytes} KB; prefer one page): ${siteUrl}llms-full.txt`,
   );
   lines.push(`- HTTP API reference: ${siteUrl}http-api/`);
   lines.push(`- .NET API reference: ${siteUrl}api/`);
   // The OpenAPI document answers in one fetch what the 130 reference pages answer
   // in 130, and it is the artifact a caller generates a client from. Nothing named
   // it before this line; it was reachable only by reading the guide that links it.
-  lines.push(`- Every HTTP operation as one machine-readable contract: ${siteUrl}openapi/tracon.json`);
+  lines.push(`- Every HTTP operation, machine-readable: ${siteUrl}openapi/tracon.json`);
   // Every page address on this site also serves the page's markdown source at
   // <address>index.md. It is the same text without the HTML: code fences keep
   // their line breaks and tables keep their columns, neither of which survives
   // flattening the rendered page.
-  lines.push(`- Any page above as plain markdown: append index.md to its address, e.g. ${siteUrl}capabilities/index.md`);
+  lines.push(`- Any page above as markdown: append index.md, e.g. ${siteUrl}capabilities/index.md`);
   lines.push('');
 
   return `${lines.join('\n')}\n`;
