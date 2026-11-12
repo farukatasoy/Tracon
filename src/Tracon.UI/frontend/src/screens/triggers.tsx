@@ -51,7 +51,7 @@ const emptyForm = (): TriggerForm => ({
   signingSecretConfigurationName: '',
   payloadMode: 'WholeBody',
   payloadPath: null,
-  enabled: true,
+  enabled: false,
 });
 
 export function TriggersScreen({ meta }: { meta: Meta }): ReactNode {

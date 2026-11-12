@@ -127,6 +127,7 @@ public sealed class CredentialHeaderDeliveryTests
             Name = "w1",
             Url = receiver.Hook.ToString(),
             Events = [WebhookEvents.RunCompleted],
+            Enabled = true,
             HeaderConfigurationKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["X-API-Key"] = "Tracon:WebhookSecrets:globex:DemoKey",

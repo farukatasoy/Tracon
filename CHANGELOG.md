@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Breaking: a retention policy, a job schedule, an inbound trigger and a webhook subscription built in code without `Enabled` are off, and the console forms open them off.** The save requests of the HTTP API already default `enabled` to `false` (a policy deletes rows and the other three start work, so a body that only named the target started it), but the records themselves (`RetentionPolicy`, `JobSchedule`, `InboundTrigger`, `WebhookSubscription`) still defaulted to `true`, so code that built one and said nothing about `Enabled` started it, and the console's retention policy, schedule and trigger forms opened with the box checked. The record defaults are `false` now and those forms open unchecked; the webhook form gained the checkbox it lacked (it sent `true` on its own) and opens unchecked. A quota stays on by default.
+  What to do:
+  - **If your code builds one of these records and expects it to run, set `Enabled = true`.** A record read from a store is not touched: the value stored is the value read.
+  - **A test that saves a webhook subscription and expects the publisher to deliver it** needs `Enabled = true`; `FindForEventAsync` returns only enabled subscriptions.
+
 - **A repeated single-answer request follows a job that runs its run a second time under the same id.** With workflow recovery off, a queued answer whose first attempt ended is leased again and runs the same run id: the row goes back to `Running` and its events continue the sequence. The stream that follows the answer had read the run to its end and then waited for a continuation run that never comes, so it ended with `done` without a word of the second attempt. It now looks for events it has not written (and for a row that is running again) while the job is unfinished and reads on from its last event, without announcing a second `run` frame.
   What to do:
   - **Nothing.** A client that followed such a request now receives the second attempt's events before `done`.

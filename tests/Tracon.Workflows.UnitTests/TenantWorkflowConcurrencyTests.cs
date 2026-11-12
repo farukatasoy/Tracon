@@ -240,8 +240,9 @@ public sealed class TenantWorkflowConcurrencyTests
     {
         // Reconciliation closes a Queued row only when it has a heartbeat. A run that waits in its process writes one
         // as it opens, not at the next cycle: a process that stops in between would leave the row Queued for good.
-        // The store marks with its own clock, so the test moves that clock an hour ahead once the runs are open: every
-        // mark is then an hour old when the scan reads it.
+        // The store marks with its own clock, so the test advances that clock an hour once the runs are open: every
+        // mark is then an hour old when the scan reads it. (A mark is a span of time, so a step of the wall clock alone
+        // would not age it.)
         var storeClock = new ManualClock(TimeProvider.System.GetUtcNow());
         var (host, gate) = await BuildAsync(runStoreClock: storeClock);
         host.Reconciliation = new RunReconciliationOptions { Enabled = reconciliation };
@@ -261,7 +262,7 @@ public sealed class TenantWorkflowConcurrencyTests
         (await StatusAsync(host, "tenant-a", waitingId)).ShouldBe(RunStatus.Queued);
 
         // Everything that ever signaled is an hour old to the store, so a five minute threshold finds it stale.
-        storeClock.StepWallClock(TimeSpan.FromHours(1));
+        storeClock.Advance(TimeSpan.FromHours(1));
 
         var claimed = await host.RunStore.ClaimOrphanedRunsAsync(TimeSpan.FromMinutes(5), 10, TestContext.Current.CancellationToken);
 

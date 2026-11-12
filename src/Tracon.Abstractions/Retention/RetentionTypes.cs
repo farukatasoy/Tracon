@@ -42,7 +42,8 @@ public sealed record RetentionPolicy
     public bool Archive { get; init; }
 
     /// <summary>Whether the policy is enabled.</summary>
-    public bool Enabled { get; init; } = true;
+    /// <remarks>A record that does not say is off, as the save request is: a policy deletes rows, so a record that should run says so.</remarks>
+    public bool Enabled { get; init; }
 
     /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }

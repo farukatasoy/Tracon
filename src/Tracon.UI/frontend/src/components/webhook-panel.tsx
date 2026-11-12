@@ -284,6 +284,7 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
   const [url, setUrl] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [events, setEvents] = useState<string[]>(['run.completed', 'run.failed']);
+  const [enabled, setEnabled] = useState(false);
 
   const save = useMutation({
     mutationFn: () =>
@@ -294,7 +295,7 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
             url,
             events,
             secretConfigurationKey: secretKey.trim() === '' ? null : secretKey.trim(),
-            enabled: true,
+            enabled,
           },
         }),
       ) as Promise<WebhookSubscription>,
@@ -362,6 +363,17 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
           })}
         </div>
       </Field>
+
+      <label className="flex items-center gap-2 text-base">
+        <input
+          type="checkbox"
+          checked={enabled}
+          data-testid="webhook-enabled"
+          onChange={(event) => setEnabled(event.target.checked)}
+          className="size-4 rounded border-line"
+        />
+        {t('common.enabled')}
+      </label>
 
       {save.isError && <ErrorNote error={save.error} onRetry={() => save.mutate()} />}
 

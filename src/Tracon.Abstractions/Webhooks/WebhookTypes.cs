@@ -192,7 +192,8 @@ public sealed record WebhookSubscription
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Whether the subscription is enabled.</summary>
-    public bool Enabled { get; init; } = true;
+    /// <remarks>A record that does not say is off, as the save request is: a subscription sends data out, so a record that should deliver says so.</remarks>
+    public bool Enabled { get; init; }
 
     /// <summary>
     /// The consecutive-failure count. Once the threshold is exceeded, the

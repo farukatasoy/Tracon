@@ -35,7 +35,7 @@ const EMPTY_FORM = {
   cron: '',
   timeZone: 'UTC',
   payload: '[]',
-  enabled: true,
+  enabled: false,
 };
 
 type ScheduleForm = typeof EMPTY_FORM;

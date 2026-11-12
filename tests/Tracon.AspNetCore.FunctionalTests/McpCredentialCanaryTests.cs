@@ -177,6 +177,7 @@ public sealed class McpCredentialCanaryTests
             Name = "legacy-hook",
             Url = receiver.Address + "/hook",
             Events = ["run.completed"],
+            Enabled = true,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
             Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Authorization"] = "Bearer " + hookValue, ["X-Api-Key"] = hookValue },

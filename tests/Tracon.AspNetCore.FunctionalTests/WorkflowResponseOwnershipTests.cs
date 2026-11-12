@@ -352,14 +352,21 @@ public sealed class WorkflowResponseOwnershipTests
         (await host.Services.GetRequiredService<IJobStore>().CancelAsync(QueuedWorkflowHarness.TenantOf(host), abandoned)).ShouldBeTrue();
         (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(abandoned))!.Status.ShouldBe(RunStatus.Queued);
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        using var again = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
+        using var again = await RespondAsync(host, sourceId, new { requestId, approved = true });
+
+        // The repeat closes the row before it answers; a repeat that follows the row leaves it Queued for ever.
+        var runs = host.Services.GetRequiredService<IRunStore>();
+
+        await WaitUntil.TrueAsync(
+            async () => (await runs.GetRunAsync(abandoned))!.Status == RunStatus.Failed,
+            "the repeat to close the row the job left open");
+
         var restarted = RunIdOf(await FramesAsync(again));
 
         restarted.ShouldNotBe(abandoned);
         (await host.WaitForTerminalRunAsync(restarted)).Status.ShouldBe(RunStatus.Completed);
 
-        var closed = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(abandoned))!;
+        var closed = (await runs.GetRunAsync(abandoned))!;
 
         closed.Status.ShouldBe(RunStatus.Failed, "the repeat closed the row the job had left open");
     }
@@ -398,20 +405,28 @@ public sealed class WorkflowResponseOwnershipTests
             TenantId = tenant,
         });
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        using var follower = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
+        using var follower = await RespondAsync(host, sourceId, new { requestId, approved = true });
 
-        await using var stream = await follower.Content.ReadAsStreamAsync(timeout.Token);
-        await using var frames = SseReader.ReadAsync(stream, timeout.Token).GetAsyncEnumerator(timeout.Token);
+        await using var stream = await follower.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
+
+        // The frames are read in the background; each wait below is for a state, not for a time.
+        var frames = new System.Collections.Concurrent.ConcurrentQueue<SseFrame>();
+        var reading = Task.Run(
+            async () =>
+            {
+                await foreach (var frame in SseReader.ReadAsync(stream, TestContext.Current.CancellationToken))
+                {
+                    frames.Enqueue(frame);
+                }
+            },
+            TestContext.Current.CancellationToken);
+
+        bool Seen(string name, string? text = null)
+            => frames.Any(frame => string.Equals(frame.Event, name, StringComparison.Ordinal)
+                && (text is null || frame.Data.Contains(text, StringComparison.Ordinal)));
 
         // The first attempt's event arrives; then the follower waits for the job.
-        while (await frames.MoveNextAsync())
-        {
-            if (string.Equals(frames.Current.Event, "event", StringComparison.Ordinal))
-            {
-                break;
-            }
-        }
+        await WaitUntil.TrueAsync(() => Seen("event"), "the follower to write the first attempt's event");
 
         // The job is leased again: the same row runs a second time.
         await runs.StartRunAsync(new RunStartInfo
@@ -443,32 +458,18 @@ public sealed class WorkflowResponseOwnershipTests
             TenantId = tenant,
         });
 
-        var sawSecondAttempt = false;
-
-        while (await frames.MoveNextAsync())
-        {
-            if (string.Equals(frames.Current.Event, "event", StringComparison.Ordinal) && frames.Current.Data.Contains("second attempt", StringComparison.Ordinal))
-            {
-                sawSecondAttempt = true;
-
-                break;
-            }
-        }
-
-        sawSecondAttempt.ShouldBeTrue("the follower read on from the last event of the run the job ran again");
+        await WaitUntil.TrueAsync(
+            () => Seen("event", "second attempt"),
+            "the follower to read on from the last event of the run the job ran again");
 
         // The job ends; the stream ends with done and announced no second run.
         (await host.Services.GetRequiredService<IJobStore>().CancelAsync(tenant, head)).ShouldBeTrue();
 
-        var rest = new List<SseFrame>();
+        await WaitUntil.TrueAsync(() => Seen("done"), "the follower to finish once the job ended");
+        await reading;
 
-        while (await frames.MoveNextAsync())
-        {
-            rest.Add(frames.Current);
-        }
-
-        rest.ShouldNotContain(static frame => string.Equals(frame.Event, "run", StringComparison.Ordinal), "the same run is not announced a second time");
-        rest[^1].Event.ShouldBe("done");
+        frames.Count(static frame => string.Equals(frame.Event, "run", StringComparison.Ordinal))
+            .ShouldBe(1, "the same run is not announced a second time");
     }
 
     [Fact]

@@ -59,7 +59,8 @@ public sealed record JobSchedule
     } = FreeFormJson.Empty;
 
     /// <summary>Whether the schedule is enabled. If disabled, it is not triggered automatically.</summary>
-    public bool Enabled { get; init; } = true;
+    /// <remarks>A record that does not say is off, as the save request is: a schedule starts work, so a record that should run says so.</remarks>
+    public bool Enabled { get; init; }
 
     /// <summary>The next automatic run time (UTC). <see langword="null"/> if there is no cron.</summary>
     /// <remarks>

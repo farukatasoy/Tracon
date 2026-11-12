@@ -304,7 +304,7 @@ function PolicyForm({
   const [maxAgeDays, setMaxAgeDays] = useState(policy?.maxAgeDays?.toString() ?? '');
   const [maxRows, setMaxRows] = useState(policy?.maxRows?.toString() ?? '');
   const [archive, setArchive] = useState(policy?.archive ?? false);
-  const [enabled, setEnabled] = useState(policy?.enabled ?? true);
+  const [enabled, setEnabled] = useState(policy?.enabled ?? false);
 
   const save = useMutation({
     mutationFn: () =>

@@ -111,6 +111,8 @@ public static class GoogleSpeechBuilderExtensions
             settings.Voices.Add(voice);
         }
 
+        GoogleProviderRequirement.Require(builder.Services, nameof(UseGoogleSpeech));
+
         builder.AddSpeechSynthesizer(settings.Name, provider =>
         {
             var google = provider.GetRequiredService<GoogleModelProvider>();

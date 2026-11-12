@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Tracon.Google.UnitTests.Infrastructure;
 
 namespace Tracon.Google.UnitTests;
@@ -178,16 +179,60 @@ public sealed class GoogleSpeechBuilderExtensionsTests
     }
 
     [Fact]
-    public void Using_speech_without_the_provider_fails_when_the_synthesizer_is_resolved_not_when_it_is_registered()
+    public void Using_speech_without_the_provider_fails_the_start_up_validation_and_names_the_call_to_add()
     {
+        // The order of the calls on the chain is free, so nothing is checked while the chain is built; the host's start-up
+        // validation is where the missing provider is named, in terms of the call, not as an internal type.
         var services = new ServiceCollection();
 
         services.AddTracon().UseGoogleSpeech(options => options.Model = GoogleSpeechTestData.Model);
 
         using var provider = services.BuildServiceProvider();
 
-        Should.Throw<InvalidOperationException>(
-            () => provider.GetRequiredKeyedService<ISpeechSynthesizer>(new SpeechProviderRegistration(SpeechProviderKind.Synthesizer, "gemini")));
+        var failure = Should.Throw<OptionsValidationException>(
+            () => _ = provider.GetRequiredService<IOptions<GoogleProviderRequirement>>().Value);
+
+        failure.Message.ShouldContain("UseGoogleSpeech needs the Google provider", Case.Sensitive);
+        failure.Message.ShouldContain("UseGoogle(...)", Case.Sensitive);
+        failure.Message.ShouldNotContain("GoogleModelProvider", Case.Sensitive);
+    }
+
+    [Fact]
+    public void Using_speech_with_the_provider_in_either_order_passes_the_start_up_validation()
+    {
+        var before = new ServiceCollection();
+
+        before.AddTracon()
+            .UseGoogle(GoogleSpeechTestData.SetupKey)
+            .UseGoogleSpeech(options => options.Model = GoogleSpeechTestData.Model);
+
+        var after = new ServiceCollection();
+
+        after.AddTracon()
+            .UseGoogleSpeech(options => options.Model = GoogleSpeechTestData.Model)
+            .UseGoogle(GoogleSpeechTestData.SetupKey);
+
+        foreach (var services in new[] { before, after })
+        {
+            using var provider = services.BuildServiceProvider();
+
+            _ = provider.GetRequiredService<IOptions<GoogleProviderRequirement>>().Value;
+        }
+    }
+
+    [Fact]
+    public void Using_images_without_the_provider_fails_the_start_up_validation_too()
+    {
+        var services = new ServiceCollection();
+
+        services.AddTracon().UseGoogleSpeech(options => options.Model = GoogleSpeechTestData.Model).UseGoogleImages();
+
+        using var provider = services.BuildServiceProvider();
+
+        var failure = Should.Throw<OptionsValidationException>(
+            () => _ = provider.GetRequiredService<IOptions<GoogleProviderRequirement>>().Value);
+
+        failure.Message.ShouldContain("UseGoogleSpeech and UseGoogleImages need the Google provider", Case.Sensitive);
     }
 
     [Theory]

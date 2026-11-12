@@ -120,6 +120,7 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
             Name = "exact-match",
             Url = "https://example.test/hook",
             Events = ["run.completed.v2"],
+            Enabled = true,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
         });

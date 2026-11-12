@@ -46,7 +46,8 @@ public sealed record InboundTrigger
     public string? PayloadPath { get; init; }
 
     /// <summary>Whether the trigger accepts requests. A disabled trigger rejects every request.</summary>
-    public bool Enabled { get; init; } = true;
+    /// <remarks>A record that does not say is off, as the save request is: a trigger starts work from outside, so a record that should accept says so.</remarks>
+    public bool Enabled { get; init; }
 
     /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }

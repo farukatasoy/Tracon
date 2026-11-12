@@ -58,6 +58,8 @@ public static class GoogleImageBuilderExtensions
             services.Configure(configure);
         }
 
+        GoogleProviderRequirement.Require(services, nameof(UseGoogleImages));
+
         services.PostConfigure<TraconImageOptions>(static options => options.Provider ??= GoogleProviderNames.Google);
         services.TryAddKeyedSingleton<IImageGenerator>(GoogleProviderNames.Google, static (provider, _) =>
         {
