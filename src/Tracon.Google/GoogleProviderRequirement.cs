@@ -52,12 +52,11 @@ internal sealed class GoogleProviderRequirementValidator(IServiceProvider servic
             return ValidateOptionsResult.Success;
         }
 
-        var calls = string.Join(
-            " and ",
-            services.GetServices<GoogleProviderCall>().Select(static call => call.Name).Distinct(StringComparer.Ordinal));
+        var names = services.GetServices<GoogleProviderCall>().Select(static call => call.Name).Distinct(StringComparer.Ordinal).ToList();
+        var calls = string.Join(" and ", names);
 
         return ValidateOptionsResult.Fail(
-            $"{calls} needs the Google provider, and UseGoogle(...) was not called. Add UseGoogle(...) to the same " +
+            $"{calls} {(names.Count > 1 ? "need" : "needs")} the Google provider, and UseGoogle(...) was not called. Add UseGoogle(...) to the same " +
             "AddTracon() chain (before or after this call); speech and images use the client it registers.");
     }
 }

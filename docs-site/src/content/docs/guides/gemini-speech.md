@@ -9,8 +9,8 @@ layer it plugs into, the tenant's checks and the dialogue contract are in [Voice
 conversation](/guides/voice/).
 
 `UseGoogleSpeech` registers a Gemini text-to-speech model as a named provider. It shares the
-client of `UseGoogle`, so call that first. The same provider speaks one voice and voices a
-dialogue of two.
+client of `UseGoogle`, so add that to the same chain; a host that registers speech without it
+fails when it starts. The same provider speaks one voice and voices a dialogue of two.
 
 ```mermaid
 flowchart LR

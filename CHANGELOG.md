@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A host that registers Google speech or images without `UseGoogle` fails when it starts.** `UseGoogleSpeech` and `UseGoogleImages` share the authenticated client that `UseGoogle` registers and resolve it when something first uses them, so a host that forgot `UseGoogle` started, and `GET /api/voice/providers` then answered `500` for every provider with an `InvalidOperationException` that named an internal type (`GoogleModelProvider`). A start-up check (an options validator registered with `ValidateOnStart`) now fails the host with `UseGoogleSpeech needs the Google provider, and UseGoogle(...) was not called. Add UseGoogle(...) to the same AddTracon() chain (before or after this call)`. The order of the calls on the chain is still free.
+  What to do:
+  - **Add `UseGoogle(...)` to the chain** of a host that now fails to start with this message. A host that never used the speech or the images it registered has to remove the call or add the provider.
+
 - **Breaking: a retention policy, a job schedule, an inbound trigger and a webhook subscription built in code without `Enabled` are off, and the console forms open them off.** The save requests of the HTTP API already default `enabled` to `false` (a policy deletes rows and the other three start work, so a body that only named the target started it), but the records themselves (`RetentionPolicy`, `JobSchedule`, `InboundTrigger`, `WebhookSubscription`) still defaulted to `true`, so code that built one and said nothing about `Enabled` started it, and the console's retention policy, schedule and trigger forms opened with the box checked. The record defaults are `false` now and those forms open unchecked; the webhook form gained the checkbox it lacked (it sent `true` on its own) and opens unchecked. A quota stays on by default.
   What to do:
   - **If your code builds one of these records and expects it to run, set `Enabled = true`.** A record read from a store is not touched: the value stored is the value read.
