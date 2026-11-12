@@ -95,7 +95,10 @@ internal static class DateInputSweep
     /// <summary>The time zones a schedule is saved with: ones with an unusual offset, a missing one and an unknown one.</summary>
     public static readonly IReadOnlyList<string> TimeZones = ["UTC", "Pacific/Apia", "Etc/GMT-14", "Antarctica/Troll", "Invalid/Zone", string.Empty];
 
-    /// <summary>The lengths of time a workflow's run timeout, request timeout and node timeout are saved with.</summary>
+    /// <summary>
+    /// The lengths of time a workflow's run timeout, request timeout and node timeout, a canary rule's ramp interval and an
+    /// agent's sub-agent wait timeout are saved with.
+    /// </summary>
     public static readonly IReadOnlyList<string> Durations =
     [
         "00:00:01",
@@ -264,6 +267,84 @@ internal static class DateInputSweep
                     ["requestTimeout"] = duration,
                 });
         }
+
+        // A canary rule's ramp interval is added to the moment the ramp started once the rule is evaluated, and the rule
+        // can only be saved on an experiment, which needs an agent with two versions. The rule is saved, then read through
+        // its evaluation.
+        yield return AgentRequest("POST", "/agents", "edge-canary-agent", "first");
+        yield return AgentRequest("PUT", "/agents/edge-canary-agent", "edge-canary-agent", "second");
+        yield return new SweepRequest(
+            "PUT",
+            "/experiments/edge-experiment",
+            new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["agentName"] = "edge-canary-agent",
+                ["variants"] = new[]
+                {
+                    new Dictionary<string, object?>(StringComparer.Ordinal) { ["name"] = "control", ["version"] = 1, ["weight"] = 50 },
+                    new Dictionary<string, object?>(StringComparer.Ordinal) { ["name"] = "v2", ["version"] = 2, ["weight"] = 50 },
+                },
+            });
+
+        foreach (var duration in Durations)
+        {
+            yield return new SweepRequest(
+                "PUT",
+                "/experiments/edge-experiment/canary",
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["canaryVariant"] = "v2",
+                    ["maxErrorRateDelta"] = 0.1,
+                    ["minSampleSize"] = 20,
+                    ["rampSteps"] = new[] { 10, 50 },
+                    ["rampInterval"] = duration,
+                });
+            yield return new SweepRequest("GET", "/experiments/edge-experiment/canary", null);
+        }
+
+        // The wait timeout of a sub-agent call sits inside the agent's definition and is read when the definition is
+        // compiled: saved, and checked without saving.
+        yield return AgentRequest("POST", "/agents", "edge-callee", "child");
+        yield return AgentRequest("POST", "/agents", "edge-parent", "parent");
+
+        foreach (var duration in Durations)
+        {
+            var parent = AgentBody(
+                "edge-parent",
+                "parent",
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["callableAgents"] = new[] { new Dictionary<string, object?>(StringComparer.Ordinal) { ["name"] = "edge-callee" } },
+                    ["subAgents"] = new Dictionary<string, object?>(StringComparer.Ordinal) { ["childDeadline"] = "00:00:01", ["waitTimeout"] = duration },
+                });
+
+            yield return new SweepRequest("PUT", "/agents/edge-parent", parent);
+            yield return new SweepRequest("POST", "/agents/validate", parent);
+        }
+    }
+
+    private static SweepRequest AgentRequest(string method, string path, string name, string instructions)
+        => new(method, path, AgentBody(name, instructions, null));
+
+    private static Dictionary<string, object?> AgentBody(string name, string instructions, Dictionary<string, object?>? more)
+    {
+        var body = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["name"] = name,
+            ["displayName"] = "Edge agent",
+            ["instructions"] = instructions,
+            ["model"] = new Dictionary<string, object?>(StringComparer.Ordinal) { ["provider"] = "echo", ["model"] = "echo-1" },
+        };
+
+        if (more is not null)
+        {
+            foreach (var (key, value) in more)
+            {
+                body[key] = value;
+            }
+        }
+
+        return body;
     }
 
     private static string[] ExtraQueryFor(DateInput input) => input.Path switch
