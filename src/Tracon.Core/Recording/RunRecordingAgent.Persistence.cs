@@ -418,7 +418,9 @@ public sealed partial class RunRecordingAgent
     }
 
     // `at` is the time the call really started, for a call written from the tool-call ledger after the run;
-    // null for a call a message reports, which is stamped as it is written.
+    // null for a call a message reports. A run that streams stamps that one as it is written, because the content
+    // arrives while the call runs. A run that does not stream reads its messages after the call is over, so it takes
+    // the time the tool chain noted, the one its row already carries.
     private static async ValueTask WriteToolCallAsync(
         RunRecordingScope scope,
         FunctionCallContent call,
@@ -426,6 +428,8 @@ public sealed partial class RunRecordingAgent
         CancellationToken cancellationToken)
     {
         var arguments = FormatArguments(call);
+
+        at ??= scope.Tools.StartedAtOf(call.CallId);
 
         scope.Tools.OnCall(call, source: null, arguments);
 
@@ -441,7 +445,7 @@ public sealed partial class RunRecordingAgent
     }
 
     // `at` is the time the call really ended, for a call written from the tool-call ledger after the run;
-    // null for a call a message reports, which is stamped as it is written.
+    // null for a call a message reports. See WriteToolCallAsync for what the null means in each kind of run.
     private async ValueTask WriteToolResultAsync(
         RunRecordingScope scope,
         FunctionResultContent result,
@@ -460,7 +464,7 @@ public sealed partial class RunRecordingAgent
                 ToolCallId = result.CallId,
                 Text = record.Error,
                 Payload = ToolResultText.TryGetText(result.Result, out var text) ? text : null,
-                Timestamp = at,
+                Timestamp = at ?? scope.Tools.EndedAtOf(record),
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -547,20 +551,34 @@ public sealed partial class RunRecordingAgent
     }
 
     /// <summary>
-    /// Lays the start and the end of each call out in the order they happened: by time, a start before an end at the
-    /// same time, calls that started together in the order they started.
+    /// Lays the start and the end of each call out in the order they happened: by the run clock's timestamp, a start
+    /// before an end at the same timestamp, calls that started together in the order they started.
     /// </summary>
+    /// <remarks>
+    /// The order is read from the monotonic timestamps, not from the wall times the events carry: the wall clock can be
+    /// corrected backwards between two calls, and the call that ran second would then be written first. The wall time
+    /// stays the event's timestamp, which is a label (the order of the events is their sequence).
+    /// </remarks>
     private static IEnumerable<LedgerStep> LedgerSteps(IReadOnlyList<ToolCallSnapshot> calls)
         => calls
             .SelectMany(static (call, index) => call.EndedAtUtc is { } ended
-                ? new[] { new LedgerStep(call.StartedAtUtc, Ends: false, index, call), new LedgerStep(ended, Ends: true, index, call) }
-                : [new LedgerStep(call.StartedAtUtc, Ends: false, index, call)])
-            .OrderBy(static step => step.At)
+                ? new[]
+                {
+                    new LedgerStep(call.StartedAtUtc, call.StartedAt, Ends: false, index, call),
+                    new LedgerStep(ended, call.EndedAt, Ends: true, index, call),
+                }
+                : [new LedgerStep(call.StartedAtUtc, call.StartedAt, Ends: false, index, call)])
+            .OrderBy(static step => step.Order)
             .ThenBy(static step => step.Ends)
             .ThenBy(static step => step.Index);
 
     /// <summary>One event of a call written from the tool-call ledger: its start or its end.</summary>
-    private readonly record struct LedgerStep(DateTimeOffset At, bool Ends, int Index, ToolCallSnapshot Call);
+    /// <param name="At">The wall-clock time the event carries.</param>
+    /// <param name="Order">The run clock's timestamp, which orders the events.</param>
+    /// <param name="Ends">Whether the event is the end of the call.</param>
+    /// <param name="Index">The place of the call among the calls the ledger held.</param>
+    /// <param name="Call">The call.</param>
+    private readonly record struct LedgerStep(DateTimeOffset At, long Order, bool Ends, int Index, ToolCallSnapshot Call);
 
     private static string? FormatArguments(FunctionCallContent call)
     {

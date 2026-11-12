@@ -117,6 +117,21 @@ internal sealed class ToolCallLedger
         }
     }
 
+    /// <summary>Reads the wall-clock time the oldest call with this identity started, if nobody has written it yet.</summary>
+    /// <param name="callId">The call identity.</param>
+    /// <returns>
+    /// The time, or <see langword="null"/> when the call did not pass through the tool chain or was claimed already.
+    /// Nothing is claimed: the row of the call claims it when it is written.
+    /// </returns>
+    public DateTimeOffset? PeekStartedAtUtc(string callId)
+    {
+        lock (_entries)
+        {
+            return _entries.Find(entry => !entry.Claimed && string.Equals(entry.Call.CallId, callId, StringComparison.Ordinal))
+                ?.StartedAtUtc;
+        }
+    }
+
     /// <summary>Reads the calls nobody has written yet, in the order they started. Nothing is claimed.</summary>
     /// <returns>A snapshot.</returns>
     public IReadOnlyList<ToolCallSnapshot> Unclaimed()
@@ -155,6 +170,7 @@ internal sealed class ToolCallLedger
             entry.Call,
             entry.StartedAt,
             entry.StartedAtUtc,
+            entry.EndedAt,
             entry.EndedAtUtc,
             entry.EndedAtUtc is null ? null : _timeProvider.GetElapsedTime(entry.StartedAt, entry.EndedAt),
             entry.Result,
@@ -188,6 +204,11 @@ internal sealed class ToolCallLedger
 /// <param name="Call">The model's call: its name, its identity and its arguments.</param>
 /// <param name="StartedAt">The run clock's timestamp when the call started.</param>
 /// <param name="StartedAtUtc">The wall-clock time the call started.</param>
+/// <param name="EndedAt">
+/// The run clock's timestamp when the call ended; meaningless while it had not ended. The run clock never goes
+/// backwards, so the order of the calls of a run is read from <paramref name="StartedAt"/> and this, not from the wall
+/// clock, which can be corrected between two calls.
+/// </param>
 /// <param name="EndedAtUtc">The wall-clock time the call ended, or <see langword="null"/> while it had not ended.</param>
 /// <param name="Duration">How long the call took, or <see langword="null"/> while it had not ended.</param>
 /// <param name="Result">The result the chain handed back, when the call ended with one.</param>
@@ -196,6 +217,7 @@ internal sealed record ToolCallSnapshot(
     FunctionCallContent Call,
     long StartedAt,
     DateTimeOffset StartedAtUtc,
+    long EndedAt,
     DateTimeOffset? EndedAtUtc,
     TimeSpan? Duration,
     object? Result,

@@ -77,6 +77,89 @@ public sealed class RunRecordingAgentLedgerTests
     }
 
     [Fact]
+    public async Task A_wall_clock_corrected_backwards_between_two_calls_does_not_reorder_them()
+    {
+        // The close step lays the calls of a failed run out in the order they ran. Their wall times can go backwards
+        // between two calls (the clock is corrected), and the call that ran second would then be written first. The
+        // monotonic timestamps the ledger holds do not go backwards, so they decide the order.
+        var clock = new ManualClock();
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var turn = 0;
+
+        var client = new FakeChatClient(_ =>
+        {
+            switch (++turn)
+            {
+                case 1:
+                    return AsksFor("call-1");
+
+                case 2:
+                    clock.Advance(TimeSpan.FromSeconds(1));
+                    clock.StepWallClock(TimeSpan.FromSeconds(-30));
+
+                    return AsksFor("call-2");
+
+                default:
+                    throw new InvalidOperationException("model crashed");
+            }
+        });
+
+        var agent = CreateAgent(
+            store,
+            client,
+            AIFunctionFactory.Create(() => { clock.Advance(TimeSpan.FromSeconds(1)); return "sunny"; }, ToolName),
+            clock);
+
+        await Should.ThrowAsync<TraconException>(async () => await agent.RunAsync("go"));
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        (await ReadEventsAsync(store, run.Id))
+            .Where(static e => e.Type is RunEventType.ToolInvoking or RunEventType.ToolInvoked)
+            .Select(static e => (e.Type, e.ToolCallId))
+            .ShouldBe(
+            [
+                (RunEventType.ToolInvoking, "call-1"),
+                (RunEventType.ToolInvoked, "call-1"),
+                (RunEventType.ToolInvoking, "call-2"),
+                (RunEventType.ToolInvoked, "call-2"),
+            ]);
+    }
+
+    [Fact]
+    public async Task A_run_that_answers_without_streaming_stamps_the_two_events_of_a_call_with_the_time_the_call_ran()
+    {
+        // The messages of a run that does not stream are read after the call is over, so the two events were both
+        // stamped at the moment they were written and the pair showed no duration. The row already took the call's time
+        // from the ledger; the events now take the same.
+        var clock = new ManualClock();
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var turn = 0;
+
+        var client = new FakeChatClient(_ => ++turn == 1
+            ? AsksFor("call-1")
+            : new ChatResponse(new ChatMessage(ChatRole.Assistant, "done")));
+
+        var agent = CreateAgent(
+            store,
+            client,
+            AIFunctionFactory.Create(() => { clock.Advance(TimeSpan.FromMilliseconds(250)); return "sunny"; }, ToolName),
+            clock);
+
+        await agent.RunAsync("go");
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        var row = (await store.ListToolInvocationsAsync(run.Id)).ShouldHaveSingleItem();
+        var events = (await ReadEventsAsync(store, run.Id))
+            .Where(static e => e.Type is RunEventType.ToolInvoking or RunEventType.ToolInvoked)
+            .ToList();
+
+        row.Duration.ShouldBe((TimeSpan?)TimeSpan.FromMilliseconds(250));
+        events.Select(static e => e.Type).ShouldBe([RunEventType.ToolInvoking, RunEventType.ToolInvoked]);
+        (events[1].Timestamp - events[0].Timestamp).ShouldBe(row.Duration.ShouldNotBeNull());
+    }
+
+    [Fact]
     public async Task A_store_that_refuses_the_events_while_the_calls_are_written_does_not_change_the_failure_the_caller_gets()
     {
         // Observability must not break functionality: the model failed, so the caller gets the model's failure, and
@@ -192,6 +275,11 @@ public sealed class RunRecordingAgentLedgerTests
             throw new InvalidOperationException("model crashed");
         });
     }
+
+    private static ChatResponse AsksFor(string callId)
+        => new(new ChatMessage(
+            ChatRole.Assistant,
+            [new FunctionCallContent(callId, ToolName, new Dictionary<string, object?>(StringComparer.Ordinal))]));
 
     private static RunRecordingAgent CreateAgent(
         IRunStore store,

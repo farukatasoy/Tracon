@@ -102,6 +102,35 @@ internal sealed class ToolInvocationTracker
     /// <returns><see langword="true"/> while the call waits for <see cref="OnResult"/> or <see cref="DrainUnfinished"/>.</returns>
     public bool IsPending(string callId) => _pending.ContainsKey(callId);
 
+    /// <summary>
+    /// Reads the wall-clock time a call really started, for the event that reports it, when this run does not
+    /// stream.
+    /// </summary>
+    /// <param name="callId">The call identity.</param>
+    /// <returns>
+    /// The time the tool chain noted, or <see langword="null"/> when the run streams (the event is written as the call
+    /// arrives), or the call did not pass through the chain, or the ledger already wrote it.
+    /// </returns>
+    public DateTimeOffset? StartedAtOf(string callId)
+        => _measureDuration ? null : _ledger?.PeekStartedAtUtc(callId);
+
+    /// <summary>
+    /// Reads the wall-clock time a call really ended, for the event that reports its result, once
+    /// <see cref="OnResult"/> produced <paramref name="record"/>.
+    /// </summary>
+    /// <param name="record">The record <see cref="OnResult"/> produced.</param>
+    /// <returns>
+    /// The time the record carries when this run does not stream (the ledger's end of the call, or the moment the
+    /// record was made for a call outside the chain), or <see langword="null"/> when the run streams and the event is
+    /// stamped as it is written.
+    /// </returns>
+    public DateTimeOffset? EndedAtOf(ToolInvocationRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return _measureDuration ? null : record.CreatedAt;
+    }
+
     /// <summary>Records that a tool call started.</summary>
     /// <param name="call">The call content.</param>
     /// <param name="source">The tool's source; <see langword="null"/> if defined in code.</param>
