@@ -18475,6 +18475,11 @@ finished, or that waits for a human answer, is not run again. Past
 last attempt never starts a continuation, because nothing would close it if it were
 interrupted too: it closes the chain instead.
 
+An operator's `POST /api/workflows/runs/{runId}/resume` does not join this work: while the
+run, or the last continuation of its chain, is `Running` or `Queued`, the call answers `409`
+and opens no run. Wait for the job to end, or cancel the run first
+(`POST /api/runs/{id}/cancel`), then resume.
+
 A run that reconciliation closed before it ever started (the process died between the
 job's lease and the first event) is the same case: it is closed as `Failed` with the
 error type `orphaned`, the next attempt of the job continues it, and with no checkpoint

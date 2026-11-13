@@ -803,7 +803,7 @@ export interface paths {
         put?: never;
         /**
          * Resumes from a checkpoint and streams events over SSE, or queues it with 'Prefer: respond-async'.
-         * @description Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The run resumes with the version of the workflow's definition that it recorded ('agentVersion' of its row), so an edit made while it waited changes nothing; 'definitionVersion' names another stored version, and a version the workflow does not have is 400, never a silent fall-back to the current one. A version whose graph differs from the checkpoint's fails the run with 'the graph's structure differs'. A run that recorded no version resumes with the current definition. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+         * @description Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The run resumes with the version of the workflow's definition that it recorded ('agentVersion' of its row), so an edit made while it waited changes nothing; 'definitionVersion' names another stored version, and a version the workflow does not have is 400, never a silent fall-back to the current one. A version whose graph differs from the checkpoint's fails the run with 'the graph's structure differs'. A run that recorded no version resumes with the current definition. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A run that is still running or queued, or whose chain of continuations ends in one, is 409: a resume started while the run's job is still working on it would join that work. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
          */
         post: operations["TraconResumeWorkflow"];
         delete?: never;
@@ -11557,6 +11557,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

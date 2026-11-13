@@ -314,7 +314,9 @@ internal static class WorkflowEndpoints
                 "structure differs'. A run that recorded no version resumes with the current " +
                 "definition. The engine must be registered; otherwise the response is 501. The " +
                 "source run and its checkpoint are checked before the stream opens: an unknown run " +
-                "is 404, and a run that is not a workflow run or has no such checkpoint is 400. A " +
+                "is 404, and a run that is not a workflow run or has no such checkpoint is 400. A run that " +
+                "is still running or queued, or whose chain of continuations ends in one, is 409: a " +
+                "resume started while the run's job is still working on it would join that work. A " +
                 "failure after the stream opens arrives as an SSE error frame. Resuming STARTS " +
                 "a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's " +
                 "id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the " +
@@ -327,6 +329,7 @@ internal static class WorkflowEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status501NotImplemented)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
@@ -978,6 +981,11 @@ internal static class WorkflowEndpoints
         }
 
         var source = checkedSource.Source!;
+
+        if (await CheckChainIsIdleAsync(source, runs, tenants, cancellationToken).ConfigureAwait(false) is { } busyProblem)
+        {
+            return busyProblem;
+        }
 
         if (await CheckCheckpointAsync(source, request?.CheckpointId, tenants, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } checkpointProblem)
@@ -1844,6 +1852,46 @@ internal static class WorkflowEndpoints
         }
 
         return (source, null);
+    }
+
+    /// <summary>Checks that nothing is still working on the run an operator resumes.</summary>
+    /// <param name="source">The source run.</param>
+    /// <param name="runs">The run store.</param>
+    /// <param name="tenants">The tenant context.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// A <c>409</c> problem when the source, or the last run of the chain of continuations that starts at it, is
+    /// <see cref="RunStatus.Running"/> or <see cref="RunStatus.Queued"/>; otherwise <see langword="null"/>.
+    /// </returns>
+    /// <remarks>
+    /// A queued run that an interruption stopped is continued by its job, which closes the interrupted run and opens a
+    /// continuation. A resume started from the interrupted run meanwhile was taken for the newest link of that chain: the
+    /// recovery closed it as interrupted while it ran and counted it against the attempts the chain has left. A run that is
+    /// really running cannot be resumed either: the two would do the same work. A run that stopped without anyone closing it
+    /// is cancelled first (<c>POST /api/runs/{id}/cancel</c>), or closed by run reconciliation.
+    /// </remarks>
+    private static async ValueTask<ProblemHttpResult?> CheckChainIsIdleAsync(
+        RunRecord source,
+        IRunStore runs,
+        ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var chain = await WorkflowContinuationChain.ReadAsync(runs, source.Id, tenants.TenantId, cancellationToken).ConfigureAwait(false);
+        var last = chain.Count > 0 ? chain[^1] : source;
+
+        if (last.Status is not (RunStatus.Running or RunStatus.Queued))
+        {
+            return null;
+        }
+
+        var detail = last.Id == source.Id
+            ? $"Run '{source.Id}' is still {last.Status.ToString().ToLowerInvariant()}; a resume now would do its work twice. "
+            : $"Run '{last.Id}' continues run '{source.Id}' and is still {last.Status.ToString().ToLowerInvariant()}; a resume now would join work that is in progress. ";
+
+        return TypedResults.Problem(
+            title: "Run is in progress",
+            detail: detail + $"Wait for run '{last.Id}' to end, or cancel it with POST /api/runs/{last.Id}/cancel, and resume again.",
+            statusCode: StatusCodes.Status409Conflict);
     }
 
     /// <summary>Checks that a resume, queued or streamed, has a checkpoint to resume from.</summary>

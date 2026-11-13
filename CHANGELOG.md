@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`POST /api/workflows/runs/{runId}/resume` answers `409` while the run, or the last continuation of its chain, is `Running` or `Queued`.** A queued workflow run that an interruption stopped is continued by its job, which closes the interrupted run and opens a continuation. A resume an operator started from the interrupted run in the same minutes was taken for the newest link of that chain: the recovery closed it as `interrupted` while it ran and counted it against `MaxResumeAttempts`, and two runs could work from one checkpoint. The same call on a run that is really running would do its work twice. The chain is read forward from the source run, as recovery reads it. The published document lists the `409` for the operation.
+  What to do:
+  - **If a script resumed a run that was still `Running`,** wait for the run to end, or cancel it (`POST /api/runs/{id}/cancel`) and resume again. A run that stopped without anyone closing it (a process that died with run reconciliation off) is cancelled the same way.
+  - **If you use `Tracon.Client` or `@tracon/client`,** the operation's `409` is a problem document like its other refusals.
+
 - **The published OpenAPI document lists the `403` that the four OpenAI-compatible conversation operations answer a refused role with, and no schema carries `"examples": [null]` any more.** `POST /v1/conversations`, `GET` and `DELETE /v1/conversations/{id}` and `GET /v1/conversations/{id}/items` answer a refused role with the OpenAI error envelope (the chat and responses operations listed it already); the document now says so, and `Tracon.Client` and `@tracon/client` are generated from it. Seven schemas whose XML documentation holds a C# sample (`LoopSettings`, `SkillSettings`, `SubAgentSettings`, `WorkspaceSettings`, `CallableAgentReference` and the two `headerConfigurationKeys`) were written with an empty example; the repository's own document drops it, and the sample stays in the XML documentation where the examples are compiled.
   What to do:
   - **If you call these four operations through `Tracon.Client`,** a refused role now throws `TraconApiException<OpenAIErrorEnvelope>` (status `403`) where it threw the client's untyped exception. A catch of `TraconApiException` still sees it.
