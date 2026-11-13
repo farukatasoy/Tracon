@@ -232,6 +232,29 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task PromoteQueuedRunAsync_stamps_the_row_with_the_tenant_of_the_start_and_another_tenant_does_not_see_it()
+    {
+        // The tenant of a start is the ambient one unless the call names its own (workflows and the job queue do), and the
+        // promotion is the same write: it stamps the same tenant and leaves the row to that tenant.
+        AmbientTenant.TenantId = TenantA;
+
+        var ambient = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(ambient) with { Status = RunStatus.Queued });
+        (await Store.PromoteQueuedRunAsync(TestData.Run(ambient))).ShouldBeTrue();
+        (await Store.GetRunAsync(ambient))!.TenantId.ShouldBe(TenantA);
+
+        var named = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(named) with { Status = RunStatus.Queued, TenantId = TenantB });
+        (await Store.PromoteQueuedRunAsync(TestData.Run(named) with { TenantId = TenantB })).ShouldBeTrue();
+        (await Store.GetRunAsync(named)).ShouldBeNull("the row is the other tenant's, whatever the ambient tenant of the call was");
+
+        AmbientTenant.TenantId = TenantB;
+
+        (await Store.GetRunAsync(ambient)).ShouldBeNull("another tenant does not see the promoted row");
+        (await Store.GetRunAsync(named))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    [Fact]
     public async Task PromoteQueuedRunAsync_writes_the_row_when_there_is_none()
     {
         // The write that opened the row is best effort: a run whose first write failed still gets its row here.

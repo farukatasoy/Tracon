@@ -90,12 +90,14 @@ public sealed class TenantCoverageTests
         // expected-tenant guard as AppendEventAsync: RunStoreContract asserts that
         // another tenant's group writes no row, not even the first, and that the
         // right tenant's group is written.
+        // PromoteQueuedRunAsync is the write of StartRunAsync with a guard on the status: RunStoreContract asserts that it stamps
+        // the tenant of the start (the ambient one, or the one the call names) and that another tenant does not see the row.
         ["SqlRunStore"] =
             ["StartRunAsync", "GetRunAsync", "QueryRunsAsync", "ReadEventsAsync", "ListToolInvocationsAsync",
              "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync",
              "AppendEventAsync", "AppendEventsAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync",
              "CompleteLateToolInvocationAsync", "RecordNonTokenUsageAsync", "ListNonTokenUsageAsync",
-             "RequestCancellationAsync"],
+             "RequestCancellationAsync", "PromoteQueuedRunAsync"],
         ["SqlSessionStore"] =
             ["SaveAsync", "GetAsync", "DeleteAsync", "QueryAsync", "TryCreateAsync", "TryUpdateAsync"],
         ["SqlSkillScriptGrantStore"] = ["ListAsync", "FindActiveAsync", "GrantAsync", "RevokeAsync"],
