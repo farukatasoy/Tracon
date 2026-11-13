@@ -2953,7 +2953,7 @@ export interface paths {
         };
         /**
          * Lists a conversation's messages in the OpenAI item format.
-         * @description Items come back oldest first, and one stored message can expand into several items — a reply plus its tool calls, for example. '?limit=' trims the list from the end and sets 'has_more' to true, which is computed from the real total before trimming, so a truncated list never looks complete. There is no cursor paging: 'first_id' and 'last_id' describe the returned window only. A conversation with no history returns an empty list, and so does an identifier that only another tenant uses. 404 means the caller is refused: the registered authorization handler denied the read, or the session belongs to another user.
+         * @description Items come back oldest first, and one stored message can expand into several items — a reply plus its tool calls, for example. An image or a file a user sent is listed as an 'input_image' or 'input_file' part of that message, pointing at the attachment through the address the attachment endpoint serves (or at the remote link the user sent); the bytes are never embedded. '?limit=' trims the list from the end and sets 'has_more' to true, which is computed from the real total before trimming, so a truncated list never looks complete. There is no cursor paging: 'first_id' and 'last_id' describe the returned window only. A conversation with no history returns an empty list, and so does an identifier that only another tenant uses. 404 means the caller is refused: the registered authorization handler denied the read, or the session belongs to another user.
          */
         get: operations["TraconOpenAIListConversationItems"];
         put?: never;
@@ -5076,12 +5076,20 @@ export interface components {
          * @enum {unknown}
          */
         InboundTriggerTargetKind: "Agent" | "Workflow";
-        /** @description A text part of a message item. */
+        /** @description One part of a message item: text, or an image or a file by reference. */
         ItemContent: {
-            /** @description `output_text` for an assistant message, `input_text` for any other. */
+            /** @description The part's type: 'input_text' or 'output_text' for text, 'input_image' for an image, 'input_file' for any other file. */
             type: string;
-            /** @description The text. */
-            text: string;
+            /** @description The text of a text part. */
+            text?: null | string;
+            /** @description Where an image part's image is: the address the attachment endpoint serves it at, or the remote link the user sent. The bytes are never embedded. */
+            image_url?: null | string;
+            /** @description How closely the model was asked to look at an image part: 'auto' when the user did not say. */
+            detail?: null | string;
+            /** @description Where a file part's file is: the address the attachment endpoint serves it at. The bytes are never embedded. */
+            file_url?: null | string;
+            /** @description The name a file part was uploaded under, when it had one. */
+            filename?: null | string;
         };
         /** @description One page of the items of a conversation. */
         ItemListResource: {

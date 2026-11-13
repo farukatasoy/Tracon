@@ -18244,7 +18244,7 @@ namespace Tracon.Client.Generated
         /// Lists a conversation's messages in the OpenAI item format.
         /// </summary>
         /// <remarks>
-        /// Items come back oldest first, and one stored message can expand into several items — a reply plus its tool calls, for example. '?limit=' trims the list from the end and sets 'has_more' to true, which is computed from the real total before trimming, so a truncated list never looks complete. There is no cursor paging: 'first_id' and 'last_id' describe the returned window only. A conversation with no history returns an empty list, and so does an identifier that only another tenant uses. 404 means the caller is refused: the registered authorization handler denied the read, or the session belongs to another user.
+        /// Items come back oldest first, and one stored message can expand into several items — a reply plus its tool calls, for example. An image or a file a user sent is listed as an 'input_image' or 'input_file' part of that message, pointing at the attachment through the address the attachment endpoint serves (or at the remote link the user sent); the bytes are never embedded. '?limit=' trims the list from the end and sets 'has_more' to true, which is computed from the real total before trimming, so a truncated list never looks complete. There is no cursor paging: 'first_id' and 'last_id' describe the returned window only. A conversation with no history returns an empty list, and so does an identifier that only another tenant uses. 404 means the caller is refused: the registered authorization handler denied the read, or the session belongs to another user.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -23182,23 +23182,47 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
-    /// A text part of a message item.
+    /// One part of a message item: text, or an image or a file by reference.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ItemContent
     {
 
         /// <summary>
-        /// `output_text` for an assistant message, `input_text` for any other.
+        /// The part's type: 'input_text' or 'output_text' for text, 'input_image' for an image, 'input_file' for any other file.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; set; } = default!;
 
         /// <summary>
-        /// The text.
+        /// The text of a text part.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("text")]
-        public string Text { get; set; } = default!;
+        public string? Text { get; set; } = default!;
+
+        /// <summary>
+        /// Where an image part's image is: the address the attachment endpoint serves it at, or the remote link the user sent. The bytes are never embedded.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("image_url")]
+        public string? Image_url { get; set; } = default!;
+
+        /// <summary>
+        /// How closely the model was asked to look at an image part: 'auto' when the user did not say.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("detail")]
+        public string? Detail { get; set; } = default!;
+
+        /// <summary>
+        /// Where a file part's file is: the address the attachment endpoint serves it at. The bytes are never embedded.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("file_url")]
+        public string? File_url { get; set; } = default!;
+
+        /// <summary>
+        /// The name a file part was uploaded under, when it had one.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("filename")]
+        public string? Filename { get; set; } = default!;
 
     }
 
