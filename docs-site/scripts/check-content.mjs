@@ -517,26 +517,9 @@ if (!aotMention || aotMention[1].toLowerCase() !== countWord(aotPackages.length)
   );
 }
 
-// The README counts the generated reference: every `api/package-*.md` page opens with its
-// package's public type count. The pages are written by `npm run generate`; with none on
-// disk there is nothing to compare against.
-const apiPackagePages = existsSync(join(docsRoot, 'api'))
-  ? readdirSync(join(docsRoot, 'api')).filter((name) => /^package-.+\.md$/.test(name))
-  : [];
-
-if (apiPackagePages.length > 0) {
-  const publicTypeCount = apiPackagePages.reduce(
-    (total, name) =>
-      total + Number(/^(\d+) public types\b/m.exec(readFileSync(join(docsRoot, 'api', name), 'utf8'))?.[1] ?? 0),
-    0,
-  );
-
-  for (const [, stated] of readme.matchAll(/\b(\d+) public types\b/g)) {
-    if (Number(stated) !== publicTypeCount) {
-      errors.push(`README.md says ${stated} public types, expected ${publicTypeCount}`);
-    }
-  }
-}
+// The README does not state how many public types the reference holds: the number is a product of the generated
+// pages, and a sentence that carried it was the one line every phase that adds a public type edited. The operation
+// counts above stay, because the document they come from is regenerated whenever an operation changes.
 
 // The framework claim is read BEFORE a consumer can compile anything: someone on
 // an older .NET decides from this table whether Tracon is usable at all. One default

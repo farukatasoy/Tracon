@@ -345,7 +345,7 @@ cd src/Tracon.UI/frontend && npm run dev
 
 **The user-facing product documentation is a separate site:**
 <https://tracon.dev> — installation, your first agent, concepts, a console tour,
-the HTTP API (182 operations), and an API reference for 642 public types. Its source
+the HTTP API (182 operations), and an API reference for every public type. Its source
 is [`docs-site/`](docs-site/).
 
 | Source | Contents |
