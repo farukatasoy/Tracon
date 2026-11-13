@@ -174,14 +174,32 @@ internal sealed class ExternalAgentProxy : AIAgent
             CancellationToken.None,
             SessionlessApprovalRun.ExternalMessage).ConfigureAwait(false);
 
-        throw new TraconExternalCallException(
+        throw Refuse(
             $"Agent '{_agentName}' could not complete: tool '{pending}' requires user approval. " +
-            "An externally-invoked agent cannot respond to an approval request.")
-        {
-            AgentName = _agentName,
-            Protocol = "a2a",
-        };
+            "An externally-invoked agent cannot respond to an approval request.");
     }
+
+    /// <summary>
+    /// The refusal of a call, as the protocol's own error.
+    /// </summary>
+    /// <param name="message">The text for the caller. Tracon wrote it; it carries no configuration.</param>
+    /// <returns>The exception to throw.</returns>
+    /// <remarks>
+    /// The A2A host answers any other exception with a bare "An internal error occurred." and the caller cannot tell a
+    /// process that is draining, a name that is not in the catalog, a parameter a message cannot carry and an approval
+    /// nobody can answer from a fault. An <see cref="A2AException"/> carries its text to the caller. The code stays the
+    /// protocol's internal-error code, as for an agent that cannot be compiled. The <see cref="TraconExternalCallException"/>
+    /// stays as the inner exception, so the log keeps the type.
+    /// </remarks>
+    private A2AException Refuse(string message)
+        => new(
+            message,
+            new TraconExternalCallException(message)
+            {
+                AgentName = _agentName,
+                Protocol = "a2a",
+            },
+            A2AErrorCode.InternalError);
 
     private TraconRunOptions CreateRunOptions()
         => new()
@@ -210,11 +228,7 @@ internal sealed class ExternalAgentProxy : AIAgent
         // call error an unknown agent gets.
         if (refuseWhileDraining && services.GetRequiredService<ITraconDrainState>().IsDraining)
         {
-            throw new TraconExternalCallException(DrainGate.Detail)
-            {
-                AgentName = _agentName,
-                Protocol = "a2a",
-            };
+            throw Refuse(DrainGate.Detail);
         }
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
@@ -236,21 +250,13 @@ internal sealed class ExternalAgentProxy : AIAgent
         }
 
         var agent = resolved
-            ?? throw new TraconExternalCallException($"There is no agent named '{_agentName}' in the catalog.")
-            {
-                AgentName = _agentName,
-                Protocol = "a2a",
-            };
+            ?? throw Refuse($"There is no agent named '{_agentName}' in the catalog.");
 
         // An A2A message carries no parameter values; refused as a call
         // error before a run starts, like an unknown agent.
         if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
         {
-            throw new TraconExternalCallException(unbound.Failure().Message)
-            {
-                AgentName = _agentName,
-                Protocol = "a2a",
-            };
+            throw Refuse(unbound.Failure().Message);
         }
 
         return agent;

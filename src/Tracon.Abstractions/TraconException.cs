@@ -478,7 +478,9 @@ public sealed class TraconSessionConflictException : TraconException
 /// <remarks>
 /// The most common cause is an external caller trying to open an agent that carries
 /// a tool requiring approval. An external caller is not an agent and cannot answer
-/// an approval request — the same rule, applied a second time.
+/// an approval request — the same rule, applied a second time. Over A2A the caller receives
+/// the text of this error as a JSON-RPC error and the exception itself is its inner exception;
+/// over MCP the same text is a tool error.
 /// </remarks>
 public sealed class TraconExternalCallException : TraconException
 {

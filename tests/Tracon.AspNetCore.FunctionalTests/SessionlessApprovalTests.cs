@@ -233,8 +233,10 @@ public sealed class SessionlessApprovalTests
         (await OnlyRunAsync(host, ExposedName)).Status.ShouldBe(RunStatus.Failed);
     }
 
-    [Fact]
-    public async Task An_A2A_message_that_stops_at_an_approval_closes_its_run_as_failed()
+    [Theory]
+    [InlineData("SendMessage", "application/json")]
+    [InlineData("SendStreamingMessage", "text/event-stream")]
+    public async Task An_A2A_message_that_stops_at_an_approval_closes_its_run_as_failed(string method, string accept)
     {
         await using var host = await StartAsync(
             configureTracon: static builder => builder.UseA2A(static o => o.ExposedAgents.Add(ExposedName)),
@@ -265,16 +267,17 @@ public sealed class SessionlessApprovalTests
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/tracon/a2a/{ExposedName}")
         {
-            Content = JsonContent.Create(new { jsonrpc = "2.0", id = 1, method = "SendMessage", @params = sendMessage }),
+            Content = JsonContent.Create(new { jsonrpc = "2.0", id = 1, method, @params = sendMessage }),
         };
-        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Accept.ParseAdd(accept);
 
         using var response = await host.Client.SendAsync(request);
         var reply = await TraconTestHost.ReadJsonAsync(response);
 
-        // The refusal is a JSON-RPC error. Its text does not name the approval: the A2A
-        // host replaces the proxy's message with its own (a separate candidate).
-        reply.TryGetProperty("error", out _).ShouldBeTrue(reply.ToString());
+        // The refusal is a JSON-RPC error, and its text says what happened: the caller cannot answer an approval, so
+        // there is nothing to retry with the same message.
+        reply.TryGetProperty("error", out var error).ShouldBeTrue(reply.ToString());
+        error.GetProperty("message").GetString().ShouldNotBeNull().ShouldContain("cannot respond to an approval request", Case.Sensitive);
 
         (await OnlyRunAsync(host, ExposedName)).Status.ShouldBe(RunStatus.Failed);
     }

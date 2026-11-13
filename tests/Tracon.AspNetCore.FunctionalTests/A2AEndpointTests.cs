@@ -44,8 +44,10 @@ public sealed class A2AEndpointTests
         all.ShouldHaveSingleItem().AgentName.ShouldBe("kod-agent");
     }
 
-    [Fact]
-    public async Task Draining_refuses_a_message_and_opens_no_runs_row()
+    [Theory]
+    [InlineData(MessageMethod, JsonAccept)]
+    [InlineData(StreamingMethod, StreamAccept)]
+    public async Task Draining_refuses_a_message_and_opens_no_runs_row(string method, string accept)
     {
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: builder => builder
@@ -54,9 +56,59 @@ public sealed class A2AEndpointTests
             configureServices: static services => services.AddSingleton<ITraconDrainState>(new FixedDrainState(isDraining: true)),
             configureAfterMap: app => app.MapTraconA2A());
 
-        var (_, body) = await SendMessageAsync(host.Client, "kod-agent", "hello");
+        var (_, body) = await SendMessageAsync(host.Client, "kod-agent", "hello", method, accept);
 
         body.ShouldNotBeNull().TryGetProperty("result", out _).ShouldBeFalse($"a drained process answers no result: {body}");
+
+        // The caller is told why and when to come back, not that something broke inside.
+        ErrorMessage(body).ShouldContain("draining in-flight runs", Case.Sensitive);
+        ErrorMessage(body).ShouldContain("Retry shortly", Case.Sensitive);
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        (await runs.QueryRunsAsync(new RunQuery())).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(MessageMethod, JsonAccept)]
+    [InlineData(StreamingMethod, StreamAccept)]
+    public async Task A_message_for_an_exposed_name_with_no_agent_behind_it_says_so(string method, string accept)
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition())
+                .UseA2A(o => o.ExposedAgents.Add("ghost")),
+            configureAfterMap: app => app.MapTraconA2A());
+
+        var (_, body) = await SendMessageAsync(host.Client, "ghost", "hello", method, accept);
+
+        body.ShouldNotBeNull().TryGetProperty("result", out _).ShouldBeFalse(body.ToString());
+        ErrorMessage(body).ShouldContain("There is no agent named 'ghost' in the catalog.", Case.Sensitive);
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        (await runs.QueryRunsAsync(new RunQuery())).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(MessageMethod, JsonAccept)]
+    [InlineData(StreamingMethod, StreamAccept)]
+    public async Task A_message_for_an_agent_that_needs_a_parameter_names_it(string method, string accept)
+    {
+        // A message carries no parameter values, so an agent with a required parameter cannot run from one.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition("param-agent") with
+                {
+                    Instructions = "Write in a {{tone}} tone.",
+                    Parameters = [new AgentParameter { Name = "tone", Kind = AgentParameterKind.Text, Required = true }],
+                })
+                .UseA2A(o => o.ExposedAgents.Add("param-agent")),
+            configureAfterMap: app => app.MapTraconA2A());
+
+        var (_, body) = await SendMessageAsync(host.Client, "param-agent", "hello", method, accept);
+
+        body.ShouldNotBeNull().TryGetProperty("result", out _).ShouldBeFalse(body.ToString());
+        ErrorMessage(body).ShouldContain("param-agent", Case.Sensitive);
+        ErrorMessage(body).ShouldContain("tone", Case.Sensitive);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
         (await runs.QueryRunsAsync(new RunQuery())).ShouldBeEmpty();
@@ -302,10 +354,28 @@ public sealed class A2AEndpointTests
 
     private static string CancelOrder(string orderId) => $"canceled: {orderId}";
 
+    private const string MessageMethod = "SendMessage";
+    private const string StreamingMethod = "SendStreamingMessage";
+    private const string JsonAccept = "application/json";
+    private const string StreamAccept = "text/event-stream";
+
+    /// <summary>The text of the JSON-RPC error a refused call carries.</summary>
+    private static string ErrorMessage(System.Text.Json.JsonElement? body)
+    {
+        body.ShouldNotBeNull().TryGetProperty("error", out var error).ShouldBeTrue($"a refused call answers an error: {body}");
+
+        // The code stays the protocol's internal-error code; what changes is that the text is the caller's to read.
+        error.GetProperty("code").GetInt32().ShouldBe(-32603);
+
+        return error.GetProperty("message").GetString().ShouldNotBeNull();
+    }
+
     private static async Task<(HttpResponseMessage Response, System.Text.Json.JsonElement? Body)> SendMessageAsync(
         HttpClient client,
         string agentName,
-        string text)
+        string text,
+        string method = MessageMethod,
+        string accept = JsonAccept)
     {
         // The body is not built by hand; it is produced with the SDK's OWN types
         // and its own JsonSerializerOptions (A2AJsonUtilities.DefaultOptions) —
@@ -330,11 +400,11 @@ public sealed class A2AEndpointTests
             {
                 jsonrpc = "2.0",
                 id = 1,
-                method = "SendMessage",
+                method,
                 @params = paramsJson,
             }),
         };
-        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Accept.ParseAdd(accept);
 
         var response = await client.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
