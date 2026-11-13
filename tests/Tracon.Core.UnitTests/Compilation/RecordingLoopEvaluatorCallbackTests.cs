@@ -100,6 +100,20 @@ public sealed class RecordingLoopEvaluatorCallbackTests
             .ShouldBe(System.Text.Json.JsonValueKind.Null);
     }
 
+    [Fact]
+    public async Task A_callback_the_caller_leaving_cut_short_ends_the_evaluation_with_the_cancellation_after_the_event_was_recorded()
+    {
+        // The callback writes to the caller's stream. A client that disconnects ends that write with a cancellation, which
+        // is neither a criterion failure (it must not be swallowed as one) nor a reason to lose the event the run recorded.
+        await using var rig = await Rig.StartAsync(callbackFailure: new OperationCanceledException("the client left"));
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await rig.EvaluateAsync());
+
+        var stored = (await rig.StoredLoopEventsAsync()).ShouldHaveSingleItem();
+
+        rig.Handed.ShouldHaveSingleItem().ShouldBe(stored);
+    }
+
     private sealed class Rig : IAsyncDisposable
     {
         private readonly InMemoryRunStore _store;
