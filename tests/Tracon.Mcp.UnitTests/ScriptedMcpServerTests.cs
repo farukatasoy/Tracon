@@ -64,6 +64,35 @@ public sealed class ScriptedMcpServerTests
         _ = await Record.ExceptionAsync(() => sending);
     }
 
+    [Fact]
+    public async Task A_handler_that_ignores_the_token_makes_the_dispose_fail_instead_of_hanging()
+    {
+        var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var server = ScriptedMcpServer.Start(async (_, _, _, _) =>
+        {
+            called.TrySetResult();
+            await release.Task;
+
+            return "{}";
+        });
+        server.StopTimeout = TimeSpan.FromMilliseconds(100);
+
+        using var client = new HttpClient();
+        var sending = SendChunkedAsync(client, server.Endpoint);
+
+        await called.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        // The handler waits for a signal only the test sends, so it cannot end inside the bound: the bound is
+        // reached on every run, not by chance.
+        var failure = await Should.ThrowAsync<TimeoutException>(() => server.DisposeAsync().AsTask());
+
+        failure.Message.ShouldContain("must end when the cancellation token");
+
+        release.SetResult();
+        _ = await Record.ExceptionAsync(() => sending);
+    }
+
     // A body of unknown length goes chunked, which is how the MCP client sends its messages.
     private static async Task SendChunkedAsync(HttpClient client, Uri endpoint)
     {

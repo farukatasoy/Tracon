@@ -63,6 +63,9 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
     /// </summary>
     public Func<string, JsonNode?, JsonNode?, CancellationToken, Task<string?>> Script { get; }
 
+    /// <summary>How long <see cref="DisposeAsync"/> waits for the handlers of the requests it accepted; thirty seconds by default.</summary>
+    public TimeSpan StopTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
     /// <summary>The methods received, in order.</summary>
     public List<string> Methods { get; } = [];
 
@@ -84,7 +87,10 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
         => new(script, capabilities, dispatch);
 
     /// <inheritdoc />
-    /// <remarks>Throws what a request handler failed with, when that is not the end of its connection or of the server.</remarks>
+    /// <remarks>
+    /// Throws what a request handler failed with, when that is not the end of its connection or of the server, and a
+    /// <see cref="TimeoutException"/> when a handler does not end within <see cref="StopTimeout"/>.
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
         Task[] handlers;
@@ -99,7 +105,15 @@ internal sealed class ScriptedMcpServer : IAsyncDisposable
 
         try
         {
-            await Task.WhenAll(handlers);
+            // A script that ignores the token it is given never ends; without a bound the test hangs on its own dispose.
+            await Task.WhenAll(handlers).WaitAsync(StopTimeout);
+        }
+        catch (TimeoutException timeout)
+        {
+            throw new TimeoutException(
+                $"A request handler of the scripted server did not end within {StopTimeout} after the server stopped. "
+                + "The script must end when the cancellation token it is given is cancelled.",
+                timeout);
         }
         finally
         {
