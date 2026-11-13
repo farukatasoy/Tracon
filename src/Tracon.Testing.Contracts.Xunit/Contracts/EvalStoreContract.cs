@@ -1,3 +1,4 @@
+using Tracon.Testing.Contracts.Internal;
 
 namespace Tracon.Testing.Contracts.Storage;
 
@@ -539,16 +540,25 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     [Fact]
     public async Task AddCaseAsync_concurrent_promotions_produce_distinct_seq()
     {
-        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        // The promotions start on threads of their own, released together, into a suite of their own each round: calls
+        // started one after the other on one thread never overlap, and a store that reads the highest sequence number and
+        // then writes the next passes a single round by luck.
+        const int Promotions = 8;
+        const int Rounds = 20;
 
-        var tasks = Enumerable.Range(0, 8)
-            .Select(_ => Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(TraconId.NewId())).AsTask())
-            .ToArray();
+        for (var round = 0; round < Rounds; round++)
+        {
+            var suite = await Store.SaveSuiteAsync(TestData.EvalSuite(name: $"promotions-{round}"));
 
-        var results = await Task.WhenAll(tasks);
+            var drafts = Enumerable.Range(0, Promotions).Select(static _ => TestData.EvalCaseDraft(TraconId.NewId())).ToArray();
 
-        results.ShouldAllBe(static result => result.Created);
-        results.Select(static result => result.Case.Seq).Distinct().Count().ShouldBe(results.Length);
+            var results = SimultaneousCalls.Run(
+                Promotions,
+                index => Store.AddCaseAsync(suite.Id, drafts[index]).AsTask().GetAwaiter().GetResult());
+
+            results.ShouldAllBe(static result => result.Created, $"round {round}");
+            results.Select(static result => result.Case.Seq).Distinct().Count().ShouldBe(results.Length, $"round {round}: two promotions were given one sequence number");
+        }
     }
 
     [Fact]
