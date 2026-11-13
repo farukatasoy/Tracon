@@ -4000,18 +4000,32 @@ export interface components {
              */
             rampInterval?: string;
         };
+        /** @description One answer of a completion. */
         ChatChoice: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Position of the answer in `choices`; always 0.
+             */
             index: number | string;
+            /** @description The assistant's message. */
             message: components["schemas"]["ChatMessagePayload"];
+            /** @description Why the answer ended: `stop`, `length` (cut at the output token limit) or `content_filter` (the provider's filter). */
             finish_reason: null | string;
         };
+        /** @description A Chat Completions answer in the OpenAI-compatible shape. */
         ChatCompletion: {
+            /** @description Identifier of the completion. */
             id: string;
+            /** @description Always `chat.completion`. */
             object: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Creation time, in Unix seconds.
+             */
             created: number | string;
+            /** @description The name of the Tracon agent that answered. */
             model: string;
+            /** @description The answers. Tracon returns exactly one. */
             choices: components["schemas"]["ChatChoice"][];
             usage: null | components["schemas"]["ChatUsage"];
         };
@@ -4024,17 +4038,30 @@ export interface components {
             messageId?: null | string;
             additionalProperties?: null | Record<string, never>;
         };
+        /** @description The message of an answer. */
         ChatMessagePayload: {
+            /** @description Always `assistant`. */
             role: string;
+            /** @description The text of the answer; `null` when the answer has none. */
             content: null | string;
         };
         ChatRole: unknown;
+        /** @description Token counts of a completion. */
         ChatUsage: {
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Tokens of the input.
+             */
             prompt_tokens: number | string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Tokens of the output.
+             */
             completion_tokens: number | string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Input and output tokens together.
+             */
             total_tokens: number | string;
         };
         /**
@@ -4166,11 +4193,18 @@ export interface components {
          * @enum {unknown}
          */
         ConversationMemorySearch: "BeforeEachTurn" | "OnDemand";
+        /** @description A conversation of the Conversations API. */
         ConversationResource: {
+            /** @description Identifier of the conversation. */
             id: string;
+            /** @description Always `conversation`. */
             object: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Creation time, in Unix seconds.
+             */
             created_at: number | string;
+            /** @description The string key-value pairs the conversation was created with; `null` when there are none. */
             metadata: null | {
                 [key: string]: string;
             };
@@ -4299,9 +4333,13 @@ export interface components {
             /** @description The items that were written, as `kind:name`. */
             written?: string[];
         };
+        /** @description The answer to deleting a conversation. */
         DeletedResource: {
+            /** @description Identifier of the conversation the call named. */
             id: string;
+            /** @description Always `conversation.deleted`. */
             object: string;
+            /** @description Whether a conversation was deleted; `false` when none matched. */
             deleted: boolean;
         };
         /** @description A single test case inside an EvalSuite. */
@@ -5041,26 +5079,45 @@ export interface components {
          * @enum {unknown}
          */
         InboundTriggerTargetKind: "Agent" | "Workflow";
+        /** @description A text part of a message item. */
         ItemContent: {
+            /** @description `output_text` for an assistant message, `input_text` for any other. */
             type: string;
+            /** @description The text. */
             text: string;
         };
+        /** @description One page of the items of a conversation. */
         ItemListResource: {
+            /** @description Always `list`. */
             object: string;
+            /** @description The items of this page. */
             data: components["schemas"]["ItemResource"][];
+            /** @description Identifier of the first item of the page; `null` when the page is empty. */
             first_id: null | string;
+            /** @description Identifier of the last item of the page; `null` when the page is empty. */
             last_id: null | string;
+            /** @description Whether more items follow this page. */
             has_more: boolean;
         };
+        /** @description One item of a conversation: a message, a tool call or a tool result. */
         ItemResource: {
+            /** @description Identifier of the item. */
             id: string;
+            /** @description `message`, `function_call` or `function_call_output`. */
             type: string;
+            /** @description `completed`, or `incomplete` for a tool result that carries an error. */
             status: null | string;
+            /** @description The role of a message item; `null` for the other kinds. */
             role: null | string;
+            /** @description The text parts of a message item; `null` for the other kinds. */
             content: null | components["schemas"]["ItemContent"][];
+            /** @description Identifier that pairs a tool call with its result; `null` for a message item. */
             call_id: null | string;
+            /** @description The name of the tool a `function_call` item names; `null` for the other kinds. */
             name: null | string;
+            /** @description The arguments of a `function_call` item as JSON text; `null` for the other kinds. */
             arguments: null | string;
+            /** @description The result of a `function_call_output` item as text; `null` for the other kinds. */
             output: null | string;
         };
         /** @description Detailed view of a single job: record and items together. */
@@ -6029,11 +6086,16 @@ export interface components {
              */
             judgeCostCurrencyCount?: number | string;
         };
+        /** @description What went wrong, for a person and for a program. */
         OpenAIErrorBody: {
+            /** @description A sentence written for the caller. It carries no secret and no configuration value. */
             message: string;
+            /** @description The error type: a Tracon error type such as `loop_unsatisfied`, `output_truncated` or `content_filtered`, or `upstream_error` when the provider failed. */
             type: string;
         };
+        /** @description The error body of the OpenAI-compatible endpoints, in the envelope OpenAI's own clients read. */
         OpenAIErrorEnvelope: {
+            /** @description What went wrong. */
             error: components["schemas"]["OpenAIErrorBody"];
         };
         /** @description The pending tool approval request of a run that executes from the queue. */

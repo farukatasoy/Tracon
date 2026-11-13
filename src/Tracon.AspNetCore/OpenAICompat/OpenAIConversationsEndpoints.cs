@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
@@ -480,36 +481,41 @@ internal static class OpenAIConversationsEndpoints
     // The responses of this surface are written without their null members, but the published schema marks every
     // member of these two records required (a nullable one is required and nullable), and a client generated from the
     // document reads an absent member as a violation. The members that can be null are written even then.
+    [Description("A conversation of the Conversations API.")]
     private sealed record ConversationResource(
-        [property: JsonPropertyName("id")] string Id,
-        [property: JsonPropertyName("object")] string Object,
-        [property: JsonPropertyName("created_at")] long CreatedAt,
-        [property: JsonPropertyName("metadata"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] IReadOnlyDictionary<string, string>? Metadata);
+        [property: JsonPropertyName("id"), Description("Identifier of the conversation.")] string Id,
+        [property: JsonPropertyName("object"), Description("Always `conversation`.")] string Object,
+        [property: JsonPropertyName("created_at"), Description("Creation time, in Unix seconds.")] long CreatedAt,
+        [property: JsonPropertyName("metadata"), JsonIgnore(Condition = JsonIgnoreCondition.Never), Description("The string key-value pairs the conversation was created with; `null` when there are none.")] IReadOnlyDictionary<string, string>? Metadata);
 
+    [Description("The answer to deleting a conversation.")]
     private sealed record DeletedResource(
-        [property: JsonPropertyName("id")] string Id,
-        [property: JsonPropertyName("object")] string Object,
-        [property: JsonPropertyName("deleted")] bool Deleted);
+        [property: JsonPropertyName("id"), Description("Identifier of the conversation the call named.")] string Id,
+        [property: JsonPropertyName("object"), Description("Always `conversation.deleted`.")] string Object,
+        [property: JsonPropertyName("deleted"), Description("Whether a conversation was deleted; `false` when none matched.")] bool Deleted);
 
+    [Description("One page of the items of a conversation.")]
     private sealed record ItemListResource(
-        [property: JsonPropertyName("object")] string Object,
-        [property: JsonPropertyName("data")] IReadOnlyList<ItemResource> Data,
-        [property: JsonPropertyName("first_id"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? FirstId,
-        [property: JsonPropertyName("last_id"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? LastId,
-        [property: JsonPropertyName("has_more")] bool HasMore);
+        [property: JsonPropertyName("object"), Description("Always `list`.")] string Object,
+        [property: JsonPropertyName("data"), Description("The items of this page.")] IReadOnlyList<ItemResource> Data,
+        [property: JsonPropertyName("first_id"), JsonIgnore(Condition = JsonIgnoreCondition.Never), Description("Identifier of the first item of the page; `null` when the page is empty.")] string? FirstId,
+        [property: JsonPropertyName("last_id"), JsonIgnore(Condition = JsonIgnoreCondition.Never), Description("Identifier of the last item of the page; `null` when the page is empty.")] string? LastId,
+        [property: JsonPropertyName("has_more"), Description("Whether more items follow this page.")] bool HasMore);
 
+    [Description("One item of a conversation: a message, a tool call or a tool result.")]
     internal sealed record ItemResource(
-        [property: JsonPropertyName("id")] string Id,
-        [property: JsonPropertyName("type")] string Type,
-        [property: JsonPropertyName("status")] string? Status,
-        [property: JsonPropertyName("role")] string? Role,
-        [property: JsonPropertyName("content")] IReadOnlyList<ItemContent>? Content,
-        [property: JsonPropertyName("call_id")] string? CallId,
-        [property: JsonPropertyName("name")] string? Name,
-        [property: JsonPropertyName("arguments")] string? Arguments,
-        [property: JsonPropertyName("output")] string? Output);
+        [property: JsonPropertyName("id"), Description("Identifier of the item.")] string Id,
+        [property: JsonPropertyName("type"), Description("`message`, `function_call` or `function_call_output`.")] string Type,
+        [property: JsonPropertyName("status"), Description("`completed`, or `incomplete` for a tool result that carries an error.")] string? Status,
+        [property: JsonPropertyName("role"), Description("The role of a message item; `null` for the other kinds.")] string? Role,
+        [property: JsonPropertyName("content"), Description("The text parts of a message item; `null` for the other kinds.")] IReadOnlyList<ItemContent>? Content,
+        [property: JsonPropertyName("call_id"), Description("Identifier that pairs a tool call with its result; `null` for a message item.")] string? CallId,
+        [property: JsonPropertyName("name"), Description("The name of the tool a `function_call` item names; `null` for the other kinds.")] string? Name,
+        [property: JsonPropertyName("arguments"), Description("The arguments of a `function_call` item as JSON text; `null` for the other kinds.")] string? Arguments,
+        [property: JsonPropertyName("output"), Description("The result of a `function_call_output` item as text; `null` for the other kinds.")] string? Output);
 
+    [Description("A text part of a message item.")]
     internal sealed record ItemContent(
-        [property: JsonPropertyName("type")] string Type,
-        [property: JsonPropertyName("text")] string Text);
+        [property: JsonPropertyName("type"), Description("`output_text` for an assistant message, `input_text` for any other.")] string Type,
+        [property: JsonPropertyName("text"), Description("The text.")] string Text);
 }

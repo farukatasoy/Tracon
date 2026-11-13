@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -197,8 +198,13 @@ internal static class OpenAICompatSupport
     /// Outer envelope of an OpenAI-compatible error body. Internal so it can be
     /// attached to response schema metadata.
     /// </summary>
-    internal sealed record OpenAIErrorEnvelope(OpenAIErrorBody Error);
+    [Description("The error body of the OpenAI-compatible endpoints, in the envelope OpenAI's own clients read.")]
+    internal sealed record OpenAIErrorEnvelope(
+        [property: Description("What went wrong.")] OpenAIErrorBody Error);
 
     /// <summary>OpenAI-compatible error body.</summary>
-    internal sealed record OpenAIErrorBody(string Message, string Type);
+    [Description("What went wrong, for a person and for a program.")]
+    internal sealed record OpenAIErrorBody(
+        [property: Description("A sentence written for the caller. It carries no secret and no configuration value.")] string Message,
+        [property: Description("The error type: a Tracon error type such as `loop_unsatisfied`, `output_truncated` or `content_filtered`, or `upstream_error` when the provider failed.")] string Type);
 }

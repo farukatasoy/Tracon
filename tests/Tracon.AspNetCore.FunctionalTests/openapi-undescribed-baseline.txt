@@ -8,9 +8,7 @@
 # What the list holds (state of 2026-10-16):
 #   - types of Microsoft.Extensions.AI, ASP.NET Core and the BCL (AIContent*,
 #     AIAnnotation*, ChatMessage, ChatRole, UsageDetails, ProblemDetails, IFormFile,
-#     Stream, JsonElement) - Tracon does not own their documentation;
-#   - Tracon enums and OpenAI-compatible wire types that had no description before
-# the descriptions pass and still have none.
+#     Stream, JsonElement) - Tracon does not own their documentation.
 # The 81 request and response DTOs of the descriptions pass are not here and must not be added: they
 # are `internal` and take their text from [Description]. Describe a new entry instead of
 # listing it.
@@ -180,17 +178,6 @@ AIContentWebSearchToolResultContent.annotations
 AIContentWebSearchToolResultContent.callId
 AIContentWebSearchToolResultContent.outputs
 AnnotatedRegion
-ChatChoice
-ChatChoice.finish_reason
-ChatChoice.index
-ChatChoice.message
-ChatCompletion
-ChatCompletion.choices
-ChatCompletion.created
-ChatCompletion.id
-ChatCompletion.model
-ChatCompletion.object
-ChatCompletion.usage
 ChatMessage
 ChatMessage.additionalProperties
 ChatMessage.authorName
@@ -198,49 +185,9 @@ ChatMessage.contents
 ChatMessage.createdAt
 ChatMessage.messageId
 ChatMessage.role
-ChatMessagePayload
-ChatMessagePayload.content
-ChatMessagePayload.role
 ChatRole
-ChatUsage
-ChatUsage.completion_tokens
-ChatUsage.prompt_tokens
-ChatUsage.total_tokens
-ConversationResource
-ConversationResource.created_at
-ConversationResource.id
-ConversationResource.metadata
-ConversationResource.object
-DeletedResource
-DeletedResource.deleted
-DeletedResource.id
-DeletedResource.object
 IFormFile
-ItemContent
-ItemContent.text
-ItemContent.type
-ItemListResource
-ItemListResource.data
-ItemListResource.first_id
-ItemListResource.has_more
-ItemListResource.last_id
-ItemListResource.object
-ItemResource
-ItemResource.arguments
-ItemResource.call_id
-ItemResource.content
-ItemResource.id
-ItemResource.name
-ItemResource.output
-ItemResource.role
-ItemResource.status
-ItemResource.type
 JsonElement
-OpenAIErrorBody
-OpenAIErrorBody.message
-OpenAIErrorBody.type
-OpenAIErrorEnvelope
-OpenAIErrorEnvelope.error
 ProblemDetails
 ProblemDetails.detail
 ProblemDetails.instance

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
@@ -555,27 +556,31 @@ internal static class OpenAIChatCompletionsEndpoints
             [property: JsonPropertyName("type")] string Type);
     }
 
+    [Description("A Chat Completions answer in the OpenAI-compatible shape.")]
     private sealed record ChatCompletion(
-        [property: JsonPropertyName("id")] string Id,
-        [property: JsonPropertyName("object")] string Object,
-        [property: JsonPropertyName("created")] long Created,
-        [property: JsonPropertyName("model")] string Model,
-        [property: JsonPropertyName("choices")] IReadOnlyList<ChatChoice> Choices,
-        [property: JsonPropertyName("usage")] ChatUsage? Usage);
+        [property: JsonPropertyName("id"), Description("Identifier of the completion.")] string Id,
+        [property: JsonPropertyName("object"), Description("Always `chat.completion`.")] string Object,
+        [property: JsonPropertyName("created"), Description("Creation time, in Unix seconds.")] long Created,
+        [property: JsonPropertyName("model"), Description("The name of the Tracon agent that answered.")] string Model,
+        [property: JsonPropertyName("choices"), Description("The answers. Tracon returns exactly one.")] IReadOnlyList<ChatChoice> Choices,
+        [property: JsonPropertyName("usage"), Description("Token counts of the run; `null` when the run recorded none.")] ChatUsage? Usage);
 
+    [Description("One answer of a completion.")]
     private sealed record ChatChoice(
-        [property: JsonPropertyName("index")] int Index,
-        [property: JsonPropertyName("message")] ChatMessagePayload Message,
-        [property: JsonPropertyName("finish_reason")] string? FinishReason);
+        [property: JsonPropertyName("index"), Description("Position of the answer in `choices`; always 0.")] int Index,
+        [property: JsonPropertyName("message"), Description("The assistant's message.")] ChatMessagePayload Message,
+        [property: JsonPropertyName("finish_reason"), Description("Why the answer ended: `stop`, `length` (cut at the output token limit) or `content_filter` (the provider's filter).")] string? FinishReason);
 
+    [Description("The message of an answer.")]
     private sealed record ChatMessagePayload(
-        [property: JsonPropertyName("role")] string Role,
-        [property: JsonPropertyName("content")] string? Content);
+        [property: JsonPropertyName("role"), Description("Always `assistant`.")] string Role,
+        [property: JsonPropertyName("content"), Description("The text of the answer; `null` when the answer has none.")] string? Content);
 
+    [Description("Token counts of a completion.")]
     private sealed record ChatUsage(
-        [property: JsonPropertyName("prompt_tokens")] long PromptTokens,
-        [property: JsonPropertyName("completion_tokens")] long CompletionTokens,
-        [property: JsonPropertyName("total_tokens")] long TotalTokens);
+        [property: JsonPropertyName("prompt_tokens"), Description("Tokens of the input.")] long PromptTokens,
+        [property: JsonPropertyName("completion_tokens"), Description("Tokens of the output.")] long CompletionTokens,
+        [property: JsonPropertyName("total_tokens"), Description("Input and output tokens together.")] long TotalTokens);
 
     private sealed record ChatCompletionChunk(
         [property: JsonPropertyName("id")] string Id,

@@ -20990,40 +20990,73 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// One answer of a completion.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ChatChoice
     {
 
+        /// <summary>
+        /// Position of the answer in `choices`; always 0.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("index")]
         public int Index { get; set; } = default!;
 
+        /// <summary>
+        /// The assistant's message.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("message")]
         public ChatMessagePayload Message { get; set; } = new ChatMessagePayload();
 
+        /// <summary>
+        /// Why the answer ended: `stop`, `length` (cut at the output token limit) or `content_filter` (the provider's filter).
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("finish_reason")]
         public string? Finish_reason { get; set; } = default!;
 
     }
 
+    /// <summary>
+    /// A Chat Completions answer in the OpenAI-compatible shape.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ChatCompletion
     {
 
+        /// <summary>
+        /// Identifier of the completion.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         public string Id { get; set; } = default!;
 
+        /// <summary>
+        /// Always `chat.completion`.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("object")]
         public string Object { get; set; } = default!;
 
+        /// <summary>
+        /// Creation time, in Unix seconds.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("created")]
         public long Created { get; set; } = default!;
 
+        /// <summary>
+        /// The name of the Tracon agent that answered.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("model")]
         public string Model { get; set; } = default!;
 
+        /// <summary>
+        /// The answers. Tracon returns exactly one.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("choices")]
         public System.Collections.Generic.ICollection<ChatChoice> Choices { get; set; } = new System.Collections.Generic.List<ChatChoice>();
 
+        /// <summary>
+        /// Token counts of the run; `null` when the run recorded none.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("usage")]
         public ChatUsage? Usage { get; set; } = default!;
 
@@ -21053,28 +21086,49 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// The message of an answer.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ChatMessagePayload
     {
 
+        /// <summary>
+        /// Always `assistant`.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("role")]
         public string Role { get; set; } = default!;
 
+        /// <summary>
+        /// The text of the answer; `null` when the answer has none.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("content")]
         public string? Content { get; set; } = default!;
 
     }
 
+    /// <summary>
+    /// Token counts of a completion.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ChatUsage
     {
 
+        /// <summary>
+        /// Tokens of the input.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("prompt_tokens")]
         public long Prompt_tokens { get; set; } = default!;
 
+        /// <summary>
+        /// Tokens of the output.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("completion_tokens")]
         public long Completion_tokens { get; set; } = default!;
 
+        /// <summary>
+        /// Input and output tokens together.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("total_tokens")]
         public long Total_tokens { get; set; } = default!;
 
@@ -21307,19 +21361,34 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// A conversation of the Conversations API.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ConversationResource
     {
 
+        /// <summary>
+        /// Identifier of the conversation.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         public string Id { get; set; } = default!;
 
+        /// <summary>
+        /// Always `conversation`.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("object")]
         public string Object { get; set; } = default!;
 
+        /// <summary>
+        /// Creation time, in Unix seconds.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("created_at")]
         public long Created_at { get; set; } = default!;
 
+        /// <summary>
+        /// The string key-value pairs the conversation was created with; `null` when there are none.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("metadata")]
         public System.Collections.Generic.IDictionary<string, string>? Metadata { get; set; } = default!;
 
@@ -21586,16 +21655,28 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// The answer to deleting a conversation.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class DeletedResource
     {
 
+        /// <summary>
+        /// Identifier of the conversation the call named.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         public string Id { get; set; } = default!;
 
+        /// <summary>
+        /// Always `conversation.deleted`.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("object")]
         public string Object { get; set; } = default!;
 
+        /// <summary>
+        /// Whether a conversation was deleted; `false` when none matched.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("deleted")]
         public bool Deleted { get; set; } = default!;
 
@@ -23040,67 +23121,124 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// A text part of a message item.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ItemContent
     {
 
+        /// <summary>
+        /// `output_text` for an assistant message, `input_text` for any other.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; set; } = default!;
 
+        /// <summary>
+        /// The text.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public string Text { get; set; } = default!;
 
     }
 
+    /// <summary>
+    /// One page of the items of a conversation.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ItemListResource
     {
 
+        /// <summary>
+        /// Always `list`.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("object")]
         public string Object { get; set; } = default!;
 
+        /// <summary>
+        /// The items of this page.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("data")]
         public System.Collections.Generic.ICollection<ItemResource> Data { get; set; } = new System.Collections.Generic.List<ItemResource>();
 
+        /// <summary>
+        /// Identifier of the first item of the page; `null` when the page is empty.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("first_id")]
         public string? First_id { get; set; } = default!;
 
+        /// <summary>
+        /// Identifier of the last item of the page; `null` when the page is empty.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("last_id")]
         public string? Last_id { get; set; } = default!;
 
+        /// <summary>
+        /// Whether more items follow this page.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("has_more")]
         public bool Has_more { get; set; } = default!;
 
     }
 
+    /// <summary>
+    /// One item of a conversation: a message, a tool call or a tool result.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ItemResource
     {
 
+        /// <summary>
+        /// Identifier of the item.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         public string Id { get; set; } = default!;
 
+        /// <summary>
+        /// `message`, `function_call` or `function_call_output`.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; set; } = default!;
 
+        /// <summary>
+        /// `completed`, or `incomplete` for a tool result that carries an error.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("status")]
         public string? Status { get; set; } = default!;
 
+        /// <summary>
+        /// The role of a message item; `null` for the other kinds.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("role")]
         public string? Role { get; set; } = default!;
 
+        /// <summary>
+        /// The text parts of a message item; `null` for the other kinds.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("content")]
         public System.Collections.Generic.ICollection<ItemContent>? Content { get; set; } = default!;
 
+        /// <summary>
+        /// Identifier that pairs a tool call with its result; `null` for a message item.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("call_id")]
         public string? Call_id { get; set; } = default!;
 
+        /// <summary>
+        /// The name of the tool a `function_call` item names; `null` for the other kinds.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("name")]
         public string? Name { get; set; } = default!;
 
+        /// <summary>
+        /// The arguments of a `function_call` item as JSON text; `null` for the other kinds.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("arguments")]
         public string? Arguments { get; set; } = default!;
 
+        /// <summary>
+        /// The result of a `function_call_output` item as text; `null` for the other kinds.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("output")]
         public string? Output { get; set; } = default!;
 
@@ -24901,22 +25039,37 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// What went wrong, for a person and for a program.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class OpenAIErrorBody
     {
 
+        /// <summary>
+        /// A sentence written for the caller. It carries no secret and no configuration value.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("message")]
         public string Message { get; set; } = default!;
 
+        /// <summary>
+        /// The error type: a Tracon error type such as `loop_unsatisfied`, `output_truncated` or `content_filtered`, or `upstream_error` when the provider failed.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string Type { get; set; } = default!;
 
     }
 
+    /// <summary>
+    /// The error body of the OpenAI-compatible endpoints, in the envelope OpenAI's own clients read.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class OpenAIErrorEnvelope
     {
 
+        /// <summary>
+        /// What went wrong.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("error")]
         public OpenAIErrorBody Error { get; set; } = new OpenAIErrorBody();
 

@@ -11535,18 +11535,22 @@
               "integer",
               "string"
             ],
+            "description": "Position of the answer in \u0060choices\u0060; always 0.",
             "format": "int32"
           },
           "message": {
+            "description": "The assistant\u0027s message.",
             "$ref": "#/components/schemas/ChatMessagePayload"
           },
           "finish_reason": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the answer ended: \u0060stop\u0060, \u0060length\u0060 (cut at the output token limit) or \u0060content_filter\u0060 (the provider\u0027s filter)."
           }
-        }
+        },
+        "description": "One answer of a completion."
       },
       "ChatCompletion": {
         "required": [
@@ -11560,10 +11564,12 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier of the completion."
           },
           "object": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \u0060chat.completion\u0060."
           },
           "created": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -11571,16 +11577,19 @@
               "integer",
               "string"
             ],
+            "description": "Creation time, in Unix seconds.",
             "format": "int64"
           },
           "model": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the Tracon agent that answered."
           },
           "choices": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ChatChoice"
-            }
+            },
+            "description": "The answers. Tracon returns exactly one."
           },
           "usage": {
             "oneOf": [
@@ -11588,11 +11597,13 @@
                 "type": "null"
               },
               {
+                "description": "Token counts of the run; \u0060null\u0060 when the run recorded none.",
                 "$ref": "#/components/schemas/ChatUsage"
               }
             ]
           }
-        }
+        },
+        "description": "A Chat Completions answer in the OpenAI-compatible shape."
       },
       "ChatMessage": {
         "type": "object",
@@ -11644,15 +11655,18 @@
         "type": "object",
         "properties": {
           "role": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \u0060assistant\u0060."
           },
           "content": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The text of the answer; \u0060null\u0060 when the answer has none."
           }
-        }
+        },
+        "description": "The message of an answer."
       },
       "ChatRole": {},
       "ChatUsage": {
@@ -11669,6 +11683,7 @@
               "integer",
               "string"
             ],
+            "description": "Tokens of the input.",
             "format": "int64"
           },
           "completion_tokens": {
@@ -11677,6 +11692,7 @@
               "integer",
               "string"
             ],
+            "description": "Tokens of the output.",
             "format": "int64"
           },
           "total_tokens": {
@@ -11685,9 +11701,11 @@
               "integer",
               "string"
             ],
+            "description": "Input and output tokens together.",
             "format": "int64"
           }
-        }
+        },
+        "description": "Token counts of a completion."
       },
       "ClientToolResult": {
         "required": [
@@ -11913,10 +11931,12 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier of the conversation."
           },
           "object": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \u0060conversation\u0060."
           },
           "created_at": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -11924,6 +11944,7 @@
               "integer",
               "string"
             ],
+            "description": "Creation time, in Unix seconds.",
             "format": "int64"
           },
           "metadata": {
@@ -11933,9 +11954,11 @@
             ],
             "additionalProperties": {
               "type": "string"
-            }
+            },
+            "description": "The string key-value pairs the conversation was created with; \u0060null\u0060 when there are none."
           }
-        }
+        },
+        "description": "A conversation of the Conversations API."
       },
       "CurrentTenantResponse": {
         "required": [
@@ -12217,15 +12240,19 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier of the conversation the call named."
           },
           "object": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \u0060conversation.deleted\u0060."
           },
           "deleted": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether a conversation was deleted; \u0060false\u0060 when none matched."
           }
-        }
+        },
+        "description": "The answer to deleting a conversation."
       },
       "EvalCase": {
         "required": [
@@ -13686,12 +13713,15 @@
         "type": "object",
         "properties": {
           "type": {
-            "type": "string"
+            "type": "string",
+            "description": "\u0060output_text\u0060 for an assistant message, \u0060input_text\u0060 for any other."
           },
           "text": {
-            "type": "string"
+            "type": "string",
+            "description": "The text."
           }
-        }
+        },
+        "description": "A text part of a message item."
       },
       "ItemListResource": {
         "required": [
@@ -13704,30 +13734,36 @@
         "type": "object",
         "properties": {
           "object": {
-            "type": "string"
+            "type": "string",
+            "description": "Always \u0060list\u0060."
           },
           "data": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ItemResource"
-            }
+            },
+            "description": "The items of this page."
           },
           "first_id": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Identifier of the first item of the page; \u0060null\u0060 when the page is empty."
           },
           "last_id": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Identifier of the last item of the page; \u0060null\u0060 when the page is empty."
           },
           "has_more": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more items follow this page."
           }
-        }
+        },
+        "description": "One page of the items of a conversation."
       },
       "ItemResource": {
         "required": [
@@ -13744,22 +13780,26 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier of the item."
           },
           "type": {
-            "type": "string"
+            "type": "string",
+            "description": "\u0060message\u0060, \u0060function_call\u0060 or \u0060function_call_output\u0060."
           },
           "status": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "\u0060completed\u0060, or \u0060incomplete\u0060 for a tool result that carries an error."
           },
           "role": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The role of a message item; \u0060null\u0060 for the other kinds."
           },
           "content": {
             "type": [
@@ -13768,33 +13808,39 @@
             ],
             "items": {
               "$ref": "#/components/schemas/ItemContent"
-            }
+            },
+            "description": "The text parts of a message item; \u0060null\u0060 for the other kinds."
           },
           "call_id": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Identifier that pairs a tool call with its result; \u0060null\u0060 for a message item."
           },
           "name": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The name of the tool a \u0060function_call\u0060 item names; \u0060null\u0060 for the other kinds."
           },
           "arguments": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The arguments of a \u0060function_call\u0060 item as JSON text; \u0060null\u0060 for the other kinds."
           },
           "output": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The result of a \u0060function_call_output\u0060 item as text; \u0060null\u0060 for the other kinds."
           }
-        }
+        },
+        "description": "One item of a conversation: a message, a tool call or a tool result."
       },
       "JobDetailResponse": {
         "required": [
@@ -15522,12 +15568,15 @@
         "type": "object",
         "properties": {
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "A sentence written for the caller. It carries no secret and no configuration value."
           },
           "type": {
-            "type": "string"
+            "type": "string",
+            "description": "The error type: a Tracon error type such as \u0060loop_unsatisfied\u0060, \u0060output_truncated\u0060 or \u0060content_filtered\u0060, or \u0060upstream_error\u0060 when the provider failed."
           }
-        }
+        },
+        "description": "What went wrong, for a person and for a program."
       },
       "OpenAIErrorEnvelope": {
         "required": [
@@ -15536,9 +15585,11 @@
         "type": "object",
         "properties": {
           "error": {
+            "description": "What went wrong.",
             "$ref": "#/components/schemas/OpenAIErrorBody"
           }
-        }
+        },
+        "description": "The error body of the OpenAI-compatible endpoints, in the envelope OpenAI\u0027s own clients read."
       },
       "PendingApproval": {
         "required": [
