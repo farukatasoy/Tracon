@@ -218,11 +218,23 @@ the caller, and the two causes are told apart by `title`:
 The `detail` never carries the schema name or the statement text; that stays in
 your server's log, for the same reason a `502`'s detail is shallow.
 
-**A value the store refuses is a `400`, not a `503`.** SQL Server holds the identifier
-columns to 200 characters, and a longer value in a field the request does not bound
-(a tenant's `displayName`, an approval rule's `toolName`) is refused by the server
-itself. That is not an outage: the store answered, and the same request gets the same
-answer. The reply is `application/problem+json` with `400` and one of two titles:
+**A name that is too long for its column is a `400` at the request, on every store.**
+SQL Server holds an identifier in 200 characters (a configuration name or a path in 400,
+a URL in 2000), and the other stores keep any length, so the narrowest limit applies to
+all of them. A name in the path of a `PUT`, and a text field of a request body that the
+store keeps in such a column (an agent's `name`, a model's `model`, a tenant's
+`displayName`, an approval rule's `toolName`, a webhook's `url`, the file name of an
+upload), is refused before anything is written. A path value or an upload file name
+answers `400` with the title `Value too long`; a body field answers `400` with the title
+`Invalid request body`. Either `detail` names the parameter or property and its limit, and
+never repeats the value. A `GET` or a `DELETE` with such a name is the `404` it always was:
+no row can have it.
+
+**A value the store refuses is a `400`, not a `503`.** A longer value in a field that the
+request does not bound this way (the name of a function node inside a workflow definition,
+for example) is refused by the SQL Server itself. That is not an outage: the store
+answered, and the same request gets the same answer. The reply is
+`application/problem+json` with `400` and one of two titles:
 
 | `title` | What it means | Does retrying help |
 |---|---|---|

@@ -135,9 +135,11 @@ internal static class RequestBodyBinding
         options.Converters.Add(new ExplainedEnumConverterFactory());
         options.Converters.Add(new ClockTimeSpanConverter());
 
-        // A null inside a list or a map is not caught by RespectNullableAnnotations; see NullElementRule.
+        // A null inside a list or a map is not caught by RespectNullableAnnotations; see NullElementRule. A text the
+        // store cannot hold is refused here as well, from one table of the columns; see ClientTextLimits.
         options.TypeInfoResolver = (source.TypeInfoResolver ?? new DefaultJsonTypeInfoResolver())
-            .WithAddedModifier(NullElementRule.Guard);
+            .WithAddedModifier(NullElementRule.Guard)
+            .WithAddedModifier(ClientTextLimits.Guard);
 
         return options;
     }

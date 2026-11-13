@@ -395,12 +395,13 @@ help until the migrations are applied. A store that cannot be reached at all
 answers `503` as well, with the title `Persistence store unavailable`; that one
 usually clears on its own.
 
-A write the database refuses for its content is not one of these. On SQL Server a text longer
-than its column (200 characters for the identifier columns) answers `400` with the title
-`Value too long for the store`, and a number that does not fit answers `400` with `Number
-out of range for the store`. Retrying does not help; shorten the value. The reply names no
-field, so look at the fields of the request that carry free text (a display name, a tool
-name, an OAuth client id). PostgreSQL and SQLite take the same text.
+A write the database refuses for its content is not one of these. A name or identifier that is
+longer than its column is refused before the write, on every store, with a `400` whose `detail`
+names the field and the limit (200 characters for the identifier columns). A text in a field the
+request does not bound that way, on SQL Server, answers `400` with the title `Value too long for
+the store`, and a number that does not fit answers `400` with `Number out of range for the
+store`. Retrying does not help; shorten the value. The reply names no field, so look at the
+fields of the request that carry free text. PostgreSQL and SQLite take the same text.
 
 A tool call is the exception. The tenant's tool policy is read before every tool call,
 and while its table (`tenant_tool_policies`) does not exist that read fails and the

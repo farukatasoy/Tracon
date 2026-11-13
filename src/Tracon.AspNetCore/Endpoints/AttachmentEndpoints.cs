@@ -132,6 +132,12 @@ internal static class AttachmentEndpoints
             return authorizationProblem;
         }
 
+        // The file name is stored as the client sent it, in a column of 400 characters.
+        if (ClientTextLimits.CheckFileName("file", file.FileName) is { } fileNameProblem)
+        {
+            return fileNameProblem;
+        }
+
         if (file.Length == 0)
         {
             return Invalid("Attachment cannot be empty", "The 'file' field is empty.");

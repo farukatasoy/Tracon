@@ -210,6 +210,10 @@ public static class TraconEndpointRouteBuilderExtensions
         // about which parameter, so the answer names it.
         group.AddEndpointFilterFactory(ScalarQueryParameter.Filter);
 
+        // A name in the path of a PUT is stored as it is sent, and SQL Server holds an identifier in 200 characters: a
+        // longer one is a 400 that names the parameter on every store, not a truncation on one of them.
+        group.AddEndpointFilter(ClientTextLimits.RouteFilter);
+
         // The document lists the 415 of every route that takes a body.
         ((IEndpointConventionBuilder)group).Finally(UnsupportedMediaTypeProblemMiddleware.Declare);
 

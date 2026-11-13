@@ -161,11 +161,11 @@ public sealed class StoreDataFaultProblemTests
     }
 
     [Fact]
-    public async Task Memory_and_sqlite_accept_the_value_that_sql_server_refuses()
+    public async Task Memory_and_sqlite_refuse_at_the_input_the_value_that_sql_server_refuses_at_the_column()
     {
-        // 🚨 A regression gate, not a proof: the three stores do not agree on the longest text, and this fixes the
-        // difference. SQL Server holds 200 characters in this column; the other two hold any length. The day one
-        // limit is chosen for all of them, this test fails and the change is a decision, not an accident.
+        // The stores do not agree on the longest text: SQL Server holds 200 characters in this column and the other
+        // two hold any length. One limit is chosen for all of them, the narrowest, and the request is refused before
+        // a store is asked, so the answer is the same on every store and names the field.
         var longName = new string('a', 300);
 
         await using var memory = await TraconTestHost.StartAsync();
@@ -173,7 +173,7 @@ public sealed class StoreDataFaultProblemTests
             new Uri("/tracon/api/tenants/acme", UriKind.Relative),
             new { displayName = longName },
             TestContext.Current.CancellationToken);
-        inMemory.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await AssertRefusedAtTheInputAsync(inMemory);
 
         using var database = new TempSqliteDatabase("data-fault-parity");
         await using var sqlite = await TraconTestHost.StartAsync(
@@ -182,7 +182,21 @@ public sealed class StoreDataFaultProblemTests
             new Uri("/tracon/api/tenants/acme", UriKind.Relative),
             new { displayName = longName },
             TestContext.Current.CancellationToken);
-        onSqlite.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await AssertRefusedAtTheInputAsync(onSqlite);
+    }
+
+    private static async Task AssertRefusedAtTheInputAsync(HttpResponseMessage response)
+    {
+        var raw = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, raw);
+
+        var problem = System.Text.Json.JsonDocument.Parse(raw).RootElement;
+
+        // The input refuses it, not the store: the store's own answer has a different title and names no field.
+        problem.GetProperty("title").GetString().ShouldBe("Invalid request body");
+        (problem.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("'displayName'");
+        (problem.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("200 characters");
     }
 
     private static Task<HttpResponseMessage> PostAgentAsync(TraconTestHost host)

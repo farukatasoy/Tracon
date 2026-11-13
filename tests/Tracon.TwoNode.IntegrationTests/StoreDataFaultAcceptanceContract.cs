@@ -12,10 +12,12 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The scenario is the same on every server and the answer is not: SQL Server holds the identifier columns to 200
-/// characters and refuses a longer value, and it must say <c>400</c>; PostgreSQL and SQLite keep text of any length and
-/// take it. A provider's class says which it is. Every write below is a different endpoint that stores a value its own
-/// validation does not bound, so a mapping that covered one endpoint or one table would not pass.
+/// SQL Server holds the identifier columns to 200 characters and refuses a longer value; PostgreSQL and SQLite keep text of
+/// any length. The request is refused at its input, before a store is asked, so the answer is the same on every server: a
+/// <c>400</c> that names the field and its limit. A field no input bounds still reaches the server, and a server that refuses
+/// it must say <c>400</c> and not <c>503</c> (the idempotency key above the limit of its column is the case here).
+/// Every write below is a different endpoint that stores a value, so a check that covered one endpoint or one table
+/// would not pass.
 /// </para>
 /// <para>
 /// The sentinel is a value that must never come back: neither the response nor the log may carry it, nor the name of a
@@ -24,8 +26,6 @@ namespace Tracon.TwoNode.IntegrationTests;
 /// </remarks>
 public abstract class StoreDataFaultAcceptanceContract
 {
-    private const string TooLongTitle = StoreDataFaultProblemMiddleware.TextTooLongTitle;
-
     private static readonly string Long = "CANARY-" + new string('x', 194);
 
     private static Uri Api(string path) => new($"/tracon/api/{path}", UriKind.Relative);
@@ -42,36 +42,35 @@ public abstract class StoreDataFaultAcceptanceContract
     protected abstract void UseUnreachable(ITraconBuilder builder);
 
     /// <summary>
-    /// Each write is a different endpoint and a different table, and each takes a value its own validation lets through.
+    /// Each write is a different endpoint and a different table, and each takes a value that is over its column on SQL
+    /// Server and fits any other store. All of them are refused at the input on all servers.
     /// </summary>
     [Theory]
-    [InlineData("tenant")]
-    [InlineData("approval-rule")]
-    [InlineData("feedback")]
-    [InlineData("eval-suite")]
-    [InlineData("mcp-server")]
-    public async Task A_value_over_its_column_is_answered_for_what_it_is_on_every_endpoint_that_stores_it(string write)
+    [InlineData("tenant", "displayName")]
+    [InlineData("approval-rule", "toolName")]
+    [InlineData("feedback", "messageId")]
+    [InlineData("eval-suite", "agentName")]
+    [InlineData("mcp-server", "oAuthClientId")]
+    public async Task A_value_over_its_column_is_refused_at_the_input_on_every_server_and_every_endpoint_that_stores_it(
+        string write,
+        string field)
     {
         await using var host = await StartAsync(NewDatabase());
 
         using var response = await SendAsync(host, write);
         var raw = await response.Content.ReadAsStringAsync();
 
-        if (!RefusesLongText)
-        {
-            ((int)response.StatusCode).ShouldBeInRange(200, 299, raw);
-
-            return;
-        }
-
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, raw);
         response.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
 
         var body = JsonDocument.Parse(raw).RootElement;
-        body.GetProperty("title").GetString().ShouldBe(TooLongTitle);
-        body.GetProperty("detail").GetString().ShouldBe(StoreDataFaultProblemMiddleware.TextTooLongDetail);
+        body.GetProperty("title").GetString().ShouldBe("Invalid request body");
+        (body.GetProperty("detail").GetString() ?? string.Empty).ShouldContain($"'{field}'");
+        (body.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("200 characters");
 
-        AssertNothingLeaks(raw, host);
+        // The refusal comes before the server is asked, so what must not leak here is the value itself; the names of
+        // the server's tables and columns are the business of the idempotency key below, which does reach it.
+        AssertValueNotEchoed(raw, host);
     }
 
     /// <summary>The refused write leaves the row as it was, and the next write, from the same pool, succeeds.</summary>
@@ -83,12 +82,9 @@ public abstract class StoreDataFaultAcceptanceContract
         (await PutTenantAsync(host, "acme", "first")).StatusCode.ShouldBe(HttpStatusCode.OK);
 
         using var refused = await PutTenantAsync(host, "acme", Long);
-        refused.StatusCode.ShouldBe(RefusesLongText ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
-        if (RefusesLongText)
-        {
-            (await DisplayNameAsync(host, "acme")).ShouldBe("first");
-        }
+        (await DisplayNameAsync(host, "acme")).ShouldBe("first");
 
         using var next = await PutTenantAsync(host, "acme", "second");
         next.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -117,15 +113,12 @@ public abstract class StoreDataFaultAcceptanceContract
         foreach (var (refused, status) in responses)
         {
             ((int)status).ShouldBeLessThan(500);
-            status.ShouldBe(refused && RefusesLongText ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
+            status.ShouldBe(refused ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
         }
 
         var stored = await DisplayNameAsync(host, "acme");
 
-        if (RefusesLongText)
-        {
-            valid.Contains(stored, StringComparer.Ordinal).ShouldBeTrue($"The row holds '{stored}'.");
-        }
+        valid.Contains(stored, StringComparer.Ordinal).ShouldBeTrue($"The row holds '{stored}'.");
     }
 
     /// <summary>
@@ -141,11 +134,17 @@ public abstract class StoreDataFaultAcceptanceContract
 
         await CreateIdempotentAgentAsync(host);
 
-        using (var tooLong = await RunAsync(host, new string('k', 250)))
+        using (var tooLong = await RunAsync(host, "CANARY-" + new string('k', 243)))
         {
-            tooLong.StatusCode.ShouldBe(
-                RefusesLongText ? HttpStatusCode.BadRequest : HttpStatusCode.OK,
-                await tooLong.Content.ReadAsStringAsync());
+            var raw = await tooLong.Content.ReadAsStringAsync();
+
+            tooLong.StatusCode.ShouldBe(RefusesLongText ? HttpStatusCode.BadRequest : HttpStatusCode.OK, raw);
+
+            // The refusal came from the server, so this is where the names of its tables and columns must not leak.
+            if (RefusesLongText)
+            {
+                AssertNothingLeaks(raw, host);
+            }
         }
 
         // The refusal left nothing behind: a key that fits is accepted.
@@ -175,9 +174,9 @@ public abstract class StoreDataFaultAcceptanceContract
         atLimit.StatusCode.ShouldBe(HttpStatusCode.OK, await atLimit.Content.ReadAsStringAsync());
     }
 
-    /// <summary>The same limit, counted the way the server counts it: UTF-16 code units on SQL Server.</summary>
+    /// <summary>The same limit on every server, counted the way SQL Server counts it: UTF-16 code units.</summary>
     [Fact]
-    public async Task The_limit_is_counted_in_the_servers_own_unit()
+    public async Task The_limit_is_counted_in_UTF16_code_units_on_every_server()
     {
         await using var host = await StartAsync(NewDatabase());
         var emoji = "\U0001F600";
@@ -195,17 +194,18 @@ public abstract class StoreDataFaultAcceptanceContract
         {
             using var response = await PutTenantAsync(host, "over", name);
 
-            response.StatusCode.ShouldBe(RefusesLongText ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
+            response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         }
     }
 
-    /// <summary>A server that cannot be reached stays the <c>503</c> that invites a retry, whatever the value.</summary>
+    /// <summary>A server that cannot be reached stays the <c>503</c> that invites a retry.</summary>
     [Fact]
     public async Task A_server_that_cannot_be_reached_is_still_a_503()
     {
         await using var host = await TraconTestHost.StartAsync(configureTracon: UseUnreachable);
 
-        using var response = await PutTenantAsync(host, "acme", Long);
+        // A value that fits: a value over the limit is refused at the input and never asks the server.
+        using var response = await PutTenantAsync(host, "acme", "fits");
 
         response.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable, await response.Content.ReadAsStringAsync());
     }
@@ -213,13 +213,20 @@ public abstract class StoreDataFaultAcceptanceContract
     private static Task<TraconTestHost> StartAsync(TwoNodeDatabase database)
         => TraconTestHost.StartAsync(configureTracon: database.Use);
 
+    private static void AssertValueNotEchoed(string raw, TraconTestHost host)
+    {
+        foreach (var text in new[] { raw, host.Logs.AllText })
+        {
+            text.ShouldNotContain("CANARY-");
+        }
+    }
+
     private static void AssertNothingLeaks(string raw, TraconTestHost host)
     {
         foreach (var text in new[] { raw, host.Logs.AllText })
         {
             text.ShouldNotContain("CANARY-");
-            text.ShouldNotContain("display_name");
-            text.ShouldNotContain("tool_name");
+            text.ShouldNotContain("idempotency_keys");
             text.ShouldNotContain("INSERT");
             text.ShouldNotContain("UPDATE ");
             text.ShouldNotContain("nvarchar");
