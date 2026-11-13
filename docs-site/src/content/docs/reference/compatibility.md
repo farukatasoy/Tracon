@@ -143,6 +143,15 @@ every store, and a request that spells a name differently from the definition an
 columns to a column of another collation fails with "Cannot resolve the collation conflict"; write `COLLATE Latin1_General_BIN2` on your side.
 SQL Server ignores trailing spaces in any collation, so `Support` and `Support ` are one name there.
 
+On SQL Server the list of runs (`GET /api/runs`, `IRunStore.QueryRunsAsync`) reads at `READ COMMITTED` and holds no
+snapshot. When a queued run starts, its row moves to the front of the list, and a list that is being read in that same
+instant can leave that one run out; the next read shows it. Measured with 900 lists released together with the move: none
+returned a run twice, none left out a run that stood still, and 885 left out the run that moved. Tracon does not change
+the database option. With `READ_COMMITTED_SNAPSHOT ON` the list reads a snapshot: the same 900 lists left out no run, and
+the SQL Server test project passed with the option on (1 804 of 1 806: one case skips, and one builds a deadlock out of
+the shared lock of a read, which a snapshot read does not take). The option keeps row versions in `tempdb` for the whole
+database, so turn it on for the database as a decision of its own.
+
 PostgreSQL knowledge search also needs an
 `IEmbeddingGenerator<string, Embedding<float>>`. The vector dimension becomes part of
 the PostgreSQL column type. Changing the embedding dimension is a schema migration,

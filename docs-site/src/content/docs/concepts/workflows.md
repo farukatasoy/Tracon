@@ -537,7 +537,10 @@ flowchart LR
   bounds the work, not one attempt of it
   ([Background work](/guides/background-work/#queue-one-workflow-run)).
 - The new run's `continuedFromRunId` names the run it continues.
-  `GET /api/runs?continuedFromRunId={runId}` walks the chain forward.
+  `GET /api/runs?continuedFromRunId={runId}` walks the chain forward. An operator's resume that is
+  cancelled while it still reads the chain closes `Canceled` without that link, so it does not show
+  under the run it was going to continue. Nothing continues from it; find it with
+  `GET /api/runs?status=Canceled` if you need it.
 - The new run uses the same session, the parameter values the chain recorded, and the
   user and labels of whoever queued the job. It is not counted against the quota or
   asked for authorization again: the job was, when it was queued.

@@ -254,6 +254,11 @@ latency and more than two hosts were not measured.
   profile refuses it when you declare more than one instance.
 - **The callback address.** `Tracon:Mcp:OAuthCallbackBaseUri` ends with `/`. See
   [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
+- **A record saved with an identifier you chose, from both instances at once.** On PostgreSQL, two instances that save the
+  same record (same tenant and name) with the same new identifier in the same instant, for example when both seed
+  definitions at start, can make one of the saves fail with a unique violation (`23505`) on the identifier. The row exists
+  after the first save, so saving again updates it. Seed from one instance, or save again on that error. Identifiers that
+  Tracon generates itself are not affected.
 - **A third instance.** It may work. Nobody measured it, so Tracon does not say it is supported.
 
 ## Read next

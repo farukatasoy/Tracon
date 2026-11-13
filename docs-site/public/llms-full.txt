@@ -6185,7 +6185,10 @@ flowchart LR
   bounds the work, not one attempt of it
   ([Background work](/guides/background-work/#queue-one-workflow-run)).
 - The new run's `continuedFromRunId` names the run it continues.
-  `GET /api/runs?continuedFromRunId={runId}` walks the chain forward.
+  `GET /api/runs?continuedFromRunId={runId}` walks the chain forward. An operator's resume that is
+  cancelled while it still reads the chain closes `Canceled` without that link, so it does not show
+  under the run it was going to continue. Nothing continues from it; find it with
+  `GET /api/runs?status=Canceled` if you need it.
 - The new run uses the same session, the parameter values the chain recorded, and the
   user and labels of whoever queued the job. It is not counted against the quota or
   asked for authorization again: the job was, when it was queued.
@@ -15889,6 +15892,11 @@ latency and more than two hosts were not measured.
   profile refuses it when you declare more than one instance.
 - **The callback address.** `Tracon:Mcp:OAuthCallbackBaseUri` ends with `/`. See
   [MCP tools and OAuth across instances](/guides/mcp-across-instances/).
+- **A record saved with an identifier you chose, from both instances at once.** On PostgreSQL, two instances that save the
+  same record (same tenant and name) with the same new identifier in the same instant, for example when both seed
+  definitions at start, can make one of the saves fail with a unique violation (`23505`) on the identifier. The row exists
+  after the first save, so saving again updates it. Seed from one instance, or save again on that error. Identifiers that
+  Tracon generates itself are not affected.
 - **A third instance.** It may work. Nobody measured it, so Tracon does not say it is supported.
 
 ## Read next
@@ -23536,6 +23544,15 @@ On SQL Server the names of definitions (agents, workflows, skills, schedules and
 every store, and a request that spells a name differently from the definition answers `404`. A query of your own that joins one of these
 columns to a column of another collation fails with "Cannot resolve the collation conflict"; write `COLLATE Latin1_General_BIN2` on your side.
 SQL Server ignores trailing spaces in any collation, so `Support` and `Support ` are one name there.
+
+On SQL Server the list of runs (`GET /api/runs`, `IRunStore.QueryRunsAsync`) reads at `READ COMMITTED` and holds no
+snapshot. When a queued run starts, its row moves to the front of the list, and a list that is being read in that same
+instant can leave that one run out; the next read shows it. Measured with 900 lists released together with the move: none
+returned a run twice, none left out a run that stood still, and 885 left out the run that moved. Tracon does not change
+the database option. With `READ_COMMITTED_SNAPSHOT ON` the list reads a snapshot: the same 900 lists left out no run, and
+the SQL Server test project passed with the option on (1 804 of 1 806: one case skips, and one builds a deadlock out of
+the shared lock of a read, which a snapshot read does not take). The option keeps row versions in `tempdb` for the whole
+database, so turn it on for the database as a decision of its own.
 
 PostgreSQL knowledge search also needs an
 `IEmbeddingGenerator<string, Embedding<float>>`. The vector dimension becomes part of
