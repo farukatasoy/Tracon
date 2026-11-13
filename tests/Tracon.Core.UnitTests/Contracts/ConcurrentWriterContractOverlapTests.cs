@@ -130,6 +130,10 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new WorkflowDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content());
 
     [Fact]
+    public Task The_workflow_request_expiry_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new WorkflowRequestFixture(), static contract => contract.Concurrent_expiries_close_each_row_exactly_once());
+
+    [Fact]
     public async Task A_case_that_starts_its_calls_one_after_the_other_is_caught_by_the_probe()
     {
         // The probe's own check: calls awaited one at a time never overlap, whatever the store.
@@ -318,5 +322,15 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<IWorkflowDefinitionStore> CreateStoreAsync()
             => ValueTask.FromResult(OverlapProbe.Wrap<IWorkflowDefinitionStore>(new InMemoryWorkflowDefinitionStore(), out _probe));
+    }
+
+    private sealed class WorkflowRequestFixture : WorkflowRequestStoreContract, IProbedContract
+    {
+        private OverlapProbe<IWorkflowRequestStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IWorkflowRequestStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IWorkflowRequestStore>(new InMemoryWorkflowRequestStore(AmbientTenant), out _probe));
     }
 }

@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -507,22 +509,35 @@ public abstract class WorkflowRequestStoreContract : TenantIsolationContract<IWo
     [Fact]
     public async Task Concurrent_expiries_close_each_row_exactly_once()
     {
+        // The expiries start on threads of their own, released together, over rows of their own each round: calls started
+        // one after the other on one thread never overlap, and a store that picks the due rows and then closes them lets
+        // two callers pick the same row. The rows of an earlier round are closed, so a round closes only its own.
         const int Rows = 12;
+        const int Expirers = 6;
+        const int Rounds = 20;
 
-        for (var i = 0; i < Rows; i++)
+        for (var round = 0; round < Rounds; round++)
         {
-            var runId = await RunAsync(TenantA, $"session-{i}");
+            var rows = new List<WorkflowRequestRecord>(Rows);
 
-            await Store.AddAsync([Row(TenantA, runId, $"session-{i}", $"request-{i}", Now) with { ExpiresAt = Now.AddMinutes(1) }]);
+            for (var i = 0; i < Rows; i++)
+            {
+                var runId = await RunAsync(TenantA, $"session-{round}-{i}");
+
+                rows.Add(Row(TenantA, runId, $"session-{round}-{i}", $"request-{round}-{i}", Now) with { ExpiresAt = Now.AddMinutes(1) });
+            }
+
+            await Store.AddAsync(rows);
+
+            var results = SimultaneousCalls.Run(
+                Expirers,
+                _ => Store.ExpireAsync(Now.AddHours(1), max: 100).AsTask().GetAwaiter().GetResult());
+
+            var closed = results.SelectMany(static closedRows => closedRows).Select(static row => row.RequestId).ToList();
+
+            closed.Count.ShouldBe(Rows, $"round {round}: a row was closed twice, or not at all");
+            closed.Distinct(StringComparer.Ordinal).Count().ShouldBe(Rows, $"round {round}: a row was closed by two callers");
         }
-
-        var results = await Task.WhenAll(
-            Enumerable.Range(0, 6).Select(_ => Store.ExpireAsync(Now.AddHours(1), max: 100).AsTask()));
-
-        var closed = results.SelectMany(static rows => rows).Select(static row => row.RequestId).ToList();
-
-        closed.Count.ShouldBe(Rows);
-        closed.Distinct(StringComparer.Ordinal).Count().ShouldBe(Rows);
     }
 
     [Fact]
