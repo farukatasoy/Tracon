@@ -152,7 +152,11 @@ When the agent runs a [loop](/concepts/agents/#run-until-the-work-is-done), the 
 holds every iteration. The playground draws a divider after each iteration the loop
 evaluated. The divider names the iteration and what the loop decided: another iteration
 and the criterion that asked for it, the iteration ceiling, a criterion that failed to
-evaluate, or a stop. The feedback text is not in the divider.
+evaluate, or a stop. The feedback the loop gave the model back is not in the divider: it
+shows under the divider as a muted note labelled "Feedback to the model", apart from the
+next answer. The transcript of a recorded run on the Runs screen shows the same note when
+the run kept the payload of its iteration events (`RunRecording:RecordToolPayloads`, on by
+default); without that payload the feedback reads as part of the reply.
 
 A tool call that needs a human decision stops the stream and renders as an approval
 card instead of a result — the entity name and message from a registered

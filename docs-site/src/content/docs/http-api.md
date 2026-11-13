@@ -92,7 +92,8 @@ events keep them.
 
 An agent with a [loop](/concepts/agents/#run-until-the-work-is-done) streams every
 iteration, so the `update` frames carry the drafts and the feedback as well as the
-answer. After each iteration the loop evaluated, the stream sends a
+answer; the feedback is the `update` whose `role` is `user`. After each iteration the
+loop evaluated, the stream sends a
 `loop.iteration-completed` frame. It comes after the last `update` of that iteration
 and before the first `update` of the next. The frame's data is the recorded
 `LoopIterationCompleted` event, byte for byte the same as `GET /api/runs/{runId}/events`

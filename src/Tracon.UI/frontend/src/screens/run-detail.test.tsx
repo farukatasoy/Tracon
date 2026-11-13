@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fixture, installApiMock, type FixtureRoute } from '../test/api-fixtures';
+import { fixture, installApiMock, sseFixture, sseFrame, type FixtureRoute } from '../test/api-fixtures';
 import { renderScreen, screen } from '../test/render';
 import { RunDetailScreen } from './run-detail';
 
@@ -456,5 +456,66 @@ describe('RunDetailScreen non-token usage', () => {
     expect(line.textContent).toContain('unpriced');
     expect(line.textContent).toContain('estimated');
     expect(line.textContent).toContain('elevenlabs');
+  });
+
+  it('shows the feedback a loop gave the model as a note of its own, apart from the next answer', async () => {
+    // The recording keeps the feedback as a message delta like the answer, with no role. The event that ends the
+    // iteration says that feedback follows, and without it the text ran into the paragraph before and after it.
+    const recorded = (sequence: number, type: string, fields: Record<string, unknown> = {}) =>
+      sseFrame(type, {
+        runId,
+        sequence,
+        type,
+        timestamp: '2026-11-13T10:00:00Z',
+        text: null,
+        toolName: null,
+        toolCallId: null,
+        payload: null,
+        customType: null,
+        ...fields,
+      });
+
+    const iterationPayload = JSON.stringify({
+      iteration: 1,
+      continued: true,
+      continuedBy: 'completionMarker',
+      hasFeedback: true,
+      failedCriterion: null,
+      ceilingReached: false,
+      failsRun: false,
+    });
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', { ...runRecord(), status: 'Completed' }),
+      sseFixture(
+        'GET',
+        'api/runs/:runId/events',
+        recorded(1, 'MessageDelta', { text: 'first draft' }) +
+          recorded(2, 'LoopIterationCompleted', { payload: iterationPayload }) +
+          recorded(3, 'MessageDelta', { text: 'Reviewer findings (round 1): add a heading' }) +
+          recorded(4, 'MessageDelta', { text: 'final answer' }) +
+          recorded(5, 'RunCompleted'),
+      ),
+      fixture('GET', 'api/runs/:runId/trace', { spans: [] }),
+      fixture('GET', 'api/runs/:runId/tree', []),
+      fixture('GET', 'api/runs/:runId/tools', []),
+    ]);
+
+    const { container } = renderScreen(<RunDetailScreen id={runId} />);
+
+    const note = await screen.findByTestId('transcript-feedback');
+
+    expect(note.textContent).toContain('Feedback to the model');
+    expect(note.textContent).toContain('Reviewer findings (round 1): add a heading');
+
+    // The timeline lists every event by its text too, so the answers are read off the transcript's own paragraphs:
+    // each is a paragraph of its own, with none of the feedback in it.
+    const paragraphs = Array.from(container.querySelectorAll('p.whitespace-pre-wrap')).map((p) => p.textContent);
+
+    expect(paragraphs).toContain('first draft');
+    expect(paragraphs).toContain('final answer');
+    expect(paragraphs.filter((text) => text?.includes('Reviewer findings'))).toEqual([
+      'Reviewer findings (round 1): add a heading',
+    ]);
   });
 });

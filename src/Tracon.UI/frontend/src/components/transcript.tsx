@@ -92,6 +92,9 @@ export function TranscriptView({
           case 'iteration':
             return <IterationDivider key={item.id} item={item} />;
 
+          case 'feedback':
+            return <FeedbackNote key={item.id} text={item.text} />;
+
           default:
             return null;
         }
@@ -126,6 +129,24 @@ function IterationDivider({ item }: { item: Extract<TranscriptItem, { kind: 'ite
       <span className="h-px flex-1 bg-line" />
       <span>{note}</span>
       <span className="h-px flex-1 bg-line" />
+    </div>
+  );
+}
+
+/**
+ * What a loop told the model before it tried again. A quiet note under the divider that ended the iteration:
+ * the secondary text colour and the raised surface of the reasoning block, a small label above, so it reads as
+ * something said to the model and not as part of the answer that follows.
+ */
+function FeedbackNote({ text }: { text: string }): ReactNode {
+  const t = useT();
+
+  return (
+    <div data-testid="transcript-feedback" className="rounded-md border border-line bg-raised px-3 py-2">
+      <span className="mb-1 block text-2xs font-semibold tracking-wide text-subtle uppercase">
+        {t('transcript.feedback')}
+      </span>
+      <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted">{text}</p>
     </div>
   );
 }

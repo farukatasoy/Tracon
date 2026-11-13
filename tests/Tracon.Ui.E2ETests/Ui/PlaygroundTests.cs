@@ -181,10 +181,15 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         await Expect(dividers.First).ToHaveTextAsync("Iteration 1 · completionMarker asked for another iteration");
         await Expect(dividers.Last).ToHaveTextAsync("Iteration 2 · the loop stopped");
 
+        // The update the loop sends between two iterations carries the feedback it gives the model back. It is a
+        // muted note of its own under the first divider, not the first words of the next answer.
+        var note = session.Page.GetByTestId("transcript-feedback");
 
-        // Not an exact match: the update the loop sends between two iterations carries the feedback it gives the
-        // model back, and the transcript folds it into the paragraph of the next iteration.
-        await Expect(session.Page.GetByText(ScriptedModels.LoopingAnswer).First).ToBeVisibleAsync();
+        await Expect(note).ToHaveCountAsync(1);
+        await Expect(note.GetByText("Feedback to the model", new() { Exact = true })).ToBeVisibleAsync();
+
+        // Exact: the answer is a paragraph with nothing in front of it.
+        await Expect(session.Page.GetByText(ScriptedModels.LoopingAnswer, new() { Exact = true })).ToBeVisibleAsync();
     }
 
     [Fact]

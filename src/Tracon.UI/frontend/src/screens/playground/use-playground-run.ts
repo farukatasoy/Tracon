@@ -268,7 +268,8 @@ export function usePlaygroundRun(
           }
 
           if (frame.event === 'update') {
-            const payload = JSON.parse(frame.data) as { contents?: [] };
+            // `role` tells the feedback a loop gives the model (`user`) from the reply.
+            const payload = JSON.parse(frame.data) as { role?: string; contents?: [] };
 
             update((turn) => ({ ...turn, transcript: foldUpdate(turn.transcript, payload) }));
 

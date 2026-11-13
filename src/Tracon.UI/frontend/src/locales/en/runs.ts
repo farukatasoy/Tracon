@@ -268,6 +268,7 @@ export const enRuns = {
   "transcript.iterationContinued": 'Iteration {n} · {criterion} asked for another iteration',
   "transcript.iterationCeiling": 'Iteration {n} · {criterion} asked for another iteration · the iteration ceiling ends the loop',
   "transcript.iterationFailed": 'Iteration {n} · criterion {criterion} failed to evaluate',
+  "transcript.feedback": 'Feedback to the model',
   "waterfall.spans_one": '{n} span',
   "waterfall.spans_other": '{n} spans',
   "waterfall.traceIdLabel": 'W3C trace id',

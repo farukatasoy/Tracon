@@ -107,6 +107,78 @@ describe('PlaygroundScreen', () => {
     ]);
   });
 
+  it('shows the feedback the loop gives the model as a muted note under the divider, apart from the next answer', async () => {
+    // Between two iterations the stream carries the feedback as an `update` with the role `user`. The role is
+    // what tells it from the answer: without it the text opened the paragraph of the next iteration.
+    const iteration = (payload: Record<string, unknown>) =>
+      sseFrame('loop.iteration-completed', {
+        runId: 'run-1',
+        sequence: 5,
+        type: 'LoopIterationCompleted',
+        timestamp: '2026-11-13T10:00:00Z',
+        payload: JSON.stringify({
+          iteration: 1,
+          continued: false,
+          continuedBy: null,
+          hasFeedback: false,
+          failedCriterion: null,
+          ceilingReached: false,
+          failsRun: false,
+          ...payload,
+        }),
+      });
+
+    restoreFetch = installApiMock([
+      ...baseOverrides(),
+      sseFixture(
+        'POST',
+        'api/agents/:name/run',
+        sseFrame('run', { runId: 'run-1' }) +
+          sseFrame('update', { role: 'assistant', contents: [{ $type: 'text', text: 'first draft' }] }) +
+          iteration({ continued: true, continuedBy: 'completionMarker', hasFeedback: true }) +
+          sseFrame('update', {
+            role: 'user',
+            messageId: 'feedback-1',
+            contents: [{ $type: 'text', text: 'Reviewer findings (round 1): add a heading' }],
+          }) +
+          sseFrame('update', { role: 'assistant', contents: [{ $type: 'text', text: 'final answer' }] }) +
+          iteration({ iteration: 2 }) +
+          sseFrame('done', {}),
+      ),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<PlaygroundScreen />);
+
+    await user.type(await screen.findByTestId('playground-input'), 'Hi');
+    await user.click(screen.getByTestId('playground-send'));
+
+    // Exact: the answer is a paragraph of its own, with none of the feedback in front of it.
+    expect(await screen.findByText('final answer')).toBeTruthy();
+
+    const note = screen.getByTestId('transcript-feedback');
+
+    expect(note.textContent).toContain('Feedback to the model');
+    expect(note.textContent).toContain('Reviewer findings (round 1): add a heading');
+
+    // First draft, the divider that ends it, the note, then the answer.
+    expect(
+      screen
+        .getAllByText(/^(first draft|Reviewer findings.*|final answer|Iteration \d.*)$/)
+        .map((element) => element.textContent),
+    ).toEqual([
+      'first draft',
+      'Iteration 1 · completionMarker asked for another iteration',
+      'Reviewer findings (round 1): add a heading',
+      'final answer',
+      'Iteration 2 · the loop stopped',
+    ]);
+
+    // The note is muted: the secondary text token, not the colour of an answer.
+    expect(note.querySelector('p')?.className).toContain('text-muted');
+  });
+
   it('shows the failure a stream error frame carries', async () => {
     restoreFetch = installApiMock([
       ...baseOverrides(),

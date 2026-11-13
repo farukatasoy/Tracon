@@ -273,6 +273,7 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "transcript.iterationContinued": 'İterasyon {n} · {criterion} yeni bir iterasyon istedi',
   "transcript.iterationCeiling": 'İterasyon {n} · {criterion} yeni bir iterasyon istedi · iterasyon tavanı döngüyü bitirir',
   "transcript.iterationFailed": 'İterasyon {n} · {criterion} ölçütü değerlendirilemedi',
+  "transcript.feedback": 'Modele verilen geri bildirim',
   "waterfall.spans_one": '{n} span',
   "waterfall.spans_other": '{n} span',
   "waterfall.traceIdLabel": 'W3C trace id',

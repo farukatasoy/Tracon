@@ -109,6 +109,20 @@ export type TranscriptItem =
       outcome: LoopIterationOutcome;
       /** The criterion that asked for another iteration, or the one that failed to evaluate. */
       criterion: string | null;
+    }
+  | {
+      /**
+       * What a harness loop told the model after an iteration, so that it tries again. A note, not
+       * the answer: the loop hands it to the model as a message of its own, between the iteration that
+       * ended and the one that follows.
+       *
+       * It is told from the answer by the role `user` of its `update` on a live turn. A recorded run
+       * keeps no role, so there it is the first message delta after an iteration that gave feedback
+       * (`foldRunEvents`).
+       */
+      kind: 'feedback';
+      id: string;
+      text: string;
     };
 
 /**
@@ -438,6 +452,21 @@ export function applyLoopIteration(state: TranscriptState, event: Pick<RunEvent,
 }
 
 /**
+ * Whether the loop went on and gave the model feedback after the iteration a `LoopIterationCompleted` event
+ * describes. A payload that cannot be read says no: the event keeps no payload when the option that records
+ * them is off, and the deltas then fold as they always did.
+ */
+function loopGaveFeedback(payload: string | null | undefined): boolean {
+  try {
+    const read = JSON.parse(payload ?? '') as { continued?: unknown; hasFeedback?: unknown } | null;
+
+    return typeof read === 'object' && read !== null && read.continued === true && read.hasFeedback === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * One entry of the `inputs` SSE frame — the shape
  * `AgentEndpoints.PendingToolInputAnnouncement` serializes.
  */
@@ -586,12 +615,28 @@ function clone(state: TranscriptState): TranscriptState {
 /**
  * Folds one streamed `AgentResponseUpdate` into the transcript.
  *
+ * Text in an update with the role `user` is not part of the reply: it is the feedback a loop gives the
+ * model between two iterations, and it becomes a `feedback` item of its own. The loop sends it as one
+ * whole message, so every such text is a note and none is merged into the one before it.
+ *
  * Returns a new state object; React needs a changed reference to re-render.
  */
-export function foldUpdate(state: TranscriptState, update: { contents?: ChatContent[] }): TranscriptState {
+export function foldUpdate(
+  state: TranscriptState,
+  update: { role?: string | null; contents?: ChatContent[] },
+): TranscriptState {
   const next = clone(state);
+  const fromUser = typeof update.role === 'string' && update.role.toLowerCase() === 'user';
 
   for (const content of update.contents ?? []) {
+    if (fromUser && classify(content) === 'text') {
+      if (typeof content.text === 'string' && content.text.length > 0) {
+        next.items.push({ kind: 'feedback', id: `feedback-${next.items.length}`, text: content.text });
+      }
+
+      continue;
+    }
+
     applyContent(next, content);
   }
 
@@ -640,14 +685,29 @@ export function foldMessages(messages: readonly ChatMessage[]): TranscriptState[
 export function foldRunEvents(events: readonly RunEvent[]): TranscriptState {
   const state: TranscriptState = { items: [], usage: null };
   let sawDelta = false;
+  // Set by an iteration that gave the model feedback; the next message delta is that feedback.
+  let feedbackNext = false;
 
   for (const event of events) {
     switch (event.type) {
       case 'MessageDelta': {
         if (typeof event.text === 'string' && event.text.length > 0) {
-          appendText(state.items, 'text', event.text);
+          if (feedbackNext) {
+            // The recording keeps no role, so the feedback is a delta like the answer; it arrives whole.
+            state.items.push({ kind: 'feedback', id: `feedback-${event.sequence}`, text: event.text });
+            feedbackNext = false;
+          } else {
+            appendText(state.items, 'text', event.text);
+          }
+
           sawDelta = true;
         }
+
+        break;
+      }
+
+      case 'LoopIterationCompleted': {
+        feedbackNext = loopGaveFeedback(event.payload);
 
         break;
       }
