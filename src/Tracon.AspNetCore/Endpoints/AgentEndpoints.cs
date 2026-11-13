@@ -270,11 +270,14 @@ internal static class AgentEndpoints
                 "registered IContentGuard blocks the content, the non-streaming response returns " +
                 "'422' and the run's error type becomes 'content_blocked'; in the STREAMING " +
                 "response the status code has already been sent, so the block arrives as an SSE " +
-                "'error' event instead. A run that ends because its own rule was not met, a loop that " +
-                "reached its ceiling with a criterion unsatisfied or an answer that is not the structured " +
-                "response the agent asked for, also returns '422' (non-streaming), with 'errorType' set " +
-                "to 'loop_unsatisfied' or 'structured_response_invalid' and the id of the failed run in " +
-                "'runId'. If a registered IRunAuthorizationHandler denies the caller, " +
+                "'error' event instead. A run that ends at a stop of its own, a loop that " +
+                "reached its ceiling with a criterion unsatisfied, an answer that is not the structured " +
+                "response the agent asked for, an answer cut at the output token limit or an answer the " +
+                "provider's filter left empty, also returns '422' (non-streaming), with 'errorType' set " +
+                "to 'loop_unsatisfied', 'structured_response_invalid', 'output_truncated' or " +
+                "'content_filtered' and the id of the failed run in 'runId'; sending the same request " +
+                "again ends the same way. Any other failure of the run returns '502'. " +
+                "If a registered IRunAuthorizationHandler denies the caller, " +
                 "the run does not start and a 403 is returned; this check runs before the quota " +
                 "check, so a denied run never consumes the tenant's quota. " +
                 "When session ownership is turned on, naming another user's session in 'sessionId' " +
@@ -327,6 +330,7 @@ internal static class AgentEndpoints
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status501NotImplemented)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         builder.MapPost("/api/agents/{name}/estimate", EstimateAsync)

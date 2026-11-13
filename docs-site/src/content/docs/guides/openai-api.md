@@ -356,9 +356,9 @@ your architecture permits.
 | `401` | Bearer token or API key is missing, invalid, revoked, or expired |
 | `403` | Role, scope, loopback, or tenant rule refused the call |
 | `404 model_not_found` | The selected Tracon agent does not resolve |
-| `422` | A Tracon content guard, the run budget (`run_budget_exceeded`), a loop that ended unsatisfied (`loop_unsatisfied`), an answer that is not the structured response the agent asked for (`structured_response_invalid`) or the idempotency contract rejected the request |
+| `422` | A Tracon content guard, the run budget (`run_budget_exceeded`), a loop that ended unsatisfied (`loop_unsatisfied`), an answer that is not the structured response the agent asked for (`structured_response_invalid`), an answer cut at the output token limit (`output_truncated`), an answer the provider's filter left empty (`content_filtered`) or the idempotency contract rejected the request |
 | `429` | A rate or quota boundary was reached |
-| `502` | The configured upstream provider failed |
+| `502` | The configured upstream provider failed. A run that ended at a stop of its own is a `422` |
 
 Use the management run API when you need Tracon-specific controls such as
 queued execution, idempotent non-streaming responses, explicit replay, cancellation,

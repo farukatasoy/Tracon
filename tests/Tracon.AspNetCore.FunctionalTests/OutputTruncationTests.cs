@@ -29,10 +29,18 @@ public sealed class OutputTruncationTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        // The provider answered and the request was understood; the run ended at the output limit the CALLER's agent set.
+        // A 502 sent the caller to the provider, with no error type to tell this from an outage.
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
+
+        var problem = await TraconTestHost.ReadJsonAsync(response);
+
+        problem.GetProperty("errorType").GetString().ShouldBe(TraconOutputTruncatedException.OutputTruncatedErrorType);
 
         var run = await SingleRunAsync(host);
 
+        problem.GetProperty("runId").GetGuid().ShouldBe(run.Id);
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
         run.Error.Type.ShouldBe(TraconOutputTruncatedException.OutputTruncatedErrorType);
@@ -64,7 +72,7 @@ public sealed class OutputTruncationTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -108,7 +116,7 @@ public sealed class OutputTruncationTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -334,7 +342,11 @@ public sealed class OutputTruncationTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        // The provider answered with nothing to keep because its own filter fired; retrying the same input will not
+        // change that, and a 502 said the provider was broken.
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("errorType").GetString()
+            .ShouldBe(TraconContentFilteredException.ContentFilteredErrorType);
 
         var run = await SingleRunAsync(host);
 

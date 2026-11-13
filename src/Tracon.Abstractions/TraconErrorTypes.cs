@@ -49,7 +49,7 @@ public static class TraconErrorTypes
     /// <summary>A session was changed by another run at the same time (<see cref="TraconSessionConflictException"/>).</summary>
     public const string SessionConflict = "session_conflict";
 
-    /// <summary>An outbound call was refused by the egress policy (<see cref="TraconExternalCallException"/>).</summary>
+    /// <summary>An external caller's call over MCP or A2A was refused because it crosses a boundary (<see cref="TraconExternalCallException"/>).</summary>
     public const string ExternalCallRejected = "external_call_rejected";
 
     /// <summary>The model answer did not match the requested schema (<see cref="TraconStructuredResponseException"/>).</summary>

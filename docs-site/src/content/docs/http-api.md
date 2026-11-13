@@ -184,10 +184,10 @@ shows server text as it is.
 | `409` | Conflicting state — a name in use, a running experiment, a code-defined agent, a client-side tool that cannot be replayed |
 | `413` | The JSON body is longer than `TraconEndpointOptions.MaxJsonBodyBytes` (8 MiB by default). It is counted as it arrives, so a body sent chunked or with a wrong length stops there too |
 | `415` | The body has to be JSON and the request carried another `Content-Type`, or none (`Content-Type: application/json`). The answer is a problem document that names the content type the endpoint takes (the OpenAI error envelope on `/v1/*`), and the document lists it on every operation that takes a body. A route of your own application keeps the bare `415` the framework writes |
-| `422` | A content guard blocked the content, or the run ended because its own rule was not met: a loop that reached its ceiling with a criterion unsatisfied (`loop_unsatisfied`) or an answer that is not the structured response the agent asked for (`structured_response_invalid`). The body names the failed run in `runId` |
+| `422` | A content guard blocked the content, or the run ended at a stop of its own: a loop that reached its ceiling with a criterion unsatisfied (`loop_unsatisfied`), an answer that is not the structured response the agent asked for (`structured_response_invalid`), an answer cut at the output token limit (`output_truncated`) or an answer the provider's filter left empty (`content_filtered`). Sending the same request again ends the same way. The body names the failed run in `runId` |
 | `429` | A quota or rate limit was exceeded |
 | `501` | The capability is not registered — the workflow engine, voice, knowledge, or MCP |
-| `502` | The model provider failed or never answered — including a request that timed out |
+| `502` | The model provider failed or never answered — including a request that timed out. A run that ended at a stop of its own is a `422` |
 | `503` | The store could not answer, or the process is draining in-flight runs before it stops |
 
 `501` is worth its own note: it means "this build does not have that package wired

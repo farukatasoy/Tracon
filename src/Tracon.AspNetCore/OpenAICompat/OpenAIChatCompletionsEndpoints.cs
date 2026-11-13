@@ -325,10 +325,11 @@ internal static class OpenAIChatCompletionsEndpoints
                 ex.Message,
                 type: ex.ErrorType);
         }
-        catch (TraconException ex) when (ex is TraconLoopUnsatisfiedException or TraconStructuredResponseException)
+        catch (TraconException ex) when (RunStopRefusal.Matches(ex))
         {
-            // The run ended because its own rule was not met (a loop criterion, a structured answer): the provider
-            // answered, so a 502 would send the caller to the wrong system. The message is written for the caller.
+            // The run ended at a stop of its own (a loop criterion, a structured answer, the output limit, the provider's
+            // filter): the provider answered, so a 502 would send the caller to the wrong system. The message is written
+            // for the caller.
             return OpenAICompatSupport.Error(
                 StatusCodes.Status422UnprocessableEntity,
                 ex.Message,

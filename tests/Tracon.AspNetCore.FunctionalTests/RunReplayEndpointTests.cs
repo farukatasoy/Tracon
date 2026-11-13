@@ -263,6 +263,50 @@ public sealed class RunReplayEndpointTests
         record.Error.ShouldNotBeNull().Type.ShouldBe(TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_replay_that_stops_at_the_output_limit_or_in_the_providers_filter_is_answered_with_422_and_leaves_a_failed_run(bool filtered)
+    {
+        // Neither is an upstream outage: the provider answered, and sending the same input again ends the same way. The
+        // answer names the new run, whose record ends Failed with the stop's identity.
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            var provider = new FinishReasonModelProvider();
+
+            _ = filtered
+                ? provider.Text(string.Empty, ChatFinishReason.ContentFilter, inputTokens: 900, outputTokens: 0)
+                : provider.Text("{\"title\": \"An unfinish", ChatFinishReason.Length, inputTokens: 40, outputTokens: 200);
+
+            builder.AddModelProvider(provider);
+
+            var definition = filtered
+                ? OutputTruncationTests.PlainText(maxOutputTokens: 50)
+                : OutputTruncationTests.Structured(maxOutputTokens: 200);
+
+            SaveDefinition(builder, definition with { Name = AgentName, Origin = AgentDefinitionOrigin.Database });
+        });
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "go")]);
+
+        using var response = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "NoTools" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity, await response.Content.ReadAsStringAsync());
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
+
+        var body = await TraconTestHost.ReadJsonAsync(response);
+        var expected = filtered
+            ? TraconContentFilteredException.ContentFilteredErrorType
+            : TraconOutputTruncatedException.OutputTruncatedErrorType;
+
+        body.GetProperty("errorType").GetString().ShouldBe(expected);
+
+        var record = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(body.GetProperty("runId").GetGuid());
+
+        record.ShouldNotBeNull().Status.ShouldBe(RunStatus.Failed);
+        record.ReplayOfRunId.ShouldBe(runId);
+        record.Error.ShouldNotBeNull().Type.ShouldBe(expected);
+    }
+
     [Fact]
     public async Task A_tool_requiring_approval_returns_409_with_LiveTools()
     {

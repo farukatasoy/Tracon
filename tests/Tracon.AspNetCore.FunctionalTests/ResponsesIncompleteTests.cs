@@ -344,8 +344,9 @@ public sealed class ResponsesIncompleteTests
 
         if (!stream)
         {
-            response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
-            (await TraconTestHost.ReadJsonAsync(response)).TryGetProperty("error", out _).ShouldBeTrue();
+            response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+            (await TraconTestHost.ReadJsonAsync(response)).GetProperty("error").GetProperty("type").GetString()
+                .ShouldBe(TraconContentFilteredException.ContentFilteredErrorType);
             return;
         }
 
