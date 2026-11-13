@@ -108,7 +108,7 @@ public sealed class EvalJobHandlerFinalWriteTests
     [Fact]
     public async Task A_failed_attempt_is_closed_at_the_moment_of_the_registered_clock()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
         var store = new InMemoryEvalStore();
         var chat = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "a long enough answer")));
         var handler = CreateHandler(store, chat, publisher: null, TimeSpan.FromMinutes(5), new TruncatedJudgeFactory(), clock);

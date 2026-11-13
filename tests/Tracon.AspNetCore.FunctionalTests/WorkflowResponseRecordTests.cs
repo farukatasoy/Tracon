@@ -54,9 +54,9 @@ public sealed class WorkflowResponseRecordTests
     [Fact]
     public async Task The_audit_entry_and_the_record_of_an_answer_are_stamped_with_the_registered_clock()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
         var harness = new WorkflowResponseHarness();
-        await using var host = await harness.StartAsync(configureServices: services => services.AddSingleton<TimeProvider>(clock));
+        await using var host = await harness.StartAsync(runWorker: false, configureServices: services => services.AddSingleton<TimeProvider>(clock));
         var (sourceId, requestId) = await RunToAwaitAsync(host, NoteFlow);
 
         using var answered = await RespondAsync(host, sourceId, new { requestId, text = "ship it" });

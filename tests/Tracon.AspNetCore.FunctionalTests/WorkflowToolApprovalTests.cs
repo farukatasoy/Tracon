@@ -91,7 +91,7 @@ public sealed class WorkflowToolApprovalTests
     [Fact]
     public async Task The_audit_entry_of_a_decision_on_a_workflow_request_is_stamped_with_the_registered_clock()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
         var calls = new int[1];
         await using var host = await StartApprovalHostAsync(calls, services => services.AddSingleton<TimeProvider>(clock));
         var waiting = await RunToApprovalAsync(host, StoredApproval);

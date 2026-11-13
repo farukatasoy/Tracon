@@ -23,6 +23,7 @@ public sealed class SessionlessApprovalTests
     private const string AgentName = "refund-agent";
     private const string ModelName = "approval-model";
     private const string Suite = "approval-suite";
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(20);
 
     [Fact]
     public async Task A_batch_item_that_stops_at_an_approval_fails_and_its_run_is_closed_as_failed()
@@ -43,10 +44,10 @@ public sealed class SessionlessApprovalTests
     [Fact]
     public async Task The_run_of_a_batch_item_closed_for_an_approval_is_stamped_with_the_registered_clock()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
         await using var host = await StartAsync(configureServices: services => services.AddSingleton<TimeProvider>(clock));
 
-        var (_, run) = await RunBatchItemAsync(host);
+        var (_, run) = await RunBatchItemAsync(host, clock);
 
         run.Status.ShouldBe(RunStatus.Failed);
         run.CompletedAt.ShouldNotBeNull().Year.ShouldBe(2000);
@@ -71,10 +72,10 @@ public sealed class SessionlessApprovalTests
     [Fact]
     public async Task An_eval_run_and_the_run_of_its_case_are_stamped_with_the_registered_clock()
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
         await using var host = await StartAsync(configureServices: services => services.AddSingleton<TimeProvider>(clock));
 
-        var (detail, _, run) = await RunEvalCaseAsync(host);
+        var (detail, _, run) = await RunEvalCaseAsync(host, clock);
 
         run.Status.ShouldBe(RunStatus.Failed);
         run.CompletedAt.ShouldNotBeNull().Year.ShouldBe(2000);
@@ -272,7 +273,21 @@ public sealed class SessionlessApprovalTests
         created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
     }
 
-    private static async Task<(JobItemRecord Item, RunRecord Run)> RunBatchItemAsync(TraconTestHost host)
+    /// <summary>
+    /// Waits for <paramref name="waiting"/>. A host on a clock whose timers are virtual has a worker that polls on that
+    /// clock, so the clock is moved a poll at a time until the wait ends.
+    /// </summary>
+    private static async Task<T> DriveAsync<T>(ManualClock? clock, Task<T> waiting)
+    {
+        if (clock is not null)
+        {
+            await clock.AdvanceUntilAsync(waiting, within: PollInterval);
+        }
+
+        return await waiting;
+    }
+
+    private static async Task<(JobItemRecord Item, RunRecord Run)> RunBatchItemAsync(TraconTestHost host, ManualClock? clock = null)
     {
         using (var saved = await host.Client.PutAsJsonAsync(
                    "/tracon/api/schedules/batch",
@@ -293,10 +308,12 @@ public sealed class SessionlessApprovalTests
         var jobs = host.Services.GetRequiredService<IJobStore>();
         var tenant = host.Services.GetRequiredService<ITenantContext>().TenantId;
 
-        await WaitUntil.ValueAsync(
-            async () => (await jobs.GetAsync(tenant, jobId))!,
-            static job => job.Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled,
-            "the batch job to finish");
+        await DriveAsync(
+            clock,
+            WaitUntil.ValueAsync(
+                async () => (await jobs.GetAsync(tenant, jobId))!,
+                static job => job.Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled,
+                "the batch job to finish"));
 
         var item = (await jobs.ListItemsAsync(jobId)).ShouldHaveSingleItem();
         var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(item.RunId!.Value)).ShouldNotBeNull();
@@ -304,7 +321,7 @@ public sealed class SessionlessApprovalTests
         return (item, run);
     }
 
-    private static async Task<(JsonElement Detail, JsonElement Result, RunRecord Run)> RunEvalCaseAsync(TraconTestHost host)
+    private static async Task<(JsonElement Detail, JsonElement Result, RunRecord Run)> RunEvalCaseAsync(TraconTestHost host, ManualClock? clock = null)
     {
         using (var suite = await host.Client.PutAsJsonAsync(
                    $"/tracon/api/evals/{Suite}",
@@ -329,15 +346,17 @@ public sealed class SessionlessApprovalTests
 
         var evalRunId = (await TraconTestHost.ReadJsonAsync(triggered)).GetProperty("id").GetGuid();
 
-        var detail = await WaitUntil.ValueAsync(
-            async () =>
-            {
-                using var response = await host.Client.GetAsync($"/tracon/api/evals/runs/{evalRunId}");
+        var detail = await DriveAsync(
+            clock,
+            WaitUntil.ValueAsync(
+                async () =>
+                {
+                    using var response = await host.Client.GetAsync($"/tracon/api/evals/runs/{evalRunId}");
 
-                return await TraconTestHost.ReadJsonAsync(response);
-            },
-            static body => body.GetProperty("run").GetProperty("status").GetString() is "Completed" or "Failed",
-            "the eval run to finish");
+                    return await TraconTestHost.ReadJsonAsync(response);
+                },
+                static body => body.GetProperty("run").GetProperty("status").GetString() is "Completed" or "Failed",
+                "the eval run to finish"));
 
         var result = detail.GetProperty("results").EnumerateArray().ShouldHaveSingleItem();
         var runId = result.GetProperty("runId").GetGuid();
@@ -393,7 +412,7 @@ public sealed class SessionlessApprovalTests
                 builder.UseScheduling(static options =>
                 {
                     options.RunWorker = true;
-                    options.PollInterval = TimeSpan.FromMilliseconds(20);
+                    options.PollInterval = PollInterval;
                 });
             },
             configureAfterMap: configureAfterMap,

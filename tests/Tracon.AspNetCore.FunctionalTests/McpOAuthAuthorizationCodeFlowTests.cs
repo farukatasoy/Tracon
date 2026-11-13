@@ -79,7 +79,7 @@ public sealed class McpOAuthAuthorizationCodeFlowTests
     [InlineData(11, false)]
     public async Task A_flow_is_forgotten_by_the_registered_clock_and_not_before(int minutes, bool completes)
     {
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
         await using var server = await OAuthProtectedMcpServer.StartAsync();
         await using var host = await StartAsync(clock);
 

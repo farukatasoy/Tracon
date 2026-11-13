@@ -23,6 +23,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </remarks>
 public sealed class WebhookEventPublishingTests
 {
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(50);
+
     [Fact]
     public async Task A_job_that_fails_publishes_job_failed()
     {
@@ -192,13 +194,18 @@ public sealed class WebhookEventPublishingTests
     public async Task An_eval_completed_event_is_stamped_with_the_registered_clock()
     {
         var publisher = new RecordingPublisher();
-        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
 
         await using var host = await StartWorkerAsync(publisher, clock);
 
         await TriggerEvalAsync(host);
 
-        (await publisher.WaitForAsync(WebhookEvents.EvalCompleted)).OccurredAt.ShouldNotBeNull().Year.ShouldBe(2000);
+        // The worker polls on the host's clock, which stands still: the test moves it a poll at a time.
+        var published = publisher.WaitForAsync(WebhookEvents.EvalCompleted);
+
+        await clock.AdvanceUntilAsync(published, within: PollInterval);
+
+        (await published).OccurredAt.ShouldNotBeNull().Year.ShouldBe(2000);
     }
 
     private static async Task<Guid> TriggerEvalAsync(TraconTestHost host)
@@ -235,7 +242,7 @@ public sealed class WebhookEventPublishingTests
                 builder.UseScheduling(static options =>
                 {
                     options.RunWorker = true;
-                    options.PollInterval = TimeSpan.FromMilliseconds(50);
+                    options.PollInterval = PollInterval;
                 });
             },
             configureServices: services =>

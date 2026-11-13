@@ -620,8 +620,8 @@ public sealed class ConversationMemoryTests
         await SeedAsync(store, "tenant-a", "memory-agent", "ada", "ada-session", "My favourite colour is teal.");
         store.HangOn = static operation => string.Equals(operation, "search", StringComparison.Ordinal);
 
-        // The scheduling loop of the host polls every 20 ms on the system's timers; the tool's timeout, 200 ms, is the clock's.
-        var clock = new ManualClock { SystemTimersWithin = TimeSpan.FromMilliseconds(50) };
+        // No worker: this run is streamed, and a worker polling every 20 ms on the clock would be a step of its own.
+        var clock = new ManualClock();
 
         await using var host = await StartHostAsync(
             store,
@@ -633,6 +633,7 @@ public sealed class ConversationMemoryTests
             services =>
             {
                 services.AddSingleton<TimeProvider>(clock);
+                services.Configure<TraconSchedulingOptions>(static options => options.RunWorker = false);
                 services.Configure<TraconOptions>(static options => options.Tools.DefaultTimeout = TimeSpan.FromMilliseconds(200));
             });
 
