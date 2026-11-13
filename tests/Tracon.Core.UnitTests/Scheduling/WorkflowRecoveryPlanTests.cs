@@ -69,6 +69,37 @@ public sealed class WorkflowRecoveryPlanTests
         plan.SessionId.ShouldBe("session-1");
     }
 
+    /// <summary>
+    /// A run that reconciliation closed before it ever started (<c>Failed</c>, error type <c>orphaned</c>, no event, no
+    /// checkpoint) is an interrupted run like any other: the next attempt continues it from the first step, and that
+    /// continuation counts against <c>MaxResumeAttempts</c>. A run still <c>Queued</c> that nothing closed is not one.
+    /// </summary>
+    [Fact]
+    public async Task A_run_reconciliation_closed_before_it_started_is_continued_from_the_first_step()
+    {
+        var head = await StartOrphanedAsync();
+
+        var plan = await Recovery(max: 1).PlanAsync(head, Job(), CancellationToken.None);
+
+        plan.Step.ShouldBe(WorkflowRecoveryStep.Continue);
+        plan.Last!.Id.ShouldBe(head);
+        plan.Checkpoint.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task The_continuation_of_a_run_that_never_started_counts_against_the_limit()
+    {
+        var head = await StartOrphanedAsync();
+
+        // The first attempt after the orphan opened the continuation and it was interrupted in turn.
+        await StartAsync(RunStatus.Failed, continuedFrom: head);
+
+        var plan = await Recovery(max: 1).PlanAsync(head, Job(), CancellationToken.None);
+
+        plan.Step.ShouldBe(WorkflowRecoveryStep.Exhausted);
+        plan.NotContinuedReason.ShouldNotBeNull().ShouldContain("MaxResumeAttempts", Case.Sensitive);
+    }
+
     [Fact]
     public async Task A_chain_with_no_checkpoint_continues_by_starting_again()
     {
@@ -349,6 +380,21 @@ public sealed class WorkflowRecoveryPlanTests
         {
             await _runs.CompleteRunAsync(new RunCompletion { RunId = runId, Status = status, CompletedAt = DateTimeOffset.UtcNow });
         }
+
+        return runId;
+    }
+
+    private async Task<Guid> StartOrphanedAsync()
+    {
+        var runId = await StartAsync(RunStatus.Running);
+
+        await _runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError { Type = "orphaned", Message = "The process that started this run is gone." },
+        });
 
         return runId;
     }

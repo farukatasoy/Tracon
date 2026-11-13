@@ -443,6 +443,14 @@ finished, or that waits for a human answer, is not run again. Past
 last attempt never starts a continuation, because nothing would close it if it were
 interrupted too: it closes the chain instead.
 
+A run that reconciliation closed before it ever started (the process died between the
+job's lease and the first event) is the same case: it is closed as `Failed` with the
+error type `orphaned`, the next attempt of the job continues it, and with no checkpoint
+the continuation runs the workflow from its first step. That continuation counts against
+`MaxResumeAttempts` like any other, so with the default of `1` a second interruption
+fails the job. A run still `Queued` that nothing has closed is not a continuation: the
+job starts it.
+
 The step that was running when the process stopped runs again: steps finished before
 the stop are covered by their checkpoint, the step in progress is not. Make a
 function step with side effects idempotent, and expect an agent step to repeat its
