@@ -185,10 +185,12 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
         var root = options.Endpoint ?? DefaultEndpoint;
         var https = new Uri(root, $"live/sessions/{Uri.EscapeDataString(providerSessionId)}/attach");
 
-        // 🚨 ClientWebSocket has no ConnectCallback, so the egress policy cannot be
-        // enforced by the transport. It is enforced HERE, before the connection, by
-        // resolving and judging the target address.
-        await _egress.ValidateAsync(https, cancellationToken).ConfigureAwait(false);
+        // 🚨 The socket opens through the egress guard's own handler (ClientWebSocket takes an invoker), so the
+        // guard resolves the name once, judges the answer and connects to that address in its connect callback.
+        // A check made before a connection the socket opened by itself resolved the name twice: a name that
+        // answered differently the second time was judged on one address and opened on another.
+        using var handler = _egress.CreateHandler();
+        using var invoker = new HttpMessageInvoker(handler, disposeHandler: false);
 
         var socket = new ClientWebSocket();
         socket.Options.SetRequestHeader("Authorization", "Bearer " + apiKey);
@@ -200,11 +202,18 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
 
         try
         {
-            await socket.ConnectAsync(wss, cancellationToken).ConfigureAwait(false);
+            await socket.ConnectAsync(wss, invoker, cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (Exception exception)
         {
             socket.Dispose();
+
+            // The guard's refusal travels inside the handshake failure; the caller is told what was refused
+            // (the setting to change), not that "the WebSocket could not connect".
+            if (FindRefusal(exception) is { } refusal)
+            {
+                throw refusal;
+            }
 
             throw;
         }
@@ -214,6 +223,22 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
 
     /// <inheritdoc />
     public void Dispose() => _http.Dispose();
+
+    /// <summary>Finds the verdict of the egress guard in a failed connection.</summary>
+    /// <param name="exception">The failure the socket raised.</param>
+    /// <returns>The guard's <see cref="TraconException"/>, or <see langword="null"/> when the failure is the transport's own.</returns>
+    private static TraconException? FindRefusal(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is TraconException refusal)
+            {
+                return refusal;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>Picks the key a call is made with: the tenant's when given, otherwise the configured one.</summary>
     /// <param name="credential">The tenant's credential, or <see langword="null"/>.</param>

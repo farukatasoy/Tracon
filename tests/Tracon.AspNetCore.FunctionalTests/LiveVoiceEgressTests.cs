@@ -15,16 +15,16 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// 🚨 This is the repository's first OUTGOING WebSocket, and it is the reason
 /// these tests exist. <c>EgressSocketGuard</c> is built around
-/// <c>SocketsHttpHandler.ConnectCallback</c>; <c>ClientWebSocket</c> has no such
-/// hook, so a socket opened without an explicit check would leave the policy
-/// silently skipped — a server-side request forgery hole that looks like working
-/// code.
+/// <c>SocketsHttpHandler.ConnectCallback</c>; a <c>ClientWebSocket</c> that opens its
+/// own connection would leave the policy silently skipped — a server-side request
+/// forgery hole that looks like working code. The socket is connected through the
+/// guard's handler, so the same callback judges it.
 /// </para>
 /// <para>
-/// The two halves are asserted SEPARATELY on purpose. The REST call inherits the
-/// policy through the handler, so proving it says nothing about the socket; the
-/// socket calls the guard by hand, and only a test that reaches
-/// <c>AttachAsync</c> itself can show that the call is still there.
+/// The two halves are asserted SEPARATELY on purpose. The REST call and the socket
+/// reach the callback by two different calls, so proving one says nothing about the
+/// other, and only a test that reaches <c>AttachAsync</c> itself can show that the
+/// socket still goes through it.
 /// </para>
 /// </remarks>
 public sealed class LiveVoiceEgressTests

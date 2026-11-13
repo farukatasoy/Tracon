@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The OpenAI live voice sideband socket opens the address the egress guard judged, not an address the operating system resolves a second time.** The socket was checked before it was opened (`EgressSocketGuard.ValidateAsync`) and then connected by `ClientWebSocket` on its own, which resolved the name again: a name that answered differently the second time was judged on one address and opened on another. The socket is now connected through the guard's own handler, so the guard resolves the name once and connects to that answer. The refusal the caller reads is unchanged (`TraconException` that names `AllowPrivateNetworkTargets`).
+  What to do:
+  - **If the sideband reached the live endpoint through a proxy set in the environment** (`HTTPS_PROXY`), it no longer does: the guard's handler never uses a proxy, as for every other outbound call of Tracon, because the connect callback would judge the proxy's address and not the target's. Give the live endpoint a direct route.
+
 - **A host that reloads its configuration and writes a value the options validation refuses no longer ends the loops that depend on the single-executor lease, the metrics scrape of the gauges, or the drain at shutdown.** Only a host that adds its own change token source can reach this (Tracon registers none). The lease guard read its options on every scan tick and every renewal, outside any `try`; the monitor throws on every read after a refused reload, so the five scan loops (canary evaluation, run reconciliation, model provider health, approval expiration, workflow request expiration) ended, and a service whose loop throws stops the host. While the options cannot be read, an instance does not act as the executor, a renewal tick does not call the store, and a lease it held runs out by its own duration; the first read of a valid value puts it back to work. A gauge scrape returns the last snapshot, and a shutdown drains nothing instead of failing.
   What to do:
   - **Nothing.** The warning is written once per refusal, as for the other loops.

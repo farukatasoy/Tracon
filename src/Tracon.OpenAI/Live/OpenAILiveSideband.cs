@@ -9,10 +9,9 @@ namespace Tracon;
 /// <summary>The server-side control connection of an OpenAI live voice session.</summary>
 /// <remarks>
 /// <para>
-/// The outbound address policy is applied before this socket is opened.
-/// <see cref="ClientWebSocket"/> offers no connection callback, so the policy cannot
-/// be enforced by the transport the way it is for HTTP; the provider resolves and
-/// judges the target explicitly instead.
+/// The outbound address policy is applied by the transport that opens this socket:
+/// <see cref="ClientWebSocket"/> is connected through the egress guard's own handler, so the
+/// guard resolves the name once, judges the answer and connects to that address.
 /// </para>
 /// <para>
 /// The socket carries no primary audio in either direction: WebRTC carries that.
