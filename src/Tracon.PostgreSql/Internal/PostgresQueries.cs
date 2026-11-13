@@ -295,6 +295,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 -- A queued run is marked when it starts running (the second write); a mark the row already has is kept, so a
                 -- second start of a run that stopped beating does not make it look alive.
                 heartbeat_at  = COALESCE({Schema}.runs.heartbeat_at, CASE WHEN EXCLUDED.status = @status_running THEN {LeaseNow} END)
+            -- 🚨 The write that moves a run out of the queue (@only_if_queued = 1) leaves a row that is not Queued as it is: the
+            -- job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the
+            -- row. No row comes back then, which is how the caller learns the row was not written.
+            WHERE @only_if_queued = 0 OR {Schema}.runs.status = @status_queued
             RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
             """;
 

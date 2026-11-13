@@ -67,6 +67,31 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(info);
 
+        var (record, _) = await WriteStartAsync(info, onlyIfQueued: false, cancellationToken).ConfigureAwait(false);
+
+        return record;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The same statement as <see cref="StartRunAsync"/> with <c>@only_if_queued</c> set: the update of a row that exists
+    /// carries the check as its own predicate, so a closure that lands first is not written over, and the statement returns
+    /// no row.
+    /// </remarks>
+    public async ValueTask<bool> PromoteQueuedRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+
+        var (_, written) = await WriteStartAsync(info, onlyIfQueued: true, cancellationToken).ConfigureAwait(false);
+
+        return written;
+    }
+
+    private async ValueTask<(RunRecord Record, bool Written)> WriteStartAsync(
+        RunStartInfo info,
+        bool onlyIfQueued,
+        CancellationToken cancellationToken)
+    {
         var record = new RunRecord
         {
             Id = info.RunId,
@@ -115,6 +140,8 @@ internal sealed class SqlRunStore : IRunStore
                 DbHelpers.Add(command, "status", (short)record.Status);
                 // The statements of the providers that read the database server's clock mark a run that is running with it.
                 DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+                DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
+                DbHelpers.Add(command, "only_if_queued", (short)(onlyIfQueued ? 1 : 0));
                 Dialect.AddTimestamp(command, "started_at", record.StartedAt);
                 DbHelpers.Add(command, "is_streaming", record.IsStreaming);
                 AddNullableUuid(command, "parent_run_id", record.ParentRunId);
@@ -153,7 +180,8 @@ internal sealed class SqlRunStore : IRunStore
             };
         }
 
-        return record;
+        // The statement returns the row it wrote; no row means it left the row alone. An ordinary start always gets one.
+        return (record, stored is not null || !onlyIfQueued);
     }
 
     /// <summary>

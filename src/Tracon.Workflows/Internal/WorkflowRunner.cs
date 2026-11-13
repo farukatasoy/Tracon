@@ -678,16 +678,22 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 }
             }
 
-            if (workflow is not null && holdsSlot)
-            {
-                // The run has what it waited for: a row opened Queued becomes Running now, on the token that
-                // cannot be canceled, because the wait is over and the next write is the run's own.
-                if (opensQueued)
-                {
-                    await writer.PromoteAsync(startInfo with { Status = RunStatus.Running }, CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
+            // The run has what it waited for: a row opened Queued becomes Running now, on the token that
+            // cannot be canceled, because the wait is over and the next write is the run's own. A row closed while the
+            // run waited (its job was cancelled on another instance, which does not hold the run) stays closed, and
+            // the graph does not start: the run ends Canceled like one stopped in the wait.
+            var rowClosed = false;
 
+            if (workflow is not null && holdsSlot && opensQueued
+                && !await writer.PromoteAsync(startInfo with { Status = RunStatus.Running }, CancellationToken.None)
+                    .ConfigureAwait(false))
+            {
+                rowClosed = true;
+                status = RunStatus.Canceled;
+            }
+
+            if (workflow is not null && holdsSlot && !rowClosed)
+            {
                 await foreach (var produced in PumpAsync(
                                        workflow,
                                        execution,

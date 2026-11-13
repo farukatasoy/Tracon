@@ -91,6 +91,19 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     /// </remarks>
     protected virtual bool AppendsEventGroupsAtomically => false;
 
+    /// <summary>
+    /// Gets whether the store under test moves a queued row to running in one step: a row that was closed in the meantime
+    /// is never written over, whatever the order of the two writes.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IRunStore.PromoteQueuedRunAsync"/> has a default implementation that reads the row and then writes it,
+    /// which leaves a window between the two calls. A store that overrides the method and checks the status inside the
+    /// write returns <see langword="true"/> here, and the scenario that races a closure against a promotion then runs.
+    /// Virtual and <see langword="false"/> by default for the same reason as <see cref="AppendsEventGroupsAtomically"/>: a
+    /// store that already derives from this contract keeps passing.
+    /// </remarks>
+    protected virtual bool PromotesQueuedRunsAtomically => false;
+
     [Fact]
     public async Task A_completed_run_stays_completed_while_its_cost_is_being_updated()
     {
@@ -175,6 +188,127 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         (await Store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false }))
             .Count(record => record.Id == runId).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task PromoteQueuedRunAsync_moves_a_queued_row_to_running_and_keeps_what_the_first_write_knew()
+    {
+        // The write that takes a run out of the queue is the StartRunAsync write with a guard: the same COALESCE of the
+        // attribution and the link, the same status change.
+        var runId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId) with
+        {
+            Status = RunStatus.Queued,
+            UserId = "user-1",
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" },
+        });
+
+        (await Store.PromoteQueuedRunAsync(TestData.Run(runId))).ShouldBeTrue();
+
+        var running = (await Store.GetRunAsync(runId)).ShouldNotBeNull();
+
+        running.Status.ShouldBe(RunStatus.Running);
+        running.UserId.ShouldBe("user-1");
+        running.Labels.ShouldNotBeNull()["team"].ShouldBe("payments");
+        (await Store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Count(record => record.Id == runId).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task PromoteQueuedRunAsync_writes_the_row_when_there_is_none()
+    {
+        // The write that opened the row is best effort: a run whose first write failed still gets its row here.
+        var runId = TraconId.NewId();
+
+        (await Store.PromoteQueuedRunAsync(TestData.Run(runId))).ShouldBeTrue();
+
+        (await Store.GetRunAsync(runId)).ShouldNotBeNull().Status.ShouldBe(RunStatus.Running);
+    }
+
+    [Theory]
+    [InlineData(RunStatus.Completed)]
+    [InlineData(RunStatus.Failed)]
+    [InlineData(RunStatus.Canceled)]
+    public async Task PromoteQueuedRunAsync_leaves_a_row_that_was_closed_while_it_waited_as_it_is(RunStatus closedAs)
+    {
+        // The job of a run that waits for a slot is cancelled on another instance, which closes the row because it does
+        // not hold the run. The promotion that follows must not write Running over a closed row.
+        var runId = TraconId.NewId();
+        var closedAt = DateTimeOffset.UtcNow;
+
+        await Store.StartRunAsync(TestData.Run(runId, "queued-agent") with { Status = RunStatus.Queued });
+        await Store.CompleteRunAsync(new RunCompletion { RunId = runId, Status = closedAs, CompletedAt = closedAt });
+
+        (await Store.PromoteQueuedRunAsync(TestData.Run(runId, "promoted-agent"))).ShouldBeFalse();
+
+        var row = (await Store.GetRunAsync(runId)).ShouldNotBeNull();
+
+        row.Status.ShouldBe(closedAs);
+        row.CompletedAt.ShouldNotBeNull();
+        row.AgentName.ShouldBe("queued-agent", "a row that was left alone is not rewritten");
+    }
+
+    [Fact]
+    public async Task PromoteQueuedRunAsync_leaves_a_row_that_already_runs_as_it_is()
+    {
+        var runId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId, "first-agent"));
+
+        (await Store.PromoteQueuedRunAsync(TestData.Run(runId, "second-agent"))).ShouldBeFalse();
+
+        (await Store.GetRunAsync(runId)).ShouldNotBeNull().AgentName.ShouldBe("first-agent");
+    }
+
+    [Fact]
+    public async Task PromoteQueuedRunAsync_never_writes_over_a_closure_that_lands_with_it()
+    {
+        if (!PromotesQueuedRunsAtomically)
+        {
+            return;
+        }
+
+        // Many queued rows, each closed and promoted from threads released together. Whichever write lands first, the row
+        // ends closed: a promotion that read Queued and wrote after the closure reopens the row, which is how a check that
+        // is not part of the write is caught.
+        const int Runs = 8;
+        const int Rounds = 10;
+
+        for (var round = 0; round < Rounds; round++)
+        {
+            var runIds = Enumerable.Range(0, Runs).Select(static _ => TraconId.NewId()).ToArray();
+
+            foreach (var runId in runIds)
+            {
+                await Store.StartRunAsync(TestData.Run(runId) with { Status = RunStatus.Queued });
+            }
+
+            SimultaneousCalls.Run(
+                Runs * 2,
+                index =>
+                {
+                    var runId = runIds[index % Runs];
+
+                    if (index < Runs)
+                    {
+                        Store.PromoteQueuedRunAsync(TestData.Run(runId)).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        Store.CompleteRunAsync(new RunCompletion
+                        {
+                            RunId = runId,
+                            Status = RunStatus.Canceled,
+                            CompletedAt = DateTimeOffset.UtcNow,
+                        }).AsTask().GetAwaiter().GetResult();
+                    }
+                });
+
+            foreach (var runId in runIds)
+            {
+                (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Canceled, $"round {round}: a closed run was written back as running by a promotion that read it queued");
+            }
+        }
     }
 
     [Fact]

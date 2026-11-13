@@ -354,6 +354,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 -- unset for the same run, so preserving is always correct.
                 user_id       = COALESCE(excluded.user_id, user_id),
                 labels        = COALESCE(excluded.labels, labels)
+            -- 🚨 The write that moves a run out of the queue (@only_if_queued = 1) leaves a row that is not Queued as it is: the
+            -- job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the
+            -- row. No row comes back then, which is how the caller learns the row was not written.
+            WHERE @only_if_queued = 0 OR status = @status_queued
             RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
             """;
 

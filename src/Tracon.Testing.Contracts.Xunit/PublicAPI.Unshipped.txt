@@ -514,6 +514,11 @@ Tracon.Testing.Contracts.Storage.RunScoreStoreContract.Written_score_is_read_bac
 Tracon.Testing.Contracts.Storage.RunStoreContract
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_label_key_without_a_value_matches_any_value_of_that_key() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_started_under_another_letter_case_is_read_back_with_the_canonical_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.PromoteQueuedRunAsync_leaves_a_row_that_already_runs_as_it_is() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.PromoteQueuedRunAsync_leaves_a_row_that_was_closed_while_it_waited_as_it_is(Tracon.RunStatus closedAs) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.PromoteQueuedRunAsync_moves_a_queued_row_to_running_and_keeps_what_the_first_write_knew() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.PromoteQueuedRunAsync_never_writes_over_a_closure_that_lands_with_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.PromoteQueuedRunAsync_writes_the_row_when_there_is_none() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Writers_that_start_one_run_at_the_same_time_each_leave_what_they_know() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_that_reports_only_a_cache_count_still_produces_a_usage_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_without_attribution_reads_back_as_null_not_as_an_empty_map() -> System.Threading.Tasks.Task!
@@ -1322,4 +1327,5 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_does_not_wri
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_takes_tenant_ids_that_differ_only_in_letter_case_as_one_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_without_an_expected_tenant_performs_no_tenant_check() -> System.Threading.Tasks.Task!
 virtual Tracon.Testing.Contracts.Storage.RunStoreContract.AppendsEventGroupsAtomically.get -> bool
+virtual Tracon.Testing.Contracts.Storage.RunStoreContract.PromotesQueuedRunsAtomically.get -> bool
 Tracon.Testing.Contracts.Storage.RunStoreContract.Records_written_with_an_expected_tenant_read_back_without_it() -> System.Threading.Tasks.Task!

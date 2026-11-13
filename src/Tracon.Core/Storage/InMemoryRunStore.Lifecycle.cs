@@ -12,6 +12,23 @@ internal sealed partial class InMemoryRunStore
         ArgumentNullException.ThrowIfNull(info);
         cancellationToken.ThrowIfCancellationRequested();
 
+        return new ValueTask<RunRecord>(StartRun(info, onlyIfQueued: false, out _));
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> PromoteQueuedRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        StartRun(info, onlyIfQueued: true, out var written);
+
+        return new ValueTask<bool>(written);
+    }
+
+    /// <summary>The upsert of <see cref="StartRunAsync"/>; with <paramref name="onlyIfQueued"/> a row that is not queued is left as it is.</summary>
+    private RunRecord StartRun(RunStartInfo info, bool onlyIfQueued, out bool written)
+    {
         var record = new RunRecord
         {
             Id = info.RunId,
@@ -51,18 +68,29 @@ internal sealed partial class InMemoryRunStore
         // them (and a completion that landed in between).
         var isNew = false;
         var requested = record;
+        var applied = true;
 
         record = _runs.AddOrUpdate(
             requested.Id,
             _ =>
             {
                 isNew = true;
+                applied = true;
 
                 return requested;
             },
             (_, previous) =>
             {
                 isNew = false;
+
+                // The delegate runs again when another writer got in first, so it sets the flag on every pass. A row that
+                // left the queue is returned as it is: the one step that reads the status is the one that writes.
+                applied = !onlyIfQueued || previous.Status == RunStatus.Queued;
+
+                if (!applied)
+                {
+                    return previous;
+                }
 
                 return requested with
                 {
@@ -90,7 +118,9 @@ internal sealed partial class InMemoryRunStore
 
         TrimIfNeeded();
 
-        return new ValueTask<RunRecord>(record);
+        written = applied;
+
+        return record;
     }
 
     /// <inheritdoc />

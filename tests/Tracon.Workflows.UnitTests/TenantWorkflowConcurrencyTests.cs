@@ -233,6 +233,55 @@ public sealed class TenantWorkflowConcurrencyTests
         (await RunAsync(host, "tenant-a", waitingId)).ShouldNotBeNull().Status.ShouldBe(RunStatus.Completed);
     }
 
+    [Fact]
+    public async Task A_run_whose_row_was_closed_while_it_waited_for_a_slot_does_not_start_and_its_row_stays_closed()
+    {
+        // The job of a run that waits for a slot is cancelled on another instance, which closes the row because it does not
+        // hold the run. The slot then frees and this process moves the row out of the queue: the row must not read Running
+        // again, and the graph must not run for a run that is over.
+        var (host, gate) = await BuildAsync();
+        var store = new PromotionRefusingRunStore(host.RunStore);
+        var runner = host.CreateRunnerWith(
+            runStore: store,
+            configure: static options =>
+            {
+                options.MaxConcurrentRuns = 2;
+                options.MaxConcurrentRunsPerTenant = 1;
+            });
+
+        var holder = Start(runner, "tenant-a");
+        var holderId = await holder.RunId;
+        await gate.EnteredAsync(holderId).WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        var waiting = Start(runner, "tenant-a");
+        var waitingId = await waiting.RunId.WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        (await StatusAsync(host, "tenant-a", waitingId)).ShouldBe(RunStatus.Queued);
+
+        store.CloseRowBeforePromotion = true;
+        gate.Release(holderId);
+
+        var events = await waiting.Events.WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        events[^1].Type.ShouldBe(RunEventType.RunFailed);
+        gate.HasEntered(waitingId).ShouldBeFalse("the graph of a run that is over must not start");
+
+        var closed = (await RunAsync(host, "tenant-a", waitingId)).ShouldNotBeNull();
+
+        closed.Status.ShouldBe(RunStatus.Canceled);
+        closed.CompletedAt.ShouldNotBeNull();
+
+        gate.ReleaseAll();
+        await holder.Events.WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        // Both slots came back: a later run of the tenant starts at once.
+        var later = Start(runner, "tenant-a");
+        await gate.EnteredAsync(await later.RunId).WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        gate.ReleaseAll();
+        await later.Events.WaitAsync(Patience, TestContext.Current.CancellationToken);
+    }
+
     [Theory]
     [InlineData(true, true)]
     [InlineData(false, false)]
@@ -545,7 +594,10 @@ public sealed class TenantWorkflowConcurrencyTests
         }
     }
 
-    /// <summary>A run store that refuses the write which moves a row from Queued to Running, once switched on.</summary>
+    /// <summary>
+    /// A run store that refuses the write which moves a row from Queued to Running, once switched on, or that closes the row
+    /// as another instance would the moment before the move.
+    /// </summary>
     private sealed class PromotionRefusingRunStore(IRunStore inner) : IRunStore
     {
         private int _refused;
@@ -556,9 +608,31 @@ public sealed class TenantWorkflowConcurrencyTests
 
         public volatile bool RefuseHeartbeats;
 
+        /// <summary>Gets or sets whether the row is closed Canceled just before the next promotion, as a cancelled job's instance does.</summary>
+        public volatile bool CloseRowBeforePromotion;
+
         public int PromotionsRefused => Volatile.Read(ref _refused);
 
         public int HeartbeatsRefused => Volatile.Read(ref _heartbeatsRefused);
+
+        public async ValueTask<bool> PromoteQueuedRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
+        {
+            if (RefusePromotions)
+            {
+                Interlocked.Increment(ref _refused);
+
+                throw new InvalidOperationException("the run store blinked");
+            }
+
+            if (CloseRowBeforePromotion)
+            {
+                await inner.CompleteRunAsync(
+                    new RunCompletion { RunId = info.RunId, Status = RunStatus.Canceled, CompletedAt = DateTimeOffset.UtcNow },
+                    cancellationToken);
+            }
+
+            return await inner.PromoteQueuedRunAsync(info, cancellationToken);
+        }
 
         public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
         {

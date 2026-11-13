@@ -72,6 +72,8 @@ public sealed class SqliteRunStoreContractTests(SqliteSchemaFixture schema)
     /// <inheritdoc />
     protected override bool AppendsEventGroupsAtomically => true;
 
+    protected override bool PromotesQueuedRunsAtomically => true;
+
     /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {

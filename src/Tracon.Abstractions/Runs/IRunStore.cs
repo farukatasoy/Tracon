@@ -130,6 +130,48 @@ public interface IRunStore
     /// </remarks>
     ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Writes the start of a run that was opened <see cref="RunStatus.Queued"/>, unless the row has left the queue in the
+    /// meantime.
+    /// </summary>
+    /// <param name="info">The start information the run was opened with, with <see cref="RunStartInfo.Status"/> changed.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> when the row was written: it read <see cref="RunStatus.Queued"/>, or there was no row.
+    /// <see langword="false"/> when the row exists and reads anything else, and is left as it is.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// A run that waits in its process for a concurrency slot has a <see cref="RunStatus.Queued"/> row. The row can be closed
+    /// while it waits: the job that carries the run is cancelled on another instance, which writes
+    /// <see cref="RunStatus.Canceled"/> because it does not hold the run. <see cref="StartRunAsync"/> would write the status
+    /// back over that closure and leave a row that reads <see cref="RunStatus.Running"/> with a completion time. This
+    /// method writes the same row as <see cref="StartRunAsync"/> (the same COALESCE rules, the same first heartbeat), but
+    /// only while the row still reads <see cref="RunStatus.Queued"/>.
+    /// </para>
+    /// <para>
+    /// <strong>The default implementation reads the row and then calls <see cref="StartRunAsync"/>.</strong> A closure that
+    /// lands between the two is overwritten as before, so the guarantee is only as strong as the window between two calls.
+    /// A store that can make the check and the write one statement should override it and close the window; the SQL stores
+    /// and the in-memory store do.
+    /// </para>
+    /// </remarks>
+    async ValueTask<bool> PromoteQueuedRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+
+        var current = await GetRunAsync(info.RunId, cancellationToken).ConfigureAwait(false);
+
+        if (current is { Status: not RunStatus.Queued })
+        {
+            return false;
+        }
+
+        await StartRunAsync(info, cancellationToken).ConfigureAwait(false);
+
+        return true;
+    }
+
     /// <summary>Appends an event to the run stream.</summary>
     /// <param name="runEvent">The event to append. The caller assigns its sequence number.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

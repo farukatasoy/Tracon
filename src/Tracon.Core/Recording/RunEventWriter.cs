@@ -299,26 +299,51 @@ public sealed class RunEventWriter
     /// The start information the run was opened with, with <see cref="RunStartInfo.Status"/> changed.
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The completion task.</returns>
+    /// <returns>
+    /// <see langword="false"/> when the row was closed while the run waited, so the run must not start;
+    /// <see langword="true"/> otherwise, including when the store could not be asked.
+    /// </returns>
     /// <remarks>
-    /// Writes the row again (<see cref="IRunStore.StartRunAsync"/> is an upsert) and appends no event: the
-    /// stream already says the run started. A store failure is logged and ignored, and the writer stays
-    /// usable: the row only shows <see cref="RunStatus.Queued"/> for a run that is already going, and the
+    /// Writes the row again (<see cref="IRunStore.PromoteQueuedRunAsync"/>) and appends no event: the
+    /// stream already says the run started. A row that is no longer <see cref="RunStatus.Queued"/> is left as it is: the
+    /// job of a run that waited for a slot can be cancelled on another instance, which closes the row because it does not
+    /// hold the run, and writing <see cref="RunStatus.Running"/> over that would reopen a closed row. A row that reads
+    /// <see cref="RunStatus.Running"/> already is not a reason to stop. A store failure is logged and ignored, and the writer
+    /// stays usable: the row only shows <see cref="RunStatus.Queued"/> for a run that is already going, and the
     /// closing write at the end of the run still lands. Disabling the writer here would cost a finished run its
     /// closing write and leave its row to be closed as an orphan.
     /// </remarks>
-    internal async ValueTask PromoteAsync(RunStartInfo running, CancellationToken cancellationToken = default)
+    internal async ValueTask<bool> PromoteAsync(RunStartInfo running, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(running);
 
         if (IsDisabled)
         {
-            return;
+            return true;
         }
 
         try
         {
-            await _store.StartRunAsync(running, cancellationToken).ConfigureAwait(false);
+            if (await _store.PromoteQueuedRunAsync(running, cancellationToken).ConfigureAwait(false))
+            {
+                return true;
+            }
+
+            // The row left the queue before this write. Closed means the run is over; anything else (another writer moved it
+            // already) leaves the run its slot.
+            var row = await _store.GetRunAsync(running.RunId, cancellationToken).ConfigureAwait(false);
+
+            if (row is { Status: RunStatus.Completed or RunStatus.Failed or RunStatus.Canceled })
+            {
+                _logger.LogWarning(
+                    "Run {RunId} has its concurrency slot but its record was closed as {Status} while it waited; the run does not start.",
+                    RunId,
+                    row.Status);
+
+                return false;
+            }
+
+            return true;
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
@@ -326,6 +351,8 @@ public sealed class RunEventWriter
                 ex,
                 "Run {RunId} has its concurrency slot but its record could not be moved from Queued to Running; the run continues and its record is closed at the end.",
                 RunId);
+
+            return true;
         }
     }
 

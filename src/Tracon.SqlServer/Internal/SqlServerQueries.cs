@@ -427,9 +427,17 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    -- second start of a run that stopped beating does not make it look alive.
                    heartbeat_at  = COALESCE(heartbeat_at, CASE WHEN @status = @status_running THEN {LeaseNow} END)
             OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
-             WHERE id = @id;
+             -- 🚨 The write that moves a run out of the queue (@only_if_queued = 1) leaves a row that is not Queued as it is: the
+             -- job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the
+             -- row. No row comes back then, which is how the caller learns the row was not written.
+             WHERE id = @id AND (@only_if_queued = 0 OR status = @status_queued);
 
-            IF @@ROWCOUNT = 0
+            -- A row that exists and was left alone is not inserted again: that would be a duplicate key. The count is read
+            -- into a variable first, because the EXISTS below is a statement of its own and T-SQL does not say which half of
+            -- an AND is evaluated first.
+            DECLARE @updated int = @@ROWCOUNT;
+
+            IF @updated = 0 AND NOT EXISTS (SELECT 1 FROM {Schema}.runs WHERE id = @id)
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
                                        replay_of_run_id, user_id, labels, continued_from_run_id, heartbeat_at)
