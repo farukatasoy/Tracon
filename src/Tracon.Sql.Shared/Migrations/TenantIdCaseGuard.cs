@@ -33,6 +33,12 @@ namespace Tracon;
 /// keeping the entries as evidence and getting the tenant to start, to the operator.
 /// </para>
 /// <para>
+/// The files of a session workspace, in <c>agent_files</c>, are the other table where it does not hold. The path of such a
+/// file starts with the tenant and holds a key computed from it, so renaming <c>tenant_id</c> alone leaves the file where
+/// nothing looks for it, and SQL cannot compute the key. The message says so and sends those rows to an export and a delete;
+/// the other rows of the table are renamed as usual.
+/// </para>
+/// <para>
 /// The check is two round trips: one catalog query for the tables that carry
 /// the column, then one <c>UNION ALL</c> of <c>EXISTS</c> probes over them. It
 /// runs before pending migrations are applied, so a database in this state is
@@ -55,6 +61,13 @@ internal static class TenantIdCaseGuard
         "those rows. A renamed entry reads as broken when the chain is verified. Export the entries of the tenant " +
         "first, then either remove all of them (a chain belongs to one tenant, so no gap is left in any other) " +
         "or rename them and accept that the chain of that tenant fails its verification from the first renamed entry.";
+
+    /// <summary>What to say about the files of a session workspace, whose path and key are computed from the tenant.</summary>
+    private const string WorkspaceAdvice =
+        " The files of a session workspace in agent_files are another exception: the path of such a file starts with " +
+        "the tenant and holds a key computed from it, so renaming tenant_id alone leaves the file where nothing looks " +
+        "for it, and SQL cannot compute the key. Rename the rows whose path has no '/~workspace/' segment as usual; " +
+        "export the files of the rows that have one, then delete those rows.";
 
     /// <summary>
     /// Throws when any table in the Tracon schema holds a non-canonical
@@ -90,6 +103,11 @@ internal static class TenantIdCaseGuard
         var holdsAuditEntries = offenders.Any(table =>
             string.Equals(context.Dialect.QualifyCatalogTable(table), auditLog, StringComparison.Ordinal));
 
+        var workspaceFiles = context.Dialect.QualifyTable("agent_files");
+
+        var holdsWorkspaceFiles = offenders.Any(table =>
+            string.Equals(context.Dialect.QualifyCatalogTable(table), workspaceFiles, StringComparison.Ordinal));
+
         throw new TraconException(
             "Tracon cannot start against this database: " +
             $"{offenders.Count} table(s) hold a tenant_id that is not canonical " +
@@ -99,7 +117,8 @@ internal static class TenantIdCaseGuard
             "Tracon does not fold or rename them for you: on a case-sensitive engine 'Acme' and 'acme' may be two " +
             "real tenants, and merging them cannot be undone. Decide per table whether the rows belong to " +
             "one tenant (rename them to the canonical spelling) or to two (give each its own), then start again." +
-            (holdsAuditEntries ? AuditLogAdvice : string.Empty));
+            (holdsAuditEntries ? AuditLogAdvice : string.Empty) +
+            (holdsWorkspaceFiles ? WorkspaceAdvice : string.Empty));
     }
 
     private static async ValueTask<IReadOnlyList<string>> ReadTenantTablesAsync(

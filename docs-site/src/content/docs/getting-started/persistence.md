@@ -159,6 +159,12 @@ renamed entry fails the chain verification. Export the entries of that tenant fi
 then either remove all of them (a chain belongs to one tenant, so the chains of the
 others stay whole) or rename them and accept that the chain of that tenant fails from
 the first renamed entry.
+
+The files of a session workspace are another exception. They are the rows of
+`agent_files` whose `path` has a `/~workspace/` segment: the path of such a file starts
+with the tenant and holds a key computed from it, so renaming `tenant_id` alone leaves the
+file where nothing looks for it, and SQL cannot compute the key. Rename the other rows of
+the table as usual; export the files of those rows, then delete them.
 :::
 
 :::caution[A migration can be one-way]

@@ -73,6 +73,31 @@ public sealed class TenantIdCaseGuardTests(SqlServerSchemaFixture schema) : ICla
         failure.Message.ShouldContain("fails its verification");
     }
 
+    [Fact]
+    public async Task A_workspace_file_outside_the_allowed_set_is_offered_an_export_and_not_a_rename()
+    {
+        // The path of a workspace file starts with the tenant and holds a key computed from it: renaming tenant_id
+        // alone leaves the file where nothing looks for it, so the message says what to do with those rows.
+        const string tenant = "caf\u00E9";
+
+        var context = await schema.ResetAsync(tenantId: "default");
+
+        await context.ExecuteAsync($"""
+            INSERT INTO {context.SchemaName}.agent_files (id, tenant_id, agent_name, path, content, created_at, updated_at)
+            VALUES (NEWID(), N'{tenant}', N'helper',
+                    N'{tenant}/~workspace/0123456789abcdef0123456789abcdef/helper/notes.txt', N'x',
+                    SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            """);
+
+        var failure = await Should.ThrowAsync<TraconException>(
+            async () => await context.Migrations.ApplyAsync());
+
+        failure.Message.ShouldContain("agent_files");
+        failure.Message.ShouldContain("session workspace");
+        failure.Message.ShouldContain("'/~workspace/'");
+        failure.Message.ShouldNotContain("audit trail", Case.Insensitive);
+    }
+
     [Theory]
     [InlineData("caf\u00E9")]
     [InlineData("cafe\u0301")]

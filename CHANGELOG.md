@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The `tenant_id` guard of the migration runner tells the operator what to do with the files of a session workspace.** The guard that stops the runner on a `tenant_id` outside lower-case ASCII letters, digits, `_`, `.` and `-` sends the operator to rename the rows. The rows of `agent_files` whose `path` has a `/~workspace/` segment cannot be renamed that way: the path of such a file starts with the tenant and holds a key computed from it, so a file whose `tenant_id` alone was renamed is not found again, and SQL cannot compute the key. When `agent_files` is among the tables it names, the message of the guard, and the persistence page, now say so. What the guard checks and refuses did not change.
+  What to do:
+  - **If the guard stopped an upgrade on `agent_files`,** rename the rows whose `path` has no `/~workspace/` segment as before; export the files of the rows that have one, then delete those rows.
+  - **Otherwise,** nothing.
+
 - **`POST /api/workflows/runs/{runId}/resume` answers `409` while the run, or the last continuation of its chain, is `Running` or `Queued`.** A queued workflow run that an interruption stopped is continued by its job, which closes the interrupted run and opens a continuation. A resume an operator started from the interrupted run in the same minutes was taken for the newest link of that chain: the recovery closed it as `interrupted` while it ran and counted it against `MaxResumeAttempts`, and two runs could work from one checkpoint. The same call on a run that is really running would do its work twice. The chain is read forward from the source run, as recovery reads it. The published document lists the `409` for the operation.
   What to do:
   - **If a script resumed a run that was still `Running`,** wait for the run to end, or cancel it (`POST /api/runs/{id}/cancel`) and resume again. A run that stopped without anyone closing it (a process that died with run reconciliation off) is cancelled the same way.
