@@ -23,15 +23,15 @@ public sealed class SubAgentCultureTests
     private const string ResearcherModel = "researcher-model";
 
     private const string RouterName = "yonlendirici";
-    private const string MiddleName = "ara-katman";
+    private const string MiddleName = "relay-agent";
     private const string ChildName = "arastirma-ci";
     private const string ChildTool = "arastirma_ci";
-    private const string MiddleTool = "ara_katman";
+    private const string MiddleTool = "relay_agent";
 
     private const string ChildDefault = "Research briefly.";
-    private const string ChildTurkish = "Kisaca arastir ve Turkce cevap ver.";
+    private const string ChildTurkish = "Research briefly and answer in Turkish.";
     private const string MiddleDefault = "Pass the work on.";
-    private const string MiddleTurkish = "Isi aktar ve Turkce cevap ver.";
+    private const string MiddleTurkish = "Pass the work on and answer in Turkish.";
 
     // Microsoft Agent Framework's background task tools.
     private const string StartTask = "background_agents_start_task";
