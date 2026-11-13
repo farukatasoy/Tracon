@@ -1134,6 +1134,7 @@ Tracon.IQuotaStore.SaveAsync(Tracon.QuotaDefinition! definition, System.Threadin
 Tracon.IQuotaStore.TryClaimThresholdNotificationAsync(string! tenantId, string! agentName, Tracon.QuotaPeriod period, System.DateOnly periodStart, Tracon.QuotaMetric metric, int thresholdPercent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IRateLimitCounterStore
 Tracon.IRateLimitCounterStore.IncrementAsync(string! partitionKey, System.DateTimeOffset windowStart, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RateLimitWindowCount!>
+Tracon.IRateLimitCounterStore.RemoveEndedWindowsAsync(System.DateTimeOffset startedBefore, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 Tracon.IRetentionPolicyStore
 Tracon.IRetentionPolicyStore.AppendRunProgressAsync(System.Guid runId, long deletedDelta, long archivedDelta, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRetentionPolicyStore.CompleteRunAsync(System.Guid runId, System.DateTimeOffset completedAt, string? errorMessage, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask

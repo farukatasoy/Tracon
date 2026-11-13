@@ -167,6 +167,30 @@ public sealed class DeploymentRateLimitTests
         (await StatusAsync(pair.A, "tenant-b")).ShouldBe(HttpStatusCode.TooManyRequests);
     }
 
+    /// <summary>
+    /// The shared table follows the partitions that are counting, not the partitions that ever were. An installation that
+    /// accepts any tenant identifier lets a caller make up partitions, and the table kept one row for each for ever.
+    /// </summary>
+    [Fact]
+    public async Task The_counters_of_windows_that_are_over_leave_the_shared_table()
+    {
+        var clock = new ManualClock(FrozenNow);
+        await using var pair = await StartPairAsync(clock, RateLimitScope.Deployment, tenancy: true, window: TimeSpan.FromMinutes(1));
+
+        for (var tenant = 0; tenant < 20; tenant++)
+        {
+            (await StatusAsync(pair.A, $"made-up-{tenant}")).ShouldBe(HttpStatusCode.OK);
+        }
+
+        (await CounterRowsAsync(pair)).ShouldBe(20, "every tenant that counted has a row");
+
+        // Three windows later: the first request of the new window brings the removal that the interval has made due.
+        clock.Advance(TimeSpan.FromMinutes(3));
+        (await StatusAsync(pair.B, "tenant-now")).ShouldBe(HttpStatusCode.OK);
+
+        (await CounterRowsAsync(pair)).ShouldBe(1, "only the partition that is counting in an open window has a row");
+    }
+
     [Fact]
     public async Task The_global_partition_is_one_window_for_every_tenant_across_instances()
     {
@@ -442,6 +466,22 @@ public sealed class DeploymentRateLimitTests
         await app.StartAsync();
 
         return new StartedHost(app);
+    }
+
+    /// <summary>Counts the rows of the shared counter table, read through a connection of its own.</summary>
+    private static async Task<long> CounterRowsAsync(TwoHostFixture pair)
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={pair.DatabasePath}");
+        await connection.OpenAsync();
+
+        await using var find = connection.CreateCommand();
+        find.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE '%rate_limit_counters'";
+        var table = (string)(await find.ExecuteScalarAsync())!;
+
+        await using var count = connection.CreateCommand();
+        count.CommandText = $"SELECT COUNT(*) FROM \"{table}\"";
+
+        return (long)(await count.ExecuteScalarAsync())!;
     }
 
     private static async Task<HttpStatusCode> StatusAsync(TraconTestHost host, string? tenant = null)

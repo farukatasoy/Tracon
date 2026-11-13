@@ -1828,6 +1828,13 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING window_start, permit_count;
             """;
 
+        // Removes the counters whose window is over; see IRateLimitCounterStore.RemoveEndedWindowsAsync. The timestamp is
+        // the fixed-width UTC text AddTimestamp writes, so the comparison orders by time.
+        RemoveEndedRateLimitCounters = $"""
+            DELETE FROM {Schema}rate_limit_counters
+             WHERE window_start < @ended_before;
+            """;
+
         // Plain INSERT: a uniqueness violation is caught by
         // SqlDialect.IsUniqueViolation, the caller reads the existing record
         // with SelectIdempotencyKey.

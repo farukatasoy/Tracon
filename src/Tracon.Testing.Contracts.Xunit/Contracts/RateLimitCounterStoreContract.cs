@@ -35,6 +35,17 @@ public abstract class RateLimitCounterStoreContract : StoreCancellationContract<
 
     private static string Partition() => $"endpoint:tracon:tenant:contract-{Guid.NewGuid():N}";
 
+    /// <summary>
+    /// Gets whether the store under test removes counters in <see cref="IRateLimitCounterStore.RemoveEndedWindowsAsync"/>.
+    /// </summary>
+    /// <remarks>
+    /// Virtual and <see langword="false"/> by default: the member is optional (its default removes nothing), and a store whose
+    /// counters expire by themselves, or one that was written before the member existed, keeps passing. A store that keeps its
+    /// rows until someone removes them overrides it with <see langword="true"/>, and the scenarios of the removal run against
+    /// it.
+    /// </remarks>
+    protected virtual bool RemovesEndedWindows => false;
+
     /// <inheritdoc />
     /// <remarks>
     /// A counter store has no pure query. Counting with a token that is already cancelled is the closest
@@ -162,6 +173,70 @@ public abstract class RateLimitCounterStoreContract : StoreCancellationContract<
 
         counted.WindowStart.ShouldBe(Window2);
         counted.Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_window_that_started_before_the_cutoff_is_removed_and_its_partition_counts_from_one_again()
+    {
+        if (!RemovesEndedWindows)
+        {
+            return;
+        }
+
+        var ended = Partition();
+
+        await Store.IncrementAsync(ended, Window0);
+        await Store.IncrementAsync(ended, Window0);
+
+        var removed = await Store.RemoveEndedWindowsAsync(Window1);
+
+        removed.ShouldBeGreaterThanOrEqualTo(1, "the counter of the window that ended was not reported as removed");
+        (await Store.IncrementAsync(ended, Window0)).Count.ShouldBe(1, "a removed counter starts again at one");
+    }
+
+    [Fact]
+    public async Task A_window_that_started_at_the_cutoff_or_later_keeps_its_count()
+    {
+        if (!RemovesEndedWindows)
+        {
+            return;
+        }
+
+        // The cutoff is exclusive: a counter whose window started at it is still open for the shortest window there is.
+        // A counter in a window ahead of the cutoff (an instance whose clock runs ahead) is not over either, and removing
+        // either one would lift the limit of a window that is open.
+        var atCutoff = Partition();
+        var ahead = Partition();
+
+        await Store.IncrementAsync(atCutoff, Window1);
+        await Store.IncrementAsync(atCutoff, Window1);
+        await Store.IncrementAsync(ahead, Window2);
+        await Store.IncrementAsync(ahead, Window2);
+
+        await Store.RemoveEndedWindowsAsync(Window1);
+
+        (await Store.IncrementAsync(atCutoff, Window1)).Count.ShouldBe(3, "the window that started at the cutoff was removed");
+        (await Store.IncrementAsync(ahead, Window2)).Count.ShouldBe(3, "the window ahead of the cutoff was removed");
+    }
+
+    [Fact]
+    public async Task A_removal_leaves_the_other_partitions_alone_and_removing_nothing_reports_zero()
+    {
+        if (!RemovesEndedWindows)
+        {
+            return;
+        }
+
+        var ended = Partition();
+        var open = Partition();
+
+        await Store.IncrementAsync(ended, Window0);
+        await Store.IncrementAsync(open, Window1);
+        await Store.IncrementAsync(open, Window1);
+
+        (await Store.RemoveEndedWindowsAsync(Window1)).ShouldBeGreaterThanOrEqualTo(1);
+        (await Store.RemoveEndedWindowsAsync(Window1)).ShouldBe(0, "a second removal with the same cutoff has nothing left to remove");
+        (await Store.IncrementAsync(open, Window1)).Count.ShouldBe(3, "the counter of the open window was touched by the removal");
     }
 
     [Fact]

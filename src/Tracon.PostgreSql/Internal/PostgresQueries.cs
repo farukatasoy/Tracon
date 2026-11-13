@@ -1859,6 +1859,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING window_start, permit_count;
             """;
 
+        // Removes the counters whose window is over; see IRateLimitCounterStore.RemoveEndedWindowsAsync. Strictly before:
+        // a window that started at the cutoff is still open for the shortest window there is.
+        RemoveEndedRateLimitCounters = $"""
+            DELETE FROM {Schema}.rate_limit_counters
+             WHERE window_start < @ended_before;
+            """;
+
         // A PLAIN INSERT, not a DO NOTHING/UPDATE conflict clause: the caller
         // catches the violation with SqlDialect.IsUniqueViolation and reads
         // the existing record with SelectIdempotencyKey (DIFFERENT from

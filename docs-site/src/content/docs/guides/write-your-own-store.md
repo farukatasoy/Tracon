@@ -409,7 +409,8 @@ its own. Three rules the contract checks, and that a custom store has to honor:
 
 ## Count rate limits somewhere else
 
-`IRateLimitCounterStore` is the smallest store interface: one method. It is the counter behind
+`IRateLimitCounterStore` is the smallest store interface: one method that counts and one optional
+method that removes. It is the counter behind
 `Tracon:RateLimit:Scope = Deployment`, and each SQL provider already registers an implementation
 that counts in its own database. Write your own when you want the counter elsewhere, in Redis for
 example, or when the rate limit database write is too slow for your traffic.
@@ -458,6 +459,7 @@ Tracon owns the algorithm — it aligns the window, compares the count with `Per
 | A later window restarts the count at one | The window Tracon passes moves forward every `Window`. The sketch above gets this from the key; a store that keeps one row for each partition must reset it |
 | An earlier window is counted in the stored one | An instance with a slow clock passes a window that has ended. The store must not move back to it: return the stored window and its count. The contract checks it, so keep one record for each partition, as the sketch does, and not one key for each window |
 | A record outlives its window | A record that expires inside a window restarts the count and lifts the limit for the rest of that window. Tracon does not pass the window length, so choose an expiry longer than the longest `Window` you configure (the inbound trigger limit uses one minute) |
+| A store that keeps rows removes the ones that are over | A Redis key expires by itself, as the sketch above lets it. A store that keeps a row for each partition (a SQL table) implements `RemoveEndedWindowsAsync`: Tracon calls it about once per longest `Window`, with the moment before which no window can still be open, and the store deletes every counter whose stored window started **strictly before** it and returns how many. The partition key carries the tenant, and an installation that accepts any tenant identifier lets a caller make up partitions: without the removal the table keeps a row for each. The default removes nothing, so a store written before this method existed keeps working. The contract suite runs its removal scenarios when your test class overrides `RemovesEndedWindows` to `true` |
 | The call has a limit of its own | Tracon waits for the store, with the request's token only. A store that can hang (a network call) must bound its own wait, so the instance falls back to its own limit instead of waiting for the client to leave |
 | The partition key is opaque | Tracon builds it (`endpoint:tracon:tenant:acme`, `endpoint:agui:global`, `trigger:<id>`). Do not parse it, change it, cut it short or fold its letter case: two keys that differ only in case are two counters |
 | A failure throws | Tracon catches it, counts it on `tracon.rate_limit.store_failures` and applies the instance's own limit for that request. Do not swallow it and return a count |

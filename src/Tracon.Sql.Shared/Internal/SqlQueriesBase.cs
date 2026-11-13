@@ -1109,6 +1109,13 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string IncrementRateLimitCounter { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the query that deletes the rate-limit counters whose window started before <c>@ended_before</c>. A counter
+    /// whose window is over restarts at one on its next call anyway, so removing it changes no limit; the table has no
+    /// index on <c>window_start</c> and the statement scans it, which runs about once per longest window.
+    /// </summary>
+    public string RemoveEndedRateLimitCounters { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that extends a held singleton lease.</summary>
     public string RenewSingletonLease { get; protected set; } = string.Empty;
 

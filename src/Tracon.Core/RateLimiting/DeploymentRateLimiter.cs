@@ -28,6 +28,9 @@ internal sealed class DeploymentRateLimiter
     /// <summary>The shortest time between two warnings for the same partition.</summary>
     public static readonly TimeSpan WarningInterval = TimeSpan.FromMinutes(1);
 
+    /// <summary>The shortest time between two requests to the store to remove the windows that are over.</summary>
+    private static readonly TimeSpan SweepFloor = TimeSpan.FromMinutes(1);
+
     private readonly IRateLimitCounterStore _store;
     private readonly TimeProvider _clock;
     private readonly TraconMetrics? _metrics;
@@ -36,6 +39,7 @@ internal sealed class DeploymentRateLimiter
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastSkewWarning = new(StringComparer.Ordinal);
     private int _scopeWarningLogged;
     private long _longestWindowTicks;
+    private long _nextSweepTicks;
     private long _nextWarningPruneTicks;
 
     /// <summary>Gets how many partitions the two warning maps remember.</summary>
@@ -111,13 +115,6 @@ internal sealed class DeploymentRateLimiter
         {
             var counted = await _store.IncrementAsync(key.Value, windowStart, cancellationToken).ConfigureAwait(false);
 
-            // The in-memory store keeps one entry per partition. It cannot tell a partition's own window from the
-            // entry, so it is told the longest window this limiter has seen and removes by that.
-            if (_store is InMemoryRateLimitCounterStore inMemory)
-            {
-                inMemory.RemoveEndedWindows(now, TimeSpan.FromTicks(Volatile.Read(ref _longestWindowTicks)));
-            }
-
             // The stored window never moves back, so a clock that jumped far ahead holds the partition's counter
             // until real time catches up. One window ahead is the ordinary case at a boundary; more is skew.
             if (counted.WindowStart - windowStart > window)
@@ -125,13 +122,59 @@ internal sealed class DeploymentRateLimiter
                 WarnClockSkew(key, counted.WindowStart - windowStart, now);
             }
 
-            return FixedWindowDecision.Decide(counted, permitLimit, window, now);
+            var decision = FixedWindowDecision.Decide(counted, permitLimit, window, now);
+
+            await SweepEndedWindowsAsync(now, cancellationToken).ConfigureAwait(false);
+
+            return decision;
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             RecordFailure(key, limiter, exception, now);
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Asks the store to remove the counters whose window is over, at most once per longest window this limiter has seen.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The store keeps one counter per partition and cannot tell a partition's own window from the counter, so it is
+    /// given the longest window this limiter has seen and removes by that: a counter is removed only when even that window is
+    /// over, and a partition with a shorter window keeps its counter a little longer, never a shorter time. The partition key
+    /// carries the tenant, and an installation that accepts any tenant identifier lets a caller make up partitions: without
+    /// this a store that keeps rows keeps one for each.
+    /// </para>
+    /// <para>
+    /// A floor of a minute: a window of a few seconds must not turn every request into a scan of the table. A failure never
+    /// fails the request that triggered it: the decision is already made, and the next call after the interval removes what
+    /// this one left.
+    /// </para>
+    /// </remarks>
+    private async ValueTask SweepEndedWindowsAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var due = Volatile.Read(ref _nextSweepTicks);
+        var longest = Volatile.Read(ref _longestWindowTicks);
+        var interval = Math.Max(longest, SweepFloor.Ticks);
+
+        if (now.UtcTicks < due
+            || Interlocked.CompareExchange(ref _nextSweepTicks, now.UtcTicks + interval, due) != due)
+        {
+            return;
+        }
+
+        try
+        {
+            await _store.RemoveEndedWindowsAsync(now - TimeSpan.FromTicks(longest), cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            _logger.LogWarning(
+                exception,
+                "The rate-limit counter store could not remove the windows that are over; it tries again in {Interval}.",
+                TimeSpan.FromTicks(interval));
         }
     }
 

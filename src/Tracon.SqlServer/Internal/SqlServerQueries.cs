@@ -2167,6 +2167,13 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@partition_key, @window_start, 1);
             """;
 
+        // Removes the counters whose window is over; see IRateLimitCounterStore.RemoveEndedWindowsAsync. One statement, so a
+        // deadlock victim is sent again whole (SqlDialect.RetriesStatementDeadlocks) and removes the same rows.
+        RemoveEndedRateLimitCounters = $"""
+            DELETE FROM {Schema}.rate_limit_counters
+             WHERE window_start < @ended_before;
+            """;
+
         // Plain INSERT: a uniqueness violation is caught with
         // SqlDialect.IsUniqueViolation, the caller reads the existing row with
         // SelectIdempotencyKey.

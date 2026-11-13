@@ -409,6 +409,9 @@ public sealed class SqliteRateLimitCounterStoreContractTests(SqliteSchemaFixture
     : RateLimitCounterStoreContract, IClassFixture<SqliteSchemaFixture>
 {
     /// <inheritdoc />
+    protected override bool RemovesEndedWindows => true;
+
+    /// <inheritdoc />
     protected override async ValueTask<IRateLimitCounterStore> CreateStoreAsync()
     {
         await schema.ResetAsync();

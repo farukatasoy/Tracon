@@ -250,6 +250,9 @@ public sealed class InMemorySingletonLeaseStoreContractTests : SingletonLeaseSto
 public sealed class InMemoryRateLimitCounterStoreContractTests : RateLimitCounterStoreContract
 {
     /// <inheritdoc />
+    protected override bool RemovesEndedWindows => true;
+
+    /// <inheritdoc />
     protected override ValueTask<IRateLimitCounterStore> CreateStoreAsync()
         => ValueTask.FromResult<IRateLimitCounterStore>(new InMemoryRateLimitCounterStore());
 }

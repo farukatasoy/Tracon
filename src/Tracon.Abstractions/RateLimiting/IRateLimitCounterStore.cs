@@ -48,6 +48,14 @@ namespace Tracon;
 /// is not told how long a window is, so an expiry has to be longer than the longest window
 /// configured (the inbound trigger limit uses one minute).
 /// </para>
+/// <para>
+/// <strong>Who deletes.</strong> A store that expires its own counters (a Redis key with a time to
+/// live) needs nothing more. A store that keeps rows until someone removes them implements
+/// <see cref="RemoveEndedWindowsAsync"/>: Tracon calls it about once per longest window with the
+/// moment before which no window can still be open, so the table follows the partitions that are
+/// counting and not the partitions that ever were. The partition key carries the tenant, and an
+/// installation that accepts any tenant identifier lets a caller make up partitions.
+/// </para>
 /// </remarks>
 public interface IRateLimitCounterStore
 {
@@ -71,4 +79,34 @@ public interface IRateLimitCounterStore
         string partitionKey,
         DateTimeOffset windowStart,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the counters whose window started before a moment, so that a store that keeps rows does not keep
+    /// one for every partition that ever counted.
+    /// </summary>
+    /// <param name="startedBefore">
+    /// A counter whose stored window started <em>strictly before</em> this moment is removed; one that started at it or
+    /// later stays. Tracon passes the current time minus the longest window it has counted in, so a counter older than
+    /// this is over for every partition.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>How many counters were removed; <c>0</c> when none was or the store removes nothing.</returns>
+    /// <remarks>
+    /// <para>
+    /// <strong>Optional.</strong> The default removes nothing, so a store written before this member existed keeps
+    /// working and keeps its rows. A store whose counters expire by themselves leaves it alone.
+    /// </para>
+    /// <para>
+    /// <strong>Deleting is safe in this window and only in this window.</strong> The next call for a removed partition
+    /// counts from one, which is what its next window does anyway. A store must not remove a counter whose window
+    /// started at <paramref name="startedBefore"/> or later: that would lift the limit for a window that is open.
+    /// A window that starts in the future (an instance whose clock runs ahead) is not over and stays.
+    /// </para>
+    /// <para>
+    /// A failure is logged and counted by Tracon and does not fail the request that triggered the call; the next call
+    /// removes what this one left.
+    /// </para>
+    /// </remarks>
+    ValueTask<int> RemoveEndedWindowsAsync(DateTimeOffset startedBefore, CancellationToken cancellationToken = default)
+        => new(0);
 }

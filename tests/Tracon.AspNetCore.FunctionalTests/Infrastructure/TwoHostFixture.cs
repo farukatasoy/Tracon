@@ -33,6 +33,9 @@ internal sealed class TwoHostFixture : IAsyncDisposable
         B = b;
     }
 
+    /// <summary>Gets the path of the database file both hosts share.</summary>
+    public string DatabasePath => _database.Path;
+
     /// <summary>Gets the first replica.</summary>
     public TraconTestHost A { get; }
 

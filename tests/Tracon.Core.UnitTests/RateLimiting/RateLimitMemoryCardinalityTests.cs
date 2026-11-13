@@ -86,7 +86,7 @@ public sealed class RateLimitMemoryCardinalityTests
             }
 
             swept = true;
-            store.RemoveEndedWindows(Start.AddMinutes(2), Minute);
+            store.RemoveEndedWindowsAsync(Start.AddMinutes(2) - Minute).AsTask().GetAwaiter().GetResult();
         };
 
         var first = await store.IncrementAsync("endpoint:tracon:tenant:acme", Start);
@@ -107,7 +107,7 @@ public sealed class RateLimitMemoryCardinalityTests
         // partition is held to.
         await store.IncrementAsync("endpoint:tracon:tenant:acme", Start.AddMinutes(10));
 
-        store.RemoveEndedWindows(Start, Minute);
+        await store.RemoveEndedWindowsAsync(Start - Minute);
 
         store.TrackedPartitions.ShouldBe(1);
     }

@@ -403,6 +403,9 @@ public sealed class SqlServerRateLimitCounterStoreContractTests(SqlServerSchemaF
     : RateLimitCounterStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
     /// <inheritdoc />
+    protected override bool RemovesEndedWindows => true;
+
+    /// <inheritdoc />
     protected override async ValueTask<IRateLimitCounterStore> CreateStoreAsync()
     {
         await schema.ResetAsync();

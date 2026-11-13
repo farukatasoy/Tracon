@@ -206,6 +206,78 @@ public sealed class DeploymentRateLimiterTests
         logger.Warnings.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task The_store_is_asked_to_remove_the_windows_that_are_over_once_per_longest_window_and_not_on_every_request()
+    {
+        var clock = new ManualClock(Start.AddSeconds(15));
+        var store = new SweepingStore();
+        var limiter = new DeploymentRateLimiter(store, clock);
+
+        // The first request is due at once; the ones that follow inside the minute are not.
+        await Count(limiter);
+        await Count(limiter);
+        clock.Advance(TimeSpan.FromSeconds(30));
+        await Count(limiter);
+
+        store.Removals.Count.ShouldBe(1, "a request inside the interval asked for another removal");
+        store.Removals[0].ShouldBe(Start.AddSeconds(15) - Minute, "the cutoff is the time minus the longest window");
+
+        // 12:01:15 and later: due again, with the cutoff of that moment.
+        clock.Advance(TimeSpan.FromSeconds(31));
+        await Count(limiter);
+
+        store.Removals.Count.ShouldBe(2);
+        store.Removals[1].ShouldBe(Start.AddSeconds(76) - Minute);
+    }
+
+    [Fact]
+    public async Task The_longest_window_the_limiter_has_seen_sets_the_cutoff()
+    {
+        var clock = new ManualClock(Start.AddSeconds(15));
+        var store = new SweepingStore();
+        var limiter = new DeploymentRateLimiter(store, clock);
+        var hour = TimeSpan.FromHours(1);
+
+        await limiter.TryCountAsync(Key, 3, Minute, RateLimiterKind.Endpoint, CancellationToken.None);
+        await limiter.TryCountAsync(Key, 3, hour, RateLimiterKind.Endpoint, CancellationToken.None);
+
+        // The next removal is an hour away, and a minute window must not make it earlier than the hour allows.
+        clock.Advance(TimeSpan.FromMinutes(61));
+        await limiter.TryCountAsync(Key, 3, Minute, RateLimiterKind.Endpoint, CancellationToken.None);
+
+        store.Removals.Count.ShouldBe(2);
+        store.Removals[1].ShouldBe(Start.AddSeconds(15).AddMinutes(61) - hour, "a partition with an hour window would lose its counter");
+    }
+
+    [Fact]
+    public async Task A_store_that_fails_to_remove_the_windows_does_not_fail_the_request_and_is_logged()
+    {
+        var logger = new SpyLogger();
+        var store = new SweepingStore { Failure = new InvalidOperationException("The database is down.") };
+        var limiter = new DeploymentRateLimiter(store, new ManualClock(Start.AddSeconds(15)), logger: logger);
+
+        var decision = (await Count(limiter)).ShouldNotBeNull();
+
+        decision.Allowed.ShouldBeTrue("the request was counted before the removal was asked");
+        store.Removals.Count.ShouldBe(1);
+        logger.Warnings.ShouldHaveSingleItem().ShouldContain("could not remove the windows");
+    }
+
+    [Fact]
+    public async Task A_cancelled_request_does_not_ask_the_store_to_remove_anything()
+    {
+        var store = new SweepingStore();
+        var limiter = new DeploymentRateLimiter(store, new ManualClock(Start.AddSeconds(15)));
+        using var cancelled = new CancellationTokenSource();
+
+        await cancelled.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await limiter.TryCountAsync(Key, 3, Minute, RateLimiterKind.Endpoint, cancelled.Token));
+
+        store.Removals.ShouldBeEmpty();
+    }
+
     private static ValueTask<FixedWindowDecision?> Count(
         DeploymentRateLimiter limiter,
         int limit = 3,
@@ -219,6 +291,29 @@ public sealed class DeploymentRateLimiterTests
             DateTimeOffset windowStart,
             CancellationToken cancellationToken = default)
             => throw (failure ?? new InvalidOperationException("The database is down."));
+    }
+
+    /// <summary>A store that counts like a window store does and records every removal it is asked for.</summary>
+    private sealed class SweepingStore : IRateLimitCounterStore
+    {
+        private readonly InMemoryRateLimitCounterStore _inner = new();
+
+        public List<DateTimeOffset> Removals { get; } = [];
+
+        public Exception? Failure { get; init; }
+
+        public ValueTask<RateLimitWindowCount> IncrementAsync(
+            string partitionKey,
+            DateTimeOffset windowStart,
+            CancellationToken cancellationToken = default)
+            => _inner.IncrementAsync(partitionKey, windowStart, cancellationToken);
+
+        public ValueTask<int> RemoveEndedWindowsAsync(DateTimeOffset startedBefore, CancellationToken cancellationToken = default)
+        {
+            Removals.Add(startedBefore);
+
+            return Failure is { } failure ? throw failure : _inner.RemoveEndedWindowsAsync(startedBefore, cancellationToken);
+        }
     }
 
     private sealed class FixedAnswerStore(DateTimeOffset windowStart, long count) : IRateLimitCounterStore

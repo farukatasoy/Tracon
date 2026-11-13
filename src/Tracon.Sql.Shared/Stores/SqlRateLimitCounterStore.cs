@@ -8,10 +8,12 @@ namespace Tracon;
 /// One row per partition (<c>partition_key</c>); the row keeps the current window and its count. An
 /// increment is one atomic upsert: it adds one, moves the window forward when the caller's window is
 /// later, and never moves it back. The row count grows with the tenants and inbound triggers ever
-/// counted, and nothing deletes rows. A trigger is created by an administrator, so its rows are bounded
-/// by that; a tenant is the tenant context's own value, so an installation that accepts any tenant
-/// identifier lets a caller add one row per identifier (the in-memory store removes an entry whose window is
-/// over for that reason). A row whose window is over may be deleted at any time: the next call counts from one.
+/// counted, and only <see cref="RemoveEndedWindowsAsync"/> deletes rows. A trigger is created by an administrator, so
+/// its rows are bounded by that; a tenant is the tenant context's own value, so an installation that accepts any tenant
+/// identifier lets a caller add one row per identifier. The rate limiter asks for the removal of the rows whose window is
+/// over about once per longest window (the in-memory store removes its entries the same way), and the next call for a
+/// removed partition counts from one, which is what its next window does anyway. The table has no index on
+/// <c>window_start</c>: the removal scans it, once per longest window.
 /// </para>
 /// <para>
 /// There is no tenant column: the tenant is part of the partition key when the limit is partitioned
@@ -61,6 +63,21 @@ internal sealed class SqlRateLimitCounterStore : IRateLimitCounterStore
         // The upsert always returns the row it wrote; no row means the statement itself was wrong.
         return counted ?? throw new InvalidOperationException(
             "The rate-limit counter upsert returned no row.");
+    }
+
+    /// <inheritdoc />
+    [TenantAgnostic(
+        "A rate-limit counter belongs to a partition, not to a tenant row, and the table has no tenant column: the removal is " +
+        "maintenance over every counter whose window is over, whichever tenant its partition key names.")]
+    public async ValueTask<int> RemoveEndedWindowsAsync(DateTimeOffset startedBefore, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await _context.ExecuteStatementAsync(
+            _sql.RemoveEndedRateLimitCounters,
+            command => Dialect.AddTimestamp(command, "ended_before", startedBefore),
+            DbHelpers.ExecuteAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static RateLimitWindowCount ReadCount(DbDataReader reader) => new()

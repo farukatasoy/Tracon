@@ -13,13 +13,12 @@ namespace Tracon;
 /// <para>
 /// One entry per partition that has a window in progress. The partition key carries the tenant, and an
 /// installation that accepts any tenant identifier lets a caller make up partitions, so an entry whose window
-/// is over is removed (<see cref="RemoveEndedWindows"/>): its count would restart at one anyway.
+/// is over is removed (<see cref="RemoveEndedWindowsAsync"/>): its count would restart at one anyway.
 /// </para>
 /// </remarks>
 internal sealed class InMemoryRateLimitCounterStore : IRateLimitCounterStore
 {
     private readonly ConcurrentDictionary<string, Window> _windows = new(StringComparer.Ordinal);
-    private long _nextSweepTicks;
 
     /// <summary>Gets how many partitions have an entry.</summary>
     internal int TrackedPartitions => _windows.Count;
@@ -71,41 +70,28 @@ internal sealed class InMemoryRateLimitCounterStore : IRateLimitCounterStore
         }
     }
 
-    /// <summary>
-    /// Removes the entries whose window has ended, at most once per <paramref name="longestWindow"/>.
-    /// </summary>
-    /// <param name="now">The time the caller reads.</param>
-    /// <param name="longestWindow">
-    /// The longest window any partition of this process uses. The store cannot tell a partition's own window from
-    /// the entry (it keeps the start only), so it removes by the longest one: an entry is removed only when even
-    /// that window is over, and a longer window than the partition's own keeps an entry a little longer, never a
-    /// shorter time.
-    /// </param>
-    internal void RemoveEndedWindows(DateTimeOffset now, TimeSpan longestWindow)
+    /// <inheritdoc />
+    public ValueTask<int> RemoveEndedWindowsAsync(DateTimeOffset startedBefore, CancellationToken cancellationToken = default)
     {
-        var due = Volatile.Read(ref _nextSweepTicks);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        // A floor of a second: a window of a few milliseconds must not turn every request into a scan.
-        var interval = Math.Max(longestWindow.Ticks, TimeSpan.TicksPerSecond);
-
-        if (now.UtcTicks < due
-            || Interlocked.CompareExchange(ref _nextSweepTicks, now.UtcTicks + interval, due) != due)
-        {
-            return;
-        }
+        var removed = 0;
 
         foreach (var pair in _windows)
         {
             lock (pair.Value)
             {
-                // A window that starts in the future (a clock that jumped ahead) is not over, and stays.
-                if (pair.Value.Start + longestWindow <= now)
+                // A window that starts at the cutoff or later (a clock that jumped ahead is one) is not over, and stays.
+                if (pair.Value.Start < startedBefore)
                 {
                     pair.Value.Removed = true;
                     _windows.TryRemove(pair);
+                    removed++;
                 }
             }
         }
+
+        return new ValueTask<int>(removed);
     }
 
     private sealed class Window(DateTimeOffset start)
