@@ -213,6 +213,53 @@ public sealed class AnthropicStopReasonTests
         (await SingleRunAsync(host)).Status.ShouldBe(RunStatus.Completed);
     }
 
+    /// <summary>
+    /// A streamed paused turn that holds the blocks a model can add besides text and a server tool is sent back with each of
+    /// them as the API wrote it: the thinking with its signature, the redacted thinking, the citations of a text and a block
+    /// of a type nobody has named yet.
+    /// </summary>
+    /// <remarks>
+    /// The API refuses a continuation whose thinking block lost its signature, and a block that the client does not know is
+    /// not the client's to drop: the next request must carry what the model wrote.
+    /// </remarks>
+    [Fact]
+    public async Task A_streamed_paused_turn_is_sent_back_with_its_thinking_its_redacted_thinking_its_citations_and_a_block_nobody_named()
+    {
+        await using var anthropic = await FakeAnthropicServer.StartAsync();
+        anthropic
+            .Stream(PausedBlocksEvents())
+            .Stream(Events("msg_final", "The release ships on Friday.", "end_turn"));
+
+        await using var host = await StartAsync(anthropic, structured: false);
+
+        var frames = await PostStreamingAsync(host);
+
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        anthropic.Bodies.Count.ShouldBe(2);
+
+        var blocks = anthropic.Bodies[1]["messages"]!.AsArray()[^1]!["content"]!.AsArray();
+
+        blocks.Select(static block => block!["type"]!.GetValue<string>()).ToArray()
+            .ShouldBe(["thinking", "redacted_thinking", "text", "future_block"]);
+        blocks[0]!["thinking"]!.GetValue<string>().ShouldBe("First the notes, then the date.");
+        blocks[0]!["signature"]!.GetValue<string>().ShouldBe("sig-part-one-part-two");
+        blocks[1]!["data"]!.GetValue<string>().ShouldBe("opaque-redacted-01");
+        blocks[2]!["text"]!.GetValue<string>().ShouldBe("The notes say Friday.");
+
+        var citations = blocks[2]!["citations"]!.AsArray();
+
+        citations.Count.ShouldBe(2);
+        citations[0]!["type"]!.GetValue<string>().ShouldBe("char_location");
+        citations[0]!["cited_text"]!.GetValue<string>().ShouldBe("ships on Friday");
+        citations[1]!["start_char_index"]!.GetValue<int>().ShouldBe(40);
+
+        // A block of a type the client has no name for travels as the API wrote it, extra fields included.
+        blocks[3]!["detail"]!["kept"]!.GetValue<bool>().ShouldBeTrue();
+        blocks[3]!["payload"]!.GetValue<string>().ShouldBe("verbatim");
+
+        (await SingleRunAsync(host)).Status.ShouldBe(RunStatus.Completed);
+    }
+
     [Fact]
     public async Task A_streamed_answer_cut_off_at_the_context_window_records_a_truncation_that_names_the_window()
     {
@@ -312,6 +359,59 @@ public sealed class AnthropicStopReasonTests
             Frame("content_block_start", BlockStart(2, new JsonObject { ["type"] = "text", ["text"] = string.Empty })),
             Frame("content_block_delta", BlockDelta(2, new JsonObject { ["type"] = "text_delta", ["text"] = "The search found the notes." })),
             Frame("content_block_stop", BlockStop(2)),
+            MessageEnd("pause_turn"));
+    }
+
+    /// <summary>
+    /// A paused turn whose blocks are the ones a model adds besides text and a server tool: a thinking block that streams its
+    /// text and its signature in pieces, a redacted thinking block, a text block that streams two citations, and a block of a
+    /// type the SDK has no name for.
+    /// </summary>
+    private static string PausedBlocksEvents()
+    {
+        var unknown = JsonNode.Parse("""{"type":"future_block","detail":{"kept":true},"payload":"verbatim"}""")!.AsObject();
+
+        return string.Concat(
+            Frame("message_start", MessageStart("msg_blocks")),
+            Frame("content_block_start", BlockStart(0, new JsonObject { ["type"] = "thinking", ["thinking"] = string.Empty, ["signature"] = string.Empty })),
+            Frame("content_block_delta", BlockDelta(0, new JsonObject { ["type"] = "thinking_delta", ["thinking"] = "First the notes, " })),
+            Frame("content_block_delta", BlockDelta(0, new JsonObject { ["type"] = "thinking_delta", ["thinking"] = "then the date." })),
+            Frame("content_block_delta", BlockDelta(0, new JsonObject { ["type"] = "signature_delta", ["signature"] = "sig-part-one-" })),
+            Frame("content_block_delta", BlockDelta(0, new JsonObject { ["type"] = "signature_delta", ["signature"] = "part-two" })),
+            Frame("content_block_stop", BlockStop(0)),
+            Frame("content_block_start", BlockStart(1, new JsonObject { ["type"] = "redacted_thinking", ["data"] = "opaque-redacted-01" })),
+            Frame("content_block_stop", BlockStop(1)),
+            Frame("content_block_start", BlockStart(2, new JsonObject { ["type"] = "text", ["text"] = string.Empty })),
+            Frame("content_block_delta", BlockDelta(2, new JsonObject { ["type"] = "text_delta", ["text"] = "The notes say Friday." })),
+            Frame("content_block_delta", BlockDelta(2, new JsonObject
+            {
+                ["type"] = "citations_delta",
+                ["citation"] = new JsonObject
+                {
+                    ["type"] = "char_location",
+                    ["cited_text"] = "ships on Friday",
+                    ["document_index"] = 0,
+                    ["document_title"] = "Release notes",
+                    ["start_char_index"] = 10,
+                    ["end_char_index"] = 25,
+                },
+            })),
+            Frame("content_block_delta", BlockDelta(2, new JsonObject
+            {
+                ["type"] = "citations_delta",
+                ["citation"] = new JsonObject
+                {
+                    ["type"] = "char_location",
+                    ["cited_text"] = "on Friday",
+                    ["document_index"] = 0,
+                    ["document_title"] = "Release notes",
+                    ["start_char_index"] = 40,
+                    ["end_char_index"] = 49,
+                },
+            })),
+            Frame("content_block_stop", BlockStop(2)),
+            Frame("content_block_start", BlockStart(3, unknown)),
+            Frame("content_block_stop", BlockStop(3)),
             MessageEnd("pause_turn"));
     }
 

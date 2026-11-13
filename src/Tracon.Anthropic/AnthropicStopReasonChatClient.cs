@@ -1,8 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+using Anthropic;
 using Anthropic.Models.Messages;
 using Microsoft.Extensions.AI;
 
@@ -147,7 +145,7 @@ internal sealed class AnthropicStopReasonChatClient(IChatClient inner) : Delegat
             }
 
             paused ??= [];
-            paused.AddRange(StreamedBlocks(events));
+            paused.AddRange(await AggregatedBlocksAsync(events).ConfigureAwait(false));
         }
     }
 
@@ -196,83 +194,21 @@ internal sealed class AnthropicStopReasonChatClient(IChatClient inner) : Delegat
         };
     }
 
-    /// <summary>Rebuilds the blocks of one streamed message from its events, as the API's JSON.</summary>
+    /// <summary>The blocks of one streamed message, as the API's JSON.</summary>
     /// <remarks>
-    /// Each block starts as the JSON of its <c>content_block_start</c>; text, thinking
-    /// and signature deltas are appended, a citation is added, and the partial JSON of
-    /// a tool's input is parsed at the end.
-    /// The SDK's own <c>MessageContentAggregator</c> threw on a server tool's first
-    /// <c>input_json_delta</c> in the version this code was written against; the
-    /// decompiled aggregator of 13.3.0 (unchanged since the first measure) merges that input (<c>StreamedToolInput</c>). This
-    /// rebuild stays because a dependency upgrade changes no request; replacing it with
-    /// the aggregator is a simplification to decide on its own.
+    /// The SDK's own <c>MessageContentAggregator</c> builds the message from the stream's events, and its blocks are sent
+    /// back the way a buffered turn's are (<see cref="ContentBlockParam"/> over the block's own JSON). Measured on the same
+    /// stream as the code that stood here (SDK 13.3.0): thinking with its signature in pieces, redacted thinking, a text with
+    /// two streamed citations and a block of a type the SDK has no name for come out as the JSON the API wrote, and a server
+    /// tool's call with its input streamed in pieces is merged by the aggregator itself. The first version of this client
+    /// rebuilt the blocks by hand because the aggregator of that time threw on a server tool's first
+    /// <c>input_json_delta</c>.
     /// </remarks>
-    private static IEnumerable<ContentBlockParam> StreamedBlocks(IEnumerable<RawMessageStreamEvent> events)
+    private static async Task<IEnumerable<ContentBlockParam>> AggregatedBlocksAsync(List<RawMessageStreamEvent> events)
     {
-        var blocks = new SortedDictionary<long, (JsonObject Block, StringBuilder Input)>();
+        var message = await events.ToAsyncEnumerable().Aggregate().ConfigureAwait(false);
 
-        foreach (var streamEvent in events)
-        {
-            var json = JsonNode.Parse(streamEvent.Json.GetRawText())!.AsObject();
-            var type = (string?)json["type"];
-
-            if (string.Equals(type, "content_block_start", StringComparison.Ordinal))
-            {
-                blocks[(long)json["index"]!] = (json["content_block"]!.DeepClone().AsObject(), new StringBuilder());
-                continue;
-            }
-
-            if (!string.Equals(type, "content_block_delta", StringComparison.Ordinal)
-                || !blocks.TryGetValue((long)json["index"]!, out var entry))
-            {
-                continue;
-            }
-
-            var delta = json["delta"]!.AsObject();
-
-            switch ((string?)delta["type"])
-            {
-                case "text_delta":
-                    entry.Block["text"] = (string?)entry.Block["text"] + (string?)delta["text"];
-                    break;
-
-                case "thinking_delta":
-                    entry.Block["thinking"] = (string?)entry.Block["thinking"] + (string?)delta["thinking"];
-                    break;
-
-                case "signature_delta":
-                    entry.Block["signature"] = (string?)entry.Block["signature"] + (string?)delta["signature"];
-                    break;
-
-                case "citations_delta":
-                    if (entry.Block["citations"] is not JsonArray citations)
-                    {
-                        entry.Block["citations"] = citations = [];
-                    }
-
-                    citations.Add(delta["citation"]?.DeepClone());
-                    break;
-
-                case "input_json_delta":
-                    entry.Input.Append((string?)delta["partial_json"]);
-                    break;
-
-                default:
-                    break;
-            }
-        }
-
-        foreach (var (block, input) in blocks.Values)
-        {
-            if (input.Length > 0)
-            {
-                block["input"] = JsonNode.Parse(input.ToString());
-            }
-
-            using var document = JsonDocument.Parse(block.ToJsonString());
-
-            yield return new ContentBlockParam(document.RootElement.Clone());
-        }
+        return message.Content.Select(static block => new ContentBlockParam(block.Json));
     }
 }
 
