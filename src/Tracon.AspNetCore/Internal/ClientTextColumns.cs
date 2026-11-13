@@ -13,7 +13,7 @@ internal static class ClientTextColumns
 
     private const string SessionRule = "A session identifier is limited to 200 characters at every entry that carries it (SessionIdLimits).";
     private const string TenantRule = "A tenant identifier is limited to its alphabet and 64 characters where the tenant is resolved.";
-    private const string PrincipalRule = "The name of the authenticated caller, read from the identity and not from a request field.";
+    private const string PrincipalRule = "The name of the authenticated caller, read from the identity and not from a request field; the actor resolver shortens one over 200 characters (its start and a digest), the same on every store.";
     private const string ProviderToolRule = "Chosen by a model provider or a tool while a run goes on, not by a client of the API.";
 
     /// <summary>Gets every row.</summary>

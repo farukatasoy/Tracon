@@ -114,6 +114,24 @@ public sealed partial class ClientTextLimitsTests
     }
 
     [Fact]
+    public void A_column_that_holds_the_name_of_the_caller_is_as_wide_as_the_longest_name_the_resolver_lets_through()
+    {
+        // The resolver shortens a caller's name to 200 characters (AmbientAuditActorResolver.MaxActorLength, pinned by its own
+        // test); the ten columns that hold it must be at least that wide, or the shortening protects nothing.
+        const int LongestActorName = 200;
+
+        var schema = ReadSchema();
+        var principal = ClientTextLimits.Columns.Where(static row => row.Origin == ColumnOrigin.Principal).ToList();
+
+        principal.ShouldNotBeEmpty();
+
+        foreach (var row in principal)
+        {
+            schema[row.Column].ShouldBeGreaterThanOrEqualTo(LongestActorName, $"{row.Column} is narrower than a caller's name can be.");
+        }
+    }
+
+    [Fact]
     public void A_column_that_follows_another_follows_one_that_is_limited_at_its_input()
     {
         var rows = ClientTextLimits.Columns;

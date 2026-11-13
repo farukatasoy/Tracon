@@ -45,6 +45,62 @@ public sealed class AmbientAuditActorResolverTests : IDisposable
     }
 
     [Fact]
+    public void A_name_over_the_column_width_is_shortened_to_it_with_a_digest_and_stays_the_same_name()
+    {
+        // The actor is written to ten narrow columns; a claim of an identity provider has no bound of its own.
+        var claim = "https://login.example.com/" + new string('u', 400);
+        AuditActorContext.Current = Authenticated(new Claim(ClaimTypes.NameIdentifier, claim));
+
+        var resolver = new AmbientAuditActorResolver(Options.Create(new TraconOptions()));
+
+        var actor = resolver.Resolve()!;
+
+        AmbientAuditActorResolver.MaxActorLength.ShouldBe(200);
+        actor.Length.ShouldBe(AmbientAuditActorResolver.MaxActorLength);
+        actor.ShouldStartWith("https://login.example.com/uuuu");
+        resolver.Resolve().ShouldBe(actor, "the same caller is the same actor every time");
+    }
+
+    [Fact]
+    public void Two_long_names_that_share_their_start_are_two_actors()
+    {
+        var start = new string('s', 300);
+
+        AuditActorContext.Current = Authenticated(new Claim(ClaimTypes.NameIdentifier, start + "-a"));
+        var resolver = new AmbientAuditActorResolver(Options.Create(new TraconOptions()));
+        var first = resolver.Resolve();
+
+        AuditActorContext.Current = Authenticated(new Claim(ClaimTypes.NameIdentifier, start + "-b"));
+        var second = resolver.Resolve();
+
+        string.Equals(first, second, StringComparison.Ordinal).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_name_that_fits_is_the_name_unchanged_on_every_path_of_the_resolver()
+    {
+        var exact = new string('e', AmbientAuditActorResolver.MaxActorLength);
+
+        AuditActorContext.Current = Authenticated(new Claim(ClaimTypes.NameIdentifier, exact));
+        new AmbientAuditActorResolver(Options.Create(new TraconOptions())).Resolve().ShouldBeSameAs(exact);
+
+        var options = new TraconOptions();
+        options.Audit.ActorClaimType = "email";
+        AuditActorContext.Current = Authenticated(new Claim("email", exact));
+        new AmbientAuditActorResolver(Options.Create(options)).Resolve().ShouldBeSameAs(exact);
+    }
+
+    [Fact]
+    public void A_configured_claim_over_the_column_width_is_shortened_too()
+    {
+        var options = new TraconOptions();
+        options.Audit.ActorClaimType = "email";
+        AuditActorContext.Current = Authenticated(new Claim("email", new string('m', 500) + "@example.com"));
+
+        new AmbientAuditActorResolver(Options.Create(options)).Resolve()!.Length.ShouldBe(AmbientAuditActorResolver.MaxActorLength);
+    }
+
+    [Fact]
     public void Name_is_used_when_NameIdentifier_is_absent()
     {
         AuditActorContext.Current = Authenticated(new Claim(ClaimTypes.Name, "user-name"));
