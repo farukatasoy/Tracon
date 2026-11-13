@@ -39,8 +39,7 @@ delay:negative|tests/Tracon.AspNetCore.FunctionalTests/LateToolCompletionTests.c
 delay:negative|tests/Tracon.Core.UnitTests/Scheduling/JobWorkerBackgroundServiceTests.cs|1
 delay:negative|tests/Tracon.Core.UnitTests/Scheduling/JobWorkerLeaseContractTests.cs|1
 delay:negative|tests/Tracon.Core.UnitTests/Scheduling/JobWorkerStopDropsNoTaskTests.cs|1
-delay:product|src/Tracon.Testing.Contracts.Xunit/Contracts/ApiKeyStoreContract.cs|2
-delay:product|src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs|5
+delay:product|src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs|3
 delay:product|src/Tracon.Testing.Contracts.Xunit/Contracts/Scripts/SkillScriptExecutorContract.cs|1
 delay:product|tests/Shared/Infrastructure/RunHeartbeatUnderClockSkewContract.cs|4
 delay:product|tests/Shared/Infrastructure/SqlLeaseUnderClockSkewContract.cs|3
