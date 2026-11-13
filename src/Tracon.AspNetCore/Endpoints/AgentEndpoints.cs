@@ -66,7 +66,7 @@ internal static class AgentEndpoints
                 "it — code is changed by changing the application, not through this API. A code agent " +
                 "declared declaratively (AddAgent(AgentDefinition)) still returns its full in-memory " +
                 "definition in 'definition', including 'instructions'; only a code agent built from a " +
-                "factory (AddAgent(name, factory)) has 'definition' as null, since there is no " +
+                "factory (AddAgent(name, factory) or AddAgent(name, model, factory)) has 'definition' as null, since there is no " +
                 "AgentDefinition to return for one. For a factory agent whose concrete type exposes " +
                 "instructions (currently only Microsoft.Agents.AI.ChatClientAgent), 'factoryInstructions' " +
                 "carries a best-effort read of them instead; it is null when the type does not expose " +

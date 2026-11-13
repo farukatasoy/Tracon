@@ -281,8 +281,8 @@ internal sealed record AgentDetailResponse
 
     [Description(
         "The agent's definition. `null` only for a code agent built\n" +
-        "from a factory (`AddAgent(name, factory)`), which carries no\n" +
-        "`AgentDefinition` at all. A code agent declared with\n" +
+        "from a factory (`AddAgent(name, factory)` or `AddAgent(name, model, factory)`),\n" +
+        "which carries no `AgentDefinition` at all. A code agent declared with\n" +
         "`AddAgent(AgentDefinition)` returns its in-memory definition here\n" +
         "despite never being written to the database.")]
     public AgentDefinition? Definition { get; init; }
@@ -290,7 +290,8 @@ internal sealed record AgentDetailResponse
     [Description(
         "Best-effort instructions read directly from the resolved agent when\n" +
         "`Definition` is `null` because the agent is\n" +
-        "built from a factory (`AddAgent(name, factory)`) and its concrete\n" +
+        "built from a factory (`AddAgent(name, factory)` or `AddAgent(name, model, factory)`)\n" +
+        "and its concrete\n" +
         "type exposes them (currently only `Microsoft.Agents.AI.ChatClientAgent`).\n" +
         "`null` when `Definition` is populated instead\n" +
         "(read `Definition.Instructions` there), when the factory's concrete\n" +

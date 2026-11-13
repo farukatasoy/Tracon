@@ -323,7 +323,7 @@ namespace Tracon.Client.Generated
         /// Returns an agent's catalog summary and its persisted definition, if any.
         /// </summary>
         /// <remarks>
-        /// A code-defined agent has no STORED definition, so 'isEditable' is always false for it — code is changed by changing the application, not through this API. A code agent declared declaratively (AddAgent(AgentDefinition)) still returns its full in-memory definition in 'definition', including 'instructions'; only a code agent built from a factory (AddAgent(name, factory)) has 'definition' as null, since there is no AgentDefinition to return for one. For a factory agent whose concrete type exposes instructions (currently only Microsoft.Agents.AI.ChatClientAgent), 'factoryInstructions' carries a best-effort read of them instead; it is null when the type does not expose them or reading them failed. 'isEditable' is the single field a client checks before offering an edit form — it is true only when the agent's origin is the database.
+        /// A code-defined agent has no STORED definition, so 'isEditable' is always false for it — code is changed by changing the application, not through this API. A code agent declared declaratively (AddAgent(AgentDefinition)) still returns its full in-memory definition in 'definition', including 'instructions'; only a code agent built from a factory (AddAgent(name, factory) or AddAgent(name, model, factory)) has 'definition' as null, since there is no AgentDefinition to return for one. For a factory agent whose concrete type exposes instructions (currently only Microsoft.Agents.AI.ChatClientAgent), 'factoryInstructions' carries a best-effort read of them instead; it is null when the type does not expose them or reading them failed. 'isEditable' is the single field a client checks before offering an edit form — it is true only when the agent's origin is the database.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -19150,8 +19150,8 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// The agent's definition. `null` only for a code agent built
-        /// <br/>from a factory (`AddAgent(name, factory)`), which carries no
-        /// <br/>`AgentDefinition` at all. A code agent declared with
+        /// <br/>from a factory (`AddAgent(name, factory)` or `AddAgent(name, model, factory)`),
+        /// <br/>which carries no `AgentDefinition` at all. A code agent declared with
         /// <br/>`AddAgent(AgentDefinition)` returns its in-memory definition here
         /// <br/>despite never being written to the database.
         /// </summary>
@@ -19161,7 +19161,8 @@ namespace Tracon.Client.Generated
         /// <summary>
         /// Best-effort instructions read directly from the resolved agent when
         /// <br/>`Definition` is `null` because the agent is
-        /// <br/>built from a factory (`AddAgent(name, factory)`) and its concrete
+        /// <br/>built from a factory (`AddAgent(name, factory)` or `AddAgent(name, model, factory)`)
+        /// <br/>and its concrete
         /// <br/>type exposes them (currently only `Microsoft.Agents.AI.ChatClientAgent`).
         /// <br/>`null` when `Definition` is populated instead
         /// <br/>(read `Definition.Instructions` there), when the factory's concrete

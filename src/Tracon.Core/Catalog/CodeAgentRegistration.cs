@@ -140,6 +140,8 @@ internal sealed class CodeAgentRegistration
     /// <returns>The agent, and the client the factory received when the model is declared.</returns>
     /// <exception cref="InvalidOperationException">The registration is declarative.</exception>
     /// <exception cref="TraconException">The factory of a declared model returned <see langword="null"/>.</exception>
+    /// <exception cref="TraconCompilationException">The declared model's client cannot be built (for example, the provider is not registered).</exception>
+    /// <exception cref="TraconTenantProviderRefusedException">The tenant's own provider key or egress policy refuses the declared model.</exception>
     public async ValueTask<FactoryAgentBuild> BuildFactoryAgentAsync(
         IServiceProvider services,
         Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> createChatClient,
@@ -150,7 +152,27 @@ internal sealed class CodeAgentRegistration
 
         if (ModelFactory is { } modelFactory && Model is { } model)
         {
-            var chatClient = await createChatClient(model, cancellationToken).ConfigureAwait(false);
+            IChatClient chatClient;
+
+            try
+            {
+                chatClient = await createChatClient(model, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TraconTenantProviderRefusedException ex)
+            {
+                // The type is kept and the text names the agent, as for a definition agent.
+                throw new TraconTenantProviderRefusedException($"Agent '{Name}' could not be compiled: {ex.Message}", ex);
+            }
+            catch (TraconException ex) when (ex is not TraconCompilationException)
+            {
+                // A provider nobody registered, a key that cannot be built: the same compile failure, with the same
+                // text, a definition agent with this binding gets. The A2A and MCP surfaces recognise it by its type.
+                throw new TraconCompilationException($"Agent '{Name}' could not be compiled: {ex.Message}", ex)
+                {
+                    AgentName = Name,
+                };
+            }
+
             var context = new AgentFactoryContext
             {
                 AgentName = Name,
