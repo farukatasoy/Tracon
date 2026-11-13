@@ -91,17 +91,36 @@ internal sealed class McpOAuthTokenCacheRegistry
         }
     }
 
-    /// <summary>Gets the tenant and server pairs this registry has handed a cache out for.</summary>
-    public IReadOnlyCollection<McpTenantServerKey> Keys => [.. _caches.Keys];
+    /// <summary>Gets the tenant and server pairs this registry has handed a cache out for, with the binding of each.</summary>
+    public IReadOnlyCollection<KeyValuePair<McpTenantServerKey, McpTokenBinding>> Bindings
+        => [.. _caches.Select(static entry => KeyValuePair.Create(entry.Key, entry.Value.Binding))];
 
     /// <summary>Forgets the token of a server that no longer exists.</summary>
     /// <param name="key">The tenant and server.</param>
+    /// <param name="deleted">The binding the server had when the caller saw it listed, the one that is gone.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes when the token is gone, or when removing it failed.</returns>
-    /// <remarks>A failure is logged and does not throw: the entry ends by itself (<see cref="TraconMcpOptions.OAuthTokenSlidingLifetime"/>).</remarks>
-    public async ValueTask RemoveAsync(McpTenantServerKey key, CancellationToken cancellationToken)
+    /// <remarks>
+    /// <para>
+    /// Only the token of <paramref name="deleted"/> is forgotten. The caller decided "deleted" from a list it read earlier; a
+    /// server of the same name that was created and authorized since has another identifier, its token is in the entry now, and
+    /// it is not the one to forget. In the distributed mode the shared entry is read first and removed only when it still carries
+    /// the deleted binding or cannot be read (a value nobody can use). The read and the removal are two calls, so this is as
+    /// exact as the shared cache's lease for a refresh is: the window is a call, not a refresh pass.
+    /// </para>
+    /// <para>A failure is logged and does not throw: the entry ends by itself (<see cref="TraconMcpOptions.OAuthTokenSlidingLifetime"/>).</para>
+    /// </remarks>
+    public async ValueTask RemoveAsync(McpTenantServerKey key, McpTokenBinding deleted, CancellationToken cancellationToken)
     {
-        _caches.TryRemove(key, out _);
+        if (_caches.TryGetValue(key, out var current))
+        {
+            if (current.Binding != deleted)
+            {
+                return;
+            }
+
+            _caches.TryRemove(KeyValuePair.Create(key, current));
+        }
 
         if (!_backend.Enabled)
         {
@@ -110,7 +129,17 @@ internal sealed class McpOAuthTokenCacheRegistry
 
         try
         {
-            await _backend.Cache.RemoveAsync(McpOAuthCacheKeys.Token(key), cancellationToken).ConfigureAwait(false);
+            var cacheKey = McpOAuthCacheKeys.Token(key);
+            var bytes = await _backend.Cache.GetAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+
+            if (bytes is not null
+                && McpOAuthEnvelope.TryOpen(_backend.Protector, bytes, McpOAuthJsonContext.Default.McpStoredTokens, out var stored)
+                && stored!.Binding != deleted)
+            {
+                return;
+            }
+
+            await _backend.Cache.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {

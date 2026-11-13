@@ -148,12 +148,11 @@ public abstract partial class TwoNodeAcceptanceContract
     {
         var backend = host.Services.GetRequiredService<McpOAuthDistributedBackend>();
         var key = new McpTenantServerKey("default", OAuthFlowClient.ServerName);
+        var server = (await host.Services.GetRequiredService<IMcpServerStore>().GetAsync("default", OAuthFlowClient.ServerName))!;
         var tokens = new DistributedMcpTokenCache(
             backend,
             key,
-            new McpTokenBinding(
-                (await host.Services.GetRequiredService<IMcpServerStore>().GetAsync("default", OAuthFlowClient.ServerName))!.Endpoint.AbsoluteUri,
-                OAuthFlowClient.ClientId),
+            new McpTokenBinding(server.Endpoint.AbsoluteUri, OAuthFlowClient.ClientId, server.Id),
             Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
 
         var token = (await tokens.GetTokensAsync(CancellationToken.None)).ShouldNotBeNull();

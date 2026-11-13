@@ -118,7 +118,9 @@ public sealed class McpTenantServerKeyTests
         string clientId = "client")
         => new()
         {
-            Id = Guid.NewGuid(),
+            // One server keeps its identifier whatever its endpoint or client id becomes, so the same name is the same
+            // server here. A server deleted and created again has another identifier (see McpOAuthTokenLifecycleTests).
+            Id = new Guid(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(name))[..16]),
             TenantId = "acme",
             Name = name,
             Endpoint = new Uri(endpoint),

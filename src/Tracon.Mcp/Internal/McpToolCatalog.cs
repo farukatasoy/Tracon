@@ -153,7 +153,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         {
             // Taken BEFORE the servers are listed: a server that is saved and authorized while
             // this refresh runs is not in the list and must not look deleted (see ForgetDeletedServersAsync).
-            var knownTokenKeys = _tokenCaches.Keys;
+            var knownTokenKeys = _tokenCaches.Bindings;
             var tenantIds = await ResolveTenantIdsAsync(cancellationToken).ConfigureAwait(false);
             var byTenant = new Dictionary<string, McpTenantTools>(StringComparer.Ordinal);
             var live = new HashSet<McpTenantServerKey>();
@@ -447,16 +447,18 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     /// </para>
     /// </remarks>
     private async ValueTask ForgetDeletedServersAsync(
-        IReadOnlyCollection<McpTenantServerKey> knownTokenKeys,
+        IReadOnlyCollection<KeyValuePair<McpTenantServerKey, McpTokenBinding>> knownTokenKeys,
         IReadOnlyCollection<string> listedTenants,
         HashSet<McpTenantServerKey> registered,
         CancellationToken cancellationToken)
     {
-        foreach (var key in knownTokenKeys)
+        foreach (var (key, binding) in knownTokenKeys)
         {
             if (listedTenants.Contains(key.TenantId, StringComparer.Ordinal) && !registered.Contains(key))
             {
-                await _tokenCaches.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
+                // The binding of the snapshot goes with the key: a server of this name that was created and authorized
+                // after the list was read owns the entry now, and its token is not the deleted one's.
+                await _tokenCaches.RemoveAsync(key, binding, cancellationToken).ConfigureAwait(false);
             }
         }
     }

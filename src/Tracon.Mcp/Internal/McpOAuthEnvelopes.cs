@@ -23,6 +23,10 @@ internal sealed class McpStoredTokens
     /// <summary>Gets or sets the client id the token was issued to.</summary>
     public string? BoundClientId { get; set; }
 
+    /// <summary>Gets or sets the identifier of the server definition the token was issued for.</summary>
+    /// <remarks>A value written before the identifier was part of the binding reads as the empty one and matches no server.</remarks>
+    public Guid BoundServerId { get; set; }
+
     /// <summary>Gets or sets <see cref="TokenContainer.AccessToken"/>.</summary>
     public string AccessToken { get; set; } = string.Empty;
 
@@ -54,7 +58,7 @@ internal sealed class McpStoredTokens
     public string? TokenEndpointAuthMethod { get; set; }
 
     /// <summary>Gets the binding the token was issued for.</summary>
-    public McpTokenBinding Binding => new(Endpoint, BoundClientId);
+    public McpTokenBinding Binding => new(Endpoint, BoundClientId, BoundServerId);
 
     /// <summary>Copies a token and the binding it belongs to.</summary>
     /// <param name="tokens">The token.</param>
@@ -68,6 +72,7 @@ internal sealed class McpStoredTokens
         {
             Endpoint = binding.Endpoint,
             BoundClientId = binding.ClientId,
+            BoundServerId = binding.ServerId,
             AccessToken = tokens.AccessToken,
             RefreshToken = tokens.RefreshToken,
             ExpiresIn = tokens.ExpiresIn,

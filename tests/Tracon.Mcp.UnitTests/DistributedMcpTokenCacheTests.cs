@@ -19,7 +19,7 @@ namespace Tracon.Mcp.UnitTests;
 public sealed class DistributedMcpTokenCacheTests
 {
     private static readonly McpTenantServerKey Key = new("acme", "prod");
-    private static readonly McpTokenBinding Binding = new("https://mcp.example.com/mcp", "client");
+    private static readonly McpTokenBinding Binding = new("https://mcp.example.com/mcp", "client", Guid.Parse("5f0c1b52-3b64-4a0f-9d0a-6f4d4b3a2c11"));
 
     [Fact]
     public async Task Stored_bytes_carry_no_plaintext_token()
@@ -89,7 +89,7 @@ public sealed class DistributedMcpTokenCacheTests
 
         await Cache(backend).StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None);
 
-        var other = new DistributedMcpTokenCache(backend, Key, new McpTokenBinding(endpoint, clientId), NullLogger.Instance);
+        var other = new DistributedMcpTokenCache(backend, Key, new McpTokenBinding(endpoint, clientId, Binding.ServerId), NullLogger.Instance);
 
         (await other.GetTokensAsync(CancellationToken.None)).ShouldBeNull();
         (await Cache(backend).GetTokensAsync(CancellationToken.None)).ShouldNotBeNull("the definition it was issued for still gets it.");

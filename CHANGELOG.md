@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **An MCP server deleted and created again under the same name no longer takes the token of the deleted one, and no longer loses its own to the cleanup of a refresh that was running.** The token cache was found by the server's name, and its binding held the endpoint and the client id only. A server created again with the same name, endpoint and client id was handed the token nobody had issued to it; and a server created and authorized while a refresh ran was forgotten as "deleted", because the refresh had listed the servers when the name was free. The binding carries the identifier of the server definition now, and the cleanup forgets a token only when the entry still has the binding of the server it saw deleted.
+  What to do:
+  - **If you use `OAuthTokenStore = DistributedCache`,** the tokens stored before the upgrade are written without the identifier and match no server: authorize each OAuth server once more. The in-memory mode holds nothing across a restart and needs nothing.
+
 - **The OpenAI live voice sideband socket opens the address the egress guard judged, not an address the operating system resolves a second time.** The socket was checked before it was opened (`EgressSocketGuard.ValidateAsync`) and then connected by `ClientWebSocket` on its own, which resolved the name again: a name that answered differently the second time was judged on one address and opened on another. The socket is now connected through the guard's own handler, so the guard resolves the name once and connects to that answer. The refusal the caller reads is unchanged (`TraconException` that names `AllowPrivateNetworkTargets`).
   What to do:
   - **If the sideband reached the live endpoint through a proxy set in the environment** (`HTTPS_PROXY`), it no longer does: the guard's handler never uses a proxy, as for every other outbound call of Tracon, because the connect callback would judge the proxy's address and not the target's. Give the live endpoint a direct route.

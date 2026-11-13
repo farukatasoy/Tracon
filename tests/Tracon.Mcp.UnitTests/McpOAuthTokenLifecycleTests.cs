@@ -15,8 +15,9 @@ public sealed class McpOAuthTokenLifecycleTests
     {
         var registry = Registry(new RecordingDistributedCache());
 
-        var first = registry.GetOrCreate("acme", McpOAuthTestKit.Server());
-        var second = registry.GetOrCreate("acme", McpOAuthTestKit.Server());
+        var server = McpOAuthTestKit.Server();
+        var first = registry.GetOrCreate("acme", server);
+        var second = registry.GetOrCreate("acme", server);
 
         first.ShouldBeOfType<DistributedMcpTokenCache>();
         ReferenceEquals(first, second).ShouldBeTrue("one process knows which refresh lease it holds.");
@@ -64,7 +65,7 @@ public sealed class McpOAuthTokenLifecycleTests
         await registry.GetOrCreate("acme", server).StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None);
         cache.Peek(McpOAuthCacheKeys.Token(new McpTenantServerKey("acme", server.Name))).ShouldNotBeNull();
 
-        await registry.RemoveAsync(new McpTenantServerKey("acme", server.Name), CancellationToken.None);
+        await registry.RemoveAsync(new McpTenantServerKey("acme", server.Name), McpTokenBinding.Of(server), CancellationToken.None);
 
         cache.Peek(McpOAuthCacheKeys.Token(new McpTenantServerKey("acme", server.Name))).ShouldBeNull();
     }
@@ -76,11 +77,13 @@ public sealed class McpOAuthTokenLifecycleTests
         var logs = new RecordingLoggerFactory();
         var registry = new McpOAuthTokenCacheRegistry(McpOAuthTestKit.Backend(cache), logs);
 
-        await registry.GetOrCreate("acme", McpOAuthTestKit.Server()).StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None);
+        var server = McpOAuthTestKit.Server();
+
+        await registry.GetOrCreate("acme", server).StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None);
         cache.Failing = true;
 
         // The entry ends by itself (sliding lifetime); the refresh that asked must not fail over it.
-        await Should.NotThrowAsync(async () => await registry.RemoveAsync(new McpTenantServerKey("acme", "prod"), CancellationToken.None));
+        await Should.NotThrowAsync(async () => await registry.RemoveAsync(new McpTenantServerKey("acme", "prod"), McpTokenBinding.Of(server), CancellationToken.None));
 
         logs.Count(Microsoft.Extensions.Logging.LogLevel.Warning, "could not be removed").ShouldBe(1);
     }
@@ -180,6 +183,48 @@ public sealed class McpOAuthTokenLifecycleTests
         await catalog.RefreshAsync();
 
         cache.Peek(McpOAuthCacheKeys.Token(new McpTenantServerKey("default", "fresh"))).ShouldNotBeNull();
+    }
+
+    /// <summary>
+    /// 🚨 A server deleted, then created again under the same name and authorized while a refresh runs: the refresh listed
+    /// the servers when the name was free, and its snapshot holds the binding of the deleted one. The token in the entry is
+    /// the new server's, and forgetting by name alone took it.
+    /// </summary>
+    [Fact]
+    public async Task A_server_created_again_under_a_deleted_name_and_authorized_while_a_refresh_runs_keeps_its_token()
+    {
+        var cache = new RecordingDistributedCache();
+        var registry = Registry(cache);
+        var hooked = new HookedServerStore(new InMemoryMcpServerStore());
+        var catalog = Catalog(registry, hooked);
+        var deleted = McpOAuthTestKit.Server("again", tenantId: "default");
+        var created = McpOAuthTestKit.Server("again", tenantId: "default");
+
+        await registry.GetOrCreate("default", deleted).StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None);
+
+        hooked.OnList = () => registry.GetOrCreate("default", created)
+            .StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
+
+        await catalog.RefreshAsync();
+
+        cache.Peek(McpOAuthCacheKeys.Token(new McpTenantServerKey("default", "again"))).ShouldNotBeNull("the new server's token was forgotten as the deleted one's");
+        (await registry.GetOrCreate("default", created).GetTokensAsync(CancellationToken.None)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task A_server_created_again_with_the_same_name_endpoint_and_client_id_does_not_inherit_the_token_of_the_deleted_one()
+    {
+        var registry = new McpOAuthTokenCacheRegistry();
+        var deleted = McpOAuthTestKit.Server("again", tenantId: "default");
+        var created = McpOAuthTestKit.Server("again", tenantId: "default");
+
+        await registry.GetOrCreate("default", deleted).StoreTokensAsync(McpOAuthTestKit.Token(), CancellationToken.None);
+
+        // The administrator deleted the server and created one that nobody authorized: nothing in the entry is its own.
+        (await registry.GetOrCreate("default", created).GetTokensAsync(CancellationToken.None)).ShouldBeNull();
     }
 
     private static McpOAuthTokenCacheRegistry Registry(RecordingDistributedCache cache)
