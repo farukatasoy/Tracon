@@ -5934,6 +5934,12 @@ class ContractSampleTests(unittest.TestCase):
         self.assertFalse(gate.contract_package_changed(["src/Tracon.Core/Thing.cs"]))
         self.assertFalse(gate.contract_package_changed([]))
 
+    def test_a_path_under_the_abstractions_package_is_a_trigger_too(self):
+        # An `IRunStore` member changes the sample store's compile surface exactly as a contract case does.
+        self.assertTrue(gate.contract_package_changed(["src/Tracon.Abstractions/Runs/IRunStore.cs"]))
+        self.assertFalse(gate.contract_package_changed(["src/Tracon.AbstractionsExtra/A.cs"]))
+        self.assertFalse(gate.contract_package_changed(["tests/Tracon.Abstractions.UnitTests/A.cs"]))
+
     def test_inner_loop_packs_then_restores_then_tests_the_sample_right_after_the_build(self):
         rendered = self._inner_loop([self.CONTRACT_PATH])
 
@@ -5955,11 +5961,16 @@ class ContractSampleTests(unittest.TestCase):
         self.assertLess(sample, first_unit_tests)
 
     def test_inner_loop_without_a_contract_change_adds_no_sample_step(self):
-        for paths in (["src/Tracon.Core/Thing.cs"], ["src/Tracon.Abstractions/Runs/IRunStore.cs"], []):
+        for paths in (["src/Tracon.Core/Thing.cs"], []):
             with self.subTest(paths=paths):
                 rendered = self._inner_loop(paths)
 
                 self.assertFalse(any("FileRunStore" in line or "contract-sample" in line for line in rendered), rendered)
+
+    def test_inner_loop_adds_the_sample_steps_when_only_the_abstractions_package_changed(self):
+        rendered = self._inner_loop(["src/Tracon.Abstractions/Runs/IRunStore.cs"])
+
+        self._positions(rendered, f"dotnet restore {self.SAMPLE_PROJECT}", f"dotnet test --project {self.SAMPLE_PROJECT}")
 
     def test_inner_loop_full_run_still_carries_the_sample_steps_when_the_contract_package_changed(self):
         # An unknown package widens the test selection to a full run; the sample steps do not depend on that selection.

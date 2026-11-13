@@ -1373,7 +1373,7 @@ RELEASE_ONLY_SAMPLE_PREFIX = "samples/Tracon.Samples."
 # change that added eight cases to the run store contract broke the sample and
 # `inner-loop` stayed green.
 #
-# When the changed paths include the contract package, `inner-loop` and `close`
+# When the changed paths include the contract package or the abstractions package, `inner-loop` and `close`
 # pack it, and what it needs, under a throwaway version into a feed of this run,
 # restore the sample from that feed and run its tests. Measured: about 12.5 s
 # (two packs 2 s, restore 0.8 s, 206 tests 9.7 s).
@@ -1398,10 +1398,15 @@ CONTRACT_SAMPLE_FEED_KEY = "tracon-contract-sample"
 _PROJECT_REFERENCE_PATTERN = re.compile(r'<ProjectReference\s+Include="(?P<path>[^"]+)"')
 
 
+# The contract package and the package it is built on: a member added to or changed in Tracon.Abstractions (the
+# signature of an `IRunStore` member) breaks the sample store exactly as a case added to the suite does.
+CONTRACT_SAMPLE_TRIGGER_PREFIXES = (f"src/{CONTRACT_PACKAGE}/", "src/Tracon.Abstractions/")
+
+
 def contract_package_changed(paths: Iterable[str]) -> bool:
-    """True if any changed path is under the contract package's directory (not a sibling that shares the prefix)."""
-    prefix = f"src/{CONTRACT_PACKAGE}/"
-    return any(path.startswith(prefix) for path in paths)
+    """True if any changed path is under the contract package's or the abstractions package's directory (not a
+    sibling that shares the prefix)."""
+    return any(path.startswith(CONTRACT_SAMPLE_TRIGGER_PREFIXES) for path in paths)
 
 
 def contract_sample_packages(
@@ -2191,7 +2196,8 @@ def closing_commands(
             "dotnet", "pack", "Tracon.slnx", "-c", "Release", "--no-build",
             "-p:TraconSkipCleanWorkingTreeCheck=true")),
     ]
-    # Path-triggered like `perf`: only a change to the contract package can move the sample store's result. Right
+    # Path-triggered like `perf`: only a change to the contract package or to the abstractions it is built on can move the
+    # sample store's result. Right
     # after the build it packs (about 12 s), well before the format step and the tests.
     if contract_sample:
         commands.extend(contract_sample_commands(contract_sample_version()))
