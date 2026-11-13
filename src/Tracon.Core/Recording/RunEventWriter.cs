@@ -749,6 +749,12 @@ public sealed class RunEventWriter
             // (WorkflowResponseApplied), so that link is the function too. It
             // carries two ids, never the answer itself.
             //
+            // The loop iteration event is the same kind of exception. Its payload is
+            // counters, flags and criterion kinds (the feedback text is never in it), and
+            // the frame of the native agent stream IS this event: a client draws its
+            // iteration separator, and finds the iteration that holds the answer, from
+            // that payload alone.
+            //
             // A reserved type is exempt only when it is named in
             // KeepsPayloadWithPayloadsOff. The two content notices carry
             // provider text and workflow data, which are observability
@@ -756,6 +762,7 @@ public sealed class RunEventWriter
             Payload = _options.RecordToolPayloads ||
                       draft.Type == RunEventType.WorkflowRequest ||
                       draft.Type == RunEventType.WorkflowResponseApplied ||
+                      draft.Type == RunEventType.LoopIterationCompleted ||
                       (allowReserved && draft.Type == RunEventType.Custom && KeepsPayloadWithPayloadsOff(draft.CustomType))
                 ? Truncate(draft.Payload)
                 : null,

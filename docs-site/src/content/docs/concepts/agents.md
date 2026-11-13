@@ -658,7 +658,9 @@ Four more rules are worth knowing before you turn the loop on:
 
 Each evaluated iteration writes a `LoopIterationCompleted` run event carrying
 the iteration number, whether a criterion asked for another iteration, and which
-one. The criterion's feedback text is not carried in the event.
+one. The criterion's feedback text is not carried in the event. The event keeps its
+payload when `RunRecording:RecordToolPayloads` is off: the payload holds counters, flags and
+criterion kinds, never free text.
 
 The event also says who decided. Its `criteria` list holds every criterion that was
 evaluated that iteration, in order, each with its `kind` and its `decision`: `stop`,

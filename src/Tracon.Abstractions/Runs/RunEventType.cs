@@ -22,11 +22,14 @@ namespace Tracon;
 /// With it off the event still appears in the stream and <c>Text</c> still
 /// carries its summary, but <c>Payload</c> is <see langword="null"/> — so a
 /// payload described below is what the field holds when it is written, not a
-/// promise that it is always there. Three exceptions always carry theirs,
+/// promise that it is always there. Four exceptions always carry theirs,
 /// because there the payload is the function rather than an observability
 /// detail: <see cref="WorkflowRequest"/>, which is the only place a pending
 /// human request can be read from, <see cref="WorkflowResponseApplied"/>, which
-/// is the only link from an answer's run back to the run it answered, and
+/// is the only link from an answer's run back to the run it answered,
+/// <see cref="LoopIterationCompleted"/>, whose payload is counters, flags and criterion kinds (never
+/// the feedback text) and is what a client reads to tell which iteration just ended and whether another
+/// follows, and
 /// <see cref="Custom"/> of the reserved notice types <c>RunEventCustomTypes.QuotaThreshold</c>,
 /// <c>RunEventCustomTypes.OutputTruncated</c>, <c>RunEventCustomTypes.OutputFiltered</c>,
 /// <c>RunEventCustomTypes.ToolInputDeclined</c> and <c>RunEventCustomTypes.Context</c>, whose payload names
@@ -375,6 +378,11 @@ public enum RunEventType
     /// its <c>kind</c> and <c>decision</c>. <c>reviewer.runId</c> is <see langword="null"/> when the
     /// call was refused before a run started, and <c>reviewer.agentVersion</c> is the version that run
     /// recorded (1 for an agent defined in code).
+    /// </para>
+    /// <para>
+    /// The payload is written even when <c>RecordToolPayloads</c> is off: it holds no free text, and the
+    /// <c>loop.iteration-completed</c> frame of the native agent stream, which is this event, would
+    /// otherwise reach a client with nothing to read.
     /// </para>
     /// <para>
     /// 31, not 30: <see cref="ChildRunTimedOut"/> already holds 30 and

@@ -71,16 +71,26 @@ public sealed class RecordingLoopEvaluatorCallbackTests
     }
 
     [Fact]
-    public async Task With_payloads_off_the_event_and_so_the_callbacks_copy_carry_no_payload()
+    public async Task With_payloads_off_the_event_and_so_the_callbacks_copy_keep_their_payload()
     {
+        // The payload holds counters, flags and criterion kinds, never free text, and the loop frame
+        // of the live stream and the playground's separator read it: the option does not drop it.
         await using var rig = await Rig.StartAsync(recordToolPayloads: false);
 
         await rig.EvaluateAsync();
 
         var handed = rig.Handed.ShouldHaveSingleItem();
 
-        handed.Payload.ShouldBeNull();
         handed.Text.ShouldNotBeNull().ShouldEndWith("continued by 'always'");
+
+        using var payload = System.Text.Json.JsonDocument.Parse(handed.Payload.ShouldNotBeNull());
+
+        payload.RootElement.GetProperty("continued").GetBoolean().ShouldBeTrue();
+        payload.RootElement.GetProperty("continuedBy").GetString().ShouldBe("always");
+
+        var stored = (await rig.StoredLoopEventsAsync()).ShouldHaveSingleItem();
+
+        stored.Payload.ShouldBe(handed.Payload);
     }
 
     [Fact]

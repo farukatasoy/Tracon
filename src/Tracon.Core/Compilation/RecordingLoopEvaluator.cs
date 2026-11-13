@@ -84,8 +84,8 @@ internal sealed record LoopCriterionBinding(string Kind, LoopEvaluator Evaluator
 /// the caller waits for the next update, so the callback's write lands between the
 /// last update of this iteration and the first of the next. A run with no event
 /// writer, or whose store could not take the event, has no event to hand over, so it
-/// calls nothing. With <c>RecordToolPayloads</c> off the event keeps no payload, and
-/// the callback receives it as recorded.
+/// calls nothing. The event keeps its payload with <c>RecordToolPayloads</c> off (it holds
+/// counters, flags and criterion kinds, never free text), and the callback receives it as recorded.
 /// </para>
 /// <para>
 /// <strong>The event says who decided.</strong> Besides the criterion that asked for another iteration,

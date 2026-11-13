@@ -97,9 +97,9 @@ loop evaluated, the stream sends a
 `loop.iteration-completed` frame. It comes after the last `update` of that iteration
 and before the first `update` of the next. The frame's data is the recorded
 `LoopIterationCompleted` event, byte for byte the same as `GET /api/runs/{runId}/events`
-serves it. The event's `payload` is a JSON string with these fields, and it is `null`
-when `RunRecording:RecordToolPayloads` is off (it is on by default); the frame's `text`
-then still says what happened:
+serves it. The event's `payload` is a JSON string with these fields. It holds counters,
+flags and criterion kinds, never free text, so it is kept when `RunRecording:RecordToolPayloads`
+is off too:
 
 | Field | Meaning |
 |---|---|

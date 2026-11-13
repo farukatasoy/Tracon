@@ -118,6 +118,37 @@ public sealed class LoopIterationFrameTests
     }
 
     [Fact]
+    public async Task With_RecordToolPayloads_off_the_frame_and_the_recorded_event_still_carry_the_payload()
+    {
+        // The loop payload is counters, flags and criterion kinds: a client that draws the iteration
+        // separator, or looks for the answer, reads it from the frame, so the option that hides tool
+        // arguments and results must not take it away.
+        var provider = Provider("still working", "ALL DONE");
+        await using var host = await StartAsync(
+            provider,
+            MarkerLoop(maxIterations: 6),
+            configureServices: static services => services.Configure<TraconOptions>(
+                static options => options.RunRecording.RecordToolPayloads = false));
+
+        var frames = await PostStreamingAsync(host, AgentName);
+        var run = await OutputTruncationTests.SingleRunAsync(host);
+        var recorded = await OutputTruncationStreamingTests.EventFramesAsync(host, run.Id);
+
+        var payloads = FramePayloads(frames);
+
+        payloads.Select(static payload => payload.Iteration).ShouldBe([1, 2]);
+        payloads.Select(static payload => payload.Continued).ShouldBe([true, false]);
+
+        // The event the events stream serves is the very frame, payload included.
+        frames.Where(IsLoopFrame).Select(static frame => frame.Data).ToList()
+            .ShouldBe(recorded.Where(IsLoopFrame).Select(static frame => frame.Data).ToList());
+
+        (await OutputTruncationTests.EventsAsync(host, run.Id))
+            .Where(static e => e.Type == RunEventType.LoopIterationCompleted)
+            .ShouldAllBe(static e => e.Payload != null);
+    }
+
+    [Fact]
     public async Task The_frame_data_is_the_event_the_events_stream_serves_byte_for_byte()
     {
         var provider = Provider("still working", "ALL DONE");
@@ -402,20 +433,26 @@ public sealed class LoopIterationFrameTests
         return provider;
     }
 
-    private static Task<TraconTestHost> StartAsync(FakeModelProvider provider, LoopSettings? loop, bool harness = true)
-        => TraconTestHost.StartAsync(builder =>
-        {
-            builder.AddModelProvider(provider);
-            builder.AddAgent(new AgentDefinition
+    private static Task<TraconTestHost> StartAsync(
+        FakeModelProvider provider,
+        LoopSettings? loop,
+        bool harness = true,
+        Action<IServiceCollection>? configureServices = null)
+        => TraconTestHost.StartAsync(
+            builder =>
             {
-                Name = AgentName,
-                Description = "Works until it is done.",
-                Instructions = "Work.",
-                Model = new ModelBinding { Provider = ProviderName, Model = ModelName },
-                Harness = harness || loop is not null ? new HarnessSettings { Loop = loop } : null,
-                Origin = AgentDefinitionOrigin.Code,
-            });
-        });
+                builder.AddModelProvider(provider);
+                builder.AddAgent(new AgentDefinition
+                {
+                    Name = AgentName,
+                    Description = "Works until it is done.",
+                    Instructions = "Work.",
+                    Model = new ModelBinding { Provider = ProviderName, Model = ModelName },
+                    Harness = harness || loop is not null ? new HarnessSettings { Loop = loop } : null,
+                    Origin = AgentDefinitionOrigin.Code,
+                });
+            },
+            configureServices: configureServices);
 
     private sealed record IterationPayload(
         int Iteration,

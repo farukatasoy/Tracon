@@ -298,7 +298,7 @@ internal static class AgentEndpoints
                 "next. Its data is the event GET /api/runs/{id}/events serves; its 'payload' holds 'iteration', " +
                 "'continued', 'continuedBy', 'hasFeedback', 'failedCriterion', 'ceilingReached', 'failsRun' and " +
                 "'criteria' (every criterion evaluated in the iteration, each with its 'kind' and its 'decision'), " +
-                "and is null when " +
+                "and is kept when " +
                 "'RunRecording:RecordToolPayloads' is off. The answer is the iteration the last " +
                 "event closes, when that event has 'continued' false. When the last event has 'ceilingReached' true, the " +
                 "answer is the iteration after it, because the turn at the ceiling is not evaluated and has no event of " +
