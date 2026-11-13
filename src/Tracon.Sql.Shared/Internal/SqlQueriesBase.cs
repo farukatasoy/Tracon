@@ -775,6 +775,12 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that opens a new run record.</summary>
     public string InsertRun { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// The write that moves a run out of the queue: the statement of <see cref="InsertRun"/> that leaves a row which exists and
+    /// does not read Queued as it is, and returns no row then.
+    /// </summary>
+    public string PromoteQueuedRun { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that finishes a run.</summary>
     public string UpdateRunCompletion { get; protected set; } = string.Empty;
 

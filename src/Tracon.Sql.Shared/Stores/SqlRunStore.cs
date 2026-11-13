@@ -81,9 +81,9 @@ internal sealed class SqlRunStore : IRunStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// The same statement as <see cref="StartRunAsync"/> with <c>@only_if_queued</c> set: the update of a row that exists
-    /// carries the check as its own predicate, so a closure that lands first is not written over, and the statement returns
-    /// no row.
+    /// The statement of <see cref="StartRunAsync"/> with the update of a row that exists carrying the check as its own
+    /// predicate (<c>SqlQueriesBase.PromoteQueuedRun</c>), so a closure that lands first is not written over, and the
+    /// statement returns no row.
     /// </remarks>
     public async ValueTask<bool> PromoteQueuedRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
     {
@@ -126,6 +126,23 @@ internal sealed class SqlRunStore : IRunStore
             ContinuedFromRunId = info.ContinuedFromRunId,
         };
 
+        // Only the statement that moves a run out of the queue reads `status_queued`, and the ordinary start binds nothing it does
+        // not use: it is the statement every run opens with. The choice is made outside the lambdas, so neither captures it.
+        Action<DbCommand> bind;
+
+        if (onlyIfQueued)
+        {
+            bind = command =>
+            {
+                BindStart(command, record);
+                DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
+            };
+        }
+        else
+        {
+            bind = command => BindStart(command, record);
+        }
+
         // The UPSERT's OUTPUT/RETURNING clause reports what the row holds after the
         // write, not the values `record` was built from. Two things make them
         // differ. The COALESCEd columns (user_id, labels, continued_from_run_id):
@@ -135,38 +152,8 @@ internal sealed class SqlRunStore : IRunStore
         // U+0000 as U+FFFD, and PostgreSQL keeps microseconds. The return value
         // must match what GetRunAsync would report immediately after.
         var stored = await _context.ExecuteUpsertAsync(
-            _sql.InsertRun,
-            command =>
-            {
-                DbHelpers.Add(command, "id", record.Id);
-                DbHelpers.AddTenant(command, record.TenantId!);
-                DbHelpers.Add(command, "agent_name", record.AgentName);
-                AddNullableText(command, "session_id", record.SessionId);
-                AddNullableText(command, "model_id", record.ModelId);
-                AddNullableText(command, "model_provider", record.ModelProvider);
-                DbHelpers.Add(command, "status", (short)record.Status);
-                // The statements of the providers that read the database server's clock mark a run that is running with it.
-                DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
-                DbHelpers.Add(command, "status_queued", (short)RunStatus.Queued);
-                DbHelpers.Add(command, "only_if_queued", (short)(onlyIfQueued ? 1 : 0));
-                Dialect.AddTimestamp(command, "started_at", record.StartedAt);
-                DbHelpers.Add(command, "is_streaming", record.IsStreaming);
-                AddNullableUuid(command, "parent_run_id", record.ParentRunId);
-                AddNullableUuid(command, "root_run_id", record.RootRunId);
-                DbHelpers.Add(command, "kind", (short)record.Kind);
-                AddNullableText(command, "workflow_name", record.WorkflowName);
-                AddNullableInt32(command, "agent_version", record.AgentVersion);
-                AddNullableUuid(command, "experiment_id", record.ExperimentId);
-                AddNullableText(command, "variant", record.Variant);
-                AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
-                AddNullableUuid(command, "continued_from_run_id", record.ContinuedFromRunId);
-                AddNullableText(command, "user_id", record.UserId);
-                Dialect.AddJsonb(command, "labels", JsonStringMapCodec.Serialize(record.Labels));
-
-                // The depth column is smallint; its source is the budget's MaxDepth
-                // value and never comes close to the short limit in any deployment.
-                DbHelpers.Add(command, "depth", (short)Math.Clamp(record.Depth, 0, short.MaxValue));
-            },
+            onlyIfQueued ? _sql.PromoteQueuedRun : _sql.InsertRun,
+            bind,
             (command, token) => DbHelpers.ReadSingleAsync(command, ReadStoredStart, token),
             cancellationToken).ConfigureAwait(false);
 
@@ -189,6 +176,40 @@ internal sealed class SqlRunStore : IRunStore
 
         // The statement returns the row it wrote; no row means it left the row alone. An ordinary start always gets one.
         return (record, stored is not null || !onlyIfQueued);
+    }
+
+    /// <summary>Binds the parameters of the statement that writes the start of a run.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="record">The run, as the call describes it.</param>
+    private void BindStart(DbCommand command, RunRecord record)
+    {
+        DbHelpers.Add(command, "id", record.Id);
+        DbHelpers.AddTenant(command, record.TenantId!);
+        DbHelpers.Add(command, "agent_name", record.AgentName);
+        AddNullableText(command, "session_id", record.SessionId);
+        AddNullableText(command, "model_id", record.ModelId);
+        AddNullableText(command, "model_provider", record.ModelProvider);
+        DbHelpers.Add(command, "status", (short)record.Status);
+        // The statements of the providers that read the database server's clock mark a run that is running with it.
+        DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+
+        Dialect.AddTimestamp(command, "started_at", record.StartedAt);
+        DbHelpers.Add(command, "is_streaming", record.IsStreaming);
+        AddNullableUuid(command, "parent_run_id", record.ParentRunId);
+        AddNullableUuid(command, "root_run_id", record.RootRunId);
+        DbHelpers.Add(command, "kind", (short)record.Kind);
+        AddNullableText(command, "workflow_name", record.WorkflowName);
+        AddNullableInt32(command, "agent_version", record.AgentVersion);
+        AddNullableUuid(command, "experiment_id", record.ExperimentId);
+        AddNullableText(command, "variant", record.Variant);
+        AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
+        AddNullableUuid(command, "continued_from_run_id", record.ContinuedFromRunId);
+        AddNullableText(command, "user_id", record.UserId);
+        Dialect.AddJsonb(command, "labels", JsonStringMapCodec.Serialize(record.Labels));
+
+        // The depth column is smallint; its source is the budget's MaxDepth
+        // value and never comes close to the short limit in any deployment.
+        DbHelpers.Add(command, "depth", (short)Math.Clamp(record.Depth, 0, short.MaxValue));
     }
 
     /// <summary>

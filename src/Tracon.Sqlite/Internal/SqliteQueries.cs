@@ -124,6 +124,60 @@ internal sealed class SqliteQueries : SqlQueriesBase
     /// <remarks>The instant itself, bound by <c>SqliteDialect.AddLeaseInstant</c> under the name asked for.</remarks>
     protected override string LeaseInstant(string name) => $"@{name}";
 
+    /// <summary>
+    /// The upsert of a run's start. With <paramref name="onlyIfQueued"/> it is the write that moves a run out of the queue
+    /// (<see cref="SqlQueriesBase.PromoteQueuedRun"/>): a row that exists and does not read Queued is left as it is, because the
+    /// job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the row.
+    /// The statement returns no row then, which is how the caller learns it wrote nothing. The text of the ordinary start is
+    /// the one without the guard, so it binds nothing the guard needs.
+    /// </summary>
+    private string InsertRunText(bool onlyIfQueued)
+    {
+        var guard = onlyIfQueued ? "\nWHERE status = @status_queued" : string.Empty;
+
+        return $"""
+            INSERT INTO {Schema}runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
+                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
+                                       replay_of_run_id, user_id, labels, continued_from_run_id)
+            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
+                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id)
+            ON CONFLICT (id) DO UPDATE SET
+                tenant_id     = excluded.tenant_id,
+                agent_name    = excluded.agent_name,
+                session_id    = excluded.session_id,
+                model_id      = excluded.model_id,
+                model_provider = excluded.model_provider,
+                status        = excluded.status,
+                started_at    = excluded.started_at,
+                is_streaming  = excluded.is_streaming,
+                parent_run_id = excluded.parent_run_id,
+                root_run_id   = excluded.root_run_id,
+                depth         = excluded.depth,
+                kind          = excluded.kind,
+                workflow_name = excluded.workflow_name,
+                agent_version = excluded.agent_version,
+                experiment_id = excluded.experiment_id,
+                variant       = excluded.variant,
+                replay_of_run_id = excluded.replay_of_run_id,
+                -- COALESCE for the same reason as the attribution below. The
+                -- party that opens a continuation writes the row with the link; the
+                -- engine that runs it writes it again and does not know the link.
+                continued_from_run_id = COALESCE(excluded.continued_from_run_id, continued_from_run_id),
+                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
+                -- a queued run's placeholder row is written during the HTTP
+                -- request, where the user IS known, and rewritten later by the
+                -- background worker, where it is NOT (an HTTP-bound
+                -- IRunAttributionContext has no request to read). A plain
+                -- overwrite would ERASE the attribution the first write got
+                -- right. Attribution never legitimately goes from set back to
+                -- unset for the same run, so preserving is always correct.
+                user_id       = COALESCE(excluded.user_id, user_id),
+                labels        = COALESCE(excluded.labels, labels){guard}
+            RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
+            """;
+    }
+
     /// <summary>Creates a new query set.</summary>
     /// <param name="tablePrefix">The table prefix to validate.</param>
     /// <exception cref="TraconException">The prefix is not a valid identifier.</exception>
@@ -315,51 +369,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // Queued; when the worker actually runs the job, it is called a
         // second time with the SAME id and the row is updated in place (no
         // new row is OPENED).
-        InsertRun = $"""
-            INSERT INTO {Schema}runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
-                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id, user_id, labels, continued_from_run_id)
-            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id)
-            ON CONFLICT (id) DO UPDATE SET
-                tenant_id     = excluded.tenant_id,
-                agent_name    = excluded.agent_name,
-                session_id    = excluded.session_id,
-                model_id      = excluded.model_id,
-                model_provider = excluded.model_provider,
-                status        = excluded.status,
-                started_at    = excluded.started_at,
-                is_streaming  = excluded.is_streaming,
-                parent_run_id = excluded.parent_run_id,
-                root_run_id   = excluded.root_run_id,
-                depth         = excluded.depth,
-                kind          = excluded.kind,
-                workflow_name = excluded.workflow_name,
-                agent_version = excluded.agent_version,
-                experiment_id = excluded.experiment_id,
-                variant       = excluded.variant,
-                replay_of_run_id = excluded.replay_of_run_id,
-                -- COALESCE for the same reason as the attribution below. The
-                -- party that opens a continuation writes the row with the link; the
-                -- engine that runs it writes it again and does not know the link.
-                continued_from_run_id = COALESCE(excluded.continued_from_run_id, continued_from_run_id),
-                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
-                -- a queued run's placeholder row is written during the HTTP
-                -- request, where the user IS known, and rewritten later by the
-                -- background worker, where it is NOT (an HTTP-bound
-                -- IRunAttributionContext has no request to read). A plain
-                -- overwrite would ERASE the attribution the first write got
-                -- right. Attribution never legitimately goes from set back to
-                -- unset for the same run, so preserving is always correct.
-                user_id       = COALESCE(excluded.user_id, user_id),
-                labels        = COALESCE(excluded.labels, labels)
-            -- 🚨 The write that moves a run out of the queue (@only_if_queued = 1) leaves a row that is not Queued as it is: the
-            -- job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the
-            -- row. No row comes back then, which is how the caller learns the row was not written.
-            WHERE @only_if_queued = 0 OR status = @status_queued
-            RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
-            """;
+        InsertRun = InsertRunText(onlyIfQueued: false);
+        PromoteQueuedRun = InsertRunText(onlyIfQueued: true);
 
         // A group of events travels as one JSON array. json_each opens it in the order it was written (key is the
         // 0-based index); json_extract returns a JSON string as text, a number as an integer and null as NULL, which are

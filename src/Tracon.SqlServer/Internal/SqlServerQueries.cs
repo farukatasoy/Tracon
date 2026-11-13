@@ -112,6 +112,77 @@ internal sealed class SqlServerQueries : SqlQueriesBase
     /// </remarks>
     private const string EpochAnchor = "CONVERT(datetime2(7), '1900-01-01')";
 
+    /// <summary>
+    /// The upsert of a run's start. With <paramref name="onlyIfQueued"/> it is the write that moves a run out of the queue
+    /// (<see cref="SqlQueriesBase.PromoteQueuedRun"/>): a row that exists and does not read Queued is left as it is, because the
+    /// job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the row.
+    /// The statement returns no row then, which is how the caller learns it wrote nothing. The text of the ordinary start is
+    /// the one without the guard, so it binds nothing the guard needs.
+    /// </summary>
+    private string InsertRunText(bool onlyIfQueued)
+    {
+        // A row that exists and was left alone is not inserted again, which would be a duplicate key. The count is read into a
+        // variable first, because the EXISTS is a statement of its own and T-SQL does not say which half of an AND comes first.
+        var where = onlyIfQueued ? " AND status = @status_queued" : string.Empty;
+        var insertWhenNone = onlyIfQueued
+            ? $"DECLARE @updated int = @@ROWCOUNT;\n\nIF @updated = 0 AND NOT EXISTS (SELECT 1 FROM {Schema}.runs WHERE id = @id)"
+            : "IF @@ROWCOUNT = 0";
+
+        return $"""
+            UPDATE {Schema}.runs WITH (XLOCK, SERIALIZABLE)
+               SET tenant_id     = @tenant_id,
+                   agent_name    = @agent_name,
+                   session_id    = @session_id,
+                   model_id      = @model_id,
+                   model_provider = @model_provider,
+                   status        = @status,
+                   started_at    = @started_at,
+                   is_streaming  = @is_streaming,
+                   parent_run_id = @parent_run_id,
+                   root_run_id   = @root_run_id,
+                   depth         = @depth,
+                   kind          = @kind,
+                   workflow_name = @workflow_name,
+                   agent_version = @agent_version,
+                   experiment_id = @experiment_id,
+                   variant       = @variant,
+                   replay_of_run_id = @replay_of_run_id,
+                   -- COALESCE for the same reason as the attribution below. The
+                   -- party that opens a continuation writes the row with the link; the
+                   -- engine that runs it writes it again and does not know the link.
+                   continued_from_run_id = COALESCE(@continued_from_run_id, continued_from_run_id),
+                   -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
+                   -- a queued run's placeholder row is written during the HTTP
+                   -- request, where the user IS known, and rewritten later by the
+                   -- background worker, where it is NOT (an HTTP-bound
+                   -- IRunAttributionContext has no request to read). A plain
+                   -- overwrite would ERASE the attribution the first write got
+                   -- right. Attribution never legitimately goes from set back to
+                   -- unset for the same run, so preserving is always correct.
+                   user_id       = COALESCE(@user_id, user_id),
+                   labels        = COALESCE(@labels, labels),
+                   -- A queued run is marked when it starts running (the second write); a mark the row already has is kept, so a
+                   -- second start of a run that stopped beating does not make it look alive.
+                   heartbeat_at  = COALESCE(heartbeat_at, CASE WHEN @status = @status_running THEN {LeaseNow} END)
+            OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
+             WHERE id = @id{where};
+
+            {insertWhenNone}
+            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
+                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
+                                       replay_of_run_id, user_id, labels, continued_from_run_id, heartbeat_at)
+            OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
+            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
+                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id,
+                    -- 🚨 A run that is running is born with its first heartbeat, stamped by the database server's clock. Left
+                    -- NULL, the orphan sweep would age the run by started_at, which is the clock of the node that started it:
+                    -- a node whose clock is behind the server by more than the orphan threshold would have its new run closed
+                    -- by the first scan, before its writer had beaten once. A queued run stays NULL: the job queue owns it.
+                    CASE WHEN @status = @status_running THEN {LeaseNow} END);
+            """;
+    }
+
     /// <summary>Creates a new query set.</summary>
     /// <param name="schemaName">The schema name to validate.</param>
     /// <exception cref="TraconException">The schema name is not a valid identifier.</exception>
@@ -390,67 +461,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // queries order by started_at and the clustered scan is what serves
         // them: a new key made the first page of a run list read 100 times more
         // pages and needed a second, wide index to come back to 5 times.
-        InsertRun = $"""
-            UPDATE {Schema}.runs WITH (XLOCK, SERIALIZABLE)
-               SET tenant_id     = @tenant_id,
-                   agent_name    = @agent_name,
-                   session_id    = @session_id,
-                   model_id      = @model_id,
-                   model_provider = @model_provider,
-                   status        = @status,
-                   started_at    = @started_at,
-                   is_streaming  = @is_streaming,
-                   parent_run_id = @parent_run_id,
-                   root_run_id   = @root_run_id,
-                   depth         = @depth,
-                   kind          = @kind,
-                   workflow_name = @workflow_name,
-                   agent_version = @agent_version,
-                   experiment_id = @experiment_id,
-                   variant       = @variant,
-                   replay_of_run_id = @replay_of_run_id,
-                   -- COALESCE for the same reason as the attribution below. The
-                   -- party that opens a continuation writes the row with the link; the
-                   -- engine that runs it writes it again and does not know the link.
-                   continued_from_run_id = COALESCE(@continued_from_run_id, continued_from_run_id),
-                   -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
-                   -- a queued run's placeholder row is written during the HTTP
-                   -- request, where the user IS known, and rewritten later by the
-                   -- background worker, where it is NOT (an HTTP-bound
-                   -- IRunAttributionContext has no request to read). A plain
-                   -- overwrite would ERASE the attribution the first write got
-                   -- right. Attribution never legitimately goes from set back to
-                   -- unset for the same run, so preserving is always correct.
-                   user_id       = COALESCE(@user_id, user_id),
-                   labels        = COALESCE(@labels, labels),
-                   -- A queued run is marked when it starts running (the second write); a mark the row already has is kept, so a
-                   -- second start of a run that stopped beating does not make it look alive.
-                   heartbeat_at  = COALESCE(heartbeat_at, CASE WHEN @status = @status_running THEN {LeaseNow} END)
-            OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
-             -- 🚨 The write that moves a run out of the queue (@only_if_queued = 1) leaves a row that is not Queued as it is: the
-             -- job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the
-             -- row. No row comes back then, which is how the caller learns the row was not written.
-             WHERE id = @id AND (@only_if_queued = 0 OR status = @status_queued);
-
-            -- A row that exists and was left alone is not inserted again: that would be a duplicate key. The count is read
-            -- into a variable first, because the EXISTS below is a statement of its own and T-SQL does not say which half of
-            -- an AND is evaluated first.
-            DECLARE @updated int = @@ROWCOUNT;
-
-            IF @updated = 0 AND NOT EXISTS (SELECT 1 FROM {Schema}.runs WHERE id = @id)
-            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
-                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id, user_id, labels, continued_from_run_id, heartbeat_at)
-            OUTPUT inserted.user_id, inserted.labels, inserted.agent_name, inserted.session_id, inserted.model_id, inserted.model_provider, inserted.workflow_name, inserted.variant, inserted.started_at, inserted.continued_from_run_id
-            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id,
-                    -- 🚨 A run that is running is born with its first heartbeat, stamped by the database server's clock. Left
-                    -- NULL, the orphan sweep would age the run by started_at, which is the clock of the node that started it:
-                    -- a node whose clock is behind the server by more than the orphan threshold would have its new run closed
-                    -- by the first scan, before its writer had beaten once. A queued run stays NULL: the job queue owns it.
-                    CASE WHEN @status = @status_running THEN {LeaseNow} END);
-            """;
+        InsertRun = InsertRunText(onlyIfQueued: false);
+        PromoteQueuedRun = InsertRunText(onlyIfQueued: true);
 
         // A group of events travels as one JSON array, opened by OPENJSON. The text columns are read as nvarchar(max)
         // and narrowed by the INSERT, so a value that does not fit its column fails the way a single event does

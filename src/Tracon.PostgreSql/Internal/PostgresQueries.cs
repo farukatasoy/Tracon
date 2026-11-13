@@ -25,6 +25,68 @@ internal sealed class PostgresQueries : SqlQueriesBase
     protected override string LeaseInstant(string name)
         => $"(statement_timestamp() + make_interval(secs => @{name}_ms / 1000.0))";
 
+    /// <summary>
+    /// The upsert of a run's start. With <paramref name="onlyIfQueued"/> it is the write that moves a run out of the queue
+    /// (<see cref="SqlQueriesBase.PromoteQueuedRun"/>): a row that exists and does not read Queued is left as it is, because the
+    /// job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the row.
+    /// The statement returns no row then, which is how the caller learns it wrote nothing. The text of the ordinary start is
+    /// the one without the guard, so it binds nothing the guard needs.
+    /// </summary>
+    private string InsertRunText(bool onlyIfQueued)
+    {
+        var guard = onlyIfQueued ? $"\nWHERE {Schema}.runs.status = @status_queued" : string.Empty;
+
+        return $"""
+            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
+                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
+                                       replay_of_run_id, user_id, labels, continued_from_run_id, heartbeat_at)
+            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
+                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id,
+                    -- 🚨 A run that is running is born with its first heartbeat, stamped by the database server's clock. Left
+                    -- NULL, the orphan sweep would age the run by started_at, which is the clock of the node that started it:
+                    -- a node whose clock is behind the server by more than the orphan threshold would have its new run closed
+                    -- by the first scan, before its writer had beaten once. A queued run stays NULL: the job queue owns it.
+                    CASE WHEN @status = @status_running THEN {LeaseNow} END)
+            ON CONFLICT (id) DO UPDATE SET
+                tenant_id     = EXCLUDED.tenant_id,
+                agent_name    = EXCLUDED.agent_name,
+                session_id    = EXCLUDED.session_id,
+                model_id      = EXCLUDED.model_id,
+                model_provider = EXCLUDED.model_provider,
+                status        = EXCLUDED.status,
+                started_at    = EXCLUDED.started_at,
+                is_streaming  = EXCLUDED.is_streaming,
+                parent_run_id = EXCLUDED.parent_run_id,
+                root_run_id   = EXCLUDED.root_run_id,
+                depth         = EXCLUDED.depth,
+                kind          = EXCLUDED.kind,
+                workflow_name = EXCLUDED.workflow_name,
+                agent_version = EXCLUDED.agent_version,
+                experiment_id = EXCLUDED.experiment_id,
+                variant       = EXCLUDED.variant,
+                replay_of_run_id = EXCLUDED.replay_of_run_id,
+                -- COALESCE for the same reason as the attribution below. The
+                -- party that opens a continuation writes the row with the link; the
+                -- engine that runs it writes it again and does not know the link.
+                continued_from_run_id = COALESCE(EXCLUDED.continued_from_run_id, {Schema}.runs.continued_from_run_id),
+                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
+                -- a queued run's placeholder row is written during the HTTP
+                -- request, where the user IS known, and rewritten later by the
+                -- background worker, where it is NOT (an HTTP-bound
+                -- IRunAttributionContext has no request to read). A plain
+                -- overwrite would ERASE the attribution the first write got
+                -- right. Attribution never legitimately goes from set back to
+                -- unset for the same run, so preserving is always correct.
+                user_id       = COALESCE(EXCLUDED.user_id, {Schema}.runs.user_id),
+                labels        = COALESCE(EXCLUDED.labels, {Schema}.runs.labels),
+                -- A queued run is marked when it starts running (the second write); a mark the row already has is kept, so a
+                -- second start of a run that stopped beating does not make it look alive.
+                heartbeat_at  = COALESCE({Schema}.runs.heartbeat_at, CASE WHEN EXCLUDED.status = @status_running THEN {LeaseNow} END){guard}
+            RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
+            """;
+    }
+
     /// <summary>Creates a new query set.</summary>
     /// <param name="schemaName">The schema name to validate.</param>
     /// <exception cref="TraconException">The schema name is not a valid identifier.</exception>
@@ -248,59 +310,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // Queued; when the worker actually runs the job it is called a second
         // time with the SAME id and the row is updated in place (no new row
         // is OPENED).
-        InsertRun = $"""
-            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, model_provider, status, started_at, is_streaming, event_count,
-                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id, user_id, labels, continued_from_run_id, heartbeat_at)
-            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @model_provider, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id,
-                    -- 🚨 A run that is running is born with its first heartbeat, stamped by the database server's clock. Left
-                    -- NULL, the orphan sweep would age the run by started_at, which is the clock of the node that started it:
-                    -- a node whose clock is behind the server by more than the orphan threshold would have its new run closed
-                    -- by the first scan, before its writer had beaten once. A queued run stays NULL: the job queue owns it.
-                    CASE WHEN @status = @status_running THEN {LeaseNow} END)
-            ON CONFLICT (id) DO UPDATE SET
-                tenant_id     = EXCLUDED.tenant_id,
-                agent_name    = EXCLUDED.agent_name,
-                session_id    = EXCLUDED.session_id,
-                model_id      = EXCLUDED.model_id,
-                model_provider = EXCLUDED.model_provider,
-                status        = EXCLUDED.status,
-                started_at    = EXCLUDED.started_at,
-                is_streaming  = EXCLUDED.is_streaming,
-                parent_run_id = EXCLUDED.parent_run_id,
-                root_run_id   = EXCLUDED.root_run_id,
-                depth         = EXCLUDED.depth,
-                kind          = EXCLUDED.kind,
-                workflow_name = EXCLUDED.workflow_name,
-                agent_version = EXCLUDED.agent_version,
-                experiment_id = EXCLUDED.experiment_id,
-                variant       = EXCLUDED.variant,
-                replay_of_run_id = EXCLUDED.replay_of_run_id,
-                -- COALESCE for the same reason as the attribution below. The
-                -- party that opens a continuation writes the row with the link; the
-                -- engine that runs it writes it again and does not know the link.
-                continued_from_run_id = COALESCE(EXCLUDED.continued_from_run_id, {Schema}.runs.continued_from_run_id),
-                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT:
-                -- a queued run's placeholder row is written during the HTTP
-                -- request, where the user IS known, and rewritten later by the
-                -- background worker, where it is NOT (an HTTP-bound
-                -- IRunAttributionContext has no request to read). A plain
-                -- overwrite would ERASE the attribution the first write got
-                -- right. Attribution never legitimately goes from set back to
-                -- unset for the same run, so preserving is always correct.
-                user_id       = COALESCE(EXCLUDED.user_id, {Schema}.runs.user_id),
-                labels        = COALESCE(EXCLUDED.labels, {Schema}.runs.labels),
-                -- A queued run is marked when it starts running (the second write); a mark the row already has is kept, so a
-                -- second start of a run that stopped beating does not make it look alive.
-                heartbeat_at  = COALESCE({Schema}.runs.heartbeat_at, CASE WHEN EXCLUDED.status = @status_running THEN {LeaseNow} END)
-            -- 🚨 The write that moves a run out of the queue (@only_if_queued = 1) leaves a row that is not Queued as it is: the
-            -- job of a run that waited for a slot can be cancelled on another instance meanwhile, and that instance closes the
-            -- row. No row comes back then, which is how the caller learns the row was not written.
-            WHERE @only_if_queued = 0 OR {Schema}.runs.status = @status_queued
-            RETURNING user_id, labels, agent_name, session_id, model_id, model_provider, workflow_name, variant, started_at, continued_from_run_id;
-            """;
+        InsertRun = InsertRunText(onlyIfQueued: false);
+        PromoteQueuedRun = InsertRunText(onlyIfQueued: true);
 
         // A group of events travels as one jsonb array, opened by jsonb_to_recordset with the column types of
         // run_events, so the text-to-timestamptz conversion of created_at is the database's own.
