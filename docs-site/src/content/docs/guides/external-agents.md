@@ -331,11 +331,38 @@ there is no expose-all switch for it.
 
 `Budget`, which bounds what an external caller may spend, is on both.
 
+## Decide who may start an exposed agent
+
+An `ExternalInvoke` key says the caller may use the exposed agents at all. A rule of
+your own — this user may run this agent, that tenant may not — is your
+`IRunAuthorizationHandler` (see
+[Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)).
+Every A2A message and every MCP `tools/call` that names an exposed agent is put to it
+**before the run starts**, with the same question and the same fail-closed handling as
+the management run endpoint: the tenant, the agent, the user your `IRunAttributionContext`
+names, and `RunAccess.Start`. A refused call starts no run, calls no model and opens no run
+row. A handler that throws refuses the call and is logged at `Error` level.
+
+| | The handler is told | A refusal reaches the caller as |
+|---|---|---|
+| A2A (`SendMessage`, `SendStreamingMessage`) | `SessionId` is the conversation's identity (it starts with `a2a:`) | The opaque `-32603` error every refusal on this surface is. The handler's reason and the cause are in the server log at `Error` level |
+| MCP (`tools/call`) | `SessionId` is `null`: a tool call keeps no session | A tool result with `isError` set and the text `Run not authorized: ` followed by your reason, or `The run authorization check failed. Retry the request.` when the handler threw |
+
+A call that asks for an MCP task is refused before the task exists: the caller gets the
+error result at once and no task id. An MCP tool name that is not an exposed agent is
+not put to the handler, and neither is a call that arrives while the process drains
+(the drain refusal comes first).
+
+An A2A refusal can leave an empty session behind: the library saves the conversation
+of every call it handles, whatever the call ended in. The session holds no message of
+the refused turn.
+
 ## Production checklist
 
 - [ ] Expose only names whose input contract is safe for another system.
 - [ ] Expect token use to grow with each turn of a `contextId`; decide how a caller starts a new conversation.
 - [ ] Create a tenant-bound `ExternalInvoke` key and test revocation and expiry.
+- [ ] If a key speaks for several users, bind `IRunAttributionContext` and `IRunAuthorizationHandler`: both protocols ask the handler before a run starts.
 - [ ] Keep approval-required and high-impact tools out of exposed definitions.
 - [ ] Set `Skills.DisableReadApproval` on every exposed agent that names skills, and keep script
       skills off exposed agents.

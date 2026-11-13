@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using A2A;
 using Microsoft.Agents.AI;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -111,6 +112,9 @@ internal sealed class ExternalAgentProxy : AIAgent
         CancellationToken cancellationToken = default)
     {
         var agent = await ResolveAsync(cancellationToken).ConfigureAwait(false);
+
+        await AuthorizeRunAsync(session, cancellationToken).ConfigureAwait(false);
+
         var runOptions = CreateRunOptions();
 
         var response = await agent.RunAsync(messages, session, runOptions, cancellationToken).ConfigureAwait(false);
@@ -132,6 +136,9 @@ internal sealed class ExternalAgentProxy : AIAgent
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var agent = await ResolveAsync(cancellationToken).ConfigureAwait(false);
+
+        await AuthorizeRunAsync(session, cancellationToken).ConfigureAwait(false);
+
         var runOptions = CreateRunOptions();
         string? pendingApproval = null;
 
@@ -148,6 +155,69 @@ internal sealed class ExternalAgentProxy : AIAgent
 
         await ExternalCallAudit.WriteAsync(_services!, "a2a", _agentName, runOptions.RunId!.Value, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Asks the installation's <see cref="IRunAuthorizationHandler"/> whether this caller may start the run, before
+    /// anything of the run exists.
+    /// </summary>
+    /// <param name="session">The conversation the message continues; its identity is what the handler is told.</param>
+    /// <param name="cancellationToken">The cancellation token of the call.</param>
+    /// <exception cref="TraconExternalCallException">The handler refused, threw, or there is no request to name the caller from.</exception>
+    /// <remarks>
+    /// <para>
+    /// The same question every other run surface asks (<see cref="RunAuthorizationGate"/>): tenant, agent, the
+    /// conversation's identity (<c>null</c> for a message that starts none) and the attributed user. It is asked once
+    /// per call, after the draining and unknown-agent refusals and before the run is recorded, the model is called
+    /// or the history is read, so a refused call opens no run row and costs nothing.
+    /// </para>
+    /// <para>
+    /// A2A carries no HTTP status of its own for a refusal, so it takes the shape every other refusal on this surface
+    /// has: a call error, which the A2A library answers as a JSON-RPC error and logs. The caller sees that the call
+    /// failed; the operator reads why.
+    /// </para>
+    /// <para>
+    /// A call with no request in scope has no caller to name, and a handler cannot decide about nobody: it is refused
+    /// rather than run unasked. The A2A library only calls the proxy from a request.
+    /// </para>
+    /// </remarks>
+    private async ValueTask AuthorizeRunAsync(AgentSession? session, CancellationToken cancellationToken)
+    {
+        var services = _services!;
+        var handler = services.GetService<IRunAuthorizationHandler>();
+
+        if (handler is null)
+        {
+            return;
+        }
+
+        var httpContext = services.GetRequiredService<IHttpContextAccessor>().HttpContext
+            ?? throw new TraconExternalCallException(
+                $"Agent '{_agentName}' could not be authorized: the call carries no request to name the caller from.")
+            {
+                AgentName = _agentName,
+                Protocol = "a2a",
+            };
+
+        var refusal = await RunAuthorizationGate
+            .CheckRunAsync(
+                handler,
+                services.GetRequiredService<ITenantContext>(),
+                _agentName,
+                session is null ? null : AgentSessionIdentity.GetId(session),
+                services.GetService<IRunAttributionContext>(),
+                httpContext,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (refusal is not null)
+        {
+            throw new TraconExternalCallException(RunAuthorizationGate.RefusalText(refusal))
+            {
+                AgentName = _agentName,
+                Protocol = "a2a",
+            };
+        }
     }
 
     private async ValueTask RefuseIfApprovalPendingAsync(string? pending, Guid runId)

@@ -15,7 +15,9 @@ namespace Tracon;
 /// The check is called <strong>explicitly</strong> at every endpoint that
 /// starts a run or touches a session; it is not an endpoint filter, for the
 /// same reason <see cref="QuotaGate"/> is not: the endpoints that start runs
-/// do not share one route shape.
+/// do not share one route shape. The two external protocols ask it too, each at the
+/// point its library hands the call over: the A2A agent proxy and the MCP call-tool
+/// filter (<see cref="McpRunAuthorizationFilter"/>).
 /// </para>
 /// <para>
 /// <strong>Fail-closed.</strong> If the handler throws, the call is denied.
@@ -286,6 +288,23 @@ internal static class RunAuthorizationGate
             title: "Session not found",
             detail: $"There is no session with id '{sessionId}'.",
             statusCode: StatusCodes.Status404NotFound);
+    }
+
+    /// <summary>
+    /// Writes a refusal of <see cref="CheckRunAsync"/> as one line of text, for a surface that speaks a protocol with no
+    /// HTTP status of its own to put it in.
+    /// </summary>
+    /// <param name="refusal">The refusal <see cref="CheckRunAsync"/> returned.</param>
+    /// <returns>The title and the detail, which is the handler's own reason or the failed-check sentence.</returns>
+    /// <remarks>
+    /// The text is the one the <c>403</c> body of an HTTP surface carries, so the A2A and MCP surfaces tell a caller
+    /// the same thing the others do. It never holds a handler's exception text: the gate keeps that in the log.
+    /// </remarks>
+    public static string RefusalText(ProblemHttpResult refusal)
+    {
+        ArgumentNullException.ThrowIfNull(refusal);
+
+        return $"{refusal.ProblemDetails.Title ?? NotAuthorizedTitle}: {refusal.ProblemDetails.Detail}";
     }
 
     /// <summary>Builds the <c>403</c> returned when the handler threw instead of deciding.</summary>

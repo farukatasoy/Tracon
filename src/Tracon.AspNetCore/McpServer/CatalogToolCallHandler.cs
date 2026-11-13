@@ -179,7 +179,10 @@ internal static class CatalogToolCallHandler
             ? value.GetString()
             : null;
 
-    private static CallToolResult Error(string message)
+    /// <summary>Builds the legible error result every refusal on this surface answers with.</summary>
+    /// <param name="message">The one line of text the caller reads.</param>
+    /// <returns>A tool result with <c>isError</c> set.</returns>
+    internal static CallToolResult Error(string message)
         => new()
         {
             IsError = true,

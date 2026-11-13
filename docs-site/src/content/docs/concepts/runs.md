@@ -592,9 +592,10 @@ tenant can start any agent in that tenant, regardless of `UserId`.
 Bind `IRunAuthorizationHandler` to enforce your own per-user rule. It is
 called at every endpoint that starts a run — the agent run endpoint, the
 workflow run endpoint, the inbound trigger accept endpoint, the
-OpenAI-compatible `/v1/responses` and `/v1/chat/completions` endpoints, and
-`POST /api/runs/{id}/replay` — **before** the quota check, so a denied call
-never consumes the tenant's quota. The same method is asked again for every
+OpenAI-compatible `/v1/responses` and `/v1/chat/completions` endpoints,
+`POST /api/runs/{id}/replay`, and the two external protocols (every A2A message and
+every MCP `tools/call` that names an exposed agent) — **before** the quota check, so
+a denied call never consumes the tenant's quota. The same method is asked again for every
 access to an existing run's resources: reading it, canceling it, scoring it,
 and reaching its attachments and approval requests. Which question is being
 asked is on `request.Access`, and a resource question carries

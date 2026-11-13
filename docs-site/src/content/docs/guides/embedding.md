@@ -293,6 +293,15 @@ common, so each one calls this binding in its own body:
   `/v1/responses` and `/v1/chat/completions` endpoints, and `POST
   /api/runs/{id}/replay`. The check runs **before** the quota check, so a
   denied call never consumes the tenant's quota.
+- **The two external protocols:** every message an
+  [A2A](/guides/external-agents/#publish-agents-through-a2a) agent receives
+  (`SendMessage` and `SendStreamingMessage`) and every
+  [MCP](/guides/external-agents/#publish-agents-as-mcp-tools) `tools/call` that names an exposed agent. The
+  handler gets the same question as a run start, with `request.SessionId` set to the
+  conversation's identity for A2A and `null` for MCP, which keeps no session. A
+  refused call starts no run, calls no model and opens no run row. An MCP call that
+  asks for a task is refused before the task exists. How the refusal reaches the
+  caller is told on the external agents page.
 - **Every run resource:** the run summary, its tree, its event stream, its
   recorded input, its span tree, its tool calls, its scores, its
   cancellation, its attachments, and its approval requests.

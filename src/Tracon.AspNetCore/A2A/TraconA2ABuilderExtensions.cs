@@ -40,6 +40,12 @@ public static class TraconA2ABuilderExtensions
     /// without a key, and the caller identification by registering an
     /// <c>AgentIsolationKeyProvider</c>.
     /// </para>
+    /// <para>
+    /// Every message is first put to the installation's <see cref="IRunAuthorizationHandler"/>, as a run start
+    /// for the exposed agent and the conversation's identity, before the run is recorded or the model is called.
+    /// A refused message reaches the caller as the same opaque JSON-RPC internal error every refusal on this
+    /// surface is; the reason is in the server log.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddTracon()

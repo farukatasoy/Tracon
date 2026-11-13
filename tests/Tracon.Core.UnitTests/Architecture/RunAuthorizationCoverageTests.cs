@@ -135,6 +135,24 @@ public sealed class RunAuthorizationCoverageTests
         ("src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs", ResourceStartMarker, 1),
     ];
 
+    /// <summary>
+    /// The files where the two external protocols, A2A and MCP, hand a call over to a run.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 A separate list from <see cref="ExpectedRunStartingFiles"/> on purpose: those files answer an HTTP
+    /// status and carry the attribution check, which the attribution ratchet below demands of every entry there.
+    /// An external call answers its protocol's own refusal, and neither file is an endpoint. Both ask the gate the
+    /// moment their library calls them and not later: the A2A agent proxy before the run is recorded, and the MCP
+    /// call-tool filter before the SDK's Tasks filter can create a task, because a task-mode call runs on a background
+    /// task that has no request to name its caller from. One call each: a second one in the same file would ask the
+    /// installation's handler twice for one call.
+    /// </remarks>
+    private static readonly (string Path, Regex Marker, int Calls)[] ExpectedExternalRunStartingFiles =
+    [
+        ("src/Tracon.AspNetCore/A2A/ExternalAgentProxy.cs", StartMarker, 1),
+        ("src/Tracon.AspNetCore/McpServer/McpRunAuthorizationFilter.cs", StartMarker, 1),
+    ];
+
     /// <summary>The files that reach a run's or a session's RESOURCES behind the same handler.</summary>
     /// <remarks>
     /// 🚨 <c>OpenAIConversationsEndpoints</c> joined later than
@@ -214,6 +232,13 @@ public sealed class RunAuthorizationCoverageTests
             ExpectedRunStartingFiles,
             "the run-start gate — a run can start there WITHOUT going through the " +
             "installation's own IRunAuthorizationHandler");
+
+    [Fact]
+    public void Every_known_external_protocol_surface_still_calls_the_gate()
+        => AssertEveryFileMatches(
+            ExpectedExternalRunStartingFiles,
+            "the run-start gate — an A2A message or an MCP tool call can start a run there WITHOUT going " +
+            "through the installation's own IRunAuthorizationHandler");
 
     [Fact]
     public void Every_known_run_resource_surface_still_calls_the_gate()

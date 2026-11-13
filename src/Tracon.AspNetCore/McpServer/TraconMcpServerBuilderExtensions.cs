@@ -43,6 +43,11 @@ public static class TraconMcpServerBuilderExtensions
     /// only replaces <see cref="CatalogToolCallHandler"/>'s own id-minting with
     /// an equivalent one handed down ambiently.
     /// </para>
+    /// <para>
+    /// Every <c>tools/call</c> that names an exposed agent is first put to the
+    /// installation's <see cref="IRunAuthorizationHandler"/>
+    /// (<see cref="McpRunAuthorizationFilter"/>), task mode or not.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddTracon()
@@ -76,6 +81,12 @@ public static class TraconMcpServerBuilderExtensions
         // id every task-mode call will use) runs ahead of the Tasks
         // extension's own filter, which is exactly what CreateTaskAsync needs.
         services.Configure<McpServerOptions>(McpTaskRunProvisioningFilter.Register);
+
+        // Registered AFTER the provisioning filter and inserted first, so it runs ahead of it: a call the installation's
+        // IRunAuthorizationHandler refuses is answered before a run id is minted, a task is created or a row is opened.
+        // It reads the caller from the request, so the accessor is registered with it.
+        services.AddHttpContextAccessor();
+        services.Configure<McpServerOptions>(McpRunAuthorizationFilter.Register);
 
         var taskStore = new RunBackedMcpTaskStore();
         services.AddSingleton(taskStore);
