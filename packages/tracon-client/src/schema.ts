@@ -6444,7 +6444,7 @@ export interface components {
             cutoff?: null | string;
             /**
              * Format: int64
-             * @description The number of rows currently older than the cutoff date.
+             * @description The number of rows a run would delete now: the rows older than the cutoff date, without the attachment rows that point at external content when no attachment storage is registered.
              */
             matchingRows?: number | string;
         };

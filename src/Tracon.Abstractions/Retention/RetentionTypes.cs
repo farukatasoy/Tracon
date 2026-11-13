@@ -95,7 +95,7 @@ internal sealed record RetentionPreview
     [Description("The computed cutoff date (UTC). `null` if there is no policy.")]
     public DateTimeOffset? Cutoff { get; init; }
 
-    [Description("The number of rows currently older than the cutoff date.")]
+    [Description("The number of rows a run would delete now: the rows older than the cutoff date, without the attachment rows that point at external content when no attachment storage is registered.")]
     public long MatchingRows { get; init; }
 }
 

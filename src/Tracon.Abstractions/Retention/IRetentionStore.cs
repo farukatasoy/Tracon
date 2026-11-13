@@ -33,7 +33,7 @@ namespace Tracon;
 /// </remarks>
 public interface IRetentionStore
 {
-    /// <summary>Returns the number of rows in the target currently older than the cutoff date.</summary>
+    /// <summary>Returns the number of rows in the target that a run would delete now: the rows older than the cutoff date.</summary>
     /// <remarks>
     /// The count is the rows a run would delete. For <see cref="RetentionTargets.Attachments"/> without an
     /// <see cref="IAttachmentStorage"/> it leaves out the rows that point at external content: a run keeps them.

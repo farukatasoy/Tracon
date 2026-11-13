@@ -25796,7 +25796,7 @@ namespace Tracon.Client.Generated
         public System.DateTimeOffset? Cutoff { get; set; } = default!;
 
         /// <summary>
-        /// The number of rows currently older than the cutoff date.
+        /// The number of rows a run would delete now: the rows older than the cutoff date, without the attachment rows that point at external content when no attachment storage is registered.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("matchingRows")]
         public long MatchingRows { get; set; } = default!;
