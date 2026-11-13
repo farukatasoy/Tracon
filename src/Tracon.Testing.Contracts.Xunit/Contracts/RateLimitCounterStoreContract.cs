@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -165,35 +167,51 @@ public abstract class RateLimitCounterStoreContract : StoreCancellationContract<
     [Fact]
     public async Task Concurrent_increments_are_all_counted()
     {
-        // 🚨 The property a rate limit stands on. 64 callers count at the same moment: every one must get a
-        // different count and the last count must be 64. A read-then-write store returns duplicates here.
-        const int Callers = 64;
-        var partition = Partition();
+        // 🚨 The property a rate limit stands on. 16 callers count at the same moment: every one must get a
+        // different count and the last count must be 16. A read-then-write store returns duplicates here.
+        //
+        // The callers start on threads of their own, released together, at a partition of their own each round: calls
+        // started one after the other on one thread never overlap, and the window two overlapping increments need is a few
+        // instructions wide in a store that keeps its counts in memory, so a store that loses an increment loses one in
+        // some round, not once in a while.
+        const int Callers = 16;
+        const int Rounds = 10;
+        var token = TestContext.Current.CancellationToken;
 
-        var results = await Task.WhenAll(
-            Enumerable.Range(0, Callers).Select(_ => Task.Run(
-                async () => (await Store.IncrementAsync(partition, Window0, TestContext.Current.CancellationToken)).Count,
-                TestContext.Current.CancellationToken)));
+        for (var round = 0; round < Rounds; round++)
+        {
+            var partition = Partition();
 
-        results.Order().ShouldBe(Enumerable.Range(1, Callers).Select(count => (long)count));
-        (await Store.IncrementAsync(partition, Window0)).Count.ShouldBe(Callers + 1);
+            var results = SimultaneousCalls.Run(
+                Callers,
+                _ => Store.IncrementAsync(partition, Window0, token).AsTask().GetAwaiter().GetResult().Count);
+
+            results.Order().ShouldBe(Enumerable.Range(1, Callers).Select(count => (long)count), $"round {round}: an increment was lost or counted twice");
+            (await Store.IncrementAsync(partition, Window0, token)).Count.ShouldBe(Callers + 1, $"round {round}");
+        }
     }
 
     [Fact]
     public async Task Concurrent_increments_that_open_a_new_window_restart_the_count_once()
     {
         // The window moves while callers are counting: the count restarts once, and no increment is lost
-        // on either side of the boundary.
-        const int Callers = 32;
-        var partition = Partition();
+        // on either side of the boundary. Callers on threads of their own, released together, at a partition of their own
+        // each round (see the case above).
+        const int Callers = 16;
+        const int Rounds = 10;
+        var token = TestContext.Current.CancellationToken;
 
-        await Store.IncrementAsync(partition, Window0);
+        for (var round = 0; round < Rounds; round++)
+        {
+            var partition = Partition();
 
-        var results = await Task.WhenAll(
-            Enumerable.Range(0, Callers).Select(_ => Task.Run(
-                async () => (await Store.IncrementAsync(partition, Window1, TestContext.Current.CancellationToken)).Count,
-                TestContext.Current.CancellationToken)));
+            await Store.IncrementAsync(partition, Window0, token);
 
-        results.Order().ShouldBe(Enumerable.Range(1, Callers).Select(count => (long)count));
+            var results = SimultaneousCalls.Run(
+                Callers,
+                _ => Store.IncrementAsync(partition, Window1, token).AsTask().GetAwaiter().GetResult().Count);
+
+            results.Order().ShouldBe(Enumerable.Range(1, Callers).Select(count => (long)count), $"round {round}: the count restarted twice, or an increment was lost");
+        }
     }
 }
