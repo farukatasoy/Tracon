@@ -11,7 +11,7 @@ namespace Tracon;
 internal static class AuditChainWalker
 {
     /// <summary>Verifies an ordered (oldest first) list of entries belonging to one tenant.</summary>
-    /// <param name="entries">The entries, ordered oldest to newest (<c>created_at</c>, then <c>id</c>).</param>
+    /// <param name="entries">The entries, ordered oldest to newest in the order they were written to the chain.</param>
     /// <param name="hasLowerBound">
     /// <see langword="true"/> when the query that produced <paramref name="entries"/> had a lower
     /// date bound (<see cref="AuditChainQuery.After"/> was set) — meaning an entry may exist

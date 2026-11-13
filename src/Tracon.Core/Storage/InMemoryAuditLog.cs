@@ -91,13 +91,12 @@ internal sealed class InMemoryAuditLog : IAuditLog
             matches = matches.Where(entry => entry.CreatedAt <= before);
         }
 
-        // The chain is in the order the entries were written, and each link names the one written before it. Two entries
-        // can carry the same instant (the caller sets it, and two writes can read the same tick), and ordering their tie
-        // by identifier would put the second one first about one run in five. OrderBy is stable: a tie keeps the order
-        // of the chain.
-        var ordered = matches
-            .OrderBy(static entry => entry.CreatedAt)
-            .ToList();
+        // The chain is in the order the entries were written, and each link names the one written before it: the list is that
+        // order, and the SQL stores read it by the sequence of the write. The instant is the caller's, stamped before the write
+        // and not by it, so it is not the order: two entries with the same instant, or two writers that stamped one entry
+        // before the other and landed in the opposite order, were checked in the wrong order and reported as a gap in an
+        // intact chain when the list was sorted by it.
+        var ordered = matches.ToList();
 
         return new ValueTask<AuditChainVerification>(AuditChainWalker.Verify(ordered, hasLowerBound: query.After is not null, keys: _keys));
     }

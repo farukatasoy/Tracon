@@ -6,7 +6,9 @@ namespace Tracon.Core.UnitTests.Audit;
 /// <remarks>
 /// The caller sets <c>CreatedAt</c>, and two writes can read the same tick of the clock. Ordering a tie by identifier made the
 /// second entry come first whenever its identifier sorted lower, and the verification reported a gap in a chain that had none
-/// (about one run in five of the contract case with two long labels, measured before and after this test).
+/// (about one run in five of the contract case with two long labels, measured before and after this test). The same order
+/// holds when the instants differ: two concurrent writers that stamped their entries one after the other can land in the
+/// opposite order, and the contract case with twenty writers released together reported a gap in 10 of 10 runs.
 /// </remarks>
 public sealed class InMemoryAuditLogChainOrderTests
 {
@@ -23,6 +25,25 @@ public sealed class InMemoryAuditLogChainOrderTests
 
         await log.WriteAsync(first);
         await log.WriteAsync(second);
+
+        var verification = await log.VerifyChainAsync(new AuditChainQuery { TenantId = "default" });
+
+        verification.Status.ShouldBe(AuditChainStatus.Valid);
+        verification.EntriesChecked.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Two_entries_written_in_the_opposite_order_of_their_instants_verify_in_the_order_they_were_written()
+    {
+        var log = new InMemoryAuditLog();
+
+        // Two writers stamp their entries one after the other and land in the opposite order: the chain is the order of
+        // the writes, not the order of the stamps.
+        var stampedFirst = Entry(new Guid("00000000-0000-7000-8000-000000000001"), "stamped-first");
+        var stampedSecond = Entry(new Guid("00000000-0000-7000-8000-000000000002"), "stamped-second") with { CreatedAt = Instant.AddMilliseconds(1) };
+
+        await log.WriteAsync(stampedSecond);
+        await log.WriteAsync(stampedFirst);
 
         var verification = await log.VerifyChainAsync(new AuditChainQuery { TenantId = "default" });
 

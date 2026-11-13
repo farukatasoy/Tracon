@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Tracon.Testing.Contracts.Internal;
 
 namespace Tracon.Testing.Contracts.Storage;
 
@@ -465,18 +466,27 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         // 🚨 The scenario the retry-on-uniqueness-violation (SQL) / per-tenant
         // lock (in-memory) machinery exists for: N writers racing to read the
         // SAME "last hash" must still end up as ONE unbroken chain, never a fork.
-        const string Tenant = "tenant-chain-concurrent";
+        //
+        // The writers start on threads of their own, released together, at a tenant of their own each round: writes started
+        // one after the other on one thread never overlap, and a store that reads the last hash and then appends passes a
+        // single round by luck. Each writer makes its entry after the release, as a caller does, so the entries carry
+        // different instants and the chain order is the order the writes landed in, not the order the entries were made.
         const int WriterCount = 20;
+        const int Rounds = 10;
 
-        var writers = Enumerable.Range(0, WriterCount)
-            .Select(i => Log.WriteAsync(Entry(Tenant, "agent.update", $"agent:{i}")).AsTask());
+        for (var round = 0; round < Rounds; round++)
+        {
+            var tenant = $"tenant-chain-concurrent-{round}";
 
-        await Task.WhenAll(writers);
+            SimultaneousCalls.Run(
+                WriterCount,
+                i => Log.WriteAsync(Entry(tenant, "agent.update", $"agent:{i}")).AsTask().GetAwaiter().GetResult());
 
-        var result = await Log.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+            var result = await Log.VerifyChainAsync(new AuditChainQuery { TenantId = tenant });
 
-        result.Status.ShouldBe(AuditChainStatus.Valid, $"chain forked or broke under {WriterCount} concurrent writers");
-        result.EntriesChecked.ShouldBe(WriterCount);
+            result.Status.ShouldBe(AuditChainStatus.Valid, $"round {round}: chain forked or broke under {WriterCount} concurrent writers");
+            result.EntriesChecked.ShouldBe(WriterCount, $"round {round}");
+        }
     }
 
     // --- Signed chain ---
@@ -583,24 +593,29 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
     public async Task Concurrent_keyed_writes_for_one_tenant_produce_a_single_valid_chain()
     {
         // The same race as the unsigned scenario: every retry re-reads the last hash and re-derives its own
-        // HMAC from it, so the signed chain must converge to one chain too.
-        const string Tenant = "tenant-key-concurrent";
+        // HMAC from it, so the signed chain must converge to one chain too. Threads released together, many rounds, a
+        // tenant of its own each round (see the unsigned scenario).
         const int WriterCount = 20;
+        const int Rounds = 10;
 
         if (await CreateKeyedLogAsync("k1", Keys(("k1", KeyOne))) is not { } signed)
         {
             return;
         }
 
-        var writers = Enumerable.Range(0, WriterCount)
-            .Select(i => signed.WriteAsync(Entry(Tenant, "agent.update", $"agent:{i}")).AsTask());
+        for (var round = 0; round < Rounds; round++)
+        {
+            var tenant = $"tenant-key-concurrent-{round}";
 
-        await Task.WhenAll(writers);
+            SimultaneousCalls.Run(
+                WriterCount,
+                i => signed.WriteAsync(Entry(tenant, "agent.update", $"agent:{i}")).AsTask().GetAwaiter().GetResult());
 
-        var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = Tenant });
+            var result = await signed.VerifyChainAsync(new AuditChainQuery { TenantId = tenant });
 
-        result.Status.ShouldBe(AuditChainStatus.Valid, $"signed chain forked or broke under {WriterCount} concurrent writers");
-        result.EntriesChecked.ShouldBe(WriterCount);
+            result.Status.ShouldBe(AuditChainStatus.Valid, $"round {round}: signed chain forked or broke under {WriterCount} concurrent writers");
+            result.EntriesChecked.ShouldBe(WriterCount, $"round {round}");
+        }
     }
 
     [Fact]

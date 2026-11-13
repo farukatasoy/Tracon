@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The in-memory audit log no longer reports a gap in an intact chain when writers land in another order than they stamped their entries.** `VerifyChainAsync` sorted the chain by `CreatedAt`, which the caller stamps before the write. Two writers that stamped one entry before the other and landed in the opposite order made an unbroken chain read as `AuditChainStatus.Gap`: the shipped `AuditLogContract` case of twenty writers released together failed in 10 of 10 runs against the in-memory log. The SQL stores read the chain by the sequence of the write and were not affected. The in-memory log now verifies the chain in the order it was written.
+  What to do:
+  - **Nothing.** A chain that was reported as a gap only because of the order of the instants now verifies as `Valid`; a chain that was altered or cut is still reported as before.
+
 - **Breaking: an `OAuthCallbackBaseUri` whose path does not end with a slash stops the application at the start, and the message shows the address it would have become.** The callback address of an MCP server is this address followed by a relative path, so `https://app.example.com/tracon` gave `https://app.example.com/api/mcp-servers/{name}/oauth/callback`: the last path segment was replaced, a provider that had the address with the prefix registered refused the redirect, and nothing said why. The documentation has always asked for the slash. The address is refused and not completed, because completing it would change the address a provider was registered with without saying so.
   What to do:
   - **If the application now stops with `must end with a slash`,** write the address the message gives (`https://app.example.com/tracon/`) and register that address with the provider. A value without a path (`https://app.example.com`) is fine.

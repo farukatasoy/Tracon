@@ -54,6 +54,14 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new AgentDefinitionFixture(), static contract => contract.Concurrent_first_saves_of_a_new_name_get_distinct_versions());
 
     [Fact]
+    public Task The_audit_log_chain_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new AuditLogFixture(), static contract => contract.Concurrent_writes_for_one_tenant_produce_a_single_valid_chain());
+
+    [Fact]
+    public Task The_audit_log_keyed_chain_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new AuditLogFixture(), static contract => contract.Concurrent_keyed_writes_for_one_tenant_produce_a_single_valid_chain());
+
+    [Fact]
     public Task The_workflow_definition_save_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new WorkflowDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content());
 
@@ -125,6 +133,21 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<IAgentDefinitionStore> CreateStoreAsync()
             => ValueTask.FromResult(OverlapProbe.Wrap<IAgentDefinitionStore>(new InMemoryAgentDefinitionStore(AmbientTenant), out _probe));
+    }
+
+    private sealed class AuditLogFixture : AuditLogContract, IProbedContract
+    {
+        private OverlapProbe<IAuditLog>? _probe;
+        private OverlapProbe<IAuditLog>? _keyedProbe;
+
+        public int MostInFlight => Math.Max(_probe?.MostInFlight ?? 0, _keyedProbe?.MostInFlight ?? 0);
+
+        protected override ValueTask<IAuditLog> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IAuditLog>(new InMemoryAuditLog(AmbientTenant), out _probe));
+
+        protected override ValueTask<IAuditLog?> CreateKeyedLogAsync(string? signingKeyId, IReadOnlyDictionary<string, byte[]> keys)
+            => ValueTask.FromResult<IAuditLog?>(
+                OverlapProbe.Wrap<IAuditLog>(new InMemoryAuditLog(AmbientTenant, AuditChainKeyRing.Create(signingKeyId, keys)), out _keyedProbe));
     }
 
     private sealed class WorkflowDefinitionFixture : WorkflowDefinitionStoreContract, IProbedContract
