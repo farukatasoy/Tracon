@@ -41,7 +41,8 @@ internal sealed partial class InMemoryRunStore
                 }
             }
 
-            log.Add(runEvent);
+            // The expected tenant guards the write and is not stored: a read gives null, as the SQL stores give.
+            log.Add(runEvent with { TenantId = null });
         }
 
         return default;
@@ -104,7 +105,7 @@ internal sealed partial class InMemoryRunStore
                 }
             }
 
-            log.AddRange(events);
+            log.AddRange(events.Select(static runEvent => runEvent with { TenantId = null }));
         }
 
         return default;
@@ -155,7 +156,7 @@ internal sealed partial class InMemoryRunStore
         {
             lock (log)
             {
-                log.Add(invocation);
+                log.Add(invocation with { TenantId = null });
             }
         }
 
@@ -179,7 +180,7 @@ internal sealed partial class InMemoryRunStore
         {
             lock (log)
             {
-                log.Add(record);
+                log.Add(record with { TenantId = null });
             }
         }
 

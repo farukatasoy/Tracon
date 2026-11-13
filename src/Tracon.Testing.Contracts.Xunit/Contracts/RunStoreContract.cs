@@ -3807,6 +3807,46 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
     }
 
+    [Fact]
+    public async Task Records_written_with_an_expected_tenant_read_back_without_it()
+    {
+        // The expected tenant is the WHERE guard of a write and is not stored. A store that keeps the object it was
+        // given returns the writer's spelling of it ("Tenant-A"), and a store that keeps columns returns nothing:
+        // the same record would read differently depending on the store. The documented read is null.
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.AppendEventAsync(TestData.Event(runId, 0) with { TenantId = TenantA });
+        await Store.AppendEventsAsync(
+            [TestData.Event(runId, 1) with { TenantId = TenantA }, TestData.Event(runId, 2) with { TenantId = TenantA }]);
+        await Store.RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = runId,
+            ToolName = "get_order",
+            CreatedAt = DateTimeOffset.UtcNow,
+            TenantId = TenantA,
+        });
+        await Store.RecordNonTokenUsageAsync(new NonTokenUsageRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = runId,
+            NodeName = "speak",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Usage = new ToolCallUsage { Unit = ToolUsageUnits.Characters, Quantity = 10m, Cost = 0.01m, Currency = "USD" },
+            TenantId = TenantA,
+        });
+
+        var events = await ReadEventsOfAsync(runId);
+
+        events.Count.ShouldBe(3);
+        events.ShouldAllBe(runEvent => runEvent.TenantId == null);
+        (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem().TenantId.ShouldBeNull();
+        (await Store.ListNonTokenUsageAsync(runId)).ShouldHaveSingleItem().TenantId.ShouldBeNull();
+    }
+
     // --- Orphaned run reconciliation ---
 
     [Fact]

@@ -1322,3 +1322,4 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_does_not_wri
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_takes_tenant_ids_that_differ_only_in_letter_case_as_one_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_without_an_expected_tenant_performs_no_tenant_check() -> System.Threading.Tasks.Task!
 virtual Tracon.Testing.Contracts.Storage.RunStoreContract.AppendsEventGroupsAtomically.get -> bool
+Tracon.Testing.Contracts.Storage.RunStoreContract.Records_written_with_an_expected_tenant_read_back_without_it() -> System.Threading.Tasks.Task!

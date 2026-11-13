@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The in-memory run store returns its event, tool-call and non-token-usage records with `TenantId` empty, as the SQL stores do, and `RunStoreContract` has a case for it.** The expected tenant of a write guards the write and is not stored; the in-memory store kept the object it was given, so a record written with `"Tenant-A"` read back with `"Tenant-A"` there and with nothing in SQL. Nothing in Tracon read the field back; a consumer that did saw the difference between a test on the in-memory store and a deployment.
+  What to do:
+  - **If you wrote an `IRunStore` and run the contract,** `Records_written_with_an_expected_tenant_read_back_without_it` fails when your store returns the tenant it was handed. Store the record without it (the field is `[JsonIgnore]` and documented as write-side only).
+
 - **An MCP server deleted and created again under the same name no longer takes the token of the deleted one, and no longer loses its own to the cleanup of a refresh that was running.** The token cache was found by the server's name, and its binding held the endpoint and the client id only. A server created again with the same name, endpoint and client id was handed the token nobody had issued to it; and a server created and authorized while a refresh ran was forgotten as "deleted", because the refresh had listed the servers when the name was free. The binding carries the identifier of the server definition now, and the cleanup forgets a token only when the entry still has the binding of the server it saw deleted.
   What to do:
   - **If you use `OAuthTokenStore = DistributedCache`,** the tokens stored before the upgrade are written without the identifier and match no server: authorize each OAuth server once more. The in-memory mode holds nothing across a restart and needs nothing.
