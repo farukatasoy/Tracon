@@ -7,9 +7,10 @@ namespace Tracon.Core.UnitTests.Contracts;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A contract case that lets calls start one after the other on one thread cannot turn a store that looks and then writes
-/// red: against the in-memory stores, with the store made non-atomic, six such cases caught it 0 times in 20. They are rounds
-/// of callers released together now (<c>SimultaneousCalls</c>), and 20 of 20 runs catch the same store.
+/// A contract case that lets calls start one after the other on one thread, or starts two tasks once, hardly turns a store that
+/// looks and then writes red: against the in-memory stores, with the store made non-atomic, twenty of twenty-four such cases
+/// caught it in 10 or fewer of 20 runs, nine of them in none. They are rounds of callers released together now
+/// (<c>SimultaneousCalls</c>), and 23 of the 24 catch the same store in all 20 runs (the last in 13).
 /// </para>
 /// <para>
 /// This is what keeps them that way. Each case runs on an in-memory store wrapped in <see cref="OverlapProbe{T}"/>, and the test
@@ -43,6 +44,18 @@ public sealed class ConcurrentWriterContractOverlapTests
     [Fact]
     public Task The_workflow_response_replacements_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new ResponseFixture(), static contract => contract.Concurrent_replacements_of_one_record_leave_exactly_one_claim());
+
+    [Fact]
+    public Task The_agent_definition_save_across_a_delete_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new AgentDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_across_a_delete());
+
+    [Fact]
+    public Task The_agent_definition_first_save_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new AgentDefinitionFixture(), static contract => contract.Concurrent_first_saves_of_a_new_name_get_distinct_versions());
+
+    [Fact]
+    public Task The_workflow_definition_save_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new WorkflowDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content());
 
     [Fact]
     public async Task A_case_that_starts_its_calls_one_after_the_other_is_caught_by_the_probe()
@@ -102,5 +115,25 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<IWorkflowResponseStore> CreateStoreAsync()
             => ValueTask.FromResult(OverlapProbe.Wrap<IWorkflowResponseStore>(new InMemoryWorkflowResponseStore(AmbientTenant), out _probe));
+    }
+
+    private sealed class AgentDefinitionFixture : AgentDefinitionStoreContract, IProbedContract
+    {
+        private OverlapProbe<IAgentDefinitionStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IAgentDefinitionStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IAgentDefinitionStore>(new InMemoryAgentDefinitionStore(AmbientTenant), out _probe));
+    }
+
+    private sealed class WorkflowDefinitionFixture : WorkflowDefinitionStoreContract, IProbedContract
+    {
+        private OverlapProbe<IWorkflowDefinitionStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IWorkflowDefinitionStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IWorkflowDefinitionStore>(new InMemoryWorkflowDefinitionStore(), out _probe));
     }
 }

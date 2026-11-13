@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Tracon.Testing.Contracts.Internal;
 
 namespace Tracon.Testing.Contracts.Storage;
 
@@ -261,23 +262,36 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     {
         // The first save of a name goes through the INSERT branch of the upsert, every other through the
         // UPDATE branch: both are in the run, before and after the delete.
+        //
+        // The writers start on threads of their own, released together, at a name of their own each round: saves started
+        // one after the other on one thread never overlap, and a store that reads the last version and then writes the
+        // next passes a single round by luck.
         const int Writers = 8;
+        const int Rounds = 20;
 
-        await Store.SaveAsync(TestData.Definition("a"));
-        await Store.DeleteAsync("a");
-
-        var saved = await Task.WhenAll(Enumerable.Range(1, Writers).Select(
-            index => Task.Run(async () => await Store.SaveAsync(TestData.Definition("a") with { Instructions = $"Writer {index}." }))));
-
-        saved.Select(static definition => definition.Version).Order().ShouldBe(Enumerable.Range(2, Writers));
-
-        // A number names one content: what each caller was told it wrote is what that version holds.
-        foreach (var definition in saved)
+        for (var round = 0; round < Rounds; round++)
         {
-            (await Store.GetVersionAsync("a", definition.Version))!.Instructions.ShouldBe(definition.Instructions);
-        }
+            var name = $"across-a-delete-{round}";
 
-        (await Store.GetAsync("a"))!.Version.ShouldBe(Writers + 1);
+            await Store.SaveAsync(TestData.Definition(name));
+            await Store.DeleteAsync(name);
+
+            var definitions = Enumerable.Range(1, Writers).Select(index => TestData.Definition(name) with { Instructions = $"Writer {index}." }).ToArray();
+
+            var saved = SimultaneousCalls.Run(
+                Writers,
+                index => Store.SaveAsync(definitions[index]).AsTask().GetAwaiter().GetResult());
+
+            saved.Select(static definition => definition.Version).Order().ShouldBe(Enumerable.Range(2, Writers), $"round {round}: two saves were given one version");
+
+            // A number names one content: what each caller was told it wrote is what that version holds.
+            foreach (var definition in saved)
+            {
+                (await Store.GetVersionAsync(name, definition.Version))!.Instructions.ShouldBe(definition.Instructions, $"round {round}: version {definition.Version} holds another writer's content");
+            }
+
+            (await Store.GetAsync(name))!.Version.ShouldBe(Writers + 1, $"round {round}");
+        }
     }
 
     [Fact]
@@ -285,20 +299,32 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     {
         // No row of this name exists, neither the definition nor its counter: every writer races on the
         // INSERT branch of both upserts, and only one of them may create the rows.
+        //
+        // A name of its own each round (the rows of the last one are not there for the next to find), writers on threads of
+        // their own released together (see the case above).
         const int Writers = 8;
+        const int Rounds = 20;
 
-        var saved = await Task.WhenAll(Enumerable.Range(1, Writers).Select(
-            index => Task.Run(async () => await Store.SaveAsync(TestData.Definition("fresh") with { Instructions = $"Writer {index}." }))));
-
-        saved.Select(static definition => definition.Version).Order().ShouldBe(Enumerable.Range(1, Writers));
-
-        foreach (var definition in saved)
+        for (var round = 0; round < Rounds; round++)
         {
-            (await Store.GetVersionAsync("fresh", definition.Version))!.Instructions.ShouldBe(definition.Instructions);
-        }
+            var name = $"fresh-{round}";
 
-        (await Store.ListVersionsAsync("fresh")).Count.ShouldBe(Writers);
-        (await Store.GetAsync("fresh"))!.Version.ShouldBe(Writers);
+            var definitions = Enumerable.Range(1, Writers).Select(index => TestData.Definition(name) with { Instructions = $"Writer {index}." }).ToArray();
+
+            var saved = SimultaneousCalls.Run(
+                Writers,
+                index => Store.SaveAsync(definitions[index]).AsTask().GetAwaiter().GetResult());
+
+            saved.Select(static definition => definition.Version).Order().ShouldBe(Enumerable.Range(1, Writers), $"round {round}: two first saves were given one version");
+
+            foreach (var definition in saved)
+            {
+                (await Store.GetVersionAsync(name, definition.Version))!.Instructions.ShouldBe(definition.Instructions, $"round {round}: version {definition.Version} holds another writer's content");
+            }
+
+            (await Store.ListVersionsAsync(name)).Count.ShouldBe(Writers, $"round {round}");
+            (await Store.GetAsync(name))!.Version.ShouldBe(Writers, $"round {round}");
+        }
     }
 
     [Fact]
