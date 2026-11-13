@@ -108,7 +108,10 @@ internal static class OpenAIConversationsEndpoints
             .WithSummary("Lists a conversation's messages in the OpenAI item format.")
             .WithDescription(
                 "Items come back oldest first, and one stored message can expand into several " +
-                "items — a reply plus its tool calls, for example. '?limit=' trims the list from " +
+                "items — a reply plus its tool calls, for example. An image or a file a user sent " +
+                "is listed as an 'input_image' or 'input_file' part of that message, pointing at " +
+                "the attachment through the address the attachment endpoint serves (or at the " +
+                "remote link the user sent); the bytes are never embedded. '?limit=' trims the list from " +
                 "the end and sets 'has_more' to true, which is computed from the real total " +
                 "before trimming, so a truncated list never looks complete. There is no cursor " +
                 "paging: 'first_id' and 'last_id' describe the returned window only. A " +
@@ -385,8 +388,17 @@ internal static class OpenAIConversationsEndpoints
     /// Converts a <see cref="ChatMessage"/> into OpenAI item resources.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A single message can produce more than one item: the model can both
     /// call a tool and return text. Order is preserved.
+    /// </para>
+    /// <para>
+    /// An image or a file a user sent is a <see cref="UriContent"/> reference in the stored message, and it is listed
+    /// as the <c>input_image</c> or <c>input_file</c> part the OpenAI item format defines, in its place among the
+    /// message's other parts. The part points at the reference as stored (the attachment endpoint's address for an
+    /// upload, the link itself for a remote image); the bytes are never embedded. An assistant message lists no such
+    /// part: the item format has none for a reply.
+    /// </para>
     /// </remarks>
     internal static IEnumerable<ItemResource> ToItems(ChatMessage message)
     {
@@ -399,6 +411,10 @@ internal static class OpenAIConversationsEndpoints
             {
                 case TextContent text when !string.IsNullOrEmpty(text.Text):
                     textParts.Add(new ItemContent(isAssistant ? "output_text" : "input_text", text.Text));
+                    break;
+
+                case UriContent reference when !isAssistant:
+                    textParts.Add(ToAttachmentPart(reference));
                     break;
 
                 case FunctionCallContent call:
@@ -447,6 +463,40 @@ internal static class OpenAIConversationsEndpoints
                 Arguments: null,
                 Output: null);
         }
+    }
+
+    /// <summary>Builds the part that lists an image or a file by its reference.</summary>
+    /// <param name="reference">The stored reference.</param>
+    /// <returns>An <c>input_image</c> part for an image, an <c>input_file</c> part for anything else.</returns>
+    /// <remarks>
+    /// The reference keeps what the part said about itself: an image's <c>detail</c> (the item format requires one, so
+    /// <c>auto</c> stands for a part that said none) and a file's name. Both come back from the session store as
+    /// JSON, not as the strings they were stored as.
+    /// </remarks>
+    private static ItemContent ToAttachmentPart(UriContent reference)
+    {
+        var address = reference.Uri.OriginalString;
+
+        return reference.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+            ? new ItemContent("input_image", ImageUrl: address, Detail: ReadText(reference, "detail") ?? "auto")
+            : new ItemContent("input_file", FileUrl: address, FileName: ReadText(reference, AttachmentUriReference.NameProperty));
+    }
+
+    private static string? ReadText(AIContent content, string property)
+    {
+        if (content.AdditionalProperties is not { } properties || !properties.TryGetValue(property, out var value))
+        {
+            return null;
+        }
+
+        var text = value switch
+        {
+            string literal => literal,
+            JsonElement { ValueKind: JsonValueKind.String } json => json.GetString(),
+            _ => null,
+        };
+
+        return string.IsNullOrEmpty(text) ? null : text;
     }
 
     private static string? FormatArguments(FunctionCallContent call)
@@ -518,8 +568,14 @@ internal static class OpenAIConversationsEndpoints
         [property: JsonPropertyName("arguments"), Description("The arguments of a `function_call` item as JSON text; `null` for the other kinds.")] string? Arguments,
         [property: JsonPropertyName("output"), Description("The result of a `function_call_output` item as text; `null` for the other kinds.")] string? Output);
 
-    [Description("A text part of a message item.")]
+    // A part is one of three shapes (text, an image, a file), and a member that does not belong to the shape the part
+    // has is left out of the response, so the published schema marks only the type as required.
+    [Description("One part of a message item: text, or an image or a file by reference.")]
     internal sealed record ItemContent(
-        [property: JsonPropertyName("type"), Description("`output_text` for an assistant message, `input_text` for any other.")] string Type,
-        [property: JsonPropertyName("text"), Description("The text.")] string Text);
+        [property: JsonPropertyName("type"), Description("The part's type: 'input_text' or 'output_text' for text, 'input_image' for an image, 'input_file' for any other file.")] string Type,
+        [property: JsonPropertyName("text"), Description("The text of a text part.")] string? Text = null,
+        [property: JsonPropertyName("image_url"), Description("Where an image part's image is: the address the attachment endpoint serves it at, or the remote link the user sent. The bytes are never embedded.")] string? ImageUrl = null,
+        [property: JsonPropertyName("detail"), Description("How closely the model was asked to look at an image part: 'auto' when the user did not say.")] string? Detail = null,
+        [property: JsonPropertyName("file_url"), Description("Where a file part's file is: the address the attachment endpoint serves it at. The bytes are never embedded.")] string? FileUrl = null,
+        [property: JsonPropertyName("filename"), Description("The name a file part was uploaded under, when it had one.")] string? FileName = null);
 }

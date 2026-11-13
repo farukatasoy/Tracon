@@ -123,6 +123,27 @@ same one, and each reaches only its own session. An identifier that only another
 tenant uses behaves like one nobody has used, so a response never confirms that
 another tenant holds it.
 
+### What the items list
+
+`GET /v1/conversations/{id}/items` lists the history in the OpenAI item format: a user
+message's text as `input_text`, a reply as `output_text`, and the agent's tool calls as
+`function_call` and `function_call_output` items. An image or a file the user sent is
+listed too, as an `input_image` or `input_file` part of that message, in its place among
+the message's other parts:
+
+| Part | Members |
+|---|---|
+| `input_image` | `image_url` is the attachment's address (`<prefix>/api/attachments/{id}`) or the remote link the user sent. `detail` is what the part said, `auto` when it said none |
+| `input_file` | `file_url` is the attachment's address. `filename` is there when the file has a name |
+
+The bytes are never embedded. A client that needs them calls the address, with a
+credential that may read attachments. An assistant message lists no image or file part,
+because the item format has none for a reply.
+
+A file sent as a Responses `input_file` part is listed without a `filename`: Microsoft
+Agent Framework's request parser drops the name before Tracon sees it. A file attached
+through the management run endpoint keeps its name.
+
 ### The conversation routes go through your own gates
 
 `GET`, `DELETE` and `GET …/items` reach the same sessions `/api/sessions/{id}`
@@ -281,7 +302,7 @@ for await (const frame of readSse(response)) {
 | SSE streaming | yes | yes | Uses surface-specific OpenAI frame names |
 | Server conversation | `conversation` or `previous_response_id` | no | Maps to Tracon sessions |
 | Client-carried history | input items | `messages` | Resolved attachments reach the provider |
-| Image, audio and file input | `input_image`, `input_file` | `image_url`, `input_audio`, `file` | Embedded data passes the attachment type check and is stored as an attachment of the tenant |
+| Image, audio and file input | `input_image`, `input_file` | `image_url`, `input_audio`, `file` | Embedded data passes the attachment type check and is stored as an attachment of the tenant; the conversation items list it as an `input_image` or `input_file` part |
 | Client tool-call history | no: `400` | no: `400` | Tools run on the server; send earlier turns as text |
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
