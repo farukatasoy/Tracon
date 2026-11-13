@@ -1,3 +1,5 @@
+using Microsoft.Extensions.AI;
+
 namespace Tracon.Mcp.UnitTests;
 
 /// <summary>
@@ -29,5 +31,20 @@ public sealed class McpToolNamingTests
         McpToolNaming.TryQualify("github", tool).ShouldBe($"github_{tool}");
         McpToolNaming.TryQualify("github", tool + "\n").ShouldBeNull();
         McpToolNaming.TryQualify("github", tool + "\r\n").ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_qualified_name_over_the_registry_limit_is_not_a_name_and_the_limit_is_the_registrys()
+    {
+        // 6 characters of server, the underscore and the tool: exactly at the limit, then one over.
+        var atLimit = new string('t', McpToolNaming.MaxQualifiedNameLength - "github_".Length);
+
+        McpToolNaming.TryQualify("github", atLimit).ShouldBe($"github_{atLimit}");
+        McpToolNaming.TryQualify("github", atLimit + "t").ShouldBeNull();
+
+        // The limit is the one the registry enforces: a function of the limit's length registers, one more does not.
+        _ = new TraconToolRegistration(AIFunctionFactory.Create(() => "ok", new string('n', McpToolNaming.MaxQualifiedNameLength)));
+        Should.Throw<TraconException>(
+            () => new TraconToolRegistration(AIFunctionFactory.Create(() => "ok", new string('n', McpToolNaming.MaxQualifiedNameLength + 1))));
     }
 }

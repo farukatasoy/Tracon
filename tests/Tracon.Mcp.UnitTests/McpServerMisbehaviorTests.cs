@@ -209,6 +209,25 @@ public sealed class McpServerMisbehaviorTests
     }
 
     [Fact]
+    public async Task A_tool_whose_qualified_name_is_over_the_registry_limit_is_left_out_and_the_other_tools_are_kept()
+    {
+        // The qualified name is the server's name, an underscore and the tool's: 6 + 1 + 60 characters here. The registry
+        // refuses it with an exception, and that exception used to reach the end of the refresh, which dropped the tools of
+        // the whole server and not just the one whose name was too long.
+        var longName = new string('n', 60);
+        var tooLong = "{\"name\":\"" + longName + "\",\"description\":\"x\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}";
+
+        await using var broken = ScriptedMcpServer.Start((method, _, _, _) => Task.FromResult<string?>(
+            string.Equals(method, "tools/list", StringComparison.Ordinal) ? Tools(tooLong, GoodTool) : "{}"));
+
+        var (outcome, tools) = await RefreshAsync(broken);
+
+        outcome.HadUnreachableServers.ShouldBeFalse("the server answered; one of its names was too long");
+        tools.Contains("broken_healthy_tool", StringComparer.Ordinal).ShouldBeTrue("the long name took the server's other tools with it");
+        tools.Contains("broken_" + longName, StringComparer.Ordinal).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task A_call_to_a_tool_whose_server_never_answers_ends_at_the_tool_timeout_on_the_clock_of_the_catalog()
     {
         // The list is fine and the call is not: only the tool's own limit, which the catalog's tool set arms on the clock the

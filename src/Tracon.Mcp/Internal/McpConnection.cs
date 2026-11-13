@@ -654,9 +654,11 @@ internal sealed class McpConnection : IAsyncDisposable
             {
                 logger.LogWarning(
                     "Tool '{ToolName}' of MCP server '{ServerName}' was skipped: the name may contain only " +
-                    "letters, digits, underscores, and hyphens.",
+                    "letters, digits, underscores, and hyphens, and the server name, an underscore and the tool name " +
+                    "together may be at most {MaxLength} characters.",
                     tool.Name,
-                    _serverName);
+                    _serverName,
+                    McpToolNaming.MaxQualifiedNameLength);
 
                 continue;
             }
