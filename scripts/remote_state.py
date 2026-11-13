@@ -476,34 +476,60 @@ class CiRun:
     url: str
 
 
+def read_failure(status: int | None) -> str:
+    """Says why a read of the GitHub API gave no answer, so a caller can tell a refusal from a missing network.
+
+    A refusal (`401`, `403`, `404`) will not mend by waiting: the token lacks the right, the rate limit is spent, or the
+    repository is not visible to it. No status at all is a network that was not there, and the next attempt may do.
+    """
+    if status is None:
+        return "no answer from the GitHub API (network unreachable or timed out)"
+
+    if status in (401, 403):
+        return f"HTTP {status}: the GitHub API refused the request (token without the right, or the rate limit is spent)"
+
+    if status == 404:
+        return "HTTP 404: the repository or the workflow is not visible to this request (name, or a token without the right)"
+
+    return f"HTTP {status} from the GitHub API"
+
+
 def ci_runs(
     slug: str,
     branch: str,
     *,
     workflow: str = "ci.yml",
     fetcher: Fetcher = fetch_github,
+    failure: list[str] | None = None,
 ) -> list[CiRun] | None:
     """The newest runs of `workflow` on `branch` of `slug`, from the public Actions API; `None` when it could not be read.
 
     Only the newest 100 runs are read. `exclude_pull_requests` does not drop the runs of pull requests (it empties the
     `pull_requests` list of each run), so a caller decides by `event`, as `green_shas` does. The anonymous limit is 60 reads an
-    hour, so a caller that runs often sets `GITHUB_TOKEN`.
+    hour, so a caller that runs often sets `GITHUB_TOKEN`. When `failure` is given and the read fails, one line that says why
+    is appended to it (see `read_failure`).
     """
     query = urllib.parse.urlencode({"branch": branch, "per_page": 100, "exclude_pull_requests": "true"})
     status, body = fetcher(f"{GITHUB_API}/repos/{slug}/actions/workflows/{workflow}/runs?{query}")
 
-    if status != 200:
+    def unread(reason: str) -> None:
+        if failure is not None:
+            failure.append(reason)
+
         return None
+
+    if status != 200:
+        return unread(read_failure(status))
 
     try:
         document = json.loads(body)
     except ValueError:
-        return None
+        return unread("the answer of the GitHub API was not JSON")
 
     entries = document.get("workflow_runs") if isinstance(document, dict) else None
 
     if not isinstance(entries, list):
-        return None
+        return unread("the answer of the GitHub API had no `workflow_runs` list")
 
     runs: list[CiRun] = []
 

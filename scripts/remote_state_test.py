@@ -488,6 +488,40 @@ class CiRunsTests(unittest.TestCase):
         self.assertIsNone(remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: (200, json.dumps({"runs": []}))))
 
 
+    def test_a_failed_read_says_why_when_asked(self) -> None:
+        cases = {
+            "network": ((None, ""), "no answer"),
+            "refused token": ((401, "bad credentials"), "HTTP 401"),
+            "rate limit": ((403, "rate limit"), "HTTP 403"),
+            "not visible": ((404, "not found"), "HTTP 404"),
+            "server error": ((502, "bad gateway"), "HTTP 502"),
+            "not json": ((200, "not json"), "not JSON"),
+            "no run list": ((200, json.dumps({"runs": []})), "workflow_runs"),
+        }
+
+        for name, (answer, fragment) in cases.items():
+            with self.subTest(name):
+                failure: list[str] = []
+
+                self.assertIsNone(remote_state.ci_runs("owner/repo", "next", fetcher=lambda url, a=answer: a, failure=failure))
+                self.assertEqual(1, len(failure), failure)
+                self.assertIn(fragment, failure[0])
+
+    def test_a_refusal_reads_differently_from_a_missing_network(self) -> None:
+        # The caller tells "the token cannot read this" (it will not mend) from "the network was away" (the next run may do).
+        self.assertNotEqual(remote_state.read_failure(403), remote_state.read_failure(None))
+        self.assertIn("refused", remote_state.read_failure(401))
+        self.assertIn("network", remote_state.read_failure(None))
+
+    def test_a_good_read_leaves_the_failure_list_empty(self) -> None:
+        failure: list[str] = []
+
+        runs = remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: _runs_answer(_run("abc123")), failure=failure)
+
+        self.assertEqual(1, len(runs))
+        self.assertEqual([], failure)
+
+
 class GreenShasTests(unittest.TestCase):
     def _green(self, *runs: dict[str, object]) -> set[str]:
         parsed = remote_state.ci_runs("owner/repo", "next", fetcher=lambda url: _runs_answer(*runs))
