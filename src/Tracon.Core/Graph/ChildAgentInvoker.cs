@@ -626,6 +626,9 @@ public sealed class ChildAgentInvoker : AIAgent
             // bound none.
             ParameterValues = stepValues,
 
+            // The culture of the run that called this one, so a sub-agent of this sub-agent resolves with it too.
+            Culture = scope.Culture,
+
             // A step's workflow waits for the answer to a tool approval, so its row closes
             // AwaitingApproval. The sub-agent a step's agent calls builds its OWN options and never gets
             // this: below the step the approval is still refused.
@@ -708,7 +711,7 @@ public sealed class ChildAgentInvoker : AIAgent
         if (_parameterFactory is not { } factory ||
             scope.ParameterValues is not { Count: > 0 } workflowValues)
         {
-            return (await ResolveAsync(version, cancellationToken).ConfigureAwait(false), null);
+            return (await ResolveAsync(version, scope.Culture, cancellationToken).ConfigureAwait(false), null);
         }
 
         var (definition, origin) = await factory.FindAsync(_childName, version, cancellationToken)
@@ -716,7 +719,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
         if (definition is not { Parameters.Count: > 0 })
         {
-            return (await ResolveAsync(version, cancellationToken).ConfigureAwait(false), null);
+            return (await ResolveAsync(version, scope.Culture, cancellationToken).ConfigureAwait(false), null);
         }
 
         var stepValues = ParameterValueSet.Intersect(definition.Parameters, workflowValues);
@@ -735,11 +738,11 @@ public sealed class ChildAgentInvoker : AIAgent
         // the step's own defaults and caches the result.
         if (stepValues.Count == 0)
         {
-            return (await ResolveAsync(version, cancellationToken).ConfigureAwait(false), final);
+            return (await ResolveAsync(version, scope.Culture, cancellationToken).ConfigureAwait(false), final);
         }
 
         var bound = await factory
-            .CompileAsync(definition, origin, culture: null, stepValues, cancellationToken)
+            .CompileAsync(definition, origin, scope.Culture, stepValues, cancellationToken)
             .ConfigureAwait(false);
 
         return (bound, final);
@@ -794,15 +797,17 @@ public sealed class ChildAgentInvoker : AIAgent
         return version;
     }
 
+    // The session methods resolve the agent only to make or read a session, whose state does not depend on the
+    // instructions' culture: they pass none, and a call resolves with the culture of its own scope.
     private ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken)
-        => ResolveAsync(_pinnedVersion, cancellationToken);
+        => ResolveAsync(_pinnedVersion, culture: null, cancellationToken);
 
-    private async ValueTask<AIAgent> ResolveAsync(int? version, CancellationToken cancellationToken)
+    private async ValueTask<AIAgent> ResolveAsync(int? version, string? culture, CancellationToken cancellationToken)
     {
         // A pinned step asks the catalog for ITS version: a version the agent does not
         // have, or an agent that keeps no history, throws here and fails the step by name
         // (the compiler checked both, but the agent can change after that).
-        var agent = await _resolver.ResolveAsync(_childName, version, cancellationToken).ConfigureAwait(false);
+        var agent = await _resolver.ResolveAsync(_childName, version, culture, cancellationToken).ConfigureAwait(false);
 
         return agent ?? throw new TraconException(
             $"Agent '{_callerName}' wants to call agent '{_childName}', but no such agent " +

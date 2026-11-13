@@ -187,6 +187,9 @@ internal sealed class AgentRunJobHandler(
                 ExperimentId = arm.ExperimentId,
                 Variant = arm.Variant,
                 ParameterValues = recordedValues,
+
+                // The agent above was resolved with this culture; the sub-agents it calls resolve with it too.
+                Culture = culture,
                 BeforePendingApprovalIsPublished = turn.BeforePendingApprovalIsPublishedAsync,
             },
             cancellationToken).ConfigureAwait(false);

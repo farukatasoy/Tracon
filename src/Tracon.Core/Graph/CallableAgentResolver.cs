@@ -42,7 +42,7 @@ internal sealed class CallableAgentResolver
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The agent wrapped with the run-recording wrapper; <see langword="null"/> when absent.</returns>
     public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
-        => ResolveCatalog().ResolveAsync(agentName, culture: null, cancellationToken);
+        => ResolveAsync(agentName, version: null, culture: null, cancellationToken);
 
     /// <summary>Resolves the agent with the given name, pinned to a stored version.</summary>
     /// <param name="agentName">Agent name.</param>
@@ -57,9 +57,25 @@ internal sealed class CallableAgentResolver
     /// or that version does not exist.
     /// </exception>
     public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
+        => ResolveAsync(agentName, version, culture: null, cancellationToken);
+
+    /// <summary>Resolves the agent with the given name, pinned to a stored version, with the instructions of a culture.</summary>
+    /// <param name="agentName">Agent name.</param>
+    /// <param name="version">The version to run; <see langword="null"/> resolves the current version.</param>
+    /// <param name="culture">
+    /// The culture of the run that calls the agent (<see cref="AgentRunScope.Culture"/>). <see langword="null"/> and a
+    /// culture the agent has no entry for both give the agent's default instructions.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The agent wrapped with the run-recording wrapper; <see langword="null"/> when absent.</returns>
+    /// <exception cref="TraconException">
+    /// <paramref name="version"/> is given and the agent keeps no version history (it is defined in code),
+    /// or that version does not exist.
+    /// </exception>
+    public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture, CancellationToken cancellationToken = default)
         => version is null
-            ? ResolveAsync(agentName, cancellationToken)
-            : ResolveCatalog().ResolveAsync(agentName, version, culture: null, cancellationToken);
+            ? ResolveCatalog().ResolveAsync(agentName, culture, cancellationToken)
+            : ResolveCatalog().ResolveAsync(agentName, version, culture, cancellationToken);
 
     /// <summary>Finds the first agent version pin of a workflow definition that cannot be honoured.</summary>
     /// <param name="definition">The definition to check.</param>

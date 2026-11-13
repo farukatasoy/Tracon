@@ -67,6 +67,7 @@ public sealed class TraconRunOptions : AgentRunOptions
         ContinuedFromRunId = other.ContinuedFromRunId;
         BeforePendingApprovalIsPublished = other.BeforePendingApprovalIsPublished;
         ParameterValues = other.ParameterValues;
+        Culture = other.Culture;
         ChatOptions = other.ChatOptions;
         SuspendsWorkflowOnApproval = other.SuspendsWorkflowOnApproval;
         SessionHasNoRecord = other.SessionHasNoRecord;
@@ -238,6 +239,17 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// </para>
     /// </remarks>
     internal IReadOnlyDictionary<string, string>? ParameterValues { get; init; }
+
+    /// <summary>
+    /// Gets the culture the run's agent was resolved with. <see langword="null"/> when none was requested.
+    /// </summary>
+    /// <remarks>
+    /// Internal for the reason <see cref="ParameterValues"/> is: it is the record of a choice already made, not an
+    /// instruction to the recording wrapper. The caller that resolved the agent with a culture (the run endpoint, the
+    /// queued run) passes the SAME text, and the run's scope hands it to every sub-agent the run calls
+    /// (<c>AgentRunScope.Culture</c>). A sub-run's options carry the parent scope's value.
+    /// </remarks>
+    internal string? Culture { get; init; }
 
     /// <summary>
     /// Gets the model options a sub-run was given for this run only, passed on to the agent as

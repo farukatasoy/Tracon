@@ -104,6 +104,24 @@ public sealed record AgentRunScope
     /// <summary>Gets the budget shared across the tree.</summary>
     public AgentRunBudget? Budget { get; init; }
 
+    /// <summary>
+    /// Gets the culture the run was requested with, exactly as the caller wrote it (for example <c>"tr"</c>
+    /// or <c>"tr-TR"</c>). <see langword="null"/> when the run was requested with none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The root run's culture selects which entry of <see cref="AgentDefinition.InstructionsByCulture"/> the
+    /// agent's model reads. Every sub-run of the tree carries the same value, so a sub-agent the run calls
+    /// resolves its own instructions with it: a Turkish run does not hand its work to an English sub-agent. An
+    /// agent that has no entry for the culture runs with its default instructions, as a root run does.
+    /// </para>
+    /// <para>
+    /// It is the request's text, not the entry an agent matched: each agent matches it against its own
+    /// dictionary, and a sub-agent may carry an entry the parent does not. Nothing is recorded from it.
+    /// </para>
+    /// </remarks>
+    public string? Culture { get; init; }
+
     /// <summary>Gets the definition version this run measures. <see langword="null"/> if unknown.</summary>
     public int? AgentVersion { get; init; }
 

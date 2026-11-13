@@ -49,8 +49,11 @@ A queued run (`Prefer: respond-async`) uses the `culture` of the request that qu
 it. The run record does not store the culture. A run that Tracon starts from an
 earlier run therefore uses the default instructions. This applies to the
 continuation after an approval decision, a replay, and an automatic continuation
-after a crash. A [callable agent](#agents-calling-agents) also resolves without
-the caller's culture.
+after a crash.
+
+A [callable agent](#agents-calling-agents) runs with the culture of the run that calls it,
+and so does a sub-agent of a sub-agent. A callable agent that has no entry for the
+culture runs with its own default instructions, as a root run does.
 
 ## Parameters
 

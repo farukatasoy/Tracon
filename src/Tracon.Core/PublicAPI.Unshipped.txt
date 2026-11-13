@@ -56,6 +56,8 @@ Tracon.AgentRunScope.AgentVersion.get -> int?
 Tracon.AgentRunScope.AgentVersion.init -> void
 Tracon.AgentRunScope.Budget.get -> Tracon.AgentRunBudget?
 Tracon.AgentRunScope.Budget.init -> void
+Tracon.AgentRunScope.Culture.get -> string?
+Tracon.AgentRunScope.Culture.init -> void
 Tracon.AgentRunScope.Depth.get -> int
 Tracon.AgentRunScope.Depth.init -> void
 Tracon.AgentRunScope.Equals(Tracon.AgentRunScope? other) -> bool

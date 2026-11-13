@@ -836,6 +836,9 @@ internal sealed class PreparedTurn(
             Variant = assignment?.Variant,
             ParameterValues = parameterValues,
 
+            // The agent was resolved with this culture; the sub-agents it calls resolve with it too.
+            Culture = request.Culture,
+
             // This is the ONLY delivery path for a synchronous run's tool-approval presentation - the queue
             // path's mailbox (GET /api/approvals/pending) does not exist for a run started without 'Prefer: respond-async',
             // and the updates carry MAF's own ToolApprovalRequestContent verbatim, which has no field to carry a

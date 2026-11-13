@@ -38,9 +38,21 @@ public sealed class TraconRunOptionsTests
     }
 
     [Fact]
+    public void Clone_preserves_the_culture()
+    {
+        // A middleware layer that copies the options and drops the culture hands the sub-agents of the run
+        // the default instructions, with nothing to show for it.
+        var clone = new TraconRunOptions { Culture = "tr-TR" }.Clone().ShouldBeOfType<TraconRunOptions>();
+
+        clone.Culture.ShouldBe("tr-TR");
+    }
+
+    [Fact]
     public void Clone_leaves_empty_settings_empty()
     {
         var clone = new TraconRunOptions().Clone().ShouldBeOfType<TraconRunOptions>();
+
+        clone.Culture.ShouldBeNull();
 
         clone.RunId.ShouldBeNull();
         clone.ParentRunId.ShouldBeNull();

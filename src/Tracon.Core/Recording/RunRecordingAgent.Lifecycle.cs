@@ -179,6 +179,11 @@ public sealed partial class RunRecordingAgent
             UserId = attribution.UserId,
             Labels = attribution.Labels,
             Budget = budget,
+
+            // The culture the root was requested with, and the same value in every sub-run below it: the sub-run's
+            // options carry the parent scope's value. Read from the options here, in this synchronous body, like the
+            // rest of the scope.
+            Culture = runOptions?.Culture,
             Writer = writer,
             ExtraUsage = new SideChannelUsageAccumulator(),
             ToolUsage = new ToolUsageAccumulator(),
