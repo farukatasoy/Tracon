@@ -6,7 +6,9 @@ namespace Tracon.Testing.Contracts.Storage;
 /// Behavior tests for the <see cref="IRunStore"/> contract.
 /// </summary>
 /// <remarks>
-/// The in-memory store and the PostgreSQL store must pass the same scenarios.
+/// The in-memory store and the PostgreSQL store must pass the same scenarios. Every scenario is a public method of this one
+/// class, because the test runner finds them by inheritance, so this page grows with every rule of the run store: read the
+/// source of the contract for what a scenario asks, and the protected virtual properties for the rules a store opts into.
 /// </remarks>
 public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 {

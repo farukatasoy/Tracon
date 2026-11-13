@@ -77,10 +77,16 @@ const PAGE_CEILINGS_RELEASE = [
 // page cannot be split: a store inherits one class. Ceiling 62 500 B, about 4.9% headroom, which also covers the roughly
 // 60 B by which a CI build differs from a local one. The page that grows with every new rule of the run store is a
 // reason to read the contract's source, not the page; the next raise should say so in the page's own summary.
+//
+// Raised to 67 500 B on 2026-11-13: 64 356 B gzip, 1 856 B over the ceiling above, after the contract took the promotion of a
+// queued run (`PromoteQueuedRunAsync`: five scenarios and the flag `PromotesQueuedRunsAtomically`) and the flag
+// `MarksAStartedRunAlive` with its scenario. Eight public members, each a name and a one-line summary, and the class summary
+// now says that the page grows and where to read instead. About 4.9% headroom, which also covers the roughly 60 B by which a CI
+// build differs from a local one.
 const PAGE_CEILINGS = new Map([
   ...PAGE_CEILINGS_RELEASE,
   ['api/tracon.traconbuilderextensions/index.html', 64_000],
-  ['api/tracon.testing.contracts.storage.runstorecontract/index.html', 62_500],
+  ['api/tracon.testing.contracts.storage.runstorecontract/index.html', 67_500],
 ]);
 
 if (!existsSync(dist)) {
