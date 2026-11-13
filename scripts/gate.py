@@ -870,6 +870,43 @@ def context7_version_drift(root: pathlib.Path = ROOT) -> list[str]:
     return []
 
 
+ASPIRE_SDK_PATTERN = re.compile(r'<Project\s+Sdk="Aspire\.AppHost\.Sdk/([^"]+)"')
+ASPIRE_HOSTING_PATTERN = re.compile(r'<PackageVersion\s+Include="(Aspire\.Hosting\.[^"]+)"\s+Version="([^"]+)"')
+CENTRAL_PACKAGES = pathlib.Path("Directory.Packages.props")
+
+
+def aspire_sdk_drift(root: pathlib.Path = ROOT) -> list[str]:
+    """The version in an Aspire app host's `Sdk=` attribute must equal every `Aspire.Hosting.*` package version.
+
+    The SDK version is written in the project file, where a package update that edits the central
+    package file does not look, so the two can part: a dependency bot's update raised the hosting
+    package and left the attribute at the old version. A mismatch is a build warning or a start-up
+    failure of the sample, never of a shipped package. No app host project, or no central package
+    file, no check.
+    """
+    packages_path = root / CENTRAL_PACKAGES
+    if not packages_path.is_file():
+        return []
+    hosting = {name: version for name, version in
+               ASPIRE_HOSTING_PATTERN.findall(packages_path.read_text(encoding="utf-8"))}
+
+    found: list[str] = []
+    for path in sorted(_walk_files(root / "samples")):
+        if path.suffix.lower() != ".csproj":
+            continue
+        match = ASPIRE_SDK_PATTERN.search(path.read_text(encoding="utf-8"))
+        if match is None:
+            continue
+        relative = path.relative_to(root).as_posix()
+        if not hosting:
+            found.append(f"{relative}: Aspire.AppHost.Sdk {match.group(1)}, and {CENTRAL_PACKAGES} has no Aspire.Hosting.* package to match it")
+            continue
+        for name, version in sorted(hosting.items()):
+            if version != match.group(1):
+                found.append(f"{relative}: Aspire.AppHost.Sdk {match.group(1)}, but {name} is {version} in {CENTRAL_PACKAGES}")
+    return found
+
+
 UPGRADE_BASELINE_MANIFEST = pathlib.Path("tests", "Shared", "Upgrade", "UpgradeBaseline.json")
 
 
@@ -927,7 +964,7 @@ def find_malformed_xml(root: pathlib.Path = ROOT) -> list[str]:
 
 
 def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
-    """Run the synchronization-copy, secret, doc-reference, XML, public-surface, Context7-version and upgrade-baseline scans, then the extension's own."""
+    """Run the synchronization-copy, secret, doc-reference, XML, public-surface, Context7-version, upgrade-baseline and Aspire-SDK scans, then the extension's own."""
     copies = find_sync_copies(root, (*SYNC_ROOTS, *extension.sync_roots))
     secrets, synthetic = find_secrets(root, extension)
     stale_docs = find_stale_doc_references(root, (*DOC_REFERENCE_ROOTS, *extension.doc_reference_roots))
@@ -935,9 +972,10 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     public_surface = public_surface_violations(root)
     context7 = context7_version_drift(root)
     upgrade_baseline = upgrade_baseline_drift(root)
+    aspire_sdk = aspire_sdk_drift(root)
     extra = [(check.heading, list(check.violations(root))) for check in extension.scan_checks]
     if (not copies and not secrets and not stale_docs and not malformed_xml and not public_surface and not context7
-            and not upgrade_baseline and not any(violations for _, violations in extra)):
+            and not upgrade_baseline and not aspire_sdk and not any(violations for _, violations in extra)):
         print("Scan: ✅ clean"
               + (f" ({synthetic} marked synthetic credentials skipped)" if synthetic else ""))
         return 0
@@ -974,6 +1012,10 @@ def scan(root: pathlib.Path = ROOT, extension: Extension = PUBLIC) -> int:
     if upgrade_baseline:
         print("Scan: ❌ the upgrade gate baseline is behind the latest release — a release cut also moves the baseline forward")
         for violation in upgrade_baseline:
+            print(f"  {violation}")
+    if aspire_sdk:
+        print("Scan: ❌ Aspire SDK version drift — the app host's `Sdk=` version moves with the `Aspire.Hosting.*` packages")
+        for violation in aspire_sdk:
             print(f"  {violation}")
     for heading, violations in extra:
         if violations:

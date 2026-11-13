@@ -667,6 +667,80 @@ class GateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(gate.context7_version_drift(pathlib.Path(directory)), [])
 
+    # The Aspire app host's `Sdk=` version is written in its project file and the hosting packages in the central
+    # package file; a dependency update that moves only one of them leaves a sample that does not build or start.
+
+    def _aspire_root(self, directory: str, sdk: str | None, packages: dict[str, str] | None) -> pathlib.Path:
+        root = pathlib.Path(directory)
+        if sdk is not None:
+            project = root / "samples" / "Host" / "Host.csproj"
+            project.parent.mkdir(parents=True)
+            project.write_text(f'<Project Sdk="Aspire.AppHost.Sdk/{sdk}">\n</Project>\n', encoding="utf-8")
+        if packages is not None:
+            items = "".join(f'<PackageVersion Include="{name}" Version="{version}" />' for name, version in packages.items())
+            (root / "Directory.Packages.props").write_text(
+                f"<Project><ItemGroup>{items}</ItemGroup></Project>", encoding="utf-8")
+        return root
+
+    def test_aspire_sdk_equal_to_the_hosting_packages_is_clean(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._aspire_root(directory, "13.6.5", {"Aspire.Hosting.PostgreSQL": "13.6.5", "Other.Package": "1.0.0"})
+
+            self.assertEqual(gate.aspire_sdk_drift(root), [])
+
+    def test_aspire_sdk_behind_a_hosting_package_breaks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._aspire_root(directory, "13.6.4", {"Aspire.Hosting.PostgreSQL": "13.6.5"})
+
+            found = gate.aspire_sdk_drift(root)
+
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("13.6.4", found[0])
+        self.assertIn("Aspire.Hosting.PostgreSQL is 13.6.5", found[0])
+        self.assertIn("samples/Host/Host.csproj", found[0])
+
+    def test_aspire_sdk_is_held_to_every_hosting_package(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._aspire_root(
+                directory, "13.6.5", {"Aspire.Hosting.PostgreSQL": "13.6.5", "Aspire.Hosting.Redis": "13.6.4"})
+
+            found = gate.aspire_sdk_drift(root)
+
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("Aspire.Hosting.Redis is 13.6.4", found[0])
+
+    def test_aspire_sdk_with_no_hosting_package_to_match_breaks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._aspire_root(directory, "13.6.5", {"Other.Package": "1.0.0"})
+
+            self.assertEqual(len(gate.aspire_sdk_drift(root)), 1)
+
+    def test_aspire_sdk_check_is_skipped_without_an_app_host_or_a_package_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(gate.aspire_sdk_drift(self._aspire_root(directory, None, {"Aspire.Hosting.PostgreSQL": "1.0.0"})), [])
+
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(gate.aspire_sdk_drift(self._aspire_root(directory, "13.6.5", None)), [])
+
+    def test_repo_aspire_sdk_matches_the_hosting_packages(self):
+        # CLASS GATE: the check that is real in this repository.
+        self.assertEqual(gate.aspire_sdk_drift(), [])
+
+    def test_scan_turns_red_on_aspire_sdk_drift_alone(self):
+        for sdk, expected in (("13.6.5", 0), ("13.6.4", 1)):
+            with self.subTest(sdk=sdk), tempfile.TemporaryDirectory() as directory, \
+                    contextlib.ExitStack() as stack, contextlib.redirect_stdout(io.StringIO()) as output:
+                for name, value in {
+                    "find_sync_copies": [], "find_secrets": ([], 0), "find_stale_doc_references": [],
+                    "public_surface_violations": [], "context7_version_drift": [], "upgrade_baseline_drift": [],
+                }.items():
+                    stack.enter_context(mock.patch.object(gate, name, return_value=value))
+                root = self._aspire_root(directory, sdk, {"Aspire.Hosting.PostgreSQL": "13.6.5"})
+                result = gate.scan(root)
+
+            self.assertEqual(result, expected, output.getvalue())
+            self.assertEqual("Aspire SDK version drift" in output.getvalue(), expected == 1)
+
     def test_scan_turns_red_on_context7_drift_alone(self):
         # The others are empty: only the tag tells the outcomes apart; if they were not mocked, `scan` would
         # return 1 in both cases and the test would prove nothing.
