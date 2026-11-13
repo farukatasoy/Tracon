@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -141,6 +142,102 @@ public sealed class ModelProviderCoreTests
     }
 
     [Fact]
+    public void A_rotated_key_replaces_every_client_of_its_binding_and_leaves_one_entry()
+    {
+        var core = new ModelProviderCore<object>([], null);
+        var factoryBuilds = 0;
+
+        IChatClient Resolve(string key, string model) => core.GetTenantChatClient(
+            Bound("tenant-a", key),
+            Binding with { Model = model },
+            _ =>
+            {
+                factoryBuilds++;
+                return new object();
+            },
+            static (_, _) => new TrackedChatClient());
+
+        var firstA = Resolve("key-one", "model-a");
+        var firstB = Resolve("key-one", "model-b");
+        var secondA = Resolve("key-two", "model-a");
+        var secondB = Resolve("key-two", "model-b");
+        var thirdA = Resolve("key-three", "model-a");
+
+        // The key is the thing that changed, so every client built with the old one goes, not only the one asked for.
+        secondA.ShouldNotBeSameAs(firstA);
+        secondB.ShouldNotBeSameAs(firstB);
+        thirdA.ShouldNotBeSameAs(secondA);
+        core.CachedBindingCount.ShouldBe(1);
+        factoryBuilds.ShouldBe(3);
+
+        // The clients of the current key stay, and the ones that were replaced are left to the collector.
+        Resolve("key-three", "model-a").ShouldBeSameAs(thirdA);
+        ((TrackedChatClient)firstA).Disposed.ShouldBeFalse();
+        ((TrackedChatClient)secondB).Disposed.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_chat_client_a_rotation_replaces_leaves_memory_with_the_old_key()
+    {
+        var core = new ModelProviderCore<object>([], null);
+
+        var (client, key) = ResolveWithKey(core, "tenant-a");
+
+        core.GetTenantChatClient(
+            Bound("tenant-a", "key-after-rotation"),
+            Binding,
+            static _ => new object(),
+            static (_, _) => new TrackedChatClient());
+
+        for (var pass = 0; pass < 3; pass++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+
+        client.IsAlive.ShouldBeFalse("the replaced chat client is still reachable from the provider");
+        key.IsAlive.ShouldBeFalse("the old key value is still reachable from the provider");
+    }
+
+    [Fact]
+    public void Two_tenants_with_the_same_key_value_are_given_their_own_clients()
+    {
+        var core = new ModelProviderCore<object>([], null);
+
+        IChatClient Resolve(string tenant, string key) => core.GetTenantChatClient(
+            Bound(tenant, key),
+            Binding,
+            static _ => new object(),
+            static (_, _) => new TrackedChatClient());
+
+        var a = Resolve("tenant-a", "shared-key");
+        var b = Resolve("tenant-b", "shared-key");
+
+        b.ShouldNotBeSameAs(a);
+        core.CachedBindingCount.ShouldBe(2);
+
+        Resolve("tenant-a", "rotated-key");
+        Resolve("tenant-b", "shared-key").ShouldBeSameAs(b);
+    }
+
+    private static ModelProviderCredential Bound(string tenant, string apiKey)
+        => TenantCredentialScope.Attach(new ModelProviderCredential { ApiKey = apiKey }, tenant, "shared-test");
+
+    // NoInlining keeps the client and the key off the caller's stack, so the collection can see them go.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (WeakReference Client, WeakReference Key) ResolveWithKey(ModelProviderCore<object> core, string tenant)
+    {
+        var key = new string('k', 24) + Guid.NewGuid().ToString("N");
+        var client = core.GetTenantChatClient(
+            Bound(tenant, key),
+            Binding,
+            static _ => new object(),
+            static (_, _) => new TrackedChatClient());
+
+        return (new WeakReference(client), new WeakReference(key));
+    }
+
+    [Fact]
     public void Diagnostic_names_the_key_and_never_carries_a_value()
     {
         var diagnostic = ModelProviderCore.ConfigurationDiagnosticFor("Tracon:Providers:Test", resolved: false);
@@ -170,4 +267,25 @@ public sealed class ModelProviderCoreTests
 
     private static EgressSocketGuard NewGuard()
         => new(Substitute.For<IOptionsMonitor<TraconEgressOptions>>());
+
+    private sealed class TrackedChatClient : IChatClient
+    {
+        public bool Disposed { get; private set; }
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose() => Disposed = true;
+    }
 }

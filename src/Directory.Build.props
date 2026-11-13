@@ -221,17 +221,25 @@
   </ItemGroup>
 
   <!--
-    TenantChatClientCacheKey is shared by the four shipped provider adapters and
-    is INTERNAL rather than public API: the string it returns begins with the
-    tenant's PLAINTEXT credential. Inside Tracon it never leaves an in-process
-    dictionary, but a public helper that hands back a secret invites the one
-    debugging move that turns it into a leak - logging the key on a cache miss.
-    Secrets stay out of files and out of the database; this keeps them
-    out of the public surface too.
+    ModelProviderCredential.BindingScope names the tenant binding a credential was resolved for. Core sets it where it
+    resolves a binding and reads it where it keys the client cache the four provider adapters share. It stays INTERNAL
+    rather than a public property: a seam on a record every provider implementer receives is a promise to keep, and a
+    provider written outside this repository has no use for the name.
+  -->
+  <ItemGroup Label="Internal visibility - credential binding scope" Condition=" '$(MSBuildProjectName)' == 'Tracon.Abstractions' ">
+    <InternalsVisibleTo Include="Tracon.Core" />
+  </ItemGroup>
+
+  <!--
+    ProviderCredentialClientCache and TenantChatClientCacheKey are shared by the four shipped provider adapters and
+    are INTERNAL rather than public API. The cache keeps a tenant's client under the name of its binding and holds
+    only a fingerprint of the credential, never the value; a public helper beside it would invite the one debugging
+    move that turns a secret into a leak - logging the key on a cache miss. Secrets stay out of files and out of the
+    database; this keeps them out of the public surface too.
 
     A third-party provider adapter does not need it. What the shipped
     ModelProviderCredentialContract requires is the same-instance guarantee,
-    not this particular key.
+    not this particular cache.
   -->
   <ItemGroup Label="Internal visibility - provider adapters" Condition=" '$(MSBuildProjectName)' == 'Tracon.Core' ">
     <InternalsVisibleTo Include="Tracon.Anthropic" />

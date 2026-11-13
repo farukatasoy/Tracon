@@ -23,6 +23,16 @@ public sealed record ModelProviderCredential
     /// <summary>Gets the optional provider endpoint override.</summary>
     public string? Endpoint { get; init; }
 
+    /// <summary>
+    /// Gets the identity of the tenant binding this credential was resolved for (tenant and provider name), or
+    /// <see langword="null"/> when the credential was not resolved from a tenant binding.
+    /// </summary>
+    /// <remarks>
+    /// Internal on purpose: it is not a seam. It is the name a provider adapter keeps its client under, so that a
+    /// rotated key replaces the client of the binding instead of leaving the old one behind. It carries no secret.
+    /// </remarks>
+    internal string? BindingScope { get; init; }
+
     /// <summary>Returns a description that carries no secret value.</summary>
     /// <returns>The type name and the endpoint; never the key.</returns>
     /// <remarks>

@@ -16,7 +16,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// A request that carries a tenant credential is served by the client the tenant's chat requests use:
-/// <see cref="GoogleModelProvider.GetTenantFactory"/> builds one per distinct credential and keeps it.
+/// <see cref="GoogleModelProvider.GetTenantFactory"/> builds one for the credential of the tenant's binding and keeps it until the tenant rotates the key.
 /// </para>
 /// <para>
 /// Gemini has no usage field in characters and the answer reports tokens, so the billed quantity is

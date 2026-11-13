@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -33,16 +32,12 @@ internal sealed class ModelProviderCore<TFactory>
     private readonly HashSet<string> _knownModels;
     private readonly EgressSocketGuard? _egressGuard;
 
-    // Measured: each SDK client is built once at setup and
-    // shared, so a tenant credential cannot reuse it - a second client is built
-    // and cached per distinct credential (the same pattern
-    // OpenAINamedChatClientFactoryCache uses for named OpenAI-compatible
-    // providers).
-    private readonly ProviderCredentialClientCache<TFactory> _credentialFactories = new();
-
-    // The chat client produced for a tenant credential must stay stable across
-    // calls, the same as the setup-time client (see TenantChatClientCacheKey).
-    private readonly ConcurrentDictionary<string, IChatClient> _tenantChatClients = new(StringComparer.Ordinal);
+    // Measured: each SDK client is built once at setup and shared, so a tenant credential cannot reuse it - a second
+    // client is built per credential of a tenant binding and kept under the binding (the same pattern
+    // OpenAINamedChatClientFactoryCache uses for named OpenAI-compatible providers). One cache holds the factory and the
+    // chat clients built from it, so a rotated key replaces both together. The chat client produced for a tenant
+    // credential must stay stable across calls, the same as the setup-time client (see TenantChatClientCacheKey).
+    private readonly ProviderCredentialClientCache<TFactory> _tenantClients = new();
 
     /// <summary>Creates the shared state for one provider instance.</summary>
     /// <param name="models">The provider's catalog.</param>
@@ -56,6 +51,12 @@ internal sealed class ModelProviderCore<TFactory>
         _egressGuard = egressGuard;
         Clock = timeProvider ?? TimeProvider.System;
     }
+
+    /// <summary>
+    /// Gets the number of entries the provider keeps for tenant credentials: one for each binding that has called, and
+    /// one for each credential that named no binding.
+    /// </summary>
+    internal int CachedBindingCount => _tenantClients.Count;
 
     /// <summary>
     /// Gets the clock the provider's clients wait on between two tries. A provider hands it to the client it builds for
@@ -81,15 +82,17 @@ internal sealed class ModelProviderCore<TFactory>
             && !_knownModels.Contains(model);
 
     /// <summary>
-    /// Returns the provider factory for a tenant credential (BYOK): one factory per
-    /// distinct credential, the same one <see cref="GetTenantChatClient"/> builds from.
+    /// Returns the provider factory for a tenant credential (BYOK): one factory per binding and credential, the
+    /// same one <see cref="GetTenantChatClient"/> builds from.
     /// </summary>
     /// <param name="credential">The tenant's resolved credential.</param>
-    /// <param name="buildFactory">Builds the provider factory for a credential not seen before.</param>
+    /// <param name="buildFactory">Builds the provider factory for a credential the binding has not used before.</param>
     /// <returns>The same factory instance for the same credential.</returns>
     /// <remarks>
     /// A capability next to chat (Google speech) takes its SDK client from this factory, so the
-    /// tenant gets one client for chat and speech and the credential cache is written once.
+    /// tenant gets one client for chat and speech and the credential cache is written once. When the
+    /// binding's credential has changed the factory is replaced, not added to, and the old one is left to the
+    /// collector (see <see cref="ProviderCredentialClientCache{TFactory}"/>).
     /// </remarks>
     internal TFactory GetTenantFactory(
         ModelProviderCredential credential,
@@ -98,12 +101,12 @@ internal sealed class ModelProviderCore<TFactory>
         ArgumentNullException.ThrowIfNull(credential);
         ArgumentNullException.ThrowIfNull(buildFactory);
 
-        return _credentialFactories.GetOrAdd(credential, buildFactory);
+        return _tenantClients.GetOrAdd(credential, buildFactory);
     }
 
     /// <summary>
-    /// Returns the stable chat client for a tenant credential (BYOK): one factory
-    /// per credential, one client per credential, model and settings.
+    /// Returns the stable chat client for a tenant credential (BYOK): one factory per binding and credential, one
+    /// client per credential, model and settings.
     /// </summary>
     /// <param name="credential">The tenant's resolved credential.</param>
     /// <param name="binding">The model binding.</param>
@@ -121,10 +124,7 @@ internal sealed class ModelProviderCore<TFactory>
         ArgumentNullException.ThrowIfNull(buildFactory);
         ArgumentNullException.ThrowIfNull(createChatClient);
 
-        var factory = _credentialFactories.GetOrAdd(credential, buildFactory);
-        var cacheKey = TenantChatClientCacheKey.For(credential, binding);
-
-        return _tenantChatClients.GetOrAdd(cacheKey, _ => createChatClient(factory, binding));
+        return _tenantClients.GetOrAddChatClient(credential, binding, buildFactory, createChatClient);
     }
 
     /// <summary>

@@ -68,6 +68,32 @@ public sealed class ModelProviderRegistryTenantCredentialTests
     }
 
     [Fact]
+    public async Task The_credential_a_provider_receives_names_the_tenant_and_the_provider_of_its_binding()
+    {
+        var provider = new FakeModelProvider(name: "openai");
+        var bindings = new InMemoryTenantProviderBindingStore();
+
+        await bindings.UpsertAsync(new TenantProviderBinding
+        {
+            TenantId = Tenant,
+            ProviderName = "openai",
+            ApiKeyConfigurationName = "Tracon:ProviderKeys:Acme:OpenAI",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var registry = CreateRegistry(
+            provider,
+            new FixedTenantContext(Tenant),
+            bindings,
+            configuration: BuildConfiguration(("Tracon:ProviderKeys:Acme:OpenAI", "sk-tenant-key")));
+
+        await registry.CreateChatClientAsync(TestData.Binding(provider: "openai"));
+
+        // The name is what a provider adapter keeps the tenant's client under; it never holds the key.
+        TenantCredentialScope.Of(provider.LastCredential.ShouldNotBeNull()).ShouldBe("acme/openai");
+    }
+
+    [Fact]
     public async Task Tenant_binding_for_provider_without_credential_capability_fails_closed_before_provider_invocation()
     {
         var provider = new SetupOnlyModelProvider("on-premise");

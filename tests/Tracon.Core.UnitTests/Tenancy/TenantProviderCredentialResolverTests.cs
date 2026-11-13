@@ -51,6 +51,18 @@ public sealed class TenantProviderCredentialResolverTests
     }
 
     [Fact]
+    public void Resolve_names_the_binding_the_credential_was_read_for()
+    {
+        var resolver = CreateResolver(BuildConfiguration(("Tracon:ProviderKeys:Acme:OpenAI", "sk-test")));
+
+        var credential = resolver.Resolve(Binding("Tracon:ProviderKeys:Acme:OpenAI"));
+
+        // The provider adapters keep a client under this name, so a rotated key replaces it. The name holds no secret.
+        TenantCredentialScope.Of(credential.ShouldNotBeNull()).ShouldBe("acme/openai");
+        credential.BindingScope.ShouldNotBeNull().ShouldNotContain("sk-test");
+    }
+
+    [Fact]
     public void Resolve_returns_null_when_the_key_has_no_value()
     {
         var resolver = CreateResolver();

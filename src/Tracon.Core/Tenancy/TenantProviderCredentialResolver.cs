@@ -98,8 +98,14 @@ internal sealed class TenantProviderCredentialResolver
 
         var apiKey = _configuration?[binding.ApiKeyConfigurationName];
 
+        // The credential carries the name of the binding it was read for. A provider adapter keeps the client under
+        // that name and compares the key, so a rotated key replaces the client of the binding instead of adding a
+        // second one, and a tenant never gets a client built for another tenant's binding.
         return string.IsNullOrWhiteSpace(apiKey)
             ? null
-            : new ModelProviderCredential { ApiKey = apiKey, Endpoint = binding.Endpoint };
+            : TenantCredentialScope.Attach(
+                new ModelProviderCredential { ApiKey = apiKey, Endpoint = binding.Endpoint },
+                binding.TenantId,
+                binding.ProviderName);
     }
 }

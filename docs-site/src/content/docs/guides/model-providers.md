@@ -532,6 +532,13 @@ until a binding is written. A binding that exists but resolves to no value does 
 fall back to the global credential silently — the run fails with a clear error instead,
 so a misconfigured tenant is never billed to the wrong account.
 
+To rotate a tenant's key, change the value the configuration name points at; the next
+run reads it and uses it. Tracon keeps one client for each tenant binding (the tenant
+and the provider) and replaces it when the key or the endpoint changes. It does not
+close the replaced client: a run that began before the rotation may still be using it,
+and the runtime releases it once that run ends. Two tenants that hold the same key
+value still get a client each, so a rotation never reaches another tenant.
+
 Restrict which providers a tenant's agents may call with an egress policy:
 
 ```bash

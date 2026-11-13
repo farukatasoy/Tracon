@@ -27,9 +27,10 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
     private readonly GoogleProviderOptions? _baseOptions;
 
     // Known-model set, BYOK caches and the tenant endpoint guard rule (shared source).
-    // 🚨 GoogleChatClientFactory is IDisposable (owns an HttpClient); cached
-    // entries in _core are never disposed, the same bounded, admin-controlled
-    // trade-off ProviderCredentialClientCache documents.
+    // 🚨 GoogleChatClientFactory is IDisposable (owns an HttpClient); entries in _core
+    // are never disposed. A factory that a rotated key replaces is dropped and left to
+    // the collector, because a call in flight may still use it: the bounded,
+    // admin-controlled trade-off ProviderCredentialClientCache documents.
     private readonly ModelProviderCore<GoogleChatClientFactory> _core;
 
     /// <summary>Creates a new provider.</summary>
