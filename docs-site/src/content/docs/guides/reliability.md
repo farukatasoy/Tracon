@@ -152,7 +152,9 @@ and the judge of an `aiJudge` loop criterion call models on bindings of their ow
 and those bindings can have fallbacks too. When one of them falls back, the run
 keeps the agent's model and gets no `ModelFallbackUsed` event; that call's tokens
 are priced at the fallback model that answered, and the switch is logged on the
-`Tracon.ModelProvider` category.
+`Tracon.ModelProvider` category. The same holds for a model call that a function
+node of a workflow makes: the workflow run has no model of its own to fall back
+from, so the switch is logged and the workflow's stream carries no event for it.
 
 If every link in the chain fails, the error surfaces the **first** failure, not
 the last one — the root cause across a chain of transient errors is more useful

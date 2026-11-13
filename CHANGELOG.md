@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A model call that a function node of a workflow makes no longer writes `ModelFallbackUsed` onto the workflow run's event stream when its binding falls back; the switch is logged instead.** The workflow run has no model attribution (`runs.model_id` and the cost belong to the agent runs of its steps), so the event told "the model of this run fell back" about a run that has none, and nothing else in the run's record changed with it. A side-channel call (the compaction summarizer, an `aiJudge` judge) was already handled this way.
+  What to do:
+  - **If a dashboard or an alert counts `ModelFallbackUsed` on workflow runs,** read the `Tracon.ModelProvider` log category for the node's switch; the events of the agent runs of the workflow's steps are unchanged.
+
 - **The in-memory run store returns its event, tool-call and non-token-usage records with `TenantId` empty, as the SQL stores do, and `RunStoreContract` has a case for it.** The expected tenant of a write guards the write and is not stored; the in-memory store kept the object it was given, so a record written with `"Tenant-A"` read back with `"Tenant-A"` there and with nothing in SQL. Nothing in Tracon read the field back; a consumer that did saw the difference between a test on the in-memory store and a deployment.
   What to do:
   - **If you wrote an `IRunStore` and run the contract,** `Records_written_with_an_expected_tenant_read_back_without_it` fails when your store returns the tenant it was handed. Store the record without it (the field is `[JsonIgnore]` and documented as write-side only).

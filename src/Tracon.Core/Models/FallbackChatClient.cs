@@ -549,18 +549,18 @@ internal sealed class FallbackChatClient : DelegatingChatClient
 
             // The run's event stream no longer carries this fallback, so the
             // log is where an operator sees that a side channel's primary failed.
-            var logger = _loggerFactory?.CreateLogger("Tracon.ModelProvider");
+            LogFallbackOutsideTheRun(usedLink, reason, "A side-channel model call");
 
-            if (logger is not null && logger.IsEnabled(LogLevel.Information))
-            {
-                logger.LogInformation(
-                    "A side-channel model call fell back from {PrimaryProvider}/{PrimaryModel} to {FallbackProvider}/{FallbackModel} ({Reason}). The run's own model is unchanged.",
-                    _primaryBinding.Provider,
-                    _primaryBinding.Model,
-                    usedLink.Provider,
-                    usedLink.Model,
-                    reason.ToWireValue());
-            }
+            return;
+        }
+
+        // The event says "the model of THIS run fell back". A scope with an event writer and no model attribution is
+        // not a run that has a model: the root of a workflow, whose function node made this call. Its record has no
+        // model to change (model_id and the cost are the agent runs'), so the event on its stream said something that
+        // nothing else in the record said. The log carries it, as it does for a side channel.
+        if (scope is { Writer: not null, FallbackAttribution: null })
+        {
+            LogFallbackOutsideTheRun(usedLink, reason, "A model call of a function node");
 
             return;
         }
@@ -590,6 +590,23 @@ internal sealed class FallbackChatClient : DelegatingChatClient
                 Payload = payload,
             },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private void LogFallbackOutsideTheRun(ModelFallback usedLink, FallbackSkipReason reason, string caller)
+    {
+        var logger = _loggerFactory?.CreateLogger("Tracon.ModelProvider");
+
+        if (logger is not null && logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "{Caller} fell back from {PrimaryProvider}/{PrimaryModel} to {FallbackProvider}/{FallbackModel} ({Reason}). The run's own model is unchanged.",
+                caller,
+                _primaryBinding.Provider,
+                _primaryBinding.Model,
+                usedLink.Provider,
+                usedLink.Model,
+                reason.ToWireValue());
+        }
     }
 
     private TraconProviderUnavailableException ChainExhausted(Exception firstFailure)

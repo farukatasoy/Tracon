@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Recording;
@@ -76,6 +77,58 @@ public sealed class SideChannelFallbackAttributionTests
         }
 
         AssertAttribution(scope);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_fallback_is_an_event_of_the_run_only_when_the_run_owns_a_model_attribution(bool ownsAttribution)
+    {
+        // A workflow root has an event writer and no model attribution: the model call of one of its function nodes is
+        // the node's own, not the workflow's. The event on the root's stream said "the model of this run fell back",
+        // which the root has none to fall back from, and nothing in the root's record changed with it.
+        var store = new InMemoryRunStore();
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = writer.RunId, AgentName = "workflow", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+
+        var registry = new ModelProviderRegistry(
+        [
+            new FakeModelProvider(new UnreachableChatClient(), name: "judge-primary"),
+            new FakeModelProvider(new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "DONE"))), name: "judge-fallback"),
+        ]);
+
+        var client = registry.CreateChatClient(JudgeBinding);
+
+        TraconRunContext.SetCurrent(new AgentRunScope
+        {
+            RunId = writer.RunId,
+            RootRunId = writer.RunId,
+            Writer = writer,
+            FallbackAttribution = ownsAttribution ? new FallbackModelAttribution() : null,
+        });
+
+        try
+        {
+            await client.GetResponseAsync([new ChatMessage(ChatRole.User, "go")], cancellationToken: Token);
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in store.ReadEventsAsync(writer.RunId, cancellationToken: Token))
+        {
+            events.Add(runEvent);
+        }
+
+        events.Count(static runEvent => runEvent.Type == RunEventType.ModelFallbackUsed).ShouldBe(
+            ownsAttribution ? 1 : 0,
+            "the event means that the model of THIS run fell back; a scope without a model attribution has no such model.");
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
