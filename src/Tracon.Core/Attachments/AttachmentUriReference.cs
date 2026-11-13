@@ -61,6 +61,17 @@ internal static class AttachmentUriReference
 
         var properties = carried.Clone();
 
+        // A reference read back from the session store carries its properties as JSON, not as the strings they were
+        // written as. Text goes back to text, so the name below and a provider reading the image's detail see what the
+        // first turn saw.
+        foreach (var key in properties.Keys.ToArray())
+        {
+            if (properties[key] is System.Text.Json.JsonElement { ValueKind: System.Text.Json.JsonValueKind.String } json)
+            {
+                properties[key] = json.GetString();
+            }
+        }
+
         if (properties.TryGetValue(NameProperty, out var name) && name is string fileName)
         {
             resolved.Name = fileName;

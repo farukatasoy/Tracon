@@ -54,4 +54,28 @@ public sealed class AttachmentUriReferenceTests
             new Uri("/tracon/api/attachments/not-a-guid", UriKind.Relative),
             out _).ShouldBeFalse();
     }
+
+    [Fact]
+    public void A_reference_whose_properties_came_back_as_json_resolves_to_a_named_file_with_plain_text_properties()
+    {
+        // What the session store hands back: text properties are JSON elements, not the strings they were written as.
+        var reference = new Microsoft.Extensions.AI.UriContent(
+            AttachmentUriReference.Create("/tracon", TraconId.NewId()),
+            "image/png")
+        {
+            AdditionalProperties = new()
+            {
+                [AttachmentUriReference.NameProperty] = System.Text.Json.JsonSerializer.SerializeToElement("photo.png"),
+                ["detail"] = System.Text.Json.JsonSerializer.SerializeToElement("low"),
+                ["count"] = System.Text.Json.JsonSerializer.SerializeToElement(3),
+            },
+        };
+
+        var resolved = AttachmentUriReference.Resolve(reference, [1, 2, 3]);
+
+        resolved.Name.ShouldBe("photo.png");
+        resolved.AdditionalProperties.ShouldNotBeNull().ContainsKey(AttachmentUriReference.NameProperty).ShouldBeFalse();
+        resolved.AdditionalProperties["detail"].ShouldBe("low");
+        resolved.AdditionalProperties["count"].ShouldBeOfType<System.Text.Json.JsonElement>("a value that is not text is left as it came");
+    }
 }

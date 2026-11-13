@@ -111,6 +111,78 @@ public sealed class AttachmentRunTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task An_attachment_keeps_its_file_name_when_a_later_turn_sends_the_history_again()
+    {
+        // The reference sits in the stored message with the file's name beside it. A later turn reads the history back
+        // from the session store, where those properties are JSON and not the strings they were written as, and the
+        // reference must still resolve to a named file.
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        using var uploaded = await UploadAsync(host, Png());
+        var attachmentId = (await TraconTestHost.ReadJsonAsync(uploaded)).GetProperty("id").GetGuid();
+
+        await RunTurnAsync(host, new AgentRunRequest { Message = "first", SessionId = "named-file", AttachmentIds = [attachmentId] });
+        await RunTurnAsync(host, new AgentRunRequest { Message = "second", SessionId = "named-file" });
+
+        var echo = host.Services.GetServices<IModelProvider>().OfType<FakeModelProvider>().Single();
+        var later = echo.Requests[^1].Messages.SelectMany(static message => message.Contents).OfType<DataContent>().ShouldHaveSingleItem();
+
+        later.Name.ShouldBe("test.png");
+        (later.AdditionalProperties?.ContainsKey("tracon.attachment_name") ?? false).ShouldBeFalse("the carrier property never reaches a provider");
+    }
+
+    [Fact]
+    public async Task An_image_keeps_its_detail_when_a_later_turn_sends_the_history_again()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        var dataUri = $"data:image/png;base64,{Convert.ToBase64String(Png())}";
+
+        using var first = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/v1/responses", UriKind.Relative),
+            new
+            {
+                model = "kod-agent",
+                conversation = "detail-kept",
+                input = new object[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new object[]
+                        {
+                            new { type = "input_text", text = "What is in this image?" },
+                            new { type = "input_image", image_url = dataUri, detail = "low" },
+                        },
+                    },
+                },
+            });
+
+        first.EnsureSuccessStatusCode();
+
+        using var second = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/v1/responses", UriKind.Relative),
+            new { model = "kod-agent", conversation = "detail-kept", input = "and now?" });
+
+        second.EnsureSuccessStatusCode();
+
+        var echo = host.Services.GetServices<IModelProvider>().OfType<FakeModelProvider>().Single();
+        var later = echo.Requests[^1].Messages.SelectMany(static message => message.Contents).OfType<DataContent>().ShouldHaveSingleItem();
+
+        later.AdditionalProperties.ShouldNotBeNull()["detail"].ShouldBe("low");
+    }
+
+    private static async Task RunTurnAsync(TraconTestHost host, AgentRunRequest request)
+    {
+        using var run = await host.Client.PostAsJsonAsync(new Uri("/tracon/api/agents/kod-agent/run", UriKind.Relative), request);
+
+        run.EnsureSuccessStatusCode();
+        await SseReader.ReadAllAsync(await run.Content.ReadAsStreamAsync());
+    }
+
     private static async Task<HttpResponseMessage> UploadAsync(TraconTestHost host, byte[] data)
     {
         using var content = new MultipartFormDataContent
