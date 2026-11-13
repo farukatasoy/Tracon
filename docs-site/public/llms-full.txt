@@ -2510,6 +2510,12 @@ repeat it when the storage is back. If the audit write or the commit fails after
 bytes are gone, the rows stay and point at nothing; repeating the request finishes
 the erasure. A preview (`dryRun`) never touches the bytes.
 
+Without an `IAttachmentStorage` registered, an erasure of a subject that has an attachment
+with its bytes in external storage is refused before it erases anything, and the request
+fails: the row is the only record of where the bytes are, and the subject must not be
+reported erased while their files stay. The preview still counts the rows. Register the
+storage that wrote the bytes and repeat the request.
+
 Export returns every matching row, keyed by target, as one JSON document.
 A column that [content protection](#content-protection) encrypts is exported as
 plaintext. Attachment file bytes are not included — only their metadata. A workflow checkpoint's
@@ -3732,6 +3738,14 @@ problem document whose `errorType` is `session_conflict`) and the OpenAI-compati
 turn**; the conflict means the conversation moved on, not that anything is broken. On
 a streaming request the response headers are already sent, so the same condition
 arrives as an `error` event in the stream instead of a status code.
+
+A request that **answers a pending call** (a tool approval, a tool input or a client tool
+result) takes the session's generation before it applies the answer. The call is pending in
+the history the session holds, and the session is written when a run ends, so two requests
+that read the same generation would both find it pending and both run the tool. The one that
+takes the generation first goes on; the other gets the same `409` before it applies a decision
+or runs anything. If a run's client disconnects after the answer, the end-of-run save is
+skipped and the approval still reads pending in the stored history.
 
 Saving a session under a **different** id than it was read from — what
 `/v1/responses` does when it chains with `previous_response_id` — writes a new record
@@ -12771,6 +12785,11 @@ the management run endpoint: the tenant, the agent, the user your `IRunAttributi
 names, and `RunAccess.Start`. A refused call starts no run, calls no model and opens no run
 row. A handler that throws refuses the call and is logged at `Error` level.
 
+The attribution your `IRunAttributionContext` names is checked first, with or without a handler: a user
+identifier over 200 characters, more than 8 labels, a label key over 64 characters or a value over 256 refuses the
+call with the same sentence the management API answers with `400`, and the handler is not asked. Over A2A the
+sentence reaches the caller as the text of the error; over MCP it is the text of a tool result with `isError` set.
+
 | | The handler is told | A refusal reaches the caller as |
 |---|---|---|
 | A2A (`SendMessage`, `SendStreamingMessage`) | `SessionId` is the conversation's identity (it starts with `a2a:`) | The opaque `-32603` error every refusal on this surface is. The handler's reason and the cause are in the server log at `Error` level |
@@ -15575,6 +15594,15 @@ your `IAttachmentStorage.DeleteAsync`:
   are gone.
 - **Throw only when the bytes may still exist.** A throw keeps the row, so the
   delete can be repeated later.
+
+Without an `IAttachmentStorage` registered, a delete of a row that points at external
+bytes is refused: deleting the row would leave the bytes in your store with nothing
+that names them. A single delete, a session delete and an erasure fail with an error that
+names no location, and nothing is deleted. A session with one such attachment keeps all
+of its attachments until a call can delete them all, and an erasure is refused before it
+erases anything, so the subject is not reported erased while their files stay. Rows with
+their bytes in the database are deleted as usual. Register the `IAttachmentStorage`
+that wrote the bytes and repeat the call.
 
 Attachments are tenant-scoped. Listing, download, use in a run, and deletion all
 resolve through the current tenant. A caller cannot use an id to cross that boundary.
@@ -21944,6 +21972,7 @@ cannot:
 | Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `TraconException` |
 | Completion overrides | `CompleteRunAsync` may correct the model attribution a run started with: `RunCompletion.ModelId` and `RunCompletion.ModelProvider` each **overwrite** the stored value when set, and **leave it unchanged** when `null` — the common case, since only a `ModelBinding.Fallbacks` link answering makes a completion carry them. Persisting `ModelId` but forgetting `ModelProvider` costs the run its provider attribution silently, and the cost resolver then falls back to matching by model name alone |
 | Non-token cost | What a run reports beyond tokens is a total of its own, never a term of the token cost. `CompleteRunAsync` stores `RunCompletion.NonTokenCost` on the run, and `RunRecord.NonTokenCost` and `TreeNonTokenCost` read it back: `null` means the run reported nothing and is never `0`, an item that carried no amount keeps its count in `UnsummedItemCount` with an `Amount` of `null`, and the tree total counts the run itself and every run below it once. `RecordNonTokenUsageAsync` writes an item at once, and when `NonTokenUsageRecord.TenantId` is set it writes only for a run of that tenant. `ListNonTokenUsageAsync` returns the run's own items, not its children's, in the order they were reported, and an empty list for a run that does not exist or belongs to another tenant |
+| Promotion out of the queue | A run that waits in its process for a slot has a `Queued` row, and the job that carries it can be cancelled on another instance, which closes the row. `PromoteQueuedRunAsync` writes the same row as `StartRunAsync` (the same COALESCE, the same first heartbeat) only while the row still reads `Queued` or there is no row, and returns `false` and leaves the row as it is otherwise. The default implementation reads the row and then calls `StartRunAsync`, so a closure that lands between the two is overwritten; make the check part of your write to close that window |
 | Cancellation requests | `RequestCancellationAsync` writes the request on a `Running` or `Queued` row of the expected tenant and returns `true`; for a run that does not exist, belongs to another tenant or has ended it writes nothing and returns `false`. A second call keeps the **first** time (`RunRecord.CancelRequestedAt`) and still returns `true`. `TouchHeartbeatAsync` returns, in the same call that writes the heartbeat, a `RunCancellationRequest` for every id you were given whose row is still `Running` or `Queued` and carries a request, with the run's own tenant; the owner cancels the run, so return the same request on every call until the run ends. A second `StartRunAsync` must not clear the request |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
 | Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `TraconException`, do not silently accept or silently drop it |
@@ -21973,7 +22002,11 @@ Override it when each call costs you a round trip or a connection. The contract:
 
 `RunStoreContract` checks all of it. A store that writes groups atomically says so by overriding
 `AppendsEventGroupsAtomically` to return `true`, which turns on the scenarios that look for a half-written group; the
-default is `false` so that a store that relies on the default implementation still passes.
+default is `false` so that a store that relies on the default implementation still passes. A store that checks the status
+inside its `PromoteQueuedRunAsync` write says so the same way with `PromotesQueuedRunsAtomically`, which turns on the
+scenario that races a closure against a promotion. A store that shares its database between nodes marks a run alive in
+the write that makes it `Running`, with the database server's clock, and says so with `MarksAStartedRunAlive`: the
+scenario that then opens a run an hour in the past and expects the first orphan scan to leave it alone runs against it.
 
 ## Prove it with the contract suite
 
@@ -24469,7 +24502,7 @@ still runs as the same operating-system user and reads what that user can read.
 |---|---|
 | `Attachments:MaxBytes` | `20971520` bytes, or 20 MiB |
 | `Attachments:AllowedMediaTypes` | `image/png`, `image/jpeg`, `image/webp`, `image/gif`, `application/pdf`, `text/plain`, `audio/*` |
-| `Audit:ActorClaimType` | `null`; resolution tries name identifier, name, then `sub` |
+| `Audit:ActorClaimType` | `null`; resolution tries name identifier, name, then `sub`. A name over 200 characters is shortened to its start and a digest of the whole, the same on every store |
 | `Audit:ChainKeyId` | `null`; entries are written without a signing key. The id of the key that signs the audit hash chain |
 | `Deployment:Instances` | `1`. How many instances run against the same store; at least `1`. It changes nothing at run time: above `1`, `RequireProductionProfile()` asks five more decisions. See [Run more than one instance](/guides/multiple-instances/) |
 | `AuditChainKeys:<id>` | none. The base64 value of one chain key, at least 32 bytes; every key the chain was ever signed with stays here. Keep it in a secret store |

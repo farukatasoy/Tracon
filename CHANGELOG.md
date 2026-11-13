@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Two requests that answer the same pending tool call no longer both run it.** An approval, a tool input or a client tool result resumes a call that the session history says is pending, and the session is written when a run ends. Two requests that read the same version of the session both found the call pending and both ran the tool, and the later save reported the conflict after the tool had run twice. The request that takes the session's version first now goes on; the other one is answered `409` with `errorType: session_conflict` before it applies the answer or runs anything. `AgentSessionManager` gets `ClaimSessionAsync` for this.
+  What to do:
+  - **If a client can send the same answer twice (a double click, a retry), expect one `409` and treat it as "the other request has it".** Read the session before sending the answer again.
+  - **If a run's client disconnects after the answer, the approval can still read pending.** The answer is written into the history when the run ends, which a disconnect skips.
+
+- **A2A messages and MCP tool calls refuse an attribution that breaks the limits.** A user identifier over 200 characters, more than 8 labels, a key over 64 or a value over 256 characters used to start an unattributed run over the two external protocols, while the management API answered `400`. They now refuse the call before the run starts, with or without an `IRunAuthorizationHandler`: over A2A the error carries the sentence, over MCP the tool result has `isError` set. The handler is not asked.
+  What to do:
+  - **If your `IRunAttributionContext` can produce a long user identifier or many labels over these protocols, shorten them.** The sentence names the limit.
+
+- **Deleting an attachment, a session or a data subject is refused when an attachment holds external content and no `IAttachmentStorage` is registered.** The three deletes ran a plain `DELETE`, so the row, which is the only record of where the bytes are, went and the bytes stayed in your store; an erasure reported the subject erased while their files stayed. They now fail with an error that names no location, and delete nothing: not the row, not the session's other attachments, and an erasure fails before it erases the first copy. Retention already kept such rows.
+  What to do:
+  - **If you removed the `IAttachmentStorage` registration after attachments were saved with it, register it again before you delete.** Rows with their bytes in the database are deleted as before.
+  - **If a session delete or an erasure now fails with a message about `IAttachmentStorage`, that is the case above.** The preview (`dryRun`) still counts the rows.
+
+- **`IRunStore` has a `PromoteQueuedRunAsync` member, and a queued workflow run closed while it waited stays closed.** The job of a run that waits for a concurrency slot can be cancelled on another instance, which closes the run's row. The write that took the run out of the queue then wrote `Running` over it. The new member writes only while the row still reads `Queued`; the in-memory and SQL stores decide inside the write, and the run ends `Canceled` without starting its graph. The member has a default implementation, so a store of yours keeps compiling. `RunStoreContract` gets five cases and two flags, `PromotesQueuedRunsAtomically` and `MarksAStartedRunAlive`, both `false` by default.
+  What to do:
+  - **If you wrote your own `IRunStore`, nothing is required.** To close the window between the check and the write, override `PromoteQueuedRunAsync` and check the status inside your write, then return `true` from the flag.
+  - **If your store shares its database between nodes and marks a run alive in the write that makes it `Running`, return `true` from `MarksAStartedRunAlive`.** A case then checks that the first orphan scan leaves a run started an hour ago alone.
+
+- **A caller's name over 200 characters is shortened, and SQL Server shortens a tool name, a call identifier and a span name over their column.** The name of the authenticated caller comes from a claim that has no bound, and ten SQL Server columns hold it in 200 characters, so a write of `created_by`, `decided_by` or `responded_by` could be refused. The actor resolver now keeps the start of such a name and a digest of the whole, the same on every store. A tool name, call identifier or span name that a model or provider chose is shortened the same way on SQL Server, where it used to fail the write that recorded the run. A name that fits is unchanged.
+  What to do:
+  - **If you read `created_by` or an audit actor and compare it with a claim, compare with the shortened form for a claim over 200 characters.**
+  - **Nothing for the other stores.**
+
+- **A tool of an MCP server whose qualified name is over 64 characters is skipped and no longer takes the server's other tools with it.** A tool is registered as `{server}_{tool}`, the registry takes at most 64 characters, and the exception for a longer one dropped the whole server's tool list. The tool is now left out with a warning that names both rules.
+  What to do:
+  - **If a tool of an MCP server is missing, read the warning.** A shorter server name makes room.
+
 - **A2A messages and MCP tool calls now ask `IRunAuthorizationHandler` before a run starts.** The two external protocols were the only run surfaces that never asked the handler, so a host's own rule for who may run an agent did not reach them. Every A2A `SendMessage` and `SendStreamingMessage`, and every MCP `tools/call` that names an exposed agent (task mode included), is now put to the handler as `RunAccess.Start` with the tenant, the agent, the user from `IRunAttributionContext` and, for A2A, the conversation's identity. A refused call starts no run and calls no model; a handler that throws refuses the call and is logged. A2A answers the opaque JSON-RPC `-32603` error every refusal on that surface is, and MCP answers a tool result with `isError` set and the reason.
   What to do:
   - **If no `IRunAuthorizationHandler` is registered, nothing.** The built-in default allows every call.

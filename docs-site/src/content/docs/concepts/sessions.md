@@ -70,6 +70,14 @@ turn**; the conflict means the conversation moved on, not that anything is broke
 a streaming request the response headers are already sent, so the same condition
 arrives as an `error` event in the stream instead of a status code.
 
+A request that **answers a pending call** (a tool approval, a tool input or a client tool
+result) takes the session's generation before it applies the answer. The call is pending in
+the history the session holds, and the session is written when a run ends, so two requests
+that read the same generation would both find it pending and both run the tool. The one that
+takes the generation first goes on; the other gets the same `409` before it applies a decision
+or runs anything. If a run's client disconnects after the answer, the end-of-run save is
+skipped and the approval still reads pending in the stored history.
+
 Saving a session under a **different** id than it was read from — what
 `/v1/responses` does when it chains with `previous_response_id` — writes a new record
 rather than replacing the source one, so no generation applies and the write is
