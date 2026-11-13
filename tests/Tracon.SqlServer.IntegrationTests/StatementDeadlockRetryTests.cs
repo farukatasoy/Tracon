@@ -173,6 +173,59 @@ public sealed class StatementDeadlockRetryTests(SqlServerSchemaFixture schema) :
         (await jobs.ListItemsAsync(job.Id, cancellationToken))[0].Status.ShouldBe(JobItemStatus.Completed);
     }
 
+    [Fact]
+    public async Task A_group_of_events_chosen_as_the_deadlock_victim_is_written_again_whole_and_once()
+    {
+        // The group is one statement that inserts its rows in the order of their sequence numbers. A blocker holds an
+        // uncommitted row at sequence 2; the group has inserted 0 and 1 and waits for 2. The blocker then asks for sequence 0,
+        // which the group holds. Each waits for the other and the blocker has the higher priority, so the group is the victim
+        // and the server takes back its rows 0 and 1. The blocker rolls back; the group is sent again and writes all five.
+        await schema.ResetAsync();
+        schema.Tenant.TenantId = "default";
+        using var victims = DeadlockVictimRecorder.Start(schema.Context.SchemaName);
+        var runs = schema.Context.Runs;
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var runId = Guid.NewGuid();
+
+        await runs.StartRunAsync(new RunStartInfo { RunId = runId, AgentName = "agent", StartedAt = DateTimeOffset.UtcNow, Status = RunStatus.Running }, cancellationToken);
+
+        var table = $"[{schema.Context.SchemaName}].run_events";
+        var dataSource = schema.Context.DataSource;
+
+        await using var blocker = await dataSource.OpenConnectionAsync(cancellationToken);
+        await ExecuteAsync(blocker, null, "SET DEADLOCK_PRIORITY HIGH;", cancellationToken);
+        var blockerSession = Convert.ToInt32(await ScalarAsync(blocker, null, "SELECT @@SPID;", cancellationToken), CultureInfo.InvariantCulture);
+        await using var blockerTransaction = await blocker.BeginTransactionAsync(cancellationToken);
+
+        string InsertAt(long sequence)
+            => string.Create(
+                CultureInfo.InvariantCulture,
+                $"INSERT INTO {table} (run_id, seq, type, created_at) VALUES ('{runId}', {sequence}, 0, SYSDATETIMEOFFSET());");
+
+        await ExecuteAsync(blocker, blockerTransaction, InsertAt(2), cancellationToken);
+
+        var events = Enumerable.Range(0, 5).Select(sequence => TestData.Event(runId, sequence)).ToArray();
+        var group = runs.AppendEventsAsync(events, cancellationToken).AsTask();
+
+        await WaitUntilBlockedByAsync(dataSource, blockerSession, cancellationToken);
+
+        // Closes the cycle: the group waits for sequence 2, and the blocker asks for sequence 0.
+        await ExecuteAsync(blocker, blockerTransaction, InsertAt(0), cancellationToken);
+        await blockerTransaction.RollbackAsync(cancellationToken);
+
+        await group;
+
+        var sequences = new List<long>();
+
+        await foreach (var runEvent in runs.ReadEventsAsync(runId, cancellationToken: cancellationToken))
+        {
+            sequences.Add(runEvent.Sequence);
+        }
+
+        victims.Victims.Count.ShouldBe(1, "the group was the victim once and was sent again");
+        sequences.SequenceEqual(new long[] { 0, 1, 2, 3, 4 }).ShouldBeTrue("every event of the group was written once, in order");
+    }
+
     private async Task<DeadlockProbe> ProbeAsync()
     {
         var probe = new DeadlockProbe(schema, $"[{schema.Context.SchemaName}].[f_statement_probe_{Guid.NewGuid():N}]");

@@ -37,6 +37,8 @@ public sealed class SqlServerRunDeadlockFindingTests(SqlServerSchemaFixture sche
 
     private const int Readers = 3;
 
+    private const int EventReaders = 3;
+
     private const int FirstWriteRounds = 300;
 
     private const int FirstWriters = 6;
@@ -54,6 +56,21 @@ public sealed class SqlServerRunDeadlockFindingTests(SqlServerSchemaFixture sche
 
         // A victim leaves no mark on the results above, so the count is read where the client reports it.
         victims.Victims.ShouldBeEmpty("a command was chosen as a deadlock victim and only the retry hid it");
+    }
+
+    [Fact]
+    public async Task An_event_stream_read_that_overlaps_a_start_of_the_same_run_is_not_a_deadlock_victim()
+    {
+        // The stream is read by a statement that is not sent again when the server picks it as a victim (a stream that has
+        // delivered a row cannot be repeated). Nothing in the cases above reads it, so this one counts the victims.
+        await schema.ResetAsync();
+        schema.Tenant.TenantId = "default";
+        using var victims = DeadlockVictimRecorder.Start(schema.Context.SchemaName);
+
+        var failures = await RunStartRace.RunAsync(schema.Context.Runs, Rounds, Appenders, Readers, eventReaders: EventReaders);
+
+        failures.ShouldBeEmpty("a call, or a read of the event stream, failed while the second start ran");
+        victims.Victims.ShouldBeEmpty("a command was chosen as a deadlock victim and only a retry hid it, or the stream was not retried");
     }
 
     [Fact]
