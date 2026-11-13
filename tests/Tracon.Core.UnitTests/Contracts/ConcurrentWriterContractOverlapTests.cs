@@ -54,6 +54,10 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new AgentDefinitionFixture(), static contract => contract.Concurrent_first_saves_of_a_new_name_get_distinct_versions());
 
     [Fact]
+    public Task The_api_key_revocation_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new ApiKeyFixture(), static contract => contract.A_revoked_key_stays_revoked_while_its_last_use_is_being_recorded());
+
+    [Fact]
     public Task The_audit_log_chain_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new AuditLogFixture(), static contract => contract.Concurrent_writes_for_one_tenant_produce_a_single_valid_chain());
 
@@ -84,6 +88,14 @@ public sealed class ConcurrentWriterContractOverlapTests
     [Fact]
     public Task The_run_input_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new RunInputFixture(), static contract => contract.Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first());
+
+    [Fact]
+    public Task The_run_cost_update_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new RunStoreFixture(), static contract => contract.A_completed_run_stays_completed_while_its_cost_is_being_updated());
+
+    [Fact]
+    public Task The_run_start_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new RunStoreFixture(), static contract => contract.Writers_that_start_one_run_at_the_same_time_each_leave_what_they_know());
 
     [Fact]
     public Task The_workflow_definition_save_case_has_calls_in_the_store_at_the_same_time()
@@ -159,6 +171,16 @@ public sealed class ConcurrentWriterContractOverlapTests
             => ValueTask.FromResult(OverlapProbe.Wrap<IAgentDefinitionStore>(new InMemoryAgentDefinitionStore(AmbientTenant), out _probe));
     }
 
+    private sealed class ApiKeyFixture : ApiKeyStoreContract, IProbedContract
+    {
+        private OverlapProbe<IApiKeyStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IApiKeyStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IApiKeyStore>(new InMemoryApiKeyStore(), out _probe));
+    }
+
     private sealed class AuditLogFixture : AuditLogContract, IProbedContract
     {
         private OverlapProbe<IAuditLog>? _probe;
@@ -212,6 +234,22 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<IRunInputStore> CreateStoreAsync()
             => ValueTask.FromResult(OverlapProbe.Wrap<IRunInputStore>(new InMemoryRunInputStore(), out _probe));
+    }
+
+    private sealed class RunStoreFixture : RunStoreContract, IProbedContract
+    {
+        private readonly InMemoryRunScoreStore _scores = new();
+        private OverlapProbe<IRunStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override bool AppendsEventGroupsAtomically => true;
+
+        protected override ValueTask<IRunStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IRunStore>(new InMemoryRunStore(_scores, AmbientTenant), out _probe));
+
+        protected override ValueTask<IRunScoreStore?> CreateScoreStoreAsync()
+            => ValueTask.FromResult<IRunScoreStore?>(_scores);
     }
 
     private sealed class WorkflowDefinitionFixture : WorkflowDefinitionStoreContract, IProbedContract

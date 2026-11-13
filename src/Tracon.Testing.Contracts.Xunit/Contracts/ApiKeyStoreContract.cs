@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -124,53 +126,53 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
         // The last-use stamp runs on every authenticated request, so it runs beside a revocation in
         // production. A stamp that reads the active key and writes it back after the revocation
         // brings the key back to life; the revocation was reported as done.
-        const int Rounds = 200;
-        var revived = 0;
+        //
+        // Many keys at once, each with a burst of stamps and its revocation on threads of their own, all released together:
+        // a store that keeps its rows in memory has a window of a few instructions between the read and the write, and a
+        // revocation that lands inside one of many windows, round after round, is how a store that is not atomic is caught.
+        // The burst is a few stamps long, not a loop that runs until the revocation is done: the write lock of a store with no
+        // queue for it (SQLite on Windows) kept a revocation waiting for a minute behind a loop that stamped without a pause
+        // and failed with "database is locked".
+        const int Keys = 8;
+        const int StampsPerKey = 5;
+        const int Rounds = 10;
 
         for (var round = 0; round < Rounds; round++)
         {
-            var created = await Store.CreateAsync(Draft(Tenant, $"race-{round}"));
-            var id = created.Record.Id;
-            var stop = false;
+            var ids = new List<Guid>(Keys);
 
-            // The pause between two stamps lets the revocation take the write lock of a store whose lock has no queue: SQLite
-            // on Windows kept it waiting for a minute behind a loop that stamped without a pause and failed with "database is
-            // locked". The stamps still run beside the revocation, a few hundred of them in each round.
-            var touching = Task.Run(async () =>
+            for (var key = 0; key < Keys; key++)
             {
-                while (!Volatile.Read(ref stop))
+                ids.Add((await Store.CreateAsync(Draft(Tenant, $"race-{round}-{key}"))).Record.Id);
+            }
+
+            var stampedAt = DateTimeOffset.UtcNow;
+
+            var revoked = SimultaneousCalls.Run(
+                Keys * 2,
+                index =>
                 {
-                    await Store.TouchLastUsedAsync(id, DateTimeOffset.UtcNow);
+                    var id = ids[index % Keys];
 
-                    // The store's write lock is a real database lock: the pause is the only way to leave it free for the revocation.
-                    await Task.Delay(1); // delay: product
-                }
-            });
+                    if (index >= Keys)
+                    {
+                        return Store.RevokeAsync(Tenant, id).AsTask().GetAwaiter().GetResult();
+                    }
 
-            try
-            {
-                // Each round starts the revocation at another point of the stamp loop; a stamp is a database round trip, so
-                // the offset has to be a span of real time.
-                await Task.Delay(round % 7); // delay: product
+                    for (var stamp = 0; stamp < StampsPerKey; stamp++)
+                    {
+                        Store.TouchLastUsedAsync(id, stampedAt).AsTask().GetAwaiter().GetResult();
+                    }
 
-                (await Store.RevokeAsync(Tenant, id)).ShouldBeTrue();
-            }
-            finally
-            {
-                // Also when the revocation threw: a loop that outlives the test holds the database against the next one.
-                Volatile.Write(ref stop, true);
-                await touching;
-            }
+                    return true;
+                });
 
-            var record = (await Store.ListAsync(Tenant)).Single(key => key.Id == id);
+            revoked.ShouldAllBe(static answer => answer, $"round {round}: a revocation was refused");
 
-            if (record.RevokedAt is null)
-            {
-                revived++;
-            }
+            var records = await Store.ListAsync(Tenant);
+
+            ids.ShouldAllBe(id => records.Single(key => key.Id == id).RevokedAt != null, $"round {round}: a revoked key was active again after a concurrent last-use update");
         }
-
-        revived.ShouldBe(0, "a revoked key was active again after a concurrent last-use update");
     }
 
     [Fact]

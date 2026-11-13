@@ -1,3 +1,4 @@
+using Tracon.Testing.Contracts.Internal;
 
 namespace Tracon.Testing.Contracts.Storage;
 
@@ -96,60 +97,59 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         // A maintenance cost update reads the row and writes it back. If it lands between the read and the
         // write of a completion, or the reverse, the older copy must not undo the newer change: a run that
         // finished would read as running again.
-        const int Rounds = 40;
-        var reverted = 0;
+        //
+        // Many runs at once, each with a burst of updates and its completion on threads of their own, all released together:
+        // a store that keeps its rows in memory has a window of a few instructions between the read and the write, and a
+        // completion that lands inside one of many windows, round after round, is how a store that is not atomic is caught.
+        // The burst is a few updates long, not a loop that runs until the completion is done: the write lock of a store
+        // with no queue for it (SQLite on Windows) kept a completion waiting for a minute behind a loop that updated
+        // without a pause.
+        const int Runs = 8;
+        const int UpdatesPerRun = 5;
+        const int Rounds = 10;
+        var tenantId = AmbientTenant.TenantId;
 
         for (var round = 0; round < Rounds; round++)
         {
-            var runId = TraconId.NewId();
-            await Store.StartRunAsync(TestData.Run(runId));
+            var runIds = Enumerable.Range(0, Runs).Select(static _ => TraconId.NewId()).ToArray();
 
-            var stop = false;
-
-            // The pause between two updates lets the completion take the write lock of a store whose lock has no queue (SQLite
-            // on Windows kept it waiting for a minute behind a loop that updated without a pause). The updates still run beside
-            // the completion, a few hundred of them in each round.
-            var updating = Task.Run(async () =>
+            foreach (var runId in runIds)
             {
-                while (!Volatile.Read(ref stop))
+                await Store.StartRunAsync(TestData.Run(runId));
+            }
+
+            SimultaneousCalls.Run(
+                Runs * 2,
+                index =>
                 {
-                    await Store.UpdateRunCostAsync(
-                        runId,
-                        new RunCost { InputCost = 1m, Currency = "USD", Source = PricingSource.Configuration },
-                        AmbientTenant.TenantId);
+                    var runId = runIds[index % Runs];
 
-                    // The store's write lock is a real database lock: the pause is the only way to leave it free for the completion.
-                    await Task.Delay(1); // delay: product
-                }
-            });
-
-            try
-            {
-                // Each round starts the completion at another point of the update loop; an update is a database round trip, so
-                // the offset has to be a span of real time.
-                await Task.Delay(round % 5); // delay: product
-
-                await Store.CompleteRunAsync(new RunCompletion
-                {
-                    RunId = runId,
-                    Status = RunStatus.Completed,
-                    CompletedAt = DateTimeOffset.UtcNow,
+                    if (index < Runs)
+                    {
+                        for (var update = 0; update < UpdatesPerRun; update++)
+                        {
+                            Store.UpdateRunCostAsync(
+                                runId,
+                                new RunCost { InputCost = 1m, Currency = "USD", Source = PricingSource.Configuration },
+                                tenantId).AsTask().GetAwaiter().GetResult();
+                        }
+                    }
+                    else
+                    {
+                        Store.CompleteRunAsync(new RunCompletion
+                        {
+                            RunId = runId,
+                            Status = RunStatus.Completed,
+                            CompletedAt = DateTimeOffset.UtcNow,
+                        }).AsTask().GetAwaiter().GetResult();
+                    }
                 });
-            }
-            finally
-            {
-                // Also when the completion threw: a loop that outlives the test holds the database against the next one.
-                Volatile.Write(ref stop, true);
-                await updating;
-            }
 
-            if ((await Store.GetRunAsync(runId))!.Status != RunStatus.Completed)
+            foreach (var runId in runIds)
             {
-                reverted++;
+                (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Completed, $"round {round}: a finished run was written back as running by a concurrent cost update");
             }
         }
-
-        reverted.ShouldBe(0, "a finished run was written back as running by a concurrent cost update");
     }
 
     [Fact]
@@ -4477,10 +4477,11 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     {
         var token = TestContext.Current.CancellationToken;
         const int Writers = 8;
+        const int Rounds = 60;
 
         AmbientTenant.TenantId = TenantA;
 
-        for (var round = 0; round < 60; round++)
+        for (var round = 0; round < Rounds; round++)
         {
             var id = TraconId.NewId();
 
@@ -4488,27 +4489,15 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
             // Dedicated threads that start the call together: tasks on the pool run one after the other on a busy
             // machine, and the window two overlapping writers need is a few instructions wide.
-            using var barrier = new Barrier(Writers);
-            var writers = Enumerable.Range(0, Writers)
-                .Select(index => Task.Factory.StartNew(
-                    () =>
-                    {
-                        barrier.SignalAndWait(token);
+            var starts = Enumerable.Range(0, Writers).Select(index => TestData.Run(id) with
+            {
+                UserId = index % 2 == 0 ? "alice" : null,
+                Labels = index % 2 == 1 ? new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" } : null,
+            }).ToArray();
 
-                        Store.StartRunAsync(
-                            TestData.Run(id) with
-                            {
-                                UserId = index % 2 == 0 ? "alice" : null,
-                                Labels = index % 2 == 1 ? new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" } : null,
-                            },
-                            token).AsTask().GetAwaiter().GetResult();
-                    },
-                    token,
-                    TaskCreationOptions.LongRunning,
-                    TaskScheduler.Default))
-                .ToList();
-
-            await Task.WhenAll(writers);
+            SimultaneousCalls.Run(
+                Writers,
+                index => Store.StartRunAsync(starts[index], token).AsTask().GetAwaiter().GetResult());
 
             var run = (await Store.GetRunAsync(id, token)).ShouldNotBeNull();
 
