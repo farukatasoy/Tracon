@@ -490,7 +490,8 @@ model.
 Some framework packages ship a finished piece instead of a hook. Three of them were tried
 under Tracon on 2026-10-21 with Microsoft Agent Framework 1.25. The shell tool and the
 remote agent ran against a real host; Purview was read from its package, because it needs a
-Microsoft 365 tenant.
+Microsoft 365 tenant. The fourth, a stdio MCP server, was tried on 2026-11-14 with
+`ModelContextProtocol.Core` 2.3 against a real server process.
 
 - **A shell tool in a container** (`Microsoft.Agents.AI.Tools.Shell`, preview).
   `DockerShellExecutor.AsAIFunction()` returns an ordinary tool. Register it with `AddTool`
@@ -519,6 +520,20 @@ Microsoft 365 tenant.
   and needs a seat below the tool loop: the `ModelCall` slot of a chat client ring. That form
   was not tried under Tracon. Its calls to Microsoft Graph do not go through Tracon's egress
   policy.
+
+- **A stdio MCP server that your code starts** (`ModelContextProtocol.Core`, stable). A
+  server in the Tracon catalog is data with an address, so a process you launch is not one.
+  Start the client yourself at startup with `McpClient.CreateAsync(new StdioClientTransport(...))`,
+  list its tools once, and register each one with `AddTool`: an `McpClientTool` is an
+  `AIFunction`, and no new package is needed. Name the tools in the definition. Authorization,
+  approval, the timeout, and the audit trail apply as for any registered tool. The authorization
+  handler sees the call with the effect you set (use `ToolEffect.External`), and a tool you
+  register with `RequiresApproval` stops a run that has a session at `AwaitingApproval` before
+  the process is called. Three limits. One process serves every tenant, so keep tenant data out of
+  it, and keep the client in a singleton that you dispose at shutdown. The tool list is read once,
+  so a tool the server adds later is not offered until the host restarts. The tools keep the
+  server's own names, without the `{server}_` prefix of a catalog server, so choose names that
+  do not collide. MCP resources and prompts are not reachable this way.
 
 ## What you cannot win back today
 
