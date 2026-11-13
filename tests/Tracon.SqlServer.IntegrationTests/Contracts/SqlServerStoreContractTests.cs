@@ -70,6 +70,8 @@ public sealed class SqlServerRunStoreContractTests(SqlServerSchemaFixture schema
 
     protected override bool PromotesQueuedRunsAtomically => true;
 
+    protected override bool MarksAStartedRunAlive => true;
+
     /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {

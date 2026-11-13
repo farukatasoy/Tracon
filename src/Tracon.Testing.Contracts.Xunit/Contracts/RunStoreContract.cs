@@ -104,6 +104,21 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     /// </remarks>
     protected virtual bool PromotesQueuedRunsAtomically => false;
 
+    /// <summary>
+    /// Gets whether the store marks a run alive in the write that makes it <see cref="RunStatus.Running"/>, so that
+    /// <see cref="IRunStore.ClaimOrphanedRunsAsync"/> never judges a run that has only just started by the time it was
+    /// opened.
+    /// </summary>
+    /// <remarks>
+    /// A store that shares its database between nodes does, with the database server's clock: the time a node wrote into
+    /// <see cref="RunStartInfo.StartedAt"/> is that node's clock, and a node whose clock is behind would have its new run
+    /// closed by the first scan. A store that keeps its rows on one node judges by <see cref="RunStartInfo.StartedAt"/>,
+    /// which is the same clock, and returns <see langword="false"/> here. Virtual and <see langword="false"/> by default for
+    /// the same reason as <see cref="AppendsEventGroupsAtomically"/>: a store that already derives from this contract keeps
+    /// passing.
+    /// </remarks>
+    protected virtual bool MarksAStartedRunAlive => false;
+
     [Fact]
     public async Task A_completed_run_stays_completed_while_its_cost_is_being_updated()
     {
@@ -4220,6 +4235,43 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var claimed = await Store.ClaimOrphanedRunsAsync(
             staleAfter: TimeSpan.FromMinutes(5),
             max: 10);
+
+        claimed.ShouldNotContain(record => record.Id == runId);
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_run_that_starts_running_is_marked_alive_by_the_write_and_not_judged_by_the_time_it_was_opened(bool promoted)
+    {
+        if (!MarksAStartedRunAlive)
+        {
+            return;
+        }
+
+        // The opening time is the writing node's clock, an hour back here as it is on a node whose clock runs behind the
+        // database's. A store that judged the run by it would close the run at the first scan, before its heartbeat writer
+        // had beaten once.
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        var opened = DateTimeOffset.UtcNow.AddHours(-1);
+
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = opened, Status = RunStatus.Queued });
+
+        var running = TestData.Run(runId) with { StartedAt = opened, Status = RunStatus.Running };
+
+        if (promoted)
+        {
+            (await Store.PromoteQueuedRunAsync(running)).ShouldBeTrue();
+        }
+        else
+        {
+            await Store.StartRunAsync(running);
+        }
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(staleAfter: TimeSpan.FromMinutes(5), max: 10);
 
         claimed.ShouldNotContain(record => record.Id == runId);
         (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
