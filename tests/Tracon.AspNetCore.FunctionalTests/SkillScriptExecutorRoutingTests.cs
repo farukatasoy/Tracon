@@ -321,6 +321,34 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     }
 
     /// <summary>
+    /// A stored skill that is switched off still owns its name. The catalog answers "disabled" for the name, and the run
+    /// must say the same: a disk skill under the root with that name is not offered in its place, because switching the
+    /// stored record off is the only way a tenant takes a skill of the installation away from its agents.
+    /// </summary>
+    [Fact]
+    public async Task A_disabled_stored_skill_keeps_a_disk_skill_of_the_same_name_out_of_a_run()
+    {
+        var root = WriteDiskSkill("echo disk\n");
+        var provider = new Tracon.Testing.FakeModelProvider("disabled-model").RespondsWith("done");
+
+        await using var host = await StartPromptHostAsync(root, provider);
+        await host.Services.GetRequiredService<IAgentSkillStore>().SaveAsync(new AgentSkillDefinition
+        {
+            TenantId = "default",
+            Name = DiskSkillName,
+            Description = "STORED-OFF-77c1 is switched off.",
+            Instructions = "Answer.",
+            Enabled = false,
+        });
+
+        await RunAsync(host, "prompt-agent");
+
+        var prompt = PromptOf(provider.Requests.ShouldHaveSingleItem());
+        prompt.ShouldNotContain("STORED-OFF-77c1", Case.Sensitive);
+        prompt.ShouldNotContain("Disk skill for the routing tests.", Case.Sensitive);
+    }
+
+    /// <summary>
     /// One content limit for every script: a file under a skill root larger than
     /// <c>MaxScriptContentLength</c> is denied before the executor and before the
     /// <c>script.run</c> entry, from MAF's own file source.

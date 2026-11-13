@@ -422,7 +422,9 @@ A skill can also live on disk, as a `SKILL.md` directory under a skill root
 looked up in code first, then in the tenant's store, then under the skill roots, so a
 disk skill is installation-wide like a code skill: whoever deploys the application
 writes it, and every tenant may name it; a tenant's stored skill under the same name
-shadows it for that tenant. An edit to its `SKILL.md`, or a script or resource added
+shadows it for that tenant, and so does a stored skill that is switched off: it takes
+the name away from the agents of that tenant, and the disk skill is not offered in its
+place. An edit to its `SKILL.md`, or a script or resource added
 or removed, reaches the next run of an agent that names it. The console's skill list
 shows stored skills only, so name a disk skill through the API.
 

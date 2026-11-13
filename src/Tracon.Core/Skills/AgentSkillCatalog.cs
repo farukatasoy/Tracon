@@ -114,6 +114,13 @@ internal sealed class AgentSkillCatalog
         => await FindAsync(name, cancellationToken).ConfigureAwait(false) is not null
            || (await ReadDiskSkillsAsync(cancellationToken).ConfigureAwait(false)).ContainsKey(name);
 
+    /// <summary>Determines whether the name belongs to a skill registered in code or saved in the store, enabled or not.</summary>
+    /// <param name="name">The skill name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when a record owns the name; a disk skill of that name is not offered.</returns>
+    internal async ValueTask<bool> HoldsRecordAsync(string name, CancellationToken cancellationToken)
+        => await FindAsync(name, cancellationToken).ConfigureAwait(false) is not null;
+
     internal async ValueTask<IReadOnlyList<AgentSkillDefinition>> GetEnabledAsync(
         IReadOnlyList<string> names,
         CancellationToken cancellationToken)

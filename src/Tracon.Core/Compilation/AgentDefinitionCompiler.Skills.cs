@@ -51,7 +51,7 @@ public sealed partial class AgentDefinitionCompiler
 
         if (_scripts?.CreateFileSource() is { } fileSource)
         {
-            builder.UseSource(fileSource);
+            builder.UseSource(new DiskSkillsBehindRecordsSource(fileSource, _skills));
         }
 
         return builder

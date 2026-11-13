@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A stored skill that is switched off keeps a skill of the same name under a skill root away from the agents of its tenant, in a run as the catalog already said.** The catalog and the validator treat a disabled record as owning its name ("disabled") and do not look on disk for it; the run composed the store source (enabled records only) with the disk source behind it, so the disabled record left its name free and the run offered the disk skill. Switching the record off is the one way a tenant takes an installation-wide skill away from its agents, and it did not work on the path a run takes. The disk source now offers no skill whose name a record owns, enabled or not.
+  What to do:
+  - **If a tenant switched off a stored skill and relied on the disk skill of the same name still reaching its agents,** delete the stored record instead (a name with no record is served from disk).
+
 - **A request that took an answer under `SingleAnswer` stays answered when a later run names a version that opens a branch for every answer.** A resumed run publishes its pending requests again under the same session and request id. The gate decided the mode from the version of the run being answered, and in `Branch` mode it never read the claim, so `POST /api/workflows/runs/{id}/resume` with `definitionVersion` set to a `Branch` version (an `Operator` or `Admin` call) made an answered request open again: a second, different answer started another run. The gate reads the claim first now and treats the request as single-answer when one exists.
   What to do:
   - **Nothing.** A request that was never answered, and a workflow that is `Branch` throughout, behave as before. A second answer to a request that was claimed answers `409` (a different answer) or follows the first run (the same answer), as in `SingleAnswer`.
