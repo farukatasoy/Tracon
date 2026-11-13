@@ -220,31 +220,30 @@ public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdem
     [Fact]
     public async Task Only_one_of_several_requests_that_race_for_an_expired_reservation_takes_it()
     {
+        // The racers start on threads of their own, released together, at a key of their own each round: a store that
+        // answers synchronously is still asked by several callers at the same moment, and one that looks at the reservation
+        // and then takes it lets two racers through in some round, not once in a while.
         const int Racers = 8;
+        const int Rounds = 20;
 
-        var first = Request(Tenant, Key());
         var timeout = TimeSpan.FromMinutes(30);
 
-        await Store.ReserveAsync(first);
-
-        // Real parallelism: every racer starts on a thread of its own and waits at the gate, so a store that answers
-        // synchronously is still asked by several callers at the same moment.
-        using var gate = new ManualResetEventSlim(false);
-
-        var racers = Enumerable.Range(0, Racers).Select(index => Task.Run(async () =>
+        for (var round = 0; round < Rounds; round++)
         {
-            gate.Wait();
+            var first = Request(Tenant, Key());
 
-            return (await Store.ReserveAsync(RequestAfter(first, TimeSpan.FromHours(1) + TimeSpan.FromTicks(index), timeout))).State;
-        })).ToList();
+            await Store.ReserveAsync(first);
 
-        gate.Set();
+            var requests = Enumerable.Range(0, Racers).Select(index => RequestAfter(first, TimeSpan.FromHours(1) + TimeSpan.FromTicks(index), timeout)).ToArray();
 
-        var states = await Task.WhenAll(racers);
+            var states = SimultaneousCalls.Run(
+                Racers,
+                index => Store.ReserveAsync(requests[index]).AsTask().GetAwaiter().GetResult().State);
 
-        states.Count(static state => state == IdempotencyState.Reserved)
-            .ShouldBe(1, "two requests that both took the key would run the work twice");
-        states.Count(static state => state == IdempotencyState.InProgress).ShouldBe(Racers - 1);
+            states.Count(static state => state == IdempotencyState.Reserved)
+                .ShouldBe(1, $"round {round}: two requests that both took the key would run the work twice");
+            states.Count(static state => state == IdempotencyState.InProgress).ShouldBe(Racers - 1, $"round {round}");
+        }
     }
 
     /// <summary>

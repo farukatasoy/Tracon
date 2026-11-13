@@ -144,24 +144,21 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     [Fact]
     public async Task Writers_that_save_one_scope_at_the_same_time_leave_one_rule()
     {
-        const int Writers = 16;
+        // The writers start on threads of their own, released together, at a scope of their own each round: saves started
+        // one after the other on one thread never overlap, and a task that waits on a gate may be resumed one after the other
+        // by the thread that opens it.
+        const int Writers = 8;
+        const int Rounds = 20;
 
-        for (var round = 0; round < 8; round++)
+        for (var round = 0; round < Rounds; round++)
         {
             var agent = "racing-" + round;
-            var gate = new TaskCompletionSource();
-            var writers = Enumerable.Range(0, Writers)
-                .Select(index => Task.Run(async () =>
-                {
-                    await gate.Task;
 
-                    return await Store.SaveAsync(Quota(agentName: agent, maxRuns: index));
-                }))
-                .ToList();
+            var rules = Enumerable.Range(0, Writers).Select(index => Quota(agentName: agent, maxRuns: index)).ToArray();
 
-            gate.SetResult();
-
-            var saved = await Task.WhenAll(writers);
+            var saved = SimultaneousCalls.Run(
+                Writers,
+                index => Store.SaveAsync(rules[index]).AsTask().GetAwaiter().GetResult());
 
             (await Store.ListAsync(Tenant)).Count(rule => string.Equals(rule.AgentName, agent, StringComparison.Ordinal)).ShouldBe(1, $"round {round}: two rules hold one scope");
             saved.Select(static rule => rule.Id).Distinct().Count().ShouldBe(1, $"round {round}: the writers were handed different rules");
@@ -603,13 +600,24 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     [Fact]
     public async Task Concurrent_claims_of_the_same_threshold_let_only_one_caller_win()
     {
+        // The callers start on threads of their own, released together, at a threshold of their own each round: claims
+        // started one after the other on one thread never overlap, and a store that looks for the claim and then writes it
+        // lets two callers through in some round, not once in a while.
         await Store.AddUsageAsync(Consumption(runs: 8), Periods);
 
-        const int Concurrency = 20;
+        const int Concurrency = 16;
+        const int Rounds = 20;
 
-        var results = await Task.WhenAll(Enumerable.Range(0, Concurrency).Select(_ => ClaimAsync().AsTask()));
+        for (var round = 0; round < Rounds; round++)
+        {
+            var thresholdPercent = round + 1;
 
-        results.Count(claimed => claimed).ShouldBe(1);
+            var results = SimultaneousCalls.Run(
+                Concurrency,
+                _ => ClaimAsync(thresholdPercent: thresholdPercent).AsTask().GetAwaiter().GetResult());
+
+            results.Count(claimed => claimed).ShouldBe(1, $"round {round}: two callers claimed one threshold, or none did");
+        }
     }
 
     [Fact]

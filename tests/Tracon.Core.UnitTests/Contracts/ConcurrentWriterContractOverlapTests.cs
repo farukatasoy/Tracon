@@ -134,6 +134,18 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new WorkflowRequestFixture(), static contract => contract.Concurrent_expiries_close_each_row_exactly_once());
 
     [Fact]
+    public Task The_quota_rule_save_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new QuotaFixture(), static contract => contract.Writers_that_save_one_scope_at_the_same_time_leave_one_rule());
+
+    [Fact]
+    public Task The_quota_threshold_claim_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new QuotaFixture(), static contract => contract.Concurrent_claims_of_the_same_threshold_let_only_one_caller_win());
+
+    [Fact]
+    public Task The_idempotency_takeover_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new IdempotencyFixture(), static contract => contract.Only_one_of_several_requests_that_race_for_an_expired_reservation_takes_it());
+
+    [Fact]
     public async Task A_case_that_starts_its_calls_one_after_the_other_is_caught_by_the_probe()
     {
         // The probe's own check: calls awaited one at a time never overlap, whatever the store.
@@ -332,5 +344,25 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<IWorkflowRequestStore> CreateStoreAsync()
             => ValueTask.FromResult(OverlapProbe.Wrap<IWorkflowRequestStore>(new InMemoryWorkflowRequestStore(AmbientTenant), out _probe));
+    }
+
+    private sealed class QuotaFixture : QuotaStoreContract, IProbedContract
+    {
+        private OverlapProbe<IQuotaStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IQuotaStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IQuotaStore>(new InMemoryQuotaStore(), out _probe));
+    }
+
+    private sealed class IdempotencyFixture : IdempotencyStoreContract, IProbedContract
+    {
+        private OverlapProbe<IIdempotencyStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IIdempotencyStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IIdempotencyStore>(new InMemoryIdempotencyStore(), out _probe));
     }
 }
