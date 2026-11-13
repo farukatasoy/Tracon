@@ -98,7 +98,7 @@ tracon
 // Azure uses an image deployment name.
 // tracon.UseAzureOpenAIImages(options => options.Model = "image-deployment");
 
-// Google uses a provider image model. It does not support WIDTHxHEIGHT in this surface.
+// Google uses a provider image model. It does not support WIDTHxHEIGHT or a media type in this surface.
 // tracon.UseGoogleImages(options => options.Model = "gemini-2.5-flash-image");
 ```
 

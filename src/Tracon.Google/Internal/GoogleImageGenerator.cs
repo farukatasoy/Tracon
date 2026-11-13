@@ -63,6 +63,18 @@ internal sealed class GoogleImageGenerator : IImageGenerator
                 "Google image generation does not accept WIDTHxHEIGHT. Omit 'size' and use the provider default.");
         }
 
+        // 🚨 Measured against a live key (Google.GenAI 1.16.0, API key mode): ImageConfig.OutputMimeType is
+        // answered with "outputMimeType parameter is only supported in Gemini Enterprise Agent Platform mode,
+        // not in Gemini Developer API mode" for EVERY value, and the SDK raises NotSupportedException. This
+        // package builds its client with an API key only, so no value of MediaType can work. The model picks
+        // the format, and the caller learns it from the response.
+        if (!string.IsNullOrWhiteSpace(options.MediaType))
+        {
+            throw new TraconException(
+                "Google image generation does not accept a media type: the model chooses the format. " +
+                "Omit 'mediaType'; the response carries the type it returned.");
+        }
+
         if (string.IsNullOrWhiteSpace(options.ModelId))
         {
             throw new TraconException("Google image-generation model is required.");
@@ -73,11 +85,6 @@ internal sealed class GoogleImageGenerator : IImageGenerator
             ResponseModalities = ImageModality,
             CandidateCount = options.Count,
         };
-
-        if (!string.IsNullOrWhiteSpace(options.MediaType))
-        {
-            config.ImageConfig = new ImageConfig { OutputMimeType = options.MediaType };
-        }
 
         var response = await _client.Models
             .GenerateContentAsync(options.ModelId, request.Prompt, config, cancellationToken)
@@ -95,20 +102,6 @@ internal sealed class GoogleImageGenerator : IImageGenerator
                 }
 
                 var mediaType = blob.MimeType ?? "image/png";
-
-                // 🚨 Verified, not assumed. ImageConfig.OutputMimeType is a
-                // request, and an image model may answer in its own format. A
-                // caller that asked for image/jpeg and silently received
-                // image/png would write the wrong extension and ship a file
-                // its own consumers cannot open, with nothing in the response
-                // saying so.
-                if (!string.IsNullOrWhiteSpace(options.MediaType)
-                    && !string.Equals(mediaType, options.MediaType, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new TraconException(
-                        $"Google returned '{mediaType}' for a request that asked for '{options.MediaType}'. " +
-                        "The model chose its own format; omit 'mediaType' to accept whatever it returns.");
-                }
 
                 contents.Add(new DataContent(bytes, mediaType));
             }
