@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Tracon.Testing.Contracts.Internal;
 
 namespace Tracon.Testing.Contracts.Storage;
 
@@ -262,29 +263,33 @@ public abstract class RunInputStoreContract : StoreCancellationContract<IRunInpu
     [Fact]
     public async Task Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first()
     {
-        const int Writers = 24;
+        // The writers start on threads of their own, released together, at a run of their own each round: writes started
+        // one after the other on one thread never overlap. Which writer lands first is not known, but once a row is there
+        // it never changes, so every writer that reads the row back after its own write returned sees the same text, and it
+        // is the text the row ends with. A store that checks and then overwrites lets a writer see its own text and the
+        // row end with another.
+        const int Writers = 16;
+        const int Rounds = 20;
 
-        for (var round = 0; round < 5; round++)
+        for (var round = 0; round < Rounds; round++)
         {
             var runId = await NewRunAsync();
-            using var start = new ManualResetEventSlim(initialState: false);
+            var records = Enumerable.Range(0, Writers).Select(index => Record(runId, [new ChatMessage(ChatRole.User, $"writer {index}")])).ToArray();
 
-            var writes = Enumerable.Range(0, Writers)
-                .Select(index => Task.Run(async () =>
+            var seen = SimultaneousCalls.Run(
+                Writers,
+                index =>
                 {
-                    start.Wait();
+                    Store.SaveAsync(records[index]).AsTask().GetAwaiter().GetResult();
 
-                    await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, $"writer {index}")]));
-                }))
-                .ToArray();
-
-            start.Set();
-
-            await Task.WhenAll(writes);
+                    return Store.GetAsync(Tenant, runId).AsTask().GetAwaiter().GetResult()?.Messages.Single().Text;
+                });
 
             var kept = (await Store.GetAsync(Tenant, runId)).ShouldNotBeNull();
+            var keptText = kept.Messages.ShouldHaveSingleItem().Text;
 
-            kept.Messages.ShouldHaveSingleItem().Text.ShouldStartWith("writer ", Case.Sensitive);
+            keptText.ShouldStartWith("writer ", Case.Sensitive);
+            seen.ShouldAllBe(text => string.Equals(text, keptText, StringComparison.Ordinal), $"round {round}: a later write replaced the row a writer had already read back");
         }
     }
 

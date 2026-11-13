@@ -82,6 +82,10 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new RetentionFixture(), static contract => contract.Concurrent_progress_appends_all_count());
 
     [Fact]
+    public Task The_run_input_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new RunInputFixture(), static contract => contract.Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first());
+
+    [Fact]
     public Task The_workflow_definition_save_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new WorkflowDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content());
 
@@ -198,6 +202,16 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<IRetentionPolicyStore> CreateStoreAsync()
             => ValueTask.FromResult(OverlapProbe.Wrap<IRetentionPolicyStore>(new InMemoryRetentionPolicyStore(), out _probe));
+    }
+
+    private sealed class RunInputFixture : RunInputStoreContract, IProbedContract
+    {
+        private OverlapProbe<IRunInputStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IRunInputStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IRunInputStore>(new InMemoryRunInputStore(), out _probe));
     }
 
     private sealed class WorkflowDefinitionFixture : WorkflowDefinitionStoreContract, IProbedContract
