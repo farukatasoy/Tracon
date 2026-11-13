@@ -666,6 +666,13 @@ only record of where the bytes are. See
 [production storage](/guides/multimodal/#persistence-and-production-storage) for
 what your storage's `DeleteAsync` must do.
 
+Without an `IAttachmentStorage`, retention keeps the attachment rows that point at
+external content. Deleting such a row would leave the bytes in your store with nothing
+that names them, so the row stays. Rows with their content in the database are deleted
+as usual, and the preview does not count the kept rows. The last batch of a run logs one
+warning with the number of rows kept — never a tenant or a location. Register the
+`IAttachmentStorage` that wrote the bytes, and the next run deletes the bytes and the rows.
+
 No endpoint deletes synchronously. Preview first — it is the only way to see the size
 of a deletion before it happens — then run, which queues a job.
 

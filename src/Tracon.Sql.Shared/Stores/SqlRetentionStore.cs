@@ -27,6 +27,14 @@ namespace Tracon;
 /// delete fails stays and is retried on the next run.
 /// </para>
 /// <para>
+/// <strong>Without an <see cref="IAttachmentStorage"/>, a row that points at external content is
+/// kept.</strong> Deleting it would leave the content in the external store with nothing that names it.
+/// The rows are left out of the batch by the predicate (<c>external_uri IS NULL</c>), not skipped after
+/// the read: a batch that read them first would fill up with rows it will not delete, and the rows with
+/// their content inside, behind them, would never be reached. The last batch of a run counts what was kept
+/// and logs one warning; the log names the count and never a tenant or a location.
+/// </para>
+/// <para>
 /// The archive mode (<see cref="ArchiveBatchAsync"/>) deletes by the keys of the
 /// rows it archived (<see cref="RetentionTargetDefinition.KeyColumns"/>), never by
 /// a second batch: an unordered batch delete chooses other rows than the ordered
@@ -37,6 +45,12 @@ internal sealed class SqlRetentionStore : IRetentionStore
 {
     /// <summary>The columns an attachment batch reads before its content is deleted.</summary>
     private const string AttachmentKeyColumns = "id, tenant_id, external_uri";
+
+    /// <summary>The condition that keeps an attachment row with external content out of a batch.</summary>
+    private const string InlineContentOnly = "external_uri IS NULL";
+
+    /// <summary>The condition that selects the attachment rows a run without a storage keeps.</summary>
+    private const string ExternalContentOnly = "external_uri IS NOT NULL";
 
     /// <summary>
     /// The most key parameters one archive delete binds. SQL Server accepts at
@@ -86,10 +100,27 @@ internal sealed class SqlRetentionStore : IRetentionStore
         CancellationToken cancellationToken = default)
     {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
-        var sql = _dialect.BuildRetentionCountSql(definition.Table, Where(definition, tenantId));
 
+        return await CountAsync(definition, DeletableWhere(definition, target, tenantId), tenantId, cutoff, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Counts the rows of <paramref name="where"/> older than the cutoff.</summary>
+    /// <param name="definition">The target definition.</param>
+    /// <param name="where">The predicate to count, with the tenant filter.</param>
+    /// <param name="tenantId">The tenant; nothing is bound when <see langword="null"/>.</param>
+    /// <param name="cutoff">The cutoff date.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of rows.</returns>
+    private async ValueTask<long> CountAsync(
+        RetentionTargetDefinition definition,
+        string where,
+        string? tenantId,
+        DateTimeOffset cutoff,
+        CancellationToken cancellationToken)
+    {
         var result = await _context.ExecuteStatementAsync(
-            sql,
+            _dialect.BuildRetentionCountSql(definition.Table, where),
             command =>
             {
                 _dialect.AddTimestamp(command, "cutoff", cutoff);
@@ -118,7 +149,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
         var sql = _dialect.BuildRetentionArchiveSelectSql(
             definition.Table,
-            Where(definition, tenantId),
+            DeletableWhere(definition, target, tenantId),
             definition.OrderColumn);
 
         // The sink is the consumer's code; a protected column reaches it as plaintext.
@@ -158,9 +189,9 @@ internal sealed class SqlRetentionStore : IRetentionStore
             return await DeleteSessionBatchAsync(definition, tenantId, cutoff, batchSize, cancellationToken).ConfigureAwait(false);
         }
 
-        var sql = _dialect.BuildRetentionDeleteBatchSql(definition.Table, Where(definition, tenantId));
+        var sql = _dialect.BuildRetentionDeleteBatchSql(definition.Table, DeletableWhere(definition, target, tenantId));
 
-        return await _context.ExecuteStatementAsync(
+        var deleted = await _context.ExecuteStatementAsync(
             sql,
             command =>
             {
@@ -170,6 +201,11 @@ internal sealed class SqlRetentionStore : IRetentionStore
             },
             DbHelpers.ExecuteAsync,
             cancellationToken).ConfigureAwait(false);
+
+        await LogKeptExternalAttachmentsAtTheEndOfARunAsync(definition, target, tenantId, cutoff, batchSize, deleted, cancellationToken)
+            .ConfigureAwait(false);
+
+        return deleted;
     }
 
     /// <inheritdoc />
@@ -205,8 +241,34 @@ internal sealed class SqlRetentionStore : IRetentionStore
     {
         ArgumentNullException.ThrowIfNull(archiveAsync);
 
+        var deleted = await ArchiveBatchCoreAsync(target, tenantId, cutoff, batchSize, archiveAsync, cancellationToken)
+            .ConfigureAwait(false);
+
+        await LogKeptExternalAttachmentsAtTheEndOfARunAsync(
+                RetentionTargetRegistry.Resolve(_dialect, target), target, tenantId, cutoff, batchSize, deleted, cancellationToken)
+            .ConfigureAwait(false);
+
+        return deleted;
+    }
+
+    /// <summary>The archive batch itself; <see cref="ArchiveBatchAsync"/> adds the end-of-run line.</summary>
+    /// <param name="target">The target name.</param>
+    /// <param name="tenantId">The tenant, or <see langword="null"/> for every tenant.</param>
+    /// <param name="cutoff">The cutoff date.</param>
+    /// <param name="batchSize">The most rows to archive and delete.</param>
+    /// <param name="archiveAsync">Writes the batch to the archive.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of rows deleted.</returns>
+    private async ValueTask<int> ArchiveBatchCoreAsync(
+        string target,
+        string? tenantId,
+        DateTimeOffset cutoff,
+        int batchSize,
+        Func<IReadOnlyList<ArchiveRow>, CancellationToken, ValueTask> archiveAsync,
+        CancellationToken cancellationToken)
+    {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
-        var where = Where(definition, tenantId);
+        var where = DeletableWhere(definition, target, tenantId);
         var attachments = _storage is not null
             && string.Equals(target, RetentionTargets.Attachments, StringComparison.Ordinal);
         var byTenant = tenantId is null && definition.TenantInKey;
@@ -592,6 +654,77 @@ internal sealed class SqlRetentionStore : IRetentionStore
         => tenantId is null
             ? definition.WherePredicate
             : SqlDialect.Combine(definition.WherePredicate, definition.TenantPredicate);
+
+    /// <summary>
+    /// Tells whether a run of <paramref name="target"/> keeps the rows that point at external content: the
+    /// attachments target, with no <see cref="IAttachmentStorage"/> to delete that content with.
+    /// </summary>
+    /// <param name="target">The target name.</param>
+    /// <returns><see langword="true"/> when such rows are kept.</returns>
+    private bool KeepsExternalAttachments(string target)
+        => _storage is null && string.Equals(target, RetentionTargets.Attachments, StringComparison.Ordinal);
+
+    /// <summary>
+    /// The target's predicate with the tenant filter, and, when the run cannot delete external content,
+    /// without the rows that point at it.
+    /// </summary>
+    /// <param name="definition">The target definition.</param>
+    /// <param name="target">The target name.</param>
+    /// <param name="tenantId">The tenant; no filter is added when <see langword="null"/>.</param>
+    /// <returns>The <c>WHERE</c> predicate of the rows a run may delete.</returns>
+    private string DeletableWhere(RetentionTargetDefinition definition, string target, string? tenantId)
+        => KeepsExternalAttachments(target)
+            ? SqlDialect.Combine(Where(definition, tenantId), InlineContentOnly)
+            : Where(definition, tenantId);
+
+    /// <summary>
+    /// Logs the rows a run without an attachment storage kept, once, when the run's last batch is done.
+    /// </summary>
+    /// <param name="definition">The attachments target definition.</param>
+    /// <param name="target">The target name.</param>
+    /// <param name="tenantId">The tenant; no filter is added when <see langword="null"/>.</param>
+    /// <param name="cutoff">The cutoff date.</param>
+    /// <param name="batchSize">The size the batch was asked for.</param>
+    /// <param name="deleted">The number of rows the batch deleted.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the rows are counted and the line is written.</returns>
+    /// <remarks>
+    /// <para>
+    /// A run ends with the first batch that deletes fewer rows than it asked for (or none), and the kept rows
+    /// are never part of a batch, so that batch is the one place a run sees them as a whole. Counting costs one
+    /// query per run, and only a run without a storage pays it.
+    /// </para>
+    /// <para>
+    /// The line names the count and nothing else: no tenant (the installation-wide policy spans all of them)
+    /// and no location (it can be a signed URL).
+    /// </para>
+    /// </remarks>
+    private async ValueTask LogKeptExternalAttachmentsAtTheEndOfARunAsync(
+        RetentionTargetDefinition definition,
+        string target,
+        string? tenantId,
+        DateTimeOffset cutoff,
+        int batchSize,
+        int deleted,
+        CancellationToken cancellationToken)
+    {
+        if (!KeepsExternalAttachments(target) || deleted >= Math.Max(1, batchSize) || !_logger.IsEnabled(LogLevel.Warning))
+        {
+            return;
+        }
+
+        var kept = await CountAsync(definition, SqlDialect.Combine(Where(definition, tenantId), ExternalContentOnly), tenantId, cutoff, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (kept > 0)
+        {
+            _logger.LogWarning(
+                "Retention kept {KeptRows} attachment row(s) older than its cutoff because their content is in an external " +
+                "store and no IAttachmentStorage is registered: deleting the rows would leave the content with nothing that " +
+                "names it. Register the storage that wrote the content, and the next run deletes the content and the rows.",
+                kept);
+        }
+    }
 
     /// <summary>Binds the tenant parameter only when needed.</summary>
     /// <param name="command">The command.</param>

@@ -34,6 +34,10 @@ namespace Tracon;
 public interface IRetentionStore
 {
     /// <summary>Returns the number of rows in the target currently older than the cutoff date.</summary>
+    /// <remarks>
+    /// The count is the rows a run would delete. For <see cref="RetentionTargets.Attachments"/> without an
+    /// <see cref="IAttachmentStorage"/> it leaves out the rows that point at external content: a run keeps them.
+    /// </remarks>
     /// <param name="target">The target name.</param>
     /// <param name="tenantId">
     /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
@@ -96,6 +100,12 @@ public interface IRetentionStore
     /// tries the kept row again.
     /// </para>
     /// <para>
+    /// For <see cref="RetentionTargets.Attachments"/> with NO <see cref="IAttachmentStorage"/> registered, a
+    /// row that points at external content is never deleted: its content would stay in the external store
+    /// with nothing that names it. Such rows are not part of any batch, so they do not shorten one. The last
+    /// batch of a run logs one warning with the number of rows kept. The inline rows are deleted as usual.
+    /// </para>
+    /// <para>
     /// The batch has no order, so this method is for a run that does not
     /// archive. A run that archives uses <see cref="ArchiveBatchAsync"/>.
     /// </para>
@@ -139,7 +149,9 @@ public interface IRetentionStore
     /// For <see cref="RetentionTargets.Attachments"/> with an
     /// <see cref="IAttachmentStorage"/> registered, the external content of each
     /// archived row is deleted BEFORE the row, the same as in
-    /// <see cref="DeleteBatchAsync"/>; a row whose content delete fails is kept.
+    /// <see cref="DeleteBatchAsync"/>; a row whose content delete fails is kept. Without an
+    /// <see cref="IAttachmentStorage"/>, a row that points at external content is neither handed to
+    /// <paramref name="archiveAsync"/> nor deleted, as in <see cref="DeleteBatchAsync"/>.
     /// </para>
     /// <para>
     /// The default implementation calls <see cref="ReadForArchiveAsync"/> and then
