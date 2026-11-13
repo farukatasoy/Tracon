@@ -15,14 +15,40 @@ namespace Tracon.Testing.Contracts.Internal;
 /// provider's contract suite spent, and every provider package paid it.
 /// </para>
 /// <para>
-/// The threads also make the probe sharper: the barrier now releases all of
-/// them together, which is the simultaneity the contract claims to test. With
-/// pooled callers the early ones had been parked for twenty seconds by the
-/// time the last arrived.
+/// The threads also make the probe sharper: they are all released together,
+/// which is the simultaneity the contract claims to test. With pooled callers
+/// the early ones had been parked for twenty seconds by the time the last
+/// arrived.
+/// </para>
+/// <para>
+/// The release is a flag the callers spin on, not a kernel wait. A thread that
+/// sleeps on a barrier wakes tens of microseconds apart from the others, and
+/// the window two overlapping calls need against a store that keeps its rows in
+/// memory is a few instructions wide; threads that spin see the flag within a
+/// cache line transfer of each other. Measured against in-memory stores made
+/// non-atomic, with the same threads and rounds, five cases that a barrier
+/// caught in 5 to 18 of 20 runs were caught in 14 to 20.
 /// </para>
 /// </remarks>
 internal static class SimultaneousCalls
 {
+    /// <summary>Invokes <paramref name="call"/> from <paramref name="count"/> threads released together.</summary>
+    /// <param name="count">How many callers run at once.</param>
+    /// <param name="call">The work each caller performs, given its index.</param>
+    public static void Run(int count, Action<int> call)
+    {
+        ArgumentNullException.ThrowIfNull(call);
+
+        Run(
+            count,
+            index =>
+            {
+                call(index);
+
+                return 0;
+            });
+    }
+
     /// <summary>Invokes <paramref name="call"/> from <paramref name="count"/> threads released together.</summary>
     /// <typeparam name="T">What each call returns.</typeparam>
     /// <param name="count">How many callers run at once.</param>
@@ -32,8 +58,9 @@ internal static class SimultaneousCalls
     {
         var results = new T[count];
         var failures = new Exception?[count];
-        using var start = new Barrier(count);
         var threads = new Thread[count];
+        var arrived = 0;
+        var released = 0;
 
         for (var i = 0; i < count; i++)
         {
@@ -42,14 +69,26 @@ internal static class SimultaneousCalls
             {
                 try
                 {
-                    start.SignalAndWait();
+                    // Spinning, not a kernel wait: a thread that sleeps until the last one arrives wakes tens of microseconds
+                    // apart from the others, and the window two overlapping calls need against a store that keeps its rows in
+                    // memory is a few instructions wide. Spinners see the release within a cache line transfer of each
+                    // other, so their first calls start together.
+                    Interlocked.Increment(ref arrived);
+
+                    var wait = new SpinWait();
+
+                    while (Volatile.Read(ref released) == 0)
+                    {
+                        wait.SpinOnce(sleep1Threshold: -1);
+                    }
+
                     results[index] = call(index);
                 }
                 catch (Exception failure)
                 {
                     // Held rather than thrown: an exception on a thread nobody
                     // joins yet would tear down the test host instead of failing
-                    // the assertion, and the barrier would never be satisfied.
+                    // the assertion.
                     failures[index] = failure;
                 }
             })
@@ -63,6 +102,15 @@ internal static class SimultaneousCalls
         {
             thread.Start();
         }
+
+        var waitForAll = new SpinWait();
+
+        while (Volatile.Read(ref arrived) < count)
+        {
+            waitForAll.SpinOnce(sleep1Threshold: -1);
+        }
+
+        Volatile.Write(ref released, 1);
 
         foreach (var thread in threads)
         {
