@@ -228,17 +228,7 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
     /// <param name="exception">The failure the socket raised.</param>
     /// <returns>The guard's <see cref="TraconException"/>, or <see langword="null"/> when the failure is the transport's own.</returns>
     private static TraconException? FindRefusal(Exception exception)
-    {
-        for (var current = exception; current is not null; current = current.InnerException)
-        {
-            if (current is TraconException refusal)
-            {
-                return refusal;
-            }
-        }
-
-        return null;
-    }
+        => ProviderFailureGraph.Frames(exception).OfType<TraconException>().FirstOrDefault();
 
     /// <summary>Picks the key a call is made with: the tenant's when given, otherwise the configured one.</summary>
     /// <param name="credential">The tenant's credential, or <see langword="null"/>.</param>
