@@ -168,6 +168,71 @@ public sealed class SingletonGuardTests
         guard.IsHeld.ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task A_value_the_validation_refuses_after_a_reload_makes_IsHeld_false_and_does_not_throw()
+    {
+        // A host that adds a configuration source that reloads can make the monitor throw on every read until a valid
+        // value replaces it. The scan loops read IsHeld on every tick and catch only cancellation, so a throw here ends
+        // the loop, and a service whose ExecuteAsync throws stops the host.
+        var clock = new ManualClock();
+        var monitor = new SwitchableOptionsMonitor<SingletonExecutionOptions>(Held(TimeSpan.FromSeconds(30)));
+        var guard = new SingletonGuard(new CountingSingletonLeaseStore(), monitor, LeaseName, timeProvider: clock);
+
+        await guard.TickAsync(CancellationToken.None);
+        guard.IsHeld.ShouldBeTrue();
+
+        monitor.Invalid = true;
+
+        Should.NotThrow(() => _ = guard.IsHeld);
+        guard.IsHeld.ShouldBeFalse("what the options say cannot be read, so this instance does not act as the executor");
+
+        monitor.Invalid = false;
+
+        guard.IsHeld.ShouldBeTrue("the lease was never lost, and the first valid read puts the instance back to work");
+    }
+
+    [Fact]
+    public async Task A_renewal_tick_that_cannot_read_the_options_is_skipped_and_the_next_one_that_can_renews()
+    {
+        var clock = new ManualClock();
+        var store = new CountingSingletonLeaseStore();
+        var monitor = new SwitchableOptionsMonitor<SingletonExecutionOptions>(Held(TimeSpan.FromSeconds(30)));
+        var guard = new SingletonGuard(store, monitor, LeaseName, timeProvider: clock);
+
+        await guard.TickAsync(CancellationToken.None);
+
+        monitor.Invalid = true;
+        clock.Advance(TimeSpan.FromSeconds(10));
+
+        await Should.NotThrowAsync(async () => await guard.TickAsync(CancellationToken.None));
+        store.RenewCalls.ShouldBe(0, "a tick that cannot read its options does not talk to the store");
+
+        monitor.Invalid = false;
+        clock.Advance(TimeSpan.FromSeconds(10));
+        await guard.TickAsync(CancellationToken.None);
+
+        store.RenewCalls.ShouldBe(1);
+        guard.IsHeld.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_lease_that_ran_out_while_the_options_were_unreadable_is_not_held_when_they_can_be_read_again()
+    {
+        var clock = new ManualClock();
+        var monitor = new SwitchableOptionsMonitor<SingletonExecutionOptions>(Held(TimeSpan.FromSeconds(30)));
+        var guard = new SingletonGuard(new CountingSingletonLeaseStore(), monitor, LeaseName, timeProvider: clock);
+
+        await guard.TickAsync(CancellationToken.None);
+
+        monitor.Invalid = true;
+        clock.Advance(TimeSpan.FromSeconds(45));
+        await guard.TickAsync(CancellationToken.None);
+
+        monitor.Invalid = false;
+
+        guard.IsHeld.ShouldBeFalse("the lease belongs to whoever took it after 30 seconds; the clock says so, not the loop");
+    }
+
     private static SingletonExecutionOptions Held(TimeSpan leaseDuration)
         => new() { Enabled = true, LeaseDuration = leaseDuration };
 

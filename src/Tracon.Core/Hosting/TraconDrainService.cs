@@ -46,6 +46,7 @@ internal sealed class TraconDrainService(
     ILogger<TraconDrainService>? logger = null) : IHostedService, ITraconDrainState
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+    private readonly TickOptions<TraconDrainOptions> _readOptions = new(optionsMonitor, logger, "drain on shutdown");
     private volatile bool _isDraining;
 
     /// <inheritdoc />
@@ -59,7 +60,7 @@ internal sealed class TraconDrainService(
         // so a real Generic Host-hosted setup is unaffected either way.
         lifetime?.ApplicationStopping.Register(() =>
         {
-            if (optionsMonitor.CurrentValue.Enabled)
+            if (_readOptions.TryRead(out var options) && options.Enabled)
             {
                 _isDraining = true;
             }
@@ -71,7 +72,9 @@ internal sealed class TraconDrainService(
     /// <inheritdoc />
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        if (!optionsMonitor.CurrentValue.Enabled)
+        // Options a reload made unreadable: the host is stopping and does not know whether, or how long, to wait for
+        // a run, so it does not drain. A stop that threw here would only be logged by the host.
+        if (!_readOptions.TryRead(out var options) || !options.Enabled)
         {
             return;
         }
@@ -83,7 +86,7 @@ internal sealed class TraconDrainService(
             return;
         }
 
-        var timeout = optionsMonitor.CurrentValue.Timeout;
+        var timeout = options.Timeout;
 
         if (logger is not null && logger.IsEnabled(LogLevel.Information))
         {

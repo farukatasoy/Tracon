@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A host that reloads its configuration and writes a value the options validation refuses no longer ends the loops that depend on the single-executor lease, the metrics scrape of the gauges, or the drain at shutdown.** Only a host that adds its own change token source can reach this (Tracon registers none). The lease guard read its options on every scan tick and every renewal, outside any `try`; the monitor throws on every read after a refused reload, so the five scan loops (canary evaluation, run reconciliation, model provider health, approval expiration, workflow request expiration) ended, and a service whose loop throws stops the host. While the options cannot be read, an instance does not act as the executor, a renewal tick does not call the store, and a lease it held runs out by its own duration; the first read of a valid value puts it back to work. A gauge scrape returns the last snapshot, and a shutdown drains nothing instead of failing.
+  What to do:
+  - **Nothing.** The warning is written once per refusal, as for the other loops.
+
 - **A run that called `search_knowledge` or `search_conversation_memory` is continued automatically after an interruption.** Tracon adds the two searches to a run itself, so they are not in the tool registry, and the reconciler read "not in the registry" as "its effect can no longer be read" and refused to continue the run (`RunContinuationBlocked`). Both only read: a repeat has no effect to undo. A tool that is registered, and a tool that is no longer registered, are judged as before.
   What to do:
   - **Nothing.** With `RunContinuation` on, a run that was blocked only because of a search now continues; the search is not replayed from the record but runs again, and costs one embedding.

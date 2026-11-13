@@ -43,6 +43,7 @@ internal abstract class CachedGaugeSource<TSample> : BackgroundService
     private readonly IOptionsMonitor<TraconOptions> _options;
     private readonly SchemaReadyGate _schemaReadyGate;
     private readonly TickOptions<TraconOptions> _tickOptions;
+    private readonly TickOptions<TraconOptions> _scrapeOptions;
     private IReadOnlyList<TSample> _snapshot = [];
     private int _completedRefreshes;
 
@@ -67,6 +68,7 @@ internal abstract class CachedGaugeSource<TSample> : BackgroundService
         _options = options;
         _schemaReadyGate = schemaReadyGate;
         _tickOptions = new TickOptions<TraconOptions>(options, logger, "gauge refresh");
+        _scrapeOptions = new TickOptions<TraconOptions>(options, logger, "gauge scrape");
         Clock = timeProvider ?? TimeProvider.System;
     }
 
@@ -102,9 +104,13 @@ internal abstract class CachedGaugeSource<TSample> : BackgroundService
     /// Returns the last snapshot for the gauge callback. Never performs I/O and
     /// never waits.
     /// </summary>
-    /// <returns>The last snapshot; empty while the gauge is off or before the first refresh.</returns>
+    /// <returns>
+    /// The last snapshot; empty while the gauge is off or before the first refresh. While the options cannot be read
+    /// (a reload the options validation refused) it is the last snapshot, as the refresh loop publishes it: a scrape
+    /// that threw would cost the metrics pipeline its answer for a setting the operator has already replaced.
+    /// </returns>
     protected IReadOnlyList<TSample> Snapshot()
-        => IsEnabled(_options.CurrentValue.Observability) ? Volatile.Read(ref _snapshot) : [];
+        => !_scrapeOptions.TryRead(out var current) || IsEnabled(current.Observability) ? Volatile.Read(ref _snapshot) : [];
 
     /// <inheritdoc />
     protected sealed override async Task ExecuteAsync(CancellationToken stoppingToken)

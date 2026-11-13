@@ -30,6 +30,23 @@ public sealed class TraconDrainServiceTests
     }
 
     [Fact]
+    public async Task Options_a_reload_made_unreadable_neither_start_nor_stop_throws_and_nothing_drains()
+    {
+        var registry = new RunCancellationRegistry();
+        using var runCts = new CancellationTokenSource();
+        using var registration = registry.Register(Guid.NewGuid(), Guid.NewGuid(), tenantId: null, runCts);
+        var monitor = new SwitchableOptionsMonitor<TraconDrainOptions>(new TraconDrainOptions { Enabled = true });
+        var service = new TraconDrainService(registry, monitor, logger: NullLogger<TraconDrainService>.Instance);
+
+        monitor.Invalid = true;
+
+        await Should.NotThrowAsync(async () => await service.StartAsync(TestContext.Current.CancellationToken));
+        await Should.NotThrowAsync(async () => await service.StopAsync(TestContext.Current.CancellationToken));
+
+        service.IsDraining.ShouldBeFalse("a host that cannot read the setting does not know whether to wait for a run");
+    }
+
+    [Fact]
     public async Task Enabled_with_no_active_runs_returns_immediately_and_sets_IsDraining()
     {
         var registry = new RunCancellationRegistry();

@@ -38,6 +38,11 @@ internal sealed class SingletonGuard
     private readonly string _ownerId;
     private readonly ILogger? _logger;
 
+    // The guard has two readers of the options on two threads of control: the service that reads IsHeld on its own
+    // tick, and the lease loop. A TickOptions serves one loop, so each reader has its own.
+    private readonly TickOptions<SingletonExecutionOptions> _scanOptions;
+    private readonly TickOptions<SingletonExecutionOptions> _leaseOptions;
+
     private readonly TimeProvider _timeProvider;
 
     private volatile bool _holding;
@@ -96,6 +101,10 @@ internal sealed class SingletonGuard
         _leaseName = leaseName;
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _scanOptions = new TickOptions<SingletonExecutionOptions>(
+            optionsMonitor, logger, $"single-executor guard '{leaseName}' (the scan that asks whether it holds the lease)");
+        _leaseOptions = new TickOptions<SingletonExecutionOptions>(
+            optionsMonitor, logger, $"single-executor guard '{leaseName}' (lease renewal)");
 
         _ownerId = optionsMonitor.CurrentValue.OwnerId is { Length: > 0 } configured
             ? configured
@@ -107,7 +116,16 @@ internal sealed class SingletonGuard
     /// <see langword="true"/> when single-executor selection is disabled.
     /// Synchronous; the calling service can read this on every tick for free.
     /// </summary>
-    public bool IsHeld => !_optionsMonitor.CurrentValue.Enabled || (_holding && !LeaseElapsed());
+    /// <remarks>
+    /// <see langword="false"/> while the options cannot be read (a reload the options validation refused): the
+    /// instance cannot tell whether selection is on or how long its lease lasts, and acting as the executor on a
+    /// lease it cannot reckon is the worse mistake. Every instance reads the same configuration, so all of them skip
+    /// the scan until a valid value is configured, and the first tick that can read one works again. The service
+    /// that asks must not have to catch anything.
+    /// </remarks>
+    public bool IsHeld
+        => _scanOptions.TryRead(out var options)
+        && (!options.Enabled || (_holding && !LeaseElapsed(options.LeaseDuration)));
 
     /// <summary>
     /// Starts the lease/renew loop. Returns immediately without issuing ANY
@@ -119,12 +137,17 @@ internal sealed class SingletonGuard
     /// <returns>The task representing the loop.</returns>
     public async Task RunAsync(CancellationToken stoppingToken)
     {
-        if (!_optionsMonitor.CurrentValue.Enabled)
+        // The one read that is not skipped: the loop starts with the host, after the options were validated at the
+        // start, and the renewal interval it fixes is the one of this value. A value that cannot be read here is a
+        // host that did not start properly, not a reload.
+        var atStart = _optionsMonitor.CurrentValue;
+
+        if (!atStart.Enabled)
         {
             return;
         }
 
-        var renewInterval = ComputeRenewInterval(_optionsMonitor.CurrentValue.LeaseDuration);
+        var renewInterval = ComputeRenewInterval(atStart.LeaseDuration);
 
         using var timer = new PeriodicTimer(renewInterval, _timeProvider);
 
@@ -178,9 +201,15 @@ internal sealed class SingletonGuard
     /// <summary>Performs a single lease/renew attempt.</summary>
     internal async ValueTask TickAsync(CancellationToken cancellationToken)
     {
+        // A tick that cannot read its options does not talk to the store. A lease this instance holds runs out by its
+        // own duration, and IsHeld says so from the clock; the loop is not the one that gives it up.
+        if (!_leaseOptions.TryRead(out var options))
+        {
+            return;
+        }
+
         try
         {
-            var options = _optionsMonitor.CurrentValue;
             var startedAt = _timeProvider.GetTimestamp();
 
             if (_holding)
@@ -220,7 +249,7 @@ internal sealed class SingletonGuard
             // One failed renewal is inside the margin a third of the lease leaves. A renewal that keeps
             // failing past the whole lease is not: the store has handed the lease to someone else by now,
             // and this instance must stop acting as the executor instead of waiting for a call that works.
-            if (_holding && LeaseElapsed())
+            if (_holding && LeaseElapsed(options.LeaseDuration))
             {
                 _holding = false;
                 LogLost();
@@ -229,8 +258,9 @@ internal sealed class SingletonGuard
     }
 
     /// <summary>Gets whether the lease this instance last had confirmed has run out by its own duration.</summary>
-    private bool LeaseElapsed()
-        => _timeProvider.GetElapsedTime(Volatile.Read(ref _confirmedAt)) >= _optionsMonitor.CurrentValue.LeaseDuration;
+    /// <param name="leaseDuration">The duration the options of the reader that asks gave; the options are not read again here.</param>
+    private bool LeaseElapsed(TimeSpan leaseDuration)
+        => _timeProvider.GetElapsedTime(Volatile.Read(ref _confirmedAt)) >= leaseDuration;
 
     private void LogLost()
     {
