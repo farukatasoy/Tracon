@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A request that took an answer under `SingleAnswer` stays answered when a later run names a version that opens a branch for every answer.** A resumed run publishes its pending requests again under the same session and request id. The gate decided the mode from the version of the run being answered, and in `Branch` mode it never read the claim, so `POST /api/workflows/runs/{id}/resume` with `definitionVersion` set to a `Branch` version (an `Operator` or `Admin` call) made an answered request open again: a second, different answer started another run. The gate reads the claim first now and treats the request as single-answer when one exists.
+  What to do:
+  - **Nothing.** A request that was never answered, and a workflow that is `Branch` throughout, behave as before. A second answer to a request that was claimed answers `409` (a different answer) or follows the first run (the same answer), as in `SingleAnswer`.
+
 - **A model call that a function node of a workflow makes no longer writes `ModelFallbackUsed` onto the workflow run's event stream when its binding falls back; the switch is logged instead.** The workflow run has no model attribution (`runs.model_id` and the cost belong to the agent runs of its steps), so the event told "the model of this run fell back" about a run that has none, and nothing else in the run's record changed with it. A side-channel call (the compaction summarizer, an `aiJudge` judge) was already handled this way.
   What to do:
   - **If a dashboard or an alert counts `ModelFallbackUsed` on workflow runs,** read the `Tracon.ModelProvider` log category for the node's switch; the events of the agent runs of the workflow's steps are unchanged.

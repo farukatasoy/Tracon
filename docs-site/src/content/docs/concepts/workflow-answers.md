@@ -35,6 +35,9 @@ one; leave the argument out instead.
 
 A waiting run is answered under the mode of the definition version it recorded, so
 changing the mode while a person decides does not change how that run is answered.
+A request that already took an answer keeps it: when a run is resumed (or an answer
+names a version) and the version it runs opens a branch for every answer, a second
+answer to a request that was answered under `SingleAnswer` is still refused with `409`.
 
 | The answer | `SingleAnswer` does |
 |---|---|

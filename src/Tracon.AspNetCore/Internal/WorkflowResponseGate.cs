@@ -145,7 +145,21 @@ internal static class WorkflowResponseGate
         var store = services.GetRequiredService<IWorkflowResponseStore>();
         var actor = services.GetRequiredService<IAuditActorResolver>().Resolve();
 
-        if (answer.Mode == WorkflowResponseMode.Branch)
+        // The claim is the record of which answer a request took, and it does not depend on the mode the version of the
+        // answering run names. A request is published again under the same session and request id when a run is resumed,
+        // and a resume or an answer can name a version whose mode is Branch: if that version were allowed to ignore the
+        // claim, naming it would turn a request that was answered into an open one. A Branch run never writes a claim, so
+        // this read finds one only where a single-answer version wrote it.
+        var mode = answer.Mode;
+
+        if (mode == WorkflowResponseMode.Branch
+            && answer.Source.SessionId is { } sessionOfClaim
+            && await store.FindClaimAsync(sessionOfClaim, answer.RequestId, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            mode = WorkflowResponseMode.SingleAnswer;
+        }
+
+        if (mode == WorkflowResponseMode.Branch)
         {
             // Every answer opens its own run. The record claims nothing.
             await AuditAsync(answer, answer.NewRunId, redrive: false, actor, services, cancellationToken).ConfigureAwait(false);

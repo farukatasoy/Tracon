@@ -64,6 +64,44 @@ public sealed class WorkflowResponseModeVersionTests
         await FramesAsync(revise);
     }
 
+    [Fact]
+    public async Task A_version_named_on_a_resume_does_not_lift_the_claim_a_single_answer_request_already_has()
+    {
+        // The request is published again under the same session and request id when a run is resumed. The claim is the
+        // record of which answer the request took, whatever mode the version of the run that publishes it again names:
+        // a resume that names a version which opens a branch for every answer must not turn an answered request into
+        // an open one.
+        await using var host = await TraconTestHost.StartAsync(static builder => builder
+            .AddAgent(TestData.Definition("manager"))
+            .AddAgent(TestData.Definition("worker"))
+            .UseWorkflows());
+
+        await SaveAsync(host, WorkflowResponseMode.SingleAnswer);
+
+        var (sourceId, requestId) = await RunToAwaitAsync(host, Name);
+
+        await SaveAsync(host, WorkflowResponseMode.Branch);
+
+        using var approve = await RespondAsync(host, sourceId, new { requestId, approved = true });
+        await FramesAsync(approve);
+
+        using var resumed = await host.Client.PostAsJsonAsync(
+            $"/tracon/api/workflows/runs/{sourceId}/resume",
+            new WorkflowResumeHttpRequest { DefinitionVersion = 2 },
+            TestContext.Current.CancellationToken);
+
+        resumed.StatusCode.ShouldBe(HttpStatusCode.OK, await resumed.Content.ReadAsStringAsync());
+
+        var resumedId = RunIdOf(await FramesAsync(resumed));
+
+        (await RequestsAsync(host, resumedId)).Contains(requestId, StringComparer.Ordinal)
+            .ShouldBeTrue("the resumed run waits at the same request");
+
+        using var revise = await RespondAsync(host, resumedId, new { requestId, approved = false, text = "add a budget" });
+
+        revise.StatusCode.ShouldBe(HttpStatusCode.Conflict, await revise.Content.ReadAsStringAsync());
+    }
+
     private static async Task SaveAsync(TraconTestHost host, WorkflowResponseMode mode)
     {
         using var saved = await host.Client.PutAsJsonAsync($"/tracon/api/workflows/{Name}", new WorkflowSaveRequest
