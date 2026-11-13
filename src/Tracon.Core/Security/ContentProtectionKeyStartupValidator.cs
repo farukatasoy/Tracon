@@ -3,7 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Tracon;
 
 /// <summary>
-/// Refuses to start the host when content protection is on and its active key has a value that cannot be a key.
+/// Refuses to start the host when content protection is on and its active key has a value that cannot be a key, or has no
+/// value while a database store is registered.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -13,11 +14,13 @@ namespace Tracon;
 /// operator is watching: the start. The failure names the configuration key and never carries a value.
 /// </para>
 /// <para>
-/// Only the ACTIVE key is read, and only when it has a value. A key kept to read old rows can be missing for a while during
-/// a rotation, and a host that refused to start for it would turn a rotation into an outage. A key with no value at all is
-/// the shape of a host that runs on in-memory stores, where nothing calls the protector: the reference host and the OpenAPI
-/// fuzz run ship the key name enabled and the value only with a SQL store. Only the protector Tracon ships is asked:
-/// another <see cref="IContentProtector"/> decides for itself what a key is.
+/// Only the ACTIVE key is read. A key kept to read old rows can be missing for a while during a rotation, and a host that
+/// refused to start for it would turn a rotation into an outage. A key with no value at all is the shape of a host that
+/// runs on in-memory stores, where nothing calls the protector: the reference host and the OpenAPI fuzz run ship the key
+/// name enabled and the value only with a SQL store. With a SQL store the value is required: every protected write reads
+/// the key, a recording write is best effort, so the run answers 200 with its record and its input lost, and the session
+/// is never saved. Only the protector Tracon ships is asked: another <see cref="IContentProtector"/> decides for itself
+/// what a key is.
 /// </para>
 /// </remarks>
 internal sealed class ContentProtectionKeyStartupValidator(IServiceProvider services) : ITraconStartupCheck
@@ -32,7 +35,7 @@ internal sealed class ContentProtectionKeyStartupValidator(IServiceProvider serv
 
         if (services.GetService<IContentProtector>() is AesGcmContentProtector { IsEnabled: true } protector)
         {
-            protector.ValidateActiveKey();
+            protector.ValidateActiveKey(requireValue: services.GetService<StateSharing>() is { IsStorageProvider: true });
         }
 
         return Task.CompletedTask;

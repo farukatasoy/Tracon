@@ -444,6 +444,28 @@ public sealed class ProductionProfileStartupTests
     }
 
     [Fact]
+    public async Task The_call_with_an_active_key_answers_the_content_protection_decision()
+    {
+        // The protector Tracon ships, registered the way the documentation shows. The state is in memory, so the key
+        // value is not read at the start.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder =>
+            {
+                AnswerAllExcept(builder, TraconProductionRisk.UnencryptedContentAtRest);
+
+                builder.AddContentProtection(static options =>
+                {
+                    options.ActiveKeyId = "test";
+                    options.Keys["test"] = "TestContentProtectionKeys:test";
+                });
+
+                builder.RequireProductionProfile();
+            });
+
+        host.Services.GetRequiredService<IContentProtector>().IsEnabled.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task A_registered_protector_that_reports_itself_on_answers_the_content_protection_decision()
     {
         // The protector is what the stores ask, so it is what the decision asks. This one reports itself on while
@@ -1314,12 +1336,10 @@ public sealed class ProductionProfileStartupTests
                 break;
 
             case TraconProductionRisk.UnencryptedContentAtRest:
-                // The protector is what the stores ask, so it is registered, not only switched on by the flag.
-                builder.AddContentProtection(static options =>
-                {
-                    options.ActiveKeyId = "test";
-                    options.Keys["test"] = "TestContentProtectionKeys:test";
-                });
+                // The protector is what the stores ask, so one is registered, not only switched on by the flag. It is a
+                // protector of the test's own: the host here keeps its state in memory or only claims a database (see
+                // Open), and the protector Tracon ships would be asked for a key value once a database is claimed.
+                builder.AddContentProtection<ReportingOnProtector>();
                 break;
 
             case TraconProductionRisk.UninspectedContent:

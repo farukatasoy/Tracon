@@ -29,8 +29,10 @@ public interface IContentProtector
     /// <remarks>
     /// A column-level decision (which columns are in scope) is layered on
     /// top of this by the caller; this flag only says whether the
-    /// implementation itself has everything it needs (for example, a
-    /// resolved encryption key).
+    /// implementation itself is switched on. The protector Tracon ships
+    /// reports its configured switch and reads its key on first use; the host
+    /// checks the active key when it starts (a database provider needs its
+    /// value).
     /// </remarks>
     bool IsEnabled { get; }
 

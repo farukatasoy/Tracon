@@ -195,23 +195,40 @@ internal sealed class AesGcmContentProtector : IContentProtector
     /// it for that write.
     /// </summary>
     /// <remarks>
-    /// A key with NO value is left alone: a host that runs on in-memory stores never calls the protector, and the reference
-    /// host and the OpenAPI fuzz run ship the key name enabled for exactly those runs. The structure (an active key id that
-    /// is set and listed) is the options validator's. What this finds is a value that is there and cannot be a key.
+    /// A key with NO value is left alone unless <paramref name="requireValue"/> is set: a host that runs on in-memory stores
+    /// never calls the protector, and the reference host and the OpenAPI fuzz run ship the key name enabled for exactly those
+    /// runs. A host with a database store calls it on every run, so there the missing value is the failure. The structure
+    /// (an active key id that is set and listed) is the options validator's.
     /// </remarks>
+    /// <param name="requireValue">
+    /// Whether an active key without a value stops the start. Set when a storage provider replaced the in-memory stores.
+    /// </param>
     /// <exception cref="TraconException">
-    /// The value of the active key's configuration key is not Base64 or is not 32 bytes. The message names the
-    /// configuration key and never carries a value.
+    /// The value of the active key's configuration key is not Base64 or is not 32 bytes, or it is missing and
+    /// <paramref name="requireValue"/> is set. The message names the configuration key and never carries a value.
     /// </exception>
-    internal void ValidateActiveKey()
+    internal void ValidateActiveKey(bool requireValue)
     {
         var options = _options.CurrentValue;
 
         if (string.IsNullOrWhiteSpace(options.ActiveKeyId)
-            || !options.Keys.TryGetValue(options.ActiveKeyId, out var configurationKeyName)
-            || string.IsNullOrWhiteSpace(_configuration?[configurationKeyName]))
+            || !options.Keys.TryGetValue(options.ActiveKeyId, out var configurationKeyName))
         {
             return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_configuration?[configurationKeyName]))
+        {
+            if (!requireValue)
+            {
+                return;
+            }
+
+            // Not LoadKey's text: at the start the operator also needs to know why the host stopped for a key nobody read.
+            throw new TraconException(
+                $"Content protection key '{options.ActiveKeyId}' points at configuration key '{configurationKeyName}', " +
+                "which has no value, and a database store is registered: every run would fail to record its content. " +
+                "Set the value with `dotnet user-secrets` or an environment variable, or turn content protection off.");
         }
 
         _ = ResolveActiveKey();

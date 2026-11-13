@@ -25,6 +25,12 @@ namespace Tracon;
 /// </param>
 internal sealed record StateSharing(bool AcrossProcesses, string Description, bool OutlivesProcess)
 {
+    /// <summary>
+    /// Gets whether a storage provider replaced the default, so the stores that write protected columns are the
+    /// provider's SQL stores and not the in-memory ones.
+    /// </summary>
+    public bool IsStorageProvider => this != InProcessMemory;
+
     /// <summary>Gets the default: the in-memory stores, one per process.</summary>
     public static StateSharing InProcessMemory { get; } = new(false, "in the memory of one process", OutlivesProcess: false);
 
