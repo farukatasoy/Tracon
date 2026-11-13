@@ -8639,7 +8639,8 @@ model.
 Some framework packages ship a finished piece instead of a hook. Three of them were tried
 under Tracon on 2026-10-21 with Microsoft Agent Framework 1.25. The shell tool and the
 remote agent ran against a real host; Purview was read from its package, because it needs a
-Microsoft 365 tenant.
+Microsoft 365 tenant. The fourth, a stdio MCP server, was tried on 2026-11-14 with
+`ModelContextProtocol.Core` 2.3 against a real server process.
 
 - **A shell tool in a container** (`Microsoft.Agents.AI.Tools.Shell`, preview).
   `DockerShellExecutor.AsAIFunction()` returns an ordinary tool. Register it with `AddTool`
@@ -8668,6 +8669,20 @@ Microsoft 365 tenant.
   and needs a seat below the tool loop: the `ModelCall` slot of a chat client ring. That form
   was not tried under Tracon. Its calls to Microsoft Graph do not go through Tracon's egress
   policy.
+
+- **A stdio MCP server that your code starts** (`ModelContextProtocol.Core`, stable). A
+  server in the Tracon catalog is data with an address, so a process you launch is not one.
+  Start the client yourself at startup with `McpClient.CreateAsync(new StdioClientTransport(...))`,
+  list its tools once, and register each one with `AddTool`: an `McpClientTool` is an
+  `AIFunction`, and no new package is needed. Name the tools in the definition. Authorization,
+  approval, the timeout, and the audit trail apply as for any registered tool. The authorization
+  handler sees the call with the effect you set (use `ToolEffect.External`), and a tool you
+  register with `RequiresApproval` stops a run that has a session at `AwaitingApproval` before
+  the process is called. Three limits. One process serves every tenant, so keep tenant data out of
+  it, and keep the client in a singleton that you dispose at shutdown. The tool list is read once,
+  so a tool the server adds later is not offered until the host restarts. The tools keep the
+  server's own names, without the `{server}_` prefix of a catalog server, so choose names that
+  do not collide. MCP resources and prompts are not reachable this way.
 
 ## What you cannot win back today
 
@@ -22314,7 +22329,8 @@ its own. Three rules the contract checks, and that a custom store has to honor:
 
 ## Count rate limits somewhere else
 
-`IRateLimitCounterStore` is the smallest store interface: one method. It is the counter behind
+`IRateLimitCounterStore` is the smallest store interface: one method that counts and one optional
+method that removes. It is the counter behind
 `Tracon:RateLimit:Scope = Deployment`, and each SQL provider already registers an implementation
 that counts in its own database. Write your own when you want the counter elsewhere, in Redis for
 example, or when the rate limit database write is too slow for your traffic.
@@ -22363,6 +22379,7 @@ Tracon owns the algorithm — it aligns the window, compares the count with `Per
 | A later window restarts the count at one | The window Tracon passes moves forward every `Window`. The sketch above gets this from the key; a store that keeps one row for each partition must reset it |
 | An earlier window is counted in the stored one | An instance with a slow clock passes a window that has ended. The store must not move back to it: return the stored window and its count. The contract checks it, so keep one record for each partition, as the sketch does, and not one key for each window |
 | A record outlives its window | A record that expires inside a window restarts the count and lifts the limit for the rest of that window. Tracon does not pass the window length, so choose an expiry longer than the longest `Window` you configure (the inbound trigger limit uses one minute) |
+| A store that keeps rows removes the ones that are over | A Redis key expires by itself, as the sketch above lets it. A store that keeps a row for each partition (a SQL table) implements `RemoveEndedWindowsAsync`: Tracon calls it about once per longest `Window`, with the moment before which no window can still be open, and the store deletes every counter whose stored window started **strictly before** it and returns how many. The partition key carries the tenant, and an installation that accepts any tenant identifier lets a caller make up partitions: without the removal the table keeps a row for each. The default removes nothing, so a store written before this method existed keeps working. The contract suite runs its removal scenarios when your test class overrides `RemovesEndedWindows` to `true` |
 | The call has a limit of its own | Tracon waits for the store, with the request's token only. A store that can hang (a network call) must bound its own wait, so the instance falls back to its own limit instead of waiting for the client to leave |
 | The partition key is opaque | Tracon builds it (`endpoint:tracon:tenant:acme`, `endpoint:agui:global`, `trigger:<id>`). Do not parse it, change it, cut it short or fold its letter case: two keys that differ only in case are two counters |
 | A failure throws | Tracon catches it, counts it on `tracon.rate_limit.store_failures` and applies the instance's own limit for that request. Do not swallow it and return a count |
@@ -23619,8 +23636,8 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.Sqlite` | No | net10 | No | `SQLitePCLRaw` carries a native library |
 | `Tracon.Anthropic` | No | net10 | No | Claude provider; the Anthropic SDK's `IChatClient` adapter uses reflection-based JSON, so a Native AOT app fails on the first request |
 | `Tracon.Google` | No | net10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
-| `Tracon.Azure` | No | net10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected |
-| `Tracon.Voice` | No | net10 | Yes | ElevenLabs speech tools and reusable speech contracts |
+| `Tracon.Azure` | No | net10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected. The Native AOT check runs the API-key path (chat, plain and streamed, and images); the Microsoft Entra path (`TokenCredential`) is not part of it |
+| `Tracon.Voice` | No | net10 | Yes | ElevenLabs speech tools and reusable speech contracts. The Native AOT check runs synthesis, transcription and the voice list; dialogue is not part of it |
 | `Tracon.AGUI` | No | net10 | No | The AG-UI endpoint; it sits on `Tracon.AspNetCore`, whose minimal API routing uses reflection |
 | `Tracon.Testing` | No | net10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
 | `Tracon.Testing.Contracts.Xunit` | No | net10 | No promise | Behavior contract suite for seven extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, job handlers, skill script executors, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
