@@ -1359,8 +1359,159 @@ SAMPLE_TEST_PROJECTS: dict[str, str] = {
 # These ship as consumer-facing samples but are NOT in Tracon.slnx: they
 # compile against packed NuGet packages, so no closing-gate test run covers
 # them. Only `gate.py release` (release_extension_samples.py) does. Saying so out
-# loud beats selecting nothing silently.
+# loud beats selecting nothing silently. One exception: a change to the contract
+# package also runs the file store sample against a pack of it (below).
 RELEASE_ONLY_SAMPLE_PREFIX = "samples/Tracon.Samples."
+
+
+# -----------------------------------------------------------------------------
+# The contract package against the sample store
+#
+# samples/Tracon.Samples.FileRunStore.Tests takes Tracon.Testing.Contracts.Xunit
+# as a PACKAGE (a version override), and the sample sits in no solution. A contract
+# case added under src/ therefore reached it only in the release rehearsal: a
+# change that added eight cases to the run store contract broke the sample and
+# `inner-loop` stayed green.
+#
+# When the changed paths include the contract package, `inner-loop` and `close`
+# pack it, and what it needs, under a throwaway version into a feed of this run,
+# restore the sample from that feed and run its tests. Measured: about 12.5 s
+# (two packs 2 s, restore 0.8 s, 206 tests 9.7 s).
+#
+# - The pack is `--no-build`: it packs the tree the step before just built, so no
+#   second build of the shared outputs happens. Measured: a build of
+#   Tracon.Abstractions under another version recompiles it, and so does the next
+#   build under the default one. The version names the nuspec only.
+# - The feed, the package folder and a generated NuGet.config live in ONE work
+#   directory that is removed before the run and again after it, green or red.
+#   The sample's own NuGet.config points at the shared development feed, where a
+#   version that already sits in the global cache is never restored again.
+# - The developer's global package cache is a read-only FALLBACK folder: the
+#   third-party packages come from it, the throwaway Tracon packages are
+#   extracted into the work directory and leave with it.
+# -----------------------------------------------------------------------------
+
+CONTRACT_PACKAGE = "Tracon.Testing.Contracts.Xunit"
+CONTRACT_SAMPLE_PROJECT = "samples/Tracon.Samples.FileRunStore.Tests/Tracon.Samples.FileRunStore.Tests.csproj"
+CONTRACT_SAMPLE_DIRECTORY = ARTIFACTS / "contract-sample"
+CONTRACT_SAMPLE_FEED_KEY = "tracon-contract-sample"
+_PROJECT_REFERENCE_PATTERN = re.compile(r'<ProjectReference\s+Include="(?P<path>[^"]+)"')
+
+
+def contract_package_changed(paths: Iterable[str]) -> bool:
+    """True if any changed path is under the contract package's directory (not a sibling that shares the prefix)."""
+    prefix = f"src/{CONTRACT_PACKAGE}/"
+    return any(path.startswith(prefix) for path in paths)
+
+
+def contract_sample_packages(
+    root: pathlib.Path = ROOT, contract_package: str = CONTRACT_PACKAGE,
+) -> tuple[str, ...]:
+    """The packages the temporary feed must hold: the contract package and its project references, dependencies first.
+
+    Read from the project files, so a reference the contract package gains later is packed without an edit here."""
+    ordered: list[str] = []
+
+    def visit(package: str, trail: tuple[str, ...]) -> None:
+        if package in ordered:
+            return
+        if package in trail:
+            raise ValueError(f"project reference cycle: {' -> '.join((*trail, package))}")
+        project = root / "src" / package / f"{package}.csproj"
+        for match in _PROJECT_REFERENCE_PATTERN.finditer(project.read_text(encoding="utf-8")):
+            visit(pathlib.PurePosixPath(match.group("path").replace("\\", "/")).stem, (*trail, package))
+        ordered.append(package)
+
+    visit(contract_package, ())
+    return tuple(ordered)
+
+
+def contract_sample_version() -> str:
+    """A version of this run only. `0.0.0` sorts below every published version, so it can never be mistaken for one."""
+    return f"0.0.0-contract-sample.{int(time.time())}"
+
+
+def global_packages_folder(environ: Mapping[str, str] = os.environ) -> pathlib.Path:
+    """The developer's global package cache: `NUGET_PACKAGES` when set, else the NuGet default location."""
+    configured = environ.get("NUGET_PACKAGES", "").strip()
+    return pathlib.Path(configured) if configured else pathlib.Path.home() / ".nuget" / "packages"
+
+
+def _path_argument(path: pathlib.Path) -> str:
+    """A path as the commands name it: relative to the repository root when it sits under it."""
+    try:
+        return path.relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def contract_sample_commands(
+    version: str,
+    *,
+    work: pathlib.Path = CONTRACT_SAMPLE_DIRECTORY,
+    global_packages: pathlib.Path | None = None,
+) -> list[Command]:
+    """Pack the contract package and what it needs, restore the sample from that feed, run the sample's tests.
+
+    They need the build that ran before them (`--no-build`) and the work directory `prepare_contract_sample` writes."""
+    feed = _path_argument(work / "feed")
+    cache = global_packages_folder() if global_packages is None else global_packages
+    # A missing cache is not an error: the restore then downloads what it needs into the work directory.
+    fallback = (f"-p:RestoreAdditionalProjectFallbackFolders={cache}",) if cache.is_dir() else ()
+    sample_version = f"-p:TraconSamplePackageVersion={version}"
+    commands = [
+        Command((
+            "dotnet", "pack", f"src/{package}/{package}.csproj", "-c", "Release", "--no-build", "-o", feed,
+            f"-p:MinVerVersionOverride={version}",
+            # An uncommitted tree is what the inner loop has; the pack of `close` already checks the packaging contract.
+            "-p:TraconSkipCleanWorkingTreeCheck=true"))
+        for package in contract_sample_packages()
+    ]
+    commands.append(Command((
+        "dotnet", "restore", CONTRACT_SAMPLE_PROJECT,
+        "--configfile", _path_argument(work / "NuGet.config"), "--packages", _path_argument(work / "packages"),
+        sample_version, *fallback)))
+    # `--no-restore`: a second restore would read the sample's own NuGet.config and float to another version.
+    commands.append(Command((
+        "dotnet", "test", "--project", CONTRACT_SAMPLE_PROJECT, "-c", "Release", "--no-restore", sample_version)))
+    return commands
+
+
+def prepare_contract_sample(work: pathlib.Path = CONTRACT_SAMPLE_DIRECTORY) -> None:
+    """Start the work directory from nothing: an empty feed and a NuGet.config that maps `Tracon*` to it alone."""
+    shutil.rmtree(work, ignore_errors=True)
+    (work / "feed").mkdir(parents=True)
+    configuration = ElementTree.Element("configuration")
+    sources = ElementTree.SubElement(configuration, "packageSources")
+    ElementTree.SubElement(sources, "clear")
+    ElementTree.SubElement(
+        sources, "add", key="nuget.org", value="https://api.nuget.org/v3/index.json", protocolVersion="3")
+    ElementTree.SubElement(sources, "add", key=CONTRACT_SAMPLE_FEED_KEY, value=str(work / "feed"))
+    mapping = ElementTree.SubElement(configuration, "packageSourceMapping")
+    for key, pattern in ((CONTRACT_SAMPLE_FEED_KEY, "Tracon*"), ("nuget.org", "*")):
+        source = ElementTree.SubElement(mapping, "packageSource", key=key)
+        ElementTree.SubElement(source, "package", pattern=pattern)
+    ElementTree.indent(configuration)
+    ElementTree.ElementTree(configuration).write(work / "NuGet.config", encoding="utf-8", xml_declaration=True)
+
+
+def run_with_contract_sample(
+    stage: str,
+    commands: Sequence[Command],
+    *,
+    dry_run: bool = False,
+    work: pathlib.Path = CONTRACT_SAMPLE_DIRECTORY,
+) -> int:
+    """Run `commands`, which hold the sample steps, with the work directory present and removed afterwards.
+
+    The removal is in a `finally`: a red step, a Ctrl+C and a crash leave nothing behind. A listing writes nothing."""
+    if dry_run:
+        return run_commands(stage, commands, dry_run=True)
+    prepare_contract_sample(work)
+    try:
+        return run_commands(stage, commands)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 # -----------------------------------------------------------------------------
@@ -1961,6 +2112,10 @@ def inner_loop_commands(paths: list[str]) -> list[Command]:
     needs_frontend = frontend_changed(paths) or needs_full or UI_TEST_PROJECT in projects
     frontend_flag = () if needs_frontend else ("-p:TraconFrontendEnabled=false",)
     commands = [Command(("dotnet", "build", "Tracon.slnx", "-c", "Release", *frontend_flag))]
+    if contract_package_changed(paths):
+        # Right after the build, which they pack, and before the test projects: the sample is quicker than the
+        # container-backed ones. They do not depend on which projects the selection names.
+        commands.extend(contract_sample_commands(contract_sample_version()))
     if needs_full:
         print("⚠️ The affected-project map is incomplete; the test selection grew to a full run.")
         return commands + [full_solution_test_command()]
@@ -1993,7 +2148,12 @@ READ_ONLY_GROUP = "read-only"
 
 
 def closing_commands(
-    base: str, *, site: bool = True, performance: bool = True, extension: Extension = PUBLIC,
+    base: str,
+    *,
+    site: bool = True,
+    performance: bool = True,
+    extension: Extension = PUBLIC,
+    contract_sample: bool = False,
 ) -> list[Command]:
     # Cheapest first; the test run (about 20 min, November 2026) is the most expensive step
     # and runs LAST. Measured (October 2026): 11 of 42 red closing runs failed
@@ -2031,6 +2191,10 @@ def closing_commands(
             "dotnet", "pack", "Tracon.slnx", "-c", "Release", "--no-build",
             "-p:TraconSkipCleanWorkingTreeCheck=true")),
     ]
+    # Path-triggered like `perf`: only a change to the contract package can move the sample store's result. Right
+    # after the build it packs (about 12 s), well before the format step and the tests.
+    if contract_sample:
+        commands.extend(contract_sample_commands(contract_sample_version()))
     # After the build: DocFX reads the XML documentation the build wrote. Before
     # format and the tests: ~35 s and the most frequent late red (6 of 11).
     # The earlier fix made `SourceLanguageTests` skip the gitignored trees the site build
@@ -4607,6 +4771,8 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
         if not args.print_commands and runs_multi_target_tests(commands) \
                 and not require_test_runtimes(test_target_frameworks()):
             return 1
+        if contract_package_changed(paths):
+            return run_with_contract_sample("inner-loop", commands, dry_run=args.print_commands)
         return run_commands("inner-loop", commands, dry_run=args.print_commands)
     if args.stage == "close":
         # The performance gate is path-triggered against the WHOLE change set's
@@ -4619,11 +4785,16 @@ def main(argv: Sequence[str] | None = None, extension: Extension = PUBLIC) -> in
         if warning:
             print(warning)
         performance = paths is None or performance_gate_triggered(paths)
+        # The same rule for the contract package's sample: a failed git call runs it rather than skipping it.
+        contract_sample = paths is None or contract_package_changed(paths)
         commands = closing_commands(
-            args.base, site=not args.skip_site, performance=performance, extension=extension)
+            args.base, site=not args.skip_site, performance=performance, extension=extension,
+            contract_sample=contract_sample)
         if not args.print_commands and runs_multi_target_tests(commands) \
                 and not require_test_runtimes(test_target_frameworks()):
             return 1
+        if contract_sample:
+            return run_with_contract_sample("close", commands, dry_run=args.print_commands)
         return run_commands("close", commands, dry_run=args.print_commands)
     if args.stage == "remote-state":
         if args.print_commands:

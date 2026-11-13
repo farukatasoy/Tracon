@@ -5899,6 +5899,267 @@ class StabilityWorkflowTests(unittest.TestCase):
         self.assertNotRegex(ci, r"gate\.py\s+stability")
 
 
+class ContractSampleTests(unittest.TestCase):
+    """A change to the shipped contract package is run against the sample store, which sits in no solution.
+
+    The sample's test project takes the contract package as a PACKAGE (a version override), so only a pack of the
+    changed source shows whether a new contract case still fits a store written against the published surface."""
+
+    CONTRACT_PATH = "src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs"
+    SAMPLE_PROJECT = "samples/Tracon.Samples.FileRunStore.Tests/Tracon.Samples.FileRunStore.Tests.csproj"
+    VERSION = "0.0.0-contract-sample.1"
+
+    @staticmethod
+    def _inner_loop(paths: list[str]) -> list[str]:
+        with contextlib.redirect_stdout(io.StringIO()):
+            return [command.display for command in gate.inner_loop_commands(paths)]
+
+    @staticmethod
+    def _positions(rendered: list[str], *prefixes: str) -> list[int]:
+        """The index of the first command that starts with each prefix; a missing one fails with its prefix."""
+        found = []
+        for prefix in prefixes:
+            matches = [index for index, line in enumerate(rendered) if line.startswith(prefix)]
+            if not matches:
+                raise AssertionError(f"no command starts with {prefix!r}")
+            found.append(matches[0])
+        return found
+
+    def test_a_path_under_the_contract_package_is_the_trigger_and_nothing_else_is(self):
+        self.assertTrue(gate.contract_package_changed([self.CONTRACT_PATH]))
+        self.assertTrue(gate.contract_package_changed(["README.md", "src/Tracon.Testing.Contracts.Xunit/README.md"]))
+        # A sibling that only shares the name prefix is another directory.
+        self.assertFalse(gate.contract_package_changed(["src/Tracon.Testing.Contracts.XunitExtra/A.cs"]))
+        self.assertFalse(gate.contract_package_changed(["tests/Tracon.Testing.Contracts.Xunit.UnitTests/A.cs"]))
+        self.assertFalse(gate.contract_package_changed(["src/Tracon.Core/Thing.cs"]))
+        self.assertFalse(gate.contract_package_changed([]))
+
+    def test_inner_loop_packs_then_restores_then_tests_the_sample_right_after_the_build(self):
+        rendered = self._inner_loop([self.CONTRACT_PATH])
+
+        build, abstractions, contract, restore, sample, first_unit_tests = self._positions(
+            rendered,
+            "dotnet build Tracon.slnx",
+            "dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj",
+            "dotnet pack src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj",
+            f"dotnet restore {self.SAMPLE_PROJECT}",
+            f"dotnet test --project {self.SAMPLE_PROJECT}",
+            "dotnet test --project tests/")
+        # What the contract package needs is packed first; the sample restores only after both are in the feed.
+        self.assertEqual(build, 0)
+        self.assertLess(build, abstractions)
+        self.assertLess(abstractions, contract)
+        self.assertLess(contract, restore)
+        self.assertLess(restore, sample)
+        # The sample is quicker than the container-backed projects it sits before.
+        self.assertLess(sample, first_unit_tests)
+
+    def test_inner_loop_without_a_contract_change_adds_no_sample_step(self):
+        for paths in (["src/Tracon.Core/Thing.cs"], ["src/Tracon.Abstractions/Runs/IRunStore.cs"], []):
+            with self.subTest(paths=paths):
+                rendered = self._inner_loop(paths)
+
+                self.assertFalse(any("FileRunStore" in line or "contract-sample" in line for line in rendered), rendered)
+
+    def test_inner_loop_full_run_still_carries_the_sample_steps_when_the_contract_package_changed(self):
+        # An unknown package widens the test selection to a full run; the sample steps do not depend on that selection.
+        rendered = self._inner_loop([self.CONTRACT_PATH, "src/Unknown.Package/Thing.cs"])
+
+        self._positions(rendered, f"dotnet test --project {self.SAMPLE_PROJECT}")
+
+    def test_closing_adds_the_sample_steps_after_the_pack_and_before_every_test_run(self):
+        with_it = [c.display for c in gate.closing_commands("abc123", site=True, contract_sample=True)]
+        without_it = [c.display for c in gate.closing_commands("abc123", site=True)]
+
+        pack, abstractions, contract, restore, sample, first_test = self._positions(
+            with_it,
+            "dotnet pack Tracon.slnx",
+            "dotnet pack src/Tracon.Abstractions/Tracon.Abstractions.csproj",
+            "dotnet pack src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj",
+            f"dotnet restore {self.SAMPLE_PROJECT}",
+            f"dotnet test --project {self.SAMPLE_PROJECT}",
+            "dotnet test --project tests/")
+        self.assertLess(pack, abstractions)
+        self.assertLess(abstractions, contract)
+        self.assertLess(contract, restore)
+        self.assertLess(restore, sample)
+        self.assertLess(sample, first_test)
+        self.assertFalse(any("FileRunStore" in line for line in without_it))
+        # The staged test run is still the contiguous tail of the list.
+        tests = [c.display for c in gate.staged_test_commands()]
+        self.assertEqual(with_it[-len(tests):], tests)
+
+    def test_the_packs_use_one_throwaway_version_without_the_dirty_tree_gate_and_without_a_second_build(self):
+        commands = gate.contract_sample_commands(self.VERSION)
+
+        packs = [c for c in commands if c.args[:2] == ("dotnet", "pack")]
+        self.assertEqual(len(packs), 2)
+        feeds = set()
+        for command in packs:
+            with self.subTest(command=command.display):
+                # --no-build packs the tree the caller just built; the throwaway version names the nuspec only.
+                self.assertIn("--no-build", command.args)
+                self.assertIn(f"-p:MinVerVersionOverride={self.VERSION}", command.args)
+                # A pack of an uncommitted tree: the packaging contract is not what this step checks.
+                self.assertIn("-p:TraconSkipCleanWorkingTreeCheck=true", command.args)
+                feeds.add(command.args[command.args.index("-o") + 1])
+        self.assertEqual(len(feeds), 1)
+        # Not the shared development feed: a version that already sits there must never be what the sample restores.
+        feed = pathlib.PurePath(feeds.pop())
+        self.assertNotEqual(feed, pathlib.PurePath("artifacts", "package", "release"))
+
+    def test_the_sample_restores_from_the_temporary_feed_into_its_own_package_folder_and_tests_that_restore(self):
+        commands = gate.contract_sample_commands(self.VERSION)
+        restore = next(c for c in commands if c.args[:2] == ("dotnet", "restore"))
+        test = next(c for c in commands if c.args[:2] == ("dotnet", "test"))
+
+        self.assertIn(f"-p:TraconSamplePackageVersion={self.VERSION}", restore.args)
+        self.assertIn(f"-p:TraconSamplePackageVersion={self.VERSION}", test.args)
+        self.assertEqual(pathlib.PurePath(restore.args[restore.args.index("--configfile") + 1]).name, "NuGet.config")
+        # The throwaway packages land in a folder of this run, never in the developer's global package cache.
+        packages = pathlib.PurePath(restore.args[restore.args.index("--packages") + 1])
+        self.assertEqual(packages.parts[:2], ("artifacts", "contract-sample"))
+        # A test that restored again would read the sample's own NuGet.config and float to another version.
+        self.assertIn("--no-restore", test.args)
+        self.assertNotIn("--report-trx", test.args)
+        self.assertFalse(gate.reports_trx(test))
+
+    def test_the_global_package_cache_is_a_read_only_fallback_when_it_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = pathlib.Path(directory)
+            with_cache = gate.contract_sample_commands(self.VERSION, global_packages=cache)
+            without_cache = gate.contract_sample_commands(self.VERSION, global_packages=cache / "missing")
+
+        restore = next(c for c in with_cache if c.args[:2] == ("dotnet", "restore"))
+        self.assertIn(f"-p:RestoreAdditionalProjectFallbackFolders={cache}", restore.args)
+        restore = next(c for c in without_cache if c.args[:2] == ("dotnet", "restore"))
+        self.assertFalse(any("RestoreAdditionalProjectFallbackFolders" in arg for arg in restore.args))
+
+    def test_the_cache_folder_follows_nuget_packages_before_the_default_location(self):
+        default = pathlib.Path.home() / ".nuget" / "packages"
+
+        self.assertEqual(gate.global_packages_folder({"NUGET_PACKAGES": "/somewhere/else"}), pathlib.Path("/somewhere/else"))
+        self.assertEqual(gate.global_packages_folder({}), default)
+        self.assertEqual(gate.global_packages_folder({"NUGET_PACKAGES": "  "}), default)
+
+    def test_the_packed_set_is_the_project_reference_closure_of_the_contract_package_and_covers_the_sample(self):
+        packages = gate.contract_sample_packages()
+
+        self.assertEqual(packages[-1], "Tracon.Testing.Contracts.Xunit")
+        self.assertIn("Tracon.Abstractions", packages)
+        self.assertLess(packages.index("Tracon.Abstractions"), packages.index("Tracon.Testing.Contracts.Xunit"))
+        # Every Tracon package the sample's two projects take by PackageReference is in the feed, or the restore fails.
+        for project in ("Tracon.Samples.FileRunStore", "Tracon.Samples.FileRunStore.Tests"):
+            text = (ROOT / "samples" / project / f"{project}.csproj").read_text(encoding="utf-8")
+            for package in re.findall(r'<PackageReference\s+Include="(Tracon[\w.]*)"', text):
+                self.assertIn(package, packages, f"{project} restores {package} from the temporary feed")
+        for package in packages:
+            self.assertTrue((ROOT / "src" / package / f"{package}.csproj").is_file(), package)
+
+    def test_the_closure_follows_nested_project_references_dependencies_first(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for name, references in (("Tracon.A", ["Tracon.B", "Tracon.C"]), ("Tracon.B", ["Tracon.C"]), ("Tracon.C", [])):
+                project = root / "src" / name
+                project.mkdir(parents=True)
+                body = "".join(f'<ProjectReference Include="../{ref}/{ref}.csproj" />' for ref in references)
+                (project / f"{name}.csproj").write_text(f"<Project><ItemGroup>{body}</ItemGroup></Project>", encoding="utf-8")
+
+            self.assertEqual(
+                gate.contract_sample_packages(root, contract_package="Tracon.A"), ("Tracon.C", "Tracon.B", "Tracon.A"))
+
+    def test_the_work_directory_holds_a_nuget_config_that_maps_tracon_to_the_temporary_feed_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory) / "contract-sample"
+            (work / "left-over").mkdir(parents=True)
+
+            gate.prepare_contract_sample(work)
+
+            # A run starts from nothing: what the last red run left behind is gone.
+            self.assertFalse((work / "left-over").exists())
+            self.assertTrue((work / "feed").is_dir())
+            tree = ElementTree.parse(work / "NuGet.config")
+            sources = {add.get("key"): add.get("value") for add in tree.getroot().iter("add")}
+            self.assertEqual(sources["tracon-contract-sample"], str(work / "feed"))
+            self.assertIn("nuget.org", sources)
+            mapping = {
+                source.get("key"): [package.get("pattern") for package in source]
+                for source in tree.getroot().iter("packageSource")}
+            self.assertEqual(mapping["tracon-contract-sample"], ["Tracon*"])
+            self.assertEqual(mapping["nuget.org"], ["*"])
+
+    def test_the_work_directory_is_removed_after_a_green_run_and_after_a_red_one(self):
+        for exit_code in (0, 1):
+            with self.subTest(exit_code=exit_code), tempfile.TemporaryDirectory() as directory:
+                work = pathlib.Path(directory) / "contract-sample"
+                seen: list[bool] = []
+
+                def run(stage, commands, **options):  # noqa: ANN001, ANN202
+                    seen.append((work / "NuGet.config").is_file())
+                    return exit_code
+
+                with mock.patch.object(gate, "run_commands", side_effect=run):
+                    result = gate.run_with_contract_sample("inner-loop", [], work=work)
+
+                self.assertEqual(result, exit_code)
+                self.assertEqual(seen, [True], "the config exists while the commands run")
+                self.assertFalse(work.exists())
+
+    def test_the_work_directory_is_removed_when_the_run_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory) / "contract-sample"
+
+            with mock.patch.object(gate, "run_commands", side_effect=KeyboardInterrupt), \
+                    self.assertRaises(KeyboardInterrupt):
+                gate.run_with_contract_sample("close", [], work=work)
+
+            self.assertFalse(work.exists())
+
+    def test_a_listing_only_run_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory) / "contract-sample"
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = gate.run_with_contract_sample(
+                    "inner-loop", [gate.Command(("echo", "x"))], dry_run=True, work=work)
+
+            self.assertEqual(result, 0)
+            self.assertFalse(work.exists())
+
+    def test_the_inner_loop_command_lists_the_sample_steps_for_a_contract_change(self):
+        with mock.patch.object(gate, "changed_paths", return_value=[self.CONTRACT_PATH]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            code = gate.main(["--print-commands", "inner-loop"])
+
+        self.assertEqual(code, 0)
+        listed = [line for line in output.getvalue().splitlines() if line.startswith("$ ")]
+        self.assertTrue(any(f"dotnet test --project {self.SAMPLE_PROJECT}" in line for line in listed), listed)
+
+    def test_the_closing_command_lists_the_sample_steps_for_a_contract_change_and_when_git_cannot_say(self):
+        for paths, expected in (([self.CONTRACT_PATH], True), (["src/Tracon.Core/Thing.cs"], False), (None, True)):
+            with self.subTest(paths=paths), mock.patch.object(gate, "changed_paths", return_value=paths), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                code = gate.main(["--print-commands", "close", "--base", "abc123"])
+
+            self.assertEqual(code, 0)
+            listed = [line for line in output.getvalue().splitlines() if line.startswith("$ ")]
+            self.assertEqual(
+                any(f"dotnet test --project {self.SAMPLE_PROJECT}" in line for line in listed), expected, paths)
+
+    def test_the_sample_project_exists_and_the_release_rehearsal_runs_it_too(self):
+        # The same project, two gates: a rename that reaches only one of them leaves the other one green and empty.
+        self.assertTrue((ROOT / gate.CONTRACT_SAMPLE_PROJECT).is_file(), gate.CONTRACT_SAMPLE_PROJECT)
+        sys.path.insert(0, str(ROOT / "scripts"))
+        release_samples = importlib.import_module("release_extension_samples")
+
+        self.assertIn(pathlib.PurePosixPath(gate.CONTRACT_SAMPLE_PROJECT).stem, release_samples.SAMPLE_TEST_PROJECTS)
+
+    def test_no_listed_step_names_a_file_outside_the_public_tree(self):
+        for command in gate.contract_sample_commands(self.VERSION):
+            self.assertNotIn(".agents", command.display)
+            self.assertNotIn("docs/", command.display)
+
+
 class CommandSurfaceTests(unittest.TestCase):
     """The command line of `gate.py` is English: command names, flag names, and every line the commands print."""
 

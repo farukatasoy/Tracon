@@ -39,6 +39,8 @@ python3 scripts/gate.py close --base <commit before your work>   # everything, c
 
 The runner prints every command it runs, stops at the first red, and records
 timings. `--print-commands` lists the commands without running any of them.
+A change under `src/Tracon.Testing.Contracts.Xunit/` also packs that package and
+runs `samples/Tracon.Samples.FileRunStore.Tests` against the pack (about 12 s).
 
 Underneath, the four are `dotnet build`, `dotnet test`, `dotnet pack`, and
 `dotnet format --verify-no-changes`. Each catches something the others do not:
