@@ -41,6 +41,12 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// not by full brace-balance tracking, so a `$"...{ }..."` interpolation
 /// inside the block cannot confuse it the way brace counting would.
 /// </para>
+/// <para>
+/// A third shape needs no <c>catch</c>: a provider's <c>ErrorContent</c> carries a
+/// message the adapter wrote, and a method that takes one and reads its <c>.Message</c> puts that text toward a
+/// record the same way. The scan reports a method whose signature names <c>ErrorContent</c> and whose body (up to
+/// the next line at the signature's own indent) reads <c>.Message</c>.
+/// </para>
 /// </remarks>
 public sealed class RawExceptionTextSiteTests
 {
@@ -59,6 +65,17 @@ public sealed class RawExceptionTextSiteTests
     /// </summary>
     private static readonly Regex RunEventDraftCreation = new(
         @"\bnew\s+RunEventDraft\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex ErrorContentToken = new(
+        @"\bErrorContent\b",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>A member name written straight against its parameter list, so a tuple return type is not taken for it.</summary>
+    private static readonly Regex MemberNameAgainstParen = new(
+        @"(?<name>[A-Za-z_][A-Za-z0-9_]*)(?:<[^>(]*>)?\(",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -204,6 +221,52 @@ public sealed class RawExceptionTextSiteTests
     }
 
     /// <summary>
+    /// A method that takes an <c>ErrorContent</c> and reads its <c>.Message</c> is a site with no <c>catch</c> near
+    /// it, whether the body is a block or an expression, whatever the return type, and the scan stops at the end of
+    /// that method: a neighbour that reads another <c>.Message</c> is not reported for it.
+    /// </summary>
+    [Fact]
+    public void Scan_reports_a_method_that_reads_the_message_of_an_ErrorContent()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-raw-exception-text-test");
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(directory.FullName, "Sample.cs"),
+                """
+                namespace Sample;
+
+                internal static class Notice
+                {
+                    private static (string Text, string Payload) Block(ErrorContent error, int limit)
+                    {
+                        var code = error.ErrorCode;
+
+                        return (code, error.Message);
+                    }
+
+                    private static string Expression(
+                        ErrorContent error)
+                        => error.Message;
+
+                    private static string OnlyTheCode(ErrorContent error)
+                        => error.ErrorCode;
+
+                    private static string Neighbour(Problem problem)
+                        => problem.Message;
+                }
+                """);
+
+            Scan(directory.FullName).ShouldBe(new[] { "Sample.cs:Block", "Sample.cs:Expression" });
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
     /// A <c>catch</c> naming a specific, non-<c>Exception</c> type is not the
     /// shape this scan targets, even when it references <c>.Message</c>.
     /// </summary>
@@ -267,6 +330,14 @@ public sealed class RawExceptionTextSiteTests
                     FindEnclosingMethod(lines, i) is { } draftMethod)
                 {
                     sites.Add($"{relative}:{draftMethod}");
+                }
+
+                if (AccessModifierLine.IsMatch(lines[i]) &&
+                    SignatureNamesErrorContent(lines, i) &&
+                    BodyReferencesMessage(lines, i) &&
+                    MemberNameAgainstParen.Match(lines[i]) is { Success: true } errorMember)
+                {
+                    sites.Add($"{relative}:{errorMember.Groups["name"].Value}");
                 }
 
                 if (!CatchException.IsMatch(lines[i]))
@@ -344,6 +415,77 @@ public sealed class RawExceptionTextSiteTests
             }
 
             var trimmed = lines[j].TrimStart();
+
+            if (!trimmed.StartsWith("//", StringComparison.Ordinal) &&
+                lines[j].Contains(".Message", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether the member that starts on <paramref name="lineIndex"/> is a method (it has a parameter list) whose
+    /// signature names <c>ErrorContent</c>. A signature that wraps is read up to its body: the first line that is a
+    /// lone <c>{</c>, holds <c>=&gt;</c> or ends a statement.
+    /// </summary>
+    private static bool SignatureNamesErrorContent(string[] lines, int lineIndex)
+    {
+        var signature = new StringBuilder();
+
+        for (var j = lineIndex; j < lines.Length && j <= lineIndex + 6; j++)
+        {
+            var trimmed = lines[j].Trim();
+
+            if (j > lineIndex && string.Equals(trimmed, "{", StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            signature.Append(' ').Append(trimmed);
+
+            if (trimmed.Contains("=>", StringComparison.Ordinal) || trimmed.EndsWith(';'))
+            {
+                break;
+            }
+        }
+
+        var text = signature.ToString();
+
+        return text.Contains('(', StringComparison.Ordinal) && ErrorContentToken.IsMatch(text);
+    }
+
+    /// <summary>
+    /// Whether the body of the member that starts on <paramref name="signatureIndex"/> reads <c>.Message</c>. The
+    /// body runs to the next line, past the opening brace, whose indent is not deeper than the signature's: Allman
+    /// braces and a member that follows both sit at that indent.
+    /// </summary>
+    private static bool BodyReferencesMessage(string[] lines, int signatureIndex)
+    {
+        var indent = IndentOf(lines[signatureIndex]);
+        var openedBlock = false;
+
+        for (var j = signatureIndex + 1; j < lines.Length; j++)
+        {
+            var trimmed = lines[j].Trim();
+
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            if (!openedBlock && IndentOf(lines[j]) == indent && string.Equals(trimmed, "{", StringComparison.Ordinal))
+            {
+                openedBlock = true;
+                continue;
+            }
+
+            if (IndentOf(lines[j]) <= indent)
+            {
+                return false;
+            }
 
             if (!trimmed.StartsWith("//", StringComparison.Ordinal) &&
                 lines[j].Contains(".Message", StringComparison.Ordinal))
