@@ -108,6 +108,67 @@ public sealed class ApprovalEndpointTests
         (await TraconTestHost.ReadJsonAsync(pendingAfter)).EnumerateArray().ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// The moments of an approval come from the registered clock: the request's creation, the time it waits until, the decision
+    /// and the audit entry of the decision. A host whose clock is in another year than the system's reads year 2000 everywhere.
+    /// </summary>
+    /// <remarks>
+    /// The static gate over the wall clock holds that no direct read came back; it does not hold that the clock which replaced it
+    /// is the one that was passed. A stamp taken from the system clock would read this year here.
+    /// </remarks>
+    [Fact]
+    public async Task The_approval_and_its_decision_are_stamped_with_the_registered_clock()
+    {
+        var clock = new ManualClock(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var pollInterval = TimeSpan.FromMilliseconds(20);
+
+        await using var host = await TraconTestHost.StartAsync(
+            tracon =>
+            {
+                ConfigureApprovalAgent(tracon);
+                tracon.UseScheduling(o => o.PollInterval = pollInterval);
+            },
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
+
+        using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-clock" });
+
+        var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
+        var runUri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
+
+        // The worker polls on the host's clock, which stands still: the test steps the poll timer and nothing beyond it.
+        var waiting = WaitUntil.ValueAsync(
+            async () =>
+            {
+                using var poll = await host.Client.GetAsync(runUri);
+
+                return (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
+            },
+            static status => string.Equals(status, "AwaitingApproval", StringComparison.Ordinal),
+            $"run {runId} to wait for its approval");
+
+        await clock.AdvanceUntilAsync(waiting, within: pollInterval);
+        await waiting;
+
+        using var pendingResponse = await host.Client.GetAsync(PendingApprovals);
+        var pending = (await TraconTestHost.ReadJsonAsync(pendingResponse)).EnumerateArray().ShouldHaveSingleItem();
+
+        pending.GetProperty("createdAt").GetDateTimeOffset().Year.ShouldBe(2000);
+        pending.GetProperty("expiresAt").GetDateTimeOffset().Year.ShouldBe(2000);
+
+        using var decideResponse = await host.Client.PostAsJsonAsync(
+            new Uri($"/tracon/api/approvals/{pending.GetProperty("id").GetGuid()}/decide", UriKind.Relative),
+            new ApprovalDecisionRequest { Approved = true });
+
+        decideResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await TraconTestHost.ReadJsonAsync(decideResponse)).GetProperty("decidedAt").GetDateTimeOffset().Year.ShouldBe(2000);
+
+        using var auditResponse = await host.Client.GetAsync(new Uri("/tracon/api/audit", UriKind.Relative));
+        var entry = (await TraconTestHost.ReadJsonAsync(auditResponse)).EnumerateArray()
+            .First(static item => string.Equals(item.GetProperty("action").GetString(), "approval.decision", StringComparison.Ordinal));
+
+        entry.GetProperty("createdAt").GetDateTimeOffset().Year.ShouldBe(2000);
+    }
+
     [Fact]
     public async Task Second_decision_on_the_same_approval_gets_409()
     {
