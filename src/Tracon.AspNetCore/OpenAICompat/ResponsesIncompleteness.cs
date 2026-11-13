@@ -198,6 +198,22 @@ internal sealed class ResponsesStreamRewriter(string? model = null)
     /// <returns>The same string, or the rewritten frame.</returns>
     internal string Patch(string frame)
     {
+        try
+        {
+            return PatchFrame(frame);
+        }
+        catch (ArgumentException)
+        {
+            // A body that parses as an object but repeats a key: the parser accepts it and the first read of the
+            // key throws. The rewrite is best effort and has no token to honour, so a frame it cannot read goes out
+            // as MAF wrote it (the rule for every frame this type cannot read) instead of stopping the stream, and
+            // MissedTerminalFrame keeps what it said.
+            return frame;
+        }
+    }
+
+    private string PatchFrame(string frame)
+    {
         // The frames that carry the whole response object get the model field; every other frame passes through
         // as the same string.
         if (model is not null)

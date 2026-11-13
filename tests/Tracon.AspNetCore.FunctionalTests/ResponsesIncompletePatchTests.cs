@@ -221,12 +221,36 @@ public sealed class ResponsesIncompletePatchTests
     // CRLF ends is not recognised, passes through unchanged and is reported, so the endpoint logs that the
     // status stayed "completed" instead of rewriting half of a frame it cannot read.
     [InlineData("event: response.completed\r\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[]}}\r\n\r\n")]
+
+    // A body that parses but repeats a key: the parser accepts it and the first read of that key throws an
+    // ArgumentException, so a frame like this cannot be read either and must not stop the stream.
+    [InlineData("event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[]},\"response\":{\"status\":\"completed\",\"output\":[]}}\n\n")]
+    [InlineData("event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"status\":\"completed\",\"output\":[]}}\n\n")]
     public async Task A_terminal_frame_this_code_cannot_read_passes_through_and_is_reported_missing(string unreadable)
     {
         var rewriter = await EndedAsync(ChatFinishReason.Length);
 
         rewriter.Patch(unreadable).ShouldBeSameAs(unreadable);
         rewriter.MissedTerminalFrame.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_closing_item_with_a_repeated_key_passes_through_as_it_is()
+    {
+        var rewriter = await EndedAsync(ChatFinishReason.Length);
+        var repeated = "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"message\",\"status\":\"completed\"},\"item\":{\"type\":\"message\",\"status\":\"completed\"}}\n\n";
+
+        rewriter.Patch(repeated).ShouldBeSameAs(repeated);
+        rewriter.Patch(CompletedFrame()).ShouldNotBeSameAs(repeated, "a later, readable frame is still rewritten");
+    }
+
+    [Fact]
+    public void A_frame_that_carries_the_model_and_repeats_a_key_passes_through_as_it_is()
+    {
+        var rewriter = new ResponsesStreamRewriter("a-model");
+        var repeated = "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\"},\"response\":{\"id\":\"resp_2\"}}\n\n";
+
+        rewriter.Patch(repeated).ShouldBeSameAs(repeated);
     }
 
     [Fact]
