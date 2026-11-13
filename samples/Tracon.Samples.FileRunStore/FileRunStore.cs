@@ -182,7 +182,8 @@ public sealed class JsonFileRunStore : IRunStore
                 }
             }
 
-            log.Add(runEvent);
+            // The expected tenant is the guard of the write and is not stored: the event reads back without it.
+            log.Add(runEvent with { TenantId = null });
             Save();
         }
 
@@ -606,7 +607,7 @@ public sealed class JsonFileRunStore : IRunStore
 
             if (_toolInvocations.TryGetValue(invocation.RunId, out var log))
             {
-                log.Add(invocation);
+                log.Add(invocation with { TenantId = null });
                 Save();
             }
         }
@@ -630,7 +631,7 @@ public sealed class JsonFileRunStore : IRunStore
             // invocation: it is evidence for the run and must not interrupt it.
             if (_nonTokenUsage.TryGetValue(record.RunId, out var log))
             {
-                log.Add(record);
+                log.Add(record with { TenantId = null });
                 Save();
             }
         }

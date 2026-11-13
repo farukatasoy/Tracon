@@ -231,10 +231,30 @@ public interface IRunStore
     /// store that can write the group in one statement should override it and write the group whole or not at all;
     /// Tracon treats a failed group as lost either way. An empty list writes nothing and is not an error.
     /// </para>
+    /// <para>
+    /// A group whose events name another run or another tenant (letter case aside, as <see cref="AmbientTenantScope"/>
+    /// folds it) is refused with <see cref="ArgumentException"/> before any event is written.
+    /// </para>
     /// </remarks>
     async ValueTask AppendEventsAsync(IReadOnlyList<RunEvent> events, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(events);
+
+        if (events.Count > 1)
+        {
+            var runId = events[0].RunId;
+            var tenantId = AmbientTenantScope.NormalizeOrNull(events[0].TenantId);
+
+            for (var i = 1; i < events.Count; i++)
+            {
+                if (events[i].RunId != runId
+                    || !string.Equals(AmbientTenantScope.NormalizeOrNull(events[i].TenantId), tenantId, StringComparison.Ordinal))
+                {
+                    throw new ArgumentException(
+                        "The events of one group must all belong to the same run and carry the same tenant.", nameof(events));
+                }
+            }
+        }
 
         for (var i = 0; i < events.Count; i++)
         {
