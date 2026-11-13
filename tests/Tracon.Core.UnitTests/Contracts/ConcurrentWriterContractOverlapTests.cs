@@ -114,6 +114,18 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new TenantToolPolicyFixture(), static contract => contract.Concurrent_saves_for_one_tenant_leave_one_whole_policy());
 
     [Fact]
+    public Task The_webhook_subscription_save_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new WebhookFixture(), static contract => contract.Writers_that_save_one_name_at_the_same_time_leave_one_subscription());
+
+    [Fact]
+    public Task The_webhook_failure_counter_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new WebhookFixture(), static contract => contract.Failure_counter_counts_every_concurrent_failure());
+
+    [Fact]
+    public Task The_webhook_threshold_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new WebhookFixture(), static contract => contract.Exactly_one_of_several_concurrent_failures_at_the_threshold_reports_the_disable());
+
+    [Fact]
     public Task The_workflow_definition_save_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new WorkflowDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content());
 
@@ -286,6 +298,16 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<ITenantToolPolicyStore> CreateStoreAsync()
             => ValueTask.FromResult(OverlapProbe.Wrap<ITenantToolPolicyStore>(new InMemoryTenantToolPolicyStore(), out _probe));
+    }
+
+    private sealed class WebhookFixture : WebhookStoreContract, IProbedContract
+    {
+        private OverlapProbe<IWebhookStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IWebhookStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IWebhookStore>(new InMemoryWebhookStore(), out _probe));
     }
 
     private sealed class WorkflowDefinitionFixture : WorkflowDefinitionStoreContract, IProbedContract

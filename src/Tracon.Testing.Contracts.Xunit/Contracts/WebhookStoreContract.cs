@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -196,24 +198,21 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     [Fact]
     public async Task Writers_that_save_one_name_at_the_same_time_leave_one_subscription()
     {
-        const int Writers = 32;
+        // The writers start on threads of their own, released together, at a name of their own each round: saves started one
+        // after the other on one thread never overlap, and a task that waits on a gate may be resumed one after the other by
+        // the thread that opens it.
+        const int Writers = 8;
+        const int Rounds = 20;
 
-        for (var round = 0; round < 20; round++)
+        for (var round = 0; round < Rounds; round++)
         {
             var name = "racing-" + round;
-            var gate = new TaskCompletionSource();
-            var writers = Enumerable.Range(0, Writers)
-                .Select(index => Task.Run(async () =>
-                {
-                    await gate.Task;
 
-                    return await Store.SaveSubscriptionAsync(Subscription(name: name, url: "https://example.com/" + index));
-                }))
-                .ToList();
+            var subscriptions = Enumerable.Range(0, Writers).Select(index => Subscription(name: name, url: "https://example.com/" + index)).ToArray();
 
-            gate.SetResult();
-
-            var saved = await Task.WhenAll(writers);
+            var saved = SimultaneousCalls.Run(
+                Writers,
+                index => Store.SaveSubscriptionAsync(subscriptions[index]).AsTask().GetAwaiter().GetResult());
 
             (await Store.ListSubscriptionsAsync(Tenant)).Count(subscription => string.Equals(subscription.Name, name, StringComparison.Ordinal)).ShouldBe(1, $"round {round}: two subscriptions hold one name");
             saved.Select(static subscription => subscription.Id).Distinct().Count().ShouldBe(1, $"round {round}: the writers were handed different subscriptions");
@@ -419,22 +418,31 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     public async Task Failure_counter_counts_every_concurrent_failure()
     {
         // Deliveries of one subscription run on several job slots at once. A counter that is read, raised and
-        // written back in separate steps loses the increments of the writers that overlap.
-        const int Writers = 4;
-        const int PerWriter = 50;
+        // written back in separate steps loses the increments of the writers that overlap. The writers start on threads
+        // of their own, released together, and each reports many failures to a subscription of its own each round: the
+        // window two overlapping reports need is a few instructions wide in a store that keeps its counter in memory.
+        const int Writers = 8;
+        const int PerWriter = 10;
+        const int Rounds = 10;
 
-        var subscription = await Store.SaveSubscriptionAsync(Subscription());
-        var now = DateTimeOffset.UtcNow;
-
-        await Task.WhenAll(Enumerable.Range(0, Writers).Select(_ => Task.Run(async () =>
+        for (var round = 0; round < Rounds; round++)
         {
-            for (var index = 0; index < PerWriter; index++)
-            {
-                await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, int.MaxValue, now);
-            }
-        })));
+            var name = "counting-" + round;
+            var subscription = await Store.SaveSubscriptionAsync(Subscription(name: name));
+            var now = DateTimeOffset.UtcNow;
 
-        (await Store.GetSubscriptionAsync(Tenant, "orders"))!.ConsecutiveFailures.ShouldBe(Writers * PerWriter);
+            SimultaneousCalls.Run(
+                Writers,
+                _ =>
+                {
+                    for (var index = 0; index < PerWriter; index++)
+                    {
+                        Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, int.MaxValue, now).AsTask().GetAwaiter().GetResult();
+                    }
+                });
+
+            (await Store.GetSubscriptionAsync(Tenant, name))!.ConsecutiveFailures.ShouldBe(Writers * PerWriter, $"round {round}: a failure was not counted");
+        }
     }
 
     [Fact]
@@ -559,22 +567,29 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     {
         // Deliveries of one subscription fail on several job slots at once. The call that crosses the threshold
         // answers true; a store that reads "off" after its own update, or reads the old state without a lock, lets
-        // two of them (or none) answer true.
+        // two of them (or none) answer true. The writers start on threads of their own, released together, at a
+        // subscription of their own each round.
         const int Writers = 16;
         const int Threshold = 5;
+        const int Rounds = 10;
 
-        var subscription = await Store.SaveSubscriptionAsync(Subscription());
-        var now = DateTimeOffset.UtcNow;
+        for (var round = 0; round < Rounds; round++)
+        {
+            var name = "threshold-" + round;
+            var subscription = await Store.SaveSubscriptionAsync(Subscription(name: name));
+            var now = DateTimeOffset.UtcNow;
 
-        var answers = await Task.WhenAll(Enumerable.Range(0, Writers).Select(_ => Task.Run(
-            async () => await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, Threshold, now))));
+            var answers = SimultaneousCalls.Run(
+                Writers,
+                _ => Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, Threshold, now).AsTask().GetAwaiter().GetResult());
 
-        answers.Count(answer => answer).ShouldBe(1);
+            answers.Count(answer => answer).ShouldBe(1, $"round {round}: the disable was reported by more than one call, or by none");
 
-        var loaded = await Store.GetSubscriptionAsync(Tenant, "orders");
-        loaded.ShouldNotBeNull();
-        loaded.Enabled.ShouldBeFalse();
-        loaded.ConsecutiveFailures.ShouldBe(Writers);
+            var loaded = await Store.GetSubscriptionAsync(Tenant, name);
+            loaded.ShouldNotBeNull();
+            loaded.Enabled.ShouldBeFalse($"round {round}");
+            loaded.ConsecutiveFailures.ShouldBe(Writers, $"round {round}");
+        }
     }
 
     [Fact]
