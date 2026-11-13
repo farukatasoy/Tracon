@@ -16699,7 +16699,7 @@ namespace Tracon.Client.Generated
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<System.Text.Json.JsonElement> TraconExportDataSubjectAsync(string id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<TraconApiResponse<System.Text.Json.JsonElement>> TraconExportDataSubjectAsync(string id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             if (id == null)
                 throw new System.ArgumentNullException("id");
@@ -16746,7 +16746,7 @@ namespace Tracon.Client.Generated
                         if (status_ == 200)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<System.Text.Json.JsonElement>(response_, headers_, cancellationToken).ConfigureAwait(false);
-                            return objectResponse_.Object;
+                            return new TraconApiResponse<System.Text.Json.JsonElement>(status_, headers_, objectResponse_.Object);
                         }
                         else
                         if (status_ == 400)
@@ -31644,6 +31644,32 @@ namespace Tracon.Client.Generated
                 _response.Dispose();
             if (_client != null)
                 _client.Dispose();
+        }
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class TraconApiResponse
+    {
+        public int StatusCode { get; private set; }
+
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IEnumerable<string>> Headers { get; private set; }
+
+        public TraconApiResponse(int statusCode, System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IEnumerable<string>> headers)
+        {
+            StatusCode = statusCode;
+            Headers = headers;
+        }
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class TraconApiResponse<TResult> : TraconApiResponse
+    {
+        public TResult Result { get; private set; }
+
+        public TraconApiResponse(int statusCode, System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IEnumerable<string>> headers, TResult result)
+            : base(statusCode, headers)
+        {
+            Result = result;
         }
     }
 

@@ -11,8 +11,10 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// The export was the one answer of the document with a 200 and no body schema, so the typed method returned nothing and
-/// the document the caller asked for could only be read through a hand-made request. The C# client cannot read the
-/// <c>X-Tracon-Unresolved-Conversations</c> header (it returns no response wrapper); the TypeScript schema names it.
+/// the document the caller asked for could only be read through a hand-made request. It is also the one operation of the
+/// document that names a response header, <c>X-Tracon-Unresolved-Conversations</c>: the count of sessions whose
+/// conversation the export could not look up, which tells a caller whether the document is complete. The method therefore
+/// returns the response wrapper (the status, the headers and the document), and no other method does.
 /// </remarks>
 public sealed class GeneratedClientDataSubjectExportTests
 {
@@ -22,10 +24,24 @@ public sealed class GeneratedClientDataSubjectExportTests
         await using var host = await TraconTestHost.StartAsync(
             configureServices: static services => services.AddSingleton<IDataSubjectResolver>(new EmptyScopeResolver()));
 
-        var document = await CreateClient(host).TraconExportDataSubjectAsync("subject");
+        var response = await CreateClient(host).TraconExportDataSubjectAsync("subject");
 
-        document.ValueKind.ShouldBe(JsonValueKind.Object);
-        document.EnumerateObject().Any().ShouldBeTrue("the document holds a key for every target table, an empty array when nothing matches");
+        response.StatusCode.ShouldBe(200);
+        response.Result.ValueKind.ShouldBe(JsonValueKind.Object);
+        response.Result.EnumerateObject().Any().ShouldBeTrue("the document holds a key for every target table, an empty array when nothing matches");
+    }
+
+    [Fact]
+    public async Task The_export_hands_the_caller_the_header_that_counts_the_conversations_it_could_not_look_up()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services => services.AddSingleton<IDataSubjectResolver>(new EmptyScopeResolver()));
+
+        var response = await CreateClient(host).TraconExportDataSubjectAsync("subject");
+
+        // Written on every 200: "0" says every conversation was looked up, so an absent header is not a clean export.
+        response.Headers.ShouldContainKey("X-Tracon-Unresolved-Conversations");
+        response.Headers["X-Tracon-Unresolved-Conversations"].ShouldHaveSingleItem().ShouldBe("0");
     }
 
     [Fact]
