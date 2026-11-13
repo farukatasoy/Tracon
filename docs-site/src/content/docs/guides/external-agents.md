@@ -343,6 +343,11 @@ the management run endpoint: the tenant, the agent, the user your `IRunAttributi
 names, and `RunAccess.Start`. A refused call starts no run, calls no model and opens no run
 row. A handler that throws refuses the call and is logged at `Error` level.
 
+The attribution your `IRunAttributionContext` names is checked first, with or without a handler: a user
+identifier over 200 characters, more than 8 labels, a label key over 64 characters or a value over 256 refuses the
+call with the same sentence the management API answers with `400`, and the handler is not asked. Over A2A the
+sentence reaches the caller as the text of the error; over MCP it is the text of a tool result with `isError` set.
+
 | | The handler is told | A refusal reaches the caller as |
 |---|---|---|
 | A2A (`SendMessage`, `SendStreamingMessage`) | `SessionId` is the conversation's identity (it starts with `a2a:`) | The opaque `-32603` error every refusal on this surface is. The handler's reason and the cause are in the server log at `Error` level |

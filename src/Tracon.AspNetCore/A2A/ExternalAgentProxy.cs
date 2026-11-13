@@ -184,6 +184,15 @@ internal sealed class ExternalAgentProxy : AIAgent
     private async ValueTask AuthorizeRunAsync(AgentSession? session, CancellationToken cancellationToken)
     {
         var services = _services!;
+
+        // The attribution limits hold on every surface that starts a run, with or without a handler: an oversized label set
+        // is refused here, as the management API refuses it with a 400, instead of being dropped quietly when the run is
+        // recorded. The sentence reaches the caller, like the other refusals of this surface that are the caller's to fix.
+        if (RunAttributionGate.Validate(services.GetService<IRunAttributionContext>()) is { } invalid)
+        {
+            throw Refuse(invalid);
+        }
+
         var handler = services.GetService<IRunAuthorizationHandler>();
 
         if (handler is null)

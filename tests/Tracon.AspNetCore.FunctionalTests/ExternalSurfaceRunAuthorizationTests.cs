@@ -323,6 +323,80 @@ public sealed class ExternalSurfaceRunAuthorizationTests
         handler.RunRequests.ShouldHaveSingleItem().TenantId.ShouldBe("tenant-a");
     }
 
+    // ---- Attribution limits ------------------------------------------------------
+
+    [Fact]
+    public async Task A2A_SendMessage_with_an_oversized_attribution_is_refused_with_the_sentence_before_the_handler_is_asked()
+    {
+        var provider = Provider();
+        var handler = new RecordingHandler();
+        await using var host = await StartA2AAsync(provider, handler, new OversizedAttribution());
+
+        var (_, body) = await SendA2AAsync(host, "hello", contextId: "ctx-1", streaming: false);
+
+        body.ShouldContain("\"error\"");
+        body.ShouldContain("The run did not start", Case.Sensitive, "the caller can fix this, so the sentence reaches it");
+        handler.RunRequests.ShouldBeEmpty("an attribution the platform refuses is not put to the installation's policy");
+        provider.Requests.ShouldBeEmpty();
+        (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken))
+            .ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A2A_SendStreamingMessage_with_an_oversized_attribution_is_refused()
+    {
+        var provider = Provider();
+        await using var host = await StartA2AAsync(provider, new RecordingHandler(), new OversizedAttribution());
+
+        var (_, body) = await SendA2AAsync(host, "hello", contextId: "ctx-1", streaming: true);
+
+        body.ShouldContain("The run did not start");
+        provider.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Mcp_tools_call_with_an_oversized_attribution_is_an_error_result_before_the_handler_is_asked()
+    {
+        var provider = Provider();
+        var handler = new RecordingHandler();
+        await using var host = await StartMcpAsync(provider, handler, new OversizedAttribution());
+
+        var result = await CallMcpAsync(host, "hello");
+
+        IsError(result).ShouldBeTrue();
+        ResultText(result).ShouldContain("The run did not start");
+        handler.RunRequests.ShouldBeEmpty();
+        provider.Requests.ShouldBeEmpty();
+        (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Mcp_task_mode_call_with_an_oversized_attribution_is_refused_before_a_task_exists()
+    {
+        var provider = Provider();
+        await using var host = await StartMcpAsync(provider, new RecordingHandler(), new OversizedAttribution(), enableTasks: true);
+
+        await using var client = await McpTaskTestClient.ConnectAsync(host.Client, "/tracon/mcp");
+
+        var outcome = await client.CallToolAsTaskAsync(
+            new CallToolRequestParams { Name = "tracon_" + Agent, Arguments = Arguments("hello") },
+            TestContext.Current.CancellationToken);
+
+        outcome.IsTask.ShouldBeFalse("a refused call opens no task");
+        provider.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task An_attribution_within_the_limits_is_not_refused_by_either_protocol()
+    {
+        var provider = Provider();
+        await using var a2a = await StartA2AAsync(provider, new RecordingHandler(), attribution: new string('u', 200));
+        await using var mcp = await StartMcpAsync(provider, new RecordingHandler(), attribution: new string('u', 200));
+
+        (await SendA2AAsync(a2a, "hello", contextId: "ctx-1", streaming: false)).Body.ShouldContain("\"result\"");
+        IsError(await CallMcpAsync(mcp, "hello")).ShouldBeFalse();
+    }
+
     [Fact]
     public async Task A2A_message_is_asked_in_the_tenant_of_the_request()
     {
@@ -590,6 +664,14 @@ public sealed class ExternalSurfaceRunAuthorizationTests
         => host.Logs.Entries
             .Where(static line => line.StartsWith("Error Tracon.RunAuthorization ", StringComparison.Ordinal))
             .ToList();
+
+    /// <summary>An attribution whose user identifier is one character over the limit.</summary>
+    private sealed class OversizedAttribution : IRunAttributionContext
+    {
+        public string? UserId => new('u', RunLabels.MaxUserIdLength + 1);
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
+    }
 
     private sealed class SwitchableAttribution : IRunAttributionContext
     {

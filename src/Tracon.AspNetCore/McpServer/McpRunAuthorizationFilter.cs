@@ -61,6 +61,14 @@ internal static class McpRunAuthorizationFilter
         string agentName,
         CancellationToken cancellationToken)
     {
+        // The attribution limits hold on every surface that starts a run, with or without a handler: an oversized label set
+        // is refused here, as the management API refuses it with a 400, instead of being dropped quietly when the run is
+        // recorded.
+        if (RunAttributionGate.Validate(services.GetService<IRunAttributionContext>()) is { } invalid)
+        {
+            return CatalogToolCallHandler.Error(invalid);
+        }
+
         var handler = services.GetService<IRunAuthorizationHandler>();
 
         if (handler is null)

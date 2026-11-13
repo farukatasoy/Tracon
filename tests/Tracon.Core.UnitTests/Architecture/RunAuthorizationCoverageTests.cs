@@ -271,6 +271,21 @@ public sealed class RunAuthorizationCoverageTests
             "that breaks a limit, unattributed, where the agent run endpoint answers 400");
 
     /// <summary>
+    /// The two external protocols check the run's attribution too, in their own refusal shape and before the installation's
+    /// handler is asked. They answer a protocol error and not a status, which is why they are not in the list above; an
+    /// oversized label set was still dropped quietly when the run was recorded, where the agent run endpoint answers 400.
+    /// </summary>
+    [Fact]
+    public void Every_external_run_starting_surface_checks_the_attribution()
+        => AssertEveryFileMatches(
+            [
+                .. ExpectedExternalRunStartingFiles
+                    .Select(static file => (file.Path, AttributionMarker, file.Calls)),
+            ],
+            "'RunAttributionGate.Validate(' — a run can start there with an attribution that breaks a limit, " +
+            "unattributed, where the agent run endpoint answers 400");
+
+    /// <summary>
     /// The drain refusal, in each surface's own protocol shape. A file
     /// counts one match per run it can start in this process.
     /// </summary>
