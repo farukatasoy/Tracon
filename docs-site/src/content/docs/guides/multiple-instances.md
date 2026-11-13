@@ -55,7 +55,9 @@ builder.AddTracon()
 `UsePostgreSql` comes from the `Tracon.PostgreSql` package and `UseSqlServer` from `Tracon.SqlServer`.
 
 The profile checks that the settings are on. It does not check that your instances really share one database: it reads the
-declaration and the composition, not the network. See
+declaration and the composition, not the network. It reads the storage provider that Tracon registered, and it does not see
+a store you registered yourself. If you register your own run store and no Tracon storage provider, `InstanceLocalState`
+stays open even when your store is shared; accept it by name once you know that it is. See
 [Production deployment](/guides/production/#start-from-a-production-registration).
 
 ## What is supported

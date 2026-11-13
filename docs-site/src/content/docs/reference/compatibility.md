@@ -155,7 +155,7 @@ row ran to the end on it with no test failing; **not verified** means no run exi
 
 Every row names the test project that proves it and, in the Run column, the job of the CI workflow and the matrix cell
 that runs it. The lowest row of a table is the floor of that engine; [a version below it is not supported](#below-the-floor).
-A version newer than the highest row (PostgreSQL 19, SQL Server 2025) has no run behind it either. Unless a row says
+A version newer than the highest row (PostgreSQL 19) has no run behind it either. Unless a row says
 otherwise, its result is from one run of that workflow on `main`, on GitHub-hosted runners, on 2026-11-11, in which every
 job that ran ended green (the three jobs that publish a release are skipped on a plain push). The test counts are those
 of that run.
@@ -197,10 +197,11 @@ server with the default collation: it checks that the server runs the collation 
 | 2019 | server default | Verified: 1 796 of 1 797 (one skips) | `sqlserver-matrix` · cell `2019` · 2026-11-11 |
 | 2022 | server default | Verified: 1 796 of 1 797 (one skips); the default image of every run of the project | `test-sqlserver` · every push and pull request · 2026-11-11 |
 | 2022 | `Turkish_CI_AS`, language 1055 | Verified: 1 797 of 1 797, once the test fixture waits for the server to finish applying the collation (the image applies it after the server first accepts connections; without the wait 1 518 of 1 557 cases failed in the first run on 2026-11-04) | `sqlserver-matrix` · cell `2022, Turkish_CI_AS` · 2026-11-11 |
+| 2025 | server default | Verified: 1 796 of 1 797 (one skips); the newest server, on the `2025-latest` image | `sqlserver-matrix` · cell `2025` · 2026-11-12 |
 
 The two settings of the Turkish cell are given together: a server started with only the collation keeps English as its language, and a pooled connection fails when it is reset. The image also applies the collation after the server first accepts connections, by rebuilding the system databases and dropping every connection; a run waits until the server reports the collation before it starts.
 `TenantAlphabetCollationTests` also asks each server which of the tenant identifiers over the allowed alphabet it
-considers equal (none), on 2019, on 2022 and on 2022 with `Turkish_CI_AS`. Key columns that hold a name or an identifier
+considers equal (none), on 2019, on 2022, on 2022 with `Turkish_CI_AS` and on 2025. Key columns that hold a name or an identifier
 you choose are `Latin1_General_BIN2` on every server, so a server collation never decides which of two such values is the
 same one; the [storage table](#storage-engines) says which columns.
 

@@ -454,6 +454,9 @@ rejected too. `POST /api/agents/validate` reports it as `invalid_setting` at
 code fails compilation. The console does not edit `providerSettings`; remove a stray
 key through the HTTP API or in code.
 
+A provider you write adds nothing to the schema report of `POST /api/agents/validate` until it states
+one: implement `IResponseSchemaSupport` next to `IModelProvider`.
+
 A refusal names the key and, for a setting with a fixed set of values, the accepted
 values. It never repeats the value you wrote: a value can be a credential pasted into
 the wrong field, and the message reaches logs and run records.

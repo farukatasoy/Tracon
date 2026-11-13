@@ -29,13 +29,13 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// </remarks>
 public sealed partial class ToolSourceGovernanceTests
 {
+    /// <summary>A reason that is shorter than this is a label, not a sentence.</summary>
+    private const int MinimumReasonLength = 30;
+
     /// <summary>
     /// The files that build the chain for a tool: <c>ToolWrapperChain.Compose</c> directly, or
     /// <c>BuiltInToolGovernance.Govern</c>. A tool reaches the chain only through one of them.
     /// </summary>
-    /// <summary>A reason that is shorter than this is a label, not a sentence.</summary>
-    private const int MinimumReasonLength = 30;
-
     private static readonly string[] ChainEntries =
     [
         "src/Tracon.Core/Compilation/AgentDefinitionCompiler.Memory.cs",

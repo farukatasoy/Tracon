@@ -801,6 +801,11 @@ Blocked content never reaches the provider network and does not trip the circuit
 breaker. Recording stores the placeholder `[content_blocked]`, while the audit entry
 records the guard, rule, and direction without the blocked text.
 
+While output inspection is on, a streamed answer is held until its whole text has been
+inspected, so the client receives it in one piece. `ContentGuard:BufferStreamingOutput=false`
+sends each frame as it arrives, but then the guard sees every frame alone and a pattern
+split across two frames is not matched.
+
 ### Source-aware decisions
 
 `ContentGuardContext` carries a `Source`: `UserMessage`, `ToolResult`, `Document`,

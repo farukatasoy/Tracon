@@ -61,7 +61,7 @@ adapter you write yourself — see `Tracon.PostgreSql`'s
 
 | Environment | Status |
 |-------|-------|
-| SQL Server 2019 and later | Supported. The CI matrix runs 2019 and 2022; SQL Server 2025 has no run yet |
+| SQL Server 2019 and later | Supported. The CI matrix runs 2019, 2022 and 2025 |
 | Azure SQL Database | **Not verified, no CI run** — it cannot be started as a container, so it is not part of the support promise |
 | SQL Server 2017 and earlier | Not supported |
 

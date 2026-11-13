@@ -2538,6 +2538,11 @@ Blocked content never reaches the provider network and does not trip the circuit
 breaker. Recording stores the placeholder `[content_blocked]`, while the audit entry
 records the guard, rule, and direction without the blocked text.
 
+While output inspection is on, a streamed answer is held until its whole text has been
+inspected, so the client receives it in one piece. `ContentGuard:BufferStreamingOutput=false`
+sends each frame as it arrives, but then the guard sees every frame alone and a pattern
+split across two frames is not matched.
+
 ### Source-aware decisions
 
 `ContentGuardContext` carries a `Source`: `UserMessage`, `ToolResult`, `Document`,
@@ -14584,6 +14589,9 @@ rejected too. `POST /api/agents/validate` reports it as `invalid_setting` at
 code fails compilation. The console does not edit `providerSettings`; remove a stray
 key through the HTTP API or in code.
 
+A provider you write adds nothing to the schema report of `POST /api/agents/validate` until it states
+one: implement `IResponseSchemaSupport` next to `IModelProvider`.
+
 A refusal names the key and, for a setting with a fixed set of values, the accepted
 values. It never repeats the value you wrote: a value can be a credential pasted into
 the wrong field, and the message reaches logs and run records.
@@ -15676,7 +15684,9 @@ builder.AddTracon()
 `UsePostgreSql` comes from the `Tracon.PostgreSql` package and `UseSqlServer` from `Tracon.SqlServer`.
 
 The profile checks that the settings are on. It does not check that your instances really share one database: it reads the
-declaration and the composition, not the network. See
+declaration and the composition, not the network. It reads the storage provider that Tracon registered, and it does not see
+a store you registered yourself. If you register your own run store and no Tracon storage provider, `InstanceLocalState`
+stays open even when your store is shared; accept it by name once you know that it is. See
 [Production deployment](/guides/production/#start-from-a-production-registration).
 
 ## What is supported
@@ -23533,7 +23543,7 @@ row ran to the end on it with no test failing; **not verified** means no run exi
 
 Every row names the test project that proves it and, in the Run column, the job of the CI workflow and the matrix cell
 that runs it. The lowest row of a table is the floor of that engine; [a version below it is not supported](#below-the-floor).
-A version newer than the highest row (PostgreSQL 19, SQL Server 2025) has no run behind it either. Unless a row says
+A version newer than the highest row (PostgreSQL 19) has no run behind it either. Unless a row says
 otherwise, its result is from one run of that workflow on `main`, on GitHub-hosted runners, on 2026-11-11, in which every
 job that ran ended green (the three jobs that publish a release are skipped on a plain push). The test counts are those
 of that run.
@@ -23575,10 +23585,11 @@ server with the default collation: it checks that the server runs the collation 
 | 2019 | server default | Verified: 1 796 of 1 797 (one skips) | `sqlserver-matrix` · cell `2019` · 2026-11-11 |
 | 2022 | server default | Verified: 1 796 of 1 797 (one skips); the default image of every run of the project | `test-sqlserver` · every push and pull request · 2026-11-11 |
 | 2022 | `Turkish_CI_AS`, language 1055 | Verified: 1 797 of 1 797, once the test fixture waits for the server to finish applying the collation (the image applies it after the server first accepts connections; without the wait 1 518 of 1 557 cases failed in the first run on 2026-11-04) | `sqlserver-matrix` · cell `2022, Turkish_CI_AS` · 2026-11-11 |
+| 2025 | server default | Verified: 1 796 of 1 797 (one skips); the newest server, on the `2025-latest` image | `sqlserver-matrix` · cell `2025` · 2026-11-12 |
 
 The two settings of the Turkish cell are given together: a server started with only the collation keeps English as its language, and a pooled connection fails when it is reset. The image also applies the collation after the server first accepts connections, by rebuilding the system databases and dropping every connection; a run waits until the server reports the collation before it starts.
 `TenantAlphabetCollationTests` also asks each server which of the tenant identifiers over the allowed alphabet it
-considers equal (none), on 2019, on 2022 and on 2022 with `Turkish_CI_AS`. Key columns that hold a name or an identifier
+considers equal (none), on 2019, on 2022, on 2022 with `Turkish_CI_AS` and on 2025. Key columns that hold a name or an identifier
 you choose are `Latin1_General_BIN2` on every server, so a server collation never decides which of two such values is the
 same one; the [storage table](#storage-engines) says which columns.
 
