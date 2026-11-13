@@ -8512,6 +8512,16 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIErrorEnvelope"
+                }
+              }
+            }
           }
         }
       }
@@ -8542,6 +8552,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConversationResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIErrorEnvelope"
                 }
               }
             }
@@ -8583,6 +8603,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DeletedResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIErrorEnvelope"
                 }
               }
             }
@@ -8638,6 +8668,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ItemListResource"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIErrorEnvelope"
                 }
               }
             }
@@ -11381,9 +11421,6 @@
         "description": "A row in the audit trail that records who changed which entity and when."
       },
       "CallableAgentReference": {
-        "examples": [
-          null
-        ],
         "required": [
           "name"
         ],
@@ -14545,9 +14582,6 @@
         "description": "What a harness loop does when it ends without every criterion satisfied: return\nthe last response, or fail the run."
       },
       "LoopSettings": {
-        "examples": [
-          null
-        ],
         "required": [
           "criteria"
         ],
@@ -14841,9 +14875,6 @@
             "description": "Extra request headers, sent as given with every request to the server.\nAn HTTP response never returns a stored value: it carries every header\nname with the value \u0060***\u0060."
           },
           "headerConfigurationKeys": {
-            "examples": [
-              null
-            ],
             "type": "object",
             "additionalProperties": {
               "type": "string"
@@ -18659,9 +18690,6 @@
         "description": "Request to grant script execution permission."
       },
       "SkillSettings": {
-        "examples": [
-          null
-        ],
         "type": "object",
         "properties": {
           "disableReadApproval": {
@@ -18881,9 +18909,6 @@
         "description": "How an agent calls the agents it may call (\u0060CallableAgents\u0060)."
       },
       "SubAgentSettings": {
-        "examples": [
-          null
-        ],
         "type": "object",
         "properties": {
           "callMode": {
@@ -20999,9 +21024,6 @@
             "description": "Extra headers added to every request. An HTTP response never returns a\nstored value: it carries every header name with the value \u0060***\u0060."
           },
           "headerConfigurationKeys": {
-            "examples": [
-              null
-            ],
             "type": "object",
             "additionalProperties": {
               "type": "string"
@@ -22098,9 +22120,6 @@
         "description": "Raw JSON response for comparing two workflow definition versions. The diff is not\ncomputed on the server; the client compares the two definitions field by field."
       },
       "WorkspaceSettings": {
-        "examples": [
-          null
-        ],
         "type": "object",
         "properties": {
           "enabled": {

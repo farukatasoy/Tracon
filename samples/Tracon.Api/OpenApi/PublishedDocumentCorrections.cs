@@ -63,6 +63,13 @@ namespace Tracon.Api;
 /// optional because the server fills them in.
 /// </description>
 /// </item>
+/// <item>
+/// <description>
+/// A type whose XML documentation holds a C# sample under <c>&lt;example&gt;</c> is written with
+/// <c>"examples": [null]</c>, because the generator reads the sample as JSON. The empty list of examples is
+/// dropped; the sample stays in the XML documentation, where the examples are compiled.
+/// </description>
+/// </item>
 /// </list>
 /// </remarks>
 internal static class PublishedDocumentCorrections
@@ -90,6 +97,13 @@ internal static class PublishedDocumentCorrections
             if (context.JsonPropertyInfo is { } property && IsJsonElementDictionary(property.PropertyType))
             {
                 schema.AdditionalProperties = new OpenApiSchema();
+            }
+
+            // A C# sample in the XML documentation of a type is read as the JSON example of its schema, and it is not
+            // JSON: the schema is written with "examples": [null]. A list of nothing is no example.
+            if (schema.Examples is { Count: > 0 } examples && examples.All(static example => example is null))
+            {
+                schema.Examples = null;
             }
 
             return Task.CompletedTask;

@@ -234,6 +234,82 @@ public sealed class OpenApiDocumentShapeTests
         }
     }
 
+    [Fact]
+    public async Task No_schema_lists_examples_that_are_all_null()
+    {
+        // The generator reads an <example> as JSON. A C# sample in the XML documentation of a type is not JSON, and its
+        // schema is written with "examples": [null]: an empty example in every generated page and tool that shows one.
+        var document = await FetchDocumentAsync();
+        var offenders = new List<string>();
+
+        Scan(document, "#", offenders);
+
+        offenders.ShouldBeEmpty("schemas that list only null examples: " + string.Join(", ", offenders));
+
+        static void Scan(JsonElement node, string path, List<string> offenders)
+        {
+            switch (node.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (var member in node.EnumerateObject())
+                    {
+                        if (member.NameEquals("examples")
+                            && member.Value.ValueKind == JsonValueKind.Array
+                            && member.Value.GetArrayLength() > 0
+                            && member.Value.EnumerateArray().All(static example => example.ValueKind == JsonValueKind.Null))
+                        {
+                            offenders.Add(path);
+                        }
+
+                        Scan(member.Value, path + "/" + member.Name, offenders);
+                    }
+
+                    break;
+                case JsonValueKind.Array:
+                    var index = 0;
+
+                    foreach (var item in node.EnumerateArray())
+                    {
+                        Scan(item, path + "[" + index++ + "]", offenders);
+                    }
+
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Every_openai_compatible_operation_lists_the_403_envelope_the_server_answers_a_refused_role_with()
+    {
+        // A refused role or policy on a /v1 route is answered with the OpenAI error envelope (the denial shape marker), so
+        // an OpenAI client reads it. The chat and responses operations listed it; the four conversations operations did not.
+        var document = await FetchDocumentAsync();
+        var checkedOperations = 0;
+        var missing = new List<string>();
+
+        foreach (var path in document.GetProperty("paths").EnumerateObject().Where(static path => path.Name.StartsWith("/tracon/v1/", StringComparison.Ordinal)))
+        {
+            foreach (var operation in path.Value.EnumerateObject())
+            {
+                checkedOperations++;
+
+                var listsEnvelope = operation.Value.GetProperty("responses").TryGetProperty("403", out var forbidden)
+                    && forbidden.GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString()!
+                        .EndsWith("/OpenAIErrorEnvelope", StringComparison.Ordinal);
+
+                if (!listsEnvelope)
+                {
+                    missing.Add($"{operation.Name.ToUpperInvariant()} {path.Name}");
+                }
+            }
+        }
+
+        checkedOperations.ShouldBeGreaterThanOrEqualTo(6);
+        missing.ShouldBeEmpty("operations that do not list the 403 envelope: " + string.Join(", ", missing));
+    }
+
     [Theory]
     [MemberData(nameof(OperationsThatAnswerNotImplemented))]
     public async Task An_operation_that_answers_501_for_a_missing_capability_lists_it(string operationId)

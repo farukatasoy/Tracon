@@ -60,7 +60,8 @@ internal static class OpenAIConversationsEndpoints
                 "An identifier reservation: the session is born on the first /v1/responses call. " +
                 "The returned identifier is used directly in the 'conversation' field.")
             .Produces<ConversationResource>(StatusCodes.Status200OK)
-            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest);
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden);
 
         builder.MapGet("/v1/conversations/{conversationId}", RetrieveAsync)
             .RequireRole(roles.Operator)
@@ -77,6 +78,7 @@ internal static class OpenAIConversationsEndpoints
                 "holds. 404 means the caller is refused: the registered authorization handler " +
                 "denied the read, or the session belongs to another user.")
             .Produces<ConversationResource>(StatusCodes.Status200OK)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
         builder.MapDelete("/v1/conversations/{conversationId}", DeleteAsync)
@@ -94,6 +96,7 @@ internal static class OpenAIConversationsEndpoints
                 "caller is refused: the registered authorization handler denied the delete, or " +
                 "the session belongs to another user.")
             .Produces<DeletedResource>(StatusCodes.Status200OK)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
         builder.MapGet("/v1/conversations/{conversationId}/items", ListItemsAsync)
@@ -113,6 +116,7 @@ internal static class OpenAIConversationsEndpoints
                 "that only another tenant uses. 404 means the caller is refused: the registered " +
                 "authorization handler denied the read, or the session belongs to another user.")
             .Produces<ItemListResource>(StatusCodes.Status200OK)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
     }
 

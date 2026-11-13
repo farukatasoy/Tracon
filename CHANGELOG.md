@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The published OpenAPI document lists the `403` that the four OpenAI-compatible conversation operations answer a refused role with, and no schema carries `"examples": [null]` any more.** `POST /v1/conversations`, `GET` and `DELETE /v1/conversations/{id}` and `GET /v1/conversations/{id}/items` answer a refused role with the OpenAI error envelope (the chat and responses operations listed it already); the document now says so, and `Tracon.Client` and `@tracon/client` are generated from it. Seven schemas whose XML documentation holds a C# sample (`LoopSettings`, `SkillSettings`, `SubAgentSettings`, `WorkspaceSettings`, `CallableAgentReference` and the two `headerConfigurationKeys`) were written with an empty example; the repository's own document drops it, and the sample stays in the XML documentation where the examples are compiled.
+  What to do:
+  - **If you call these four operations through `Tracon.Client`,** a refused role now throws `TraconApiException<OpenAIErrorEnvelope>` (status `403`) where it threw the client's untyped exception. A catch of `TraconApiException` still sees it.
+  - **If your own application generates its OpenAPI document,** the empty `examples` of those seven schemas is the generator's output for a C# sample under `<example>`; remove it with a schema transformer as `samples/Tracon.Api/OpenApi/PublishedDocumentCorrections.cs` does, if it matters to you.
+
 - **A queued workflow resume or answer whose job is cancelled before the engine wrote its run no longer stays `Queued` for good.** The queue opens the run's row before the engine does. The cancel endpoint closes a queued row only when the run is not registered on a node; a run the engine had registered was left to close its own row, and a stop that came before the engine wrote it left the row as the queue wrote it: no heartbeat, so reconciliation did not claim it, and the job was cancelled, so no attempt came back. The handler closes the row `Canceled` when the job was cancelled (a worker that is stopping still leaves the row to the next attempt).
   What to do:
   - **Nothing.** A row you saw stuck at `Queued` after cancelling a resume can be cancelled through `POST /api/runs/{id}/cancel`.

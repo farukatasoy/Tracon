@@ -3927,10 +3927,7 @@ export interface components {
              */
             keyId?: null | string;
         };
-        /**
-         * @description One agent another agent may call, and the version of it that runs.
-         * @example null
-         */
+        /** @description One agent another agent may call, and the version of it that runs. */
         CallableAgentReference: {
             /** @description Gets the name of the agent to call. */
             name: string;
@@ -5514,7 +5511,6 @@ export interface components {
         /**
          * @description Turns the harness loop on: the agent is re-invoked until a stop criterion
          *     says the work is finished.
-         * @example null
          */
         LoopSettings: {
             /** @description Gets the stop criteria, evaluated in order. At least one is required. */
@@ -5668,7 +5664,6 @@ export interface components {
              * @description Credential request headers, as a map from the header name to the NAME
              *     of the configuration key its value is read from. The value is resolved
              *     through `IConfiguration` on every connection and is never stored.
-             * @example null
              */
             headerConfigurationKeys?: {
                 [key: string]: string;
@@ -7708,10 +7703,7 @@ export interface components {
              */
             expectedContentHash?: null | string;
         };
-        /**
-         * @description Settings for how an agent uses the skills it names in `AgentDefinition.SkillNames`.
-         * @example null
-         */
+        /** @description Settings for how an agent uses the skills it names in `AgentDefinition.SkillNames`. */
         SkillSettings: {
             /**
              * @description Gets a value that makes `load_skill` and `read_skill_resource` run without
@@ -7816,10 +7808,7 @@ export interface components {
          * @enum {unknown}
          */
         SubAgentCallMode: "Background" | "Tool";
-        /**
-         * @description Determines how an agent calls the agents it may call, and how long it waits for them.
-         * @example null
-         */
+        /** @description Determines how an agent calls the agents it may call, and how long it waits for them. */
         SubAgentSettings: {
             /**
              * @description Gets how the agent calls every agent in `CallableAgents`.
@@ -8838,7 +8827,6 @@ export interface components {
              * @description Credential headers, as a map from the header name to the NAME of the
              *     configuration key its value is read from. The value is resolved through
              *     `IConfiguration` on every delivery and is never stored.
-             * @example null
              */
             headerConfigurationKeys?: {
                 [key: string]: string;
@@ -9461,7 +9449,6 @@ export interface components {
         /**
          * @description Settings for the session workspace of an agent: a file area that belongs to one
          *     conversation, where the agent lists, reads, searches, writes, edits and deletes files.
-         * @example null
          */
         WorkspaceSettings: {
             /**
@@ -15567,6 +15554,15 @@ export interface operations {
                     "application/json": components["schemas"]["OpenAIErrorEnvelope"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
+                };
+            };
         };
     };
     TraconOpenAIGetConversation: {
@@ -15587,6 +15583,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationResource"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
                 };
             };
             /** @description Not Found */
@@ -15620,6 +15625,15 @@ export interface operations {
                     "application/json": components["schemas"]["DeletedResource"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -15651,6 +15665,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemListResource"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
                 };
             };
             /** @description Not Found */

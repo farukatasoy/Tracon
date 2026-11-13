@@ -338,7 +338,7 @@ that produced it:
   "name": "relevance.Relevance",
   "source": "judge:relevance",
   "value": 78,
-  "evaluatorVersion": "10.9.0+b10f9c0a081b5dbb7755b8f5592e1d3c3f550a3a"
+  "evaluatorVersion": "10.11.0+25f07afa51034e37b334210642d7dc5f191c142d"
 }
 ```
 
