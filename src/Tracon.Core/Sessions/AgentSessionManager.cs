@@ -416,6 +416,39 @@ public sealed class AgentSessionManager
     }
 
     /// <summary>
+    /// Takes the session's current generation for this request before the request acts on what the session says is
+    /// pending, so that of two requests that answer the same interruption only one goes on.
+    /// </summary>
+    /// <param name="agent">The agent the session belongs to.</param>
+    /// <param name="session">The session, opened with <see cref="GetOrCreateSessionAsync"/>.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the generation is taken.</returns>
+    /// <exception cref="TraconSessionConflictException">Another request wrote the session after this one read it.</exception>
+    /// <remarks>
+    /// A tool call that waits for an approval, an input or a client result is pending in the history the session holds, and
+    /// the session is written only when a run ends. Two requests that read the same generation therefore both find the
+    /// call pending and both run it; the conflict that the later save reports comes after the tool has run twice. The claim
+    /// is a save of the session as it was read: it changes nothing but the generation, and the request that arrives second
+    /// is refused before it does anything. A session that this manager has just created holds nothing that is pending and is
+    /// left alone.
+    /// </remarks>
+    public async ValueTask ClaimSessionAsync(
+        AIAgent agent,
+        AgentSession session,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+        ArgumentNullException.ThrowIfNull(session);
+
+        if (_newlyOpenedSessions.TryGetValue(session, out _))
+        {
+            return;
+        }
+
+        await SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Decides which user this write records as the session's owner.
     /// </summary>
     /// <remarks>

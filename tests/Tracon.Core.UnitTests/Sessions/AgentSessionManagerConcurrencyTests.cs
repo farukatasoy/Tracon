@@ -50,6 +50,47 @@ public sealed class AgentSessionManagerConcurrencyTests
     }
 
     [Fact]
+    public async Task Of_two_claims_made_on_the_same_generation_the_second_is_refused()
+    {
+        // The two requests that answer one pending call read the same generation. Whoever claims first goes on; the other
+        // is refused before it does anything with the call.
+        var store = new InMemorySessionStore(FixedTenantContext.Default);
+        var manager = new AgentSessionManager(store, FixedTenantContext.Default);
+        var agent = Agent();
+
+        var seed = await manager.GetOrCreateSessionAsync(agent, "claimed");
+        await manager.SaveSessionAsync(agent, seed);
+
+        var first = await manager.GetOrCreateSessionAsync(agent, "claimed");
+        var second = await manager.GetOrCreateSessionAsync(agent, "claimed");
+
+        await manager.ClaimSessionAsync(agent, first);
+
+        var conflict = await Should.ThrowAsync<TraconSessionConflictException>(
+            async () => await manager.ClaimSessionAsync(agent, second));
+
+        conflict.SessionId.ShouldBe("claimed");
+
+        // The claimant's own end-of-run save still lands: it replaces what the claim wrote.
+        await manager.SaveSessionAsync(agent, first);
+    }
+
+    [Fact]
+    public async Task A_claim_on_a_session_that_was_just_created_writes_nothing()
+    {
+        // A new session holds no pending call, and two concurrent first requests are already told apart by the create.
+        var store = new InMemorySessionStore(FixedTenantContext.Default);
+        var manager = new AgentSessionManager(store, FixedTenantContext.Default);
+        var agent = Agent();
+
+        var fresh = await manager.GetOrCreateSessionAsync(agent, "fresh");
+
+        await manager.ClaimSessionAsync(agent, fresh);
+
+        (await store.GetAsync("fresh")).ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Two_saves_of_the_same_session_in_one_request_both_succeed()
     {
         // The second save replaces what the FIRST save wrote, not what the

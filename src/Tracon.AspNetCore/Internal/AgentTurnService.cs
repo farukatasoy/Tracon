@@ -909,6 +909,18 @@ internal sealed class PreparedTurn(
         var services = httpContext.RequestServices;
         IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? inputAnswers = null;
 
+        // 🚨 An answer to an interruption (an approval, a tool input, a client tool result) resumes a call that the session
+        // history says is pending, and the session is written only when a run ends. Two requests that answer the same call
+        // while both hold the same generation would both resume it: the tool runs twice and the later save reports a
+        // conflict after the fact. The request that takes the generation first goes on; the other one is refused here,
+        // before it applies a decision, writes an audit row or runs anything.
+        if (session is not null && (request.Approvals.Count > 0 || request.ToolResults.Count > 0 || request.InputResponses.Count > 0))
+        {
+            await services.GetRequiredService<AgentSessionManager>()
+                .ClaimSessionAsync(agent, session, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         if (request.Approvals.Count > 0 && session is not null)
         {
             var loggerFactory = services.GetRequiredService<ILoggerFactory>();
