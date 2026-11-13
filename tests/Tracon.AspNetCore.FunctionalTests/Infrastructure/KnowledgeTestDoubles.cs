@@ -48,10 +48,23 @@ internal sealed class CountingEmbeddings : IEmbeddingGenerator<string, Embedding
 /// <summary>A knowledge vector store that holds nothing, counts its searches and returns the hits it was given.</summary>
 internal class CountingKnowledgeStore : IVectorSearchStore
 {
+    private readonly List<VectorSearchRequest> _requests = [];
     private int _searches;
 
     /// <summary>Gets how many searches the store received.</summary>
     public int Searches => Volatile.Read(ref _searches);
+
+    /// <summary>Gets the searches the store received, oldest first.</summary>
+    public IReadOnlyList<VectorSearchRequest> Requests
+    {
+        get
+        {
+            lock (_requests)
+            {
+                return [.. _requests];
+            }
+        }
+    }
 
     /// <summary>Gets the hits every search returns.</summary>
     public IReadOnlyList<VectorSearchHit> Hits { get; init; } = [];
@@ -67,6 +80,11 @@ internal class CountingKnowledgeStore : IVectorSearchStore
     /// <inheritdoc />
     public virtual ValueTask<IReadOnlyList<VectorSearchHit>> SearchAsync(VectorSearchRequest request, CancellationToken cancellationToken = default)
     {
+        lock (_requests)
+        {
+            _requests.Add(request);
+        }
+
         Interlocked.Increment(ref _searches);
 
         return new(Hits);

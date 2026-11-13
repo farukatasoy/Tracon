@@ -32,6 +32,12 @@ internal sealed class InMemoryVectorStore : VectorStore
     /// <summary>Gets or sets which operation throws. <see langword="null"/> when none does.</summary>
     public Func<string, Exception?>? FailOn { get; set; }
 
+    /// <summary>
+    /// Gets or sets which operation waits for ever, until the caller gives up: the search of a store that does not answer.
+    /// <see langword="null"/> when none does. Only the search takes it.
+    /// </summary>
+    public Func<string, bool>? HangOn { get; set; }
+
     /// <summary>Gets or sets whether a delete reports success and removes nothing, as a store with a stale read would.</summary>
     public bool IgnoreDeletes { get; set; }
 
@@ -255,6 +261,11 @@ internal sealed class InMemoryVectorStore : VectorStore
         {
             cancellationToken.ThrowIfCancellationRequested();
             owner.ThrowIfFailing("search");
+
+            if (owner.HangOn?.Invoke("search") is true)
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken); // delay: simulated
+            }
 
             var query = Words(searchValue as string);
             var matches = options?.Filter is { } filter ? filter.Compile() : static _ => true;

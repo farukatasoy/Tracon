@@ -530,6 +530,197 @@ public sealed class ConversationMemoryTests
     }
 
     [Fact]
+    public async Task An_on_demand_search_that_meets_a_store_error_ends_the_call_and_not_the_run()
+    {
+        var provider = OnDemandProvider();
+        var store = new InMemoryVectorStore();
+        await SeedAsync(store, "tenant-a", "memory-agent", "ada", "ada-session", "My favourite colour is teal.");
+        store.FailOn = static operation => string.Equals(operation, "search", StringComparison.Ordinal)
+            ? new InvalidOperationException("store is down")
+            : null;
+
+        await using var host = await StartHostAsync(
+            store,
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.AddAgent(MemoryAgent("memory-agent", OnDemand));
+            });
+
+        var stream = await RunAsync(host, "ada", "new-session", ColourQuestion, tenant: "tenant-a");
+
+        using (AmbientTenantScope.Begin("tenant-a"))
+        {
+            var run = (await host.Services.GetRequiredService<IRunStore>()
+                .QueryRunsAsync(new RunQuery { AgentName = "memory-agent" }, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+            var call = (await host.Services.GetRequiredService<IRunStore>()
+                .ListToolInvocationsAsync(run.Id, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+            // MAF's search throws on the store's error, so the call is the one that fails: the run goes on and answers.
+            run.Status.ShouldBe(RunStatus.Completed);
+            call.ToolName.ShouldBe("search_conversation_memory");
+            call.Succeeded.ShouldBeFalse();
+            call.TimedOut.ShouldBeFalse();
+            call.Error.ShouldNotBeNull().ShouldContain("Tool failed", Case.Sensitive);
+            call.Error.ShouldNotContain("store is down", Case.Sensitive);
+        }
+
+        // The store's own message is for the log: neither the model nor the caller reads it.
+        stream.ShouldNotContain("store is down", Case.Sensitive);
+        stream.ShouldNotContain("teal", Case.Sensitive);
+
+        store.Dispose();
+    }
+
+    [Fact]
+    public async Task A_validator_that_rejects_the_arguments_stops_the_on_demand_search_before_the_store_is_read_and_is_given_the_tool_by_name()
+    {
+        var provider = OnDemandProvider();
+        var store = new InMemoryVectorStore();
+        await SeedAsync(store, "tenant-a", "memory-agent", "ada", "ada-session", "My favourite colour is teal.");
+        var searches = CountSearches(store);
+        var validator = new RejectingMemoryValidator("The question is not allowed.");
+
+        await using var host = await StartHostAsync(
+            store,
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.AddAgent(MemoryAgent("memory-agent", OnDemand));
+            },
+            services => services.AddSingleton<IToolArgumentsValidator>(validator));
+
+        var stream = await RunAsync(host, "ada", "new-session", ColourQuestion, tenant: "tenant-a");
+
+        searches().ShouldBe(0, "the store was read after the validator rejected the arguments");
+        validator.Seen.ShouldHaveSingleItem().ShouldBe(("search_conversation_memory", ToolEffect.External));
+        stream.ShouldContain("The question is not allowed.");
+        stream.ShouldNotContain("teal");
+
+        using (AmbientTenantScope.Begin("tenant-a"))
+        {
+            var run = (await host.Services.GetRequiredService<IRunStore>()
+                .QueryRunsAsync(new RunQuery { AgentName = "memory-agent" }, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+            var call = (await host.Services.GetRequiredService<IRunStore>()
+                .ListToolInvocationsAsync(run.Id, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+            call.ToolName.ShouldBe("search_conversation_memory");
+            call.Succeeded.ShouldBeFalse();
+            call.Error.ShouldBe("The question is not allowed.");
+        }
+
+        store.Dispose();
+    }
+
+    [Fact]
+    public async Task An_on_demand_search_that_hangs_ends_at_the_tool_timeout_and_the_run_goes_on()
+    {
+        var provider = OnDemandProvider();
+        var store = new InMemoryVectorStore();
+        await SeedAsync(store, "tenant-a", "memory-agent", "ada", "ada-session", "My favourite colour is teal.");
+        store.HangOn = static operation => string.Equals(operation, "search", StringComparison.Ordinal);
+
+        // The scheduling loop of the host polls every 20 ms on the system's timers; the tool's timeout, 200 ms, is the clock's.
+        var clock = new ManualClock { SystemTimersWithin = TimeSpan.FromMilliseconds(50) };
+
+        await using var host = await StartHostAsync(
+            store,
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.AddAgent(MemoryAgent("memory-agent", OnDemand));
+            },
+            services =>
+            {
+                services.AddSingleton<TimeProvider>(clock);
+                services.Configure<TraconOptions>(static options => options.Tools.DefaultTimeout = TimeSpan.FromMilliseconds(200));
+            });
+
+        // The store waits for ever: only the tool's own timeout can end the call, so a run that returns was cut by it.
+        var running = RunAsync(host, "ada", "new-session", ColourQuestion, tenant: "tenant-a");
+
+        await clock.AdvanceUntilAsync(running, within: TimeSpan.FromMilliseconds(200));
+
+        clock.Steps.ShouldBe([TimeSpan.FromMilliseconds(200)], "the search was cut at the installation's default tool timeout");
+
+        var stream = await running;
+
+        stream.ShouldContain("Tool 'search_conversation_memory' did not complete within 200ms.");
+        stream.ShouldNotContain("teal");
+
+        using (AmbientTenantScope.Begin("tenant-a"))
+        {
+            var run = (await host.Services.GetRequiredService<IRunStore>()
+                .QueryRunsAsync(new RunQuery { AgentName = "memory-agent" }, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+            var call = (await host.Services.GetRequiredService<IRunStore>()
+                .ListToolInvocationsAsync(run.Id, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+            run.Status.ShouldBe(RunStatus.Completed);
+            call.TimedOut.ShouldBeTrue();
+            call.Succeeded.ShouldBeFalse();
+        }
+
+        store.Dispose();
+    }
+
+    [Fact]
+    public async Task A_replay_of_a_stored_on_demand_agent_never_reads_the_memory_store()
+    {
+        // The memory search comes from the agent's context provider, not from the tool registry, so the replay's tool
+        // wrapper does not reach it. A replay has no user and no session, and the provider offers its search only to a run
+        // that has both: the tool is not there, and the call the scripted model makes in the replay ends without a read.
+        // Were it offered, a replay would read the store at today's contents and compare a run against what it never saw.
+        // What the replay cannot do is play the RECORDED search back: that gap is a row of the candidate list.
+        var provider = new FakeModelProvider(ProviderName)
+            .ForModel("memory-1", static cfg => cfg
+                .CallsTool("search_conversation_memory", new { userQuestion = "favourite colour" })
+                .RespondsWith("live answer")
+                .CallsTool("search_conversation_memory", new { userQuestion = "favourite colour" })
+                .RespondsWith("replayed answer"));
+        var store = new InMemoryVectorStore();
+        await SeedAsync(store, "tenant-a", "memory-agent", "ada", "ada-session", "My favourite colour is teal.");
+        var searches = CountSearches(store);
+
+        await using var host = await StartHostAsync(store, builder => builder.AddModelProvider(provider));
+
+        using (AmbientTenantScope.Begin("tenant-a"))
+        {
+            await host.Services.GetRequiredService<IAgentDefinitionStore>().SaveAsync(
+                MemoryAgent("stored-memory-agent", OnDemand) with { Origin = AgentDefinitionOrigin.Database },
+                TestContext.Current.CancellationToken);
+        }
+
+        await RunAsync(host, "ada", "new-session", ColourQuestion, agent: "stored-memory-agent", tenant: "tenant-a");
+
+        searches().ShouldBe(1, "the live run reads the store once");
+
+        RunRecord live;
+
+        using (AmbientTenantScope.Begin("tenant-a"))
+        {
+            live = (await host.Services.GetRequiredService<IRunStore>()
+                .QueryRunsAsync(new RunQuery { AgentName = "stored-memory-agent" }, TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/runs/{live.Id}/replay", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { toolMode = "ReplayTools" }),
+        };
+        request.Headers.Add(TenantHeader, "tenant-a");
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+
+        var replay = await TraconTestHost.ReadJsonAsync(response);
+
+        replay.GetProperty("output").GetString().ShouldBe("replayed answer", "the replay's own model call ran after the tool call");
+        searches().ShouldBe(1, "the replay read the store");
+
+        store.Dispose();
+    }
+
+    [Fact]
     public async Task An_on_demand_search_does_not_start_once_the_cost_budget_is_spent()
     {
         // The first tool of the turn spends the ceiling; the search is the second call of the same turn.
@@ -844,6 +1035,34 @@ public sealed class ConversationMemoryTests
     /// <summary>Everything the model was sent on its last call, as one text.</summary>
     private static string ModelSaw(FakeModelProvider provider)
         => string.Join("\n", provider.Requests[^1].Messages.Select(static message => message.Text));
+
+    /// <summary>Rejects the arguments of every call and remembers which tool it was asked about.</summary>
+    private sealed class RejectingMemoryValidator(string reason) : IToolArgumentsValidator
+    {
+        private readonly List<(string Tool, ToolEffect Effect)> _seen = [];
+
+        public IReadOnlyList<(string Tool, ToolEffect Effect)> Seen
+        {
+            get
+            {
+                lock (_seen)
+                {
+                    return [.. _seen];
+                }
+            }
+        }
+
+        public ValueTask<ToolArgumentsValidationResult> ValidateAsync(
+            ToolDescriptor tool, AIFunctionArguments arguments, CancellationToken cancellationToken = default)
+        {
+            lock (_seen)
+            {
+                _seen.Add((tool.Name, tool.Effect));
+            }
+
+            return new(ToolArgumentsValidationResult.Invalid(reason));
+        }
+    }
 
     /// <summary>Denies every call and remembers what it was asked.</summary>
     private sealed class DenyingMemoryHandler(string reason) : IToolAuthorizationHandler

@@ -67,6 +67,33 @@ public sealed class KnowledgeToolGovernanceTests
     }
 
     [Fact]
+    public async Task The_tenant_the_handler_decides_for_is_the_tenant_the_store_is_asked_in()
+    {
+        // The handler's tenant is read from the run at the call; the store's tenant is fixed when the agent is compiled
+        // for it. Two tenants on one host show that each call is decided and searched under the same one, and that the
+        // agent compiled for the first is not the one the second is given. The model's script is a queue: a call, its
+        // answer, then the same again for the second tenant.
+        var store = new CountingKnowledgeStore();
+        var handler = new RecordingHandler(ToolAuthorizationResult.Allow());
+        var twoTurns = new FakeModelProvider(ProviderName)
+            .CallsTool("search_knowledge", new { query = "refund policy" })
+            .RespondsWith("first answer")
+            .CallsTool("search_knowledge", new { query = "refund policy" })
+            .RespondsWith("second answer");
+        await using var host = await StartAsync(
+            new CountingEmbeddings(),
+            store,
+            services => services.AddSingleton<IToolAuthorizationHandler>(handler),
+            model: twoTurns);
+
+        await RunAsync(host, tenant: "tenant-b");
+        await RunAsync(host, tenant: "tenant-c");
+
+        store.Requests.Select(static request => request.TenantId).ToList().ShouldBe(["tenant-b", "tenant-c"]);
+        handler.Seen.Select(static seen => seen.Item3).ToList().ShouldBe(["tenant-b", "tenant-c"]);
+    }
+
+    [Fact]
     public async Task A_validator_that_rejects_the_arguments_stops_the_search_and_is_given_the_tool_by_name()
     {
         var embeddings = new CountingEmbeddings();
