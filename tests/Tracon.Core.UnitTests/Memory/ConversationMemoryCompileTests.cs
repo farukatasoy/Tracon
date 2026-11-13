@@ -31,6 +31,33 @@ public sealed class ConversationMemoryCompileTests
     }
 
     [Fact]
+    public void A_harness_definition_with_memory_on_gets_the_scope_provider_too()
+    {
+        IEnumerable<AIContextProvider>? providers = null;
+        var compiler = Compiler(
+            Services(new InMemoryVectorStore(), dimensions: 8),
+            new DelegateAgentExtension("probe", context => providers = context.HarnessAgentOptions!.AIContextProviders, null));
+
+        _ = compiler.Compile(Definition() with { Memory = On, Harness = new HarnessSettings(), ExtensionNames = ["probe"] });
+
+        providers.ShouldNotBeNull().OfType<ConversationMemoryScopeProvider>().ShouldHaveSingleItem(
+            "a harness agent with the setting on neither read nor wrote the memory of its user, and nothing said so");
+    }
+
+    [Fact]
+    public void A_harness_definition_with_memory_on_without_UseConversationMemory_stops_the_build_and_names_it()
+    {
+        var services = new ServiceCollection().AddSingleton<VectorStore>(new InMemoryVectorStore()).BuildServiceProvider();
+        var compiler = Compiler(services);
+
+        var failure = Should.Throw<TraconCompilationException>(
+            () => compiler.Compile(Definition() with { Memory = On, Harness = new HarnessSettings() }));
+
+        failure.Message.ShouldContain("UseConversationMemory");
+        failure.AgentName.ShouldBe("test-agent");
+    }
+
+    [Fact]
     public void A_definition_with_memory_off_gets_no_provider_and_needs_no_setup()
     {
         IEnumerable<AIContextProvider>? providers = null;

@@ -48,6 +48,33 @@ public sealed class ConversationMemoryTests
     }
 
     [Fact]
+    public async Task A_harness_agent_with_the_setting_on_reads_and_writes_the_memory_of_its_user_too()
+    {
+        var provider = new FakeModelProvider(ProviderName).ForModel("memory-1", static cfg => cfg.EchoesUserMessage());
+        var harnessAgent = MemoryAgent("harness-agent", new MemorySettings { EnableConversationMemory = true }) with
+        {
+            Harness = new HarnessSettings(),
+        };
+
+        var host = await StartHostAsync(
+            new InMemoryVectorStore(),
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.AddAgent(harnessAgent);
+            });
+
+        await using (host)
+        {
+            await RunAsync(host, "ada", "session-1", Colour, agent: "harness-agent");
+            await RunAsync(host, "ada", "session-2", ColourQuestion, agent: "harness-agent");
+
+            ModelSaw(provider).ShouldContain("teal", Case.Sensitive, "the harness compiled without the memory provider and the setting did nothing");
+            ModelSaw(provider).ShouldContain("## Memories");
+        }
+    }
+
+    [Fact]
     public async Task The_run_record_counts_what_memory_added_apart_from_what_the_caller_sent()
     {
         // The context event's AIContextProvider count is the answer to "did memory add anything".

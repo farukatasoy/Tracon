@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **An agent with a harness and `Memory.EnableConversationMemory` now reads and writes the conversation memory of its user.** The harness builds its context providers in a list of its own, and the conversation memory provider was in the list of the chat agent only: the setting was accepted and did nothing, and no validation said so. A chat agent is unchanged.
+  What to do:
+  - **If you turned the setting on for a harness agent,** its model now sees the `## Memories` of the user and the search tool when the mode is `OnDemand`. The cost is the one a chat agent pays for it. Turn the setting off to keep the old behaviour.
+
 - **Google image generation refuses a `mediaType` before a request leaves, with a message that says to leave it out.** The Gemini API in API-key mode rejects `ImageConfig.OutputMimeType` for every value ("only supported in Gemini Enterprise Agent Platform mode"), and the SDK raised `NotSupportedException` from inside the call; `Tracon.Google` builds its client with an API key only, so no value could work. The model chooses the format and the response carries it. `/api/images/generate` and `generate_image` never sent a media type, so only a caller of `IImageGenerator` with `ImageGenerationOptions.MediaType` set sees the change.
   What to do:
   - **If you set `MediaType` on a Google image request,** remove it and read `DataContent.MediaType` from the response. The refusal is a `TraconException`, like the one for `ImageSize`.

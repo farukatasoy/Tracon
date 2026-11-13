@@ -494,6 +494,14 @@ public sealed partial class AgentDefinitionCompiler
             harnessProviders.Add(textSearch);
         }
 
+        // The conversation memory of the user is the one memory provider the harness has no member for (file
+        // memory and todo tracking are set above through its own options), so it is added here, as it is for a
+        // chat agent. Without this line a harness agent with the setting on neither read nor wrote the memory.
+        if (definition.Memory is { EnableConversationMemory: true } memory)
+        {
+            harnessProviders.Add(CreateConversationMemoryProvider(definition, memory));
+        }
+
         // The harness builds its own FileAccessProvider only when FileAccessStore is assigned
         // (measured, MAF 1.25). Tracon leaves it unassigned and adds its own wrapped provider here, as
         // it does for skills, so the file tools run through the Tracon tool chain.
