@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Breaking: an `OAuthCallbackBaseUri` whose path does not end with a slash stops the application at the start, and the message shows the address it would have become.** The callback address of an MCP server is this address followed by a relative path, so `https://app.example.com/tracon` gave `https://app.example.com/api/mcp-servers/{name}/oauth/callback`: the last path segment was replaced, a provider that had the address with the prefix registered refused the redirect, and nothing said why. The documentation has always asked for the slash. The address is refused and not completed, because completing it would change the address a provider was registered with without saying so.
+  What to do:
+  - **If the application now stops with `must end with a slash`,** write the address the message gives (`https://app.example.com/tracon/`) and register that address with the provider. A value without a path (`https://app.example.com`) is fine.
+
 - **A factory agent that declares a provider nobody registered fails to compile like a definition agent: with `TraconCompilationException`, and a text that names the agent.** The declared model is built by the registry before the factory runs, and its failure left the catalog as a plain `TraconException` whose text names no agent. Over A2A and MCP that was the one compile failure answered with the library's bare internal error, because those surfaces recognise a compile failure by its type; over HTTP the `400 Agent compilation failed` did not say which agent. A tenant's refusal keeps its type (`TraconTenantProviderRefusedException`) and gains the same text. The `GET /api/agents/{name}` description of `definition: null` now names `AddAgent(name, model, factory)` next to `AddAgent(name, factory)`.
   What to do:
   - **Nothing.** `TraconCompilationException` derives from `TraconException`; a catch of the base type still sees it.

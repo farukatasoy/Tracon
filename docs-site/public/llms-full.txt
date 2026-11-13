@@ -23949,7 +23949,7 @@ resolved. See
 | `MaxResponseBytes` | `16777216` (16 MiB); a larger response fails the call. A stream of events is counted per event. Applies when a connection is opened. Must be at least 1 |
 | `MaxResourceBytesPerResource` | `65536`. Must be at least 1 |
 | `MaxResourceBytesTotal` | `262144`. Must be at least 1 |
-| `OAuthCallbackBaseUri` | `null` |
+| `OAuthCallbackBaseUri` | `null`. When set, the path must end with a slash; a value without it stops the application at start |
 | `OAuthTokenStore` | `Memory` |
 | `OAuthTokenSlidingLifetime` | 30 days. Must be greater than zero in both modes |
 | `AllowedConfigurationPrefix` | `Tracon:McpSecrets:` |
@@ -31789,7 +31789,8 @@ inferred address wrong. The callback must still use the prefix and access layers
 the mapped application. The address of a server's callback is this value followed by
 `api/mcp-servers/{name}/oauth/callback`, so write the path prefix into it and end it with a
 slash: `https://myapp.example.com/tracon/`. Without the final slash the last path segment is
-replaced and the provider is sent to an address that lacks the prefix.
+replaced and the provider is sent to an address that lacks the prefix, so the application does not start
+with such a value: the message shows the address it would have become and the one to write.
 
 ### `MapTraconMcpServer()` says services are missing
 

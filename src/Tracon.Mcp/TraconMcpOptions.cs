@@ -123,7 +123,8 @@ public sealed class TraconMcpOptions
     /// <c>api/mcp-servers/{name}/oauth/callback</c>. Include the path prefix Tracon is mapped under
     /// and end the address with a slash: <c>https://myapp.example.com/tracon/</c> for the default prefix.
     /// Without the slash the last path segment is replaced, and the provider redirects to an address
-    /// that has no <c>/tracon</c>.
+    /// that has no <c>/tracon</c>; the application does not start with such a value, and the message shows
+    /// the address it would have become.
     /// </remarks>
     public Uri? OAuthCallbackBaseUri { get; set; }
 

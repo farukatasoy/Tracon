@@ -490,7 +490,8 @@ inferred address wrong. The callback must still use the prefix and access layers
 the mapped application. The address of a server's callback is this value followed by
 `api/mcp-servers/{name}/oauth/callback`, so write the path prefix into it and end it with a
 slash: `https://myapp.example.com/tracon/`. Without the final slash the last path segment is
-replaced and the provider is sent to an address that lacks the prefix.
+replaced and the provider is sent to an address that lacks the prefix, so the application does not start
+with such a value: the message shows the address it would have become and the one to write.
 
 ### `MapTraconMcpServer()` says services are missing
 

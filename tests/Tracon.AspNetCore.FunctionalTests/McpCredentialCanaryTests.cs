@@ -60,7 +60,7 @@ public sealed class McpCredentialCanaryTests
                 services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true);
                 services.Configure<TraconMcpOptions>(static options =>
                 {
-                    options.OAuthCallbackBaseUri = new Uri("http://localhost:5081/tracon");
+                    options.OAuthCallbackBaseUri = new Uri("http://localhost:5081/tracon/");
                     options.OAuthTokenStore = McpOAuthTokenStore.DistributedCache;
                 });
                 services.Configure<TraconOptions>(static options =>

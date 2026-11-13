@@ -67,6 +67,21 @@ internal sealed class TraconMcpOptionsValidator : IValidateOptions<TraconMcpOpti
                 $"Actual value: {options.OAuthTokenSlidingLifetime}.");
         }
 
+        // The callback address of a server is this address and a relative path. Without the trailing slash the last path segment
+        // is replaced, so a provider that was given the address with the prefix refuses the redirect and nothing says why.
+        // Refused rather than completed: completing it would change the address a provider was registered with, unannounced.
+        if (options.OAuthCallbackBaseUri is { IsAbsoluteUri: true } callbackBase
+            && !callbackBase.AbsolutePath.EndsWith('/'))
+        {
+            var resolved = new Uri(callbackBase, "api/mcp-servers/NAME/oauth/callback").AbsoluteUri
+                .Replace("NAME", "{name}", StringComparison.Ordinal);
+
+            (failures ??= []).Add(
+                $"{nameof(TraconMcpOptions)}.{nameof(TraconMcpOptions.OAuthCallbackBaseUri)} must end with a slash. " +
+                $"Actual value: {callbackBase}. Without it the callback of a server is {resolved}, which drops the last path " +
+                $"segment. Write {callbackBase.GetLeftPart(UriPartial.Path)}/ and register that address with the provider.");
+        }
+
         // Compared with the age of the last good listing; it arms no timer.
         if (options.StaleToolRetention < TimeSpan.Zero)
         {

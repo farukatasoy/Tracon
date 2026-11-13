@@ -54,7 +54,7 @@ public sealed class McpOAuthAuthorizationAddressTests
             {
                 services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true);
                 services.Configure<TraconMcpOptions>(static options =>
-                    options.OAuthCallbackBaseUri = new Uri("http://localhost:5081/tracon"));
+                    options.OAuthCallbackBaseUri = new Uri("http://localhost:5081/tracon/"));
             });
 
     private static async Task<(HttpStatusCode Status, string Body)> StartFlowAsync(TraconTestHost host)

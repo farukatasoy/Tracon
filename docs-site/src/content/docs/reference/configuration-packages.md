@@ -115,7 +115,7 @@ resolved. See
 | `MaxResponseBytes` | `16777216` (16 MiB); a larger response fails the call. A stream of events is counted per event. Applies when a connection is opened. Must be at least 1 |
 | `MaxResourceBytesPerResource` | `65536`. Must be at least 1 |
 | `MaxResourceBytesTotal` | `262144`. Must be at least 1 |
-| `OAuthCallbackBaseUri` | `null` |
+| `OAuthCallbackBaseUri` | `null`. When set, the path must end with a slash; a value without it stops the application at start |
 | `OAuthTokenStore` | `Memory` |
 | `OAuthTokenSlidingLifetime` | 30 days. Must be greater than zero in both modes |
 | `AllowedConfigurationPrefix` | `Tracon:McpSecrets:` |

@@ -477,7 +477,7 @@ public sealed class McpOAuthCrossInstanceTests
                 services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true);
                 services.Configure<TraconMcpOptions>(options =>
                 {
-                    options.OAuthCallbackBaseUri = new Uri("http://localhost:5081/tracon");
+                    options.OAuthCallbackBaseUri = new Uri("http://localhost:5081/tracon/");
 
                     if (cache is not null)
                     {
