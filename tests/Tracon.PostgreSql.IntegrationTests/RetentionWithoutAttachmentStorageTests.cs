@@ -240,6 +240,7 @@ public sealed class RetentionWithoutAttachmentStorageTests(PostgresSchemaFixture
             TenantId = Tenant,
             Target = RetentionTargets.Attachments,
             MaxAgeDays = 7,
+            Enabled = true,
             CreatedAt = now,
             UpdatedAt = now,
         });
