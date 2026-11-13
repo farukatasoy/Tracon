@@ -174,6 +174,13 @@ internal sealed class WorkflowRunJobHandler(
         {
             // The limit arrived before the engine opened the run; its row is closed below.
         }
+        catch (OperationCanceledException) when (context.Signals?.Reason == JobStopReason.Cancelled)
+        {
+            // The engine ended the stream with the cancellation, and a run it had not yet written is still Queued.
+            await CloseCancelledJobRowAsync(current).ConfigureAwait(false);
+
+            throw;
+        }
 
         // The job's time limit ends the WORK, not the
         // attempt. Left to the lease like a shutdown, the next attempt would continue
@@ -188,6 +195,17 @@ internal sealed class WorkflowRunJobHandler(
         // 🚨 The worker is stopping, or the job was cancelled: the stream ended
         // because the token was cancelled, not because the run did. A stopping
         // worker leaves the job to its lease; a cancelled job stays cancelled.
+        //
+        // A cancelled job is never attempted again, so a row it still holds Queued has no one left to close it: the
+        // cancel endpoint closes the queued row of a run that is not registered on a node and leaves a registered one
+        // to close itself, and a stop that comes before the engine writes its row leaves it as the queue wrote it (no
+        // heartbeat, so reconciliation does not claim it either). A stopping worker is the other case: the next attempt
+        // finds the row it opened and uses it.
+        if (context.Signals?.Reason == JobStopReason.Cancelled)
+        {
+            await CloseCancelledJobRowAsync(current).ConfigureAwait(false);
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         RunStatus? status;
@@ -221,6 +239,16 @@ internal sealed class WorkflowRunJobHandler(
                 closeIfQueued: false).ConfigureAwait(false);
         }
     }
+
+    /// <summary>Closes the row of a run whose job was cancelled, when the engine never wrote it past Queued.</summary>
+    /// <param name="runId">The run the attempt was running.</param>
+    /// <returns>A task that completes when the row is closed, was not queued, or could not be closed (logged).</returns>
+    /// <remarks>
+    /// A cancelled job is not attempted again, so a row left Queued has no one to close it. A store error is logged
+    /// by the recovery and does not replace the cancellation the caller is about to report.
+    /// </remarks>
+    private async ValueTask CloseCancelledJobRowAsync(Guid runId)
+        => _ = await recovery.CloseIfQueuedAsync(runId, RunStatus.Canceled, error: null).ConfigureAwait(false);
 
     /// <summary>Gets whether the worker cancelled the handler's token at the job's time limit.</summary>
     /// <param name="context">The job context.</param>

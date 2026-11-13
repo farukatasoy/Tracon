@@ -184,6 +184,45 @@ public sealed class WorkflowRunJobHandlerTests
         runner.Started.ShouldBe(0);
     }
 
+    [Fact]
+    public async Task A_job_cancelled_before_the_engine_wrote_the_row_closes_the_queued_row()
+    {
+        // The cancel endpoint closes a queued row only when the run is not registered on a node; a run the engine had
+        // registered was left to close its own row, and a stop that came before the engine wrote it left the row Queued
+        // for good: no heartbeat, so reconciliation does not claim it, and the job is cancelled, so no attempt returns.
+        var runs = new InMemoryRunStore();
+        var runId = await QueueAsync(runs);
+        using var stop = new CancellationTokenSource();
+        var runner = new ScriptedRunner(runs, RunStatus.Completed, stopBeforeRow: stop);
+        var handler = new WorkflowRunJobHandler(runner, Recovery(runs), NullLogger<WorkflowRunJobHandler>.Instance);
+        var cancelled = new JobAttemptSignals(null, default, new CancellationToken(true), default, default);
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await handler.ExecuteAsync(Context(runId, RunPayload(runId), signals: cancelled), stop.Token));
+
+        var row = (await runs.GetRunAsync(runId)).ShouldNotBeNull();
+
+        row.Status.ShouldBe(RunStatus.Canceled, "the job is cancelled for good, and its row says so");
+        row.CompletedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task A_worker_that_is_stopping_leaves_the_queued_row_to_the_next_attempt()
+    {
+        // The control: a stopping worker leaves the job to its lease, and the next attempt finds the row it opened.
+        var runs = new InMemoryRunStore();
+        var runId = await QueueAsync(runs);
+        using var stop = new CancellationTokenSource();
+        var runner = new ScriptedRunner(runs, RunStatus.Completed, stopBeforeRow: stop);
+        var handler = new WorkflowRunJobHandler(runner, Recovery(runs), NullLogger<WorkflowRunJobHandler>.Instance);
+        var stopping = new JobAttemptSignals(null, new CancellationToken(true), default, default, default);
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await handler.ExecuteAsync(Context(runId, RunPayload(runId), signals: stopping), stop.Token));
+
+        (await runs.GetRunAsync(runId)).ShouldNotBeNull().Status.ShouldBe(RunStatus.Queued);
+    }
+
     /// <summary>
     /// A store error while the chain is read fails the attempt, not the work: the
     /// worker retries it, and nothing was written that the next attempt would misread.
@@ -359,8 +398,9 @@ public sealed class WorkflowRunJobHandlerTests
 
     private static string RunPayload(Guid runId) => $$"""{"operation":"run","runId":"{{runId}}","message":"episode 7"}""";
 
-    private static JobContext Context(Guid runId, string payload, bool cancelled = false, int attempt = 1, int maxAttempts = 3) => new()
+    private static JobContext Context(Guid runId, string payload, bool cancelled = false, int attempt = 1, int maxAttempts = 3, JobAttemptSignals? signals = null) => new()
     {
+        Signals = signals,
         Job = new JobRecord
         {
             Id = runId,
@@ -384,7 +424,8 @@ public sealed class WorkflowRunJobHandlerTests
         IRunStore? runs = null,
         RunStatus outcome = RunStatus.Completed,
         Action? afterClose = null,
-        bool refuse = false) : IWorkflowRunner
+        bool refuse = false,
+        CancellationTokenSource? stopBeforeRow = null) : IWorkflowRunner
     {
         public int Started { get; private set; }
 
@@ -452,6 +493,13 @@ public sealed class WorkflowRunJobHandlerTests
             {
                 // The engine checks the request before it writes the run's row.
                 throw new TraconException("The workflow's schema changed.");
+            }
+
+            if (stopBeforeRow is not null)
+            {
+                // A stop that is in force when the engine opens the run sends nothing, so the row the queue wrote stays as it was.
+                await stopBeforeRow.CancelAsync();
+                cancellationToken.ThrowIfCancellationRequested();
             }
 
             await runs!.StartRunAsync(new RunStartInfo

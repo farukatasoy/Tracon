@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A queued workflow resume or answer whose job is cancelled before the engine wrote its run no longer stays `Queued` for good.** The queue opens the run's row before the engine does. The cancel endpoint closes a queued row only when the run is not registered on a node; a run the engine had registered was left to close its own row, and a stop that came before the engine wrote it left the row as the queue wrote it: no heartbeat, so reconciliation did not claim it, and the job was cancelled, so no attempt came back. The handler closes the row `Canceled` when the job was cancelled (a worker that is stopping still leaves the row to the next attempt).
+  What to do:
+  - **Nothing.** A row you saw stuck at `Queued` after cancelling a resume can be cancelled through `POST /api/runs/{id}/cancel`.
+
 - **A stored skill that is switched off keeps a skill of the same name under a skill root away from the agents of its tenant, in a run as the catalog already said.** The catalog and the validator treat a disabled record as owning its name ("disabled") and do not look on disk for it; the run composed the store source (enabled records only) with the disk source behind it, so the disabled record left its name free and the run offered the disk skill. Switching the record off is the one way a tenant takes an installation-wide skill away from its agents, and it did not work on the path a run takes. The disk source now offers no skill whose name a record owns, enabled or not.
   What to do:
   - **If a tenant switched off a stored skill and relied on the disk skill of the same name still reaching its agents,** delete the stored record instead (a name with no record is served from disk).

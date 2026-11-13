@@ -302,10 +302,8 @@ internal sealed class WorkflowRecovery(
     /// row this way, with the error a run the engine stopped carries, so the next plan
     /// reads the same fact either way.
     /// </remarks>
-    public async ValueTask<bool> CloseIfQueuedAsync(Guid runId, RunStatus status, RunError error)
+    public async ValueTask<bool> CloseIfQueuedAsync(Guid runId, RunStatus status, RunError? error)
     {
-        ArgumentNullException.ThrowIfNull(error);
-
         try
         {
             if (await runStore.GetRunAsync(runId, CancellationToken.None).ConfigureAwait(false) is not { Status: RunStatus.Queued } queued)
