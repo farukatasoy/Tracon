@@ -67,6 +67,43 @@ public sealed class McpOAuthAuthorizationCodeFlowTests
         server.TokenRequests.ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// A flow that nobody answered is forgotten when the next flow starts and ten minutes of the REGISTERED clock have passed
+    /// since it began. Both halves are needed: a flow stamped with the system clock outlives the window on a clock of year
+    /// 2000, and a purge that reads the system clock drops a flow that is still inside it.
+    /// </summary>
+    /// <param name="minutes">How far the registered clock moves between the two starts.</param>
+    /// <param name="completes">Whether the first flow is still known when its callback arrives.</param>
+    [Theory]
+    [InlineData(9, true)]
+    [InlineData(11, false)]
+    public async Task A_flow_is_forgotten_by_the_registered_clock_and_not_before(int minutes, bool completes)
+    {
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        await using var server = await OAuthProtectedMcpServer.StartAsync();
+        await using var host = await StartAsync(clock);
+
+        await SaveServerAsync(host, server.Endpoint);
+
+        var first = await StartFlowAsync(host);
+
+        clock.StepWallClock(TimeSpan.FromMinutes(minutes));
+
+        // The purge runs when a flow starts.
+        await StartFlowAsync(host);
+
+        var page = await CallbackAsync(host, first);
+
+        if (completes)
+        {
+            page.ShouldContain("Authorization complete", Case.Sensitive);
+        }
+        else
+        {
+            page.ShouldContain("not found or has expired", Case.Sensitive);
+        }
+    }
+
     [Fact]
     public async Task Changing_the_endpoint_sends_no_token_to_the_new_endpoint()
     {
@@ -85,14 +122,19 @@ public sealed class McpOAuthAuthorizationCodeFlowTests
         (await ToolNamesAsync(host)).ShouldNotContain(name => name.Contains("lookup", StringComparison.Ordinal));
     }
 
-    private static Task<TraconTestHost> StartAsync()
+    private static Task<TraconTestHost> StartAsync(TimeProvider? clock = null)
         => TraconTestHost.StartAsync(
             static builder => builder.UseMcp(),
-            configureServices: static services =>
+            configureServices: services =>
             {
                 services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true);
                 services.Configure<TraconMcpOptions>(static options =>
                     options.OAuthCallbackBaseUri = new Uri("http://localhost:5081/tracon/"));
+
+                if (clock is not null)
+                {
+                    services.AddSingleton(clock);
+                }
             });
 
     private static async Task SaveServerAsync(TraconTestHost host, Uri endpoint)

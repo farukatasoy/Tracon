@@ -100,6 +100,28 @@ public sealed class EvalJobHandlerFinalWriteTests
         (await store.GetRunAsync(TenantId, run.Id))!.Status.ShouldBe(EvalRunStatus.Failed);
     }
 
+    /// <summary>
+    /// The attempt that fails is closed at the moment the registered clock gives: a handler whose clock reads year 2000 writes
+    /// year 2000, and a stamp taken from the system clock would read this year. The other stamps of the handler are held by the
+    /// functional tests; only the failed attempt has no way to be reached over HTTP.
+    /// </summary>
+    [Fact]
+    public async Task A_failed_attempt_is_closed_at_the_moment_of_the_registered_clock()
+    {
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var store = new InMemoryEvalStore();
+        var chat = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "a long enough answer")));
+        var handler = CreateHandler(store, chat, publisher: null, TimeSpan.FromMinutes(5), new TruncatedJudgeFactory(), clock);
+        var (context, run, _) = await ArrangeAsync(store);
+
+        await Should.ThrowAsync<TraconOutputTruncatedException>(() => handler.ExecuteAsync(context).AsTask());
+
+        var closed = (await store.GetRunAsync(TenantId, run.Id)).ShouldNotBeNull();
+
+        closed.Status.ShouldBe(EvalRunStatus.Failed);
+        closed.CompletedAt.ShouldNotBeNull().Year.ShouldBe(2000);
+    }
+
     private static async Task<(JobContext Context, EvalRun Run, List<JobItemResult> Reported)> ArrangeAsync(IEvalStore store)
     {
         var suite = await store.SaveSuiteAsync(new EvalSuite
@@ -175,7 +197,8 @@ public sealed class EvalJobHandlerFinalWriteTests
         IChatClient chat,
         IWebhookPublisher? publisher,
         TimeSpan leaseDuration,
-        IEvalEvaluatorFactory? evaluators = null)
+        IEvalEvaluatorFactory? evaluators = null,
+        TimeProvider? clock = null)
         => new(
             store,
             new SingleAgentCatalog(new ChatClientAgent(chat, new ChatClientAgentOptions { Name = AgentName })),
@@ -190,7 +213,8 @@ public sealed class EvalJobHandlerFinalWriteTests
             NullLogger<EvalJobHandler>.Instance,
             webhookPublisher: publisher,
             schedulingOptions: new StaticOptionsMonitor<TraconSchedulingOptions>(
-                new TraconSchedulingOptions { LeaseDuration = leaseDuration, MaxAttempts = 3 }));
+                new TraconSchedulingOptions { LeaseDuration = leaseDuration, MaxAttempts = 3 }),
+            timeProvider: clock);
 
     /// <summary>
     /// An eval store that refuses the <see cref="EvalRunStatus.Completed"/> write while

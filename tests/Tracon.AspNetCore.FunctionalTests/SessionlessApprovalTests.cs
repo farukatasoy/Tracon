@@ -29,37 +29,27 @@ public sealed class SessionlessApprovalTests
     {
         await using var host = await StartAsync();
 
-        using (var saved = await host.Client.PutAsJsonAsync(
-                   "/tracon/api/schedules/batch",
-                   new JobScheduleSaveRequest
-                   {
-                       HandlerKey = JobHandlerKeys.AgentBatch,
-                       TargetName = AgentName,
-                       Payload = JsonDocument.Parse("""["refund order 7"]""").RootElement,
-                   }))
-        {
-            saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
-        }
-
-        using var triggered = await host.Client.PostAsJsonAsync("/tracon/api/schedules/batch/trigger", new { });
-        triggered.StatusCode.ShouldBe(HttpStatusCode.OK, await triggered.Content.ReadAsStringAsync());
-
-        var jobId = (await TraconTestHost.ReadJsonAsync(triggered)).GetProperty("id").GetGuid();
-        var jobs = host.Services.GetRequiredService<IJobStore>();
-        var tenant = host.Services.GetRequiredService<ITenantContext>().TenantId;
-
-        await WaitUntil.ValueAsync(
-            async () => (await jobs.GetAsync(tenant, jobId))!,
-            static job => job.Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled,
-            "the batch job to finish");
-
-        var item = (await jobs.ListItemsAsync(jobId)).ShouldHaveSingleItem();
+        var (item, run) = await RunBatchItemAsync(host);
 
         item.Status.ShouldBe(JobItemStatus.Failed, "an item whose run waits for an approval nobody can give did not complete");
         item.Error.ShouldNotBeNull().ShouldContain("approval");
-
-        var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(item.RunId!.Value)).ShouldNotBeNull();
         run.Status.ShouldBe(RunStatus.Failed);
+    }
+
+    /// <summary>
+    /// The run of a batch item that is closed for an approval nobody can give is closed at the registered clock's moment: a host
+    /// whose clock reads year 2000 reads year 2000 in it, and a stamp taken from the system clock would read this year.
+    /// </summary>
+    [Fact]
+    public async Task The_run_of_a_batch_item_closed_for_an_approval_is_stamped_with_the_registered_clock()
+    {
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        await using var host = await StartAsync(configureServices: services => services.AddSingleton<TimeProvider>(clock));
+
+        var (_, run) = await RunBatchItemAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.CompletedAt.ShouldNotBeNull().Year.ShouldBe(2000);
     }
 
     [Fact]
@@ -67,47 +57,29 @@ public sealed class SessionlessApprovalTests
     {
         await using var host = await StartAsync();
 
-        using (var suite = await host.Client.PutAsJsonAsync(
-                   $"/tracon/api/evals/{Suite}",
-                   new EvalSuiteSaveRequest
-                   {
-                       AgentName = AgentName,
-                       Checks = JsonDocument.Parse("""[{"kind":"nonEmpty","minLength":1}]""").RootElement,
-                   }))
-        {
-            suite.EnsureSuccessStatusCode();
-        }
-
-        using (var cases = await host.Client.PutAsJsonAsync(
-                   $"/tracon/api/evals/{Suite}/cases",
-                   new object[] { new { query = "refund order 7" } }))
-        {
-            cases.EnsureSuccessStatusCode();
-        }
-
-        using var triggered = await host.Client.PostAsJsonAsync($"/tracon/api/evals/{Suite}/run", new { });
-        triggered.StatusCode.ShouldBe(HttpStatusCode.OK, await triggered.Content.ReadAsStringAsync());
-
-        var evalRunId = (await TraconTestHost.ReadJsonAsync(triggered)).GetProperty("id").GetGuid();
-
-        var detail = await WaitUntil.ValueAsync(
-            async () =>
-            {
-                using var response = await host.Client.GetAsync($"/tracon/api/evals/runs/{evalRunId}");
-
-                return await TraconTestHost.ReadJsonAsync(response);
-            },
-            static body => body.GetProperty("run").GetProperty("status").GetString() is "Completed" or "Failed",
-            "the eval run to finish");
-
-        var result = detail.GetProperty("results").EnumerateArray().ShouldHaveSingleItem();
+        var (_, result, run) = await RunEvalCaseAsync(host);
 
         result.GetProperty("passed").GetBoolean().ShouldBeFalse();
         result.GetProperty("failureReason").GetString().ShouldNotBeNull().ShouldContain("approval");
-
-        var runId = result.GetProperty("runId").GetGuid();
-        var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull();
         run.Status.ShouldBe(RunStatus.Failed);
+    }
+
+    /// <summary>
+    /// The eval run, its case's run and its end are stamped with the registered clock: a host whose clock reads year 2000
+    /// reads year 2000 in the eval run's completion and in the moment its case's run was closed.
+    /// </summary>
+    [Fact]
+    public async Task An_eval_run_and_the_run_of_its_case_are_stamped_with_the_registered_clock()
+    {
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        await using var host = await StartAsync(configureServices: services => services.AddSingleton<TimeProvider>(clock));
+
+        var (detail, _, run) = await RunEvalCaseAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.CompletedAt.ShouldNotBeNull().Year.ShouldBe(2000);
+        detail.GetProperty("run").GetProperty("status").GetString().ShouldBe("Completed", detail.GetRawText());
+        detail.GetProperty("run").GetProperty("completedAt").GetDateTimeOffset().Year.ShouldBe(2000);
     }
 
     [Fact]
@@ -300,6 +272,80 @@ public sealed class SessionlessApprovalTests
         created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
     }
 
+    private static async Task<(JobItemRecord Item, RunRecord Run)> RunBatchItemAsync(TraconTestHost host)
+    {
+        using (var saved = await host.Client.PutAsJsonAsync(
+                   "/tracon/api/schedules/batch",
+                   new JobScheduleSaveRequest
+                   {
+                       HandlerKey = JobHandlerKeys.AgentBatch,
+                       TargetName = AgentName,
+                       Payload = JsonDocument.Parse("""["refund order 7"]""").RootElement,
+                   }))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+        }
+
+        using var triggered = await host.Client.PostAsJsonAsync("/tracon/api/schedules/batch/trigger", new { });
+        triggered.StatusCode.ShouldBe(HttpStatusCode.OK, await triggered.Content.ReadAsStringAsync());
+
+        var jobId = (await TraconTestHost.ReadJsonAsync(triggered)).GetProperty("id").GetGuid();
+        var jobs = host.Services.GetRequiredService<IJobStore>();
+        var tenant = host.Services.GetRequiredService<ITenantContext>().TenantId;
+
+        await WaitUntil.ValueAsync(
+            async () => (await jobs.GetAsync(tenant, jobId))!,
+            static job => job.Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Cancelled,
+            "the batch job to finish");
+
+        var item = (await jobs.ListItemsAsync(jobId)).ShouldHaveSingleItem();
+        var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(item.RunId!.Value)).ShouldNotBeNull();
+
+        return (item, run);
+    }
+
+    private static async Task<(JsonElement Detail, JsonElement Result, RunRecord Run)> RunEvalCaseAsync(TraconTestHost host)
+    {
+        using (var suite = await host.Client.PutAsJsonAsync(
+                   $"/tracon/api/evals/{Suite}",
+                   new EvalSuiteSaveRequest
+                   {
+                       AgentName = AgentName,
+                       Checks = JsonDocument.Parse("""[{"kind":"nonEmpty","minLength":1}]""").RootElement,
+                   }))
+        {
+            suite.EnsureSuccessStatusCode();
+        }
+
+        using (var cases = await host.Client.PutAsJsonAsync(
+                   $"/tracon/api/evals/{Suite}/cases",
+                   new object[] { new { query = "refund order 7" } }))
+        {
+            cases.EnsureSuccessStatusCode();
+        }
+
+        using var triggered = await host.Client.PostAsJsonAsync($"/tracon/api/evals/{Suite}/run", new { });
+        triggered.StatusCode.ShouldBe(HttpStatusCode.OK, await triggered.Content.ReadAsStringAsync());
+
+        var evalRunId = (await TraconTestHost.ReadJsonAsync(triggered)).GetProperty("id").GetGuid();
+
+        var detail = await WaitUntil.ValueAsync(
+            async () =>
+            {
+                using var response = await host.Client.GetAsync($"/tracon/api/evals/runs/{evalRunId}");
+
+                return await TraconTestHost.ReadJsonAsync(response);
+            },
+            static body => body.GetProperty("run").GetProperty("status").GetString() is "Completed" or "Failed",
+            "the eval run to finish");
+
+        var result = detail.GetProperty("results").EnumerateArray().ShouldHaveSingleItem();
+        var runId = result.GetProperty("runId").GetGuid();
+        var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull();
+
+        return (detail, result, run);
+    }
+
     private static async Task AddTheApprovalToolAsync(TraconTestHost host)
     {
         using var updated = await host.Client.PutAsJsonAsync(
@@ -319,7 +365,8 @@ public sealed class SessionlessApprovalTests
 
     private static Task<TraconTestHost> StartAsync(
         Action<ITraconBuilder>? configureTracon = null,
-        Action<Microsoft.AspNetCore.Builder.WebApplication>? configureAfterMap = null)
+        Action<Microsoft.AspNetCore.Builder.WebApplication>? configureAfterMap = null,
+        Action<IServiceCollection>? configureServices = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -349,7 +396,8 @@ public sealed class SessionlessApprovalTests
                     options.PollInterval = TimeSpan.FromMilliseconds(20);
                 });
             },
-            configureAfterMap: configureAfterMap);
+            configureAfterMap: configureAfterMap,
+            configureServices: configureServices);
 
     private static string RefundOrder(string orderId) => $"refunded {orderId}";
 }

@@ -84,6 +84,30 @@ public sealed class WorkflowToolApprovalTests
         entry.After.ShouldNotBeNull().ShouldContain("\"approved\":true", Case.Sensitive);
     }
 
+    /// <summary>
+    /// The audit entry of a tool decision made on a workflow's request is stamped with the registered clock: a host whose clock
+    /// reads year 2000 reads year 2000 in it, and a stamp taken from the system clock would read this year.
+    /// </summary>
+    [Fact]
+    public async Task The_audit_entry_of_a_decision_on_a_workflow_request_is_stamped_with_the_registered_clock()
+    {
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var calls = new int[1];
+        await using var host = await StartApprovalHostAsync(calls, services => services.AddSingleton<TimeProvider>(clock));
+        var waiting = await RunToApprovalAsync(host, StoredApproval);
+
+        using var answer = await RespondAsync(host, waiting, new { approved = true, text = "checked with the customer" });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.OK, await answer.Content.ReadAsStringAsync());
+
+        (await ReadWaitingAsync(host, await ReadRunIdAsync(answer))).Run.Status.ShouldBe(RunStatus.Completed);
+
+        var entry = (await host.Services.GetRequiredService<IAuditLog>().QueryAsync(new AuditQuery { Action = "approval.decision" }))
+            .ShouldHaveSingleItem();
+
+        entry.CreatedAt.Year.ShouldBe(2000);
+    }
+
     [Theory]
     [InlineData(StoredApproval)]
     [InlineData(CodeApproval)]

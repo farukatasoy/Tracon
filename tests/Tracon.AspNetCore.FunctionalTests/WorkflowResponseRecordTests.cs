@@ -47,6 +47,26 @@ public sealed class WorkflowResponseRecordTests
         record.RespondedBy.ShouldBe("editor@example");
     }
 
+    /// <summary>
+    /// The moments of an answer come from the registered clock: the audit entry of the answer and the record that says when it was
+    /// given. A host whose clock reads year 2000 reads year 2000 in both; a stamp taken from the system clock would read this year.
+    /// </summary>
+    [Fact]
+    public async Task The_audit_entry_and_the_record_of_an_answer_are_stamped_with_the_registered_clock()
+    {
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(configureServices: services => services.AddSingleton<TimeProvider>(clock));
+        var (sourceId, requestId) = await RunToAwaitAsync(host, NoteFlow);
+
+        using var answered = await RespondAsync(host, sourceId, new { requestId, text = "ship it" });
+
+        await FramesAsync(answered);
+
+        (await RespondEntriesAsync(host)).ShouldHaveSingleItem().CreatedAt.Year.ShouldBe(2000);
+        (await RecordsAsync(host, sourceId)).ShouldHaveSingleItem().RespondedAt.Year.ShouldBe(2000);
+    }
+
     [Fact]
     public async Task A_large_answer_leaves_an_entry_of_the_same_small_size()
     {

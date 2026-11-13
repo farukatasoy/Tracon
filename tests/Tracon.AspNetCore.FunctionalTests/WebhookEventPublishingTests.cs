@@ -172,6 +172,37 @@ public sealed class WebhookEventPublishingTests
 
         await using var host = await StartWorkerAsync(publisher);
 
+        var evalRunId = await TriggerEvalAsync(host);
+
+        var eval = (await publisher.WaitForAsync(WebhookEvents.EvalCompleted)).Eval.ShouldNotBeNull();
+
+        eval.EvalRunId.ShouldBe(evalRunId.ToString());
+        eval.SuiteName.ShouldBe("webhook-suite");
+        eval.AgentName.ShouldBe(TestData.Definition().Name);
+        eval.Status.ShouldBe(nameof(EvalRunStatus.Completed));
+        eval.Total.ShouldBe(2);
+        (eval.Passed + eval.Failed).ShouldBe(2);
+    }
+
+    /// <summary>
+    /// The moment an <c>eval.completed</c> event says it happened is the registered clock's: a host whose clock reads year 2000
+    /// publishes year 2000, and a stamp taken from the system clock would read this year.
+    /// </summary>
+    [Fact]
+    public async Task An_eval_completed_event_is_stamped_with_the_registered_clock()
+    {
+        var publisher = new RecordingPublisher();
+        var clock = ManualClock.WithSystemTimers(new DateTimeOffset(2000, 1, 1, 12, 0, 0, TimeSpan.Zero));
+
+        await using var host = await StartWorkerAsync(publisher, clock);
+
+        await TriggerEvalAsync(host);
+
+        (await publisher.WaitForAsync(WebhookEvents.EvalCompleted)).OccurredAt.ShouldNotBeNull().Year.ShouldBe(2000);
+    }
+
+    private static async Task<Guid> TriggerEvalAsync(TraconTestHost host)
+    {
         using (var suite = await host.Client.PutAsJsonAsync(
                    "/tracon/api/evals/webhook-suite",
                    new EvalSuiteSaveRequest
@@ -192,19 +223,11 @@ public sealed class WebhookEventPublishingTests
 
         using var triggered = await host.Client.PostAsJsonAsync("/tracon/api/evals/webhook-suite/run", new { });
         triggered.StatusCode.ShouldBe(HttpStatusCode.OK, await triggered.Content.ReadAsStringAsync());
-        var evalRunId = (await TraconTestHost.ReadJsonAsync(triggered)).GetProperty("id").GetGuid();
 
-        var eval = (await publisher.WaitForAsync(WebhookEvents.EvalCompleted)).Eval.ShouldNotBeNull();
-
-        eval.EvalRunId.ShouldBe(evalRunId.ToString());
-        eval.SuiteName.ShouldBe("webhook-suite");
-        eval.AgentName.ShouldBe(TestData.Definition().Name);
-        eval.Status.ShouldBe(nameof(EvalRunStatus.Completed));
-        eval.Total.ShouldBe(2);
-        (eval.Passed + eval.Failed).ShouldBe(2);
+        return (await TraconTestHost.ReadJsonAsync(triggered)).GetProperty("id").GetGuid();
     }
 
-    private static Task<TraconTestHost> StartWorkerAsync(RecordingPublisher publisher)
+    private static Task<TraconTestHost> StartWorkerAsync(RecordingPublisher publisher, TimeProvider? clock = null)
         => TraconTestHost.StartAsync(
             configureTracon: static builder =>
             {
@@ -218,6 +241,11 @@ public sealed class WebhookEventPublishingTests
             configureServices: services =>
             {
                 services.AddSingleton<IWebhookPublisher>(publisher);
+
+                if (clock is not null)
+                {
+                    services.AddSingleton(clock);
+                }
             });
 
     private static async Task<Guid> TriggerBatchAsync(TraconTestHost host, string agentName)
