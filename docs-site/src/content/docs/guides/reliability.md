@@ -382,8 +382,11 @@ A tool whose effect is destructive or leaves the process (a database delete, a
 payment, a webhook) blocks continuation by default; the interrupted run stays
 `Failed` and its event stream records why. A tool author who can prove a call is
 safe to repeat — typically because it carries its own idempotency key — opts that
-one tool back in when registering it. A run with no session, or one whose chain has
-already reached `MaxAttempts`, is never continued.
+one tool back in when registering it. The two searches Tracon adds to an agent itself
+(`search_knowledge` and `search_conversation_memory`) only read, so a run that called
+them is continued. A tool the registry no longer knows (renamed or removed since the
+run) blocks continuation, because its effect can no longer be read. A run with no
+session, or one whose chain has already reached `MaxAttempts`, is never continued.
 
 Only an agent turn at the root of its run tree is continued. A workflow run is resumed
 from its checkpoints instead: it stays `Failed`, and its event stream records a

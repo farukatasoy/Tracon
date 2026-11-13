@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A run that called `search_knowledge` or `search_conversation_memory` is continued automatically after an interruption.** Tracon adds the two searches to a run itself, so they are not in the tool registry, and the reconciler read "not in the registry" as "its effect can no longer be read" and refused to continue the run (`RunContinuationBlocked`). Both only read: a repeat has no effect to undo. A tool that is registered, and a tool that is no longer registered, are judged as before.
+  What to do:
+  - **Nothing.** With `RunContinuation` on, a run that was blocked only because of a search now continues; the search is not replayed from the record but runs again, and costs one embedding.
+
 - **An agent with a harness and `Memory.EnableConversationMemory` now reads and writes the conversation memory of its user.** The harness builds its context providers in a list of its own, and the conversation memory provider was in the list of the chat agent only: the setting was accepted and did nothing, and no validation said so. A chat agent is unchanged.
   What to do:
   - **If you turned the setting on for a harness agent,** its model now sees the `## Memories` of the user and the search tool when the mode is `OnDemand`. The cost is the one a chat agent pays for it. Turn the setting off to keep the old behaviour.

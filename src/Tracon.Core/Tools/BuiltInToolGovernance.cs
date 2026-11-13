@@ -98,6 +98,22 @@ internal sealed class BuiltInToolGovernance
             provider.GetService<TimeProvider>());
     }
 
+    /// <summary>Tells whether a name is one of the two searches Tracon adds to a run, which only read.</summary>
+    /// <param name="toolName">The name a tool call was recorded under.</param>
+    /// <returns>
+    /// <see langword="true"/> for the knowledge search and the search of the conversation memory. Both send a query to the
+    /// embedding provider and return what a store holds, so a call that ran once can run again without an effect to
+    /// repeat. Their effect class is <see cref="ToolEffect.External"/> because the query leaves the process, not because
+    /// anything changes.
+    /// </returns>
+    /// <remarks>
+    /// The workspace tools are not here: a write or a delete among them is an effect, and a run with a workspace is not
+    /// continued at all (<c>RunContinuationEligibility</c>).
+    /// </remarks>
+    internal static bool IsRepeatableRead(string toolName)
+        => string.Equals(toolName, VectorSearchToolFactory.ToolName, StringComparison.Ordinal)
+        || string.Equals(toolName, ConversationMemoryScopeProvider.SearchToolName, StringComparison.Ordinal);
+
     /// <summary>Wraps a tool in the tool chain.</summary>
     /// <param name="function">The tool to wrap, with no approval layer of its own.</param>
     /// <param name="effect">The effect class the authorization handler and the run record see.</param>

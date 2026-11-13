@@ -308,8 +308,10 @@ internal sealed class RunReconciliationService(
     /// <remarks>
     /// A tool no longer in the registry (renamed or removed since the run)
     /// is treated as unsafe: its effect and <c>SafeToRepeat</c> declaration
-    /// can no longer be read, so safety cannot be verified. A hosted tool is the exception: the provider ran its call
-    /// inside a model turn that already answered, and a continuation does not run it again.
+    /// can no longer be read, so safety cannot be verified. Two kinds of tool are the exception. A hosted tool: the
+    /// provider ran its call inside a model turn that already answered, and a continuation does not run it again. And
+    /// the two searches Tracon adds to a run itself (the knowledge search, the search of the conversation memory): they
+    /// were never in the registry and they only read, so a repeat has no effect to undo.
     /// </remarks>
     private async ValueTask<string?> FindUnsafeToolAsync(Guid runId, CancellationToken cancellationToken)
     {
@@ -333,6 +335,13 @@ internal sealed class RunReconciliationService(
 
             var descriptor = descriptors.FirstOrDefault(
                 candidate => string.Equals(candidate.Name, invocation.ToolName, StringComparison.Ordinal));
+
+            // The registry's verdict comes first: a registered tool that shares one of these names is judged by its
+            // own declaration, not excused by the name.
+            if (descriptor is null && BuiltInToolGovernance.IsRepeatableRead(invocation.ToolName))
+            {
+                continue;
+            }
 
             if (descriptor is null || (descriptor.Effect is ToolEffect.Destructive or ToolEffect.External && !descriptor.SafeToRepeat))
             {

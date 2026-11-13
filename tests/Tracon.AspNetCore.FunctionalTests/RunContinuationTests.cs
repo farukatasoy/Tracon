@@ -595,6 +595,38 @@ public sealed class RunContinuationTests
         continuation.ShouldNotBeNull().ContinuedFromRunId.ShouldBe(sourceRunId);
     }
 
+    [Theory]
+    [InlineData("search_knowledge")]
+    [InlineData("search_conversation_memory")]
+    public async Task A_call_of_a_search_tool_Tracon_added_to_the_run_does_not_block_continuation(string toolName)
+    {
+        // The two searches only read: they send a query to the embedding provider and return what the store holds.
+        // Tracon adds them to a run while the agent is compiled, so they are not in the tool registry, and the
+        // reconciler read "not in the registry" as "its effect can no longer be read" and refused to continue
+        // every run that had searched.
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(o => o.Enabled = true);
+
+        var sourceRunId = await SeedCrashedRunAsync(host);
+
+        await host.Services.GetRequiredService<IRunStore>().RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = sourceRunId,
+            ToolName = toolName,
+            ToolCallId = "call_search_1",
+            Arguments = "query=teal",
+            Result = "no match",
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
+        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+
+        continuation.ShouldNotBeNull().ContinuedFromRunId.ShouldBe(sourceRunId);
+    }
+
     [Fact]
     public async Task A_sessionless_run_is_never_continued()
     {
