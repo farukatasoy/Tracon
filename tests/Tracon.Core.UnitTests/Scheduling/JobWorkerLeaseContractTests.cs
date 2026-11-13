@@ -1199,6 +1199,65 @@ public sealed class JobWorkerLeaseContractTests
             "the attempt had ended: the job read back is the one this worker closed");
     }
 
+    /// <summary>
+    /// A renewal refused between the moment the store commits the completion and the moment the worker has its answer is
+    /// not a lost lease: the job it reads is the one this attempt just closed.
+    /// </summary>
+    /// <remarks>
+    /// The renewal is stopped when the worker has the answer of its write, not when the store commits it. A renewal sent in
+    /// between is refused because the job is closed; the loop read the job back, found it past this attempt's work and
+    /// still gave the lease up. With an answer that was lost, the retry that follows then found the lease given up and
+    /// returned without counting or publishing the outcome.
+    /// </remarks>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_renewal_refused_between_the_commit_of_the_completion_and_its_answer_is_not_a_lost_lease(bool answerLost)
+    {
+        var clock = new ManualClock();
+        var jobs = new CommittedCompletionJobStore(clock) { AnswerLost = answerLost };
+        var handler = new BlockingHandler();
+        var logger = new CollectingLogger();
+        var publisher = new RecordingPublisher();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, clock.GetUtcNow());
+
+        // An hour keeps the cancel watch silent, so the status read that is counted is the renewal loop's.
+        var hour = TimeSpan.FromHours(1);
+
+        using var worker = CreateWorker(jobs, host, ManualLease, clock, pollInterval: hour, publisher: publisher, logger: logger);
+
+        await StartAttemptAsync(worker, clock, handler.Started, hour);
+
+        // The store has committed the completion and the worker has no answer yet; the renewal comes due.
+        handler.Release();
+        await jobs.Committed.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+        clock.Advance(ManualInterval);
+        await WaitUntil.TrueAsync(() => jobs.StatusReads >= 1, "the renewal loop to read the job after the refusal");
+        await SettleAsync();
+
+        jobs.ReleaseAnswer();
+
+        await WaitUntil.TrueAsync(
+            () =>
+            {
+                // A lost answer is tried again after a wait on the worker's clock.
+                clock.Advance(TimeSpan.FromSeconds(1));
+
+                return publisher.Published.Count > 0;
+            },
+            "the worker to publish the completed job");
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Completed);
+        publisher.Published.ShouldBe(["job.completed"]);
+        logger.Entries.ShouldNotContain(
+            entry => entry.Level == LogLevel.Warning && entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal),
+            "the job the renewal found closed was closed by this attempt");
+    }
+
     // ---- The delay a handler asks for ----
 
     /// <summary>
@@ -2497,6 +2556,55 @@ public sealed class JobWorkerLeaseContractTests
             }
 
             return applied;
+        }
+    }
+
+    /// <summary>
+    /// Commits the completion, then holds its answer until the test lets it go, and either returns it or loses it as a
+    /// dropped connection does. A renewal sent after the commit is refused, because the job is closed.
+    /// </summary>
+    private sealed class CommittedCompletionJobStore(ManualClock clock) : DelegatingJobStore(clock)
+    {
+        private readonly TaskCompletionSource _committed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _held;
+        private int _statusReads;
+
+        /// <summary>Gets whether the held answer is lost: the call throws what a dropped connection throws.</summary>
+        public bool AnswerLost { get; init; }
+
+        /// <summary>Completes when the store has committed the first completion and holds its answer.</summary>
+        public Task Committed => _committed.Task;
+
+        public int StatusReads => Volatile.Read(ref _statusReads);
+
+        public void ReleaseAnswer() => _answer.TrySetResult();
+
+        public override async ValueTask<bool> CompleteAsync(JobLease lease, JobCompletion completion, CancellationToken cancellationToken = default)
+        {
+            var applied = await base.CompleteAsync(lease, completion, cancellationToken);
+
+            if (Interlocked.CompareExchange(ref _held, 1, 0) != 0)
+            {
+                return applied;
+            }
+
+            _committed.TrySetResult();
+            await _answer.Task;
+
+            return AnswerLost ? throw new TimeoutException("The store did not answer in time.") : applied;
+        }
+
+        public override ValueTask<bool> RenewLeaseAsync(JobLease lease, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+            => _committed.Task.IsCompleted
+                ? new ValueTask<bool>(false)
+                : base.RenewLeaseAsync(lease, leaseDuration, cancellationToken);
+
+        public override ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _statusReads);
+
+            return base.GetAsync(tenantId, jobId, cancellationToken);
         }
     }
 

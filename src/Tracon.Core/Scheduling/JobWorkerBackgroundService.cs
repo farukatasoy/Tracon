@@ -1903,7 +1903,15 @@ internal sealed class JobWorkerBackgroundService(
     {
         var current = await CallWithinAsync(job, "status read after a refused renewal", ct => jobStore.GetAsync(job.TenantId, job.Id, ct), renewal.CallBudget, token).ConfigureAwait(false);
 
-        if (current is null || current.Status == JobStatus.Cancelled || token.IsCancellationRequested)
+        // A job this attempt closed or put back in the queue reads closed or pending under this attempt's number: the
+        // store lets only the holder of the attempt write that, and the number grows when the job is leased again. The
+        // renewal is stopped when the worker has the answer of that write, not when the store commits it, so a renewal
+        // sent in between is refused because of the write this worker made. Giving the lease up then also stops the retry
+        // of a write whose answer was lost.
+        if (current is null
+            || current.Status == JobStatus.Cancelled
+            || (current.Attempt == job.Attempt && current.Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Pending)
+            || token.IsCancellationRequested)
         {
             return;
         }
