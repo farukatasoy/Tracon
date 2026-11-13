@@ -74,6 +74,14 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new RateLimitFixture(), static contract => contract.Concurrent_increments_that_open_a_new_window_restart_the_count_once());
 
     [Fact]
+    public Task The_retention_policy_save_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new RetentionFixture(), static contract => contract.Writers_that_save_one_target_at_the_same_time_leave_one_policy());
+
+    [Fact]
+    public Task The_retention_progress_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new RetentionFixture(), static contract => contract.Concurrent_progress_appends_all_count());
+
+    [Fact]
     public Task The_workflow_definition_save_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new WorkflowDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content());
 
@@ -180,6 +188,16 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<IRateLimitCounterStore> CreateStoreAsync()
             => ValueTask.FromResult(OverlapProbe.Wrap<IRateLimitCounterStore>(new InMemoryRateLimitCounterStore(), out _probe));
+    }
+
+    private sealed class RetentionFixture : RetentionPolicyStoreContract, IProbedContract
+    {
+        private OverlapProbe<IRetentionPolicyStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<IRetentionPolicyStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<IRetentionPolicyStore>(new InMemoryRetentionPolicyStore(), out _probe));
     }
 
     private sealed class WorkflowDefinitionFixture : WorkflowDefinitionStoreContract, IProbedContract

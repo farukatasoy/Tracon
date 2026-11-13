@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -86,24 +88,21 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     [Fact]
     public async Task Writers_that_save_one_target_at_the_same_time_leave_one_policy()
     {
-        const int Writers = 32;
+        // The writers start on threads of their own, released together, at a tenant of their own each round: saves started
+        // one after the other on one thread never overlap, and a task that waits on a gate may be resumed one after the other
+        // by the thread that opens it.
+        const int Writers = 8;
+        const int Rounds = 20;
 
-        for (var round = 0; round < 20; round++)
+        for (var round = 0; round < Rounds; round++)
         {
             var tenant = "racing-" + round;
-            var gate = new TaskCompletionSource();
-            var writers = Enumerable.Range(0, Writers)
-                .Select(index => Task.Run(async () =>
-                {
-                    await gate.Task;
 
-                    return await Store.SavePolicyAsync(Policy(tenantId: tenant, maxAgeDays: index + 1));
-                }))
-                .ToList();
+            var policies = Enumerable.Range(0, Writers).Select(index => Policy(tenantId: tenant, maxAgeDays: index + 1)).ToArray();
 
-            gate.SetResult();
-
-            var saved = await Task.WhenAll(writers);
+            var saved = SimultaneousCalls.Run(
+                Writers,
+                index => Store.SavePolicyAsync(policies[index]).AsTask().GetAwaiter().GetResult());
 
             (await Store.ListPoliciesAsync(tenant)).Count.ShouldBe(1, $"round {round}: two policies hold one target");
             saved.Select(static policy => policy.Id).Distinct().Count().ShouldBe(1, $"round {round}: the writers were handed different policies");
@@ -156,23 +155,33 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     [Fact]
     public async Task Concurrent_progress_appends_all_count()
     {
-        const int Writers = 4;
-        const int PerWriter = 50;
+        // The writers start on threads of their own, released together, and each appends many times to a run of its own each
+        // round: appends started one after the other on one thread never overlap, and the window two overlapping appends
+        // need is a few instructions wide in a store that reads the counts and writes them back.
+        const int Writers = 8;
+        const int PerWriter = 10;
+        const int Rounds = 10;
 
-        var run = await Store.CreateRunAsync(Run());
-
-        await Task.WhenAll(Enumerable.Range(0, Writers).Select(_ => Task.Run(async () =>
+        for (var round = 0; round < Rounds; round++)
         {
-            for (var index = 0; index < PerWriter; index++)
-            {
-                await Store.AppendRunProgressAsync(run.Id, deletedDelta: 1, archivedDelta: 2);
-            }
-        })));
+            var tenant = "progress-" + round;
+            var run = await Store.CreateRunAsync(Run() with { TenantId = tenant });
 
-        var history = await Store.ListRunsAsync(Tenant, RetentionTargets.RunEvents, 0, 10);
+            SimultaneousCalls.Run(
+                Writers,
+                _ =>
+                {
+                    for (var index = 0; index < PerWriter; index++)
+                    {
+                        Store.AppendRunProgressAsync(run.Id, deletedDelta: 1, archivedDelta: 2).AsTask().GetAwaiter().GetResult();
+                    }
+                });
 
-        history.ShouldHaveSingleItem().DeletedRows.ShouldBe(Writers * PerWriter);
-        history[0].ArchivedRows.ShouldBe(Writers * PerWriter * 2);
+            var history = await Store.ListRunsAsync(tenant, RetentionTargets.RunEvents, 0, 10);
+
+            history.ShouldHaveSingleItem().DeletedRows.ShouldBe(Writers * PerWriter, $"round {round}: an append was lost");
+            history[0].ArchivedRows.ShouldBe(Writers * PerWriter * 2, $"round {round}: an append was lost");
+        }
     }
 
     [Fact]
