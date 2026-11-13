@@ -290,7 +290,7 @@ internal static class AgentEndpoints
                 "data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the " +
                 "model cut off at its output token limit or its context window) and " +
                 "'tracon.output.filtered' (an answer with text that the provider's content filter stopped; " +
-                "an answer with no content at all fails the run instead) always, and " +
+                "an answer whose final turn has no content fails the run instead) always, and " +
                 "'tracon.quota.threshold' when the quota options publish it to the run stream. " +
                 "An agent with a harness loop streams every iteration, so the 'update' events carry the drafts and " +
                 "the feedback as well as the answer. After each iteration the loop evaluated, the stream sends a " +

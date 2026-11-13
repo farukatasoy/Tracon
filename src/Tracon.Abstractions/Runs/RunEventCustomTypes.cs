@@ -73,9 +73,10 @@ public static partial class RunEventCustomTypes
     /// <remarks>
     /// <para>
     /// The run does not fail: the partial answer is still useful, so the run keeps its
-    /// status and this event says the answer is incomplete. A filtered answer with
-    /// <strong>no</strong> content at all fails its run with
-    /// <see cref="RunErrorClass.ContentFiltered"/> instead, because there is nothing to keep.
+    /// status and this event says the answer is incomplete. A filtered answer whose final
+    /// turn holds <strong>no</strong> content fails its run with
+    /// <see cref="RunErrorClass.ContentFiltered"/> instead, because there is nothing to keep;
+    /// what an earlier turn of the tool loop wrote does not count as the final turn's content.
     /// A structured (JSON) response filtered the same way gets this event too; whether
     /// the run then fails is still the structured-response validator's decision, as it is
     /// for any other response.

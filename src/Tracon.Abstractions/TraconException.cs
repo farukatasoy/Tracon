@@ -53,7 +53,9 @@ public class TraconException : Exception
 /// "succeeded but empty" produces the hardest case to debug: the user sees a blank
 /// answer and the record holds no trace. Tracon records it as an explicit
 /// failure instead — <c>RunError.Type</c> becomes <c>content_filtered</c>.
-/// A filtered response that already has text is not an error: the partial answer is
+/// "Empty" is judged on the turn that ends the run: a tool call or text an earlier turn
+/// of the tool loop produced does not make a filtered, empty final turn an answer.
+/// A filtered response whose final turn already has text is not an error: the partial answer is
 /// kept and the run records a <see cref="RunEventCustomTypes.OutputFiltered"/> event.
 /// </para>
 /// <para>

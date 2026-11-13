@@ -63,7 +63,7 @@ public enum RunErrorClass
     /// This is NOT the class for a decision made by Tracon's own guard;
     /// see <see cref="ContentBlocked"/>. Merging the two would make the
     /// operator lose the distinction between "the model refused" and "our
-    /// policy refused." A filtered response that already has text does not fail
+    /// policy refused." A filtered response whose final turn already has text does not fail
     /// its run; the run records a <see cref="RunEventCustomTypes.OutputFiltered"/>
     /// event instead.
     /// </remarks>

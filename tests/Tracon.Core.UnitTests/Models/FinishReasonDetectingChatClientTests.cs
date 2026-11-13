@@ -135,6 +135,93 @@ public sealed class FinishReasonDetectingChatClientTests
             .ShouldNotBeEmpty();
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Filtered_empty_final_turn_after_a_tool_turn_throws_a_content_filtered_error(string finalText)
+    {
+        // The tool turn's function call travels in the same response as the final turn (the loop returns
+        // every message of every turn). It is an earlier turn's content, not the final turn's.
+        using var chatClient = ScriptedTurns(ToolTurn(), FilteredTurn(finalText));
+
+        var exception = await Should.ThrowAsync<TraconContentFilteredException>(
+            () => chatClient.GetResponseAsync(
+                [new ChatMessage(ChatRole.User, "hi")], LookupTool(), TestContext.Current.CancellationToken));
+
+        exception.ErrorType.ShouldBe("content_filtered");
+    }
+
+    [Fact]
+    public async Task Filtered_empty_final_turn_after_a_tool_turn_with_preamble_text_throws_a_content_filtered_error()
+    {
+        // ChatResponse.Text joins the text of every message: the earlier turn's preamble must not make
+        // the final turn look answered.
+        using var chatClient = ScriptedTurns(ToolTurn(preamble: "Let me look that up."), FilteredTurn(string.Empty));
+
+        await Should.ThrowAsync<TraconContentFilteredException>(
+            () => chatClient.GetResponseAsync(
+                [new ChatMessage(ChatRole.User, "hi")], LookupTool(), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Filtered_final_turn_that_wrote_text_after_a_tool_turn_passes_through()
+    {
+        using var chatClient = ScriptedTurns(ToolTurn(), FilteredTurn("The answer is 42, beca"));
+
+        var response = await chatClient.GetResponseAsync(
+            [new ChatMessage(ChatRole.User, "hi")], LookupTool(), TestContext.Current.CancellationToken);
+
+        response.Messages[^1].Text.ShouldBe("The answer is 42, beca");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Streaming_filtered_empty_final_turn_after_a_tool_turn_throws_at_the_end_of_the_stream(string finalText)
+    {
+        using var chatClient = ScriptedTurns(ToolTurn(), FilteredTurn(finalText));
+
+        await Should.ThrowAsync<TraconContentFilteredException>(async () =>
+        {
+            await foreach (var _ in chatClient.GetStreamingResponseAsync(
+                [new ChatMessage(ChatRole.User, "hi")], LookupTool(), TestContext.Current.CancellationToken))
+            {
+                // Every update reaches the caller; the decision is made at the END of the stream.
+            }
+        });
+    }
+
+    [Fact]
+    public async Task Streaming_filtered_empty_final_turn_after_a_tool_turn_with_preamble_text_throws()
+    {
+        using var chatClient = ScriptedTurns(ToolTurn(preamble: "Let me look that up."), FilteredTurn(string.Empty));
+
+        await Should.ThrowAsync<TraconContentFilteredException>(async () =>
+        {
+            await foreach (var _ in chatClient.GetStreamingResponseAsync(
+                [new ChatMessage(ChatRole.User, "hi")], LookupTool(), TestContext.Current.CancellationToken))
+            {
+                // Consumed.
+            }
+        });
+    }
+
+    [Fact]
+    public async Task Streaming_filtered_final_turn_that_wrote_text_after_a_tool_turn_passes_through()
+    {
+        using var chatClient = ScriptedTurns(ToolTurn(), FilteredTurn("The answer is 42, beca"));
+
+        var text = string.Empty;
+
+        await foreach (var update in chatClient.GetStreamingResponseAsync(
+            [new ChatMessage(ChatRole.User, "hi")], LookupTool(), TestContext.Current.CancellationToken))
+        {
+            text += update.Text;
+        }
+
+        text.ShouldContain("The answer is 42, beca");
+    }
+
     [Fact]
     public async Task Circuit_breaker_does_not_count_a_filter_as_a_failure()
     {
@@ -787,6 +874,78 @@ public sealed class FinishReasonDetectingChatClientTests
             Model = "fake-model",
             Fallbacks = [new ModelFallback { Provider = "fallback", Model = "fake-model" }],
         });
+    }
+
+    private const string LookupToolName = "lookup_fact";
+
+    // One model turn as the updates a streaming provider yields. The same script drives the buffered
+    // path: the updates are folded into the response the non-streaming call returns.
+    private static List<ChatResponseUpdate> ToolTurn(string? preamble = null)
+    {
+        var updates = new List<ChatResponseUpdate>();
+
+        if (preamble is not null)
+        {
+            updates.Add(new ChatResponseUpdate(ChatRole.Assistant, preamble));
+        }
+
+        updates.Add(new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent("call-1", LookupToolName)]));
+        updates.Add(new ChatResponseUpdate(ChatRole.Assistant, string.Empty) { FinishReason = ChatFinishReason.ToolCalls });
+
+        return updates;
+    }
+
+    private static ChatResponseUpdate[] FilteredTurn(string text)
+        =>
+        [
+            new ChatResponseUpdate(ChatRole.Assistant, text),
+            new ChatResponseUpdate(ChatRole.Assistant, string.Empty) { FinishReason = ChatFinishReason.ContentFilter },
+        ];
+
+    private static ChatOptions LookupTool()
+        => new() { Tools = [AIFunctionFactory.Create(static () => "42", LookupToolName, "Returns a fact.")] };
+
+    private static IChatClient ScriptedTurns(params IReadOnlyList<ChatResponseUpdate>[] turns)
+        => new ModelProviderRegistry([new FakeModelProvider(new TurnScriptChatClient(turns))]).CreateChatClient(Binding);
+
+    /// <summary>A chat client that answers its n-th call with the n-th scripted turn.</summary>
+    private sealed class TurnScriptChatClient(IReadOnlyList<IReadOnlyList<ChatResponseUpdate>> turns) : IChatClient
+    {
+        private int _next;
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(NextTurn().ToChatResponse());
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var update in NextTurn())
+            {
+                yield return update;
+                await Task.Yield();
+            }
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+            // Nothing to release.
+        }
+
+        private IReadOnlyList<ChatResponseUpdate> NextTurn()
+        {
+            var index = Interlocked.Increment(ref _next) - 1;
+
+            return index < turns.Count
+                ? turns[index]
+                : throw new InvalidOperationException("The test script has no turn left.");
+        }
     }
 
     private static ModelBinding Binding => new() { Provider = "fake", Model = "fake-model" };

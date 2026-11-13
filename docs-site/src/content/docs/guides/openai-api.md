@@ -323,7 +323,8 @@ of the last event instead. A complete answer keeps `completed` and has no
 `incomplete_details`. The same rules as `finish_reason` apply:
 only the answer's final model call decides, a tool turn or an earlier loop iteration that
 hit the limit does not count, and the status does not depend on run recording. A filter
-that stopped the model before it wrote anything is an error, not an `incomplete` answer.
+that stopped the final model call before it wrote anything is an error, not an `incomplete` answer,
+even when an earlier tool turn wrote a call.
 The run's own `tracon.output.truncated` and `tracon.output.filtered` events stay on
 the run (see [Truncated output](/concepts/runs/#truncated-output) and
 [Filtered output](/concepts/runs/#filtered-output)).

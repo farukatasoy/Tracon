@@ -784,11 +784,11 @@ binding.
 
 A provider's content filter can stop a model in the middle of an answer: Anthropic
 reports a `refusal`, Gemini a safety block. Tracon reads every provider's report as
-one finish reason, and the outcome depends on what the model had written:
+one finish reason, and the outcome depends on what the model had written in the turn that ended the run:
 
-| The model had written | Outcome |
+| The final turn had written | Outcome |
 |---|---|
-| Nothing | The run fails with error type `content_filtered`, class `ContentFiltered`. Nothing is left to keep |
+| Nothing | The run fails with error type `content_filtered`, class `ContentFiltered`. Nothing is left to keep. A tool call, or text, from an earlier turn of the tool loop does not count: a filter that leaves the final turn empty fails the run even after tool calls |
 | Text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.filtered`. Its payload names the provider — never the answer text. The provider's own word for the filter is not in it |
 
 A structured response (`Json` or `JsonSchema`) a filter stopped after it wrote text

@@ -46,7 +46,9 @@ namespace Tracon;
 /// <strong>Only an empty filtered response is turned into an error.</strong> If
 /// the model produced text and was then filtered (not Gemini's common behavior,
 /// but possible), the user has a partial answer in hand; discarding it is a loss
-/// of information. The answer passes through and the run records a
+/// of information. "Empty" is judged on the <strong>final turn</strong> alone: a tool call, or text,
+/// that an earlier turn of the loop produced is not an answer, so a filter that leaves the final
+/// turn with nothing fails the run even after tool turns. The answer passes through and the run records a
 /// <see cref="RunEventCustomTypes.OutputFiltered"/> event, so the record says why it
 /// ends where it does. A structured (JSON) response gets the event too; whether the
 /// document is usable stays the structured-response validator's decision. An empty
@@ -96,7 +98,7 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
 
         if (IsContentFilter(response.FinishReason))
         {
-            if (!HasContent(response))
+            if (!HasFinalTurnContent(response))
             {
                 FoldRejectedUsage(response.Usage);
                 throw Filtered(response.FinishReason);
@@ -141,6 +143,13 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
             if (update.FinishReason is { } reported)
             {
                 finishReason = reported;
+            }
+
+            // The loop forwards every turn's updates, and a tool turn ends with the update that carries
+            // its results: what the turns before it wrote is not the final turn's content.
+            if (HasFunctionResult(update.Contents))
+            {
+                sawContent = false;
             }
 
             sawContent = sawContent || HasContent(update.Contents);
@@ -237,16 +246,35 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     private static bool IsStructured(ChatOptions? options)
         => options?.ResponseFormat is ChatResponseFormatJson;
 
-    private static bool HasContent(ChatResponse response)
+    // The non-streaming loop returns every message of every turn: the tool-call turn's assistant message,
+    // the tool results, then the final turn's messages. Only the messages after the last tool result are
+    // the final turn's, so the walk goes backward and stops there. ChatResponse.Text is not read: it joins
+    // the text of ALL messages, the earlier turns' included.
+    private static bool HasFinalTurnContent(ChatResponse response)
     {
-        if (!string.IsNullOrWhiteSpace(response.Text))
+        for (var i = response.Messages.Count - 1; i >= 0; i--)
         {
-            return true;
+            var contents = response.Messages[i].Contents;
+
+            if (HasFunctionResult(contents))
+            {
+                return false;
+            }
+
+            if (HasContent(contents))
+            {
+                return true;
+            }
         }
 
-        foreach (var message in response.Messages)
+        return false;
+    }
+
+    private static bool HasFunctionResult(IEnumerable<AIContent> contents)
+    {
+        foreach (var content in contents)
         {
-            if (HasContent(message.Contents))
+            if (content is FunctionResultContent)
             {
                 return true;
             }
