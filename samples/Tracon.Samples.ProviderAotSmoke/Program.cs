@@ -63,6 +63,14 @@ Check(failures, "voice audio", audio.Data.Length.ToString(System.Globalization.C
 var voices = await synthesizer.ListVoicesAsync();
 Check(failures, "voice list", voices.Count == 1 ? voices[0].VoiceId : "none", "voice-1");
 
+// ElevenLabs transcription: a multipart request to its own endpoint, read back through the response source generator.
+var transcriber = host.Services.GetRequiredService<ISpeechTranscriber>();
+using (var spoken = new MemoryStream(FakeProviderServer.ExpectedAudio.ToArray()))
+{
+    var heard = await transcriber.TranscribeAsync(spoken, "audio/mpeg");
+    Check(failures, "voice transcript", heard.Text, FakeProviderServer.ElevenLabsTranscript);
+}
+
 // OpenAI speech through the Microsoft.Extensions.AI bridge: both directions reach
 // their own endpoint, and the bridged provider answers under the name "openai".
 var speech = host.Services.GetRequiredService<ISpeechProviderResolver>();
@@ -100,6 +108,7 @@ RequireSeen(failures, server, "/v1/chat/completions");
 RequireSeen(failures, server, "/openai/v1/chat/completions");
 RequireSeen(failures, server, "/v1/text-to-speech/");
 RequireSeen(failures, server, "/v2/voices");
+RequireSeen(failures, server, "/v1/speech-to-text");
 RequireSeen(failures, server, "/v1/audio/speech");
 RequireSeen(failures, server, "/v1/audio/transcriptions");
 RequireSeen(failures, server, "/v1/images/generations");

@@ -187,7 +187,8 @@ configured key and sends no tenant data.
 package** with it for this surface. The provider integration amounts to a few
 HTTP endpoints and is written with a raw `HttpClient` plus the
 `System.Text.Json` source generator; the package is AOT-compatible (a Native AOT app that
-synthesizes speech and lists voices publishes with no warning and runs: `samples/Tracon.Samples.ProviderAotSmoke`).
+synthesizes speech, transcribes it and lists voices publishes with no warning and runs: `samples/Tracon.Samples.ProviderAotSmoke`;
+dialogue is not part of that check).
 
 ## Links
 

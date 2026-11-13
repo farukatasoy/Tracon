@@ -149,7 +149,8 @@ Direct dependencies: `OpenAI`, `Azure.Core` (carried in the public API as
 
 The package is Native AOT-compatible: a Native AOT app that calls it through a real
 chat request with an API key (plain and streamed) publishes with no trim or AOT warning and runs
-(`samples/Tracon.Samples.ProviderAotSmoke`, checked on every release rehearsal).
+(`samples/Tracon.Samples.ProviderAotSmoke`, checked on every release rehearsal). The check does not cover the
+Microsoft Entra path (`TokenCredential`).
 
 ### Unsupported surfaces
 

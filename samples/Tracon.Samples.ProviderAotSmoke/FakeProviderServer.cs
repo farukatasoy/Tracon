@@ -20,6 +20,8 @@ internal sealed class FakeProviderServer : IDisposable
 
     public const string Transcript = "where is my order";
 
+    public const string ElevenLabsTranscript = "the order is on its way";
+
     private static readonly byte[] AudioBytes = "ID3-fake-audio"u8.ToArray();
 
     private static readonly byte[] ImageBytes = "PNG-fake-image"u8.ToArray();
@@ -183,6 +185,13 @@ internal sealed class FakeProviderServer : IDisposable
         if (target.StartsWith("/v1/text-to-speech/", StringComparison.Ordinal))
         {
             return ("audio/mpeg", AudioBytes);
+        }
+
+        // ElevenLabs transcription: a multipart request that is answered with a JSON transcript.
+        if (target.StartsWith("/v1/speech-to-text", StringComparison.Ordinal))
+        {
+            return ("application/json", Encoding.UTF8.GetBytes(
+                $"{{\"text\":\"{ElevenLabsTranscript}\",\"language_code\":\"en\",\"language_probability\":0.99,\"audio_duration_secs\":1.5}}"));
         }
 
         // OpenAI audio: the speech endpoint answers the audio bytes, the transcription
