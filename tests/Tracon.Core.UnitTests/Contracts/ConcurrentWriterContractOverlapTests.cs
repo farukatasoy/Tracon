@@ -98,6 +98,14 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new RunStoreFixture(), static contract => contract.Writers_that_start_one_run_at_the_same_time_each_leave_what_they_know());
 
     [Fact]
+    public Task The_run_score_one_target_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new RunScoreFixture(), static contract => contract.Writers_that_score_one_target_at_the_same_time_leave_one_row());
+
+    [Fact]
+    public Task The_run_score_summary_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new RunScoreFixture(), static contract => contract.Summary_can_be_read_while_a_score_is_being_written());
+
+    [Fact]
     public Task The_workflow_definition_save_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new WorkflowDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content());
 

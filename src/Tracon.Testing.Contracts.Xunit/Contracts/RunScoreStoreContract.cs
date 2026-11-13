@@ -105,24 +105,21 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     [Fact]
     public async Task Writers_that_score_one_target_at_the_same_time_leave_one_row()
     {
-        const int Writers = 32;
+        // The writers start on threads of their own, released together, at a run of their own each round: writers started
+        // one after the other on one thread never overlap, and a task that waits on a gate may be resumed one after the other
+        // by the thread that opens it.
+        const int Writers = 8;
+        const int Rounds = 20;
 
-        for (var round = 0; round < 20; round++)
+        for (var round = 0; round < Rounds; round++)
         {
             var runId = TraconId.NewId();
-            var gate = new TaskCompletionSource();
-            var writers = Enumerable.Range(0, Writers)
-                .Select(index => Task.Run(async () =>
-                {
-                    await gate.Task;
 
-                    return await Store.UpsertAsync(Score(runId) with { Value = index % 2 });
-                }))
-                .ToList();
+            var scores = Enumerable.Range(0, Writers).Select(index => Score(runId) with { Value = index % 2 }).ToArray();
 
-            gate.SetResult();
-
-            var saved = await Task.WhenAll(writers);
+            var saved = SimultaneousCalls.Run(
+                Writers,
+                index => Store.UpsertAsync(scores[index]).AsTask().GetAwaiter().GetResult());
 
             (await Store.ListAsync(Tenant, runId)).Count.ShouldBe(1, $"round {round}: the target holds two rows of one author and name");
             saved.Select(static score => score.Id).Distinct().Count().ShouldBe(1, $"round {round}: the writers were handed different rows");
@@ -902,15 +899,32 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     [Fact]
     public async Task Summary_can_be_read_while_a_score_is_being_written()
     {
-        var tenant = UniqueTenant();
-        await Store.UpsertAsync(SummaryScore(tenant, TraconId.NewId()) with { Author = "alice" });
+        // Two readers and two writers start on threads of their own, released together, on a tenant of their own each round:
+        // calls started one after the other on one thread never overlap, and a read that runs beside a write is the case.
+        const int Rounds = 20;
 
-        await Task.WhenAll(
-            Store.SummarizeAsync(new RunScoreQuery { TenantId = tenant }).AsTask(),
-            Store.UpsertAsync(SummaryScore(tenant, TraconId.NewId()) with { Author = "bob" }).AsTask());
+        for (var round = 0; round < Rounds; round++)
+        {
+            var tenant = UniqueTenant();
+            await Store.UpsertAsync(SummaryScore(tenant, TraconId.NewId()) with { Author = "alice" });
 
-        var summary = await Store.SummarizeAsync(new RunScoreQuery { TenantId = tenant });
-        summary.ByName.ShouldHaveSingleItem().Count.ShouldBe(2);
+            SimultaneousCalls.Run(
+                4,
+                index =>
+                {
+                    if (index < 2)
+                    {
+                        Store.SummarizeAsync(new RunScoreQuery { TenantId = tenant }).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        Store.UpsertAsync(SummaryScore(tenant, TraconId.NewId()) with { Author = index == 2 ? "bob" : "carol" }).AsTask().GetAwaiter().GetResult();
+                    }
+                });
+
+            var summary = await Store.SummarizeAsync(new RunScoreQuery { TenantId = tenant });
+            summary.ByName.ShouldHaveSingleItem().Count.ShouldBe(3, $"round {round}");
+        }
     }
 
     private static string UniqueTenant() => $"summary-{TraconId.NewId():N}";
