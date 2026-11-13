@@ -106,6 +106,14 @@ public sealed class ConcurrentWriterContractOverlapTests
         => AssertOverlapAsync(new RunScoreFixture(), static contract => contract.Summary_can_be_read_while_a_score_is_being_written());
 
     [Fact]
+    public Task The_skill_script_grant_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new SkillScriptGrantFixture(), static contract => contract.Racing_grants_and_revocations_leave_one_record_for_the_key());
+
+    [Fact]
+    public Task The_tenant_tool_policy_case_has_calls_in_the_store_at_the_same_time()
+        => AssertOverlapAsync(new TenantToolPolicyFixture(), static contract => contract.Concurrent_saves_for_one_tenant_leave_one_whole_policy());
+
+    [Fact]
     public Task The_workflow_definition_save_case_has_calls_in_the_store_at_the_same_time()
         => AssertOverlapAsync(new WorkflowDefinitionFixture(), static contract => contract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content());
 
@@ -258,6 +266,26 @@ public sealed class ConcurrentWriterContractOverlapTests
 
         protected override ValueTask<IRunScoreStore?> CreateScoreStoreAsync()
             => ValueTask.FromResult<IRunScoreStore?>(_scores);
+    }
+
+    private sealed class SkillScriptGrantFixture : SkillScriptGrantContract, IProbedContract
+    {
+        private OverlapProbe<ISkillScriptGrantStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<ISkillScriptGrantStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<ISkillScriptGrantStore>(new InMemorySkillScriptGrantStore(), out _probe));
+    }
+
+    private sealed class TenantToolPolicyFixture : TenantToolPolicyStoreContract, IProbedContract
+    {
+        private OverlapProbe<ITenantToolPolicyStore>? _probe;
+
+        public int MostInFlight => _probe?.MostInFlight ?? 0;
+
+        protected override ValueTask<ITenantToolPolicyStore> CreateStoreAsync()
+            => ValueTask.FromResult(OverlapProbe.Wrap<ITenantToolPolicyStore>(new InMemoryTenantToolPolicyStore(), out _probe));
     }
 
     private sealed class WorkflowDefinitionFixture : WorkflowDefinitionStoreContract, IProbedContract

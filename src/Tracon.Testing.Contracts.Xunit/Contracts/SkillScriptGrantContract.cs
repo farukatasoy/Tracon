@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -188,20 +190,44 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
     [Fact]
     public async Task Racing_grants_and_revocations_leave_one_record_for_the_key()
     {
-        var operations = Enumerable.Range(0, 24).Select(index => index % 2 == 0
-            ? Store.GrantAsync(Grant("tenant-a", "invoice", "total") with { ContentHash = new string((char)('A' + (index % 6)), 64) }).AsTask()
-            : (Task)Store.RevokeAsync("tenant-a", "invoice", "total").AsTask());
+        // The callers start on threads of their own, released together, at a script of their own each round: calls started
+        // one after the other on one thread never overlap, and a store that looks for the record and then adds one lets two
+        // grants of a new key both add.
+        const int Callers = 16;
+        const int Rounds = 20;
 
-        await Task.WhenAll(operations);
+        for (var round = 0; round < Rounds; round++)
+        {
+            var script = $"total-{round}";
 
-        var final = new string('F', 64);
-        await Store.GrantAsync(Grant("tenant-a", "invoice", "total") with { ContentHash = final });
+            var grants = Enumerable.Range(0, Callers).Select(index => Grant("tenant-a", "invoice", script) with { ContentHash = new string((char)('A' + (index % 6)), 64) }).ToArray();
 
-        var listed = (await Store.ListAsync("tenant-a")).Where(static grant => string.Equals(grant.ScriptName, "total", StringComparison.Ordinal)).ToList();
-        var record = listed.ShouldHaveSingleItem();
-        record.RevokedAt.ShouldBeNull();
-        record.ContentHash.ShouldBe(final);
-        (await Store.FindActiveAsync("tenant-a", "invoice", "total", DateTimeOffset.UtcNow)).ShouldNotBeNull().ContentHash.ShouldBe(final);
+            SimultaneousCalls.Run(
+                Callers,
+                index =>
+                {
+                    if (index % 2 == 0)
+                    {
+                        Store.GrantAsync(grants[index]).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        Store.RevokeAsync("tenant-a", "invoice", script).AsTask().GetAwaiter().GetResult();
+                    }
+                });
+
+            var final = new string('F', 64);
+            await Store.GrantAsync(Grant("tenant-a", "invoice", script) with { ContentHash = final });
+
+            var listed = (await Store.ListAsync("tenant-a")).Where(grant => string.Equals(grant.ScriptName, script, StringComparison.Ordinal)).ToList();
+
+            listed.Count.ShouldBe(1, $"round {round}: the key holds more than one record");
+
+            var record = listed[0];
+            record.RevokedAt.ShouldBeNull($"round {round}");
+            record.ContentHash.ShouldBe(final, $"round {round}");
+            (await Store.FindActiveAsync("tenant-a", "invoice", script, DateTimeOffset.UtcNow)).ShouldNotBeNull().ContentHash.ShouldBe(final, $"round {round}");
+        }
     }
 
     private static SkillScriptGrant Grant(string tenantId, string skillName, string? scriptName = null) => new()

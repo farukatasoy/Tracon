@@ -1,3 +1,5 @@
+using Tracon.Testing.Contracts.Internal;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>Behavior tests for the <see cref="ITenantToolPolicyStore"/> contract.</summary>
@@ -161,25 +163,36 @@ public abstract class TenantToolPolicyStoreContract : TenantIsolationContract<IT
     [Fact]
     public async Task Concurrent_saves_for_one_tenant_leave_one_whole_policy()
     {
-        // Twenty writers, each with a policy whose two lists name the same writer. Whatever order they land
+        // Eight writers, each with a policy whose two lists name the same writer. Whatever order they land
         // in, the row that remains is one writer's policy: a store that wrote the two lists in separate
         // statements, or kept two rows, would show a list of one writer next to the list of another.
-        var writers = Enumerable.Range(0, 20).ToList();
+        //
+        // The writers start on threads of their own, released together, at a tenant of their own each round: saves started
+        // one after the other on one thread never overlap, and a store that writes the two lists in two steps passes a single
+        // round by luck.
+        const int Writers = 8;
+        const int Rounds = 20;
 
-        await Task.WhenAll(writers.Select(writer => Store.UpsertAsync(
-            Tenant,
-            [$"tool-{writer}"],
-            [$"permission-{writer}"]).AsTask()));
+        for (var round = 0; round < Rounds; round++)
+        {
+            var tenant = $"{Tenant}-race-{round}";
+            var tools = Enumerable.Range(0, Writers).Select(writer => (IReadOnlyList<string>)[$"tool-{writer}"]).ToArray();
+            var permissions = Enumerable.Range(0, Writers).Select(writer => (IReadOnlyList<string>)[$"permission-{writer}"]).ToArray();
 
-        var policy = await Store.GetAsync(Tenant);
+            SimultaneousCalls.Run(
+                Writers,
+                writer => Store.UpsertAsync(tenant, tools[writer], permissions[writer]).AsTask().GetAwaiter().GetResult());
 
-        policy.ShouldNotBeNull();
-        policy.AllowedTools.Count.ShouldBe(1);
-        policy.GrantedPermissions.Count.ShouldBe(1);
+            var policy = await Store.GetAsync(tenant);
 
-        var tool = policy.AllowedTools[0];
-        var writerNumber = tool["tool-".Length..];
+            policy.ShouldNotBeNull();
+            policy.AllowedTools.Count.ShouldBe(1, $"round {round}");
+            policy.GrantedPermissions.Count.ShouldBe(1, $"round {round}");
 
-        policy.GrantedPermissions[0].ShouldBe($"permission-{writerNumber}");
+            var tool = policy.AllowedTools[0];
+            var writerNumber = tool["tool-".Length..];
+
+            policy.GrantedPermissions[0].ShouldBe($"permission-{writerNumber}", $"round {round}: the two lists belong to different writers");
+        }
     }
 }
