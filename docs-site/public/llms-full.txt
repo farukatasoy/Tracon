@@ -285,7 +285,7 @@ conditional or separately mapped, so they are not all represented by the generat
 | Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `ITenantStore` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request |
 | Run attribution | Attributes a run to your own user and job labels | `IRunAttributionContext` | Unset by default; the columns stay `NULL` until you register one |
 | Tool authorization | Decides whether a caller may invoke a specific tool | `IToolAuthorizationHandler`; per tenant, a [tool policy](/concepts/tools/#per-tenant-tool-policy) in front of it | Allows every call by default; a thrown exception denies the call. A tenant with no policy passes the policy unless `Tracon:Tools:RequireTenantPolicy` is on |
-| Run and session authorization | Decides whether a caller may start a run, reach an existing run's resources, or read/list/delete/branch/speak into a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call and is logged as an error. Called explicitly at all six run-starting endpoints and at every run-resource endpoint, not one shared filter |
+| Run and session authorization | Decides whether a caller may start a run, reach an existing run's resources, or read/list/delete/branch/speak into a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call and is logged as an error. Called explicitly at every run-starting endpoint, at every message an A2A agent receives and every MCP tool call, and at every run-resource endpoint, not one shared filter |
 | Run event bridge | Bridges run events to your own channel or message bus | `IRunEventSink` | Queue the event and return; a slow sink degrades on its own, never the model stream |
 | Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
 | Tool-approval presentation | Turns a pending approval's raw arguments into a resolved entity name | `IToolApprovalPresenter` | Best-effort: not registered, throws, or times out all publish the approval request unchanged |
@@ -409,8 +409,11 @@ A queued run (`Prefer: respond-async`) uses the `culture` of the request that qu
 it. The run record does not store the culture. A run that Tracon starts from an
 earlier run therefore uses the default instructions. This applies to the
 continuation after an approval decision, a replay, and an automatic continuation
-after a crash. A [callable agent](#agents-calling-agents) also resolves without
-the caller's culture.
+after a crash.
+
+A [callable agent](#agents-calling-agents) runs with the culture of the run that calls it,
+and so does a sub-agent of a sub-agent. A callable agent that has no entry for the
+culture runs with its own default instructions, as a root run does.
 
 ## Parameters
 
@@ -1015,7 +1018,9 @@ Four more rules are worth knowing before you turn the loop on:
 
 Each evaluated iteration writes a `LoopIterationCompleted` run event carrying
 the iteration number, whether a criterion asked for another iteration, and which
-one. The criterion's feedback text is not carried in the event.
+one. The criterion's feedback text is not carried in the event. The event keeps its
+payload when `RunRecording:RecordToolPayloads` is off: the payload holds counters, flags and
+criterion kinds, never free text.
 
 The event also says who decided. Its `criteria` list holds every criterion that was
 evaluated that iteration, in order, each with its `kind` and its `decision`: `stop`,
@@ -2403,6 +2408,13 @@ only record of where the bytes are. See
 [production storage](/guides/multimodal/#persistence-and-production-storage) for
 what your storage's `DeleteAsync` must do.
 
+Without an `IAttachmentStorage`, retention keeps the attachment rows that point at
+external content. Deleting such a row would leave the bytes in your store with nothing
+that names them, so the row stays. Rows with their content in the database are deleted
+as usual, and the preview does not count the kept rows. The last batch of a run logs one
+warning with the number of rows kept — never a tenant or a location. Register the
+`IAttachmentStorage` that wrote the bytes, and the next run deletes the bytes and the rows.
+
 No endpoint deletes synchronously. Preview first — it is the only way to see the size
 of a deletion before it happens — then run, which queues a job.
 
@@ -3351,9 +3363,10 @@ tenant can start any agent in that tenant, regardless of `UserId`.
 Bind `IRunAuthorizationHandler` to enforce your own per-user rule. It is
 called at every endpoint that starts a run — the agent run endpoint, the
 workflow run endpoint, the inbound trigger accept endpoint, the
-OpenAI-compatible `/v1/responses` and `/v1/chat/completions` endpoints, and
-`POST /api/runs/{id}/replay` — **before** the quota check, so a denied call
-never consumes the tenant's quota. The same method is asked again for every
+OpenAI-compatible `/v1/responses` and `/v1/chat/completions` endpoints,
+`POST /api/runs/{id}/replay`, and the two external protocols (every A2A message and
+every MCP `tools/call` that names an exposed agent) — **before** the quota check, so
+a denied call never consumes the tenant's quota. The same method is asked again for every
 access to an existing run's resources: reading it, canceling it, scoring it,
 and reaching its attachments and approval requests. Which question is being
 asked is on `request.Access`, and a resource question carries
@@ -3543,11 +3556,11 @@ binding.
 
 A provider's content filter can stop a model in the middle of an answer: Anthropic
 reports a `refusal`, Gemini a safety block. Tracon reads every provider's report as
-one finish reason, and the outcome depends on what the model had written:
+one finish reason, and the outcome depends on what the model had written in the turn that ended the run:
 
-| The model had written | Outcome |
+| The final turn had written | Outcome |
 |---|---|
-| Nothing | The run fails with error type `content_filtered`, class `ContentFiltered`. Nothing is left to keep |
+| Nothing | The run fails with error type `content_filtered`, class `ContentFiltered`. Nothing is left to keep. A tool call, or text, from an earlier turn of the tool loop does not count: a filter that leaves the final turn empty fails the run even after tool calls |
 | Text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.filtered`. Its payload names the provider — never the answer text. The provider's own word for the filter is not in it |
 
 A structured response (`Json` or `JsonSchema`) a filter stopped after it wrote text
@@ -12080,6 +12093,15 @@ common, so each one calls this binding in its own body:
   `/v1/responses` and `/v1/chat/completions` endpoints, and `POST
   /api/runs/{id}/replay`. The check runs **before** the quota check, so a
   denied call never consumes the tenant's quota.
+- **The two external protocols:** every message an
+  [A2A](/guides/external-agents/#publish-agents-through-a2a) agent receives
+  (`SendMessage` and `SendStreamingMessage`) and every
+  [MCP](/guides/external-agents/#publish-agents-as-mcp-tools) `tools/call` that names an exposed agent. The
+  handler gets the same question as a run start, with `request.SessionId` set to the
+  conversation's identity for A2A and `null` for MCP, which keeps no session. A
+  refused call starts no run, calls no model and opens no run row. An MCP call that
+  asks for a task is refused before the task exists. How the refusal reaches the
+  caller is told on the external agents page.
 - **Every run resource:** the run summary, its tree, its event stream, its
   recorded input, its span tree, its tool calls, its scores, its
   cancellation, its attachments, and its approval requests.
@@ -12737,11 +12759,38 @@ there is no expose-all switch for it.
 
 `Budget`, which bounds what an external caller may spend, is on both.
 
+## Decide who may start an exposed agent
+
+An `ExternalInvoke` key says the caller may use the exposed agents at all. A rule of
+your own — this user may run this agent, that tenant may not — is your
+`IRunAuthorizationHandler` (see
+[Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)).
+Every A2A message and every MCP `tools/call` that names an exposed agent is put to it
+**before the run starts**, with the same question and the same fail-closed handling as
+the management run endpoint: the tenant, the agent, the user your `IRunAttributionContext`
+names, and `RunAccess.Start`. A refused call starts no run, calls no model and opens no run
+row. A handler that throws refuses the call and is logged at `Error` level.
+
+| | The handler is told | A refusal reaches the caller as |
+|---|---|---|
+| A2A (`SendMessage`, `SendStreamingMessage`) | `SessionId` is the conversation's identity (it starts with `a2a:`) | The opaque `-32603` error every refusal on this surface is. The handler's reason and the cause are in the server log at `Error` level |
+| MCP (`tools/call`) | `SessionId` is `null`: a tool call keeps no session | A tool result with `isError` set and the text `Run not authorized: ` followed by your reason, or `The run authorization check failed. Retry the request.` when the handler threw |
+
+A call that asks for an MCP task is refused before the task exists: the caller gets the
+error result at once and no task id. An MCP tool name that is not an exposed agent is
+not put to the handler, and neither is a call that arrives while the process drains
+(the drain refusal comes first).
+
+An A2A refusal can leave an empty session behind: the library saves the conversation
+of every call it handles, whatever the call ended in. The session holds no message of
+the refused turn.
+
 ## Production checklist
 
 - [ ] Expose only names whose input contract is safe for another system.
 - [ ] Expect token use to grow with each turn of a `contextId`; decide how a caller starts a new conversation.
 - [ ] Create a tenant-bound `ExternalInvoke` key and test revocation and expiry.
+- [ ] If a key speaks for several users, bind `IRunAttributionContext` and `IRunAuthorizationHandler`: both protocols ask the handler before a run starts.
 - [ ] Keep approval-required and high-impact tools out of exposed definitions.
 - [ ] Set `Skills.DisableReadApproval` on every exposed agent that names skills, and keep script
       skills off exposed agents.
@@ -14576,7 +14625,7 @@ Google supports five `google.safety.*` thresholds plus
 budget range is `-1..65535`; `-1` lets the model decide and `0` disables thinking.
 Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
-failed run with error type `content_filtered`; one that already has text completes with a
+failed run with error type `content_filtered`; one whose final turn already has text completes with a
 `tracon.output.filtered` run event.
 
 OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
@@ -14675,6 +14724,13 @@ no binding for a provider keeps using the global setup-time credential; nothing 
 until a binding is written. A binding that exists but resolves to no value does not
 fall back to the global credential silently — the run fails with a clear error instead,
 so a misconfigured tenant is never billed to the wrong account.
+
+To rotate a tenant's key, change the value the configuration name points at; the next
+run reads it and uses it. Tracon keeps one client for each tenant binding (the tenant
+and the provider) and replaces it when the key or the endpoint changes. It does not
+close the replaced client: a run that began before the rotation may still be using it,
+and the runtime releases it once that run ends. Two tenants that hold the same key
+value still get a client each, so a rotation never reaches another tenant.
 
 Restrict which providers a tenant's agents may call with an egress policy:
 
@@ -16778,6 +16834,27 @@ same one, and each reaches only its own session. An identifier that only another
 tenant uses behaves like one nobody has used, so a response never confirms that
 another tenant holds it.
 
+### What the items list
+
+`GET /v1/conversations/{id}/items` lists the history in the OpenAI item format: a user
+message's text as `input_text`, a reply as `output_text`, and the agent's tool calls as
+`function_call` and `function_call_output` items. An image or a file the user sent is
+listed too, as an `input_image` or `input_file` part of that message, in its place among
+the message's other parts:
+
+| Part | Members |
+|---|---|
+| `input_image` | `image_url` is the attachment's address (`<prefix>/api/attachments/{id}`) or the remote link the user sent. `detail` is what the part said, `auto` when it said none |
+| `input_file` | `file_url` is the attachment's address. `filename` is there when the file has a name |
+
+The bytes are never embedded. A client that needs them calls the address, with a
+credential that may read attachments. An assistant message lists no image or file part,
+because the item format has none for a reply.
+
+A file sent as a Responses `input_file` part is listed without a `filename`: Microsoft
+Agent Framework's request parser drops the name before Tracon sees it. A file attached
+through the management run endpoint keeps its name.
+
 ### The conversation routes go through your own gates
 
 `GET`, `DELETE` and `GET …/items` reach the same sessions `/api/sessions/{id}`
@@ -16936,7 +17013,7 @@ for await (const frame of readSse(response)) {
 | SSE streaming | yes | yes | Uses surface-specific OpenAI frame names |
 | Server conversation | `conversation` or `previous_response_id` | no | Maps to Tracon sessions |
 | Client-carried history | input items | `messages` | Resolved attachments reach the provider |
-| Image, audio and file input | `input_image`, `input_file` | `image_url`, `input_audio`, `file` | Embedded data passes the attachment type check and is stored as an attachment of the tenant |
+| Image, audio and file input | `input_image`, `input_file` | `image_url`, `input_audio`, `file` | Embedded data passes the attachment type check and is stored as an attachment of the tenant; the conversation items list it as an `input_image` or `input_file` part |
 | Client tool-call history | no: `400` | no: `400` | Tools run on the server; send earlier turns as text |
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
@@ -16978,7 +17055,8 @@ of the last event instead. A complete answer keeps `completed` and has no
 `incomplete_details`. The same rules as `finish_reason` apply:
 only the answer's final model call decides, a tool turn or an earlier loop iteration that
 hit the limit does not count, and the status does not depend on run recording. A filter
-that stopped the model before it wrote anything is an error, not an `incomplete` answer.
+that stopped the final model call before it wrote anything is an error, not an `incomplete` answer,
+even when an earlier tool turn wrote a call.
 The run's own `tracon.output.truncated` and `tracon.output.filtered` events stay on
 the run (see [Truncated output](/concepts/runs/#truncated-output) and
 [Filtered output](/concepts/runs/#filtered-output)).
@@ -22702,13 +22780,14 @@ events keep them.
 
 An agent with a [loop](/concepts/agents/#run-until-the-work-is-done) streams every
 iteration, so the `update` frames carry the drafts and the feedback as well as the
-answer. After each iteration the loop evaluated, the stream sends a
+answer; the feedback is the `update` whose `role` is `user`. After each iteration the
+loop evaluated, the stream sends a
 `loop.iteration-completed` frame. It comes after the last `update` of that iteration
 and before the first `update` of the next. The frame's data is the recorded
 `LoopIterationCompleted` event, byte for byte the same as `GET /api/runs/{runId}/events`
-serves it. The event's `payload` is a JSON string with these fields, and it is `null`
-when `RunRecording:RecordToolPayloads` is off (it is on by default); the frame's `text`
-then still says what happened:
+serves it. The event's `payload` is a JSON string with these fields. It holds counters,
+flags and criterion kinds, never free text, so it is kept when `RunRecording:RecordToolPayloads`
+is off too:
 
 | Field | Meaning |
 |---|---|
@@ -22827,11 +22906,23 @@ the caller, and the two causes are told apart by `title`:
 The `detail` never carries the schema name or the statement text; that stays in
 your server's log, for the same reason a `502`'s detail is shallow.
 
-**A value the store refuses is a `400`, not a `503`.** SQL Server holds the identifier
-columns to 200 characters, and a longer value in a field the request does not bound
-(a tenant's `displayName`, an approval rule's `toolName`) is refused by the server
-itself. That is not an outage: the store answered, and the same request gets the same
-answer. The reply is `application/problem+json` with `400` and one of two titles:
+**A name that is too long for its column is a `400` at the request, on every store.**
+SQL Server holds an identifier in 200 characters (a configuration name or a path in 400,
+a URL in 2000), and the other stores keep any length, so the narrowest limit applies to
+all of them. A name in the path of a `PUT`, and a text field of a request body that the
+store keeps in such a column (an agent's `name`, a model's `model`, a tenant's
+`displayName`, an approval rule's `toolName`, a webhook's `url`, the file name of an
+upload), is refused before anything is written. A path value or an upload file name
+answers `400` with the title `Value too long`; a body field answers `400` with the title
+`Invalid request body`. Either `detail` names the parameter or property and its limit, and
+never repeats the value. A `GET` or a `DELETE` with such a name is the `404` it always was:
+no row can have it.
+
+**A value the store refuses is a `400`, not a `503`.** A longer value in a field that the
+request does not bound this way (the name of a function node inside a workflow definition,
+for example) is refused by the SQL Server itself. That is not an outage: the store
+answered, and the same request gets the same answer. The reply is
+`application/problem+json` with `400` and one of two titles:
 
 | `title` | What it means | Does retrying help |
 |---|---|---|
@@ -23527,6 +23618,7 @@ tests. The registration and provider-specific configuration still change.
 | Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
 | Cost amounts, unit prices and the quota counter | The whole `decimal` | `numeric(20,10)`: rounded to 10 decimals, summed exactly by the database | `decimal(20,10)`: rounded to 10 decimals, summed exactly by the database | Text of the whole `decimal`, never rounded; summed exactly by two functions (`tracon_decimal_sum`, `tracon_decimal_add`) that Tracon registers on every connection it opens |
 | Identifiers and names a client chooses (session id, idempotency key, file path, checkpoint id, score author, the name of an agent, workflow, skill or other definition, the name of an experiment variant, the identity of a user: a session owner, a run user, an audit actor, and the name of a worker or node that holds a lease: a job lease owner, a singleton lease owner) | Exact | Exact | Compared by code point, so letter case counts: those columns use `Latin1_General_BIN2` whatever the collation of the database. SQL Server ignores trailing spaces in any collation, so `abc` and `abc ` are one key there; the run, `/v1/responses`, AG-UI and session-branch endpoints refuse a session id that starts or ends with whitespace (`400`) so the stores agree on the ids that open a session, and so do the `sessionId` filters of `GET /api/runs` and `GET /api/voice/sessions` (a filter of more than 200 characters is refused too). The `agentName`, `userId`, `errorType` and `label` filters of `GET /api/runs` are compared the same way and are not refused on that edge: `Support ` selects the runs of `Support` on SQL Server and no run on the other stores. Trailing blanks of a lease owner still do not count on SQL Server: `w` and `w ` are one owner there | Exact |
+| A name or identifier longer than the narrowest column that stores it (200 characters for a name, 400 for a configuration name, a path or a file name, 2000 for a URL), sent to the HTTP API | `400` at the request, naming the field and the limit; code that calls a store directly gets what the store does | Same rule | Same rule: the limit is SQL Server's, so a name that one store would keep is refused by all | Same rule |
 | Tenant identifier | ASCII letters, digits, `_`, `.` and `-` only, folded to lower case; every store refuses any other character with an `ArgumentException` | Same rule | Same rule. The tenant columns keep the collation of the database, which ignores accents and width: no two different identifiers over that alphabet compare equal there, and that is why the alphabet is closed | Same rule |
 | Provider name of a tenant binding | ASCII letters, digits, `_`, `.` and `-` only, folded to lower case; every store refuses any other character with an `ArgumentException`, and the two provider routes answer `400` | Same rule | Same rule. The column keeps the collation of the database, which reads a full-width letter as the plain one: the alphabet is closed so that no two names the stores keep apart are one name there | Same rule |
 | The record a write returns (`StartRunAsync`, `EnqueueAsync`, a created webhook delivery or API key) and the session `GetAsync` returns | The record as it was given | The row as it is stored: a `U+0000` comes back as `U+FFFD`, a timestamp is cut to the microsecond | The row as it is stored: a `U+0000` comes back as `U+FFFD` | The row as it is stored: a `U+0000` comes back as `U+FFFD` |
@@ -31753,12 +31845,13 @@ help until the migrations are applied. A store that cannot be reached at all
 answers `503` as well, with the title `Persistence store unavailable`; that one
 usually clears on its own.
 
-A write the database refuses for its content is not one of these. On SQL Server a text longer
-than its column (200 characters for the identifier columns) answers `400` with the title
-`Value too long for the store`, and a number that does not fit answers `400` with `Number
-out of range for the store`. Retrying does not help; shorten the value. The reply names no
-field, so look at the fields of the request that carry free text (a display name, a tool
-name, an OAuth client id). PostgreSQL and SQLite take the same text.
+A write the database refuses for its content is not one of these. A name or identifier that is
+longer than its column is refused before the write, on every store, with a `400` whose `detail`
+names the field and the limit (200 characters for the identifier columns). A text in a field the
+request does not bound that way, on SQL Server, answers `400` with the title `Value too long for
+the store`, and a number that does not fit answers `400` with `Number out of range for the
+store`. Retrying does not help; shorten the value. The reply names no field, so look at the
+fields of the request that carry free text. PostgreSQL and SQLite take the same text.
 
 A tool call is the exception. The tenant's tool policy is read before every tool call,
 and while its table (`tenant_tool_policies`) does not exist that read fails and the
@@ -32126,7 +32219,11 @@ When the agent runs a [loop](/concepts/agents/#run-until-the-work-is-done), the 
 holds every iteration. The playground draws a divider after each iteration the loop
 evaluated. The divider names the iteration and what the loop decided: another iteration
 and the criterion that asked for it, the iteration ceiling, a criterion that failed to
-evaluate, or a stop. The feedback text is not in the divider.
+evaluate, or a stop. The feedback the loop gave the model back is not in the divider: it
+shows under the divider as a muted note labelled "Feedback to the model", apart from the
+next answer. The transcript of a recorded run on the Runs screen shows the same note when
+the run kept the payload of its iteration events (`RunRecording:RecordToolPayloads`, on by
+default); without that payload the feedback reads as part of the reply.
 
 A tool call that needs a human decision stops the stream and renders as an approval
 card instead of a result — the entity name and message from a registered
