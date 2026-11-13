@@ -273,6 +273,7 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                 // read does; the stored envelope is never handed to the subject.
                 var readValue = ProtectedValue.RowReader(_context, DataSubjectTargetRegistry.ProtectedExportColumns(target));
 
+                // autocommit-exempt: the rows are written into the export as they are read, so sending the read again after a victim would write the rows it had already yielded a second time
                 var command = _context.CreateCommand(sql);
                 BindScope(command, tenantId, scope);
 

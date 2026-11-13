@@ -145,6 +145,7 @@ internal sealed class SqlAuditLog : IAuditLog
                 createdAt,
                 _keys.Active);
 
+            // autocommit-exempt: the chain write sends itself again after re-reading the last hash, which a plain repeat of the statement could not do
             var command = CreateCommand(_sql.InsertAuditEntry);
             DbHelpers.Add(command, "id", id);
             DbHelpers.AddTenant(command, entry.TenantId);
@@ -194,6 +195,7 @@ internal sealed class SqlAuditLog : IAuditLog
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        // autocommit-exempt: a read that stays on the transaction a data subject erasure lends it when there is one, so it is built here and not on a connection of its own
         var command = CreateCommand(_sql.SelectAuditLog);
         DbHelpers.AddTenant(command, ResolveTenantId(query.TenantId));
 
@@ -216,6 +218,7 @@ internal sealed class SqlAuditLog : IAuditLog
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        // autocommit-exempt: a read that stays on the transaction a data subject erasure lends it when there is one, so it is built here and not on a connection of its own
         var command = CreateCommand(_sql.SelectAuditChain);
         DbHelpers.AddTenant(command, ResolveTenantId(query.TenantId));
         Dialect.AddTimestamp(command, "started_after", query.After);
@@ -235,6 +238,7 @@ internal sealed class SqlAuditLog : IAuditLog
 
     private async ValueTask<ChainTail?> ReadTailAsync(string tenantId, CancellationToken cancellationToken)
     {
+        // autocommit-exempt: a read that stays on the transaction a data subject erasure lends it when there is one, and the chain write that calls it re-reads the tail itself
         var command = CreateCommand(_sql.SelectLastAuditHash);
         DbHelpers.AddTenant(command, tenantId);
 
@@ -304,6 +308,7 @@ internal sealed class SqlAuditLog : IAuditLog
     private DbCommand CreateCommand(string sql)
         => _context.LentTransaction is { } lent
             ? _context.CreateCommand(sql, lent.Connection, lent.Transaction)
+            // autocommit-exempt: the plain case of the wrapper above; each statement it is asked for says at its own call why it is built here
             : _context.CreateCommand(sql);
 
     private static AuditEntry ReadEntry(DbDataReader reader)

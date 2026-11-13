@@ -26,13 +26,8 @@ public sealed partial class SqlStatementSiteTests
     /// <summary>The files that may build an autocommit command themselves, and why.</summary>
     private static readonly Dictionary<string, string> Exceptions = new(StringComparer.Ordinal)
     {
-        ["src/Tracon.Sql.Shared/Stores/SqlAuditLog.cs"] =
-            "its commands run on the transaction a data subject erasure lends it, and its chain write sends itself again " +
-            "after re-reading the last hash, which a plain repeat of the statement could not do",
         ["src/Tracon.PostgreSql/Stores/PgVectorSearchStore.cs"] =
             "reads and writes through its own NpgsqlDataSource, not a SqlStoreContext",
-        ["src/Tracon.Sql.Shared/Stores/SqlDataSubjectStore.cs"] =
-            "deletes content outside the database and calls back before its commit; running a statement of it again is not safe",
     };
 
     [Fact]
@@ -195,13 +190,21 @@ public sealed partial class SqlStatementSiteTests
             "        var command = _context.CreateCommand(_sql.SelectRun);",
             "        var select = _context.CreateCommand(",
             "            _dialect.BuildRetentionSelectBatchSql(definition.Table, \"id\", where));",
+
+            // A word in a comment is not an argument: these were taken for a command on a held connection.
+            "        var commented = _context.CreateCommand(_sql.SelectRun); // not on a held connection",
+            "        var split = _context.CreateCommand(",
+            "            _sql.SelectRun); // the context's own connection",
+            "        var named = _context.CreateCommand(_sql.SelectConnectionStats);",
+            "        var elsewhere = _context.CreateCommand(_sql.SelectRun, other, lent);",
         ];
 
-        AutocommitCommandSites(autocommit).ShouldBe(new List<int> { 1, 2, 3 });
+        AutocommitCommandSites(autocommit).ShouldBe(new List<int> { 1, 2, 3, 5, 6, 8, 9 });
 
         string[] notAutocommit =
         [
             "        var command = _context.CreateCommand(_sql.UpsertTrace, connection, transaction);",
+            "            ? _context.CreateCommand(sql, lent.Connection, lent.Transaction)",
             "    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);",
             "        // var command = CreateCommand(_sql.SelectRun);",
             "        // autocommit-exempt: the rows are handed over one at a time and a repeat would hand them over twice",
@@ -236,18 +239,19 @@ public sealed partial class SqlStatementSiteTests
                 continue;
             }
 
-            // The call may run over several lines: read up to the statement's end.
-            var call = new System.Text.StringBuilder(line);
+            // The call may run over several lines: read up to the statement's end. A comment is not part of the call.
+            var call = new System.Text.StringBuilder(WithoutLineComment(line));
 
             for (var next = index + 1; next < lines.Length && !call.ToString().Contains(';', StringComparison.Ordinal); next++)
             {
-                call.Append(' ').Append(lines[next].Trim());
+                call.Append(' ').Append(WithoutLineComment(lines[next]).Trim());
             }
 
             var text = call.ToString();
-            var afterOpen = text[(text.IndexOf("CreateCommand(", StringComparison.Ordinal) + "CreateCommand(".Length)..];
+            var arguments = CallArguments(text, text.IndexOf("CreateCommand(", StringComparison.Ordinal) + "CreateCommand(".Length);
 
-            if (afterOpen.Contains("connection", StringComparison.Ordinal) || afterOpen.Contains("lent.", StringComparison.Ordinal))
+            // On a connection and a transaction the caller holds: the second argument is the connection itself.
+            if (arguments.Count >= 3 && arguments[1] is "connection" or "lent.Connection")
             {
                 continue;
             }
@@ -256,6 +260,79 @@ public sealed partial class SqlStatementSiteTests
         }
 
         return found;
+    }
+
+    /// <summary>Cuts the comment that ends a line, leaving a <c>//</c> inside a string literal alone.</summary>
+    /// <param name="line">One line of source.</param>
+    /// <returns>The line without its trailing comment.</returns>
+    private static string WithoutLineComment(string line)
+    {
+        var inString = false;
+
+        for (var at = 0; at < line.Length; at++)
+        {
+            if (line[at] == '"' && (at == 0 || line[at - 1] != '\\'))
+            {
+                inString = !inString;
+            }
+            else if (!inString && line[at] == '/' && at + 1 < line.Length && line[at + 1] == '/')
+            {
+                return line[..at];
+            }
+        }
+
+        return line;
+    }
+
+    /// <summary>Splits the arguments of a call at the commas that are not inside a nested call, a string or a bracket.</summary>
+    /// <param name="text">The statement, comments removed.</param>
+    /// <param name="start">The index just after the opening parenthesis.</param>
+    /// <returns>The trimmed arguments, up to the closing parenthesis.</returns>
+    private static List<string> CallArguments(string text, int start)
+    {
+        var arguments = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var depth = 0;
+        var inString = false;
+
+        for (var at = start; at < text.Length; at++)
+        {
+            var character = text[at];
+
+            if (character == '"' && (at == 0 || text[at - 1] != '\\'))
+            {
+                inString = !inString;
+            }
+            else if (!inString)
+            {
+                if (character is '(' or '[' or '{')
+                {
+                    depth++;
+                }
+                else if (character is ')' or ']' or '}')
+                {
+                    if (depth == 0)
+                    {
+                        break;
+                    }
+
+                    depth--;
+                }
+                else if (character == ',' && depth == 0)
+                {
+                    arguments.Add(current.ToString().Trim());
+                    current.Clear();
+
+                    continue;
+                }
+            }
+
+            current.Append(character);
+        }
+
+        arguments.Add(current.ToString().Trim());
+
+        return arguments;
     }
 
     /// <summary>
