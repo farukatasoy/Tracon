@@ -46,6 +46,7 @@ internal static class RunEventBatchJson
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(events);
 
+        var nameLimit = context.Dialect.ForeignNameLimit;
         var buffer = new ArrayBufferWriter<byte>(Math.Max(256, events.Count * 160));
 
         using (var writer = new Utf8JsonWriter(buffer, WriterOptions))
@@ -60,8 +61,8 @@ internal static class RunEventBatchJson
                 writer.WriteNumber("seq", runEvent.Sequence);
                 writer.WriteNumber("type", (short)runEvent.Type);
                 WriteText(writer, "text", ProtectedValue.Write(context, ProtectedColumn.RunEventText, runEvent.Text));
-                WriteText(writer, "tool_name", runEvent.ToolName);
-                WriteText(writer, "tool_call_id", runEvent.ToolCallId);
+                WriteText(writer, "tool_name", SqlText.Fit(runEvent.ToolName, nameLimit));
+                WriteText(writer, "tool_call_id", SqlText.Fit(runEvent.ToolCallId, nameLimit));
                 WriteText(writer, "payload", ProtectedValue.Write(context, ProtectedColumn.RunEventPayload, runEvent.Payload));
                 WriteText(writer, "custom_type", runEvent.CustomType);
                 writer.WriteString("created_at", runEvent.Timestamp.ToUniversalTime().ToString(InstantFormat, CultureInfo.InvariantCulture));

@@ -47,7 +47,7 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
                 DbHelpers.Add(command, "run_id", approval.RunId);
                 DbHelpers.Add(command, "session_id", approval.SessionId);
                 DbHelpers.Add(command, "request_id", approval.RequestId);
-                DbHelpers.Add(command, "tool_name", approval.ToolName);
+                DbHelpers.Add(command, "tool_name", SqlText.Fit(approval.ToolName, Dialect.ForeignNameLimit)!);
                 Dialect.AddText(command, "arguments", approval.Arguments);
                 DbHelpers.Add(command, "status", (short)approval.Status);
                 Dialect.AddText(command, "decided_by", approval.DecidedBy);

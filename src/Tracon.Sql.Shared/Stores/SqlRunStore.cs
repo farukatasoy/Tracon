@@ -54,6 +54,13 @@ internal sealed class SqlRunStore : IRunStore
     /// <summary>The gateway to provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
+    /// <summary>
+    /// A tool name or call identifier a model or a provider chose, shortened to the width of the column that holds it where
+    /// that column is narrow. A lookup shortens its value the same way, so a call that was written long is found by its
+    /// full identifier.
+    /// </summary>
+    private string? ForeignName(string? value) => SqlText.Fit(value, Dialect.ForeignNameLimit);
+
     /// <inheritdoc />
     /// <remarks>
     /// <c>_sql.InsertRun</c> is an UPSERT (UPDATES on a conflict over
@@ -231,8 +238,8 @@ internal sealed class SqlRunStore : IRunStore
                 DbHelpers.Add(command, "seq", runEvent.Sequence);
                 DbHelpers.Add(command, "type", (short)runEvent.Type);
                 Dialect.AddText(command, "text", ProtectedValue.Write(_context, ProtectedColumn.RunEventText, runEvent.Text));
-                AddNullableText(command, "tool_name", runEvent.ToolName);
-                AddNullableText(command, "tool_call_id", runEvent.ToolCallId);
+                AddNullableText(command, "tool_name", ForeignName(runEvent.ToolName));
+                AddNullableText(command, "tool_call_id", ForeignName(runEvent.ToolCallId));
                 Dialect.AddText(command, "payload", ProtectedValue.Write(_context, ProtectedColumn.RunEventPayload, runEvent.Payload));
                 AddNullableText(command, "custom_type", runEvent.CustomType);
                 Dialect.AddTimestamp(command, "created_at", runEvent.Timestamp);
@@ -993,8 +1000,8 @@ internal sealed class SqlRunStore : IRunStore
             {
                 DbHelpers.Add(command, "id", invocation.Id);
                 DbHelpers.Add(command, "run_id", invocation.RunId);
-                DbHelpers.Add(command, "tool_name", invocation.ToolName);
-                AddNullableText(command, "tool_call_id", invocation.ToolCallId);
+                DbHelpers.Add(command, "tool_name", ForeignName(invocation.ToolName)!);
+                AddNullableText(command, "tool_call_id", ForeignName(invocation.ToolCallId));
                 AddNullableText(command, "source", invocation.Source);
                 Dialect.AddText(command, "arguments", ProtectedValue.Write(_context, ProtectedColumn.ToolArguments, invocation.Arguments));
                 Dialect.AddText(command, "result", ProtectedValue.Write(_context, ProtectedColumn.ToolResult, invocation.Result));
@@ -1057,7 +1064,7 @@ internal sealed class SqlRunStore : IRunStore
             command =>
             {
                 DbHelpers.Add(command, "run_id", completion.RunId);
-                AddNullableText(command, "tool_call_id", completion.ToolCallId);
+                AddNullableText(command, "tool_call_id", ForeignName(completion.ToolCallId));
                 Dialect.AddText(command, "result", ProtectedValue.Write(_context, ProtectedColumn.ToolResult, completion.Result));
                 // Same millisecond clamp as RecordToolInvocationAsync above.
                 Dialect.AddInt32(command, "duration_ms", completion.Duration is { } duration

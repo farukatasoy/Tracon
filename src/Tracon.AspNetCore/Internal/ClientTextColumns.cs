@@ -15,6 +15,7 @@ internal static class ClientTextColumns
     private const string TenantRule = "A tenant identifier is limited to its alphabet and 64 characters where the tenant is resolved.";
     private const string PrincipalRule = "The name of the authenticated caller, read from the identity and not from a request field; the actor resolver shortens one over 200 characters (its start and a digest), the same on every store.";
     private const string ProviderToolRule = "Chosen by a model provider or a tool while a run goes on, not by a client of the API.";
+    private const string ForeignNameRule = "Chosen by a model provider or a tool while a run goes on, not by a client of the API; the SQL Server store shortens one over the column's width (its start and a digest), written and looked up the same way (SqlDialect.ForeignNameLimit).";
 
     /// <summary>Gets every row.</summary>
     internal static IReadOnlyList<ClientTextColumn> All { get; } =
@@ -134,7 +135,7 @@ internal static class ClientTextColumns
         Principal("pending_approvals.decided_by"),
         External("pending_approvals.request_id", ProviderToolRule),
         Elsewhere("pending_approvals.session_id", SessionRule),
-        External("pending_approvals.tool_name", ProviderToolRule),
+        External("pending_approvals.tool_name", ForeignNameRule),
         Follows("quota_usage.agent_name", "quotas.agent_name"),
         Client(
             "quotas.agent_name",
@@ -145,8 +146,8 @@ internal static class ClientTextColumns
         Client("retention_policies.target", Id, route: ["target"]),
         Follows("retention_runs.target", "retention_policies.target"),
         Elsewhere("run_events.custom_type", "A custom event type is a lower-case name of at most 128 characters (RunEventCustomTypes)."),
-        External("run_events.tool_call_id", ProviderToolRule),
-        External("run_events.tool_name", ProviderToolRule),
+        External("run_events.tool_call_id", ForeignNameRule),
+        External("run_events.tool_name", ForeignNameRule),
         Operator("run_non_token_usage.currency", "A currency code the operator's price table names."),
         Follows("run_non_token_usage.model", "runs.model_id"),
         Operator("run_non_token_usage.node_name", "The name of a function node, registered in code; a workflow definition only references it and a reference to an unknown function is refused when the definition is saved."),
@@ -196,7 +197,7 @@ internal static class ClientTextColumns
             "skill_script_grants.skill_name",
             Id,
             body: [Prop<SkillScriptGrantRequest>(nameof(SkillScriptGrantRequest.SkillName))]),
-        External("spans.name", ProviderToolRule),
+        External("spans.name", ForeignNameRule),
         Generated("spans.span_id", "A trace span identifier."),
         Client(
             "tenant_provider_bindings.api_key_configuration_name",
@@ -226,8 +227,8 @@ internal static class ClientTextColumns
             body: [Prop<ToolApprovalRuleRequest>(nameof(ToolApprovalRuleRequest.ToolName))]),
         Operator("tool_invocations.cost_currency", "A currency code the operator's price table names."),
         Generated("tool_invocations.source", "One of a fixed list of words that names the kind of tool source."),
-        External("tool_invocations.tool_call_id", ProviderToolRule),
-        External("tool_invocations.tool_name", ProviderToolRule),
+        External("tool_invocations.tool_call_id", ForeignNameRule),
+        External("tool_invocations.tool_name", ForeignNameRule),
         Operator("tool_invocations.usage_model", "A model name the tool's own code reported."),
         Operator("tool_invocations.usage_provider", "A provider name the tool's own code reported."),
         Operator("tool_invocations.usage_unit", "A unit the tool's own code reported."),

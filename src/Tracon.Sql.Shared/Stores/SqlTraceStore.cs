@@ -139,7 +139,7 @@ internal sealed class SqlTraceStore : ITraceStore
         DbHelpers.Add(command, "trace_id", traceId);
         Dialect.AddUuid(command, "parent_span_id", span.ParentId);
         DbHelpers.Add(command, "span_id", span.SpanId);
-        DbHelpers.Add(command, "name", span.Name);
+        DbHelpers.Add(command, "name", SqlText.Fit(span.Name, Dialect.ForeignNameLimit)!);
         DbHelpers.Add(command, "kind", (short)span.Kind);
         Dialect.AddTimestamp(command, "started_at", span.StartedAt);
         Dialect.AddTimestamp(command, "ended_at", span.EndedAt);

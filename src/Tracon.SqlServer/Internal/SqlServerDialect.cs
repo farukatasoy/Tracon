@@ -238,6 +238,14 @@ internal sealed class SqlServerDialect : SqlDialect
     public override int AuditLabelLimit => 200;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <c>tool_name</c> and <c>tool_call_id</c> of <c>run_events</c> and <c>tool_invocations</c>, <c>tool_name</c> of
+    /// <c>pending_approvals</c> and <c>name</c> of <c>spans</c> are <c>nvarchar(200)</c>; a test reads the width from the
+    /// database and fails when one of them is no longer this number.
+    /// </remarks>
+    public override int ForeignNameLimit => 200;
+
+    /// <inheritdoc />
     /// <remarks>Every upsert in <see cref="SqlServerQueries"/> is a two-statement text.</remarks>
     public override bool UpsertRequiresTransaction => true;
 

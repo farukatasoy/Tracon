@@ -233,6 +233,17 @@ internal abstract class SqlDialect
     public virtual int AuditLabelLimit => int.MaxValue;
 
     /// <summary>
+    /// Gets the width of the narrow columns that hold a name the platform did not choose: the name of a tool a model called,
+    /// the identifier the provider gave the call, the name of a span.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="int.MaxValue"/> where the columns hold text of any length. A name over the width is shortened
+    /// (<c>SqlText.Fit</c>: its start and a digest of the whole), the same way wherever the store writes or looks it up, so
+    /// the record of a run is not lost because a model called a tool by a name nobody registered.
+    /// </remarks>
+    public virtual int ForeignNameLimit => int.MaxValue;
+
+    /// <summary>
     /// Gets a value indicating whether this provider's upsert texts are more than one
     /// statement and therefore must run inside a transaction to be atomic.
     /// </summary>
