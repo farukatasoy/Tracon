@@ -139,6 +139,39 @@ public sealed class WorkflowHandoffTopologyTests
     }
 
     [Fact]
+    public async Task The_step_that_crosses_the_limit_closes_its_own_run_completed_and_only_the_workflow_fails()
+    {
+        // A stored Handoff workflow streams its steps. The step that asks for the handoff past the limit has produced its
+        // whole answer: it is stopped before the framework acts on the call, but its own run is not interrupted.
+        var front = Model("front-model", static cfg => cfg.CallsTool("handoff_to_1").CallsTool("handoff_to_1").CallsTool("handoff_to_1"));
+        var billing = Model("billing-model", static cfg => cfg.CallsTool("handoff_to_1").CallsTool("handoff_to_1").CallsTool("handoff_to_1"));
+
+        await using var host = await StartAsync(front, billing);
+
+        await SaveAsync(host, "loop", new WorkflowSaveRequest
+        {
+            Kind = WorkflowKind.Handoff,
+            AgentNames = [Front, Billing],
+            Handoffs = [Edge(Front, Billing), Edge(Billing, Front)],
+            MaxHandoffs = 2,
+        });
+
+        await RunAsync(host, "loop", "round and round");
+
+        var runs = await host.Services.GetRequiredService<IRunStore>()
+            .QueryRunsAsync(new RunQuery { Take = 50, OnlyRootRuns = false });
+        var workflow = runs.Single(static run => run.Kind == RunKind.Workflow);
+        var steps = runs.Where(static run => run.Kind == RunKind.Agent).OrderBy(static run => run.StartedAt).ToList();
+
+        workflow.Status.ShouldBe(RunStatus.Failed);
+        workflow.Error.ShouldNotBeNull().Type.ShouldBe(TraconErrorTypes.HandoffLimitExceeded);
+
+        // Three steps asked for a handoff; the third is the one past the limit of 2.
+        steps.Count.ShouldBe(3);
+        steps.ShouldAllBe(static step => step.Status == RunStatus.Completed, string.Join(", ", steps.Select(static step => $"{step.AgentName}={step.Status}")));
+    }
+
+    [Fact]
     public async Task A_definition_that_sets_no_limit_stops_at_ten_handoffs()
     {
         var front = Model("front-model", static cfg => cfg.CallsTool("handoff_to_1").EchoesLastToolResult());

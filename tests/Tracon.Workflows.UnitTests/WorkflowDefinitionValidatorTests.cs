@@ -259,6 +259,33 @@ public sealed class WorkflowDefinitionValidatorTests
     }
 
     [Fact]
+    public void A_null_entry_in_the_edge_list_is_rejected_by_its_place_in_the_list()
+    {
+        // A client can send `"handoffs": [ {...}, null ]`; the entry has no `from` and no `to` to name.
+        var message = WorkflowDefinitionValidator.Validate(
+            Handoff(["frontline", "billing"], Edge("frontline", "billing"), null!));
+
+        message.ShouldNotBeNull();
+        message.ShouldContain("handoffs[1] is empty", Case.Sensitive);
+        message.ShouldContain("'from' and a 'to'", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData(true, "from")]
+    [InlineData(false, "to")]
+    public void An_edge_with_no_name_for_one_end_is_rejected_by_the_field(bool missingFrom, string field)
+    {
+        // `"from": null` reaches the validator as a null name; it is not an agent the workflow lists.
+        var edge = missingFrom
+            ? new WorkflowHandoff { From = null!, To = "billing" }
+            : new WorkflowHandoff { From = "frontline", To = null! };
+
+        WorkflowDefinitionValidator
+            .Validate(Handoff(["frontline", "billing"], edge))!
+            .ShouldContain($"handoffs[0] {field} '' is not in agentNames", Case.Sensitive);
+    }
+
+    [Fact]
     public void An_edge_from_an_agent_the_workflow_does_not_list_is_rejected()
         => WorkflowDefinitionValidator
             .Validate(Handoff(["frontline", "billing"], Edge("ghost", "billing"), Edge("frontline", "billing")))!

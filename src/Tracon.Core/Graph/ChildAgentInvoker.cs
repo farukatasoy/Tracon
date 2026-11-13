@@ -286,7 +286,10 @@ public sealed class ChildAgentInvoker : AIAgent
                 return Refused(ApprovalRefusal(pending));
             }
 
-            CountHandoffs(scope!, response.Messages.SelectMany(static message => message.Contents), cancellationToken);
+            if (HandoffOverLimit(scope!, response.Messages.SelectMany(static message => message.Contents), cancellationToken) is { } overLimit)
+            {
+                throw overLimit;
+            }
 
             response.AgentId = Id;
             return response;
@@ -355,12 +358,36 @@ public sealed class ChildAgentInvoker : AIAgent
         var waitDeadline = _timeProvider.GetUtcNow() + _waitTimeout;
         var outcome = ChildStepOutcome.Completed;
 
+        // Set when an update of the child's answer makes the step fail: the handoff that crosses the limit, or a tool
+        // approval a workflow step cannot host. From then on the child's stream is read to its end and nothing more of
+        // it goes up. The child has made its whole answer, so its run closes the way it does on the non-streaming path
+        // (Completed; Failed for an approval request), and the step still fails with this. Leaving the stream here
+        // instead would dispose it unfinished and close the child's run Canceled, for a call nobody cancelled.
+        Exception? failureAtEnd = null;
+
         try
         {
             while (true)
             {
                 var step = await AdvanceAsync(enumerator, deadline, waitDeadline, cancellationToken).ConfigureAwait(false);
                 outcome = step.Outcome;
+
+                if (failureAtEnd is not null)
+                {
+                    if (step.Outcome == ChildStepOutcome.HardCutoff)
+                    {
+                        ObserveAbandonedChild(step.AbandonedMoveNext!, deadline);
+                    }
+
+                    // This is the failure the step ends with. A wait limit or a provider fault met on the way to the end of
+                    // the stream does not replace it, and writes no timeout event for a call whose answer is already complete.
+                    if (step.Outcome != ChildStepOutcome.Completed || !step.HasNext)
+                    {
+                        throw failureAtEnd;
+                    }
+
+                    continue;
+                }
 
                 if (step.Outcome == ChildStepOutcome.HardCutoff)
                 {
@@ -401,12 +428,26 @@ public sealed class ChildAgentInvoker : AIAgent
 
                 // The count is made BEFORE the update goes up: the framework acts on a handoff call when it
                 // reads it, so the call that goes past the limit must not reach it.
-                CountHandoffs(scope!, step.Update!.Contents, cancellationToken);
+                failureAtEnd = HandoffOverLimit(scope!, step.Update!.Contents, cancellationToken);
 
-                yield return !_hostsApproval &&
-                             ChildRunApproval.Describe(step.Update!.Contents) is { } pending
-                    ? RefusedUpdate(ApprovalRefusal(pending))
-                    : AsOwnUpdate(step.Update!);
+                if (failureAtEnd is not null)
+                {
+                    continue;
+                }
+
+                if (!_hostsApproval && ChildRunApproval.Describe(step.Update!.Contents) is { } pending)
+                {
+                    if (_refusalMode == ChildRefusalMode.Fail)
+                    {
+                        failureAtEnd = ToException(ApprovalRefusal(pending));
+                        continue;
+                    }
+
+                    yield return RefusedUpdate(ApprovalRefusal(pending));
+                    continue;
+                }
+
+                yield return AsOwnUpdate(step.Update!);
             }
         }
         finally
@@ -421,19 +462,21 @@ public sealed class ChildAgentInvoker : AIAgent
     }
 
     /// <summary>
-    /// Adds the handoff calls in a child's answer to the run's count and fails the run when the count passes
-    /// the limit (<see cref="WorkflowDefinition.MaxHandoffs"/>).
+    /// Adds the handoff calls in a child's answer to the run's count and, when the count passes the limit
+    /// (<see cref="WorkflowDefinition.MaxHandoffs"/>), builds the failure the run ends with.
     /// </summary>
     /// <param name="scope">The scope of the run the step belongs to.</param>
     /// <param name="contents">The content of the update, or of the messages, the child produced.</param>
     /// <param name="cancellationToken">The caller's token: a caller that has cancelled wins over a limit the same update crosses.</param>
-    /// <exception cref="TraconHandoffLimitExceededException">The run made more handoffs than it may.</exception>
+    /// <returns>The failure to throw; <see langword="null"/> when the run is within its limit.</returns>
     /// <remarks>
+    /// The caller throws it, and decides when: the non-streaming path has the child's whole answer and throws at once,
+    /// the streaming path first reads the child's stream to its end so the child's run closes the way it does there.
     /// Nothing happens for a run with no counter: the counter exists only on the scope of a Handoff
     /// workflow stored as a definition. It is read from the scope, never from an ambient value: the
     /// scope is the run's own object, and every step of the run adds to the same counter.
     /// </remarks>
-    private void CountHandoffs(AgentRunScope scope, IEnumerable<AIContent> contents, CancellationToken cancellationToken)
+    private TraconHandoffLimitExceededException? HandoffOverLimit(AgentRunScope scope, IEnumerable<AIContent> contents, CancellationToken cancellationToken)
     {
         // The update that crosses the limit can arrive in the same instant the caller cancels. The run is then
         // Canceled, as for any other step, not Failed with a limit nobody reached on purpose.
@@ -441,10 +484,10 @@ public sealed class ChildAgentInvoker : AIAgent
             scope.Handoffs is not { } limit ||
             !limit.RecordAndExceeds(contents))
         {
-            return;
+            return null;
         }
 
-        throw new TraconHandoffLimitExceededException(
+        return new TraconHandoffLimitExceededException(
             $"Agent '{_childName}' asked for handoff number {limit.Made}, but the workflow allows {limit.Max} " +
             "('maxHandoffs'), so the run stopped before it. Two agents may be handing the conversation back and forth: " +
             "change the workflow's handoffs so the loop ends, or raise 'maxHandoffs'.");
