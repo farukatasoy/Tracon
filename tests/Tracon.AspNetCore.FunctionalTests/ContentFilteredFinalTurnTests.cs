@@ -33,7 +33,7 @@ public sealed class ContentFilteredFinalTurnTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
         var run = await SingleRunAsync(host);
 
@@ -85,7 +85,7 @@ public sealed class ContentFilteredFinalTurnTests
 
         using var response = await PostBufferedAsync(host);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
         (await SingleRunAsync(host)).Error!.Class.ShouldBe(RunErrorClass.ContentFiltered);
     }
 
@@ -148,7 +148,7 @@ public sealed class ContentFilteredFinalTurnTests
 
         if (!stream)
         {
-            response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+            response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
             (await TraconTestHost.ReadJsonAsync(response)).TryGetProperty("error", out _).ShouldBeTrue();
         }
         else
@@ -187,7 +187,7 @@ public sealed class ContentFilteredFinalTurnTests
 
         if (!stream)
         {
-            response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+            response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
             (await TraconTestHost.ReadJsonAsync(response)).TryGetProperty("error", out _).ShouldBeTrue();
         }
         else
