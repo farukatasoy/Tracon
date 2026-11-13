@@ -71,7 +71,9 @@ returns `404`; with the layer on but no provider registered, it returns `501` na
 the call that is missing.
 
 `UseOpenAILive()` reuses the key from `UseOpenAI()`, so that call has to come first.
-Validation says so by name at startup if it does not.
+Validation says so by name at startup if it does not. An application that registers its
+own `ILiveVoiceProvider` does not call `UseOpenAILive()`: it would ask for an OpenAI key
+that provider never uses.
 
 ## Settings
 

@@ -8,7 +8,10 @@ namespace Tracon;
 /// One row per partition (<c>partition_key</c>); the row keeps the current window and its count. An
 /// increment is one atomic upsert: it adds one, moves the window forward when the caller's window is
 /// later, and never moves it back. The row count grows with the tenants and inbound triggers ever
-/// counted, which is slow and bounded by what an administrator creates, so nothing deletes rows.
+/// counted, and nothing deletes rows. A trigger is created by an administrator, so its rows are bounded
+/// by that; a tenant is the tenant context's own value, so an installation that accepts any tenant
+/// identifier lets a caller add one row per identifier (the in-memory store removes an entry whose window is
+/// over for that reason). A row whose window is over may be deleted at any time: the next call counts from one.
 /// </para>
 /// <para>
 /// There is no tenant column: the tenant is part of the partition key when the limit is partitioned

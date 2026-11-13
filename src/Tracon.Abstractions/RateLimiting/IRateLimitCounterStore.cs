@@ -40,6 +40,14 @@ namespace Tracon;
 /// <c>Tracon.Testing.Contracts.Xunit</c> (<c>RateLimitCounterStoreContract</c>) check it
 /// with parallel calls; run them against every implementation.
 /// </para>
+/// <para>
+/// <strong>A counter may be deleted once its window is over, and not before.</strong> The next
+/// call for a partition with no counter starts at one, which is what a later window does anyway
+/// (the contract tests check that a later window restarts the count). A counter deleted inside
+/// its window restarts the count there and lifts the limit for the rest of that window. The store
+/// is not told how long a window is, so an expiry has to be longer than the longest window
+/// configured (the inbound trigger limit uses one minute).
+/// </para>
 /// </remarks>
 public interface IRateLimitCounterStore
 {

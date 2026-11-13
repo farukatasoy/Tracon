@@ -21,6 +21,11 @@ namespace Tracon;
 /// <c>UseOpenAI(...)</c> must be called first. The validator says so by name if it
 /// is not.
 /// </para>
+/// <para>
+/// An application that brings its own <see cref="ILiveVoiceProvider"/> does not call this
+/// extension: registering that provider is enough, and the validator here asks for an OpenAI
+/// key whenever the call is made, because the provider it adds uses one.
+/// </para>
 /// </remarks>
 public static class OpenAILiveProviderExtensions
 {

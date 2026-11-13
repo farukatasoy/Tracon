@@ -13860,7 +13860,9 @@ returns `404`; with the layer on but no provider registered, it returns `501` na
 the call that is missing.
 
 `UseOpenAILive()` reuses the key from `UseOpenAI()`, so that call has to come first.
-Validation says so by name at startup if it does not.
+Validation says so by name at startup if it does not. An application that registers its
+own `ILiveVoiceProvider` does not call `UseOpenAILive()`: it would ask for an OpenAI key
+that provider never uses.
 
 ## Settings
 
@@ -14221,7 +14223,7 @@ tracon
 // Azure uses an image deployment name.
 // tracon.UseAzureOpenAIImages(options => options.Model = "image-deployment");
 
-// Google uses a provider image model. It does not support WIDTHxHEIGHT in this surface.
+// Google uses a provider image model. It does not support WIDTHxHEIGHT or a media type in this surface.
 // tracon.UseGoogleImages(options => options.Model = "gemini-2.5-flash-image");
 ```
 
