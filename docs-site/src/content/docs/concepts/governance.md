@@ -768,6 +768,12 @@ repeat it when the storage is back. If the audit write or the commit fails after
 bytes are gone, the rows stay and point at nothing; repeating the request finishes
 the erasure. A preview (`dryRun`) never touches the bytes.
 
+Without an `IAttachmentStorage` registered, an erasure of a subject that has an attachment
+with its bytes in external storage is refused before it erases anything, and the request
+fails: the row is the only record of where the bytes are, and the subject must not be
+reported erased while their files stay. The preview still counts the rows. Register the
+storage that wrote the bytes and repeat the request.
+
 Export returns every matching row, keyed by target, as one JSON document.
 A column that [content protection](#content-protection) encrypts is exported as
 plaintext. Attachment file bytes are not included — only their metadata. A workflow checkpoint's

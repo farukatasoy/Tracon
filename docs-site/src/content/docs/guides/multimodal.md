@@ -152,6 +152,15 @@ your `IAttachmentStorage.DeleteAsync`:
 - **Throw only when the bytes may still exist.** A throw keeps the row, so the
   delete can be repeated later.
 
+Without an `IAttachmentStorage` registered, a delete of a row that points at external
+bytes is refused: deleting the row would leave the bytes in your store with nothing
+that names them. A single delete, a session delete and an erasure fail with an error that
+names no location, and nothing is deleted. A session with one such attachment keeps all
+of its attachments until a call can delete them all, and an erasure is refused before it
+erases anything, so the subject is not reported erased while their files stay. Rows with
+their bytes in the database are deleted as usual. Register the `IAttachmentStorage`
+that wrote the bytes and repeat the call.
+
 Attachments are tenant-scoped. Listing, download, use in a run, and deletion all
 resolve through the current tenant. A caller cannot use an id to cross that boundary.
 

@@ -57,7 +57,9 @@ public interface IAttachmentStore
     /// When the content lives in <see cref="IAttachmentStorage"/>, the content is
     /// deleted FIRST and the record second. If the content delete throws, the
     /// record stays and the exception propagates: the record is the only place
-    /// that says where the content is, so a retry can still find it.
+    /// that says where the content is, so a retry can still find it. A record that points at
+    /// external content when no <see cref="IAttachmentStorage"/> is registered is not deleted either: the
+    /// call throws <see cref="TraconException"/> and the record stays.
     /// </remarks>
     ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken cancellationToken = default);
 
@@ -77,6 +79,11 @@ public interface IAttachmentStore
     /// Each attachment follows the order of <see cref="DeleteAsync"/>: content first,
     /// record second. The first content delete that throws stops the call; that
     /// record and every record not yet reached stay, so a retry deletes the rest.
+    /// </para>
+    /// <para>
+    /// When no <see cref="IAttachmentStorage"/> is registered and the session has an attachment whose content is external,
+    /// the call throws <see cref="TraconException"/> and deletes nothing: the records are the only place that says where
+    /// the content is, and the attachments the application can delete wait for the call that can delete them all.
     /// </para>
     /// </remarks>
     ValueTask<int> DeleteBySessionAsync(string tenantId, string sessionId, CancellationToken cancellationToken = default);

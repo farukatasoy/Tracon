@@ -16,7 +16,9 @@ namespace Tracon;
 /// <para>
 /// When <see cref="IAttachmentStorage"/> is registered, an erasure also deletes
 /// the external content of every erased attachment, inside the transaction and
-/// before the commit. A content delete that fails rolls the erasure back.
+/// before the commit. A content delete that fails rolls the erasure back. When it is not registered and an
+/// attachment of the subject holds external content, the erasure is refused before it deletes anything: the row is the only
+/// record of where the content is.
 /// </para>
 /// <para>
 /// The same goes for a copy of the subject's sessions that lives outside SQL
@@ -133,6 +135,11 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
 
         if (beforeCommitAsync is not null)
         {
+            // An erasure that cannot reach the content of an attachment does not start: it would delete the row, the only
+            // record of where the bytes are, and report the subject erased. Asked before the first copy goes, so a refusal
+            // leaves everything in place.
+            await RefuseExternalAttachmentsWithoutStorageAsync(tenantId, scope, cancellationToken).ConfigureAwait(false);
+
             foreach (var eraser in _contentErasers)
             {
                 contentCounts[eraser.Target] = await eraser.EraseAsync(tenantId, scope.SessionIds, cancellationToken).ConfigureAwait(false);
@@ -225,6 +232,43 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
 
                 return counts;
             }
+        }
+    }
+
+    /// <summary>Fails the erasure when the subject has an attachment with external content and no storage is registered.</summary>
+    /// <param name="tenantId">The tenant.</param>
+    /// <param name="scope">The subject's scope.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    /// <exception cref="TraconException">An attachment of the subject holds external content and nothing can delete it.</exception>
+    /// <remarks>
+    /// The text names no location and no tenant. With the storage registered the content is deleted with the row, so there
+    /// is nothing to refuse.
+    /// </remarks>
+    private async ValueTask RefuseExternalAttachmentsWithoutStorageAsync(
+        string tenantId,
+        DataSubjectScope scope,
+        CancellationToken cancellationToken)
+    {
+        if (_storage is not null)
+        {
+            return;
+        }
+
+        var (table, predicate, _) = DataSubjectTargetRegistry.Resolve(_dialect, DataSubjectTargetRegistry.Attachments);
+
+        var external = await _context.ExecuteStatementAsync(
+            _dialect.BuildDataSubjectSelectSql(table, "external_uri", $"({predicate}) AND external_uri IS NOT NULL"),
+            command => BindScope(command, tenantId, scope),
+            (command, token) => DbHelpers.ReadListAsync(command, static reader => DbHelpers.GetNullableString(reader, 0), token),
+            cancellationToken).ConfigureAwait(false);
+
+        if (external.Count > 0)
+        {
+            throw new TraconException(
+                $"{external.Count} attachment(s) of the data subject hold their content in external storage, but no " +
+                "IAttachmentStorage is registered, so the content cannot be erased. Nothing was erased: the rows are the only " +
+                "record of where the content is. Register the storage that holds it and erase again.");
         }
     }
 

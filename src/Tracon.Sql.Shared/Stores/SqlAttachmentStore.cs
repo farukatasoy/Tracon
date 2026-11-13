@@ -176,34 +176,41 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     /// <remarks>
     /// With <see cref="IAttachmentStorage"/> registered, the external content is
     /// deleted BEFORE the row. The row is the only record of where the content
-    /// is, so a storage failure propagates and leaves the row in place.
+    /// is, so a storage failure propagates and leaves the row in place. Without
+    /// the storage, a row that points at external content is not deleted either:
+    /// the call fails and the row stays (see <see cref="ExternalContentWithoutStorage"/>).
     /// </remarks>
     public async ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
-        if (_storage is not null)
-        {
-            var found = await _context.ExecuteStatementAsync(
-                _sql.SelectAttachmentExternalUri,
-                select =>
-                {
-                    DbHelpers.AddTenant(select, tenantId);
-                    DbHelpers.Add(select, "id", id);
-                },
-                (select, token) => DbHelpers.ReadListAsync(select, static reader => DbHelpers.GetNullableString(reader, 0), token),
-                cancellationToken).ConfigureAwait(false);
-
-            if (found.Count == 0)
+        var found = await _context.ExecuteStatementAsync(
+            _sql.SelectAttachmentExternalUri,
+            select =>
             {
-                return false;
-            }
+                DbHelpers.AddTenant(select, tenantId);
+                DbHelpers.Add(select, "id", id);
+            },
+            (select, token) => DbHelpers.ReadListAsync(select, static reader => DbHelpers.GetNullableString(reader, 0), token),
+            cancellationToken).ConfigureAwait(false);
 
-            return await DeleteContentThenRowAsync(_storage, tenantId, id, found[0], cancellationToken)
-                .ConfigureAwait(false);
+        if (found.Count == 0)
+        {
+            return false;
         }
 
-        return await DeleteRowAsync(tenantId, id, cancellationToken).ConfigureAwait(false);
+        if (_storage is null)
+        {
+            if (found[0] is not null)
+            {
+                throw ExternalContentWithoutStorage(1);
+            }
+
+            return await DeleteRowAsync(tenantId, id, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await DeleteContentThenRowAsync(_storage, tenantId, id, found[0], cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -211,7 +218,9 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     /// With <see cref="IAttachmentStorage"/> registered, each attachment is
     /// deleted as <see cref="DeleteAsync"/> deletes it: content first, row
     /// second. The first storage failure propagates; the rows not yet reached
-    /// stay, so a retry deletes them.
+    /// stay, so a retry deletes them. Without the storage, a session that has an
+    /// attachment with external content deletes nothing: the call fails and every
+    /// row stays (see <see cref="ExternalContentWithoutStorage"/>).
     /// </remarks>
     public async ValueTask<int> DeleteBySessionAsync(
         string tenantId,
@@ -221,18 +230,30 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(sessionId);
 
+        var rows = await _context.ExecuteStatementAsync(
+            _sql.SelectAttachmentExternalUrisBySession,
+            select =>
+            {
+                DbHelpers.AddTenant(select, tenantId);
+                DbHelpers.Add(select, "session_id", sessionId);
+            },
+            (select, token) => DbHelpers.ReadListAsync(select, static reader => (Id: reader.GetGuid(0), ExternalUri: DbHelpers.GetNullableString(reader, 1)), token),
+            cancellationToken).ConfigureAwait(false);
+
+        if (_storage is null)
+        {
+            // Nothing is deleted when one row points at content this application can no longer reach: the row is the only
+            // record of where the bytes are, and the session's other attachments wait for the call that can delete them all.
+            var external = rows.Count(static row => row.ExternalUri is not null);
+
+            if (external > 0)
+            {
+                throw ExternalContentWithoutStorage(external);
+            }
+        }
+
         if (_storage is not null)
         {
-            var rows = await _context.ExecuteStatementAsync(
-                _sql.SelectAttachmentExternalUrisBySession,
-                select =>
-                {
-                    DbHelpers.AddTenant(select, tenantId);
-                    DbHelpers.Add(select, "session_id", sessionId);
-                },
-                (select, token) => DbHelpers.ReadListAsync(select, static reader => (Id: reader.GetGuid(0), ExternalUri: DbHelpers.GetNullableString(reader, 1)), token),
-                cancellationToken).ConfigureAwait(false);
-
             var count = 0;
 
             foreach (var row in rows)
@@ -259,6 +280,19 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
 
         return deleted.Count;
     }
+
+    /// <summary>The failure of a delete that would leave external content with nothing that names it.</summary>
+    /// <param name="count">How many attachments hold external content.</param>
+    /// <returns>The exception to throw; nothing was deleted.</returns>
+    /// <remarks>
+    /// The text names no location and no tenant: it reaches the log of the caller and, through it, an operator who may not
+    /// be allowed to read either.
+    /// </remarks>
+    private static TraconException ExternalContentWithoutStorage(int count)
+        => new(
+            $"{count} attachment(s) hold their content in external storage, but no IAttachmentStorage is registered, so the " +
+            "content cannot be deleted. Nothing was deleted: the rows are the only record of where the content is. Register " +
+            "the storage that holds it and delete again.");
 
     /// <summary>Deletes an attachment's external content, then its row.</summary>
     /// <param name="storage">The external content store.</param>
