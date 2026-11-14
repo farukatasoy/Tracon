@@ -868,7 +868,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         await using (run.ConfigureAwait(false))
         {
-            var superSteps = 0;
+            var superSteps = new SuperStepCounter(settings.MaxSuperSteps, freshStart: execution.ResumeFrom is null && execution.Answers.Count == 0);
 
             // Answers for pending requests are looked up by id; the same
             // request is never answered twice.
@@ -992,7 +992,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                         readSinceResponse = true;
 
-                        if (workflowEvent is SuperStepStartedEvent && ++superSteps > settings.MaxSuperSteps)
+                        if (workflowEvent is SuperStepStartedEvent started && superSteps.Exceeds(started))
                         {
                             await CancelAsync(run, linked.Token).ConfigureAwait(false);
 

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A workflow run no longer fails at the super-step limit because the engine started it in two steps.** The runner sends a run's input and then its turn token. Now and then (measured at 2 starts in 1200 with eight runs at once) the engine's loop took the input alone as its first super-step and the token as a second, so a chain at the limit that needs `N + 1` steps needed `N + 2` and failed with `Workflow exceeded the N super-step limit`. The second step of a fresh start that activates the same executor as the first is no longer counted. A resume and an answer to a request count every step, as before.
+  What to do:
+  - **If a sequential chain at the limit failed once and then ran, it was this:** nothing changes in what the validator allows (a chain of `agentNames` still needs one super-step more than it has agents).
+  - **If a loop that went on with one executor alone stopped at the limit, it stops one step later now:** a split start is forgiven once.
+
 - **A model whose runs report cache-written tokens but has no cache-write price is logged once.** Anthropic bills the tokens it writes into the prompt cache apart from plain input. With no `CacheWriteCostPerMillionTokens` (or `CacheWriteLongCostPerMillionTokens`) for the model, Tracon prices those tokens at the plain input price, as it did before, and nothing said that the cost of the model's runs was below the provider's bill. The resolver now writes one warning for each model and class the first time a run reports such tokens, naming the setting.
   What to do:
   - **If you see the warning, give the model's catalog entry or its `Tracon:Pricing` entry the write price named in it.** The prices of runs already recorded do not change until you recalculate them.

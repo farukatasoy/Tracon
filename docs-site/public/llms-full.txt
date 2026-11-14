@@ -5736,7 +5736,9 @@ stays optional on purpose.
 A `Sequential` chain is as long as a run may be. It takes one super-step for each of its steps
 (one more when it is written as `agentNames`), and `Tracon:Workflows:MaxSuperSteps` (100) stops
 a run that passes it, so a save of a chain that needs more is a `400` that names the longest one
-that fits. Shorten the chain, split it into two workflows, or raise the limit. The other
+that fits. Shorten the chain, split it into two workflows, or raise the limit. The engine now and then
+(about one start in 250 with eight runs at once) takes the input of a run and its turn token as two
+super-steps; that extra step is not counted, so a chain at the limit is not stopped by it. The other
 patterns are not counted by the length of their list.
 
 `MaxIterations` bounds the turn count for `GroupChat` and `Magentic`, and the turns a
