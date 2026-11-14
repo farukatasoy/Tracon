@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Tracon.Package.Tests.Infrastructure;
@@ -248,6 +249,44 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
             EmbeddedResourceText(assembly, $"Tracon.UI.wwwroot/{Notice}").ShouldBe(
                 expected, $"{assembly.FullName} does not embed the same {Notice}.");
         }
+    }
+
+    /// <remarks>
+    /// A global tool ships its whole publish output: Npgsql, Microsoft.Data.SqlClient,
+    /// SQLitePCLRaw, Google.Protobuf and the rest travel inside the package without the
+    /// package that carried their licence. The notice has to name every NuGet package of
+    /// the tool's own dependency manifest, and the packed copy has to be the checked-in file.
+    /// </remarks>
+    [Fact]
+    public void CliPackageCarriesTheNoticesOfThePackagesItBundles()
+    {
+        const string Id = "Tracon.Cli";
+        const string Notice = "THIRD-PARTY-NOTICES.txt";
+        const string Manifest = "tools/net10.0/any/Tracon.Cli.deps.json";
+
+        var noticePath = Path.Combine(RepoPaths.Root, "src", Id, Notice);
+        File.Exists(noticePath).ShouldBeTrue($"src/{Id}/{Notice} does not exist; write it with `python3 scripts/third_party_notices.py --package <the packed {Id}> --write`.");
+        var expected = File.ReadAllText(noticePath);
+
+        using var package = ZipFile.OpenRead(NupkgPath(Id));
+        var rootEntry = package.GetEntry(Notice);
+        rootEntry.ShouldNotBeNull($"{Id} does not carry {Notice} at the package root.");
+        ReadText(rootEntry).ShouldBe(expected, $"The packed {Notice} differs from src/{Id}/{Notice}.");
+
+        var manifestEntry = package.GetEntry(Manifest);
+        manifestEntry.ShouldNotBeNull($"{Id} carries no {Manifest}.");
+        using var manifest = JsonDocument.Parse(ReadText(manifestEntry));
+        var bundled = manifest.RootElement.GetProperty("libraries").EnumerateObject()
+            .Where(library => string.Equals(library.Value.GetProperty("type").GetString(), "package", StringComparison.Ordinal))
+            .Select(library => library.Name[..library.Name.IndexOf('/', StringComparison.Ordinal)])
+            .ToList();
+        bundled.ShouldNotBeEmpty($"{Id} bundles no NuGet package; the notice has nothing to cover.");
+
+        var lines = expected.Split('\n');
+        var unnamed = bundled
+            .Where(id => !lines.Any(line => line.StartsWith(id + " (", StringComparison.Ordinal)))
+            .ToList();
+        unnamed.ShouldBeEmpty($"{Notice} names no licence for: {string.Join(", ", unnamed)}.");
     }
 
     private static string ReadText(ZipArchiveEntry entry)

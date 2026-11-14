@@ -39,4 +39,16 @@
     <ProjectReference Include="../Tracon.Sqlite/Tracon.Sqlite.csproj" />
   </ItemGroup>
 
+  <!--
+    A global tool ships its whole publish output, so the packages it depends on
+    (Npgsql, Microsoft.Data.SqlClient, SQLitePCLRaw, Google.Protobuf and the
+    rest) travel inside this package without the package that carried their
+    licence. This file is their notice. scripts/third_party_notices.py writes
+    it from the tool's own dependency manifest and the release gate checks the
+    packed copy against that manifest, byte for byte.
+  -->
+  <ItemGroup>
+    <None Include="THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+
 </Project>

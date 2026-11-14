@@ -3350,6 +3350,48 @@ class ReleaseTests(unittest.TestCase):
 
         self.assertEqual(result, 0, output)
 
+    def _cli_notice(self, root: pathlib.Path, text: bytes) -> None:
+        source = root / gate.THIRD_PARTY_NOTICE_PACKAGES["Tracon.Cli"]
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes(text)
+
+    def test_cli_package_without_the_notice_of_the_packages_it_bundles_turns_red(self):
+        """A global tool ships its whole publish output; the packages in it travel without their licences."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._cli_notice(root, b"notice\n")
+            result, output = self._finish_packages(root, {"Tracon.Cli": ("", {})})
+
+        self.assertEqual(result, 1, output)
+        self.assertIn("THIRD-PARTY-NOTICES.txt is not at the package root", output)
+
+    def test_cli_notice_that_no_longer_matches_the_packages_the_tool_ships_turns_red(self):
+        """The packed bytes equal the source, but the source is stale against the tool's dependency manifest."""
+        sys.path.insert(0, str(ROOT / "scripts"))
+        notices = importlib.import_module("third_party_notices")
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._cli_notice(root, b"notice\n")
+            with mock.patch.object(notices, "drift_error", return_value="the notice does not match the packages the tool ships"):
+                result, output = self._finish_packages(
+                    root, {"Tracon.Cli": ("", {"THIRD-PARTY-NOTICES.txt": b"notice\n"})})
+
+        self.assertEqual(result, 1, output)
+        self.assertIn("does not match the packages the tool ships", output)
+
+    def test_cli_notice_that_matches_the_packages_the_tool_ships_passes(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        notices = importlib.import_module("third_party_notices")
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._cli_notice(root, b"notice\n")
+            with mock.patch.object(notices, "drift_error", return_value=None) as checked:
+                result, output = self._finish_packages(
+                    root, {"Tracon.Cli": ("", {"THIRD-PARTY-NOTICES.txt": b"notice\n"})})
+
+        self.assertEqual(result, 0, output)
+        checked.assert_called_once()
+
     def test_the_fake_repository_holds_the_exact_licence_bytes_a_fake_package_carries(self):
         """One clear failure where a line-ending translation would otherwise fail every rehearsal test at once."""
         with tempfile.TemporaryDirectory() as directory:

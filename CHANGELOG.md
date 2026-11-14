@@ -418,6 +418,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   What to do:
   - **Nothing.** The control is part of the console that `Tracon.UI` embeds; a host that talks to the API with `@tracon/client` is not affected. A run that already carries duplicate scores keeps them; remove the extra rows through the feedback endpoint.
 
+- **`Tracon.Cli` carries the notices of the packages it bundles.** The `tracon` tool ships its whole publish output: Npgsql, `Microsoft.Data.SqlClient`, SQLitePCLRaw, Google.Protobuf and
+  the Microsoft libraries beneath them travelled inside the package as assemblies and native libraries, without the package that held their licence. `THIRD-PARTY-NOTICES.txt` now sits at the
+  package root with the licence text of every one of them (MIT, BSD-3-Clause, Apache-2.0, the PostgreSQL licence, and the SQL Server network library's own terms). The release build derives it
+  from the tool's own dependency manifest and fails when a package is added to the tool without its notice.
+  What to do:
+  - **Nothing.** A licence scanner that read the tool package as "MIT, with unnamed binaries" now finds the licence of each binary.
+
 ## [1.0.0-preview.11] - 2026-11-11
 
 This release moves every package to the MIT licence and changes the error body of the OpenAI-compatible routes for the refusals that come before a route's own code. It also closes two gaps: a quota period that could end before the instant it was asked about, and a job store call that could hold a worker's slot for ever. One shipped store contract test no longer fails a correct store now and then. Only the error body of those refusals changes the shape of a response; no public .NET type is removed.

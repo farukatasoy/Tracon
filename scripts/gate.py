@@ -66,7 +66,13 @@ NUSPEC_DEPENDENCY_PATTERN = re.compile(r'<dependency id="(?P<id>[^"]+)" version=
 # license notice. The value is the source file in the repo; the copy inside the package
 # must be byte-for-byte equal to it (did packing take the file that was checked?).
 THIRD_PARTY_NOTICE_NAME = "THIRD-PARTY-NOTICES.txt"
-THIRD_PARTY_NOTICE_PACKAGES = {"Tracon.UI": pathlib.PurePath("src", "Tracon.UI", THIRD_PARTY_NOTICE_NAME)}
+THIRD_PARTY_NOTICE_PACKAGES = {
+    "Tracon.UI": pathlib.PurePath("src", "Tracon.UI", THIRD_PARTY_NOTICE_NAME),
+    "Tracon.Cli": pathlib.PurePath("src", "Tracon.Cli", THIRD_PARTY_NOTICE_NAME),
+}
+# A package whose notice follows its dependency closure and not a build input: the notice
+# must also be what `scripts/third_party_notices.py` derives from the packed package.
+GENERATED_THIRD_PARTY_NOTICE_PACKAGES = frozenset({"Tracon.Cli"})
 APPLIED_MIGRATION_DIRECTORIES = ("Migrations", "MigrationsKnowledge", "MigrationsViews")
 # Two test projects at the same time. It used to be 1 (three workers produced fake
 # timeouts for minutes). Once the fixed waits became condition waits it was measured on the
@@ -4341,6 +4347,10 @@ def _finish_release_rehearsal_unchecked(
         notice_source = THIRD_PARTY_NOTICE_PACKAGES.get(project_id)
         if notice_source is not None:
             notice_error = _third_party_notice_error(root, nupkg, notice_source)
+            if notice_error is None and project_id in GENERATED_THIRD_PARTY_NOTICE_PACKAGES:
+                sys.path.insert(0, str(root / "scripts"))
+                import third_party_notices
+                notice_error = third_party_notices.drift_error(root, nupkg)
             if notice_error:
                 errors.append(f"{project_id}: {notice_error}")
 

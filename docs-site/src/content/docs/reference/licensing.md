@@ -41,12 +41,16 @@ the copyright notice and the permission notice in every copy.
 **Is there a patent grant?** The MIT licence does not contain an explicit patent
 grant.
 
-**Does a package contain third-party code?** `Tracon.UI` does. The console it
-embeds is a JavaScript and CSS bundle that contains React, React DOM, `scheduler`,
-TanStack Query, `openapi-fetch`, and Tailwind CSS, all under the MIT licence. Their
-notices ship as `THIRD-PARTY-NOTICES.txt` at the package root and inside
-`Tracon.UI.dll`, next to the bundle. The release build checks that file against the
-modules the bundle actually contains.
+**Does a package contain third-party code?** Two do. `Tracon.UI` embeds a console that is a
+JavaScript and CSS bundle containing React, React DOM, `scheduler`, TanStack Query,
+`openapi-fetch`, and Tailwind CSS, all under the MIT licence. `Tracon.Cli`, the `tracon` tool,
+ships the NuGet packages it runs on (the database drivers Npgsql, `Microsoft.Data.SqlClient` and
+SQLitePCLRaw, Google.Protobuf, and the Microsoft libraries underneath them) as assemblies and
+native libraries; their licences are MIT, BSD-3-Clause, Apache-2.0, the PostgreSQL licence, and the
+licence of the SQL Server network library. For both, the notices ship as `THIRD-PARTY-NOTICES.txt`
+at the package root. `Tracon.UI` also embeds its copy in `Tracon.UI.dll`, next to the bundle. The
+release build checks each file against what the package really contains: the modules of the bundle,
+and the packages in the tool's dependency manifest.
 
 ## The full terms
 
