@@ -284,7 +284,17 @@ public sealed class WorkflowInterruptionQuotaTests
         return await AcceptedRunIdAsync(accepted);
     }
 
-    /// <summary>Writes a run that a process left behind: started ten minutes ago, no heartbeat, still marked running.</summary>
+    /// <summary>
+    /// Writes a run that a process left behind: started ten minutes ago, no heartbeat, still marked running.
+    /// </summary>
+    /// <remarks>
+    /// The run is opened <see cref="RunStatus.Queued"/>, which a reconciliation pass does not touch without a heartbeat, and
+    /// becomes <see cref="RunStatus.Running"/> only after everything it reported is in the store. The scan runs every 30 ms
+    /// on its own thread, so a run that was Running from its first write could be claimed between that write and the next:
+    /// the closer then counted the run with less than it had reported (a cost of <see langword="null"/> instead of 0.5),
+    /// or took sequence 0 of the event stream before the seed wrote it. The window is a few milliseconds, and a loaded
+    /// machine widens it.
+    /// </remarks>
     private static async Task<Guid> SeedOrphanAsync(
         TraconTestHost host,
         RunKind kind,
@@ -297,7 +307,7 @@ public sealed class WorkflowInterruptionQuotaTests
         var tenant = host.Services.GetRequiredService<ITenantContext>().TenantId;
         var runId = TraconId.NewId();
 
-        await runs.StartRunAsync(new RunStartInfo
+        var start = new RunStartInfo
         {
             RunId = runId,
             AgentName = Orphan,
@@ -306,11 +316,13 @@ public sealed class WorkflowInterruptionQuotaTests
             ParentRunId = parent,
             RootRunId = parent,
             Depth = parent is null ? 0 : 1,
-            Status = RunStatus.Running,
+            Status = RunStatus.Queued,
             StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
             TenantId = tenant,
             UserId = User,
-        });
+        };
+
+        await runs.StartRunAsync(start);
 
         if (events)
         {
@@ -350,6 +362,9 @@ public sealed class WorkflowInterruptionQuotaTests
                 Usage = RecoveryProbe.Spent(amount),
             });
         }
+
+        // Only now is the run an orphan: the row reads Running, with everything it reported already written.
+        (await runs.PromoteQueuedRunAsync(start with { Status = RunStatus.Running })).ShouldBeTrue("the seeded row left the queue");
 
         return runId;
     }
