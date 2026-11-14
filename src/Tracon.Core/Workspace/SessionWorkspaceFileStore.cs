@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -21,6 +22,12 @@ namespace Tracon;
 /// workspace; a path that would leave it is refused, not rewritten.
 /// </para>
 /// <para>
+/// The first change to the files gives the session its record (<see cref="AgentSessionManager.EnsureRecordAsync"/>), when
+/// the session was opened by this process and has none yet. Files kept under a session that does not exist cannot be
+/// deleted with it, found by the retention policy or erased for a data subject: all three start from the record, and a run
+/// that ends in a failure writes none of its own.
+/// </para>
+/// <para>
 /// A write is refused when the file, the files of the session, or the workspaces of the tenant would pass the
 /// limit in <see cref="TraconWorkspaceOptions"/>. A file counts its content and a fixed amount for its row
 /// (<c>FileOverheadBytes</c>), so empty files cannot pile up for free. The check reads the size at the moment of the
@@ -37,6 +44,7 @@ internal sealed class SessionWorkspaceFileStore : AgentFileStore
     private readonly string _tenantId;
     private readonly string _agentName;
     private readonly IOptionsMonitor<TraconWorkspaceOptions> _options;
+    private readonly IServiceProvider? _services;
 
     /// <summary>Creates the store for one compiled agent.</summary>
     /// <param name="inner">The agent file store the host registered.</param>
@@ -44,12 +52,17 @@ internal sealed class SessionWorkspaceFileStore : AgentFileStore
     /// <param name="tenantId">The tenant the agent is compiled for.</param>
     /// <param name="agentName">The agent's name.</param>
     /// <param name="options">The limits.</param>
+    /// <param name="services">
+    /// The services the store reads lazily: the session manager, which the compiled agent cannot take at compile time (it
+    /// would close a cycle with the catalog). <see langword="null"/> when there is none, and no record is then written.
+    /// </param>
     public SessionWorkspaceFileStore(
         AgentFileStore inner,
         IAgentFileTree tree,
         string tenantId,
         string agentName,
-        IOptionsMonitor<TraconWorkspaceOptions> options)
+        IOptionsMonitor<TraconWorkspaceOptions> options,
+        IServiceProvider? services = null)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(tree);
@@ -62,11 +75,13 @@ internal sealed class SessionWorkspaceFileStore : AgentFileStore
         _tenantId = AmbientTenantScope.Normalize(tenantId);
         _agentName = agentName;
         _options = options;
+        _services = services;
     }
 
     /// <summary>
-    /// Gets whether the run that is calling has a workspace here: it has a session with a record, and
-    /// it belongs to the tenant the agent was compiled for.
+    /// Gets whether the run that is calling has a workspace here: it has a session that is kept (the record is
+    /// written by the first change to its files or by the run's own save), and it belongs to the tenant the agent
+    /// was compiled for.
     /// </summary>
     internal bool HasWorkspace => TryGetSessionId(out _);
 
@@ -113,6 +128,8 @@ internal sealed class SessionWorkspaceFileStore : AgentFileStore
             }
         }
 
+        await EnsureSessionRecordAsync(cancellationToken).ConfigureAwait(false);
+
         await _inner.WriteAsync(target, content, cancellationToken).ConfigureAwait(false);
     }
 
@@ -125,8 +142,14 @@ internal sealed class SessionWorkspaceFileStore : AgentFileStore
         => _inner.FileExistsAsync(Rewrite(path), cancellationToken);
 
     /// <inheritdoc />
-    public override Task CreateDirectoryAsync(string path, CancellationToken cancellationToken = default)
-        => _inner.CreateDirectoryAsync(Rewrite(path), cancellationToken);
+    public override async Task CreateDirectoryAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var target = Rewrite(path);
+
+        await EnsureSessionRecordAsync(cancellationToken).ConfigureAwait(false);
+
+        await _inner.CreateDirectoryAsync(target, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public override Task<IReadOnlyList<FileStoreEntry>> ListChildrenAsync(string directory, CancellationToken cancellationToken = default)
@@ -166,6 +189,24 @@ internal sealed class SessionWorkspaceFileStore : AgentFileStore
         var prefix = "/" + directory + "/";
 
         return fileName.StartsWith(prefix, StringComparison.Ordinal) ? fileName[prefix.Length..] : fileName.TrimStart('/');
+    }
+
+    /// <summary>
+    /// Gives the session of the running run its record before the first file is kept under its identity.
+    /// </summary>
+    /// <remarks>
+    /// A refusal (another request opened the same session first, or ownership is on and no user is known) is a
+    /// <see cref="TraconException"/>, which reaches the model as the result of the tool and does not fail the run.
+    /// </remarks>
+    private async ValueTask EnsureSessionRecordAsync(CancellationToken cancellationToken)
+    {
+        if (TraconRunContext.Current?.RecordSession is not { } session
+            || _services?.GetService<AgentSessionManager>() is not { } sessions)
+        {
+            return;
+        }
+
+        await sessions.EnsureRecordAsync(session, cancellationToken).ConfigureAwait(false);
     }
 
     private bool TryGetSessionId(out string sessionId)

@@ -47,6 +47,7 @@ public sealed partial class SemaphoreOwnerSiteTests
         ["src/Tracon.Core/Models/FallbackChatClient.cs"] = (Ending.NeverDisposed, "binary build gate; a build in flight at Dispose still returns (FallbackChatClientTests)"),
         ["src/Tracon.Core/Models/ProviderConcurrencyLimiter.cs"] = (Ending.NeverDisposed, "one semaphore per provider for the life of the limiter, which nothing disposes"),
         ["src/Tracon.Core/Recording/RunEventWriter.cs"] = (Ending.NeverDisposed, "append gate; the writer is not disposable and the CA1001 suppression says why"),
+        ["src/Tracon.Core/Sessions/AgentSessionManager.cs"] = (Ending.NeverDisposed, "a binary gate of one just-opened session, dropped with the session; it is never waited on by handle, so it holds nothing to release (AgentSessionManagerEnsureRecordTests)"),
         ["src/Tracon.Core/Skills/Scripts/SkillScriptConcurrencyLimiter.cs"] = (Ending.AfterHolders, "a tenant's semaphore counts its users and the last Forget disposes it; the total is a SlotPool"),
         ["src/Tracon.Core/Voice/LiveVoiceSessionHost.cs"] = (Ending.AfterHolders, "Dispose waits for CloseAsync first, which waits for the pump (read, not probed)"),
         ["src/Tracon.Core/Voice/VoiceConversationDriver.cs"] = (Ending.AfterHolders, "the connection is disposed after RunAsync and the pending turn task end (read, not probed)"),

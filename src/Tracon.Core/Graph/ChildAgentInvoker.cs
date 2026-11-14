@@ -664,6 +664,9 @@ public sealed class ChildAgentInvoker : AIAgent
             // Inherited with the id: what names a session with no record below a workflow names one here too.
             SessionHasNoRecord = scope.SessionHasNoRecord,
 
+            // The root's session: a file the sub-run writes belongs to it, and so does the record those files need.
+            RecordSession = scope.RecordSession,
+
             // What this step was bound with, so its own row records the values
             // (a replay of the step then repeats them). Null for a step that
             // bound none.

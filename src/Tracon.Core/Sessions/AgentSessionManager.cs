@@ -76,10 +76,13 @@ public sealed class AgentSessionManager
     /// <para>
     /// The marker does NOT become part of the session's SERIALIZED state — it
     /// is a transient marker tied only to this process's in-memory object
-    /// identity.
+    /// identity. It holds the agent the session was opened with and a gate: the first
+    /// record is written by whichever comes first, the end-of-run save or the first
+    /// change a tool makes to the session's workspace (<see cref="EnsureRecordAsync"/>),
+    /// and the gate makes that "first" one writer.
     /// </para>
     /// </remarks>
-    private readonly ConditionalWeakTable<AgentSession, object> _newlyOpenedSessions = new();
+    private readonly ConditionalWeakTable<AgentSession, OpenedSession> _newlyOpenedSessions = new();
 
     /// <summary>
     /// The record each restored session was read from: which identity, and at
@@ -105,7 +108,6 @@ public sealed class AgentSessionManager
     /// </remarks>
     private readonly ConditionalWeakTable<AgentSession, RestoredRecord> _restoredVersions = new();
 
-    private static readonly object NewSessionMarker = new();
 
     /// <summary>Creates a new session manager.</summary>
     /// <param name="store">The session store.</param>
@@ -194,7 +196,7 @@ public sealed class AgentSessionManager
         _ = ClaimOwnerId(sessionId);
 
         var session = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
-        _newlyOpenedSessions.Add(session, NewSessionMarker);
+        _newlyOpenedSessions.Add(session, new OpenedSession(agent));
 
         AgentSessionIdentity.SetId(session, sessionId);
         return session;
@@ -347,44 +349,30 @@ public sealed class AgentSessionManager
             .SerializeSessionAsync(session, jsonSerializerOptions: null, cancellationToken)
             .ConfigureAwait(false);
 
-        var now = _timeProvider.GetUtcNow();
-
-        var record = new SessionRecord
+        if (_newlyOpenedSessions.TryGetValue(session, out var opened))
         {
-            Id = sessionId,
-            AgentName = agent.Name ?? agent.Id,
-            State = state,
-            StateSchemaVersion = CurrentStateSchemaVersion,
-            StateMafVersion = CurrentMafVersion,
-            CreatedAt = now,
-            UpdatedAt = now,
-            TenantId = _tenantContext.TenantId,
-            OwnerId = ResolveOwnerId(session, sessionId),
-        };
+            await opened.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-        if (_newlyOpenedSessions.TryGetValue(session, out _))
-        {
-            if (!await _store.TryCreateAsync(record, cancellationToken).ConfigureAwait(false))
+            try
             {
-                throw new TraconSessionConflictException(
-                    $"Another request also opened session '{sessionId}' at the same time and saved it before us. " +
-                    "Retry again shortly.")
+                // Looked at again under the gate: a tool that changed the session's workspace may have written the first
+                // record while this save serialized the state, and this save is then an update of it.
+                if (_newlyOpenedSessions.TryGetValue(session, out _))
                 {
-                    SessionId = sessionId,
-                };
+                    await CreateFirstRecordAsync(agent, session, sessionId, state, cancellationToken).ConfigureAwait(false);
+
+                    return sessionId;
+                }
             }
-
-            _newlyOpenedSessions.Remove(session);
-
-            // The first write lands at generation 1; a second save within this
-            // same request must replace THAT, not re-create. The owner it just
-            // claimed is remembered with it, so the second save CARRIES it
-            // instead of resolving the identity a second time — on a queued
-            // run that second save happens in a background worker with no
-            // request behind it.
-            _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, 1, record.OwnerId));
+            finally
+            {
+                opened.Gate.Release();
+            }
         }
-        else if (_restoredVersions.TryGetValue(session, out var restored) &&
+
+        var record = BuildRecord(agent, session, sessionId, state);
+
+        if (_restoredVersions.TryGetValue(session, out var restored) &&
                  string.Equals(restored.SessionId, sessionId, StringComparison.Ordinal))
         {
             if (!await _store.TryUpdateAsync(record, restored.Version, cancellationToken).ConfigureAwait(false))
@@ -413,6 +401,117 @@ public sealed class AgentSessionManager
         }
 
         return sessionId;
+    }
+
+    /// <summary>
+    /// Writes the first record of a session that was just opened, if nothing has yet: the session exists in the store from
+    /// the first change a run makes to what is kept under its identity.
+    /// </summary>
+    /// <param name="session">The session, opened with <see cref="GetOrCreateSessionAsync"/>.</param>
+    /// <param name="cancellationToken">
+    /// Ends the wait for another writer of the first record. The write itself is not cancelled: a record that was created
+    /// and then reported as cancelled would be refused as a conflict when the run's own save came after it.
+    /// </param>
+    /// <returns>A task that completes when the session has a record, or when it already had one.</returns>
+    /// <exception cref="TraconSessionConflictException">Another request opened the same session and wrote its record first.</exception>
+    /// <exception cref="TraconSessionOwnerRequiredException">
+    /// Ownership is on, this write claims it, and no identity resolved while it is required.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// A run that keeps files for its session (the session workspace) writes under the session's identity while it runs, but
+    /// the record is written when the run ends, and a run that ends in a failure writes none. Files then stay behind a
+    /// session that does not exist: the delete, the retention policy and the erasure of a data subject all begin at the
+    /// record and never reach them. Called before the first such change, it makes the record exist first; the run's own save
+    /// then updates it, as it does a restored session.
+    /// </para>
+    /// <para>
+    /// The record is the state the session has now, and its owner is the one the save would have claimed. A session that was
+    /// restored from a record, or whose record is already written, is left as it is.
+    /// </para>
+    /// </remarks>
+    internal async ValueTask EnsureRecordAsync(AgentSession session, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        if (!_newlyOpenedSessions.TryGetValue(session, out var opened))
+        {
+            return;
+        }
+
+        await opened.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            if (!_newlyOpenedSessions.TryGetValue(session, out _))
+            {
+                return;
+            }
+
+            var sessionId = AgentSessionIdentity.GetId(session)
+                ?? throw new TraconException(
+                    "The session has no Tracon identity. Sessions to be saved must be opened with " +
+                    $"{nameof(GetOrCreateSessionAsync)}.");
+
+            var state = await opened.Agent
+                .SerializeSessionAsync(session, jsonSerializerOptions: null, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            await CreateFirstRecordAsync(opened.Agent, session, sessionId, state, CancellationToken.None).ConfigureAwait(false);
+        }
+        finally
+        {
+            opened.Gate.Release();
+        }
+    }
+
+    /// <summary>Writes the record of a session that has none, with the owner this write claims. Called under the session's gate.</summary>
+    private async ValueTask CreateFirstRecordAsync(
+        AIAgent agent,
+        AgentSession session,
+        string sessionId,
+        JsonElement state,
+        CancellationToken cancellationToken)
+    {
+        var record = BuildRecord(agent, session, sessionId, state);
+
+        if (!await _store.TryCreateAsync(record, cancellationToken).ConfigureAwait(false))
+        {
+            throw new TraconSessionConflictException(
+                $"Another request also opened session '{sessionId}' at the same time and saved it before us. " +
+                "Retry again shortly.")
+            {
+                SessionId = sessionId,
+            };
+        }
+
+        _newlyOpenedSessions.Remove(session);
+
+        // The first write lands at generation 1; a second save within this
+        // same request must replace THAT, not re-create. The owner it just
+        // claimed is remembered with it, so the second save CARRIES it
+        // instead of resolving the identity a second time — on a queued
+        // run that second save happens in a background worker with no
+        // request behind it.
+        _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, 1, record.OwnerId));
+    }
+
+    private SessionRecord BuildRecord(AIAgent agent, AgentSession session, string sessionId, JsonElement state)
+    {
+        var now = _timeProvider.GetUtcNow();
+
+        return new SessionRecord
+        {
+            Id = sessionId,
+            AgentName = agent.Name ?? agent.Id,
+            State = state,
+            StateSchemaVersion = CurrentStateSchemaVersion,
+            StateMafVersion = CurrentMafVersion,
+            CreatedAt = now,
+            UpdatedAt = now,
+            TenantId = _tenantContext.TenantId,
+            OwnerId = ResolveOwnerId(session, sessionId),
+        };
     }
 
     /// <summary>
@@ -608,6 +707,20 @@ public sealed class AgentSessionManager
     /// </summary>
     /// <remarks>Same technique as <c>MetaEndpoints.ReadVersion</c> uses for Tracon's own version.</remarks>
     private static string ReadMafVersion() => AssemblyVersionText.Read(typeof(AIAgent).Assembly);
+
+    /// <summary>What a session that was just opened carries until its first record is written.</summary>
+    /// <param name="agent">The agent the session was opened with: it serializes the state of the first record.</param>
+    private sealed class OpenedSession(AIAgent agent)
+    {
+        /// <summary>The agent the session was opened with.</summary>
+        public AIAgent Agent { get; } = agent;
+
+        /// <summary>
+        /// Lets one writer at a time write the first record: the end-of-run save and the first change to the session's workspace.
+        /// </summary>
+        /// <remarks>No wait handle is ever taken from it, so it holds no operating system resource and needs no disposal.</remarks>
+        public SemaphoreSlim Gate { get; } = new(1, 1);
+    }
 
     /// <summary>The record a restored session was read from.</summary>
     /// <param name="sessionId">The identity the state was read under.</param>

@@ -1,3 +1,5 @@
+using Microsoft.Agents.AI;
+
 namespace Tracon;
 
 /// <summary>
@@ -193,6 +195,16 @@ public sealed record AgentRunScope
     /// retention target and session-keyed erasure all start from the record).
     /// </remarks>
     internal bool SessionHasNoRecord { get; init; }
+
+    /// <summary>
+    /// Gets the session this run keeps files for, as the root opened it, or <see langword="null"/> when the run has none
+    /// (see <see cref="TraconRunOptions.RecordSession"/>).
+    /// </summary>
+    /// <remarks>
+    /// The session workspace asks the manager that opened it for the session's first record before the first change it
+    /// makes: a run that ends in a failure writes no record of its own, and files would stay behind a session that does not exist.
+    /// </remarks>
+    internal AgentSession? RecordSession { get; init; }
 
     /// <summary>
     /// Gets whether a tool of this run may ask the user for input (MCP elicitation): the caller can

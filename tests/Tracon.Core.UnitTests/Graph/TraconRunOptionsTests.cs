@@ -48,6 +48,17 @@ public sealed class TraconRunOptionsTests
     }
 
     [Fact]
+    public async Task Clone_preserves_the_session_the_files_of_the_run_belong_to()
+    {
+        // A copy that drops it leaves a sub-agent writing files under a session whose record nothing will write.
+        var session = await new Microsoft.Agents.AI.ChatClientAgent(new Fakes.FakeChatClient()).CreateSessionAsync(TestContext.Current.CancellationToken);
+
+        var clone = new TraconRunOptions { RecordSession = session }.Clone().ShouldBeOfType<TraconRunOptions>();
+
+        clone.RecordSession.ShouldBeSameAs(session);
+    }
+
+    [Fact]
     public void Clone_leaves_empty_settings_empty()
     {
         var clone = new TraconRunOptions().Clone().ShouldBeOfType<TraconRunOptions>();

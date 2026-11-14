@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The first file an agent keeps in a session writes the session's record, so a run that fails afterwards leaves nothing a delete cannot reach.** A session's record was written when a run ended, and a run that fails writes none. A write that asks for no approval (a code policy, a rule the user once kept) could put a file under a session that did not exist, and `DELETE /api/sessions/{id}`, the retention policy and the erasure of a data subject all begin at the record. The file is now written after the record, which the run's own save then updates. A sub-agent's file is kept under its root's session and gives the root's session the record. With session ownership on, the user who ran owns the record, and another user's run on the same id is refused before the model.
+  What to do:
+  - **If your own `AgentFileStore` is registered for session workspaces, nothing changes:** the record is a call to the session store, not to the file store.
+  - **If a session id of a failed run was `404` on delete and its files stayed, delete the session now and the files go with it.**
+
 - **A workflow run whose process stopped is counted in the quota counter when the recovery or the reconciliation closes it.** Its run and what its function nodes reported beyond tokens were written only by the process that ran it, so a run that stopped left the counter below what it had spent, and a tenant's quota could be passed without a sign. The closer now writes that share once, after the row is closed, under the workflow's name and the run's user. A run that wrote no event, a step of a workflow and an agent run claimed this way add nothing. A process that was only silent and ends its run later does not write it again.
   What to do:
   - **If a quota rule counted runs or cost of a workflow that was interrupted, expect the counter to rise by the run and what it reported.** The agent steps of the run had added their own tokens before.

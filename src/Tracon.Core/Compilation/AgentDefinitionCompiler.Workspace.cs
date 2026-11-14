@@ -73,7 +73,7 @@ public sealed partial class AgentDefinitionCompiler
         }
 
         var tree = _fileStore as IAgentFileTree ?? new GenericAgentFileTree(_fileStore);
-        var store = new SessionWorkspaceFileStore(_fileStore, tree, ResolveTenantId(definition), definition.Name, limits);
+        var store = new SessionWorkspaceFileStore(_fileStore, tree, ResolveTenantId(definition), definition.Name, limits, _context.Provider);
 
         return new SessionWorkspaceProvider(store, workspace, governance);
     }

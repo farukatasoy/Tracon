@@ -11524,6 +11524,13 @@ The files go when their session goes:
 - The [retention](/concepts/governance/#retention) policy for sessions deletes the files
   of an expired session before the session row.
 
+All three begin at the session's record, so the first file an agent keeps in a new session
+also writes that record, before the file. A run that fails right after it wrote a file
+(a provider outage, a stopped request) therefore leaves a session that these three can
+find, not files under a session that does not exist. If another request opened the same
+session first, or session ownership is on and no user can own the new session, the write is
+refused and the model reads that as the result of its tool.
+
 What the agent wrote may hold personal data, in plain text in your file store (the
 [content protection](/getting-started/security/) of the SQL provider encrypts the file
 column when you turn it on). The content a tool wrote or read also appears in the run record

@@ -71,6 +71,7 @@ public sealed class TraconRunOptions : AgentRunOptions
         ChatOptions = other.ChatOptions;
         SuspendsWorkflowOnApproval = other.SuspendsWorkflowOnApproval;
         SessionHasNoRecord = other.SessionHasNoRecord;
+        RecordSession = other.RecordSession;
         AcceptsToolInput = other.AcceptsToolInput;
         ToolInputAnswers = other.ToolInputAnswers;
         BeforePendingToolInputIsPublished = other.BeforePendingToolInputIsPublished;
@@ -292,6 +293,16 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// memory writes nothing for such a run: a record it kept could not be deleted with its session.
     /// </remarks>
     internal bool SessionHasNoRecord { get; init; }
+
+    /// <summary>
+    /// Gets the session of the root run that this run, or a run below it, keeps files for: the object that
+    /// <c>AgentSessionManager</c> opened, so that the first change to those files can give the session its record.
+    /// </summary>
+    /// <remarks>
+    /// MAF passes no session to a sub-agent, so a run below the root inherits the root's: the files it writes belong to
+    /// the root's session, and so does the record that has to exist for them.
+    /// </remarks>
+    internal AgentSession? RecordSession { get; init; }
 
     /// <summary>
     /// Gets whether the caller of this run can answer a tool's request for user input

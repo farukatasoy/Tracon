@@ -205,6 +205,9 @@ public sealed partial class RunRecordingAgent
             Variant = runOptions?.Variant,
             SuspendsWorkflowOnApproval = runOptions?.SuspendsWorkflowOnApproval ?? false,
             SessionHasNoRecord = runOptions?.SessionHasNoRecord ?? false,
+
+            // Paired with SessionId above: the session that carries an identity, or the root's for a run below it.
+            RecordSession = sessionId is not null ? session : runOptions?.RecordSession,
             AcceptsToolInput = depth == 0 && (runOptions?.AcceptsToolInput ?? false),
             ToolInputAnswers = runOptions?.ToolInputAnswers,
             ToolInputs = new ToolInputLedger(),
