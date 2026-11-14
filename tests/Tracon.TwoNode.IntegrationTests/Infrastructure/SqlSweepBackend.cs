@@ -1,6 +1,5 @@
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics.Metrics;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -247,62 +246,22 @@ internal sealed class PostgreSqlSweepBackend : SqlSweepBackend
     /// </summary>
     private sealed class PoolUsage : IDisposable
     {
-        private readonly MeterListener _listener = new();
-        private readonly string _poolName;
-        private long _used;
+        private const string InstrumentName = "db.client.connection.count";
 
-        public PoolUsage(string poolName)
-        {
-            _poolName = poolName;
-            // Npgsql's meter is internal, so there is no instance to target. Another pool of the process publishes the
-            // same instrument under its own name; the pool name this class made up is what keeps their numbers out.
-            _listener.InstrumentPublished = static (instrument, listener) =>
-            {
-                if (string.Equals(instrument.Name, "db.client.connection.count", StringComparison.Ordinal))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-            _listener.SetMeasurementEventCallback<int>((_, measurement, tags, _) => Record(measurement, tags));
-            _listener.SetMeasurementEventCallback<long>((_, measurement, tags, _) => Record(measurement, tags));
-            _listener.Start();
-        }
+        // Npgsql's meter is internal, so there is no instance to target. Another pool of the process publishes the same
+        // instrument under its own name; the pool name this class made up is what keeps their numbers out.
+        private readonly MetricCollector _collector = MetricCollector.ForInstruments(InstrumentName);
+        private readonly string _poolName;
+
+        public PoolUsage(string poolName) => _poolName = poolName;
 
         /// <summary>Gets how many connections of the pool are checked out right now.</summary>
         public long Used
-        {
-            get
-            {
-                _listener.RecordObservableInstruments();
+            => (long)(_collector.Scrape(InstrumentName)
+                .LastOrDefault(measurement => measurement.HasTag("db.client.connection.pool.name", _poolName)
+                    && measurement.HasTag("db.client.connection.state", "used"))?.Value ?? 0);
 
-                return Volatile.Read(ref _used);
-            }
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private void Record(long measurement, ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            string? pool = null;
-            string? state = null;
-
-            foreach (var tag in tags)
-            {
-                if (string.Equals(tag.Key, "db.client.connection.pool.name", StringComparison.Ordinal))
-                {
-                    pool = tag.Value as string;
-                }
-                else if (string.Equals(tag.Key, "db.client.connection.state", StringComparison.Ordinal))
-                {
-                    state = tag.Value as string;
-                }
-            }
-
-            if (string.Equals(pool, _poolName, StringComparison.Ordinal) && string.Equals(state, "used", StringComparison.Ordinal))
-            {
-                Volatile.Write(ref _used, measurement);
-            }
-        }
+        public void Dispose() => _collector.Dispose();
     }
 }
 

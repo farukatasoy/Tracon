@@ -58,7 +58,7 @@ public sealed class ResponseCacheUsageTests
         await client.GetResponseAsync(Messages, options, TestContext.Current.CancellationToken);
         await client.GetResponseAsync([new ChatMessage(ChatRole.User, "another question")], options, TestContext.Current.CancellationToken);
 
-        collector.LongTags(TraconDiagnostics.ModelCacheLookupCounterName)
+        collector.Tags(TraconDiagnostics.ModelCacheLookupCounterName)
             .Select(static tags => (string?)tags[TraconDiagnostics.Tags.CacheResult])
             .ShouldBe(["error", "error", "hit", "miss"]);
     }

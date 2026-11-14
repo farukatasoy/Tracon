@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using Microsoft.Extensions.AI;
 
 namespace Tracon.Core.UnitTests.Diagnostics;
@@ -175,71 +174,39 @@ public sealed class ChatTelemetryEquivalenceTests
     /// <summary>The measurements of the four instruments a chat client makes that carry the marker, as text.</summary>
     private sealed class MetricCapture : IDisposable
     {
-        private static readonly HashSet<string> Instruments = new(StringComparer.Ordinal)
-        {
+        // The instruments belong to the framework's client, which makes a meter of its own, so they are selected by name.
+        private readonly MetricCollector _collector = MetricCollector.ForInstruments(
             "gen_ai.client.operation.duration",
             "gen_ai.client.token.usage",
             "gen_ai.client.operation.time_to_first_chunk",
-            "gen_ai.client.operation.time_per_output_chunk",
-        };
+            "gen_ai.client.operation.time_per_output_chunk");
 
-        private readonly MeterListener _listener = new();
         private readonly string _marker;
-        private readonly List<string> _lines = [];
-        private readonly Lock _gate = new();
 
-        public MetricCapture(string marker)
-        {
-            _marker = marker;
-            _listener.InstrumentPublished = static (instrument, listener) =>
-            {
-                if (Instruments.Contains(instrument.Name))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-            _listener.SetMeasurementEventCallback<int>((instrument, value, tags, _) => Add(instrument.Name, value.ToString(System.Globalization.CultureInfo.InvariantCulture), tags));
-            _listener.SetMeasurementEventCallback<double>((instrument, _, tags, _) => Add(instrument.Name, "time", tags));
-            _listener.Start();
-        }
+        public MetricCapture(string marker) => _marker = marker;
 
         /// <summary>Returns what was captured since the last call, in a fixed order, and forgets it.</summary>
         public List<string> Take()
+            => [.. _collector.Drain()
+                .Where(measurement => measurement.Tags.Values.Any(tag => tag?.ToString() is { } text && text.Contains(_marker, StringComparison.Ordinal)))
+                .Select(Render)
+                .Order(StringComparer.Ordinal)];
+
+        public void Dispose() => _collector.Dispose();
+
+        // A token count is written as it is. A duration is written as a placeholder: it differs from one call to the next, and
+        // the comparison is about which instruments carry which tags.
+        private static string Render(RecordedMeasurement measurement)
         {
-            lock (_gate)
-            {
-                var taken = _lines.Order(StringComparer.Ordinal).ToList();
-                _lines.Clear();
+            var tags = measurement.Tags
+                .Select(static tag => $"{tag.Key}={tag.Value?.ToString()}")
+                .Order(StringComparer.Ordinal);
 
-                return taken;
-            }
-        }
+            var value = measurement.ValueType == typeof(int)
+                ? ((int)measurement.Value).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : "time";
 
-        public void Dispose() => _listener.Dispose();
-
-        private void Add(string instrument, string value, ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var text = new List<string>(tags.Length);
-            var ours = false;
-
-            foreach (var tag in tags)
-            {
-                var rendered = tag.Value?.ToString();
-                ours |= rendered is not null && rendered.Contains(_marker, StringComparison.Ordinal);
-                text.Add($"{tag.Key}={rendered}");
-            }
-
-            if (!ours)
-            {
-                return;
-            }
-
-            text.Sort(StringComparer.Ordinal);
-
-            lock (_gate)
-            {
-                _lines.Add($"{instrument} {value} [{string.Join(", ", text)}]");
-            }
+            return $"{measurement.Instrument} {value} [{string.Join(", ", tags)}]";
         }
     }
 }

@@ -56,7 +56,7 @@ public sealed class RunCostMetricTests
         await agent.RunAsync("hello");
 
         // $2/M input * 1,000,000 + $4/M output * 500,000 = 2 + 2 = 4.
-        collector.DoubleValues(TraconDiagnostics.RunCostCounterName).ShouldBe([4.0]);
+        collector.Values(TraconDiagnostics.RunCostCounterName).ShouldBe([4.0]);
 
         var tags = collector.Tags(TraconDiagnostics.RunCostCounterName).ShouldHaveSingleItem();
         tags.Count.ShouldBe(4);
@@ -100,7 +100,7 @@ public sealed class RunCostMetricTests
 
         // Emitting an unknown price as zero would understate the real spend;
         // producing no measurement at all is the correct behavior.
-        collector.DoubleValues(TraconDiagnostics.RunCostCounterName).ShouldBeEmpty();
+        collector.Values(TraconDiagnostics.RunCostCounterName).ShouldBeEmpty();
     }
 
     /// <summary>
@@ -162,7 +162,7 @@ public sealed class RunCostMetricTests
             "sub request 2",
             options: new TraconRunOptions { ParentRunId = rootRunId, RootRunId = rootRunId, Depth = 1 });
 
-        var costs = collector.DoubleValues(TraconDiagnostics.RunCostCounterName);
+        var costs = collector.Values(TraconDiagnostics.RunCostCounterName);
 
         costs.Count.ShouldBe(3);
         costs.ShouldBe([2.0, 1.0, 0.5], ignoreOrder: true);
@@ -193,66 +193,5 @@ public sealed class RunCostMetricTests
         public Meter Create(MeterOptions options) => Meter;
 
         public void Dispose() => Meter.Dispose();
-    }
-
-    /// <summary>
-    /// Simple listener that collects measurements of a specific <c>Meter</c>
-    /// <strong>instance</strong>. Filtering is by reference, not by name.
-    /// </summary>
-    private sealed class MetricCollector : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Name, double Value, Dictionary<string, object?> Tags)> _doubles = [];
-
-        public MetricCollector(Meter meter)
-        {
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, meter))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) =>
-            {
-                lock (_doubles)
-                {
-                    _doubles.Add((instrument.Name, value, ToDictionary(tags)));
-                }
-            });
-
-            _listener.Start();
-        }
-
-        public List<double> DoubleValues(string name)
-        {
-            lock (_doubles)
-            {
-                return [.. _doubles.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Value)];
-            }
-        }
-
-        public List<Dictionary<string, object?>> Tags(string name)
-        {
-            lock (_doubles)
-            {
-                return [.. _doubles.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Tags)];
-            }
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private static Dictionary<string, object?> ToDictionary(ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var result = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-            foreach (var tag in tags)
-            {
-                result[tag.Key] = tag.Value;
-            }
-
-            return result;
-        }
     }
 }

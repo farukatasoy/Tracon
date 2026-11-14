@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Diagnostics.Metrics;
 using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Diagnostics;
@@ -75,7 +73,7 @@ public sealed class JobLaneCardinalityTests
         // TraconMetrics can be constructed with no options at all; the
         // guard must not fall back to "unbounded".
         using var factory = new TestMeterFactory();
-        using var collector = new LaneCollector(factory.Meter);
+        using var collector = new MetricCollector(factory.Meter);
         using var metrics = new TraconMetrics(factory);
 
         for (var index = 0; index < 70; index++)
@@ -83,7 +81,7 @@ public sealed class JobLaneCardinalityTests
             metrics.RecordJob($"lane-{index}", JobHandlerKeys.AgentBatch, JobStatus.Completed, "t", TimeSpan.Zero);
         }
 
-        collector.Lanes.Count(static lane => string.Equals(lane, "other", StringComparison.Ordinal)).ShouldBe(6);
+        LanesOf(collector).Count(static lane => string.Equals(lane, "other", StringComparison.Ordinal)).ShouldBe(6);
     }
 
     [Fact]
@@ -109,12 +107,12 @@ public sealed class JobLaneCardinalityTests
     private sealed class MetricsHarness : IDisposable
     {
         private readonly TestMeterFactory _factory = new();
-        private readonly LaneCollector _collector;
+        private readonly MetricCollector _collector;
         private readonly TraconMetrics _metrics;
 
         public MetricsHarness(int? maxLanes)
         {
-            _collector = new LaneCollector(_factory.Meter);
+            _collector = new MetricCollector(_factory.Meter);
 
             var options = new TraconOptions();
 
@@ -129,7 +127,7 @@ public sealed class JobLaneCardinalityTests
         public void Record(string lane)
             => _metrics.RecordJob(lane, JobHandlerKeys.AgentBatch, JobStatus.Completed, "tenant-a", TimeSpan.FromSeconds(1));
 
-        public List<string> Lanes() => _collector.Lanes;
+        public List<string> Lanes() => LanesOf(_collector);
 
         public void Dispose()
         {
@@ -139,40 +137,9 @@ public sealed class JobLaneCardinalityTests
         }
     }
 
-    /// <summary>Captures the lane tag of every <c>tracon.job.executions</c> measurement, in order.</summary>
-    private sealed class LaneCollector : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly ConcurrentQueue<string> _lanes = new();
-
-        public LaneCollector(Meter meter)
-        {
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, meter)
-                    && string.Equals(instrument.Name, TraconDiagnostics.JobCounterName, StringComparison.Ordinal))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
-            {
-                foreach (var tag in tags)
-                {
-                    if (string.Equals(tag.Key, TraconDiagnostics.Tags.Lane, StringComparison.Ordinal)
-                        && tag.Value is string lane)
-                    {
-                        _lanes.Enqueue(lane);
-                    }
-                }
-            });
-
-            _listener.Start();
-        }
-
-        public List<string> Lanes => [.. _lanes];
-
-        public void Dispose() => _listener.Dispose();
-    }
+    /// <summary>The lane tag of every <c>tracon.job.executions</c> measurement, in the order they were recorded.</summary>
+    private static List<string> LanesOf(MetricCollector collector)
+        => [.. collector.Tags(TraconDiagnostics.JobCounterName)
+            .Select(static tags => tags.GetValueOrDefault(TraconDiagnostics.Tags.Lane))
+            .OfType<string>()];
 }

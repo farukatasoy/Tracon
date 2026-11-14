@@ -64,7 +64,8 @@ public sealed class MeterListenerIsolationTests
             $"A MeterListener must target a Meter INSTANCE, not its name.{Environment.NewLine}" +
             $"{string.Join(Environment.NewLine, offenders.Select(o => $"  {o.Key}: {o.Value} occurrence(s)"))}" +
             $"{Environment.NewLine}Hand the type its own IMeterFactory (see " +
-            "Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs) and filter with " +
+            "Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs) and record it with MetricCollector " +
+            "(tests/Shared/Telemetry/MetricCollector.cs), which filters with " +
             "ReferenceEquals(instrument.Meter, meter).");
     }
 

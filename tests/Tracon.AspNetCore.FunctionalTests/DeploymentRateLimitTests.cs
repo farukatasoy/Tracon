@@ -209,7 +209,7 @@ public sealed class DeploymentRateLimitTests
         // 🚨 Neither fail-open (the limit would vanish with the database) nor fail-closed (every caller would
         // get 429). The instance applies its own limit, built from the same settings.
         using var meters = new Infrastructure.TestMeterFactory();
-        using var collector = new MeterInstanceCollector(meters.Meter);
+        using var collector = new MetricCollector(meters.Meter);
 
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: builder => builder.Services.AddSingleton<IRateLimitCounterStore>(new FailingStore()),

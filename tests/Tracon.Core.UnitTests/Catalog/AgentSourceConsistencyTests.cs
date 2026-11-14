@@ -56,7 +56,7 @@ public sealed class AgentSourceConsistencyTests
 
         await catalog.ResolveAsync("phantom-agent", culture: null, CancellationToken.None);
 
-        collector.LongValues(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
+        collector.Values(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
     }
 
     /// <summary>A source that resolves a name its own <c>ListAsync</c> never reports — the contract violation under test.</summary>

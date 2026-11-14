@@ -182,7 +182,7 @@ public sealed class RunRecordingAgentLedgerTests
         failure.ErrorType.ShouldBe("upstream_error");
         ran.ShouldBe(1);
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Event);
     }
@@ -212,7 +212,7 @@ public sealed class RunRecordingAgentLedgerTests
 
         failure.ErrorType.ShouldBe("upstream_error");
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.ToolInvocation);
 
@@ -248,7 +248,7 @@ public sealed class RunRecordingAgentLedgerTests
 
         run.Status.ShouldBe(RunStatus.Failed, "the run was left open by the close step");
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.ToolInvocation);
     }

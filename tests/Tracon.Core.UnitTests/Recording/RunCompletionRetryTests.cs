@@ -42,7 +42,7 @@ public sealed class RunCompletionRetryTests
         store.CompleteAttempts.ShouldBe(1);
 
         // The lost event is counted once, at its own stage; the closing write that went through adds nothing.
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Event);
     }
@@ -68,7 +68,7 @@ public sealed class RunCompletionRetryTests
         pauses.ShouldBe(1);
 
         // The record is whole, so there is no loss to count and the writer is not disabled.
-        collector.LongValues(Counter).ShouldBeEmpty();
+        collector.Values(Counter).ShouldBeEmpty();
         writer.IsDisabled.ShouldBeFalse();
     }
 
@@ -92,7 +92,7 @@ public sealed class RunCompletionRetryTests
         store.CompleteAttempts.ShouldBe(2, "one more try, not a loop: a store that is down must not hold a finished run");
         writer.IsDisabled.ShouldBeTrue();
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Completion);
     }
@@ -115,7 +115,7 @@ public sealed class RunCompletionRetryTests
         store.CompleteAttempts.ShouldBe(2);
         pauses.ShouldBe(2);
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Event);
     }
@@ -289,7 +289,7 @@ public sealed class RunCompletionRetryTests
         store.CompleteAttempts.ShouldBe(1, "a closing write that spent the budget is not tried again");
         writer.IsDisabled.ShouldBeTrue();
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Event);
     }

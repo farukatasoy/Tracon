@@ -39,9 +39,9 @@ public sealed class AuditRecorderTests
             CancellationToken.None);
 
         logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning);
-        collector.LongValues(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBe([1]);
+        collector.Values(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBe([1]);
 
-        var tags = collector.LongTags(TraconDiagnostics.AuditWriteFailureCounterName).Single();
+        var tags = collector.Tags(TraconDiagnostics.AuditWriteFailureCounterName).Single();
         tags[TraconDiagnostics.Tags.AuditOutcome].ShouldBe("swallowed");
         tags[TraconDiagnostics.Tags.AuditAction].ShouldBe("agent.update");
         tags[TraconDiagnostics.Tags.TenantId].ShouldBe(Tenant);
@@ -78,7 +78,7 @@ public sealed class AuditRecorderTests
         // hiccup: the caller's work did not happen because of it.
         logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Error);
 
-        var tags = collector.LongTags(TraconDiagnostics.AuditWriteFailureCounterName).Single();
+        var tags = collector.Tags(TraconDiagnostics.AuditWriteFailureCounterName).Single();
         tags[TraconDiagnostics.Tags.AuditOutcome].ShouldBe("refused");
     }
 
@@ -117,7 +117,7 @@ public sealed class AuditRecorderTests
             CancellationToken.None);
 
         log.Entries.Count.ShouldBe(2);
-        collector.LongValues(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBeEmpty();
+        collector.Values(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBeEmpty();
     }
 
     [Fact]
@@ -162,7 +162,7 @@ public sealed class AuditRecorderTests
                 timeProvider: null,
                 caller.Token));
 
-        collector.LongValues(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBeEmpty();
+        collector.Values(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBeEmpty();
     }
 
     [Fact]
@@ -203,7 +203,7 @@ public sealed class AuditRecorderTests
                 timeProvider: null,
                 CancellationToken.None));
 
-        collector.LongValues(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBe([1, 1]);
+        collector.Values(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBe([1, 1]);
     }
 
     [Fact]

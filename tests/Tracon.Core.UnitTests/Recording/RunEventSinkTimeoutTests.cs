@@ -42,7 +42,7 @@ public sealed class RunEventSinkTimeoutTests
         healthy.Events.Select(static e => e.Type).ShouldBe([RunEventType.RunStarted, RunEventType.MessageDelta]);
 
         // Counted as the loss of a sink, once, and never as a store failure.
-        collector.LongTags(TraconDiagnostics.RunRecordingFailureCounterName)
+        collector.Tags(TraconDiagnostics.RunRecordingFailureCounterName)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Sink);
         writer.IsDisabled.ShouldBeFalse();
@@ -160,7 +160,7 @@ public sealed class RunEventSinkTimeoutTests
         await caller.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(() => starting);
-        collector.LongValues(TraconDiagnostics.RunRecordingFailureCounterName).ShouldBeEmpty();
+        collector.Values(TraconDiagnostics.RunRecordingFailureCounterName).ShouldBeEmpty();
     }
 
     private static RunEventWriter NewWriter(

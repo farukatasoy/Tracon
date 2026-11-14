@@ -27,7 +27,7 @@ public sealed class RunCostMetricEndToEndTests
     public async Task Run_cost_is_published_through_the_real_DI_chain()
     {
         using var meterFactory = new TestMeterFactory();
-        using var collector = new MeterInstanceCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         var provider = new PricedEchoModelProvider();
 

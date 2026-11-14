@@ -32,13 +32,13 @@ public sealed class TelemetryTagTests
     {
         using var meterFactory = new TestMeterFactory();
         using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
-        using var collector = new TagCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await RunOnceAsync(metrics);
 
-        collector.TagKeys.ShouldNotBeEmpty();
+        TagKeys(collector).ShouldNotBeEmpty();
 
-        foreach (var (instrument, keys) in collector.TagKeys)
+        foreach (var (instrument, keys) in TagKeys(collector))
         {
             keys.ShouldNotContain(key => string.Equals(key, "tracon.user.id", StringComparison.Ordinal), $"{instrument} must not carry a user tag.");
             keys.ShouldNotContain(key => string.Equals(key, "tracon.run.labels", StringComparison.Ordinal), $"{instrument} must not carry a label tag.");
@@ -55,13 +55,13 @@ public sealed class TelemetryTagTests
     {
         using var meterFactory = new TestMeterFactory();
         using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
-        using var collector = new TagCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await RunOnceAsync(metrics);
 
         // The full expected set, written out rather than derived: a derived
         // expectation grows silently along with the code it is meant to pin.
-        collector.KeysOf(TraconDiagnostics.RunCounterName).ShouldBe(
+        KeysOf(collector, TraconDiagnostics.RunCounterName).ShouldBe(
             [
                 TraconDiagnostics.Tags.AgentName,
                 TraconDiagnostics.Tags.Status,
@@ -69,14 +69,14 @@ public sealed class TelemetryTagTests
             ],
             ignoreOrder: true);
 
-        collector.KeysOf(TraconDiagnostics.RunDurationName).ShouldBe(
+        KeysOf(collector, TraconDiagnostics.RunDurationName).ShouldBe(
             [
                 TraconDiagnostics.Tags.AgentName,
                 TraconDiagnostics.Tags.Status,
             ],
             ignoreOrder: true);
 
-        collector.KeysOf(TraconDiagnostics.TokenCounterName).ShouldBe(
+        KeysOf(collector, TraconDiagnostics.TokenCounterName).ShouldBe(
             [
                 TraconDiagnostics.Tags.AgentName,
                 TraconDiagnostics.Tags.ModelId,
@@ -84,7 +84,7 @@ public sealed class TelemetryTagTests
             ],
             ignoreOrder: true);
 
-        collector.KeysOf(TraconDiagnostics.RunCostCounterName).ShouldBe(
+        KeysOf(collector, TraconDiagnostics.RunCostCounterName).ShouldBe(
             [
                 TraconDiagnostics.Tags.AgentName,
                 TraconDiagnostics.Tags.ModelId,
@@ -102,11 +102,11 @@ public sealed class TelemetryTagTests
         // consumer's dashboard, on top of tripling the series count.
         using var meterFactory = new TestMeterFactory();
         using var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
-        using var collector = new TagCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await RunOnceAsync(metrics);
 
-        collector.ValuesOf(TraconDiagnostics.TokenCounterName, TraconDiagnostics.Tags.Direction)
+        ValuesOf(collector, TraconDiagnostics.TokenCounterName, TraconDiagnostics.Tags.Direction)
             .ShouldBe(["input", "output"], ignoreOrder: true);
     }
 
@@ -185,78 +185,18 @@ public sealed class TelemetryTagTests
         };
     }
 
-    private sealed class TagCollector : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Instrument, Dictionary<string, object?> Tags)> _measurements = [];
+    /// <summary>The tag keys of every measurement, with the instrument that published it.</summary>
+    private static List<(string Instrument, IEnumerable<string> Keys)> TagKeys(MetricCollector collector)
+        => [.. collector.Snapshot().Select(static m => (m.Instrument, (IEnumerable<string>)m.Tags.Keys))];
 
-        public TagCollector(Meter meter)
-        {
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, meter))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
+    /// <summary>Every tag key one instrument published, over all its measurements.</summary>
+    private static HashSet<string> KeysOf(MetricCollector collector, string instrument)
+        => [.. collector.Tags(instrument).SelectMany(static tags => tags.Keys)];
 
-            _listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) => Record(instrument.Name, tags));
-            _listener.SetMeasurementEventCallback<double>((instrument, _, tags, _) => Record(instrument.Name, tags));
-            _listener.Start();
-        }
-
-        public IReadOnlyList<(string Instrument, IReadOnlyCollection<string> Keys)> TagKeys
-        {
-            get
-            {
-                lock (_measurements)
-                {
-                    return [.. _measurements.Select(static m => (m.Instrument, (IReadOnlyCollection<string>)m.Tags.Keys))];
-                }
-            }
-        }
-
-        public HashSet<string> KeysOf(string instrument)
-        {
-            lock (_measurements)
-            {
-                var keys = new HashSet<string>(StringComparer.Ordinal);
-
-                foreach (var measurement in _measurements.Where(m => string.Equals(m.Instrument, instrument, StringComparison.Ordinal)))
-                {
-                    keys.UnionWith(measurement.Tags.Keys);
-                }
-
-                return keys;
-            }
-        }
-
-        public IReadOnlyCollection<string> ValuesOf(string instrument, string tag)
-        {
-            lock (_measurements)
-            {
-                return [.. _measurements
-                    .Where(m => string.Equals(m.Instrument, instrument, StringComparison.Ordinal) && m.Tags.ContainsKey(tag))
-                    .Select(m => m.Tags[tag]?.ToString() ?? string.Empty)
-                    .Distinct(StringComparer.Ordinal)];
-            }
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private void Record(string instrument, ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var map = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-            foreach (var tag in tags)
-            {
-                map[tag.Key] = tag.Value;
-            }
-
-            lock (_measurements)
-            {
-                _measurements.Add((instrument, map));
-            }
-        }
-    }
+    /// <summary>The distinct values one instrument published for one tag.</summary>
+    private static IReadOnlyCollection<string> ValuesOf(MetricCollector collector, string instrument, string tag)
+        => [.. collector.Tags(instrument)
+            .Where(tags => tags.ContainsKey(tag))
+            .Select(tags => tags[tag]?.ToString() ?? string.Empty)
+            .Distinct(StringComparer.Ordinal)];
 }

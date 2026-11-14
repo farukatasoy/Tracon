@@ -64,8 +64,8 @@ public sealed class DeploymentRateLimiterTests
         (await Count(limiter, kind: RateLimiterKind.Endpoint)).ShouldBeNull();
         (await Count(limiter, kind: RateLimiterKind.Trigger)).ShouldBeNull();
 
-        collector.LongValues(TraconDiagnostics.RateLimitStoreFailureCounterName).ShouldBe([1L, 1L]);
-        collector.LongTags(TraconDiagnostics.RateLimitStoreFailureCounterName)
+        collector.Values(TraconDiagnostics.RateLimitStoreFailureCounterName).ShouldBe([1L, 1L]);
+        collector.Tags(TraconDiagnostics.RateLimitStoreFailureCounterName)
             .Select(static tags => tags[TraconDiagnostics.Tags.Limiter])
             .ShouldBe([RateLimiterKind.Endpoint, RateLimiterKind.Trigger]);
     }
@@ -110,7 +110,7 @@ public sealed class DeploymentRateLimiterTests
         await Should.ThrowAsync<OperationCanceledException>(async () =>
             await limiter.TryCountAsync(Key, 3, Minute, RateLimiterKind.Endpoint, source.Token));
 
-        collector.LongValues(TraconDiagnostics.RateLimitStoreFailureCounterName).ShouldBeEmpty();
+        collector.Values(TraconDiagnostics.RateLimitStoreFailureCounterName).ShouldBeEmpty();
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class DeploymentRateLimiterTests
 
         (await Count(limiter)).ShouldBeNull();
 
-        collector.LongValues(TraconDiagnostics.RateLimitStoreFailureCounterName).ShouldBe([1L]);
+        collector.Values(TraconDiagnostics.RateLimitStoreFailureCounterName).ShouldBe([1L]);
     }
 
     [Fact]

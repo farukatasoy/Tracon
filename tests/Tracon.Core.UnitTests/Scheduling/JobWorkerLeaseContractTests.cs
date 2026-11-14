@@ -104,7 +104,7 @@ public sealed class JobWorkerLeaseContractTests
         // the worker writes and reads nothing more. Waiting for that read hung the
         // second order for 30 s, and a busy machine made it the order that ran.
         await WaitUntil.TrueAsync(
-            () => collector.LongTags(TraconDiagnostics.JobCounterName).Count > 0,
+            () => collector.Tags(TraconDiagnostics.JobCounterName).Count > 0,
             "the worker to record the attempt's outcome");
 
         var record = await jobs.GetAsync(TenantId, jobId, TestContext.Current.CancellationToken);
@@ -112,7 +112,7 @@ public sealed class JobWorkerLeaseContractTests
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
         record!.Status.ShouldBe(JobStatus.Cancelled);
-        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
+        collector.Tags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
             .ShouldBe(nameof(JobStatus.Cancelled));
         handler.Calls.ShouldBe(1);
     }
@@ -372,7 +372,7 @@ public sealed class JobWorkerLeaseContractTests
         logger.Entries.ShouldNotContain(entry => entry.Level >= LogLevel.Error);
         jobs.CompleteCalls.ShouldBe(0, "a worker that lost its lease would close the attempt of the worker that holds it");
         jobs.ReleaseCalls.ShouldBe(0, "a worker that lost its lease would requeue the attempt of the worker that holds it");
-        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldBeEmpty("the worker that holds the job counts it");
+        collector.Tags(TraconDiagnostics.JobCounterName).ShouldBeEmpty("the worker that holds the job counts it");
         publisher.Published.ShouldBeEmpty("the worker that holds the job publishes its outcome");
 
         // Nothing was written: the store still shows the attempt this worker started.
@@ -529,7 +529,7 @@ public sealed class JobWorkerLeaseContractTests
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
         (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Cancelled);
-        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
+        collector.Tags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
             .ShouldBe(nameof(JobStatus.Cancelled));
     }
 
@@ -559,7 +559,7 @@ public sealed class JobWorkerLeaseContractTests
 
         jobs.CompleteCalls.ShouldBe(1, "a refusal is an answer: the same call would be refused again");
         handler.Calls.ShouldBe(1);
-        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldBeEmpty();
+        collector.Tags(TraconDiagnostics.JobCounterName).ShouldBeEmpty();
         publisher.Published.ShouldBeEmpty();
         (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Running);
     }
@@ -612,7 +612,7 @@ public sealed class JobWorkerLeaseContractTests
 
         jobs.Threw.ShouldBeTrue("the lost answer was never raised, so the case proves nothing");
         (await jobs.PeekAsync(jobId))!.Status.ShouldBe(JobStatus.Completed);
-        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
+        collector.Tags(TraconDiagnostics.JobCounterName).ShouldHaveSingleItem()[TraconDiagnostics.Tags.JobStatus]
             .ShouldBe(nameof(JobStatus.Completed));
         publisher.Published.ShouldBe(["job.completed"]);
         logger.Entries.ShouldNotContain(entry => entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal));
@@ -666,7 +666,7 @@ public sealed class JobWorkerLeaseContractTests
         await AttemptEndedAsync(jobs);
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
-        collector.LongTags(TraconDiagnostics.JobCounterName).ShouldBeEmpty();
+        collector.Tags(TraconDiagnostics.JobCounterName).ShouldBeEmpty();
         publisher.Published.ShouldBeEmpty();
         logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("no longer holds the lease", StringComparison.Ordinal));
     }

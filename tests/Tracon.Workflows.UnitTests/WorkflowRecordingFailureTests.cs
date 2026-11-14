@@ -120,67 +120,28 @@ public sealed class WorkflowRecordingFailureTests
 
     /// <summary>Owns a metric set over a private meter and collects what is published on it.</summary>
     /// <remarks>
-    /// The listener matches its meter by REFERENCE. Tracon's meter name is shared by
+    /// The <see cref="MetricCollector"/> matches the meter by REFERENCE. Tracon's meter name is shared by
     /// every instrument in the process, so a name match would also collect a
     /// neighbouring test's measurements and make "counted once" a race.
     /// </remarks>
     private sealed class WorkflowMetricProbe : IDisposable
     {
         private readonly Meter _meter = new(TraconDiagnostics.MeterName);
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Name, Dictionary<string, object?> Tags)> _measurements = [];
-        private readonly Lock _gate = new();
+        private readonly MetricCollector _collector;
 
         public WorkflowMetricProbe()
         {
             Metrics = new TraconMetrics(new SingleMeterFactory(_meter), new TenantTaggedOptions());
-
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, _meter))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
-            {
-                // The TagList is a ref struct over the caller's stack; reading it
-                // after the callback returns is undefined, so it is copied here.
-                var copied = new Dictionary<string, object?>(tags.Length, StringComparer.Ordinal);
-
-                foreach (var tag in tags)
-                {
-                    copied[tag.Key] = tag.Value;
-                }
-
-                lock (_gate)
-                {
-                    _measurements.Add((instrument.Name, copied));
-                }
-            });
-
-            _listener.Start();
+            _collector = new MetricCollector(_meter);
         }
 
         public TraconMetrics Metrics { get; }
 
-        public List<IReadOnlyDictionary<string, object?>> TagsFor(string name)
-        {
-            lock (_gate)
-            {
-                return
-                [
-                    .. _measurements
-                        .Where(measurement => string.Equals(measurement.Name, name, StringComparison.Ordinal))
-                        .Select(measurement => (IReadOnlyDictionary<string, object?>)measurement.Tags),
-                ];
-            }
-        }
+        public List<IReadOnlyDictionary<string, object?>> TagsFor(string name) => _collector.Tags(name);
 
         public void Dispose()
         {
-            _listener.Dispose();
+            _collector.Dispose();
             Metrics.Dispose();
             _meter.Dispose();
         }

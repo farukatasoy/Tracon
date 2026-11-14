@@ -42,7 +42,7 @@ public sealed class AgentSourceFaultIsolationTests
 
         await catalog.ListAsync();
 
-        collector.LongValues(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
+        collector.Values(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
         logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Error && entry.Exception is InvalidOperationException);
     }
 
@@ -181,7 +181,7 @@ public sealed class AgentSourceFaultIsolationTests
         await Should.ThrowAsync<DbException>(
             async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
 
-        collector.LongValues(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
+        collector.Values(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
         logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Error && entry.Exception is DbException);
     }
 

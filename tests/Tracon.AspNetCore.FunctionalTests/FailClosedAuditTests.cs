@@ -222,7 +222,7 @@ public sealed class FailClosedAuditTests
         // audit row on the best-effort path; a broken audit store must cost the row,
         // not the call — and the counter is what makes that cost visible.
         using var meterFactory = new TestMeterFactory();
-        using var collector = new MeterInstanceCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         var audit = new SwitchableAuditLog { Fail = true };
 

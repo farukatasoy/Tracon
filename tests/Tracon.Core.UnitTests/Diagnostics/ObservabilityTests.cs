@@ -41,13 +41,13 @@ public sealed class ObservabilityTests
             TimeSpan.FromSeconds(2),
             new RunUsage { InputTokens = 10, OutputTokens = 4, TotalTokens = 14 });
 
-        collector.LongValues(TraconDiagnostics.RunCounterName).ShouldBe([1]);
+        collector.Values(TraconDiagnostics.RunCounterName).ShouldBe([1]);
 
         // Durations are in SECONDS: the OpenTelemetry semantic convention requires
         // this, and writing milliseconds would break pre-built dashboards.
-        collector.DoubleValues(TraconDiagnostics.RunDurationName).ShouldBe([2.0]);
+        collector.Values(TraconDiagnostics.RunDurationName).ShouldBe([2.0]);
 
-        collector.LongValues(TraconDiagnostics.TokenCounterName).ShouldBe([10, 4]);
+        collector.Values(TraconDiagnostics.TokenCounterName).ShouldBe([10, 4]);
     }
 
     [Fact]
@@ -85,8 +85,8 @@ public sealed class ObservabilityTests
 
         metrics.RecordToolInvocation("get_order_status", succeeded: true, duration: null);
 
-        collector.LongValues(TraconDiagnostics.ToolCounterName).ShouldBe([1]);
-        collector.DoubleValues(TraconDiagnostics.ToolDurationName).ShouldBeEmpty();
+        collector.Values(TraconDiagnostics.ToolCounterName).ShouldBe([1]);
+        collector.Values(TraconDiagnostics.ToolDurationName).ShouldBeEmpty();
     }
 
     [Fact]
@@ -489,84 +489,5 @@ public sealed class ObservabilityTests
         public Meter Create(MeterOptions options) => Meter;
 
         public void Dispose() => Meter.Dispose();
-    }
-
-    /// <summary>
-    /// Simple listener that collects measurements of a specific <c>Meter</c>
-    /// <strong>instance</strong>. Filtering is by reference, not by name (see the
-    /// <see cref="TestMeterFactory"/> note above).
-    /// </summary>
-    private sealed class MetricCollector : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Name, long Value, Dictionary<string, object?> Tags)> _longs = [];
-        private readonly List<(string Name, double Value)> _doubles = [];
-
-        public MetricCollector(Meter meter)
-        {
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, meter))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
-            {
-                lock (_longs)
-                {
-                    _longs.Add((instrument.Name, value, ToDictionary(tags)));
-                }
-            });
-
-            _listener.SetMeasurementEventCallback<double>((instrument, value, _, _) =>
-            {
-                lock (_doubles)
-                {
-                    _doubles.Add((instrument.Name, value));
-                }
-            });
-
-            _listener.Start();
-        }
-
-        public List<long> LongValues(string name)
-        {
-            lock (_longs)
-            {
-                return [.. _longs.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Value)];
-            }
-        }
-
-        public List<double> DoubleValues(string name)
-        {
-            lock (_doubles)
-            {
-                return [.. _doubles.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Value)];
-            }
-        }
-
-        public List<Dictionary<string, object?>> Tags(string name)
-        {
-            lock (_longs)
-            {
-                return [.. _longs.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Tags)];
-            }
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private static Dictionary<string, object?> ToDictionary(ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var result = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-            foreach (var tag in tags)
-            {
-                result[tag.Key] = tag.Value;
-            }
-
-            return result;
-        }
     }
 }

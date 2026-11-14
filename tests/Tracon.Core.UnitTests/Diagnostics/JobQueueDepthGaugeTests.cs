@@ -26,7 +26,7 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: false, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await observer.StartAsync(TestContext.Current.CancellationToken);
 
@@ -35,7 +35,7 @@ public sealed class JobQueueDepthGaugeTests
         await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
         clock.RunningTimers.ShouldBe(0);
 
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName).ShouldBeEmpty();
+        collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName).ShouldBeEmpty();
         store.DepthCalls.ShouldBe(0);
         observer.CompletedRefreshes.ShouldBe(0);
     }
@@ -49,11 +49,11 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
-        var measurements = collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
+        var measurements = collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName);
 
         Value(measurements, "default", JobStatus.Pending).ShouldBe(3);
         Value(measurements, "media", JobStatus.Pending).ShouldBe(1);
@@ -68,11 +68,11 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
-        var measurements = collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
+        var measurements = collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName);
 
         // Queue depth is an operator signal about a pool that leases across
         // every tenant. A tenant tag would multiply cardinality AND imply a
@@ -91,13 +91,13 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
         store.DepthCalls.ShouldBe(1, "the refresher reads once at start");
 
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
+        collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName);
+        collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName);
         store.DepthCalls.ShouldBe(1, "a scrape only reads the cache");
 
         clock.FireAll();
@@ -113,7 +113,7 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
@@ -121,7 +121,7 @@ public sealed class JobQueueDepthGaugeTests
         // the store's failure, and the scrape returns empty rather than
         // propagating it to the collector.
         observer.ExecuteTask!.IsCompleted.ShouldBeFalse("a failed refresh must not end the refresher");
-        Should.NotThrow(() => collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName))
+        Should.NotThrow(() => collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName))
             .ShouldBeEmpty();
     }
 
@@ -134,11 +134,11 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
+        collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName)
             .ShouldHaveSingleItem().Value.ShouldBe(4);
 
         store.NextFailure = new TraconException("simulated store outage");
@@ -146,7 +146,7 @@ public sealed class JobQueueDepthGaugeTests
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
         // A blip must not read as "the queue drained" on a dashboard.
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
+        collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName)
             .ShouldHaveSingleItem().Value.ShouldBe(4);
     }
 
@@ -159,7 +159,7 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
@@ -176,7 +176,7 @@ public sealed class JobQueueDepthGaugeTests
         clock.FireAll();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 3);
 
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
+        collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName)
             .ShouldHaveSingleItem().Value.ShouldBe(3);
     }
 
@@ -214,11 +214,11 @@ public sealed class JobQueueDepthGaugeTests
             logger: NullLogger<JobQueueDepthObserver>.Instance,
             metrics: metrics);
 
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
-        var lanes = collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
+        var lanes = collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName)
             .Select(static m => (string?)m.Tags.GetValueOrDefault(TraconDiagnostics.Tags.Lane))
             .OrderBy(static lane => lane, StringComparer.Ordinal)
             .ToList();
@@ -239,7 +239,7 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory, clock: clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await observer.StartAsync(TestContext.Current.CancellationToken);
 
@@ -249,7 +249,7 @@ public sealed class JobQueueDepthGaugeTests
             // depth query that never answers must not hold it: the scrape reads
             // the cache only, and no refresh has finished yet.
             var scrape = Task.Run(
-                () => collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName),
+                () => collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName),
                 TestContext.Current.CancellationToken);
 
             (await scrape.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken))
@@ -281,7 +281,7 @@ public sealed class JobQueueDepthGaugeTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory, clock, gate);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await observer.StartAsync(TestContext.Current.CancellationToken);
 
@@ -297,7 +297,7 @@ public sealed class JobQueueDepthGaugeTests
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 1);
 
         store.DepthCalls.ShouldBe(1);
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName).ShouldHaveSingleItem().Value.ShouldBe(1);
+        collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName).ShouldHaveSingleItem().Value.ShouldBe(1);
     }
 
     private static JobQueueDepthObserver Observer(
@@ -353,10 +353,10 @@ public sealed class JobQueueDepthGaugeTests
     }
 
     private static long Value(
-        List<(long Value, Dictionary<string, object?> Tags)> measurements,
+        List<RecordedMeasurement> measurements,
         string lane,
         JobStatus status)
-        => measurements
+        => (long)measurements
             .Where(m => Equals(m.Tags.GetValueOrDefault(TraconDiagnostics.Tags.Lane), lane)
                 && Equals(m.Tags.GetValueOrDefault(TraconDiagnostics.Tags.JobStatus), status.ToString()))
             .Sum(static m => m.Value);
@@ -454,55 +454,5 @@ public sealed class JobQueueDepthGaugeTests
 
         public virtual ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default)
             => Inner.GetQueueDepthAsync(cancellationToken);
-    }
-
-    /// <summary>Polls observable instruments and returns their <c>long</c> measurements with tags.</summary>
-    private sealed class GaugeCollector : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Name, long Value, Dictionary<string, object?> Tags)> _measurements = [];
-
-        public GaugeCollector(Meter meter)
-        {
-            // Filtering by the meter's NAME would also catch a different Meter
-            // instance with the same name published by a test running in
-            // parallel (MeterListenerIsolationTests enforces this).
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, meter))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
-                _measurements.Add((instrument.Name, value, ToDictionary(tags))));
-
-            _listener.Start();
-        }
-
-        public List<(long Value, Dictionary<string, object?> Tags)> Trigger(string name)
-        {
-            _measurements.Clear();
-            _listener.RecordObservableInstruments();
-
-            return [.. _measurements
-                .Where(m => string.Equals(m.Name, name, StringComparison.Ordinal))
-                .Select(static m => (m.Value, m.Tags))];
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private static Dictionary<string, object?> ToDictionary(ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var result = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-            foreach (var tag in tags)
-            {
-                result[tag.Key] = tag.Value;
-            }
-
-            return result;
-        }
     }
 }

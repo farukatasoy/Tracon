@@ -51,7 +51,7 @@ public sealed class TenantTagOptionTests
     public void The_container_hands_the_setting_to_all_eight_metrics(string? configured, bool expectTag)
     {
         using var meterFactory = new TestMeterFactory();
-        using var collector = new Measurements(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
         using var provider = BuildProvider(meterFactory, configured);
 
         RecordEverything(provider.GetRequiredService<TraconMetrics>());
@@ -78,7 +78,7 @@ public sealed class TenantTagOptionTests
     public void The_instruments_that_never_carried_a_tenant_still_do_not()
     {
         using var meterFactory = new TestMeterFactory();
-        using var collector = new Measurements(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
         using var provider = BuildProvider(meterFactory, "true");
         var metrics = provider.GetRequiredService<TraconMetrics>();
 
@@ -108,7 +108,7 @@ public sealed class TenantTagOptionTests
         var options = new TraconOptions();
 
         using var meterFactory = new TestMeterFactory();
-        using var collector = new Measurements(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
         using var metrics = new TraconMetrics(meterFactory, new StaticOptionsMonitor<TraconOptions>(options));
 
         metrics.RecordCost("agent-a", "model-a", Tenant, 1m, "USD");
@@ -130,7 +130,7 @@ public sealed class TenantTagOptionTests
         {
             var tenant = $"{Tenant}-span-{includeTenantTag}";
             using var meterFactory = new TestMeterFactory();
-            using var collector = new Measurements(meterFactory.Meter);
+            using var collector = new MetricCollector(meterFactory.Meter);
             using var spans = new SpanCapture(tenant);
 
             var options = new TraconOptions();
@@ -248,53 +248,6 @@ public sealed class TenantTagOptionTests
     private sealed class FixedTenantContext(string tenantId) : ITenantContext
     {
         public string TenantId => tenantId;
-    }
-
-    /// <summary>Collects the tags of every measurement published on one <see cref="Meter"/> instance, by reference.</summary>
-    private sealed class Measurements : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Name, Dictionary<string, object?> Tags)> _measurements = [];
-
-        public Measurements(Meter meter)
-        {
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, meter))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) => Add(instrument.Name, tags));
-            _listener.SetMeasurementEventCallback<double>((instrument, _, tags, _) => Add(instrument.Name, tags));
-            _listener.Start();
-        }
-
-        public List<Dictionary<string, object?>> Tags(string name)
-        {
-            lock (_measurements)
-            {
-                return [.. _measurements.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Tags)];
-            }
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private void Add(string name, ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var copied = new Dictionary<string, object?>(tags.Length, StringComparer.Ordinal);
-
-            foreach (var tag in tags)
-            {
-                copied[tag.Key] = tag.Value;
-            }
-
-            lock (_measurements)
-            {
-                _measurements.Add((name, copied));
-            }
-        }
     }
 
     /// <summary>

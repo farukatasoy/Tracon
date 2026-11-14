@@ -297,8 +297,8 @@ public sealed class DeltaBehindWriteTests
         // The closing write is still made: the run does not stay Running because its text was lost.
         (await rig.Store.GetRunAsync(rig.Writer.RunId))!.Status.ShouldBe(RunStatus.Completed);
 
-        collector.LongValues(TraconDiagnostics.RunRecordingFailureCounterName).Count.ShouldBe(1);
-        collector.LongTags(TraconDiagnostics.RunRecordingFailureCounterName)
+        collector.Values(TraconDiagnostics.RunRecordingFailureCounterName).Count.ShouldBe(1);
+        collector.Tags(TraconDiagnostics.RunRecordingFailureCounterName)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Event);
     }
@@ -328,7 +328,7 @@ public sealed class DeltaBehindWriteTests
         await closing.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         rig.Writer.IsDisabled.ShouldBeTrue();
-        collector.LongTags(TraconDiagnostics.RunRecordingFailureCounterName)
+        collector.Tags(TraconDiagnostics.RunRecordingFailureCounterName)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Event);
         (await rig.Store.GetRunAsync(rig.Writer.RunId))!.Status.ShouldBe(RunStatus.Completed);

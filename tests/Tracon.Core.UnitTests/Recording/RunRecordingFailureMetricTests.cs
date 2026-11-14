@@ -49,9 +49,9 @@ public sealed class RunRecordingFailureMetricTests
         store.StoreCallCount.ShouldBe(2, "a disabled writer must not keep calling the store, the closing write apart.");
         writer.IsDisabled.ShouldBeTrue();
 
-        collector.LongValues(Counter).Count.ShouldBe(1);
+        collector.Values(Counter).Count.ShouldBe(1);
 
-        var tags = collector.LongTags(Counter).ShouldHaveSingleItem();
+        var tags = collector.Tags(Counter).ShouldHaveSingleItem();
         tags[TraconDiagnostics.Tags.RecordingStage].ShouldBe(RunRecordingStages.Start);
         tags[TraconDiagnostics.Tags.TenantId].ShouldBe("tenant-a");
     }
@@ -86,12 +86,12 @@ public sealed class RunRecordingFailureMetricTests
                 Duration = TimeSpan.FromMilliseconds(12),
             }))));
 
-        collector.LongValues(Counter).Count.ShouldBe(
+        collector.Values(Counter).Count.ShouldBe(
             1,
             "eight writes lost ONE run's record; counting per exception would scale the " +
             "alarm with a run's concurrency rather than with the loss.");
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.ToolInvocation);
     }
@@ -109,7 +109,7 @@ public sealed class RunRecordingFailureMetricTests
 
         await writer.StartAsync(Start(writer, "tenant-a"), "the user's question");
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Event);
     }
@@ -133,7 +133,7 @@ public sealed class RunRecordingFailureMetricTests
             Duration = TimeSpan.FromMilliseconds(12),
         });
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.ToolInvocation);
     }
@@ -150,7 +150,7 @@ public sealed class RunRecordingFailureMetricTests
         await writer.StartAsync(Start(writer, "tenant-a"), "the user's question");
         await writer.CompleteAsync(RunStatus.Completed);
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Completion);
     }
@@ -182,7 +182,7 @@ public sealed class RunRecordingFailureMetricTests
         // sink look like a broken database.
         writer.IsDisabled.ShouldBeFalse();
 
-        var tags = collector.LongTags(Counter).ShouldHaveSingleItem();
+        var tags = collector.Tags(Counter).ShouldHaveSingleItem();
         tags[TraconDiagnostics.Tags.RecordingStage].ShouldBe(RunRecordingStages.Sink);
 
         // Two events were dispatched but the sink is dropped after the first
@@ -224,12 +224,12 @@ public sealed class RunRecordingFailureMetricTests
             Task.Run(async () =>
                 await writer.AppendAsync(new RunEventDraft(RunEventType.MessageDelta) { Text = $"delta {index}" }))));
 
-        collector.LongValues(Counter).Count.ShouldBe(
+        collector.Values(Counter).Count.ShouldBe(
             1,
             "one sink broke once; counting per event would make a chatty run look " +
             "like a worse outage than a quiet one with the same broken sink.");
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Sink);
 
@@ -263,7 +263,7 @@ public sealed class RunRecordingFailureMetricTests
             await writer.StartAsync(Start(writer, tenant), "the user's question");
         }
 
-        var tags = collector.LongTags(Counter);
+        var tags = collector.Tags(Counter);
 
         tags.Count.ShouldBe(2, "each run lost its own sink copy; one run must not absorb the other's.");
         tags.ShouldAllBe(tag => (string)tag[TraconDiagnostics.Tags.RecordingStage]! == RunRecordingStages.Sink);
@@ -287,7 +287,7 @@ public sealed class RunRecordingFailureMetricTests
         // An exporter does not distinguish an empty tag from a missing one, and an
         // alert rule must not have to. The counter is a source of alarms; a series
         // nobody can name is worse than a named one nobody owns.
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.TenantId]
             .ShouldBe("unknown");
     }
@@ -310,7 +310,7 @@ public sealed class RunRecordingFailureMetricTests
 
         // A canceled write lost nothing that was going to be written. Counting it
         // would put a spike on the dashboard every time a client hung up.
-        collector.LongValues(Counter).ShouldBeEmpty();
+        collector.Values(Counter).ShouldBeEmpty();
         writer.IsDisabled.ShouldBeFalse();
     }
 
@@ -328,7 +328,7 @@ public sealed class RunRecordingFailureMetricTests
         // failure never interrupts the run.
         await writer.StartAsync(Start(writer, "tenant-a"), "the user's question");
 
-        collector.LongValues(Counter).ShouldBe([1]);
+        collector.Values(Counter).ShouldBe([1]);
         writer.IsDisabled.ShouldBeTrue();
     }
 
@@ -353,7 +353,7 @@ public sealed class RunRecordingFailureMetricTests
 
         await writer.StartAsync(Start(writer, "tenant-owning-the-run"), "the user's question");
 
-        collector.LongTags(Counter)
+        collector.Tags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.TenantId]
             .ShouldBe("tenant-owning-the-run");
     }
@@ -387,7 +387,7 @@ public sealed class RunRecordingFailureMetricTests
         var response = await agent.RunAsync("hello");
         response.ShouldNotBeNull();
 
-        var tags = collector.LongTags(Counter).ShouldHaveSingleItem();
+        var tags = collector.Tags(Counter).ShouldHaveSingleItem();
         tags[TraconDiagnostics.Tags.RecordingStage].ShouldBe(RunRecordingStages.Start);
         tags[TraconDiagnostics.Tags.TenantId].ShouldBe("tenant-a");
     }
@@ -423,7 +423,7 @@ public sealed class RunRecordingFailureMetricTests
             .ShouldHaveSingleItem()
             .Status.ShouldBe(RunStatus.Completed);
 
-        var tags = collector.LongTags(Counter).ShouldHaveSingleItem();
+        var tags = collector.Tags(Counter).ShouldHaveSingleItem();
         tags[TraconDiagnostics.Tags.RecordingStage].ShouldBe(RunRecordingStages.Input);
         tags[TraconDiagnostics.Tags.TenantId].ShouldBe("tenant-a");
     }

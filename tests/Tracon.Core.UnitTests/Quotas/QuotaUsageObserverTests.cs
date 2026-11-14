@@ -30,7 +30,7 @@ public sealed class QuotaUsageObserverTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, tenants, enabled: false, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await observer.StartAsync(TestContext.Current.CancellationToken);
 
@@ -38,8 +38,8 @@ public sealed class QuotaUsageObserverTests
         await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
         clock.RunningTimers.ShouldBe(0);
 
-        collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldBeEmpty();
-        collector.Trigger(TraconDiagnostics.QuotaLimitGaugeName).ShouldBeEmpty();
+        collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName).ShouldBeEmpty();
+        collector.Scrape(TraconDiagnostics.QuotaLimitGaugeName).ShouldBeEmpty();
 
         // Neither the tenant list nor the quota counters are queried.
         store.ListCalls.ShouldBe(0);
@@ -95,13 +95,13 @@ public sealed class QuotaUsageObserverTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(FaultProxy<IQuotaStore>.Create(inner, plan), tenants, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
         plan.CountOf(nameof(IQuotaStore.ListAsync)).ShouldBeGreaterThanOrEqualTo(2, "both tenants must have been tried");
 
-        var usage = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName);
+        var usage = collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName);
 
         usage.ShouldContain(measurement => Metric(measurement) == QuotaMetric.Runs && measurement.Value == 3.0);
     }
@@ -116,12 +116,12 @@ public sealed class QuotaUsageObserverTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
-        var usage = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName);
-        var limit = collector.Trigger(TraconDiagnostics.QuotaLimitGaugeName);
+        var usage = collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName);
+        var limit = collector.Scrape(TraconDiagnostics.QuotaLimitGaugeName);
 
         usage.Count.ShouldBe(2); // Runs + Tokens
 
@@ -151,13 +151,13 @@ public sealed class QuotaUsageObserverTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
         // The enabled tenant-wide rule proves the refresh ran and published;
         // the disabled agent rule next to it must not appear.
-        var measurement = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
+        var measurement = collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
 
         Tag(measurement, TraconDiagnostics.Tags.QuotaScope).ShouldBe(string.Empty);
         measurement.Value.ShouldBe(5.0);
@@ -172,14 +172,14 @@ public sealed class QuotaUsageObserverTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
         store.UsageCalls.ShouldBe(1, "the refresher reads once at start");
 
         for (var i = 0; i < 10; i++)
         {
-            collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName);
+            collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName);
         }
 
         store.UsageCalls.ShouldBe(1, "a poll only reads the cache");
@@ -200,19 +200,19 @@ public sealed class QuotaUsageObserverTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
         await RecordUsageAsync(store, clock, runs: 2);
 
         // The published value is at most one interval old: still the cache.
-        collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem().Value.ShouldBe(1.0);
+        collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem().Value.ShouldBe(1.0);
 
         clock.FireAll();
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
-        collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem().Value.ShouldBe(3.0);
+        collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem().Value.ShouldBe(3.0);
     }
 
     [Fact]
@@ -224,11 +224,11 @@ public sealed class QuotaUsageObserverTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await StartAndWaitForRefreshAsync(observer);
 
-        var measurement = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
+        var measurement = collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
 
         // 🚨 An unbounded-cardinality field like experiment_id/variant/run.id
         // must NEVER be added HERE.
@@ -251,7 +251,7 @@ public sealed class QuotaUsageObserverTests
 
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
-        using var collector = new GaugeCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await observer.StartAsync(TestContext.Current.CancellationToken);
 
@@ -261,7 +261,7 @@ public sealed class QuotaUsageObserverTests
             // A store that never answers must not hold it: the poll reads the
             // cache only, and no refresh has finished yet.
             var poll = Task.Run(
-                () => collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName),
+                () => collector.Scrape(TraconDiagnostics.QuotaUsageGaugeName),
                 TestContext.Current.CancellationToken);
 
             (await poll.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken))
@@ -312,10 +312,10 @@ public sealed class QuotaUsageObserverTests
         await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 1);
     }
 
-    private static QuotaMetric Metric((double Value, Dictionary<string, object?> Tags) measurement)
+    private static QuotaMetric Metric(RecordedMeasurement measurement)
         => Enum.Parse<QuotaMetric>((string)measurement.Tags[TraconDiagnostics.Tags.QuotaMetric]!);
 
-    private static string? Tag((double Value, Dictionary<string, object?> Tags) measurement, string key)
+    private static string? Tag(RecordedMeasurement measurement, string key)
         => measurement.Tags.GetValueOrDefault(key) as string;
 
     private static async Task<(IQuotaStore Store, ITenantStore Tenants)> SeedAsync(
@@ -383,65 +383,5 @@ public sealed class QuotaUsageObserverTests
                 OccurredAt = occurredAt,
             },
             periodStarts);
-    }
-
-    /// <summary>
-    /// <see cref="IQuotaStore"/> decorator that tracks call counts. The refresh
-    /// runs on a background task, so the counters are read and written atomically.
-    /// When <see cref="Stall"/> is set, a counter read waits for it.
-    /// </summary>
-    /// <summary>
-    /// Simple listener that collects a given <c>Meter</c>'s ObservableGauge
-    /// measurements by calling <c>RecordObservableInstruments</c> on each
-    /// trigger.
-    /// </summary>
-    private sealed class GaugeCollector : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Name, double Value, Dictionary<string, object?> Tags)> _measurements = [];
-
-        public GaugeCollector(Meter meter)
-        {
-            // Filtering by the meter's NAME would also catch a different Meter
-            // instance with the same name published by a test running in
-            // parallel (MeterListenerIsolationTests enforces this).
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, meter))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) =>
-                _measurements.Add((instrument.Name, value, ToDictionary(tags))));
-
-            _listener.Start();
-        }
-
-        /// <summary>Polls the observable instruments and returns the measurements with the given name.</summary>
-        public List<(double Value, Dictionary<string, object?> Tags)> Trigger(string name)
-        {
-            _measurements.Clear();
-            _listener.RecordObservableInstruments();
-
-            return [.. _measurements
-                .Where(m => string.Equals(m.Name, name, StringComparison.Ordinal))
-                .Select(m => (m.Value, m.Tags))];
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private static Dictionary<string, object?> ToDictionary(ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var result = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-            foreach (var tag in tags)
-            {
-                result[tag.Key] = tag.Value;
-            }
-
-            return result;
-        }
     }
 }

@@ -16,6 +16,8 @@
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
     <!-- Wraps an interface so a test can count, hook, fail or cancel at its Nth call. -->
     <Compile Include="../Shared/Faults/FaultProxy.cs" Link="Shared/Faults/FaultProxy.cs" />
+    <!-- Records what a meter publishes, with its tags: the one metric listener of the test projects. -->
+    <Compile Include="../Shared/Telemetry/MetricCollector.cs" Link="Shared/Telemetry/MetricCollector.cs" />
   </ItemGroup>
 
   <!--

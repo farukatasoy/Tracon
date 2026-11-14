@@ -36,7 +36,7 @@ public sealed class JobMetricEndToEndTests
     public async Task A_job_run_by_the_real_worker_publishes_the_counter_and_the_histogram(bool includeTenantTag)
     {
         using var meterFactory = new TestMeterFactory();
-        using var collector = new MeterInstanceCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: tracon =>
@@ -98,7 +98,7 @@ public sealed class JobMetricEndToEndTests
     public async Task The_queue_depth_gauge_publishes_nothing_in_a_default_installation()
     {
         using var meterFactory = new TestMeterFactory();
-        using var collector = new MeterInstanceCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: tracon =>
@@ -141,7 +141,7 @@ public sealed class JobMetricEndToEndTests
     {
         using var database = new TempSqliteDatabase("depth-gauge");
         using var meterFactory = new TestMeterFactory();
-        using var collector = new MeterInstanceCollector(meterFactory.Meter);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         // 🚨 AddTracon registers the refresher BEFORE UseSqlite registers the
         // migration runner, and the host starts hosted services in that order.

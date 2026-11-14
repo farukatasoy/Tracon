@@ -60,6 +60,11 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Records what a meter publishes, with its tags: the one metric listener of the test projects. -->
+    <Compile Include="../Shared/Telemetry/MetricCollector.cs" Link="Shared/Telemetry/MetricCollector.cs" />
+  </ItemGroup>
+
   <!--
     The upgrade gate: the database of the last release, with a row in every table, moved to the migrations of the tree. The
     same source and the same rows run against every SQL provider.

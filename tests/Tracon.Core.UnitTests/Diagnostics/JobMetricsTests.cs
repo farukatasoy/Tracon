@@ -209,7 +209,7 @@ public sealed class JobMetricsTests
         private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(5);
 
         private readonly TestMeterFactory _meterFactory = new();
-        private readonly TaggedCollector _collector;
+        private readonly MetricCollector _collector;
         private readonly TestJobHandlerHost _handlers;
         private readonly JobWorkerBackgroundService _worker;
         private readonly ManualClock? _clock;
@@ -225,7 +225,7 @@ public sealed class JobMetricsTests
             // ScheduledFor against it, and a job stamped on the fake clock is
             // not yet due on the real one.
             Jobs = new InMemoryJobStore(clock);
-            _collector = new TaggedCollector(_meterFactory.Meter);
+            _collector = new MetricCollector(_meterFactory.Meter);
 
             var schedulingOptions = new TraconSchedulingOptions
             {
@@ -255,9 +255,9 @@ public sealed class JobMetricsTests
 
         public InMemoryJobStore Jobs { get; }
 
-        public List<Measured> Counter => _collector.Named(TraconDiagnostics.JobCounterName);
+        public List<RecordedMeasurement> Counter => _collector.Snapshot(TraconDiagnostics.JobCounterName);
 
-        public List<Measured> Histogram => _collector.Named(TraconDiagnostics.JobDurationName);
+        public List<RecordedMeasurement> Histogram => _collector.Snapshot(TraconDiagnostics.JobDurationName);
 
         public async Task<JobRecord> EnqueueAsync(string lane = JobLanes.Default)
         {
@@ -285,7 +285,7 @@ public sealed class JobMetricsTests
         /// </summary>
         /// <param name="until">The condition, checked against the counter measurements collected so far.</param>
         /// <returns>The completion task.</returns>
-        public async Task RunUntilAsync(Func<List<Measured>, bool> until)
+        public async Task RunUntilAsync(Func<List<RecordedMeasurement>, bool> until)
         {
             await _worker.StartAsync(TestContext.Current.CancellationToken);
 
@@ -307,58 +307,6 @@ public sealed class JobMetricsTests
             _handlers.Dispose();
             _collector.Dispose();
             _meterFactory.Dispose();
-        }
-    }
-
-    private sealed record Measured(double Value, Dictionary<string, object?> Tags);
-
-    /// <summary>Collects both <c>long</c> and <c>double</c> measurements together with their tags.</summary>
-    private sealed class TaggedCollector : IDisposable
-    {
-        private readonly MeterListener _listener = new();
-        private readonly List<(string Name, Measured Measurement)> _measurements = [];
-
-        public TaggedCollector(Meter meter)
-        {
-            _listener.InstrumentPublished = (instrument, listener) =>
-            {
-                if (ReferenceEquals(instrument.Meter, meter))
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            };
-
-            _listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) => Add(instrument.Name, value, tags));
-            _listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) => Add(instrument.Name, value, tags));
-
-            _listener.Start();
-        }
-
-        public List<Measured> Named(string name)
-        {
-            lock (_measurements)
-            {
-                return [.. _measurements
-                    .Where(m => string.Equals(m.Name, name, StringComparison.Ordinal))
-                    .Select(static m => m.Measurement)];
-            }
-        }
-
-        public void Dispose() => _listener.Dispose();
-
-        private void Add(string name, double value, ReadOnlySpan<KeyValuePair<string, object?>> tags)
-        {
-            var map = new Dictionary<string, object?>(StringComparer.Ordinal);
-
-            foreach (var tag in tags)
-            {
-                map[tag.Key] = tag.Value;
-            }
-
-            lock (_measurements)
-            {
-                _measurements.Add((name, new Measured(value, map)));
-            }
         }
     }
 
