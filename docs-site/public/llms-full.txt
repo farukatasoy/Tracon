@@ -11782,7 +11782,7 @@ The same seam exists on `TraconSqlServerOptions.DataSource` and
 `TraconSqliteOptions.DataSource`, for symmetry. Neither
 `Microsoft.Data.SqlClient` nor `Microsoft.Data.Sqlite` ships a `DbDataSource`
 implementation of its own today (measured against `Microsoft.Data.SqlClient
-7.1.1` and `Microsoft.Data.Sqlite` 10.0.14), so there is no equivalent "give EF Core's data source to Tracon" call
+7.1.2` and `Microsoft.Data.Sqlite` 10.0.15), so there is no equivalent "give EF Core's data source to Tracon" call
 for those two providers yet — the field is ready for the day the ecosystem catches
 up, or for a `DbDataSource` adapter you write yourself.
 
@@ -16529,7 +16529,7 @@ the agent, chat and tool spans, it holds the calls that used to be invisible:
 | `generate_content` | The image generator, when an agent calls the `generate_image` tool | `image` |
 | `generate_content` | A Microsoft.Extensions.AI text-to-speech client served as a speech provider, when an agent calls a voice tool | `audio` |
 | `generate_content` | A Microsoft.Extensions.AI speech-to-text client served as a speech provider, when an agent calls a voice tool | `text` |
-| `workflow.session`, `workflow_invoke`, `executor.process <step>` | A workflow made from a stored definition that lists its `nodes`: one `executor.process` per step | |
+| `workflow.session`, `invoke_workflow <workflow name>`, `executor.process <step>` | A workflow made from a stored definition that lists its `nodes`: one `executor.process` per step | |
 
 The span name is the operation followed by the model, for example `embeddings text-embedding-3-small`
 or `generate_content gpt-image-1-mini`; `gen_ai.operation.name` holds the operation alone. A speech provider
@@ -16542,12 +16542,12 @@ your exporter, and no stored trace holds them.
 
 A stored definition that names a pattern instead of listing `nodes` (`agentNames` with `Sequential`,
 `Concurrent`, `Handoff`, `GroupChat` or `Magentic`) writes the agents' own spans (`invoke_agent`, `chat`)
-but no `workflow.session`, `workflow_invoke` or `executor.process` span: the framework builds those graphs
+but no `workflow.session`, `invoke_workflow` or `executor.process` span: the framework builds those graphs
 itself and offers no place to attach the telemetry.
 
 A stored workflow that lists its `nodes` leaves out message sends and edge groups, which are most of what the
 framework would write. A workflow of three steps, two of them agent steps and one a function, keeps 13 spans of
-the default 200: four for the run itself (the root run span, `workflow.session` and two `workflow_invoke`), four
+the default 200: four for the run itself (the root run span, `workflow.session` and two `invoke_workflow <workflow name>`), four
 for each agent step (its executor, the agent's child run, the agent and its chat call) and one for the function
 step. A tool call adds a tool span and a further chat span. Raise `MaxSpansPerRun` for a long graph or a graph
 with a way back.
@@ -16585,9 +16585,10 @@ spans go to that source instead, which the trace does not read.
 Whether a span carries content is decided twice, by two different owners:
 
 - **The ring that writes the span.** The Microsoft.Extensions.AI rings (chat, embeddings, image, speech)
-  record message content only when `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is `true`, and
-  the framework's workflow telemetry only when `EnableSensitiveData` is set on it. Tracon does not set
-  either one. Whatever you choose here is what **your exporter** receives.
+  record message content only when `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is `true`. The
+  framework's workflow telemetry wrote executor input and output only when `EnableSensitiveData` was set on
+  it; since Microsoft Agent Framework 1.28 it writes no workflow payload at all, and that option does
+  nothing. Tracon sets neither. Whatever you choose here is what **your exporter** receives.
 - **The Tracon store.** With `RecordSensitiveData=false` the store drops every content key before it
   keeps a span, whichever ring wrote it: any key that contains `message`, `prompt` or `completion`,
   `gen_ai.system_instructions`, `gen_ai.tool.call.arguments`, `gen_ai.tool.call.result`,
@@ -23386,7 +23387,7 @@ or AOT warning and runs. The following do not:
 | Package | Why not |
 |---|---|
 | `Tracon.Anthropic` | The Anthropic SDK's `IChatClient` adapter uses reflection-based JSON; a Native AOT app fails on the first request. The promise returns when the SDK ships a source-generated adapter |
-| `Tracon.Google` | The Gemini credential library (`Google.Apis.Auth`) uses reflection-based JSON; a Native AOT publish emits about 100 trim and AOT warnings |
+| `Tracon.Google` | The Gemini credential library (`Google.Apis.Auth`) uses reflection-based JSON; a Native AOT publish still emits trim and AOT warnings (five with `Google.GenAI` 2.1, about 100 before) |
 | `Tracon.AspNetCore` | Minimal API delegate routing uses reflection |
 | `Tracon.UI` | Embedded asset scanning |
 | `Tracon.Sqlite` | `SQLitePCLRaw` carries a native library |
@@ -23762,7 +23763,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.SqlServer` | No | net10 | No promise | Measured clean, but no live-query AOT guarantee is made |
 | `Tracon.Sqlite` | No | net10 | No | `SQLitePCLRaw` carries a native library |
 | `Tracon.Anthropic` | No | net10 | No | Claude provider; the Anthropic SDK's `IChatClient` adapter uses reflection-based JSON, so a Native AOT app fails on the first request |
-| `Tracon.Google` | No | net10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
+| `Tracon.Google` | No | net10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish still emits trim and AOT warnings (five with `Google.GenAI` 2.1, about 100 before) |
 | `Tracon.Azure` | No | net10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected. The Native AOT check runs the API-key path (chat, plain and streamed, and images); the Microsoft Entra path (`TokenCredential`) is not part of it |
 | `Tracon.Voice` | No | net10 | Yes | ElevenLabs speech tools and reusable speech contracts. The Native AOT check runs synthesis, transcription and the voice list; dialogue is not part of it |
 | `Tracon.AGUI` | No | net10 | No | The AG-UI endpoint; it sits on `Tracon.AspNetCore`, whose minimal API routing uses reflection |
@@ -23891,7 +23892,7 @@ Lifecycle, read on 2026-11-06).
 ### SQLite
 
 `Tracon.Sqlite.IntegrationTests`, 1 880 tests (one skips unless a run names the engine version it expects). SQLite is a library, so its version is the version of the native file the
-process loads. `Microsoft.Data.Sqlite` 10.0.14 brings 3.53.3. The floor row replaces that file with the one a package of the
+process loads. `Microsoft.Data.Sqlite` 10.0.15 brings 3.53.3. The floor row replaces that file with the one a package of the
 same family carried, and the project asks the engine for its version to be sure the replacement is the file that ran.
 
 | SQLite | Result | Run |
@@ -23938,13 +23939,13 @@ These are the versions they declare.
 
 | Package | Declared dependencies |
 |---|---|
-| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.26.0 · `Microsoft.Extensions.AI.Abstractions` 10.11.0 |
-| `Tracon.Core` | `Microsoft.Agents.AI` 1.26.0 · `Microsoft.Agents.AI.Harness` 1.26.0 · `Microsoft.Extensions.AI` 10.11.0 · `Microsoft.Extensions.AI.Evaluation` 10.11.0 |
-| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.26.0 |
-| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.26.0 · `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
+| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.28.0 · `Microsoft.Extensions.AI.Abstractions` 10.11.0 |
+| `Tracon.Core` | `Microsoft.Agents.AI` 1.28.0 · `Microsoft.Agents.AI.Harness` 1.28.0 · `Microsoft.Extensions.AI` 10.11.0 · `Microsoft.Extensions.AI.Evaluation` 10.11.0 |
+| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.28.0 |
+| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.28.0 · `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
 | `Tracon.Azure` | `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
-| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.26.0 · `Microsoft.Extensions.AI` 10.11.0 |
-| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.26.0 pre-release · `.Hosting.OpenAI` at exactly a 1.26.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview3` |
+| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.28.0 · `Microsoft.Extensions.AI` 10.11.0 |
+| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.28.0 pre-release · `.Hosting.OpenAI` at exactly a 1.28.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview4` |
 
 `Tracon.AspNetCore` is the only package that carries a pre-release Agent Framework
 dependency, and it is the only one permitted to.
@@ -23952,7 +23953,7 @@ dependency, and it is the only one permitted to.
 ### A pre-release dependency is an exact pin
 
 The five pre-release entries of `Tracon.AspNetCore` are exact ranges, such as
-`[1.26.0-preview.261023.1]`. A pre-release package makes no compatibility promise
+`[1.28.0-preview.261106.1]`. A pre-release package makes no compatibility promise
 between its own previews, and this one broke: `Microsoft.Agents.AI.Hosting.AgentSessionStore`
 left the Hosting assembly in `1.22.0-preview`, so a project that raised Hosting under
 `1.0.0-preview.2` restored without a warning and failed at run time with a
@@ -23965,7 +23966,7 @@ that is built against it.
 
 ### A stable dependency is a floor, not a pin
 
-Every other entry above is a minimum. NuGet reads `1.26.0` as `[1.26.0, )` and then resolves
+Every other entry above is a minimum. NuGet reads `1.28.0` as `[1.28.0, )` and then resolves
 the **lowest** version that satisfies every constraint in the graph, so a project that
 asks for nothing else restores exactly the version listed. You get a different version
 only when something asks for one: a direct `PackageReference` to a higher version, or
@@ -23989,6 +23990,19 @@ find out last.
 
 To decide the version yourself instead of leaving it to the graph, reference the Agent
 Framework packages explicitly at the version you intend, or commit a lock file.
+
+**`OpenAI` 2.15.** Do not raise `OpenAI` to 2.15.0 yet. That release changed the return type of
+`ResponsesClient.CreateResponseStreamingAsync`, and `Microsoft.Extensions.AI.OpenAI` (10.11.0 and 11.0.0, the newest) calls
+the old one, so the `openai-responses` provider fails at its first streamed call with a `MissingMethodException`.
+Restore does not warn, because Tracon declares no upper bound. Tracon stays on 2.14.0 until a
+`Microsoft.Extensions.AI.OpenAI` release is built against 2.15.
+
+**`Microsoft.Extensions.AI` 11.** The floor stays at 10.11.0 although 11.0.0 is out. The
+11.0 packages belong to .NET 11: on `net10.0` they ask for the 11.0 `Microsoft.Extensions.*`
+and `System.Text.Json` packages, and Agent Framework 1.28 itself stands on 10.11.0.
+Tracon tests 11.0.0 as an **upper bound**: a project that references it next to the
+Tracon packages restores, starts, and runs an Agent Framework agent turn over a chat client written against it. The public surfaces of 10.11 and
+11.0 are the same, so an application that wants 11.0 can take it by referencing it.
 
 ### When Tracon moves the floor
 

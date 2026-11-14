@@ -11,7 +11,7 @@ namespace Tracon;
 /// <para>
 /// The API ends a turn with finish reason <c>MALFORMED_FUNCTION_CALL</c> (the model wrote a call that did not parse) or
 /// <c>UNEXPECTED_TOOL_CALL</c> (it asked for a tool the request did not declare), and the answer holds no function call and
-/// often no text. Google.GenAI 1.27.0 maps both to <see cref="ChatFinishReason.ToolCalls"/>, so the tool loop takes the turn for
+/// often no text. Google.GenAI 2.1.0 (the 1.x line ran the same adapter code) maps both to <see cref="ChatFinishReason.ToolCalls"/>, so the tool loop takes the turn for
 /// one that has a call to run, and without this client the run would complete with an empty answer: the failure would be
 /// recorded as a success. A Gemini 3 model ends turns this way on a request that invites a call without declaring a tool.
 /// </para>

@@ -20,7 +20,7 @@ namespace Tracon;
 /// network call.
 /// </para>
 /// <para>
-/// The check sends what the SDK sends (Anthropic 13.3.0): <c>Authorization: Bearer</c> and the
+/// The check sends what the SDK sends (Anthropic 13.8.0; the release before sent the same): <c>Authorization: Bearer</c> and the
 /// <c>anthropic-version</c> header, which is <strong>required</strong>; the endpoint returns
 /// <c>HTTP 400</c> when it is missing. Measured against the live API on 2026-10-28: the endpoint
 /// also accepts <c>x-api-key</c> and the older <c>2023-06-01</c> version with an API key, so the choice

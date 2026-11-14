@@ -84,19 +84,13 @@ public static class TraconA2ABuilderExtensions
             services.AddKeyedSingleton(agentName, proxy);
             A2ASessionStore.Register(services, agentName);
 
-            services.AddA2AServer(proxy, register =>
-            {
-                // MAF has no mid-run approval suspension. A task
-                // response is another form of that same suspension; every run
-                // answers with a single message to avoid the same boundary.
-                // (MAF 1.22 renamed DisallowBackground to ReturnMessage.)
-                //
-                // MEAI001: AgentRunMode is marked "for evaluation purposes".
-                // Usage is consolidated in this ONE file (same pattern as MAAI001).
-#pragma warning disable MEAI001
-                register.AgentRunMode = AgentRunMode.ReturnMessage;
-#pragma warning restore MEAI001
-            });
+            // MAF has no mid-run approval suspension. A task response is another form of that
+            // same suspension, so every run has to answer with a single message. Microsoft Agent
+            // Framework 1.28 no longer takes the run mode: the registration always builds the
+            // handler with `AgentRunMode.ReturnMessage`, and the single-message answer is the
+            // framework default Tracon relies on. A2ARunModeTests fails the day that default
+            // moves, and then Tracon registers its own handler instead.
+            services.AddA2AServer(proxy);
         }
 
         return builder;

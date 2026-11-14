@@ -24,7 +24,7 @@ namespace Tracon;
 /// <strong>A token belongs to the resource it was issued for.</strong> The MCP SDK
 /// sends a valid cached token to whatever endpoint its transport points at; it does not
 /// check which server the token came from (measured on <c>ModelContextProtocol.Core</c>
-/// 2.3.0). A cache keyed by the server's NAME alone therefore sent the token to a new
+/// 2.4.0, unchanged from the release before). A cache keyed by the server's NAME alone therefore sent the token to a new
 /// endpoint as soon as an administrator changed it. The cache is bound to the endpoint
 /// and the client id it was created for; a definition that differs gets an empty cache
 /// and must be authorized again. The distributed cache keeps the binding next to the token.

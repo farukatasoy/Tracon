@@ -425,6 +425,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   What to do:
   - **Nothing.** A licence scanner that read the tool package as "MIT, with unnamed binaries" now finds the licence of each binary.
 
+- **Dependencies move to the newest releases of the runtime stack.** Microsoft Agent Framework `1.26.0` to `1.28.0` (Hosting `1.28.0-preview.261106.1`, Hosting.OpenAI `1.28.0-alpha.261106.1`, `A2A.AspNetCore`
+  `1.0.0-preview4`), `ModelContextProtocol` `2.3.0` to `2.4.0`, the .NET 10 platform packages `10.0.14` to `10.0.15`, `Anthropic` `13.3.0` to `13.8.0`, `Google.GenAI` `1.27.0` to `2.1.0` (a major), `Azure.Core` `1.64.0` to `1.65.0`, `Microsoft.Data.SqlClient` `7.1.1` to `7.1.2` and `Microsoft.ML.Tokenizers` `2.0.1` to `3.0.0` (a major). `OpenAI` stays at `2.14.0` and `Microsoft.Extensions.AI` stays at
+  `10.11.0`: its 11.0 release belongs to .NET 11 (on `net10.0` it asks for the 11.0 platform packages) and Agent Framework 1.28 still stands on 10.11. A project that references `Microsoft.Extensions.AI` 11.0.0 next to the
+  Tracon packages restores, starts, and runs an Agent Framework agent turn over a chat client written against it, which the package tests now keep. `Tracon.SqlServer` no longer references `System.Security.Cryptography.Pkcs` itself: SqlClient 7.1.2 pulls a patched one (`9.0.21`).
+  What to do:
+  - **Raise your own `Microsoft.Agents.AI*` references to 1.28.0 or later.** `Tracon.AspNetCore` is built against the 1.28 Hosting packages, and a host that keeps a 1.26 Hosting package fails to restore (`NU1608`/`NU1107`).
+  - **A project that references `Google.GenAI` 1.x directly moves to 2.1.0 or later, and one that references `Microsoft.ML.Tokenizers` 2.x moves to 3.0.0 or later.** The floors of `Tracon.Google` and `Tracon.Core` rose with them.
+  - **Do not raise `OpenAI` to 2.15.0 yet.** 2.15.0 changed the return type of `ResponsesClient.CreateResponseStreamingAsync`, and `Microsoft.Extensions.AI.OpenAI` (10.11.0 and 11.0.0, the newest) calls the old one: the `openai-responses` provider then fails at its first streamed call with a `MissingMethodException` (measured). Tracon declares no upper bound, so restore does not stop you.
+  - **Nothing else, for the same behavior.** The measurements behind each version are in the entries below.
+
+- **A workflow's span is named `invoke_workflow <workflow name>`, and a workflow's executor input and output are never written.** Agent Framework 1.28 renamed `workflow_invoke` and tags the span with `gen_ai.operation.name`
+  and `gen_ai.workflow.name`; it also stopped writing `executor.input` and `executor.output` whatever the telemetry option says (the option is obsolete). A stored workflow keeps its `workflow.session` and
+  `executor.process <step>` spans.
+  What to do:
+  - **A dashboard, an alert or a trace query that matches the span name `workflow_invoke` matches the name that starts with `invoke_workflow` instead.**
+  - **Nothing for the content setting.** `RecordSensitiveData` still drops the two keys, and a store that kept the executor payloads of an earlier run keeps them.
+
+- **A call to an Anthropic model that thinks records its thinking tokens as reasoning tokens.** Anthropic SDK 13.8 reads `output_tokens_details.thinking_tokens` of the response into the usage, where 13.3 left it empty. The run's
+  `usage.reasoningTokens` is now filled for such a call (it is part of `usage.outputTokens`, as the API reports it, not an addition to it). The cost does not change: Tracon prices the output tokens it was told about and does not
+  price the reasoning counter separately.
+  What to do:
+  - **Nothing, unless you added `reasoningTokens` to `outputTokens` yourself.** A report that did so counts the thinking twice from now on.
+
+- **An Anthropic structured response whose JSON schema names no required property is now held to the schema.** Anthropic SDK 13.3 sent a response format's schema only when it held both `properties` and a `required` array, so a schema with
+  nothing required went out as plain text. 13.8 sends it whenever there are properties.
+  What to do:
+  - **Nothing, unless an agent relied on the answer not being constrained.** The request carries the schema as `output_config.format`, as it does for a schema that names a required property.
+
+- **An MCP server whose authorization server publishes no metadata cannot be authorized.** ModelContextProtocol 2.4 fails the authorization before it asks for a code when the authorization server metadata cannot be
+  discovered, where 2.3 fell back to the 2025-03-26 default endpoints (`/authorize` and `/token`). The fallback exists behind a process-wide switch that is off, and Tracon does not turn it on. A metadata document that names no `S256`
+  was refused before and still is.
+  What to do:
+  - **Make the authorization server publish its metadata** (RFC 8414 or OpenID Connect discovery), with `code_challenge_methods_supported` that includes `S256`. A server that already does is not affected.
+
+- **A Magentic workflow that waits for plan review ignores an ordinary turn and says so with a warning event.** Agent Framework 1.28 also refuses a plan review answer that arrives when the orchestrator is not waiting for one
+  (`InvalidOperationException`). A checkpoint taken before the upgrade resumes in the state it was in.
+  What to do:
+  - **Nothing.** Tracon answers a plan review only for a request that is pending.
+
 ## [1.0.0-preview.11] - 2026-11-11
 
 This release moves every package to the MIT licence and changes the error body of the OpenAI-compatible routes for the refusals that come before a route's own code. It also closes two gaps: a quota period that could end before the instant it was asked about, and a job store call that could hold a worker's slot for ever. One shipped store contract test no longer fails a correct store now and then. Only the error body of those refusals changes the shape of a response; no public .NET type is removed.

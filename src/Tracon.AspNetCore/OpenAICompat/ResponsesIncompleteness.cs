@@ -13,7 +13,7 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> writes the answer and never reads the finish reason (measured,
-/// 1.26.0-alpha.261023.1; the writer's source is the one 1.25 had): every reason ends in <c>status: "completed"</c>, and a stream ends in
+/// 1.28.0-alpha.261106.1; the writer's source is the one 1.25 had for the finish reason, and 1.28 adds only annotation events): every reason ends in <c>status: "completed"</c>, and a stream ends in
 /// <c>response.completed</c>. The finish reason comes from the run instead
 /// (<see cref="OpenAICompatSupport.ToResponsesIncompleteReason"/>, the mapping the Chat Completions endpoint's
 /// <c>finish_reason</c> shares its predicates with) and is applied to what MAF wrote.
@@ -119,7 +119,7 @@ internal static class ResponsesIncompleteness
 /// <strong>Position.</strong> MAF writes the closing frames of the last output item
 /// (<c>response.output_item.done</c>) and <c>response.completed</c> only after the update stream has ended;
 /// an earlier item (text before a tool call) is closed while updates still arrive (measured,
-/// 1.26.0-alpha.261023.1). So the frames written after the source ended are the ones that belong to the
+/// 1.28.0-alpha.261106.1). So the frames written after the source ended are the ones that belong to the
 /// answer that was cut, and by then the last finish reason is known. A frame written earlier is never
 /// touched for the status, and neither is any frame of a complete answer.
 /// </para>

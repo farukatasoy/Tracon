@@ -12,7 +12,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured (Anthropic SDK 13.3.0, the adapter decompiled 2026-10-28; the mapping is the one the first measure found): <c>ToFinishReason</c> maps
+/// Measured (Anthropic SDK 13.8.0, the adapter decompiled 2026-11-14; the mapping is the one the first measure found): <c>ToFinishReason</c> maps
 /// <c>end_turn</c> and <c>stop_sequence</c> to <see cref="ChatFinishReason.Stop"/>,
 /// <c>max_tokens</c> and <c>model_context_window_exceeded</c> to
 /// <see cref="ChatFinishReason.Length"/>, <c>tool_use</c> to
@@ -198,7 +198,7 @@ internal sealed class AnthropicStopReasonChatClient(IChatClient inner) : Delegat
     /// <remarks>
     /// The SDK's own <c>MessageContentAggregator</c> builds the message from the stream's events, and its blocks are sent
     /// back the way a buffered turn's are (<see cref="ContentBlockParam"/> over the block's own JSON). Measured on the same
-    /// stream as the code that stood here (SDK 13.3.0): thinking with its signature in pieces, redacted thinking, a text with
+    /// stream as the code that stood here (an earlier SDK release; the aggregator is the code 13.8.0 has): thinking with its signature in pieces, redacted thinking, a text with
     /// two streamed citations and a block of a type the SDK has no name for come out as the JSON the API wrote, and a server
     /// tool's call with its input streamed in pieces is merged by the aggregator itself. The first version of this client
     /// rebuilt the blocks by hand because the aggregator of that time threw on a server tool's first

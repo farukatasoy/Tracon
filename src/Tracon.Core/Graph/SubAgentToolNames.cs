@@ -31,7 +31,7 @@ internal static class SubAgentToolNames
     private static readonly string[] SkillToolNames = ["load_skill", "read_skill_resource", "run_skill_script"];
 
     // The harness's task list and agent mode tools. The framework keeps these names private, so they are
-    // measured: a provider run on a fake chat client offered exactly these (Microsoft.Agents.AI 1.26.0), and
+    // measured: a provider run on a fake chat client offered exactly these (Microsoft.Agents.AI 1.28.0; the mode provider changed only in how it validates a restored mode), and
     // SubAgentToolNamesTests pins the list against the providers so a framework change shows there.
     internal static readonly string[] TodoToolNames =
         ["todos_add", "todos_complete", "todos_remove", "todos_get_remaining", "todos_get_all"];

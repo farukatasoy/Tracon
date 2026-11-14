@@ -170,7 +170,7 @@ or AOT warning and runs. The following do not:
 | Package | Why not |
 |---|---|
 | `Tracon.Anthropic` | The Anthropic SDK's `IChatClient` adapter uses reflection-based JSON; a Native AOT app fails on the first request. The promise returns when the SDK ships a source-generated adapter |
-| `Tracon.Google` | The Gemini credential library (`Google.Apis.Auth`) uses reflection-based JSON; a Native AOT publish emits about 100 trim and AOT warnings |
+| `Tracon.Google` | The Gemini credential library (`Google.Apis.Auth`) uses reflection-based JSON; a Native AOT publish still emits trim and AOT warnings (five with `Google.GenAI` 2.1, about 100 before) |
 | `Tracon.AspNetCore` | Minimal API delegate routing uses reflection |
 | `Tracon.UI` | Embedded asset scanning |
 | `Tracon.Sqlite` | `SQLitePCLRaw` carries a native library |

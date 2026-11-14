@@ -9,7 +9,10 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
 /// Drives every Microsoft.Extensions.AI ring and the Microsoft Agent Framework workflow telemetry with
-/// <c>EnableSensitiveData = true</c> and a sentinel in every content field, from inside a run.
+/// <c>EnableSensitiveData = true</c> and a sentinel in every content field, from inside a run. The workflow
+/// telemetry option itself is obsolete since Agent Framework 1.28, which no longer emits payload attributes
+/// whatever it says; the workflow still runs through the real telemetry here, so a release that emits them
+/// again shows up as a sentinel in the stored span.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -45,8 +48,9 @@ internal static class SensitiveContentProbe
 
     /// <summary>
     /// Every sentinel the probe hands a ring. None may appear in a stored span while the store is told to drop
-    /// content, <em>including the two the rings do not record today</em>: a library upgrade that starts recording the
-    /// embedding input or the text to synthesize under a key the filter does not know fails here, not in a database.
+    /// content, <em>including the four the rings do not record today</em> (the embedding input, the text to
+    /// synthesize and the two workflow executor payloads): a library upgrade that starts recording one of them under a
+    /// key the filter does not know fails here, not in a database.
     /// </summary>
     public static readonly IReadOnlyList<string> All =
     [
@@ -65,8 +69,10 @@ internal static class SensitiveContentProbe
 
     /// <summary>
     /// The sentinels the rings really write into a span while their content switch is on (measured with
-    /// Microsoft.Extensions.AI 10.11.0 and Microsoft Agent Framework 1.26.0). While the store keeps content, every
+    /// Microsoft.Extensions.AI 10.11.0 and Microsoft Agent Framework 1.28.0). While the store keeps content, every
     /// one of them must be there: the control that makes an empty search in the other direction mean something.
+    /// The two workflow executor payloads are not in the list: Agent Framework 1.26.0 wrote them under
+    /// <c>EnableSensitiveData</c>, and 1.28.0 no longer emits workflow payload attributes at all.
     /// </summary>
     public static readonly IReadOnlyList<string> Recorded =
     [
@@ -77,8 +83,6 @@ internal static class SensitiveContentProbe
         Answer,
         ImagePrompt,
         Transcript,
-        ExecutorInput,
-        ExecutorOutput,
     ];
 
     /// <summary>Runs every ring once.</summary>
@@ -163,7 +167,7 @@ internal static class SensitiveContentProbe
 
         var workflow = new WorkflowBuilder(step)
             .WithOutputFrom(step)
-            .WithOpenTelemetry(static options => options.EnableSensitiveData = true, source)
+            .WithOpenTelemetry(activitySource: source)
             .Build();
 
         await using var run = await InProcessExecution.RunAsync(workflow, ExecutorInput, cancellationToken: cancellationToken);

@@ -17,6 +17,12 @@ namespace Tracon;
 // notices when it runs one of the streaming members. Re-measure on the next OpenAI or
 // System.ClientModel upgrade: if the repro publishes clean, AudioClient is usable again.
 //
+// Measured again on 2026-11-14: OpenAI 2.15.0 is built against System.ClientModel 1.16.0, and the same
+// program (AudioClient and ImageClient constructed, a host that also resolves System.ClientModel 1.17.0 through
+// Azure.Core 1.65.0) publishes clean, where OpenAI 2.14.0 still fails. The reason for the protocol level
+// is gone with that SDK release, which Tracon cannot take yet: it changes the streaming return type of the
+// Responses client and Microsoft.Extensions.AI.OpenAI still calls the old signature. The class stays.
+//
 /// <summary>
 /// Posts to the OpenAI audio endpoints through the shared client's own pipeline, without
 /// <c>AudioClient</c>.

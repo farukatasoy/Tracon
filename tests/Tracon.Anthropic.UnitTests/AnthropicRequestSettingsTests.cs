@@ -362,6 +362,25 @@ public sealed class AnthropicRequestSettingsTests
         body["thinking"]!["type"]!.GetValue<string>().ShouldBe("adaptive");
     }
 
+    [Fact]
+    public async Task A_structured_response_whose_schema_names_no_required_property_is_still_sent_as_the_output_format()
+    {
+        // The adapter of SDK 13.3 mapped a response format's schema into output_config.format only when the schema held both
+        // `properties` and a `required` array, so a schema with nothing required went out as plain text and the answer was
+        // not held to it. 13.8 maps it whenever there are properties.
+        var optionalOnly = JsonDocument.Parse(
+            """{"type":"object","properties":{"answer":{"type":"integer"}}}""").RootElement.Clone();
+
+        var body = await SendAsync(
+            Settings(),
+            new ChatOptions { ResponseFormat = ChatResponseFormat.ForJsonSchema(optionalOnly, "answer") });
+
+        var format = body["output_config"]!["format"]!.AsObject();
+
+        format["type"]!.GetValue<string>().ShouldBe("json_schema");
+        format["schema"]!["properties"]!["answer"].ShouldNotBeNull();
+    }
+
     private static async Task<JsonObject> SendAsync(Dictionary<string, JsonElement> settings, ChatOptions? options = null)
     {
         var handler = new CapturingAnthropicHandler();

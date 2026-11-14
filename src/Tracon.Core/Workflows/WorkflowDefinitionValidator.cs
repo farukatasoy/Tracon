@@ -301,7 +301,7 @@ internal static class WorkflowDefinitionValidator
             return $"Workflow '{definition.Name}''s 'maxStalls' value must be positive.";
         }
 
-        // Measured (MAF 1.26.0): the orchestrator compares the limit with the count of replans at the START of every
+        // Measured (MAF 1.28.0; 1.26.0 compared the same way): the orchestrator compares the limit with the count of replans at the START of every
         // round, so a limit of 0 stops the task before its first round with a message instead of a result. A limit of 1
         // lets the manager replan once and stops at the round after.
         if (definition.MaxResets is <= 0)
@@ -593,7 +593,7 @@ internal static class WorkflowDefinitionValidator
     /// <returns>User-facing error text; <see langword="null"/> when the chain can finish.</returns>
     /// <remarks>
     /// <para>
-    /// A chain takes one super-step for each of its steps (measured on MAF 1.26, for any mix of agent and function
+    /// A chain takes one super-step for each of its steps (measured on MAF 1.28, the engine's stepping is the one 1.26 had, for any mix of agent and function
     /// nodes). A chain written as a plain list of agent names takes one more: the builder behind it adds a node that
     /// collects the output. A chain that needs more super-steps than the limit used to be saved, and every run of it
     /// ended <c>Failed</c> at the limit (a chain of 2 000 steps took 11 to 23 seconds to get there). The limit is a
@@ -674,7 +674,7 @@ internal static class WorkflowDefinitionValidator
     /// <remarks>
     /// <para>
     /// <strong>Microsoft Agent Framework drops a message that no handler of the next
-    /// node takes, with no error</strong> (measured on 1.26.0, decompiled 2026-10-28; the delivery code is what the version before had): the next node
+    /// node takes, with no error</strong> (measured on 1.28.0, decompiled 2026-11-14; the delivery code is what the versions before had): the next node
     /// never runs and the run ends <c>Completed</c> with no output. A first node that
     /// cannot take <see cref="RunInputType"/> runs nothing at all. Both shapes passed
     /// every check, so the save said <c>200</c> to a chain that could not run.
@@ -689,7 +689,7 @@ internal static class WorkflowDefinitionValidator
     /// </para>
     /// <para>
     /// <strong>The first node must not take <see cref="object"/></strong> (seen
-    /// on 1.26.0). The engine sends Microsoft Agent Framework's turn token to the first
+    /// on 1.28.0). The engine sends Microsoft Agent Framework's turn token to the first
     /// node after the run's message, on every start and every resume: a resume without it
     /// waits for its deadline when the checkpoint has nothing left to run. A node that
     /// takes <see cref="object"/> receives the token as a second input and runs twice, so

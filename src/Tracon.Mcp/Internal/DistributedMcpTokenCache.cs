@@ -121,7 +121,7 @@ internal sealed class DistributedMcpTokenCache : ITokenCache
     private static bool Matches(McpStoredTokens stored, McpTokenBinding binding) => stored.Binding == binding;
 
     // The SDK's own rule, with no margin: it refreshes a token at ObtainedAt + ExpiresIn and not
-    // before (ModelContextProtocol.Core 2.3.0, TokenContainer.IsExpired). A margin here would take
+    // before (ModelContextProtocol.Core 2.4.0, TokenContainer.IsExpired, unchanged from the release before). A margin here would take
     // the lease for a token the SDK still uses, the SDK would never store a new one, and the other
     // instances would wait for it until the lease ran out.
     private bool IsExpired(McpStoredTokens stored)

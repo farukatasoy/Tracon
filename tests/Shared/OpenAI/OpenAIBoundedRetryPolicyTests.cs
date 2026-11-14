@@ -210,9 +210,13 @@ public sealed class OpenAIBoundedRetryPolicyTests
         message.Apply(new RequestOptions { CancellationToken = cancellationToken });
 
         // The synchronous loop blocks its thread in the policy's wait, so it runs on one of its own.
+        // The token is on the message already (`Apply` above). System.ClientModel 1.17 has a `SendAsync(message, token)`
+        // overload that only assigns it, and this file is compiled where 1.16, which has none, is restored too.
+#pragma warning disable CA2016
         return synchronous
             ? Task.Run(() => pipeline.Send(message), CancellationToken.None)
             : pipeline.SendAsync(message).AsTask();
+#pragma warning restore CA2016
     }
 
     /// <summary>A transport that answers from a list, repeating the last answer when the list runs out.</summary>

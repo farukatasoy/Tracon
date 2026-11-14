@@ -92,7 +92,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.SqlServer` | No | net10 | No promise | Measured clean, but no live-query AOT guarantee is made |
 | `Tracon.Sqlite` | No | net10 | No | `SQLitePCLRaw` carries a native library |
 | `Tracon.Anthropic` | No | net10 | No | Claude provider; the Anthropic SDK's `IChatClient` adapter uses reflection-based JSON, so a Native AOT app fails on the first request |
-| `Tracon.Google` | No | net10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
+| `Tracon.Google` | No | net10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish still emits trim and AOT warnings (five with `Google.GenAI` 2.1, about 100 before) |
 | `Tracon.Azure` | No | net10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected. The Native AOT check runs the API-key path (chat, plain and streamed, and images); the Microsoft Entra path (`TokenCredential`) is not part of it |
 | `Tracon.Voice` | No | net10 | Yes | ElevenLabs speech tools and reusable speech contracts. The Native AOT check runs synthesis, transcription and the voice list; dialogue is not part of it |
 | `Tracon.AGUI` | No | net10 | No | The AG-UI endpoint; it sits on `Tracon.AspNetCore`, whose minimal API routing uses reflection |
@@ -221,7 +221,7 @@ Lifecycle, read on 2026-11-06).
 ### SQLite
 
 `Tracon.Sqlite.IntegrationTests`, 1 880 tests (one skips unless a run names the engine version it expects). SQLite is a library, so its version is the version of the native file the
-process loads. `Microsoft.Data.Sqlite` 10.0.14 brings 3.53.3. The floor row replaces that file with the one a package of the
+process loads. `Microsoft.Data.Sqlite` 10.0.15 brings 3.53.3. The floor row replaces that file with the one a package of the
 same family carried, and the project asks the engine for its version to be sure the replacement is the file that ran.
 
 | SQLite | Result | Run |
@@ -268,13 +268,13 @@ These are the versions they declare.
 
 | Package | Declared dependencies |
 |---|---|
-| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.26.0 · `Microsoft.Extensions.AI.Abstractions` 10.11.0 |
-| `Tracon.Core` | `Microsoft.Agents.AI` 1.26.0 · `Microsoft.Agents.AI.Harness` 1.26.0 · `Microsoft.Extensions.AI` 10.11.0 · `Microsoft.Extensions.AI.Evaluation` 10.11.0 |
-| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.26.0 |
-| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.26.0 · `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
+| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.28.0 · `Microsoft.Extensions.AI.Abstractions` 10.11.0 |
+| `Tracon.Core` | `Microsoft.Agents.AI` 1.28.0 · `Microsoft.Agents.AI.Harness` 1.28.0 · `Microsoft.Extensions.AI` 10.11.0 · `Microsoft.Extensions.AI.Evaluation` 10.11.0 |
+| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.28.0 |
+| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.28.0 · `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
 | `Tracon.Azure` | `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
-| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.26.0 · `Microsoft.Extensions.AI` 10.11.0 |
-| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.26.0 pre-release · `.Hosting.OpenAI` at exactly a 1.26.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview3` |
+| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.28.0 · `Microsoft.Extensions.AI` 10.11.0 |
+| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.28.0 pre-release · `.Hosting.OpenAI` at exactly a 1.28.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview4` |
 
 `Tracon.AspNetCore` is the only package that carries a pre-release Agent Framework
 dependency, and it is the only one permitted to.
@@ -282,7 +282,7 @@ dependency, and it is the only one permitted to.
 ### A pre-release dependency is an exact pin
 
 The five pre-release entries of `Tracon.AspNetCore` are exact ranges, such as
-`[1.26.0-preview.261023.1]`. A pre-release package makes no compatibility promise
+`[1.28.0-preview.261106.1]`. A pre-release package makes no compatibility promise
 between its own previews, and this one broke: `Microsoft.Agents.AI.Hosting.AgentSessionStore`
 left the Hosting assembly in `1.22.0-preview`, so a project that raised Hosting under
 `1.0.0-preview.2` restored without a warning and failed at run time with a
@@ -295,7 +295,7 @@ that is built against it.
 
 ### A stable dependency is a floor, not a pin
 
-Every other entry above is a minimum. NuGet reads `1.26.0` as `[1.26.0, )` and then resolves
+Every other entry above is a minimum. NuGet reads `1.28.0` as `[1.28.0, )` and then resolves
 the **lowest** version that satisfies every constraint in the graph, so a project that
 asks for nothing else restores exactly the version listed. You get a different version
 only when something asks for one: a direct `PackageReference` to a higher version, or
@@ -319,6 +319,19 @@ find out last.
 
 To decide the version yourself instead of leaving it to the graph, reference the Agent
 Framework packages explicitly at the version you intend, or commit a lock file.
+
+**`OpenAI` 2.15.** Do not raise `OpenAI` to 2.15.0 yet. That release changed the return type of
+`ResponsesClient.CreateResponseStreamingAsync`, and `Microsoft.Extensions.AI.OpenAI` (10.11.0 and 11.0.0, the newest) calls
+the old one, so the `openai-responses` provider fails at its first streamed call with a `MissingMethodException`.
+Restore does not warn, because Tracon declares no upper bound. Tracon stays on 2.14.0 until a
+`Microsoft.Extensions.AI.OpenAI` release is built against 2.15.
+
+**`Microsoft.Extensions.AI` 11.** The floor stays at 10.11.0 although 11.0.0 is out. The
+11.0 packages belong to .NET 11: on `net10.0` they ask for the 11.0 `Microsoft.Extensions.*`
+and `System.Text.Json` packages, and Agent Framework 1.28 itself stands on 10.11.0.
+Tracon tests 11.0.0 as an **upper bound**: a project that references it next to the
+Tracon packages restores, starts, and runs an Agent Framework agent turn over a chat client written against it. The public surfaces of 10.11 and
+11.0 are the same, so an application that wants 11.0 can take it by referencing it.
 
 ### When Tracon moves the floor
 

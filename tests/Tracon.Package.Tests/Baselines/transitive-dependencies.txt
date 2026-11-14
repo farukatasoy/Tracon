@@ -3,6 +3,7 @@
 # A line that is grown on purpose is added to the baseline HERE.
 # (2026-10-16): Microsoft.Bcl.AsyncInterfaces, .HashCode and .Memory LEFT the graph of three packages - Microsoft.ML.Tokenizers.Data.O200kBase 2.0.1 carries its own net8.0 group (the netstandard2.0 group is no longer selected). The baseline only shrank.
 # (2026-10-28): Npgsql and Tracon.PostgreSql LEFT the graph of the `# Tracon` shape - the meta package carries no store, and a store is always an explicit reference. The baseline only shrank.
+# (2026-11-14): Google.Protobuf LEFT the graph of three packages - Microsoft.ML.Tokenizers 3.0.0 no longer depends on it (2.0.1 did, in both its net8.0 and netstandard2.0 groups). The baseline only shrank.
 
 # Tracon
 A2A
@@ -15,7 +16,6 @@ Tracon.Mcp
 Tracon.OpenAI
 Tracon.UI
 Tracon.Workflows
-Google.Protobuf
 Microsoft.Agents.AI
 Microsoft.Agents.AI.Abstractions
 Microsoft.Agents.AI.Harness
@@ -76,7 +76,6 @@ System.Numerics.Tensors
 # Tracon.Core
 Tracon.Abstractions
 Tracon.Core
-Google.Protobuf
 Microsoft.Agents.AI
 Microsoft.Agents.AI.Abstractions
 Microsoft.Agents.AI.Harness
@@ -110,7 +109,6 @@ Google.Apis
 Google.Apis.Auth
 Google.Apis.Core
 Google.GenAI
-Google.Protobuf
 Microsoft.Agents.AI
 Microsoft.Agents.AI.Abstractions
 Microsoft.Agents.AI.Harness

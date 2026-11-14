@@ -794,8 +794,9 @@ public sealed class TraconObservabilityOptions
     /// <para>
     /// This setting filters what Tracon writes. It is not the switch of the rings that produce the spans: the
     /// Microsoft.Extensions.AI rings read their own default (the
-    /// <c>OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT</c> environment variable) and the workflow telemetry has its
-    /// own option, and those decide what your own exporter receives.
+    /// <c>OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT</c> environment variable), and that decides what your own
+    /// exporter receives. The workflow telemetry writes no payload at all since Agent Framework 1.28; its content option
+    /// is obsolete and does nothing.
     /// </para>
     /// </remarks>
     public bool RecordSensitiveData { get; set; }

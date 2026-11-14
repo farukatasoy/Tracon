@@ -19,6 +19,12 @@ namespace Tracon;
 // 'System.ClientModel.AsyncStreamingClientResult`1'". Measured with the provider AOT smoke sample
 // built against these sources: the publish failed with GetImageClient(...).AsIImageGenerator() and
 // is clean with this class. Re-measure on the next OpenAI or System.ClientModel upgrade.
+//
+// Measured again on 2026-11-14: OpenAI 2.15.0 is built against System.ClientModel 1.16.0, and the same
+// program (AudioClient and ImageClient constructed, a host that also resolves System.ClientModel 1.17.0 through
+// Azure.Core 1.65.0) publishes clean, where OpenAI 2.14.0 still fails. The reason for the protocol level
+// is gone with that SDK release, which Tracon cannot take yet: it changes the streaming return type of the
+// Responses client and Microsoft.Extensions.AI.OpenAI still calls the old signature. The class stays.
 #pragma warning disable MEAI001 // Microsoft.Extensions.AI marks its image surface experimental.
 
 /// <summary>
@@ -195,7 +201,15 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
 
         try
         {
+            // The token already travels on the message: `RequestOptions` above set it. System.ClientModel
+            // 1.17 added a `SendAsync(message, token)` overload that does exactly that (it assigns the token
+            // to the message and calls the one-argument method), so the analyzer asks for it where the
+            // restored System.ClientModel is 1.17 (Tracon.Azure, through Azure.Core). This file is also
+            // compiled into Tracon.OpenAI, which restores 1.16 where the overload does not exist, and the
+            // package must not raise that floor for a call that behaves the same.
+#pragma warning disable CA2016
             await _pipeline.SendAsync(message).ConfigureAwait(false);
+#pragma warning restore CA2016
         }
         catch (Exception exception) when (cancellationToken.IsCancellationRequested && exception is not OperationCanceledException)
         {

@@ -731,7 +731,7 @@ internal static class FallbackSkipReasonExtensions
 /// <para>
 /// <strong>A bare connection failure never reaches the outer catch as
 /// itself</strong> — measured against the real OpenAI 2.14.0 client (probe,
-/// 2026-10-16): pointing it at a port nothing listens on throws
+/// 2026-10-16; a probe against the release after it gave the same chain on 2026-11-14): pointing it at a port nothing listens on throws
 /// <see cref="AggregateException"/> ("Retry failed after 4 tries...") whose
 /// <see cref="Exception.InnerException"/> is
 /// <c>System.ClientModel.ClientResultException</c> ("Connection refused

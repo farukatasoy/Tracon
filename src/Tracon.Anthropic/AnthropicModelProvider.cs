@@ -93,7 +93,7 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
     /// <inheritdoc />
     /// <remarks>
-    /// Measured from the Anthropic 13.3.0 chat client adapter (2026-10-28, decompiled and on the wire): it
+    /// Measured from the Anthropic 13.8.0 chat client adapter (decompiled 2026-11-14; the request options are the ones measured on the wire on 2026-10-28): it
     /// sends the stop sequences, the tool mode and the parallel-tool-use flag, and maps the reasoning output
     /// to the thinking display. It has no seed and no penalties, and since SDK 13 it has no temperature,
     /// top-p or top-k either: <c>MessageCreateParams</c> has no member for them, so the adapter drops them.

@@ -9,8 +9,7 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// The class exists to hold the <c>MEAI001</c> suppression in ONE place —
-/// the same pattern <c>TraconA2ABuilderExtensions</c> uses for
-/// <c>AgentRunMode</c> and <c>ChatHistoryReader</c> uses for <c>MAAI001</c>.
+/// the same pattern <c>ChatHistoryReader</c> uses for <c>MAAI001</c>.
 /// <c>InputAudioTokenCount</c> and <c>OutputAudioTokenCount</c> are marked
 /// "for evaluation purposes only" in Microsoft.Extensions.AI 10.11.0 (as are
 /// <c>InputTextTokenCount</c> and <c>OutputTextTokenCount</c>, which are not read);

@@ -14,11 +14,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// Tracon cannot suspend a run for approval mid-run, and an A2A task
 /// is exactly that shape: a handle the caller polls while the run goes on in
 /// the background. Microsoft Agent Framework 1.20 had a switch that turned
-/// background responses off (<c>AllowBackgroundResponses = false</c>); 1.22
-/// replaced it with <c>AgentRunMode</c>, and 1.25 no longer writes the old
-/// switch at all. Nothing else in the suite looks at the response's kind, so
-/// a registration that silently fell back to the framework default would still
-/// pass every other A2A test.
+/// background responses off (<c>AllowBackgroundResponses = false</c>) and 1.22
+/// replaced it with <c>AgentRunMode</c>. Since 1.28 the registration takes no run
+/// mode: it always builds the handler to answer with a message, and Tracon relies on
+/// that default. Nothing else in the suite looks at the response's kind, so the
+/// day the framework default moves to a task this is the one test that turns red.
 /// </para>
 /// </remarks>
 public sealed class A2ARunModeTests

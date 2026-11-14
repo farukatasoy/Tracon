@@ -40,7 +40,9 @@ public sealed class WorkflowTraceTests
         var trace = await RunStoredAsync(host);
 
         trace.Spans.Count(IsExecutorSpan).ShouldBeGreaterThanOrEqualTo(3, "one executor span per step");
-        trace.Spans.ShouldContain(static span => string.Equals(span.Name, "workflow_invoke", StringComparison.Ordinal));
+        // Agent Framework 1.26 named the span `workflow_invoke`; 1.28 names it `invoke_workflow <workflow name>`, with
+        // `gen_ai.operation.name` and `gen_ai.workflow.name` beside it.
+        trace.Spans.ShouldContain(static span => span.Name.StartsWith("invoke_workflow", StringComparison.Ordinal));
 
         // 🚨 The agents of the two agent steps are spans of the workflow's run too. The framework runs the graph on a
         // task it starts itself, and that task used to carry no ambient span: every agent and chat span of a workflow

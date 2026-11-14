@@ -29,7 +29,7 @@ internal static class McpTransportFactory
 
     /// <summary>
     /// The response timeout the MCP transport applies to its own
-    /// <see cref="HttpClient"/>. Measured against ModelContextProtocol.Core 2.3.0: the transport builds a plain <c>HttpClient</c>.
+    /// <see cref="HttpClient"/>. Measured against ModelContextProtocol.Core 2.4.0 (the release before built it the same way): the transport builds a plain <c>HttpClient</c>.
     /// </summary>
     private static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(100);
 

@@ -97,10 +97,13 @@ public sealed class SourceLanguageTests
 
     /// <summary>
     /// Files excluded in full. These three test files carry the Turkish dictionary
-    /// itself; the locale file is a legitimate translation dictionary.
+    /// itself; the locale file is a legitimate translation dictionary. The generated notice
+    /// of the tool package is the licence text of other people's code, word for word: it
+    /// names people (a copyright line with an <c>ö</c> in a first name) and cannot be translated or edited.
     /// </summary>
     private static readonly string[] SkippedFiles =
     [
+        "src/Tracon.Cli/THIRD-PARTY-NOTICES.txt",
         "tests/Tracon.Core.UnitTests/Architecture/SourceLanguageTests.cs",
         "tests/Tracon.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs",
         "src/Tracon.UI/frontend/src/locales/tr.ts",

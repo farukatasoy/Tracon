@@ -16,7 +16,7 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// Anthropic bills a cache write by how long the entry lives (five minutes and one hour are two
-/// prices) and apart from plain input. Measured (Anthropic SDK 13.3.0, the adapter decompiled 2026-10-28 and unchanged on this point since the first measure; both models and both call
+/// prices) and apart from plain input. Measured (Anthropic SDK 13.8.0, the adapter decompiled 2026-11-14 and unchanged on this point since the first measure; 13.8 also fills the reasoning counter from the thinking tokens, which this class does not read; both models and both call
 /// shapes): the write tokens are INSIDE <see cref="UsageDetails.InputTokenCount"/>, and the adapter
 /// reports only their total, as <c>AdditionalCounts["CacheCreationInputTokens"]</c>; the split
 /// stays in the raw usage object. Non-streaming it is <c>usage.cache_creation</c> of the response's

@@ -459,7 +459,7 @@ the agent, chat and tool spans, it holds the calls that used to be invisible:
 | `generate_content` | The image generator, when an agent calls the `generate_image` tool | `image` |
 | `generate_content` | A Microsoft.Extensions.AI text-to-speech client served as a speech provider, when an agent calls a voice tool | `audio` |
 | `generate_content` | A Microsoft.Extensions.AI speech-to-text client served as a speech provider, when an agent calls a voice tool | `text` |
-| `workflow.session`, `workflow_invoke`, `executor.process <step>` | A workflow made from a stored definition that lists its `nodes`: one `executor.process` per step | |
+| `workflow.session`, `invoke_workflow <workflow name>`, `executor.process <step>` | A workflow made from a stored definition that lists its `nodes`: one `executor.process` per step | |
 
 The span name is the operation followed by the model, for example `embeddings text-embedding-3-small`
 or `generate_content gpt-image-1-mini`; `gen_ai.operation.name` holds the operation alone. A speech provider
@@ -472,12 +472,12 @@ your exporter, and no stored trace holds them.
 
 A stored definition that names a pattern instead of listing `nodes` (`agentNames` with `Sequential`,
 `Concurrent`, `Handoff`, `GroupChat` or `Magentic`) writes the agents' own spans (`invoke_agent`, `chat`)
-but no `workflow.session`, `workflow_invoke` or `executor.process` span: the framework builds those graphs
+but no `workflow.session`, `invoke_workflow` or `executor.process` span: the framework builds those graphs
 itself and offers no place to attach the telemetry.
 
 A stored workflow that lists its `nodes` leaves out message sends and edge groups, which are most of what the
 framework would write. A workflow of three steps, two of them agent steps and one a function, keeps 13 spans of
-the default 200: four for the run itself (the root run span, `workflow.session` and two `workflow_invoke`), four
+the default 200: four for the run itself (the root run span, `workflow.session` and two `invoke_workflow <workflow name>`), four
 for each agent step (its executor, the agent's child run, the agent and its chat call) and one for the function
 step. A tool call adds a tool span and a further chat span. Raise `MaxSpansPerRun` for a long graph or a graph
 with a way back.
@@ -515,9 +515,10 @@ spans go to that source instead, which the trace does not read.
 Whether a span carries content is decided twice, by two different owners:
 
 - **The ring that writes the span.** The Microsoft.Extensions.AI rings (chat, embeddings, image, speech)
-  record message content only when `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is `true`, and
-  the framework's workflow telemetry only when `EnableSensitiveData` is set on it. Tracon does not set
-  either one. Whatever you choose here is what **your exporter** receives.
+  record message content only when `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is `true`. The
+  framework's workflow telemetry wrote executor input and output only when `EnableSensitiveData` was set on
+  it; since Microsoft Agent Framework 1.28 it writes no workflow payload at all, and that option does
+  nothing. Tracon sets neither. Whatever you choose here is what **your exporter** receives.
 - **The Tracon store.** With `RecordSensitiveData=false` the store drops every content key before it
   keeps a span, whichever ring wrote it: any key that contains `message`, `prompt` or `completion`,
   `gen_ai.system_instructions`, `gen_ai.tool.call.arguments`, `gen_ai.tool.call.result`,
