@@ -77,6 +77,12 @@ internal static class ToolApprovalResolver
 
         var pending = CollectPendingRequests(history);
 
+        // An approval that an earlier request applied but that no run has saved yet (its client left) is answered, not pending.
+        foreach (var answered in AnsweredInterrupts.Read(session))
+        {
+            pending.Remove(answered);
+        }
+
         if (pending.Count == 0)
         {
             return null;

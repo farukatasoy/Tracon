@@ -436,6 +436,27 @@ internal static class AgentTurnService
             }
         }
 
+        // 🚨 An approval that an earlier request already applied is refused BEFORE the stream starts, for the same reason as the
+        // answers above: the run it started may have been cancelled before it saved the session, so the stored history still
+        // says the call is pending, and running it again would repeat whatever the tool does. A request id the session
+        // does not know is still ignored, as it always was.
+        if (request.Approvals.Count > 0)
+        {
+            var approvalSession = await sessions
+                .GetOrCreateSessionAsync(agent, request.SessionId!, cancellationToken)
+                .ConfigureAwait(false);
+
+            var answered = AnsweredInterrupts.Read(approvalSession);
+
+            if (request.Approvals.FirstOrDefault(decision => answered.Contains(decision.RequestId)) is { } repeated)
+            {
+                return TurnPreparation.Refused(Results.Problem(
+                    title: "Tool approval already answered",
+                    detail: $"The tool approval request '{repeated.RequestId}' already has an answer.",
+                    statusCode: StatusCodes.Status409Conflict));
+            }
+        }
+
         // The run records the values it was bound with, defaults
         // included, so a replay and a continuation repeat them. Only an agent
         // that declares a schema has anything to record.
@@ -891,6 +912,50 @@ internal sealed class PreparedTurn(
             AfterLoopIterationRecorded = onLoopIteration,
         };
     /// <summary>
+    /// Writes the identities of the answers just built (<see cref="AnsweredInterrupts"/>) into the session and saves it, so that a
+    /// request that repeats an answer a cancelled run had applied is refused instead of running the tool again.
+    /// </summary>
+    /// <remarks>
+    /// The marker leaves the set when the stored history holds the answer, so the history is read once here to find those.
+    /// A conflict (another request wrote the session after the claim) is the same <c>409</c> the claim reports.
+    /// </remarks>
+    private static async ValueTask MarkAnswersAsync(
+        IServiceProvider services,
+        Microsoft.Agents.AI.AIAgent agent,
+        Microsoft.Agents.AI.AgentSession session,
+        List<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        var applied = messages
+            .SelectMany(static message => message.Contents)
+            .OfType<ToolApprovalResponseContent>()
+            .Select(static response => response.RequestId)
+            .ToList();
+
+        if (applied.Count == 0)
+        {
+            return;
+        }
+
+        var history = await ChatHistoryReader
+            .ReadAsync(agent, session, services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(), cancellationToken)
+            .ConfigureAwait(false);
+
+        var answeredInHistory = history
+            .SelectMany(static message => message.Contents)
+            .OfType<ToolApprovalResponseContent>()
+            .Select(static response => response.RequestId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (AnsweredInterrupts.Write(session, applied, answeredInHistory))
+        {
+            await services.GetRequiredService<AgentSessionManager>()
+                .SaveSessionAsync(agent, session, cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Builds the messages to send: approval responses, then client-side
     /// tool results, then the user message — whichever of these apply.
     /// </summary>
@@ -1022,6 +1087,15 @@ internal sealed class PreparedTurn(
                     inputAnswers = continuation.Answers;
                 }
             }
+        }
+
+        // 🚨 What this request answered is written into the session NOW, before the run starts, and not only when the run ends:
+        // a run whose client leaves is cancelled and saves nothing, and the stored history would still say the call is pending,
+        // so the same answer sent again would run the tool a second time. Approvals and tool inputs only: a client tool
+        // result answers a call that ran in the browser, and there is nothing on the server to protect.
+        if (session is not null && (request.Approvals.Count > 0 || request.InputResponses.Count > 0))
+        {
+            await MarkAnswersAsync(services, agent, session, messages, cancellationToken).ConfigureAwait(false);
         }
 
         // 🚨 Documents are their own messages, added BEFORE the user's

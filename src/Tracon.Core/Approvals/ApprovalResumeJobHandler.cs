@@ -281,6 +281,12 @@ internal sealed class ApprovalResumeJobHandler(
 
         var messages = await chatHistory.InvokingAsync(context, cancellationToken).ConfigureAwait(false);
 
+        // A request that another surface applied but that no run has saved yet (its client left) is answered, not pending.
+        if (AnsweredInterrupts.Read(session).Contains(requestId))
+        {
+            return null;
+        }
+
         ToolApprovalRequestContent? found = null;
 
         foreach (var message in messages)

@@ -58,8 +58,8 @@ internal static class PendingInterruptReader
             return PendingInterrupts.None;
         }
 
-        var history = await ChatHistoryReader
-            .ReadAsync(
+        var read = await ChatHistoryReader
+            .ReadWithSessionAsync(
                 record,
                 services.GetRequiredService<IAgentCatalog>(),
                 services.GetRequiredService<ChatHistoryProvider>(),
@@ -67,13 +67,16 @@ internal static class PendingInterruptReader
                 cancellationToken)
             .ConfigureAwait(false);
 
-        if (history is null)
+        if (read is not var (history, session))
         {
             return PendingInterrupts.None;
         }
 
+        // What a request already applied is not pending any more, though the history does not hold the answer yet.
+        var answered = AnsweredInterrupts.Read(session);
+
         return new PendingInterrupts(
-            ToolApprovalResolver.CollectPendingRequests(history).Keys.ToHashSet(StringComparer.Ordinal),
-            ToolInputResolver.Collect(history).Pending.Keys.ToHashSet(StringComparer.Ordinal));
+            ToolApprovalResolver.CollectPendingRequests(history).Keys.Where(id => !answered.Contains(id)).ToHashSet(StringComparer.Ordinal),
+            ToolInputResolver.Collect(history).Pending.Keys.Where(id => !answered.Contains(id)).ToHashSet(StringComparer.Ordinal));
     }
 }

@@ -56,6 +56,14 @@ internal static class ToolInputResolver
             .ConfigureAwait(false);
 
         var (pending, answered) = Collect(history);
+
+        // A request that an earlier request applied but that no run has saved yet (its client left) is answered, not pending.
+        foreach (var applied in AnsweredInterrupts.Read(session))
+        {
+            pending.Remove(applied);
+            answered.Add(applied);
+        }
+
         var matched = new List<(ToolInputResponse Response, PendingInputRecord Pending)>(responses.Count);
         var seen = new HashSet<string>(StringComparer.Ordinal);
 

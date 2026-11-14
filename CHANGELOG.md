@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **An approval or a tool input that a run applied cannot be applied a second time, though the run's client left.** The answer was applied when the run started and saved with the session when the run ended; a client that closed the stream while the approved tool ran cancelled the run before the save, so the history still held the request as pending and the same answer ran the tool again. The request that applies an answer now writes its identity into the session before the run starts. A repeated answer is refused with `409` on the management API and as an invalid resume on AG-UI, and the mailbox that resumes a queued run leaves it out.
+  What to do:
+  - **If a client retries an approval after a dropped stream, expect `409` (or an invalid resume) when the first attempt reached the tool.** Read the run, then send a new message: the framework rejects the request nobody answered and the conversation goes on.
+  - **A tool that was cancelled while it ran is not run again for that approval.** Ask for it again in a message if it has to run.
+
 - **The first file an agent keeps in a session writes the session's record, so a run that fails afterwards leaves nothing a delete cannot reach.** A session's record was written when a run ended, and a run that fails writes none. A write that asks for no approval (a code policy, a rule the user once kept) could put a file under a session that did not exist, and `DELETE /api/sessions/{id}`, the retention policy and the erasure of a data subject all begin at the record. The file is now written after the record, which the run's own save then updates. A sub-agent's file is kept under its root's session and gives the root's session the record. With session ownership on, the user who ran owns the record, and another user's run on the same id is refused before the model.
   What to do:
   - **If your own `AgentFileStore` is registered for session workspaces, nothing changes:** the record is a call to the session store, not to the file store.
@@ -29,7 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Two requests that answer the same pending tool call no longer both run it.** An approval, a tool input or a client tool result resumes a call that the session history says is pending, and the session is written when a run ends. Two requests that read the same version of the session both found the call pending and both ran the tool, and the later save reported the conflict after the tool had run twice. The request that takes the session's version first now goes on; the other one is answered `409` with `errorType: session_conflict` before it applies the answer or runs anything. `AgentSessionManager` gets `ClaimSessionAsync` for this.
   What to do:
   - **If a client can send the same answer twice (a double click, a retry), expect one `409` and treat it as "the other request has it".** Read the session before sending the answer again.
-  - **If a run's client disconnects after the answer, the approval can still read pending.** The answer is written into the history when the run ends, which a disconnect skips.
+  - **If a run's client disconnects after the answer, a later answer to the same approval is refused.** See the entry on answered approvals below.
 
 - **A2A messages and MCP tool calls refuse an attribution that breaks the limits.** A user identifier over 200 characters, more than 8 labels, a key over 64 or a value over 256 characters used to start an unattributed run over the two external protocols, while the management API answered `400`. They now refuse the call before the run starts, with or without an `IRunAuthorizationHandler`: over A2A the error carries the sentence, over MCP the tool result has `isError` set. The handler is not asked.
   What to do:

@@ -44,6 +44,22 @@ internal static class ChatHistoryReader
         ChatHistoryProvider chatHistory,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
+        => (await ReadWithSessionAsync(record, catalog, chatHistory, loggerFactory, cancellationToken).ConfigureAwait(false))?.History;
+
+    /// <summary>Reads the chat history of a session record, with the session it was read from.</summary>
+    /// <param name="record">The session record.</param>
+    /// <param name="catalog">The agent catalog.</param>
+    /// <param name="chatHistory">The registered chat history provider.</param>
+    /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The messages and the restored session; <see langword="null"/> if the history could not be read.</returns>
+    /// <remarks>The session carries what is not in the history yet (<see cref="AnsweredInterrupts"/>).</remarks>
+    public static async ValueTask<(IReadOnlyList<ChatMessage> History, AgentSession Session)?> ReadWithSessionAsync(
+        SessionRecord record,
+        IAgentCatalog catalog,
+        ChatHistoryProvider chatHistory,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -58,7 +74,7 @@ internal static class ChatHistoryReader
                 .DeserializeSessionAsync(record.State, jsonSerializerOptions: null, cancellationToken)
                 .ConfigureAwait(false);
 
-            return await ReadAsync(agent, session, chatHistory, cancellationToken).ConfigureAwait(false);
+            return (await ReadAsync(agent, session, chatHistory, cancellationToken).ConfigureAwait(false), session);
         }
         catch (Exception ex) when (ex is TraconException or System.Text.Json.JsonException or InvalidOperationException or NotSupportedException)
         {

@@ -75,8 +75,12 @@ result) takes the session's generation before it applies the answer. The call is
 the history the session holds, and the session is written when a run ends, so two requests
 that read the same generation would both find it pending and both run the tool. The one that
 takes the generation first goes on; the other gets the same `409` before it applies a decision
-or runs anything. If a run's client disconnects after the answer, the end-of-run save is
-skipped and the approval still reads pending in the stored history.
+or runs anything. The request that applies a tool approval or a tool input also writes what it
+answered into the session before the run starts, because a run whose client disconnects is
+cancelled and saves nothing: the same answer sent again is refused (`409` on the management
+API, an invalid resume on AG-UI) and the tool does not run twice. The unanswered request the
+cancelled run leaves in the history is rejected by the agent framework on the next run of the
+session, so the user can carry on with a new message.
 
 Saving a session under a **different** id than it was read from — what
 `/v1/responses` does when it chains with `previous_response_id` — writes a new record
