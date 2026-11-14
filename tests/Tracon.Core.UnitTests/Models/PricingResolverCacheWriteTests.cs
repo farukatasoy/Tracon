@@ -308,6 +308,45 @@ public sealed class PricingResolverCacheWriteTests
         cost.Total()!.Value.ShouldBeGreaterThan((cost.InputCost ?? 0) + (cost.OutputCost ?? 0) + (cost.CachedInputCost ?? 0));
     }
 
+    [Fact]
+    public void A_model_whose_calls_report_written_tokens_with_no_write_price_is_warned_about_once_for_each_class()
+    {
+        // The run is priced at the plain input price and the cost is below the provider's bill; nothing else says so.
+        var logger = new RecordingLogger<RunPricingResolver>();
+        var resolver = CreateResolver(CachePricedModelWithoutWriteRates(), logger);
+
+        for (var call = 0; call < 3; call++)
+        {
+            resolver.Resolve("anthropic", "claude-x", Usage(1_000_000, cached: null, shortWrite: 200_000, longWrite: null));
+        }
+
+        var warnings = logger.Warnings.Where(static warning => warning.Contains("no cache-write price", StringComparison.Ordinal)).ToList();
+
+        warnings.ShouldHaveSingleItem("a call after the first adds no line");
+        warnings[0].ShouldContain("claude-x");
+        warnings[0].ShouldContain("anthropic");
+        warnings[0].ShouldContain("CacheWriteCostPerMillionTokens");
+
+        resolver.Resolve("anthropic", "claude-x", Usage(1_000_000, cached: null, shortWrite: null, longWrite: 100_000));
+
+        logger.Warnings.Count(static warning => warning.Contains("no cache-write price", StringComparison.Ordinal))
+            .ShouldBe(2, "the long class is its own price and its own line");
+        logger.Warnings.Last().ShouldContain("CacheWriteLongCostPerMillionTokens");
+    }
+
+    [Fact]
+    public void A_write_class_that_has_a_price_and_a_call_that_reports_no_write_do_not_warn()
+    {
+        var logger = new RecordingLogger<RunPricingResolver>();
+
+        CreateResolver(WritePricedModel(), logger)
+            .Resolve("anthropic", "claude-x", Usage(1_000_000, cached: null, shortWrite: 200_000, longWrite: 100_000));
+        CreateResolver(CachePricedModelWithoutWriteRates(), logger)
+            .Resolve("anthropic", "claude-x", Usage(1_000_000, cached: 100_000, shortWrite: null, longWrite: 0));
+
+        logger.Warnings.ShouldBeEmpty();
+    }
+
     private static ModelDescriptor WritePricedModel()
         => new()
         {

@@ -408,7 +408,8 @@ agent sends the same request as before:
   [`Tracon:Pricing`](/reference/configuration/#pricing)). A run then records
   `cacheWriteInputTokens`, `cacheWriteLongInputTokens` and `cacheWriteCost`, and its
   total cost adds the write. With no write rate the written tokens stay in the input
-  charge, as before. A provider adapter of your own reports writes under the keys of
+  charge, as before, and Tracon logs one warning for each model and class that names the
+  setting to give it: the cost of those runs is below the provider's bill. A provider adapter of your own reports writes under the keys of
   `TraconUsageCounts` in `UsageDetails.AdditionalCounts`, counted inside `InputTokenCount`
   like cached tokens.
 - **Thinking tokens count against the output limit.** At `high` effort or above,

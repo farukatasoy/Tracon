@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,11 @@ internal sealed class RunPricingResolver : IRunPricingResolver
     private readonly IModelProviderRegistry _registry;
     private readonly IOptions<TraconOptions> _options;
     private readonly ILogger _logger;
+
+    // The models already warned about for tokens the provider reported as cache writes with no write price: one line for
+    // each model and class, so a busy model does not write one for every run. Bounded; beyond it nothing more is logged.
+    private readonly ConcurrentDictionary<(string Provider, string Model, bool LongClass), byte> _warnedUnpricedWrites = new();
+    private const int MaxWarnedUnpricedWrites = 256;
 
     /// <summary>Initializes a price resolver.</summary>
     /// <param name="registry">The model catalog.</param>
@@ -67,7 +73,9 @@ internal sealed class RunPricingResolver : IRunPricingResolver
                     catalogPrice.CacheWriteLongCostPerMillionTokens),
                 usage,
                 PricingSource.Catalog,
-                currency);
+                currency,
+                provider,
+                model);
         }
 
         var configuredPrice = FindConfiguredPrice(pricing, provider, model);
@@ -82,7 +90,9 @@ internal sealed class RunPricingResolver : IRunPricingResolver
                     configuredPrice.CacheWriteLongCostPerMillionTokens),
                 usage,
                 PricingSource.Configuration,
-                currency);
+                currency,
+                provider,
+                model);
         }
 
         return new RunCost { Source = PricingSource.Unknown };
@@ -137,6 +147,45 @@ internal sealed class RunPricingResolver : IRunPricingResolver
     }
 
     /// <summary>
+    /// Says once for each model and class that the provider reported cache-written tokens that no price covers, so the run is priced
+    /// at the plain input price.
+    /// </summary>
+    /// <remarks>
+    /// The run is not marked: a missing write rate changes nothing about how the model is priced, and an operator reading a cost
+    /// below the provider's bill has no other sign of it. Only providers that report writes (Anthropic) can reach this.
+    /// </remarks>
+    private void WarnWhenWritesHaveNoPrice(Rates rates, RunUsage usage, string? provider, string model)
+    {
+        if (rates.CacheWrite is null && usage.CacheWriteInputTokens is > 0)
+        {
+            WarnOnce(provider, model, longClass: false, usage.CacheWriteInputTokens.Value, "CacheWriteCostPerMillionTokens");
+        }
+
+        if (rates.CacheWriteLong is null && usage.CacheWriteLongInputTokens is > 0)
+        {
+            WarnOnce(provider, model, longClass: true, usage.CacheWriteLongInputTokens.Value, "CacheWriteLongCostPerMillionTokens");
+        }
+    }
+
+    private void WarnOnce(string? provider, string model, bool longClass, long tokens, string setting)
+    {
+        if (_warnedUnpricedWrites.Count >= MaxWarnedUnpricedWrites
+            || !_warnedUnpricedWrites.TryAdd((provider ?? string.Empty, model, longClass), 0))
+        {
+            return;
+        }
+
+        _logger.LogWarning(
+            "Model {Model} of provider {Provider} reported {Tokens} cache-written input tokens, but there is no cache-write price for it " +
+            "({Setting}): they are priced at the plain input price and the cost of its runs is below the provider's bill. Set the price in the " +
+            "model catalog or in Tracon:Pricing. This is said once for each model and class.",
+            model,
+            provider ?? "(any)",
+            tokens,
+            setting);
+    }
+
+    /// <summary>
     /// Computes the cost, charging cached input tokens and cache-written input tokens at their
     /// own rates.
     /// </summary>
@@ -158,8 +207,10 @@ internal sealed class RunPricingResolver : IRunPricingResolver
     /// source means the MODEL price is missing, which is a different fault.
     /// </para>
     /// </remarks>
-    private RunCost Compute(Rates rates, RunUsage usage, PricingSource source, string? currency)
+    private RunCost Compute(Rates rates, RunUsage usage, PricingSource source, string? currency, string? provider, string model)
     {
+        WarnWhenWritesHaveNoPrice(rates, usage, provider, model);
+
         var inputTokens = usage.InputTokens ?? 0;
         var cachedRate = rates.CachedInput;
 

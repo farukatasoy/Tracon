@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A model whose runs report cache-written tokens but has no cache-write price is logged once.** Anthropic bills the tokens it writes into the prompt cache apart from plain input. With no `CacheWriteCostPerMillionTokens` (or `CacheWriteLongCostPerMillionTokens`) for the model, Tracon prices those tokens at the plain input price, as it did before, and nothing said that the cost of the model's runs was below the provider's bill. The resolver now writes one warning for each model and class the first time a run reports such tokens, naming the setting.
+  What to do:
+  - **If you see the warning, give the model's catalog entry or its `Tracon:Pricing` entry the write price named in it.** The prices of runs already recorded do not change until you recalculate them.
+  - **If your logs are collected, expect at most one line for each model and class for the life of the process, and none for a model that has the price.**
+
 - **A retried eval job reports the tokens of the whole job, not of its last attempt.** An eval job that a worker stopped is picked up again and runs only the cases that were left. The total in `inputTokens` and `outputTokens` of the eval run counted only what the last attempt spent, so a job that was picked up again reported less than it cost. The retry now reads the tokens of the cases that were done from the run each of them recorded, the same number a job that was never interrupted adds up.
   What to do:
   - **If you compare eval runs by tokens, expect the total of a run that was retried to rise to what it spent.** An eval run that lost a case's run record to retention counts nothing for that case.
