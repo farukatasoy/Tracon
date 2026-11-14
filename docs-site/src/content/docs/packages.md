@@ -213,9 +213,12 @@ member without updating that file **fails the build** — so an accidental surfa
 change cannot ship silently, and every intentional one is visible in the commit
 that made it.
 
-Two projects are deliberately excluded: `Tracon.Generators` is a `netstandard2.0`
+Four projects are deliberately excluded: `Tracon.Generators` is a `netstandard2.0`
 build-time analyzer carried inside the Core package, not a separate NuGet package;
-`Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
+`Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API;
+`Tracon.Cli` is a dotnet tool, so it ships an executable and no library surface; and
+`Tracon.Client` is generated from the OpenAPI document, whose own drift check is the gate
+for it, so a regeneration does not become a diff of thousands of lines nobody reads.
 The project it generates references the Tracon packages at **the template
 package's own version**, so a template and the runtime it writes always come
 from the same release. Pass `--TraconVersion x.y.z` to choose another one. The

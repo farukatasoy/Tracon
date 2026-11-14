@@ -78,6 +78,7 @@ internal static class PublicSurfaceProject
         "Tracon.SqlServer",
         "Tracon.Sqlite",
         "Tracon.Testing",
+        "Tracon.Testing.Contracts.Xunit",
         "Tracon.Voice",
     ];
 

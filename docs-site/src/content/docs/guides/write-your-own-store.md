@@ -241,6 +241,12 @@ Four have no contract yet: `IConversationBranchStore`, `IDataSubjectStore`,
 `ITenantStore` and `IVectorSearchStore`. Implementing one of those is supported;
 you write your own tests for it.
 
+One contract asks for a diagnostic suppression. `AgentFileStoreContract` hands you
+`AgentFileStore`, a Microsoft Agent Framework type that Microsoft marks experimental, so a test
+class that derives from it reports `MAAI001` until you suppress it
+(`#pragma warning disable MAAI001` around the class, or `<NoWarn>MAAI001</NoWarn>` in the test
+project). No other contract class has this requirement.
+
 `IJobStore`'s contract (`JobStoreContract`) also verifies lane behavior: `LeaseAsync`
 takes a `JobLeaseRequest` whose `Lanes` it must honor (only a job from one of them, `null`
 or an empty list applies no filter), and a retried job keeps its lane. See

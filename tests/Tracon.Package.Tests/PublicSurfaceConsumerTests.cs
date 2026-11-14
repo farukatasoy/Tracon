@@ -13,10 +13,10 @@ namespace Tracon.Package.Tests;
 /// <para>
 /// The consumer is written by reflection over the shipped assemblies (<c>SurfaceGenerator/Program.cs</c>), not by hand: every
 /// extension method of a Tracon assembly is called with arguments built from its signature, every public type with settable
-/// members is constructed with all of them set, and every public interface is implemented. Nothing in it is run. The
-/// strict build then reports what no consumer can fix in their own code: a diagnostic of an analyzer on a public shape, a
-/// nullable annotation that makes the natural call a warning, an obsolete member, an experimental type in a signature, a
-/// call the trim analyzer refuses on a package that promises Native AOT.
+/// members is constructed with all of them set, every public interface is implemented, and every operation of the generated
+/// API client is called. Nothing in it is run. The strict build then reports what no consumer can fix in their own code: a
+/// diagnostic of an analyzer on a public shape, a nullable annotation that makes the natural call a warning, an obsolete
+/// member, an experimental type in a signature, a call the trim analyzer refuses on a package that promises Native AOT.
 /// </para>
 /// <para>
 /// The Native AOT publish reaches every generated method from <c>Main</c> through a branch the compiler cannot decide, so
@@ -126,31 +126,44 @@ public sealed class PublicSurfaceConsumerTests(TemplateFixture fixture)
             ],
             ignoreOrder: true);
 
-        full.Lines.Where(static line => line.StartsWith("skipped", StringComparison.Ordinal)).ShouldBeEmpty();
+        // The two generic bases of the shipped contracts have no stub of their own: each of the other contract classes derives
+        // from one of them closed over its store, and that stub overrides what the base leaves abstract.
+        full.Lines.Where(static line => line.StartsWith("skipped", StringComparison.Ordinal)).ShouldBe(
+            [
+                "skipped stub: Tracon.Testing.Contracts.Storage.StoreCancellationContract`1: generic type definition",
+                "skipped stub: Tracon.Testing.Contracts.Storage.TenantIsolationContract`1: generic type definition",
+            ],
+            ignoreOrder: true);
 
-        // Microsoft Agent Framework marks the loop types for evaluation only. A Tracon signature that names one hands
-        // that diagnostic to the consumer, who has to suppress it; the guides say so for these four and for no other.
-        // A new line here is a new signature of that kind.
-        foreach (var surface in new[] { aot, full })
-        {
-            surface.Lines.Where(static line => line.StartsWith("exposed", StringComparison.Ordinal)).ShouldBe(
-                [
-                    "exposed MAAI001: Tracon.TraconBuilderExtensions.AddLoopEvaluator(ITraconBuilder, String, Func`2)",
-                    "exposed MAAI001: Tracon.TraconBuilderExtensions.AddLoopEvaluator(ITraconBuilder, String, Func`2, String)",
-                    "exposed MAAI001: Tracon.TraconBuilderExtensions.AddLoopEvaluator(ITraconBuilder, String, LoopEvaluator)",
-                    "exposed MAAI001: Tracon.TraconBuilderExtensions.AddLoopEvaluator(ITraconBuilder, String, LoopEvaluator, String)",
-                ],
-                ignoreOrder: true);
-        }
+        // Microsoft Agent Framework marks the loop types and the file store for evaluation only. A Tracon signature that
+        // names one hands that diagnostic to the consumer, who has to suppress it; the guides say so for these five and for
+        // no other. A new line here is a new signature of that kind.
+        string[] loopEvaluators =
+        [
+            "exposed MAAI001: Tracon.TraconBuilderExtensions.AddLoopEvaluator(ITraconBuilder, String, Func`2)",
+            "exposed MAAI001: Tracon.TraconBuilderExtensions.AddLoopEvaluator(ITraconBuilder, String, Func`2, String)",
+            "exposed MAAI001: Tracon.TraconBuilderExtensions.AddLoopEvaluator(ITraconBuilder, String, LoopEvaluator)",
+            "exposed MAAI001: Tracon.TraconBuilderExtensions.AddLoopEvaluator(ITraconBuilder, String, LoopEvaluator, String)",
+        ];
+
+        aot.Lines.Where(static line => line.StartsWith("exposed", StringComparison.Ordinal)).ShouldBe(loopEvaluators, ignoreOrder: true);
+        full.Lines.Where(static line => line.StartsWith("exposed", StringComparison.Ordinal)).ShouldBe(
+            [.. loopEvaluators, "exposed MAAI001: Tracon.Testing.Contracts.Storage.AgentFileStoreContract"],
+            ignoreOrder: true);
 
         // Floors, measured when the surface was first generated; a number below one is a package or a signature the
         // generator stopped seeing.
         aot.Counts["entry-aot"].ShouldBeGreaterThanOrEqualTo(86);
         aot.Counts["options-types"].ShouldBeGreaterThanOrEqualTo(288);
         aot.Counts["stub-interface"].ShouldBeGreaterThanOrEqualTo(87);
-        full.Counts["entry-full"].ShouldBeGreaterThanOrEqualTo(131);
-        full.Counts["options-types"].ShouldBeGreaterThanOrEqualTo(581);
+        full.Counts["entry-full"].ShouldBeGreaterThanOrEqualTo(132);
+        full.Counts["options-types"].ShouldBeGreaterThanOrEqualTo(583);
         full.Counts["stub-interface"].ShouldBeGreaterThanOrEqualTo(87);
+
+        // The shipped contract classes (52, less the two generic bases) and the operations of the generated client (182 that
+        // return a task and 7 that return a stream): a package that stops being read shows here, not as a missing check.
+        full.Counts["stub-abstract-class"].ShouldBeGreaterThanOrEqualTo(50);
+        full.Counts["client-call"].ShouldBeGreaterThanOrEqualTo(189);
     }
 
     /// <summary>

@@ -4,7 +4,8 @@ using System.Text;
 // Reads the packed Tracon assemblies by reflection and writes one C# file that touches their public registration,
 // builder and option surface the way a consumer would: every extension method of a Tracon assembly is called with
 // arguments built from its signature, every public type with settable members is constructed with all of them set,
-// and every public interface and abstract class is implemented or derived from.
+// and every public interface and abstract class is implemented or derived from. A class that is built over an HttpClient (the
+// generated API client) is called once for each of its operations.
 //
 // The file is compiled by a separate project that turns every strictness switch on. Nothing here is run: the code is
 // written to be compiled, so the arguments are typed placeholders and every generated member is internal.
@@ -109,6 +110,7 @@ internal sealed class SurfaceWriter(Assembly[] assemblies, bool aot)
             }
 
             members.Append(TryOptions(type));
+            members.Append(TryClientCalls(type));
         }
 
         _code.AppendLine("#nullable enable");
@@ -595,6 +597,108 @@ internal sealed class SurfaceWriter(Assembly[] assemblies, bool aot)
         var parameters = constructor.GetParameters();
 
         return parameters.Length == 1 && parameters[0].ParameterType == constructor.DeclaringType;
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // A client over HTTP: every operation
+    // ---------------------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Calls each operation of a class that is built over an <see cref="HttpClient"/>: the generated API client. A consumer
+    /// calls its operations, not only constructs it, and the nullable annotations and the analyzers of a call site are what
+    /// the strict build reads. Nothing is run: the calls are compiled, and the root reaches them behind a branch that is never taken.
+    /// </summary>
+    private string TryClientCalls(Type type)
+    {
+        if (!type.IsClass || type.IsAbstract || type.IsGenericTypeDefinition || !type.GetConstructors().Any(static constructor => constructor.GetParameters() is [{ ParameterType: var only }] && only == typeof(HttpClient)))
+        {
+            return string.Empty;
+        }
+
+        var text = new StringBuilder();
+
+        foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                     .Where(static method => !method.IsSpecialName)
+                     .OrderBy(static method => method.ToString(), StringComparer.Ordinal))
+        {
+            text.Append(TryClientCall(type, method));
+        }
+
+        return text.ToString();
+    }
+
+    private string TryClientCall(Type client, MethodInfo method)
+    {
+        var label = client.FullName + "." + method.Name + "(" + string.Join(", ", method.GetParameters().Select(static parameter => parameter.ParameterType.Name)) + ")";
+
+        if (IsObsolete(method))
+        {
+            Skip("client-call", label, "obsolete: a call is a warning by contract");
+            return string.Empty;
+        }
+
+        if (method.IsGenericMethodDefinition)
+        {
+            Skip("client-call", label, "generic operation");
+            return string.Empty;
+        }
+
+        BeginMember();
+
+        var arguments = new List<string>();
+
+        foreach (var parameter in method.GetParameters())
+        {
+            if (parameter.IsOptional)
+            {
+                // Optional parameters are left to the compiler: a caller who passes nothing gets the declared default.
+                break;
+            }
+
+            var value = Value(parameter.ParameterType, N(parameter), depth: 0);
+
+            if (value is null || parameter.ParameterType.IsByRef)
+            {
+                Skip("client-call", label, "no placeholder for parameter '" + parameter.Name + "' of type " + parameter.ParameterType.FullName);
+                return string.Empty;
+            }
+
+            arguments.Add(value);
+        }
+
+        var call = "client." + method.Name + "(" + string.Join(", ", arguments) + ")";
+        var returnType = method.ReturnType;
+        string body;
+
+        if (returnType == typeof(Task) || returnType == typeof(ValueTask))
+        {
+            body = $"            await {call}.ConfigureAwait(false);\n";
+        }
+        else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() is var definition && (definition == typeof(Task<>) || definition == typeof(ValueTask<>)))
+        {
+            // A result that holds a stream or a connection (a file answer) is disposed, as a caller has to.
+            body = typeof(IDisposable).IsAssignableFrom(returnType.GetGenericArguments()[0])
+                ? $"            using var result = await {call}.ConfigureAwait(false);\n            _ = result;\n"
+                : $"            _ = await {call}.ConfigureAwait(false);\n";
+        }
+        else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>))
+        {
+            body = $"            await foreach (var item in global::System.Threading.Tasks.TaskAsyncEnumerableExtensions.ConfigureAwait({call}, false))\n            {{\n                _ = item;\n            }}\n";
+        }
+        else
+        {
+            Skip("client-call", label, "returns " + returnType.Name + ", which is neither a task nor a stream");
+            return string.Empty;
+        }
+
+        var id = _next++;
+        var clientType = TypeName(client, null);
+
+        Count("client-call");
+
+        _roots.Add($"_ = global::SurfaceProbe.SurfaceTouch.Call{id}(default({clientType})!);");
+
+        return Exposed(label, $"        internal static async global::System.Threading.Tasks.Task Call{id}({clientType} client)\n        {{\n{body}        }}\n\n", ExperimentalIds([method, client]));
     }
 
     // ---------------------------------------------------------------------------------------------------------------
