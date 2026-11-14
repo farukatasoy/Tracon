@@ -20,6 +20,14 @@ export const CAPTURE_PINS = {
   'approvals-light.png': '2cd6f8ca57c285b41564fb08e0f39bc6c8385f2e6ffa5f9358734a02c712722f',
   'run-detail.png': '2f6a04b188fe52d0d84fc4524b47def8eaef908b5a1d6467abbc6d482a6fac33',
   'run-detail-light.png': 'de8278d43933cd963bb64bc2119421253ae04d37b10fa0bcc20b48010a4b1e40',
+  'runs.png': '9598a91f65b59a39739a3aff6db6aa422a68c1ba4674eec37dbdc211f322f8a8',
+  'runs-light.png': 'd8dfd2defa162d35693d05d51a1670cdb6710f62e3d8d65120c47c315c9ac7f0',
+  'agent-detail.png': '2f34cabce342966571b329f46d1d6a9d5b27f50c47c8293f7d3aeb9389ad4671',
+  'agent-detail-light.png': 'acbbc7d219ea0f0e9dbf6701881b8211ffd1e03933c8a23e4b26d46afecab341',
+  'workflows.png': '923b1b7df5ff03327c122eb4d84d52ac0cfb19f64b9c1062e9c6f17530f0295f',
+  'workflows-light.png': '5dee26c72e8deb4a430dc8197032f07de4385671abdb73b8618013531ab0801e',
+  'jobs.png': '21e9aa79c4d58e573173393535f7ef9ef7ff9649585b7c7c21779d7db40b4654',
+  'jobs-light.png': 'b064fa6b473cbb9bcd73e5c2f78a06299b244d4adfc2f8986bf27c60207b1bb6',
 };
 
 // Regions in source pixels (the captures are 2x). They start below the console's
@@ -57,6 +65,42 @@ export const CROPS = [
     frames: 'the same failed reserve_stock call, narrower',
     region: { left: 548, top: 1490, width: 872, height: 310 },
     widths: [436, 872],
+  },
+  // The four console strip crops are about 1000 source pixels wide: 500 to 520 px
+  // of the real console, so a 343 px column (a 375 px viewport) still shows them
+  // at two thirds of 1:1. The jobs crop stops before the cron column, whose
+  // heading and first cell would otherwise be cut in half.
+  {
+    name: 'console-runs',
+    source: 'runs',
+    frames: 'the runs table: six rows with run id, agent and status, one awaiting approval and one awaiting input',
+    region: { left: 544, top: 636, width: 1040, height: 460 },
+    widths: [520, 1040],
+    fallback: true,
+  },
+  {
+    name: 'console-agent',
+    source: 'agent-detail',
+    frames: 'the Summary panel of the support agent: name, source, provider, model and the get_order_status tool',
+    region: { left: 544, top: 386, width: 1040, height: 580 },
+    widths: [520, 1040],
+    fallback: true,
+  },
+  {
+    name: 'console-workflows',
+    source: 'workflows',
+    frames: 'the workflows table: five rows with name, description and pattern',
+    region: { left: 544, top: 446, width: 1040, height: 546 },
+    widths: [520, 1040],
+    fallback: true,
+  },
+  {
+    name: 'console-jobs',
+    source: 'jobs',
+    frames: 'the nightly-summary schedule and the two recent jobs with handler key and target',
+    region: { left: 544, top: 322, width: 1000, height: 640 },
+    widths: [500, 1000],
+    fallback: true,
   },
 ];
 

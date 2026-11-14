@@ -110,7 +110,7 @@ export default defineConfig({
       favicon: '/favicon.svg',
       logo: { src: './public/favicon.svg', alt: '' },
       description:
-        'The production control plane for Microsoft Agent Framework — recorded runs, ' +
+        'The production-oriented control plane for Microsoft Agent Framework — recorded runs, ' +
         'tenant isolation, tamper-evident audit trail, embedded console.',
       head: [
         // 🚨 Starlight's `favicon` emits the SVG link alone. A browser that does not

@@ -335,6 +335,46 @@ if (packageRowCount !== packageCount) {
   errors.push(`compatibility.md package table has ${packageRowCount} row(s), expected ${packageCount}`);
 }
 
+// The home page's package map (the lx-family section) is a second copy of this table's Meta and
+// Native AOT columns. Without a check it is one more hand-kept copy that drifts: a package added to
+// the table never reaches the map, or a package leaves the meta package and keeps its tag. Every
+// package in the table appears in the map exactly once, with a meta tag exactly when the Meta
+// column says Yes and an AOT tag exactly when the Native AOT column says Yes.
+const familySection = landingPage.match(/<section class="lx-family[\s\S]*?<\/section>/)?.[0] ?? '';
+const familyItems = [...familySection.matchAll(/<li><code>([^<]+)<\/code>([\s\S]*?)<span>/g)].map(
+  ([, name, tags]) => [name, { meta: />meta</.test(tags), aot: />AOT</.test(tags) }],
+);
+const familyNames = new Set();
+
+for (const [name] of familyItems) {
+  if (familyNames.has(name)) {
+    errors.push(`index.mdx lists ${name} twice in the package map`);
+  }
+  familyNames.add(name);
+}
+if (familyItems.length === 0) {
+  errors.push('index.mdx has no package map (the lx-family section) or its items no longer match <li><code>Name</code>');
+}
+for (const [, name, meta, aot] of packagesSection.matchAll(/^\| `(Tracon[^`]*)` \| ([^|]*)\| [^|]*\| ([^|]*)\|/gm)) {
+  const item = familyItems.find(([listed]) => listed === name)?.[1];
+
+  if (!item) {
+    errors.push(`index.mdx package map does not list ${name}, which compatibility.md does`);
+    continue;
+  }
+  if (item.meta !== (meta.trim() === 'Yes')) {
+    errors.push(`index.mdx package map ${item.meta ? 'tags' : 'does not tag'} ${name} as meta; compatibility.md says "${meta.trim()}"`);
+  }
+  if (item.aot !== (aot.trim() === 'Yes')) {
+    errors.push(`index.mdx package map ${item.aot ? 'tags' : 'does not tag'} ${name} as AOT; compatibility.md says "${aot.trim()}"`);
+  }
+}
+for (const [name] of familyItems) {
+  if (!new Set([...packagesSection.matchAll(/^\| `(Tracon[^`]*)` \|/gm)].map((match) => match[1])).has(name)) {
+    errors.push(`index.mdx package map lists ${name}, which compatibility.md does not`);
+  }
+}
+
 // A package README states its Native AOT status in its own words, and so does the table above. The
 // table is the one place that measures; a README sentence that disagrees with it sends a consumer of
 // that package to the wrong answer on nuget.org. The README's claim is read as one of three
@@ -1588,6 +1628,41 @@ if (repositoryIsPublic) {
       errors.push(
         `dist/index.html: public repository edit link is missing or malformed; expected ${expectedEditLink}`,
       );
+    }
+  }
+}
+
+// A raw <code> element in an MDX page is not protected from smart punctuation: the build turned
+// "--prerelease" into an en dash, and a reader who copied the first install sentence of the home
+// page got "Unrecognized command or argument". The source line was right, so the source checks
+// above could not see it. Every built page is read: a command that carries a typographic dash is
+// an error. Write such a command as a string expression, {'dotnet add package X --prerelease'}.
+{
+  const builtRoot = join(siteRoot, 'dist');
+
+  if (existsSync(builtRoot)) {
+    const pending = [builtRoot];
+
+    while (pending.length > 0) {
+      const directory = pending.pop();
+
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const entryPath = join(directory, entry.name);
+
+        if (entry.isDirectory()) {
+          pending.push(entryPath);
+        } else if (entry.name === 'index.html') {
+          const dashed = readFileSync(entryPath, 'utf8').match(
+            /dotnet (?:add package|new install|tool install)[^<\n]{0,120}[\u2013\u2014]/,
+          );
+
+          if (dashed) {
+            errors.push(
+              `${relative(siteRoot, entryPath)}: a command contains a typographic dash (smart punctuation changed "--"): ${dashed[0]}`,
+            );
+          }
+        }
+      }
     }
   }
 }

@@ -21,6 +21,7 @@ import LandingScript from '../../components/landing/LandingScript.astro';
 <h2 id="two-lines">Two lines to the tower.</h2>
 <p>Stores start in memory and the host starts without a model key. The console and API live under <code>/tracon</code>, and until you allow remote access, only local callers reach the data endpoints.</p>
 <Snippet name="twoLines" />
+<p class="lx-more">Building with a coding agent? Point it at <a href="/llms.txt"><code>llms.txt</code></a>: the capability map, and which page answers what. <a href="/guides/coding-agents/">Coding agents <span aria-hidden="true">→</span></a></p>
 </div>
 <div class="lx-proof-side">
 <p class="lx-readout"><a href="/packages/"><strong>21</strong> modular packages</a><a href="/http-api/"><strong>182</strong> generated HTTP operations</a><a href="/ui/"><strong>31</strong> embedded console screens</a></p>
@@ -29,6 +30,26 @@ import LandingScript from '../../components/landing/LandingScript.astro';
 <p><code>AIAgent</code>, <code>AgentSession</code>, <code>ChatMessage</code> and <code>AIFunction</code> pass through unwrapped. There is no parallel type hierarchy to adopt.</p>
 </div>
 </div>
+</section>
+
+<section class="lx-adds not-content" aria-labelledby="adds" data-tile>
+<h2 id="adds">What MAF runs. What Tracon adds.</h2>
+<p class="lx-adds-lede">MAF is the runtime and stays the runtime. Each row is something the packages add inside the same host. The MAF column paraphrases Microsoft’s documentation, read on 2026-11-15.</p>
+<table class="lx-adds-table">
+<thead><tr><th scope="col">Concern</th><th scope="col">Microsoft Agent Framework</th><th scope="col">Tracon adds</th></tr></thead>
+<tbody>
+<tr><th scope="row">The agent</th><td data-label="Microsoft Agent Framework">Executes the agent and its model and tool loop. <code>AIAgent</code>, <code>AgentSession</code>, <code>ChatMessage</code> and <code>AIFunction</code> are its types.</td><td data-label="Tracon adds">Uses those types as they are. Adds a catalog, a definition compiler and a recording layer. <a href="/concepts/">Concepts <span aria-hidden="true">→</span></a></td></tr>
+<tr><th scope="row">Run record</th><td data-label="Microsoft Agent Framework">Emits OpenTelemetry traces, logs and metrics to the backend you choose. The pages describe no built-in store of runs, tool calls or cost.</td><td data-label="Tracon adds">Persists each run: events, tool calls, timings and cost in PostgreSQL, SQL Server or SQLite. Spans and a meter still go to your exporter. <a href="/concepts/runs/">Runs <span aria-hidden="true">→</span></a></td></tr>
+<tr><th scope="row">Interface</th><td data-label="Microsoft Agent Framework">DevUI, in Microsoft’s words “a sample app to help you visualize and debug your agents and workflows during development. It is not intended for production use.”</td><td data-label="Tracon adds">The console, embedded in <code>Tracon.UI</code> and served under <code>/tracon</code>, for the people who operate the host. <a href="/getting-started/devui/">Compare DevUI and Tracon <span aria-hidden="true">→</span></a></td></tr>
+<tr><th scope="row">Definitions</th><td data-label="Microsoft Agent Framework">Agents are registered in code with <code>AddAIAgent</code>. YAML and JSON definition files are documented, and a file can be versioned in source control; the pages describe no stored version history or rollback.</td><td data-label="Tracon adds">An agent as data: versioned, with rollback. Tracon does not read <code>AddAIAgent</code> registrations, so you register the agent again with a Tracon call. <a href="/guides/from-maf-hosting/">From MAF hosting <span aria-hidden="true">→</span></a></td></tr>
+<tr><th scope="row">Cross-agent layer</th><td data-label="Microsoft Agent Framework">Middleware for the agent run and for function calls, registered on an agent through its builder. <code>IChatClient</code> middleware wraps the model client.</td><td data-label="Tracon adds">Four built-in catalog decorators in a fixed order: recording, telemetry, tool approval, response validation. <a href="/concepts/runs/#how-recording-happens">How recording happens <span aria-hidden="true">→</span></a></td></tr>
+<tr><th scope="row">Tool approval</th><td data-label="Microsoft Agent Framework">Returns an approval request instead of running the tool. The caller gets the person’s answer and passes it back in a new run of the same session.</td><td data-label="Tracon adds">A queued run closes <code>AwaitingApproval</code> and the request waits in the store with its arguments and an expiry. A decision the audit trail cannot record is not applied. <a href="/concepts/governance/#approvals">Approvals <span aria-hidden="true">→</span></a></td></tr>
+<tr><th scope="row">Tenant boundary</th><td data-label="Microsoft Agent Framework">Hosting scopes sessions by an isolation key, and the pages tell the application to partition persisted state by tenant. No tenant data model is described.</td><td data-label="Tracon adds">Optional. Once enabled, a <code>tenant_id</code> scopes every query, and a key bound to a tenant outranks any claim or header. <a href="/concepts/governance/#multi-tenancy">Multi-tenancy <span aria-hidden="true">→</span></a></td></tr>
+<tr><th scope="row">Audit</th><td data-label="Microsoft Agent Framework">Purview middleware logs AI interactions to Purview for audit and compliance. The pages describe no audit log of administrative changes or approvals.</td><td data-label="Tracon adds">An audit trail hash-chained per tenant. <code>GET /api/audit/verify</code> reports <code>Valid</code>, <code>Broken</code>, <code>Gap</code> or <code>UnknownKey</code>. <a href="/concepts/governance/#tamper-detection">Tamper detection <span aria-hidden="true">→</span></a></td></tr>
+<tr><th scope="row">HTTP surface</th><td data-label="Microsoft Agent Framework">Hosting adds protocol endpoints to your app: Chat Completions and Responses, A2A and AG-UI. No management API is described.</td><td data-label="Tracon adds">A management API of generated HTTP operations, next to OpenAI-compatible endpoints. <a href="/http-api/">HTTP API <span aria-hidden="true">→</span></a></td></tr>
+</tbody>
+</table>
+<p class="lx-limit">The MAF column was read on 2026-11-15 from Microsoft Learn pages dated 2026-10-22 to 2026-11-10: <a href="https://learn.microsoft.com/en-us/agent-framework/agents/observability">observability</a> · <a href="https://learn.microsoft.com/en-us/agent-framework/concepts/agents/conversations/session">sessions</a> · <a href="https://learn.microsoft.com/en-us/agent-framework/agents/tools/tool-approval">tool approval</a> · <a href="https://learn.microsoft.com/en-us/agent-framework/concepts/agents/middleware/">middleware</a> · <a href="https://learn.microsoft.com/en-us/agent-framework/hosting/self-hosting/">hosting</a> · <a href="https://learn.microsoft.com/en-us/agent-framework/integrations/by-component/ui/devui/">DevUI</a> · <a href="https://learn.microsoft.com/en-us/agent-framework/agents/declarative">declarative agents</a> · <a href="https://learn.microsoft.com/en-us/agent-framework/integrations/by-component/middleware/purview">Purview</a>. A row that says the pages describe nothing does not say MAF cannot do it. Microsoft changes these pages; open the source before you decide. <a href="/guides/any-maf-feature/">Use any MAF feature <span aria-hidden="true">→</span></a></p>
 </section>
 
 <div class="lx-story not-content">
@@ -121,6 +142,133 @@ import LandingScript from '../../components/landing/LandingScript.astro';
 <div class="lx-calm-side">
 <p>Your host owns the boundary: authentication, model providers, storage and outbound connections. The public API is not frozen, and <code>Tracon.AspNetCore</code> uses preview MAF hosting packages. <a href="/getting-started/">Architecture and limits</a> · <a href="/reference/compatibility/">Compatibility</a> · <a href="/reference/versioning/">Versioning</a> · <a href="/reference/licensing/">Licensing</a></p>
 <p class="lx-devui">Coming from DevUI? Microsoft advises you to "build your own custom interface" for production. Tracon is one implementation of that production-facing layer. <a href="/getting-started/devui/">Compare DevUI and Tracon <span aria-hidden="true">→</span></a></p>
+</div>
+</section>
+
+<section class="lx-console not-content" aria-labelledby="console" data-tile>
+<h2 id="console">The tower ships in the assembly.</h2>
+<p class="lx-console-lede">The console is pre-built inside <code>Tracon.UI</code>. No JavaScript build enters your project. Four of its screens, each framed on the job it does.</p>
+<div class="lx-console-grid">
+<figure class="lx-capture">
+<p class="lx-vig-head"><span>Find the run</span></p>
+<picture class="lx-shot-light"><source type="image/avif" srcset="/landing/console-runs-light-520.avif 520w, /landing/console-runs-light-1040.avif 1040w" sizes="(min-width: 50rem) 32rem, calc(100vw - 2rem)" width="520" height="230" /><img src="/landing/console-runs-light-520.webp" alt="The console’s Runs table with six seeded runs: agent and status for each, one run awaiting approval and one awaiting input." width="520" height="230" loading="lazy" decoding="async" /></picture>
+<picture class="lx-shot-dark"><source type="image/avif" srcset="/landing/console-runs-520.avif 520w, /landing/console-runs-1040.avif 1040w" sizes="(min-width: 50rem) 32rem, calc(100vw - 2rem)" width="520" height="230" /><img src="/landing/console-runs-520.webp" alt="The console’s Runs table with six seeded runs: agent and status for each, one run awaiting approval and one awaiting input." width="520" height="230" loading="lazy" decoding="async" /></picture>
+<figcaption>Every agent execution, with its status. <a href="/ui/#runs">Runs <span aria-hidden="true">→</span></a></figcaption>
+</figure>
+<figure class="lx-capture">
+<p class="lx-vig-head"><span>Read what an agent is</span></p>
+<picture class="lx-shot-light"><source type="image/avif" srcset="/landing/console-agent-light-520.avif 520w, /landing/console-agent-light-1040.avif 1040w" sizes="(min-width: 50rem) 32rem, calc(100vw - 2rem)" width="520" height="290" /><img src="/landing/console-agent-light-520.webp" alt="The Summary panel of the support agent in the console: name, source code, provider scripted, model scripted-support, and the tool get_order_status." width="520" height="290" loading="lazy" decoding="async" /></picture>
+<picture class="lx-shot-dark"><source type="image/avif" srcset="/landing/console-agent-520.avif 520w, /landing/console-agent-1040.avif 1040w" sizes="(min-width: 50rem) 32rem, calc(100vw - 2rem)" width="520" height="290" /><img src="/landing/console-agent-520.webp" alt="The Summary panel of the support agent in the console: name, source code, provider scripted, model scripted-support, and the tool get_order_status." width="520" height="290" loading="lazy" decoding="async" /></picture>
+<figcaption>Model binding, tools and source for one agent. <a href="/ui/#agents">Agents <span aria-hidden="true">→</span></a></figcaption>
+</figure>
+<figure class="lx-capture">
+<p class="lx-vig-head"><span>See how agents are wired</span></p>
+<picture class="lx-shot-light"><source type="image/avif" srcset="/landing/console-workflows-light-520.avif 520w, /landing/console-workflows-light-1040.avif 1040w" sizes="(min-width: 50rem) 32rem, calc(100vw - 2rem)" width="520" height="273" /><img src="/landing/console-workflows-light-520.webp" alt="The console’s Workflows table with five seeded workflows: name, description and pattern, such as Sequential, Handoff and code graph." width="520" height="273" loading="lazy" decoding="async" /></picture>
+<picture class="lx-shot-dark"><source type="image/avif" srcset="/landing/console-workflows-520.avif 520w, /landing/console-workflows-1040.avif 1040w" sizes="(min-width: 50rem) 32rem, calc(100vw - 2rem)" width="520" height="273" /><img src="/landing/console-workflows-520.webp" alt="The console’s Workflows table with five seeded workflows: name, description and pattern, such as Sequential, Handoff and code graph." width="520" height="273" loading="lazy" decoding="async" /></picture>
+<figcaption>Agents wired together by one of five ready-made patterns, or by a graph in code. <a href="/ui/#workflows">Workflows <span aria-hidden="true">→</span></a></figcaption>
+</figure>
+<figure class="lx-capture">
+<p class="lx-vig-head"><span>Watch background work</span></p>
+<picture class="lx-shot-light"><source type="image/avif" srcset="/landing/console-jobs-light-500.avif 500w, /landing/console-jobs-light-1000.avif 1000w" sizes="(min-width: 50rem) 32rem, calc(100vw - 2rem)" width="500" height="320" /><img src="/landing/console-jobs-light-500.webp" alt="The console’s Jobs screen: the nightly-summary schedule with its handler key and target, and two recent jobs." width="500" height="320" loading="lazy" decoding="async" /></picture>
+<picture class="lx-shot-dark"><source type="image/avif" srcset="/landing/console-jobs-500.avif 500w, /landing/console-jobs-1000.avif 1000w" sizes="(min-width: 50rem) 32rem, calc(100vw - 2rem)" width="500" height="320" /><img src="/landing/console-jobs-500.webp" alt="The console’s Jobs screen: the nightly-summary schedule with its handler key and target, and two recent jobs." width="500" height="320" loading="lazy" decoding="async" /></picture>
+<figcaption>One queue for scheduled runs, batches and other background work. <a href="/ui/#jobs">Jobs <span aria-hidden="true">→</span></a></figcaption>
+</figure>
+</div>
+<p class="lx-limit">Captured from a local sample with seeded data. This is sample data, not live telemetry. <a href="/ui/">Every screen of the console <span aria-hidden="true">→</span></a></p>
+</section>
+
+<section class="lx-family not-content" aria-labelledby="family" data-tile>
+<h2 id="family">One family, taken a package at a time.</h2>
+<p class="lx-family-lede"><code>{'dotnet add package Tracon --prerelease'}</code> brings the packages tagged <em class="lx-sample">meta</em>. It carries no storage engine: add the one you use. <em class="lx-sample">AOT</em> marks the packages that promise trimming and Native AOT.</p>
+<div class="lx-family-grid">
+<div class="lx-family-group">
+<h3>Runtime</h3>
+<ul>
+<li><code>Tracon</code><span>The meta package. It carries no assembly.</span></li>
+<li><code>Tracon.Abstractions</code> <em class="lx-sample">meta</em> <em class="lx-sample">AOT</em><span>Contracts. No provider, web framework or database.</span></li>
+<li><code>Tracon.Core</code> <em class="lx-sample">meta</em> <em class="lx-sample">AOT</em><span>Catalog, definition compiler, tool registry, run recording.</span></li>
+<li><code>Tracon.Workflows</code> <em class="lx-sample">meta</em><span>Multi-agent workflows, checkpoints, human input.</span></li>
+</ul>
+</div>
+<div class="lx-family-group">
+<h3>Storage</h3>
+<ul>
+<li><code>Tracon.PostgreSql</code> <em class="lx-sample">AOT</em><span>Durable storage, and the only built-in vector-search store.</span></li>
+<li><code>Tracon.SqlServer</code><span>Durable storage on SQL Server.</span></li>
+<li><code>Tracon.Sqlite</code><span>One node, or durable local development.</span></li>
+</ul>
+</div>
+<div class="lx-family-group">
+<h3>Model and speech providers</h3>
+<ul>
+<li><code>Tracon.OpenAI</code> <em class="lx-sample">meta</em> <em class="lx-sample">AOT</em><span>OpenAI, and any OpenAI-compatible endpoint.</span></li>
+<li><code>Tracon.Anthropic</code><span>Claude models.</span></li>
+<li><code>Tracon.Google</code><span>Gemini models.</span></li>
+<li><code>Tracon.Azure</code> <em class="lx-sample">AOT</em><span>The Azure OpenAI provider.</span></li>
+<li><code>Tracon.Voice</code> <em class="lx-sample">AOT</em><span>Speech synthesis, transcription, live conversation.</span></li>
+</ul>
+</div>
+<div class="lx-family-group">
+<h3>Protocols</h3>
+<ul>
+<li><code>Tracon.Mcp</code> <em class="lx-sample">meta</em><span>Tools discovered from remote MCP servers.</span></li>
+<li><code>Tracon.AGUI</code><span>The endpoint for front ends that speak AG-UI.</span></li>
+</ul>
+</div>
+<div class="lx-family-group">
+<h3>Console and API</h3>
+<ul>
+<li><code>Tracon.AspNetCore</code> <em class="lx-sample">meta</em><span>The HTTP API and the access layers.</span></li>
+<li><code>Tracon.UI</code> <em class="lx-sample">meta</em><span>The embedded console.</span></li>
+</ul>
+</div>
+<div class="lx-family-group">
+<h3>Tooling, testing, client</h3>
+<ul>
+<li><code>Tracon.Testing</code><span>Fakes, not mocks.</span></li>
+<li><code>Tracon.Testing.Contracts.Xunit</code><span>The behavior contract for your own stores and providers.</span></li>
+<li><code>Tracon.Templates</code><span><code>dotnet new tracon-api</code></span></li>
+<li><code>Tracon.Client</code><span>A typed HTTP client for the management API.</span></li>
+<li><code>Tracon.Cli</code><span>The <code>tracon</code> global tool.</span></li>
+</ul>
+</div>
+</div>
+<p class="lx-limit"><a href="/packages/">Choosing packages <span aria-hidden="true">→</span></a> · <a href="/reference/compatibility/#the-21-packages">What each package promises <span aria-hidden="true">→</span></a></p>
+</section>
+
+<section class="lx-asked not-content" aria-labelledby="asked" data-tile>
+<h2 id="asked">Questions before production.</h2>
+<div class="lx-asked-grid">
+<div class="lx-asked-item">
+<h3>What does it add to a request?</h3>
+<p>No overhead figure against bare MAF is published, so none is stated here. What is measured is one machine with a synthetic model: three request paths, their latency percentiles and the rows each run writes. Recording runs inline, so a slow event sink adds its latency to every event, and a failing one is switched off for that run. That is not an SLA.</p>
+<p class="lx-more"><a href="/guides/production/#what-one-environment-measured">What one environment measured <span aria-hidden="true">→</span></a></p>
+</div>
+<div class="lx-asked-item">
+<h3>What happens when the store is unavailable?</h3>
+<p>Three behaviors, on purpose. Run recording fails quietly: the recorder switches itself off for that run, logs, and the run continues. Reads and queue operations fail loudly: they raise the provider’s exception and never return an empty list. Workers stay up and retry on the next tick. A store failure costs the record, not the run. Work in flight when the database goes away is lost the way a crash loses it, and becomes leasable again when its lease expires.</p>
+<p class="lx-more"><a href="/guides/production/#the-database-is-unreachable">The database is unreachable <span aria-hidden="true">→</span></a></p>
+</div>
+<div class="lx-asked-item">
+<h3>How is it different from DevUI or Microsoft’s control planes?</h3>
+<p>DevUI is, in Microsoft’s words, “a sample app”. Foundry Control Plane, Agent 365 and Entra Agent ID are services Microsoft runs. Tracon is a library in your own host and a control plane for that one host: it keeps no registry of a company’s agents and issues no agent identity. Tracon is not a Microsoft product, and no Microsoft product certifies it.</p>
+<p class="lx-more"><a href="/getting-started/microsoft-control-planes/">Microsoft’s control planes <span aria-hidden="true">→</span></a></p>
+</div>
+<div class="lx-asked-item">
+<h3>I already export traces. Why this?</h3>
+<p>Keep the backend. Tracon emits OpenTelemetry spans and a meter, and you choose the exporter. A trace backend shows what happened. Tracon also acts: it holds a tool call for approval, scopes queries to a tenant, and keeps the audit chain.</p>
+<p class="lx-more"><a href="/guides/observability/">Observability and cost <span aria-hidden="true">→</span></a></p>
+</div>
+<div class="lx-asked-item">
+<h3>What is the license?</h3>
+<p>Every package is MIT, and so is <code>@tracon/client</code> on npm. There is no license key, no activation call and no feature gate. Earlier previews were published under other terms, and a published version keeps the terms it shipped with.</p>
+<p class="lx-more"><a href="/reference/licensing/">Licensing <span aria-hidden="true">→</span></a></p>
+</div>
+<div class="lx-asked-item">
+<h3>What does it need to run?</h3>
+<p>An ASP.NET Core host on .NET 10. Runtime packages target <code>net10.0</code> only. The packages are preview, and the public API is not frozen.</p>
+<p class="lx-more"><a href="/reference/compatibility/">Compatibility <span aria-hidden="true">→</span></a></p>
+</div>
 </div>
 </section>
 

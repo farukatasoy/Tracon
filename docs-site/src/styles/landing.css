@@ -36,15 +36,15 @@ html:not([data-has-sidebar])[data-theme] { --sl-content-width: 72rem; }
 }
 
 /* ---------- shared ---------- */
-.sl-markdown-content > :is(.lx-proof, .lx-story, .lx-calm) { margin-block: 0; }
+.sl-markdown-content > :is(.lx-proof, .lx-story, .lx-calm, .lx-adds, .lx-console, .lx-family, .lx-asked) { margin-block: 0; }
 .sl-markdown-content > .lx-routes { max-inline-size: none; }
-:where(.lx-proof, .lx-story, .lx-calm) :where(p, figure, pre, ol, ul, h2, h3) { margin: 0; }
+:where(.lx-proof, .lx-story, .lx-calm, .lx-adds, .lx-console, .lx-family, .lx-asked) :where(p, figure, pre, ol, ul, h2, h3, table) { margin: 0; }
 /* site.css styles prose headings, pre and inline code at (0,1,1) and (0,1,3);
    these rules state the landing's own values at a specificity that wins. */
-.sl-markdown-content :is(.lx-proof, .lx-story, .lx-calm) :is(h2, h3), .sl-markdown-content h2#choose-your-path { color: var(--tracon-text-strong); letter-spacing: -.035em; line-height: 1.1; font-weight: 550; text-wrap: balance; }
-.sl-markdown-content :is(.lx-proof, .lx-story) h2, .sl-markdown-content h2#choose-your-path { font-size: clamp(1.875rem, 2.9vw, 2.5rem); }
-.sl-markdown-content :is(.lx-proof, .lx-story, .lx-calm) p:not([class]) > code { font-size: .875em; white-space: nowrap; overflow-wrap: normal; }
-:where(.lx-proof, .lx-story, .lx-calm, .lx-hero) a:not([class]) { color: var(--tracon-accent); text-underline-offset: .22em; text-decoration-thickness: 1px; }
+.sl-markdown-content :is(.lx-proof, .lx-story, .lx-calm, .lx-adds, .lx-console, .lx-family, .lx-asked) :is(h2, h3), .sl-markdown-content h2#choose-your-path { color: var(--tracon-text-strong); letter-spacing: -.035em; line-height: 1.1; font-weight: 550; text-wrap: balance; }
+.sl-markdown-content :is(.lx-proof, .lx-story, .lx-adds, .lx-console, .lx-family, .lx-asked) h2, .sl-markdown-content h2#choose-your-path { font-size: clamp(1.875rem, 2.9vw, 2.5rem); }
+.sl-markdown-content :is(.lx-proof, .lx-story, .lx-calm, .lx-adds, .lx-console, .lx-family, .lx-asked) :is(p:not([class]), td, li > span) > code { font-size: .875em; white-space: nowrap; overflow-wrap: normal; }
+:where(.lx-proof, .lx-story, .lx-calm, .lx-hero, .lx-adds, .lx-console, .lx-family, .lx-asked) a:not([class]) { color: var(--tracon-accent); text-underline-offset: .22em; text-decoration-thickness: 1px; }
 :is(.lx-lede, .lx-panel-foot, .lx-ch-text > p, .lx-ch-side > p, .lx-intro p, .lx-proof-main > p) { text-wrap: pretty; }
 .lx-vig-head span, .lx-hero .section-label { text-wrap: balance; }
 
@@ -88,8 +88,9 @@ html:not([data-has-sidebar])[data-theme] { --sl-content-width: 72rem; }
 .lx-primary span { transition: translate var(--lx-quick) var(--lx-settle); }
 .lx-primary:hover span { translate: .2rem 0; }
 .lx-text-action { color: var(--tracon-text-strong); font-size: .9375rem; text-underline-offset: .3em; }
-.lx-status { color: var(--tracon-text-muted); font-size: .875rem; line-height: 1.6; margin: 0; max-inline-size: 46ch; }
+.lx-status { color: var(--tracon-text-muted); font-size: .875rem; line-height: 1.6; margin: 0; max-inline-size: 54ch; }
 .lx-hero .lx-status a { color: inherit; text-underline-offset: .2em; }
+.lx-hero .lx-status a:last-child { white-space: nowrap; }
 
 /* The held figure: a scope on a plotting grid, and the tape in front of it. */
 .lx-held { position: relative; isolation: isolate; overflow: clip; margin: 0; padding-block-start: 10.5rem; }
@@ -331,6 +332,47 @@ html:not([data-has-sidebar])[data-theme] { --sl-content-width: 72rem; }
 .lx-routes span[aria-hidden] { grid-column: 2; grid-row: 1; color: var(--tracon-accent); transition: translate var(--lx-quick) var(--lx-settle); }
 .lx-routes a:hover span[aria-hidden] { translate: .2rem 0; }
 
+/* ---------- A, B, D, C: what the packages add ---------- */
+.lx-adds, .lx-console, .lx-family, .lx-asked { padding-block: 4rem; border-block-start: 1px solid var(--tracon-border); }
+.lx-adds > :is(p, table, div), .lx-console > :is(p, div), .lx-family > :is(p, div), .lx-asked > div { margin-block-start: 1.5rem; }
+.sl-markdown-content :is(.lx-adds, .lx-console, .lx-family, .lx-asked) > h2 + p { margin-block-start: 1rem; }
+.sl-markdown-content :is(.lx-console-grid, .lx-family-grid, .lx-asked-grid) { margin-block-start: 2.25rem; }
+:is(.lx-adds-lede, .lx-console-lede, .lx-family-lede) { font-size: 1.0625rem; line-height: 1.7; max-inline-size: 60ch; text-wrap: pretty; }
+.lx-family-lede .lx-sample { vertical-align: .1em; }
+.lx-family-lede code { overflow-wrap: anywhere; }
+
+/* A: a real table. Under 50rem each row becomes a card, so no column is squeezed. */
+.lx-adds-table { inline-size: 100%; border-collapse: collapse; font-size: .9375rem; line-height: 1.6; }
+.sl-markdown-content .lx-adds-table :is(th, td) { padding: .9rem 1.25rem .9rem 0; min-inline-size: 0; background: none; text-align: start; vertical-align: top; border-block-end: 1px solid var(--tracon-border); }
+.sl-markdown-content .lx-adds-table thead th { padding-block: .6rem; font: 500 .75rem/1.4 var(--sl-font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--tracon-text-muted); border-block-end-color: var(--tracon-border-strong); }
+.sl-markdown-content .lx-adds-table tbody th { inline-size: 9.5rem; font: 500 .8125rem/1.5 var(--sl-font-mono); color: var(--tracon-text-strong); }
+.lx-adds-table td:nth-child(2) { inline-size: 34%; color: var(--tracon-text-muted); }
+.lx-adds-table td:last-child { padding-inline-end: 0; color: var(--tracon-text); }
+.lx-adds-table td a { white-space: nowrap; }
+.lx-adds .lx-limit { max-inline-size: 78ch; text-wrap: pretty; }
+
+/* B: four captures in a static grid. Nothing here moves; the picture lift is the
+   scroll-tied one every capture already has. */
+.lx-console-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.5rem 3rem; align-items: start; }
+.lx-console-grid .lx-vig-head { margin-block-end: .6rem; }
+.lx-console-grid .lx-vig-head span { color: var(--tracon-text-strong); }
+.lx-console .lx-limit { max-inline-size: 70ch; }
+
+/* D: six groups, each a list of packages with the two tags that decide a choice. */
+.lx-family-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.25rem 3rem; align-items: start; }
+.sl-markdown-content .lx-family-group h3 { font: 500 .8125rem/1.4 var(--sl-font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--tracon-text-muted); padding-block-end: .6rem; border-block-end: 1px solid var(--tracon-border-strong); }
+.lx-family-group ul { list-style: none; padding: 0; }
+.lx-family-group li { display: flex; flex-wrap: wrap; gap: .15rem .5rem; align-items: baseline; padding-block: .7rem; border-block-end: 1px solid var(--tracon-border); font-size: .875rem; line-height: 1.5; }
+.lx-family-group li > code { font: 500 .8125rem/1.5 var(--sl-font-mono); color: var(--tracon-text-strong); overflow-wrap: anywhere; white-space: normal; }
+.lx-family-group li > span { flex: 0 0 100%; color: var(--tracon-text-muted); }
+.lx-family .lx-limit { margin-block-start: 1.75rem; }
+
+/* C: six answers, visible, in two columns. */
+.lx-asked-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.5rem 4.5rem; align-items: start; }
+.sl-markdown-content .lx-asked-item h3 { font-size: 1.1875rem; margin-block-end: .6rem; }
+.lx-asked-item p:not([class]) { line-height: 1.7; text-wrap: pretty; max-inline-size: 60ch; }
+.lx-asked-item .lx-more { margin-block-start: .6rem; }
+
 /* ---------- motion: the opening, once ---------- */
 @media (prefers-reduced-motion: no-preference) {
   .lx-sweep { animation: lx-turn 1150ms var(--lx-turn) 120ms backwards; }
@@ -403,6 +445,8 @@ html:not([data-has-sidebar])[data-theme] { --sl-content-width: 72rem; }
 
 /* ---------- widths ---------- */
 @media (width < 72rem) {
+  .lx-family-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem 2.5rem; }
+  .lx-asked-grid { column-gap: 2.75rem; }
   .lx-install-label { display: none; }
   .lx-hero { gap: 2.5rem; }
   .lx-scope { inline-size: 22rem; }
@@ -417,6 +461,7 @@ html:not([data-has-sidebar])[data-theme] { --sl-content-width: 72rem; }
   .lx-ch--band .lx-capture picture { max-inline-size: 22rem; }
 }
 @media (width < 64rem) {
+  .lx-console-grid { column-gap: 1.75rem; }
   .lx-hero { grid-template-columns: minmax(0, 1fr); padding-block: 2.5rem 3rem; }
   .lx-held { max-inline-size: 40rem; }
   .lx-proof, .lx-intro, .lx-ch, .lx-filed, .lx-calm { grid-template-columns: minmax(0, 1fr); }
@@ -425,6 +470,18 @@ html:not([data-has-sidebar])[data-theme] { --sl-content-width: 72rem; }
   .lx-capture--side { padding-block-start: 0; }
 }
 @media (width < 50rem) {
+  .lx-adds, .lx-console, .lx-family, .lx-asked { padding-block: 3rem; }
+  .lx-adds-table, .lx-adds-table tbody, .lx-adds-table tr, .sl-markdown-content .lx-adds-table :is(th, td) { display: block; }
+  .lx-adds-table thead { position: absolute; inline-size: 1px; block-size: 1px; overflow: clip; clip-path: inset(50%); }
+  .lx-adds-table tr { padding-block: 1rem; border-block-end: 1px solid var(--tracon-border); }
+  .sl-markdown-content .lx-adds-table :is(th, td) { inline-size: auto; padding: 0; border: 0; }
+  .sl-markdown-content .lx-adds-table tbody th { margin-block-end: .5rem; }
+  .lx-adds-table td:nth-child(2) { inline-size: auto; }
+  .lx-adds-table td + td { margin-block-start: .6rem; }
+  .lx-adds-table td::before { content: attr(data-label); display: block; margin-block-end: .15rem; font: 500 .6875rem/1.4 var(--sl-font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--tracon-text-muted); }
+  .lx-adds-table td:last-child::before { color: var(--tracon-accent); }
+  .lx-console-grid, .lx-family-grid, .lx-asked-grid { grid-template-columns: minmax(0, 1fr); }
+  .lx-console-grid { gap: 2rem; }
   .lx-hero h1 { font-size: clamp(2.125rem, 8.4vw, 2.625rem); text-wrap: wrap; }
   .lx-lede { font-size: 1.0625rem; }
   .lx-install { max-inline-size: none; }
