@@ -95,7 +95,7 @@ public sealed class DataSubjectChatHistoryTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task A_session_whose_agent_no_longer_exists_is_skipped_and_counted_not_thrown()
+    public async Task A_session_whose_agent_no_longer_exists_has_its_conversation_read_from_the_stored_state_after_the_round_trip_through_jsonb()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
         const string SessionId = "orphaned-agent-session";
@@ -129,8 +129,18 @@ public sealed class DataSubjectChatHistoryTests(PostgresFixture fixture)
 
         var found = await resolver.ResolveAsync([SessionId]);
 
-        found.ConversationIds.ShouldBeEmpty();
-        found.Unresolved.ShouldBe(1);
+        found.ConversationIds.ShouldHaveSingleItem("the id is plain JSON in the stored state, and jsonb keeps it readable without the agent");
+        found.Unresolved.ShouldBe(0);
+
+        // A state of another shape leaves the conversation unknown: the session is skipped and counted, not thrown.
+        var sessions = withoutAgent.GetRequiredService<ISessionStore>();
+        var stored = (await sessions.GetAsync(SessionId)).ShouldNotBeNull();
+        await sessions.SaveAsync(stored with { State = System.Text.Json.JsonDocument.Parse("{}").RootElement.Clone() });
+
+        var unknown = await resolver.ResolveAsync([SessionId]);
+
+        unknown.ConversationIds.ShouldBeEmpty();
+        unknown.Unresolved.ShouldBe(1);
     }
 
     private static async ValueTask<Microsoft.Agents.AI.AIAgent> ResolveAsync(IServiceProvider provider, string name)
