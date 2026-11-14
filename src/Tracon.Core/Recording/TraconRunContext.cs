@@ -202,7 +202,8 @@ public sealed record AgentRunScope
     /// </summary>
     /// <remarks>
     /// The session workspace asks the manager that opened it for the session's first record before the first change it
-    /// makes: a run that ends in a failure writes no record of its own, and files would stay behind a session that does not exist.
+    /// makes, and conversation memory before it writes: a run that ends in a failure writes no record of its own, and what
+    /// the run kept would stay behind a session that does not exist.
     /// </remarks>
     internal AgentSession? RecordSession { get; init; }
 

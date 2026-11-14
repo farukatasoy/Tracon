@@ -105,7 +105,8 @@ public sealed partial class AgentDefinitionCompiler
             memory.ConversationMemorySearch == ConversationMemorySearch.OnDemand
                 ? RequireBuiltInToolGovernance(definition, "on-demand conversation memory")
                 : null,
-            _loggerFactory);
+            _loggerFactory,
+            _context.Provider);
     }
 
     /// <summary>

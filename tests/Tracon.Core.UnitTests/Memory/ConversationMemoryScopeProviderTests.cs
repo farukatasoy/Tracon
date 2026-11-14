@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.Core.UnitTests.Fakes;
 using Tracon.Core.UnitTests.Tools;
 using Tracon.Tests.Common;
@@ -376,6 +377,33 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task The_record_of_a_session_that_was_just_opened_is_written_with_the_first_thing_the_user_said()
+    {
+        var sessions = new InMemorySessionStore(FixedTenantContext.Default);
+        var (provider, run) = await ProviderWithRecordSessionAsync(sessions, "session-1");
+
+        TraconRunContext.SetCurrent(run);
+        await provider.InvokedAsync(new AIContextProvider.InvokedContext(_agent, await SessionAsync(run), [new ChatMessage(ChatRole.User, "My favourite colour is teal.")], []));
+
+        (await sessions.GetAsync("session-1", TestContext.Current.CancellationToken)).ShouldNotBeNull(
+            "what the user said is kept under a session, and the delete, the retention policy and the erasure of a data subject start at its record");
+        _store.Records(Collection).ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_session_whose_record_another_request_wrote_first_keeps_nothing_and_does_not_fail_the_run()
+    {
+        var (provider, run) = await ProviderWithRecordSessionAsync(new RefusingFirstRecordStore(), "session-1");
+
+        TraconRunContext.SetCurrent(run);
+
+        await Should.NotThrowAsync(async () => await provider.InvokedAsync(
+            new AIContextProvider.InvokedContext(_agent, await SessionAsync(run), [new ChatMessage(ChatRole.User, "My favourite colour is teal.")], [])));
+
+        _store.Records(Collection).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task A_cancelled_search_is_not_swallowed()
     {
         var provider = Provider("agent-a");
@@ -403,6 +431,31 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
             maxResults,
             governance ?? BuiltInToolGovernanceTestSupport.Create(),
             loggerFactory: null);
+
+    /// <summary>
+    /// A provider that can ask the session manager for the record of the session the run opened, and the run that names it.
+    /// </summary>
+    private async Task<(ConversationMemoryScopeProvider Provider, AgentRunScope Run)> ProviderWithRecordSessionAsync(ISessionStore sessions, string sessionId)
+    {
+        var manager = new AgentSessionManager(sessions, FixedTenantContext.Default);
+        var services = new ServiceCollection().AddSingleton(manager).BuildServiceProvider();
+
+        var provider = new ConversationMemoryScopeProvider(
+            _store,
+            new TraconConversationMemoryOptions { CollectionName = Collection, VectorDimensions = 8 },
+            "tenant-a",
+            "agent-a",
+            ConversationMemorySearch.BeforeEachTurn,
+            maxResults: null,
+            BuiltInToolGovernanceTestSupport.Create(),
+            loggerFactory: null,
+            services);
+
+        var opened = await manager.GetOrCreateSessionAsync(_agent, sessionId, TestContext.Current.CancellationToken);
+        _sessions[sessionId] = opened;
+
+        return (provider, Run("tenant-a", "agent-a", "ada", sessionId) with { RecordSession = opened });
+    }
 
     private static AIFunction Function(string name) => AIFunctionFactory.Create(() => "ok", name);
 
@@ -470,4 +523,22 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
 
         return string.Join("\n", (context.Messages ?? []).Select(static message => message.Text));
     }
+
+    /// <summary>A session store that refuses the first record of every session, as it does when another request opened it first.</summary>
+    private sealed class RefusingFirstRecordStore : ISessionStore
+    {
+        public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default) => new(false);
+
+        public ValueTask<bool> TryUpdateAsync(SessionRecord record, long expectedVersion, CancellationToken cancellationToken = default) => new(false);
+
+        public ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default) => new((SessionRecord?)null);
+
+        public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default) => new(false);
+
+        public ValueTask<IReadOnlyList<SessionRecord>> QueryAsync(SessionQuery query, CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<SessionRecord>)[]);
+    }
 }
+

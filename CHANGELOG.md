@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A run keeps conversation memory only for a session whose record it could write.** The record of a session is written when a run ends, after the memory, so a run whose own save then failed (another request opened the same session first, or the store failed) had already stored what the user said under a session that no record named. The delete of a session, the retention policy and the erasure of a data subject all start at the record and could not reach those records. The memory is now written after the record of a new session, and a run whose record is refused answers as usual and does not remember that turn.
+  What to do:
+  - **If you saw conversation memory of a session that `GET /api/sessions/{id}` answers `404` for, find it with your vector store's own tools:** the records of a run that lost the race are still there, and nothing in Tracon deletes them.
+  - **If you wrote your own `ISessionStore`, expect one more write on the first turn of a new session with conversation memory:** a creation before the run's end, then an update at its end, as a session that keeps files has.
+
 - **The in-memory trace store keeps each tenant's spans in the tenant's own trace.** It keyed a trace by its trace identifier alone, so two tenants whose runs shared one identifier (a gateway that sends a W3C `traceparent` gives every run the same one) wrote into one trace: the second tenant's spans joined the first tenant's trace, and the second tenant read no trace of its own. The SQL stores always keyed a trace by tenant and identifier. Two runs of one tenant that share an identifier still join one trace in every store.
   What to do:
   - **If you run the in-memory store with more than one tenant, nothing to do:** each tenant now reads its own spans.

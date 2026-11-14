@@ -436,6 +436,24 @@ public sealed class ConversationMemoryTests
     }
 
     [Fact]
+    public async Task A_run_whose_session_record_another_request_wrote_first_keeps_no_memory_nothing_can_delete()
+    {
+        // The record of a session is written when the run ends, after the memory. A run that loses that write
+        // (a second request opened the same session first) has already stored what the user said, under a
+        // session no delete, retention policy or erasure of a data subject can find.
+        var (host, _, store) = await StartAsync(
+            configureServices: static services => services.AddSingleton<ISessionStore, SessionStoreThatRefusesTheFirstRecord>());
+
+        await using (host)
+        {
+            using var response = await PostRunAsync(host, "ada", "session-1", Colour);
+            _ = await response.Content.ReadAsStringAsync();
+
+            store.Records(Collection).ShouldBeEmpty();
+        }
+    }
+
+    [Fact]
     public async Task A_vector_store_that_is_down_costs_the_run_its_memory_and_not_its_answer()
     {
         var (host, provider, store) = await StartAsync();
@@ -924,7 +942,9 @@ public sealed class ConversationMemoryTests
             Origin = AgentDefinitionOrigin.Code,
         };
 
-    private static async Task<(TraconTestHost Host, FakeModelProvider Provider, InMemoryVectorStore Store)> StartAsync(string? extraAgent = null)
+    private static async Task<(TraconTestHost Host, FakeModelProvider Provider, InMemoryVectorStore Store)> StartAsync(
+        string? extraAgent = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var provider = new FakeModelProvider(ProviderName).ForModel("memory-1", static cfg => cfg.EchoesUserMessage());
         var store = new InMemoryVectorStore();
@@ -941,7 +961,8 @@ public sealed class ConversationMemoryTests
                 {
                     builder.AddAgent(MemoryAgent(extraAgent, memory));
                 }
-            });
+            },
+            configureServices);
 
         return (host, provider, store);
     }
@@ -1107,5 +1128,25 @@ public sealed class ConversationMemoryTests
     {
         public ValueTask<DataSubjectScope> ResolveAsync(string subjectId, string tenantId, CancellationToken cancellationToken = default)
             => new(new DataSubjectScope { SessionIds = [$"{subjectId}-session"], RunIds = [], ConversationIds = [] });
+    }
+
+    /// <summary>
+    /// A session store that refuses the first record of every session, as it does when another request
+    /// opened the same session first.
+    /// </summary>
+    private sealed class SessionStoreThatRefusesTheFirstRecord : ISessionStore
+    {
+        public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default) => default;
+
+        public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default) => new(false);
+
+        public ValueTask<bool> TryUpdateAsync(SessionRecord record, long expectedVersion, CancellationToken cancellationToken = default) => new(false);
+
+        public ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default) => new((SessionRecord?)null);
+
+        public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default) => new(false);
+
+        public ValueTask<IReadOnlyList<SessionRecord>> QueryAsync(SessionQuery query, CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<SessionRecord>)[]);
     }
 }

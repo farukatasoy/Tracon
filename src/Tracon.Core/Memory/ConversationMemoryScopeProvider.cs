@@ -25,6 +25,13 @@ namespace Tracon;
 /// what an erasure of the session deletes by.
 /// </para>
 /// <para>
+/// What a run keeps is kept under its session, and a delete of the session, the retention policy and the erasure of a data
+/// subject all begin at the session's record. The record is written when a run ends, after the memory, so a run whose own
+/// write then fails (another request opened the same session first) would leave memory nothing can reach. The memory write
+/// asks for the record first (<see cref="AgentSessionManager.EnsureRecordAsync"/>), and a refusal costs the run this one
+/// memory and not its answer.
+/// </para>
+/// <para>
 /// The search tool of <see cref="ConversationMemorySearch.OnDemand"/> is made by the inner provider and is not in the
 /// tool registry, so the wrapper runs it through the tool chain (<see cref="BuiltInToolGovernance"/>) before the model
 /// sees it. The inner provider makes a new function on every call, so the chain is built on every call too. A tool
@@ -42,6 +49,7 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
     private readonly ConversationMemorySearch _search;
     private readonly BuiltInToolGovernance? _governance;
     private readonly ILogger? _logger;
+    private readonly IServiceProvider? _services;
 
     /// <summary>Creates the provider for one compiled agent.</summary>
     /// <param name="store">The vector store the host registered.</param>
@@ -55,6 +63,10 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
     /// the only mode that has a tool; <see langword="null"/> is allowed otherwise.
     /// </param>
     /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="services">
+    /// The services of the host, from which the provider reads the session manager that writes a session's record. When
+    /// <see langword="null"/> memory is written without asking for the record, as it was.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="governance"/> is <see langword="null"/> for <see cref="ConversationMemorySearch.OnDemand"/>.</exception>
     public ConversationMemoryScopeProvider(
         VectorStore store,
@@ -64,7 +76,8 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
         ConversationMemorySearch search,
         int? maxResults,
         BuiltInToolGovernance? governance,
-        ILoggerFactory? loggerFactory)
+        ILoggerFactory? loggerFactory,
+        IServiceProvider? services = null)
     {
         // A search tool with no chain to run through is not offered: the provider does not build.
         if (search == ConversationMemorySearch.OnDemand)
@@ -77,6 +90,7 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
         _search = search;
         _governance = governance;
         _logger = loggerFactory?.CreateLogger<ConversationMemoryScopeProvider>();
+        _services = services;
 
         _inner = new ChatHistoryMemoryProvider(
             store,
@@ -195,6 +209,11 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
             return;
         }
 
+        if (!await EnsureSessionRecordAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
         await _inner
             .InvokedAsync(new InvokedContext(context.Agent, session: null, context.RequestMessages, context.ResponseMessages), cancellationToken)
             .ConfigureAwait(false);
@@ -202,6 +221,44 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
 
     /// <inheritdoc />
     public void Dispose() => _inner.Dispose();
+
+    /// <summary>Gives the session of the running run its record before memory is kept under its identity.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> when the record exists or there is nothing to ask for (a restored session, a run with no session of
+    /// its own to write); <see langword="false"/> when the record was refused and the memory is not written.
+    /// </returns>
+    /// <remarks>
+    /// A refusal is that another request opened the same session first, or that ownership is on and no user can own it. The run's
+    /// own save meets the same refusal a moment later, so the run is not failed here: it loses this one memory.
+    /// </remarks>
+    private async ValueTask<bool> EnsureSessionRecordAsync(CancellationToken cancellationToken)
+    {
+        if (TraconRunContext.Current?.RecordSession is not { } session
+            || _services?.GetService(typeof(AgentSessionManager)) is not AgentSessionManager sessions)
+        {
+            return true;
+        }
+
+        try
+        {
+            await sessions.EnsureRecordAsync(session, cancellationToken).ConfigureAwait(false);
+
+            return true;
+        }
+        catch (Exception exception) when (exception is TraconSessionConflictException or TraconSessionOwnerRequiredException)
+        {
+            if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Conversation memory of agent {Agent} was not written: the record of the session could not be written first.",
+                    _agentName);
+            }
+
+            return false;
+        }
+    }
 
     /// <summary>Reads the scope of the run that is calling.</summary>
     /// <param name="withSession">Whether the scope names the session: the write scope does, the search scope does not.</param>

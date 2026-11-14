@@ -11410,6 +11410,12 @@ The records are a copy of the session's content, so they go when their session g
 - The [retention](/concepts/governance/#retention) policy for sessions deletes the
   records of an expired session before the session row.
 
+All three begin at the session's record, so a run writes that record before it remembers
+anything in a new session. If another request opened the same session first, or session
+ownership is on and no user can own the new session, the run keeps its answer and does not
+remember that turn. A record that is never written would leave records that none of these
+can find.
+
 The store can keep data for its own reasons, such as backups. Tracon cannot delete
 that.
 
