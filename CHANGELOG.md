@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A workflow run whose process stopped is counted in the quota counter when the recovery or the reconciliation closes it.** Its run and what its function nodes reported beyond tokens were written only by the process that ran it, so a run that stopped left the counter below what it had spent, and a tenant's quota could be passed without a sign. The closer now writes that share once, after the row is closed, under the workflow's name and the run's user. A run that wrote no event, a step of a workflow and an agent run claimed this way add nothing. A process that was only silent and ends its run later does not write it again.
+  What to do:
+  - **If a quota rule counted runs or cost of a workflow that was interrupted, expect the counter to rise by the run and what it reported.** The agent steps of the run had added their own tokens before.
+  - **If you wrote your own `IQuotaStore`, nothing changes:** the entry is one more `AddUsageAsync` with the run id of the interrupted run.
+
 - **A streamed A2A message that its caller leaves is still saved, under the caller's tenant, key and user.** The A2A library keeps a `SendStreamingMessage` turn running after the caller has gone and saves the session when the model answers, with no request left. The save found no isolation key and the strict store refused it, so the finished turn was lost, and the tenant and the owner would have been read from a request that no longer existed. Tracon now binds all three when the answer to the request starts executing.
   What to do:
   - **If a caller of `SendStreamingMessage` hung up mid-turn, send its next message with the same `contextId`: the finished turn is part of the conversation.** The model call is not cancelled, so the caller is charged for it.

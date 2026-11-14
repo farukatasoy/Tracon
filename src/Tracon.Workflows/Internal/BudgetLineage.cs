@@ -144,7 +144,7 @@ internal static class BudgetLineage
                             WorkflowTreeSpend.NonTokenCost(
                                 run,
                                 run.NonTokenCost is null
-                                    ? await SnapshotFromItemsAsync(runStore, run.Id, currency, cancellationToken).ConfigureAwait(false)
+                                    ? await NonTokenCostAccumulator.SnapshotFromItemsAsync(runStore, run.Id, currency, cancellationToken).ConfigureAwait(false)
                                     : null)) ?? 0m;
                 runs += run.ChildRunCount;
                 active += await ActiveTimeAsync(runStore, run, timeProvider, logger, cancellationToken).ConfigureAwait(false);
@@ -162,33 +162,6 @@ internal static class BudgetLineage
         }
 
         return new BudgetCarryOver(tokens, cost, runs, active);
-    }
-
-    /// <summary>
-    /// What a run's own function nodes reported, from the items they were written to, for a row that holds no snapshot.
-    /// </summary>
-    /// <returns>The snapshot the run would have closed with; <see langword="null"/> when it reported nothing.</returns>
-    private static async ValueTask<RunNonTokenCost?> SnapshotFromItemsAsync(
-        IRunStore runStore,
-        Guid runId,
-        string? currency,
-        CancellationToken cancellationToken)
-    {
-        var items = await runStore.ListNonTokenUsageAsync(runId, cancellationToken).ConfigureAwait(false);
-
-        if (items.Count == 0)
-        {
-            return null;
-        }
-
-        var accumulator = new NonTokenCostAccumulator(currency);
-
-        foreach (var item in items)
-        {
-            accumulator.AddNodeItem(item.Usage);
-        }
-
-        return accumulator.Seal();
     }
 
     /// <summary>

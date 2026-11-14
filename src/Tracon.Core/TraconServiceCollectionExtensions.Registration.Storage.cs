@@ -457,6 +457,13 @@ public static partial class TraconServiceCollectionExtensions
         // Orphaned run reconciliation. Neither is built, and the store sees no
         // query, while RunReconciliationOptions.Enabled is off (the default).
         services.TryAddGatedLoop<RunHeartbeatWriter>();
+        // What the two closers of an interrupted workflow root owe the quota counter (the recovery and the reconciliation).
+        services.TryAddSingleton(static provider => new InterruptedRunQuotaWriter(
+            provider.GetRequiredService<IRunStore>(),
+            provider.GetService<QuotaEnforcer>(),
+            provider.GetService<IOptions<TraconOptions>>()?.Value.Pricing.Currency,
+            provider.GetService<TimeProvider>() ?? TimeProvider.System,
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<InterruptedRunQuotaWriter>>()));
         services.TryAddGatedLoop<RunReconciliationService>();
 
         // Approval expiration scan. TraconApprovalOptions.ExpirationEnabled
@@ -505,5 +512,6 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<IWorkflowRecoveryPolicy>(),
             provider.GetService<IOptionsMonitor<TraconSchedulingOptions>>(),
             provider.GetService<TimeProvider>(),
-            provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowRecovery>>());
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowRecovery>>(),
+            provider.GetService<InterruptedRunQuotaWriter>());
 }

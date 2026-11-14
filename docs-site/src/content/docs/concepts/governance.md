@@ -569,6 +569,14 @@ the one that crosses it. A late tool amount that crosses a threshold is announce
 in another currency than `Tracon:Pricing:Currency` adds its tokens and the amounts it
 reported beyond tokens, not its token cost.
 
+A workflow run whose process stopped never reached its end, so it is counted when
+something else closes it: the recovery that continues it, or the reconciliation that claims it.
+The counter gets one run and the amount its function nodes reported beyond tokens, under the
+workflow's name and the run's user; the agent steps of the run had added their own tokens as
+they ended. A run that wrote no event never started and adds nothing, and neither does an
+agent run that was claimed this way: its tokens were on its own process, which is gone. If the
+process was only silent and ends its run later, the run is not counted a second time.
+
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
 finishes. A run already in progress is never cut off during execution, so brief overshoot is

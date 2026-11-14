@@ -6,11 +6,12 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A gate, not a convenience. Four writers add to the same counter — the agent root,
-/// a child agent run, the workflow root and a tool call that ends after its run — and
+/// A gate, not a convenience. Five writers add to the same counter — the agent root,
+/// a child agent run, the workflow root, a workflow root that an interruption closed
+/// (<see cref="RecordClosedRootAsync"/>) and a tool call that ends after its run — and
 /// each one that builds its own <see cref="QuotaConsumption"/> is a place the next term
-/// (the next thing a run spends) can be added in three of them and forgotten in the
-/// fourth, which is how a charge goes missing from a tenant's ceiling. The identity is
+/// (the next thing a run spends) can be added in four of them and forgotten in the
+/// fifth, which is how a charge goes missing from a tenant's ceiling. The identity is
 /// also here once: the root's tenant, name and user, from the tree's
 /// <see cref="TreeAccount"/>, never from whoever happens to be calling.
 /// </para>
@@ -21,6 +22,42 @@ namespace Tracon;
 /// </remarks>
 internal static class TreeQuota
 {
+    /// <summary>
+    /// Adds the share of a workflow root that someone else closed after its process stopped: the run, and what its function nodes
+    /// reported, which is all a row that holds no snapshot has.
+    /// </summary>
+    /// <param name="quota">The recorder; <see langword="null"/> when none is registered.</param>
+    /// <param name="tenantId">The tenant of the root.</param>
+    /// <param name="root">The closed root: its workflow and its user name the counter.</param>
+    /// <param name="amount">What the run's function nodes reported, or <see langword="null"/> when nothing was priced.</param>
+    /// <param name="occurredAt">When the share is settled; the period is computed from it.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the entry is written.</returns>
+    /// <remarks>
+    /// The account is made here, from the row, because a closer has no tree of its own: the process that held it is gone. It is the
+    /// same identity the root would have written under (<c>TreeAccount(tenant, name, user)</c>), so the entry lands in the counter the
+    /// run's own entry would have.
+    /// </remarks>
+    internal static ValueTask<IReadOnlyList<QuotaThresholdCrossing>> RecordClosedRootAsync(
+        IQuotaRecorder? quota,
+        string tenantId,
+        RunRecord root,
+        decimal? amount,
+        DateTimeOffset occurredAt,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+
+        return RecordAsync(
+            new TreeAccount(tenantId, root.WorkflowName ?? root.AgentName, root.UserId, quota),
+            root.Id,
+            runs: 1,
+            tokens: 0,
+            amount,
+            occurredAt,
+            cancellationToken);
+    }
+
     /// <summary>Adds one entry to the counter the account names.</summary>
     /// <param name="account">The tree's account, written by its root.</param>
     /// <param name="runId">The run that spent: the one a threshold webhook names.</param>

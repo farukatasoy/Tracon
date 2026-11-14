@@ -1457,6 +1457,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // read once here; an item reported later stays in the run's detail.
         var nonTokenCost = scope.NonTokenCost?.Seal();
 
+        // 🚨 Asked BEFORE this process closes the row: afterwards the row says what this process wrote. A process that was only
+        // silent (its lease ran out, a closer took the run over) ends its run later; the closer wrote the run's share into the
+        // counter already, and this process writing it again would count one run twice. The window between the question and
+        // the write is narrow and not shut; the counter is approximate and the other error is the worse one.
+        var shareWritten = await ClosedByACloserAsync(execution, scope).ConfigureAwait(false);
+
         await writer.CompleteAsync(
             status,
             usage: null,
@@ -1467,7 +1473,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             modelProvider: null,
             cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-        await RecordQuotaAsync(execution, scope, nonTokenCost, CancellationToken.None).ConfigureAwait(false);
+        if (!shareWritten)
+        {
+            await RecordQuotaAsync(execution, scope, nonTokenCost, CancellationToken.None).ConfigureAwait(false);
+        }
 
         // The requests the run waits on are read once: the inbox rows and the webhooks share it.
         var awaiting = status == RunStatus.AwaitingInput
@@ -1718,6 +1727,36 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// and a step's background task that ended later was never in it.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Whether another closer closed this run's row after its process stopped, and so wrote the run's share to the quota counter
+    /// (<c>InterruptedRunQuotaWriter</c>).
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when the row is failed with the type the recovery or the reconciliation closes with;
+    /// <see langword="false"/> when it is not, when no counter is written, or when the store cannot answer: the share is then
+    /// written, as it always was.
+    /// </returns>
+    private async ValueTask<bool> ClosedByACloserAsync(WorkflowExecution execution, AgentRunScope scope)
+    {
+        if (scope.Budget?.Account is not { Quota: not null })
+        {
+            return false;
+        }
+
+        try
+        {
+            var record = await _services.RunStore.GetRunAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
+
+            return record is { Status: RunStatus.Failed, Error.Type: WorkflowRecovery.InterruptedErrorType or TraconErrorTypes.Orphaned };
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            _logger.LogWarning(exception, "Could not read workflow run {RunId} before closing it; its quota share is written as usual.", execution.RunId);
+
+            return false;
+        }
+    }
+
     private async ValueTask RecordQuotaAsync(
         WorkflowExecution execution,
         AgentRunScope scope,

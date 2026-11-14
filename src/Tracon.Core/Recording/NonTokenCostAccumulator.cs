@@ -109,6 +109,44 @@ internal sealed class NonTokenCostAccumulator
         _budget = budget;
     }
 
+    /// <summary>
+    /// What a run's own function nodes reported, from the items they were written to, for a row that holds no snapshot.
+    /// </summary>
+    /// <param name="runStore">The run store.</param>
+    /// <param name="runId">The run.</param>
+    /// <param name="currency">The currency the items add up in (<c>Tracon:Pricing:Currency</c>).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The snapshot the run would have closed with; <see langword="null"/> when it reported nothing.</returns>
+    /// <remarks>
+    /// Items are written as they are reported, and the snapshot only when the run ends. A run whose process died has the first and
+    /// not the second; this adds the items up with the rule the run itself would have used, so its budget, its continuation and its
+    /// quota entry count the same money.
+    /// </remarks>
+    public static async ValueTask<RunNonTokenCost?> SnapshotFromItemsAsync(
+        IRunStore runStore,
+        Guid runId,
+        string? currency,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(runStore);
+
+        var items = await runStore.ListNonTokenUsageAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        if (items.Count == 0)
+        {
+            return null;
+        }
+
+        var accumulator = new NonTokenCostAccumulator(currency);
+
+        foreach (var item in items)
+        {
+            accumulator.AddNodeItem(item.Usage);
+        }
+
+        return accumulator.Seal();
+    }
+
     /// <summary>Checks an item a reporter wants to record.</summary>
     /// <param name="usage">The item.</param>
     /// <returns>Why the item cannot be recorded, or <see langword="null"/> when it can.</returns>

@@ -76,13 +76,17 @@ namespace Tracon;
 /// <param name="schedulingOptions">The queue's settings, for the attempt limit of a job that sets none.</param>
 /// <param name="clock">The time source.</param>
 /// <param name="logger">The logger.</param>
+/// <param name="quotaShare">
+/// Writes the share of a run this closes as interrupted to the quota counter; <see langword="null"/> when none is registered.
+/// </param>
 internal sealed class WorkflowRecovery(
     IRunStore runStore,
     IWorkflowCheckpointStore checkpointStore,
     IWorkflowRecoveryPolicy? policy,
     IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null,
     TimeProvider? clock = null,
-    ILogger? logger = null)
+    ILogger? logger = null,
+    InterruptedRunQuotaWriter? quotaShare = null)
 {
     /// <summary>The error type an interrupted run is closed with.</summary>
     public const string InterruptedErrorType = TraconErrorTypes.Interrupted;
@@ -346,6 +350,15 @@ internal sealed class WorkflowRecovery(
         var last = await runStore.GetLastEventSequenceAsync(run.Id, cancellationToken).ConfigureAwait(false);
         var sequence = (last ?? -1) + 1;
 
+        // 🚨 Whether this close is the one that owes the run's share to the counter: asked of the row just before it is
+        // closed, not of the plan, which was read earlier. A row that is no longer running was closed by someone else in
+        // between (the reconciliation, which wrote the share itself), and a row that wrote no event never started. The
+        // question and the write are two steps, so the window is narrow and not shut: the share is then written twice, and
+        // that is the lesser error of the two a counter can make.
+        var ran = quotaShare is not null
+            && last is not null
+            && await runStore.GetRunAsync(run.Id, cancellationToken).ConfigureAwait(false) is { Status: RunStatus.Running };
+
         try
         {
             await runStore.AppendEventAsync(
@@ -388,6 +401,12 @@ internal sealed class WorkflowRecovery(
                 TenantId = run.TenantId,
             },
             cancellationToken).ConfigureAwait(false);
+
+        // After the row is closed, so a close that fails never leaves a share without its run.
+        if (quotaShare is not null)
+        {
+            await quotaShare.RecordAsync(run, ran, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private ValueTask<List<RunRecord>> ReadChainAsync(Guid headRunId, string tenantId, CancellationToken cancellationToken)
