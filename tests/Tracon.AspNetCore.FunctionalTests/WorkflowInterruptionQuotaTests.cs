@@ -1,11 +1,14 @@
+using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.QueuedWorkflowHarness;
+// The same alias reason as ApprovalAnsweredAfterDisconnectTests.
+using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A workflow run that an interruption closed has its own share in the quota counter, once.
+/// A workflow run or an agent run that an interruption closed has its own share in the quota counter, once.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -116,7 +119,106 @@ public sealed class WorkflowInterruptionQuotaTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task A_row_that_the_reconciliation_claimed_is_counted_when_it_is_a_workflow_root_that_ran_and_not_otherwise(bool sqlite)
+    public async Task An_agent_root_that_the_reconciliation_claimed_writes_its_run_and_what_its_tools_measured_with_its_user(bool sqlite)
+    {
+        var quota = new EntryRecordingQuotaStore();
+        using var database = sqlite ? new TempSqliteDatabase("interruption-quota-agent") : null;
+        await using var host = await StartReconcilingAsync(quota, database);
+
+        // What an agent's tool reports sits on the call's own row; an agent writes no item of a function node.
+        var runId = await SeedOrphanAsync(host, kind: RunKind.Agent, parent: null, events: true, amounts: [], tools: [0.3m, 0.2m]);
+
+        await WaitForReconciliationPassAsync(host, runId);
+
+        var entry = EntriesOf(quota, runId).ShouldHaveSingleItem();
+
+        entry.Runs.ShouldBe(1);
+        entry.Tokens.ShouldBe(0, "the tokens of the run were on its own process, which is gone");
+        entry.Cost.ShouldBe(0.5m);
+        entry.AgentName.ShouldBe(Orphan);
+        entry.UserId.ShouldBe(User, "the claim of a SQL store does not return the user: the closer reads the row");
+    }
+
+    [Fact]
+    public async Task An_agent_run_that_ends_after_the_reconciliation_closed_its_row_adds_its_tokens_and_not_the_run_again()
+    {
+        // A process that was only silent: the reconciliation closes its row and counts the run, and the process then ends its
+        // run. The run is in the counter once, and what only the process knows (its tokens) is added.
+        var quota = new EntryRecordingQuotaStore();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddModelProvider(new FakeModelProvider("quota-model")
+                    .CallsTool("hold", new { }, inputTokens: 40, outputTokens: 12)
+                    .RespondsWith("done", inputTokens: 55, outputTokens: 4))
+                .AddTool(
+                    (Func<CancellationToken, Task<string>>)(async cancellationToken =>
+                    {
+                        started.TrySetResult();
+                        await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+                        return "held";
+                    }),
+                    name: "hold",
+                    description: "Waits until the test lets it go.")
+                .AddAgent(new AgentDefinition
+                {
+                    Name = "slow-agent",
+                    Instructions = "Give a short answer.",
+                    Model = new ModelBinding { Provider = "quota-model", Model = "quota-1" },
+                    ToolNames = ["hold"],
+                }),
+            configureServices: services =>
+            {
+                services.Configure<TraconOptions>(static options => options.Pricing.Currency = "USD");
+                services.Configure<RunReconciliationOptions>(static options =>
+                {
+                    options.Enabled = true;
+
+                    // The test claims the row itself, once.
+                    options.ScanInterval = TimeSpan.FromHours(1);
+                });
+                services.AddSingleton<IQuotaStore>(quota);
+                services.AddSingleton<IRunAttributionContext>(new SettableAttribution { UserId = User });
+            });
+
+        var call = host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents/slow-agent/run", UriKind.Relative),
+            new AgentRunRequest { Message = "go" },
+            TestContext.Current.CancellationToken);
+
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var claimed = (await runs.ClaimOrphanedRunsAsync(TimeSpan.FromMilliseconds(1), 10, TestContext.Current.CancellationToken))
+            .ShouldHaveSingleItem("the run that waits in its tool is the one the reconciliation claims");
+
+        await host.Services.GetRequiredService<InterruptedRunQuotaWriter>().RecordAsync(claimed, ran: null, TestContext.Current.CancellationToken);
+
+        EntriesOf(quota, claimed.Id).ShouldHaveSingleItem("the closer counted the run").Runs.ShouldBe(1);
+
+        release.TrySetResult();
+        using (await call)
+        {
+        }
+
+        await WaitUntil.TrueAsync(
+            async () => (await runs.GetRunAsync(claimed.Id))?.Status == RunStatus.Completed,
+            "the run that was only silent to end its own run");
+
+        var entries = EntriesOf(quota, claimed.Id);
+
+        entries.Sum(static entry => entry.Runs).ShouldBe(1, "a run is counted once, by whoever closed it first");
+        entries.Single(static entry => entry.Tokens > 0).Runs.ShouldBe(0, "the process adds what only it knows: its tokens");
+        entries.Sum(static entry => entry.Tokens).ShouldBe(40 + 12 + 55 + 4);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_row_that_the_reconciliation_claimed_is_counted_when_it_is_a_root_that_ran_and_not_otherwise(bool sqlite)
     {
         var quota = new EntryRecordingQuotaStore();
         using var database = sqlite ? new TempSqliteDatabase("interruption-quota-scope") : null;
@@ -124,17 +226,17 @@ public sealed class WorkflowInterruptionQuotaTests
 
         var parent = await SeedOrphanAsync(host, kind: RunKind.Workflow, parent: null, events: true, amounts: []);
         var step = await SeedOrphanAsync(host, kind: RunKind.Workflow, parent: parent, events: true, amounts: [0.4m]);
-        var agent = await SeedOrphanAsync(host, kind: RunKind.Agent, parent: null, events: true, amounts: [0.4m]);
-        var neverRan = await SeedOrphanAsync(host, kind: RunKind.Workflow, parent: null, events: false, amounts: [0.4m]);
+        var agentStep = await SeedOrphanAsync(host, kind: RunKind.Agent, parent: parent, events: true, amounts: [], tools: [0.4m]);
+        var neverRan = await SeedOrphanAsync(host, kind: RunKind.Agent, parent: null, events: false, amounts: [], tools: [0.4m]);
 
         await WaitForReconciliationPassAsync(host, neverRan);
 
         quota.Entries.Select(static entry => entry.RunId).ShouldBe(
             [parent.ToString()],
-            "a root that ran writes its run even with nothing reported; a step of a workflow, an agent run and a row that never wrote an event write nothing");
+            "a root that ran writes its run even with nothing reported; a step of a workflow, an agent run below a root and a row that never wrote an event write nothing");
         quota.Entries.Single().Cost.ShouldBeNull();
 
-        _ = (step, agent);
+        _ = (step, agentStep);
     }
 
     private const string Orphan = "doomed-workflow";
@@ -183,7 +285,13 @@ public sealed class WorkflowInterruptionQuotaTests
     }
 
     /// <summary>Writes a run that a process left behind: started ten minutes ago, no heartbeat, still marked running.</summary>
-    private static async Task<Guid> SeedOrphanAsync(TraconTestHost host, RunKind kind, Guid? parent, bool events, decimal[] amounts)
+    private static async Task<Guid> SeedOrphanAsync(
+        TraconTestHost host,
+        RunKind kind,
+        Guid? parent,
+        bool events,
+        decimal[] amounts,
+        decimal[]? tools = null)
     {
         var runs = host.Services.GetRequiredService<IRunStore>();
         var tenant = host.Services.GetRequiredService<ITenantContext>().TenantId;
@@ -226,6 +334,20 @@ public sealed class WorkflowInterruptionQuotaTests
                 Usage = RecoveryProbe.Spent(amount),
                 CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-9),
                 TenantId = tenant,
+            });
+        }
+
+        foreach (var (amount, index) in (tools ?? []).Select(static (amount, index) => (amount, index)))
+        {
+            await runs.RecordToolInvocationAsync(new ToolInvocationRecord
+            {
+                Id = TraconId.NewId(),
+                RunId = runId,
+                ToolName = "synthesize_speech",
+                ToolCallId = $"call-{index}",
+                CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-9),
+                TenantId = tenant,
+                Usage = RecoveryProbe.Spent(amount),
             });
         }
 

@@ -2311,13 +2311,17 @@ the one that crosses it. A late tool amount that crosses a threshold is announce
 in another currency than `Tracon:Pricing:Currency` adds its tokens and the amounts it
 reported beyond tokens, not its token cost.
 
-A workflow run whose process stopped never reached its end, so it is counted when
-something else closes it: the recovery that continues it, or the reconciliation that claims it.
-The counter gets one run and the amount its function nodes reported beyond tokens, under the
-workflow's name and the run's user; the agent steps of the run had added their own tokens as
-they ended. A run that wrote no event never started and adds nothing, and neither does an
-agent run that was claimed this way: its tokens were on its own process, which is gone. If the
-process was only silent and ends its run later, the run is not counted a second time.
+A run whose process stopped never reached its end, so it is counted when something else
+closes it: the recovery that continues a workflow, or the reconciliation that claims a run.
+The counter gets one run and the amount the run reported beyond tokens, under the run's name
+and its user. For a workflow that is the amount its function nodes reported, and the agent steps
+of the run had added their own tokens as they ended. For an agent run it is the amount its tools
+reported, read from the records of its calls: a run that streamed wrote each call as its result
+arrived, and a run that did not stream wrote none before it stopped. The tokens of an agent run
+were on its own process, which is gone, so they are not counted. A run that wrote no event never
+started and adds nothing, and neither does a step of a workflow or a child agent. If the process
+was only silent and ends its run later, the run is not counted a second time: it adds its tokens
+and what they cost.
 
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it

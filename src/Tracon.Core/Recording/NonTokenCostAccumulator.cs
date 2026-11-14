@@ -147,6 +147,44 @@ internal sealed class NonTokenCostAccumulator
         return accumulator.Seal();
     }
 
+    /// <summary>
+    /// What a run's tools measured, from the call records they were written to, for a row that holds no snapshot.
+    /// </summary>
+    /// <param name="runStore">The run store.</param>
+    /// <param name="runId">The run.</param>
+    /// <param name="currency">The currency the measurements add up in (<c>Tracon:Pricing:Currency</c>).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The snapshot the run would have closed with; <see langword="null"/> when no tool measured anything.</returns>
+    /// <remarks>
+    /// An agent run has no function node, so nothing was written to the items: what its tools reported sits on the record of each
+    /// call, written as the result arrives in a streamed run. A run that never streamed wrote its calls when it ended, and a
+    /// process that died before that left none. The records are added up with the rule the run itself would have used.
+    /// </remarks>
+    public static async ValueTask<RunNonTokenCost?> SnapshotFromToolInvocationsAsync(
+        IRunStore runStore,
+        Guid runId,
+        string? currency,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(runStore);
+
+        var invocations = await runStore.ListToolInvocationsAsync(runId, cancellationToken).ConfigureAwait(false);
+        NonTokenCostAccumulator? accumulator = null;
+
+        foreach (var invocation in invocations)
+        {
+            if (invocation.Usage is not { } usage)
+            {
+                continue;
+            }
+
+            accumulator ??= new NonTokenCostAccumulator(currency);
+            accumulator.ReportToolMeasurement(invocation.ToolCallId ?? invocation.Id.ToString("N"), usage);
+        }
+
+        return accumulator?.Seal();
+    }
+
     /// <summary>Checks an item a reporter wants to record.</summary>
     /// <param name="usage">The item.</param>
     /// <returns>Why the item cannot be recorded, or <see langword="null"/> when it can.</returns>

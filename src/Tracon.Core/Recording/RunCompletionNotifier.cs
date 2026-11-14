@@ -212,7 +212,9 @@ internal sealed class RunCompletionNotifier
     /// <para>
     /// A root writes <c>Runs = 1</c>; a child writes <c>Runs = 0</c>, so a tree is one
     /// run however deep it is and a child that ends after its root still adds its
-    /// tokens and cost. The identity comes from the tree's budget
+    /// tokens and cost. A root whose row the reconciliation already closed (its process was only
+    /// silent, and it ends its run later) has its run and what its tools measured written by that
+    /// closer, so it writes its tokens and their price and nothing else. The identity comes from the tree's budget
     /// (<see cref="AgentRunBudget.Account"/>), never from the ambient run scope: a
     /// background child ends in a task that does not carry the root's tenant or user.
     /// </para>
@@ -244,12 +246,19 @@ internal sealed class RunCompletionNotifier
             return;
         }
 
+        var closedByACloser = scope.Depth == 0 && await ClosedByACloserAsync(scope).ConfigureAwait(false);
+
+        // The closer counted the run and what the tools measured; what only this process knows is the tokens and their price.
+        var amount = closedByACloser
+            ? QuotaAmount(scope, RunSpend.Total(cost is { Source: not PricingSource.Unknown } ? cost : null, null), cost, null)
+            : QuotaAmount(scope, own.Cost, cost, nonTokenCost);
+
         var crossings = await TreeQuota.RecordAsync(
             account,
             scope.RunId,
-            runs: scope.Depth == 0 ? 1 : 0,
+            runs: scope.Depth == 0 && !closedByACloser ? 1 : 0,
             tokens: own.Usage?.TotalTokens ?? 0,
-            amount: QuotaAmount(scope, own.Cost, cost, nonTokenCost),
+            amount,
             _services.TimeProvider.GetUtcNow(),
             cancellationToken).ConfigureAwait(false);
 
@@ -259,6 +268,39 @@ internal sealed class RunCompletionNotifier
         foreach (var crossing in crossings)
         {
             await WriteQuotaThresholdNoticeAsync(scope, account, crossing, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Whether the reconciliation closed this root's row after its process went silent, and so wrote the run's share to the quota
+    /// counter (<c>InterruptedRunQuotaWriter</c>).
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when the row is failed with the type the reconciliation closes with; <see langword="false"/> when it is
+    /// not, when no reconciliation can claim a row, or when the store cannot answer: the share is then written as it always was.
+    /// </returns>
+    /// <remarks>
+    /// The row is read only when a reconciliation is on, because only it closes the row of an agent run. The read and the write of
+    /// the share are not one step: a claim that lands between them counts the run twice, the error the counter prefers to losing it.
+    /// </remarks>
+    private async ValueTask<bool> ClosedByACloserAsync(RunRecordingScope scope)
+    {
+        if (_services.Reconciliation is { Enabled: false })
+        {
+            return false;
+        }
+
+        try
+        {
+            var record = await _services.RunStore.GetRunAsync(scope.RunId, CancellationToken.None).ConfigureAwait(false);
+
+            return record is { Status: RunStatus.Failed, Error.Type: TraconErrorTypes.Orphaned };
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            _logger.LogWarning(exception, "Could not read run {RunId} before its quota entry; the entry is written as usual.", scope.RunId);
+
+            return false;
         }
     }
 

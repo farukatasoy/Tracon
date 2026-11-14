@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **An agent run that its process left behind is counted in the quota counter when the reconciliation closes it.** A run writes its share (one run and what its tools reported beyond tokens) when it ends, and a process that stopped never got there; the reconciliation closed the row and wrote nothing, so a workflow that stopped was counted and an agent run that stopped was not. The reconciliation now writes the run and the amount its tools reported, read from the records of its calls, under the agent's name and the run's user. The run's tokens were on the process that is gone and stay out. A process that was only silent and ends its run later adds its tokens and their price and not the run again.
+  What to do:
+  - **If a quota rule counted runs or cost of agents, expect the counter to rise by the agent runs a reconciliation closed.** Only a run that wrote an event is counted, and only when `Tracon:RunReconciliation:Enabled` is on.
+  - **If an agent that did not stream reported tool costs and its process died, those costs are not counted:** such a run writes its calls when it ends.
+  - **If you wrote your own `IQuotaStore`, nothing changes:** the entry is one more `AddUsageAsync` with the run id of the closed run.
+
 - **A run keeps conversation memory only for a session whose record it could write.** The record of a session is written when a run ends, after the memory, so a run whose own save then failed (another request opened the same session first, or the store failed) had already stored what the user said under a session that no record named. The delete of a session, the retention policy and the erasure of a data subject all start at the record and could not reach those records. The memory is now written after the record of a new session, and a run whose record is refused answers as usual and does not remember that turn.
   What to do:
   - **If you saw conversation memory of a session that `GET /api/sessions/{id}` answers `404` for, find it with your vector store's own tools:** the records of a run that lost the race are still there, and nothing in Tracon deletes them.

@@ -462,4 +462,64 @@ public sealed class NonTokenCostAccumulatorTests
 
         accumulator.TakeLateToolAmount("call-1").ShouldBeNull();
     }
+
+    [Fact]
+    public async Task The_snapshot_of_the_call_records_of_a_run_adds_what_its_tools_measured_with_the_rule_the_run_uses()
+    {
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var runId = TraconId.NewId();
+
+        await RecordCallAsync(store, runId, "call-1", Item(0.25m));
+        await RecordCallAsync(store, runId, "call-2", Item(0.5m, estimated: true));
+        await RecordCallAsync(store, runId, "call-3", usage: null);
+        await RecordCallAsync(store, runId, "call-4", Item(100m, "EUR"));
+
+        var snapshot = (await NonTokenCostAccumulator.SnapshotFromToolInvocationsAsync(store, runId, "USD", TestContext.Current.CancellationToken))
+            .ShouldNotBeNull();
+
+        snapshot.Amount.ShouldBe(0.75m);
+        snapshot.IsEstimated.ShouldBeTrue();
+        snapshot.UnsummedItemCount.ShouldBe(1, "a measurement in another currency is counted and never added");
+    }
+
+    [Fact]
+    public async Task The_snapshot_of_a_run_whose_tools_measured_nothing_is_none_and_a_call_with_no_identity_still_counts()
+    {
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var quiet = TraconId.NewId();
+        var anonymous = TraconId.NewId();
+
+        await RecordCallAsync(store, quiet, "call-1", usage: null);
+        await RecordCallAsync(store, anonymous, callId: null, Item(0.4m));
+
+        (await NonTokenCostAccumulator.SnapshotFromToolInvocationsAsync(store, quiet, "USD", TestContext.Current.CancellationToken)).ShouldBeNull();
+        (await NonTokenCostAccumulator.SnapshotFromToolInvocationsAsync(store, anonymous, "USD", TestContext.Current.CancellationToken))
+            .ShouldNotBeNull().Amount.ShouldBe(0.4m);
+    }
+
+    private static async ValueTask RecordCallAsync(InMemoryRunStore store, Guid runId, string? callId, ToolCallUsage? usage)
+    {
+        // A run's calls are listed for the tenant that owns the run, so the run is started first.
+        if (await store.GetRunAsync(runId) is null)
+        {
+            await store.StartRunAsync(new RunStartInfo
+            {
+                RunId = runId,
+                AgentName = "narrator",
+                StartedAt = DateTimeOffset.UtcNow,
+                TenantId = FixedTenantContext.Default.TenantId,
+            });
+        }
+
+        await store.RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = runId,
+            ToolName = "synthesize_speech",
+            ToolCallId = callId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            Usage = usage,
+            TenantId = FixedTenantContext.Default.TenantId,
+        });
+    }
 }

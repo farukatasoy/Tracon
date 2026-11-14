@@ -141,7 +141,7 @@ internal sealed class RunReconciliationService(
             // from one run's continuation must not decide the fate of the runs claimed after it.
             foreach (var record in claimed)
             {
-                // A workflow root the claim closed never wrote its share to the quota counter: its process stopped before it ended.
+                // A root run the claim closed never wrote its share to the quota counter: its process stopped before it ended.
                 // Written here, after the row is closed and before the decision about its continuation, which may return early.
                 await RecordQuotaShareAsync(record, stoppingToken).ConfigureAwait(false);
 
@@ -169,12 +169,12 @@ internal sealed class RunReconciliationService(
         }
     }
 
-    /// <summary>Writes the quota share of a claimed workflow root, if it ran; a failure is logged and the pass goes on.</summary>
+    /// <summary>Writes the quota share of a claimed root run, if it ran; a failure is logged and the pass goes on.</summary>
     /// <param name="record">The run the claim closed.</param>
     /// <param name="stoppingToken">The token of the pass.</param>
     private async ValueTask RecordQuotaShareAsync(RunRecord record, CancellationToken stoppingToken)
     {
-        if (quotaShare is null || record.Kind != RunKind.Workflow || record.ParentRunId is not null)
+        if (quotaShare is null || record.ParentRunId is not null)
         {
             return;
         }
@@ -187,7 +187,7 @@ internal sealed class RunReconciliationService(
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Could not write the quota share of orphaned workflow run {RunId}.", record.Id);
+                logger.LogWarning(exception, "Could not write the quota share of orphaned run {RunId}.", record.Id);
             }
         }
     }
