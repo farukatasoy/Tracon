@@ -138,6 +138,10 @@ internal static class OpenAIConversationsEndpoints
         // client's metadata was silently getting dropped. The distinction
         // between an empty body and a malformed body is made explicitly here;
         // a malformed body is not silently ignored.
+        //
+        // The text is decoded in the charset the request declares, as the JSON readers do: decoded as UTF-8
+        // whatever it said, a metadata value in another charset lost every character UTF-8 does not share
+        // with it, and the answer was still 200.
         JsonElement body = default;
 
         // The body is 'metadata' and nothing else (sixteen short pairs), so a limit far above any
@@ -145,7 +149,7 @@ internal static class OpenAIConversationsEndpoints
         var buffer = new char[MaxCreateBodyCharacters + 1];
         int read;
 
-        using (var reader = new StreamReader(httpContext.Request.Body))
+        using (var reader = new StreamReader(httpContext.Request.Body, RequestBodyBinding.DeclaredEncoding(httpContext.Request)))
         {
             read = await reader.ReadBlockAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
         }

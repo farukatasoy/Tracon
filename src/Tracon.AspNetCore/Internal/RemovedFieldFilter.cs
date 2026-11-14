@@ -24,10 +24,14 @@ namespace Tracon;
 /// walks nested objects; a plain name is a top-level property; a <c>[]</c>
 /// segment, as in <c>[].expectedTools</c>, stands for "every element of an
 /// array", for a body that is a list), and rewinds the
-/// stream for the binder. A name is matched case-insensitively
+/// stream for the binder. It reads the body with the binder's own reader
+/// (<see cref="RequestBodyBinding.TryReadElementAsync"/>): the same charset conversion and
+/// the same JSON settings, so it never judges a different body than the one the binder
+/// is about to bind. A name is matched case-insensitively
 /// because the binder does the same: <c>AuthorizationConfigurationKey</c> was
-/// accepted before the field was removed. A body that is not valid JSON or not an
-/// object passes through untouched, so the binder gives its usual answer. The
+/// accepted before the field was removed. A body that is not valid JSON (by those
+/// settings) or not an object passes through untouched, so the binder gives its usual
+/// answer. The
 /// filter is added after the authorization requirements: an unauthorized
 /// caller gets <c>401</c> or <c>403</c>, never a hint about the contract.
 /// </para>
@@ -67,10 +71,10 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(next);
 
-        var request = context.HttpContext.Request;
+        var httpContext = context.HttpContext;
 
-        if (request.HasJsonContentType() &&
-            await CarriesFieldAsync(request, context.HttpContext.RequestAborted).ConfigureAwait(false))
+        if (httpContext.Request.HasJsonContentType() &&
+            await CarriesFieldAsync(httpContext, httpContext.RequestAborted).ConfigureAwait(false))
         {
             return Results.Problem(
                 title: ProblemTitle,
@@ -127,22 +131,20 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
         return false;
     }
 
-    private async ValueTask<bool> CarriesFieldAsync(HttpRequest request, CancellationToken cancellationToken)
+    private async ValueTask<bool> CarriesFieldAsync(HttpContext httpContext, CancellationToken cancellationToken)
     {
+        var request = httpContext.Request;
+
         request.EnableBuffering();
 
         try
         {
-            using var document = await JsonDocument
-                .ParseAsync(request.Body, cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-
-            return Carries(document.RootElement, _segments);
-        }
-        catch (JsonException)
-        {
-            // Not JSON: the binder reports it with the contract's own error.
-            return false;
+            // The binder's own reader, not a second one: the body is converted from its declared charset and read
+            // with the application's JSON settings, so a body the binder accepts is a body this filter can see
+            // into. A body the binder will refuse (not JSON, a charset it cannot read, a syntax error) comes back
+            // as null and the binder gives the answer.
+            return await RequestBodyBinding.TryReadElementAsync(httpContext, cancellationToken).ConfigureAwait(false) is { } root
+                && Carries(root, _segments);
         }
         finally
         {

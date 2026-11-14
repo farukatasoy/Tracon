@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Http;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 
 namespace Tracon;
 
@@ -325,6 +327,71 @@ internal static class RequestBodyBinding
             detail: "The body must be a form ('Content-Type: multipart/form-data').",
             statusCode: StatusCodes.Status415UnsupportedMediaType);
 
+    /// <summary>The <c>detail</c> of the <c>415</c> a body in an unsupported charset gets.</summary>
+    internal const string UnsupportedCharsetDetail =
+        "The charset of the body is not supported. Send the body as UTF-8 ('Content-Type: application/json; charset=utf-8').";
+
+    /// <summary>
+    /// Whether a JSON request declares a <c>charset</c> that no encoding of the runtime matches.
+    /// </summary>
+    /// <param name="request">The request.</param>
+    /// <returns>
+    /// <see langword="true"/> when the content type carries a <c>charset</c> that cannot be resolved;
+    /// <see langword="false"/> when it carries none or a known one.
+    /// </returns>
+    /// <remarks>
+    /// The framework's own JSON reader throws <see cref="InvalidOperationException"/> for such a charset, not a
+    /// <see cref="JsonException"/>, so no body reader's <c>400</c> saw it and the caller got an empty <c>500</c> for
+    /// a header it controls. The test is the framework's own: the charset is resolved with
+    /// <see cref="Encoding.GetEncoding(string)"/>, and a name it rejects is refused. <see cref="JsonBindingProblemMiddleware"/>
+    /// asks this once for every endpoint that takes a body, so no reader has to.
+    /// </remarks>
+    internal static bool HasUnsupportedCharset(HttpRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return MediaTypeHeaderValue.TryParse(request.ContentType, out var mediaType)
+            && mediaType.Charset.HasValue
+            && !TryGetEncoding(mediaType.Charset.Value!, out _);
+    }
+
+    /// <summary>The encoding a request declares with <c>charset</c>, for a reader that decodes the body by hand.</summary>
+    /// <param name="request">The request.</param>
+    /// <returns>
+    /// The declared encoding, or UTF-8 when the content type declares none or one that cannot be resolved (a JSON
+    /// request that declares one is refused before it gets this far, see <see cref="HasUnsupportedCharset"/>).
+    /// </returns>
+    /// <remarks>
+    /// A reader that decodes the body as UTF-8 whatever it declares turns every character the declared charset has
+    /// and UTF-8 does not into a replacement character, and carries on: the caller is told nothing.
+    /// </remarks>
+    internal static Encoding DeclaredEncoding(HttpRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return MediaTypeHeaderValue.TryParse(request.ContentType, out var mediaType)
+            && mediaType.Charset.HasValue
+            && TryGetEncoding(mediaType.Charset.Value!, out var encoding)
+                ? encoding
+                : Encoding.UTF8;
+    }
+
+    private static bool TryGetEncoding(string charset, out Encoding encoding)
+    {
+        try
+        {
+            encoding = Encoding.GetEncoding(charset);
+
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            encoding = Encoding.UTF8;
+
+            return false;
+        }
+    }
+
     private static ProblemHttpResult NullElement(string detail)
         => TypedResults.Problem(
             title: ProblemTitle,
@@ -396,6 +463,51 @@ internal static class RequestBodyBinding
                 title: ProblemTitle,
                 detail: Describe(ex),
                 statusCode: StatusCodes.Status400BadRequest));
+        }
+    }
+
+    /// <summary>
+    /// Reads the body as an untyped JSON value, the way the typed readers above read it: the same charset
+    /// conversion and the same read settings (the application's own, which decide comments, trailing commas and the
+    /// nesting depth).
+    /// </summary>
+    /// <param name="httpContext">The request context.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The root value, or <see langword="null"/> when the typed readers would refuse the body themselves: it is not
+    /// JSON, its charset is unsupported (<see cref="HasUnsupportedCharset"/>), or it does not parse. The refusal is
+    /// theirs to give, with their own contract.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// For a check that must see exactly what the binder will see, such as <see cref="RemovedFieldFilter"/>, which
+    /// looks at a body before the handler binds it. A second reader with its own idea of the encoding or of the
+    /// settings sees a different body: a field it cannot read is a field it does not refuse, and the binder then
+    /// drops it without a word.
+    /// </para>
+    /// <para>
+    /// The caller buffers the request first (<c>HttpRequest.EnableBuffering</c>) and rewinds it afterwards: this
+    /// method consumes the body.
+    /// </para>
+    /// </remarks>
+    internal static async ValueTask<JsonElement?> TryReadElementAsync(HttpContext httpContext, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+
+        if (!httpContext.Request.HasJsonContentType() || HasUnsupportedCharset(httpContext.Request))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await httpContext.Request
+                .ReadFromJsonAsync<JsonElement>(ReadOptions(httpContext), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 }

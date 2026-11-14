@@ -20,6 +20,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </para>
 /// <para>
 /// The wrong content type is 415, the code the framework's own body binding and the definition import already answer.
+/// So is a JSON body that declares a charset no encoding of the runtime matches: the framework's reader throws the same
+/// exception for it.
 /// </para>
 /// </remarks>
 public sealed class RequestBodyContentTypeTests
@@ -50,13 +52,22 @@ public sealed class RequestBodyContentTypeTests
                 var uri = new Uri(FillRoute(path.Name, path.Value, operation), UriKind.Relative);
                 operations++;
 
-                foreach (var variant in new[] { "no body", "text/plain" })
+                foreach (var variant in new[] { "no body", "text/plain", "unknown charset" })
                 {
                     using var request = new HttpRequestMessage(new HttpMethod(method.ToUpperInvariant()), uri);
 
                     if (string.Equals(variant, "text/plain", StringComparison.Ordinal))
                     {
                         request.Content = new StringContent("not json", Encoding.UTF8, "text/plain");
+                    }
+                    else if (string.Equals(variant, "unknown charset", StringComparison.Ordinal))
+                    {
+                        // JSON by its media type, but in a charset no encoding of the runtime matches.
+                        request.Content = new StringContent("{}", Encoding.UTF8);
+                        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")
+                        {
+                            CharSet = "not-a-charset",
+                        };
                     }
 
                     try
@@ -310,6 +321,30 @@ public sealed class RequestBodyContentTypeTests
 
         (await TraconTestHost.ReadJsonAsync(reply)).GetProperty("error").GetProperty("message").GetString()
             .ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [Theory]
+    [InlineData("/tracon/v1/chat/completions")]
+    [InlineData("/tracon/v1/responses")]
+    public async Task The_OpenAI_compatible_routes_refuse_a_charset_the_runtime_does_not_know_with_415_in_their_own_error_shape(string route)
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(route, UriKind.Relative))
+        {
+            Content = new StringContent("{}", Encoding.UTF8),
+        };
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")
+        {
+            CharSet = "not-a-charset",
+        };
+
+        using var reply = await host.Client.SendAsync(request);
+
+        reply.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
+
+        (await TraconTestHost.ReadJsonAsync(reply)).GetProperty("error").GetProperty("message").GetString()
+            .ShouldNotBeNull().ShouldContain("UTF-8", Case.Sensitive);
     }
 
     /// <summary>

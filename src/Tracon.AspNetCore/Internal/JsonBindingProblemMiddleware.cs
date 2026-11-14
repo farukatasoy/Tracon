@@ -57,6 +57,12 @@ namespace Tracon;
 /// must catch every <see cref="BadHttpRequestException"/>, not only the
 /// JSON-body-shaped one.
 /// </para>
+/// <para>
+/// One more refusal happens before the endpoint runs: a JSON body whose <c>charset</c> names no encoding the
+/// runtime knows is answered <c>415</c> (<see cref="RequestBodyBinding.HasUnsupportedCharset"/>). The framework's
+/// reader throws <see cref="InvalidOperationException"/> for it, from the manual readers, the OpenAI-compatible
+/// routes and the endpoints the framework binds alike, so the check sits here once instead of in each of them.
+/// </para>
 /// </remarks>
 internal static class JsonBindingProblemMiddleware
 {
@@ -71,6 +77,27 @@ internal static class JsonBindingProblemMiddleware
             && httpContext.GetEndpoint()?.Metadata.GetMetadata<FormBodyMetadata>() is not null)
         {
             await RequestBodyBinding.NotForm().ExecuteAsync(httpContext).ConfigureAwait(false);
+
+            return;
+        }
+
+        // A JSON body in a charset no encoding of the runtime matches is refused here, once, for every endpoint that
+        // takes a body: the framework's reader throws InvalidOperationException for it, which neither the manual
+        // readers nor the framework's own binding catch, and the caller got an empty 500 for a header it controls.
+        // Only an endpoint that declares a body is refused: a request that carries the header to an endpoint that
+        // never reads a body has nothing to fail on.
+        if (httpContext.Request.HasJsonContentType()
+            && IsTraconEndpoint(httpContext)
+            && httpContext.GetEndpoint()?.Metadata.GetMetadata<IAcceptsMetadata>() is not null
+            && RequestBodyBinding.HasUnsupportedCharset(httpContext.Request))
+        {
+            await OpenAIRefusalShape.Refuse(
+                    httpContext,
+                    "Unsupported media type",
+                    RequestBodyBinding.UnsupportedCharsetDetail,
+                    StatusCodes.Status415UnsupportedMediaType)
+                .ExecuteAsync(httpContext)
+                .ConfigureAwait(false);
 
             return;
         }

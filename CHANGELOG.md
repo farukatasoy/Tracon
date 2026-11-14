@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A removed field is refused in a body of any charset, and in the JSON syntax the host allows.** The `400` with the title `Removed field` (an MCP server's `authorizationConfigurationKey`, an agent's `model.allowConcurrentToolCalls` and `callableAgentNames`, an eval case's `expectedTools`) read the body as UTF-8 with the framework's default JSON settings, while the endpoint itself reads it in the charset the request declares and with the host's own settings. A body sent as `charset=utf-16` or `utf-32`, or one with comments or a trailing comma on a host that allows them, was saved with the removed field dropped and answered `200`. The refusal now reads the body the way the endpoint does.
+  What to do:
+  - **Nothing, unless a client still sends a removed field in one of those bodies.** It now gets the `400` that names the replacement, as a UTF-8 body already did.
+
+- **A JSON body in a charset the runtime does not know is `415`, not an empty `500`.** `Content-Type: application/json; charset=<a name no encoding matches>` made the framework's reader throw on every route that takes a body, including `POST /v1/chat/completions`, `POST /v1/responses` and `POST /api/voice/live/sessions`. The answer is now `415` that asks for UTF-8, in the OpenAI error shape on the OpenAI-compatible routes.
+  What to do:
+  - **Nothing.** Send the body as UTF-8, or leave the `charset` out.
+
+- **`POST /v1/conversations` reads `metadata` in the charset the request declares.** The body was always decoded as UTF-8, so a value sent as `charset=iso-8859-1` lost every character UTF-8 does not share with it (an accented letter came back as the replacement character U+FFFD) and the answer was still `200`.
+  What to do:
+  - **Nothing.** A client that sends UTF-8 is not affected.
+
 - **A workflow run no longer fails at the super-step limit because the engine started it in two steps.** The runner sends a run's input and then its turn token. Now and then (measured at 2 starts in 1200 with eight runs at once) the engine's loop took the input alone as its first super-step and the token as a second, so a chain at the limit that needs `N + 1` steps needed `N + 2` and failed with `Workflow exceeded the N super-step limit`. The second step of a fresh start that activates the same executor as the first is no longer counted. A resume and an answer to a request count every step, as before.
   What to do:
   - **If a sequential chain at the limit failed once and then ran, it was this:** nothing changes in what the validator allows (a chain of `agentNames` still needs one super-step more than it has agents).

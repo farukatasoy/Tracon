@@ -246,7 +246,14 @@ internal static class WorkflowEndpoints
                 "the caller, the run does not start and a 403 is returned, before the quota check. " +
                 "When session ownership is turned on, naming another user's session in 'sessionId' " +
                 "is refused the same way, and so is opening a NEW session when no authenticated " +
-                "identity can be resolved to own it. A streamed run belongs to the connection: if the " +
+                "identity can be resolved to own it. The values in 'parameters' are checked against the " +
+                "parameter schema the workflow declares before the stream opens or the run is queued: a " +
+                "required parameter that has no default and was not supplied, a name the workflow does " +
+                "not declare, and a value longer than Tracon:MaxParameterValueLength (4096 bytes of " +
+                "UTF-8 by default) are all refused with 400 titled 'Invalid run parameters', and the run " +
+                "does not start. The problem lists the names in 'missingParameters', 'unknownParameters' " +
+                "and 'tooLongParameters', the same body an agent run gives. " +
+                "A streamed run belongs to the connection: if the " +
                 "client stops reading, the run closes as Canceled. A request carrying " +
                 "'Prefer: respond-async' is checked the same way and then queued: the answer is " +
                 "'202 Accepted' with a 'Location' header and the run id, the run executes in the " +

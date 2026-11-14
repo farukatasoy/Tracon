@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,45 @@ public sealed class OpenAIConversationsTests
         json.GetProperty("object").GetString().ShouldBe("conversation");
         json.GetProperty("id").GetString().ShouldStartWith("conv_");
         json.GetProperty("created_at").GetInt64().ShouldBeGreaterThan(0);
+    }
+
+    /// <summary>
+    /// The body is decoded in the charset the request declares. Decoded as UTF-8 whatever it said, a value in another
+    /// charset lost every character UTF-8 does not share with it, and the answer was still <c>200</c>.
+    /// </summary>
+    /// <param name="charset">The charset the body is sent in.</param>
+    [Theory]
+    [InlineData("iso-8859-1")]
+    [InlineData("utf-16")]
+    [InlineData("utf-16BE")]
+    [InlineData("utf-32")]
+    public async Task Conversation_metadata_sent_in_another_charset_is_read_in_it(string charset)
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        Encoding encoding = charset switch
+        {
+            "iso-8859-1" => Encoding.Latin1,
+            "utf-16" => new UnicodeEncoding(bigEndian: false, byteOrderMark: false),
+            "utf-16BE" => new UnicodeEncoding(bigEndian: true, byteOrderMark: false),
+            _ => new UTF32Encoding(bigEndian: false, byteOrderMark: false),
+        };
+
+        // The letter e with an acute accent: one byte in Latin-1, two in UTF-8, so a reader that guesses the charset shows.
+        var accented = char.ConvertFromUtf32(0xE9);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, Conversations)
+        {
+            Content = new ByteArrayContent(encoding.GetBytes("{\"metadata\":{\"customer\":\"caf" + accented + "\"}}")),
+        };
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") { CharSet = charset };
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+
+        (await TraconTestHost.ReadJsonAsync(response))
+            .GetProperty("metadata").GetProperty("customer").GetString().ShouldBe("caf" + accented);
     }
 
     [Fact]
