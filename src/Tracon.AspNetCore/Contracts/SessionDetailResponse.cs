@@ -39,6 +39,13 @@ internal sealed record SessionDetailResponse
         "be read (e.g. the agent is no longer in the catalog).")]
     public JsonElement? Messages { get; init; }
 
+    [Description(
+        "Identifiers of the tool approval requests and tool input requests that still wait for an answer,\n" +
+        "in order. A request that is in `messages` but not in this list was answered: its run applied the\n" +
+        "answer, and the history does not hold it yet (the caller left before the run ended). Returns `null` if\n" +
+        "the history could not be read.")]
+    public IReadOnlyList<string>? PendingRequestIds { get; init; }
+
     [Description("Serialized session state.")]
     public required JsonElement State { get; init; }
 }

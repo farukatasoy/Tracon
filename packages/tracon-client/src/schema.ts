@@ -7605,6 +7605,13 @@ export interface components {
              */
             updatedAt: string;
             messages?: null | components["schemas"]["JsonElement"];
+            /**
+             * @description Identifiers of the tool approval requests and tool input requests that still wait for an answer,
+             *     in order. A request that is in `messages` but not in this list was answered: its run applied the
+             *     answer, and the history does not hold it yet (the caller left before the run ended). Returns `null` if
+             *     the history could not be read.
+             */
+            pendingRequestIds?: null | string[];
             /** @description Serialized session state. */
             state: components["schemas"]["JsonElement"];
         };

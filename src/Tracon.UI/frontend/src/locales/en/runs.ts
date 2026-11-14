@@ -248,6 +248,7 @@ export const enRuns = {
   "transcript.reasoning": 'Reasoning',
   "transcript.approved": 'approved',
   "transcript.rejected": 'rejected',
+  "transcript.answered": 'answered',
   "transcript.approve": 'Approve',
   "transcript.reject": 'Reject',
   "transcript.rememberDecision": 'Do not ask again for this tool',

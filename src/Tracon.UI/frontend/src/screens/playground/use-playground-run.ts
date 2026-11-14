@@ -141,7 +141,7 @@ export function usePlaygroundRun(
         setSessionId(detail.id);
 
         const messages = (detail.messages as ChatMessage[] | null) ?? [];
-        const folds = foldMessages(messages);
+        const folds = foldMessages(messages, detail.pendingRequestIds);
 
         setHistory(messages.map((message, index) => ({ message, folded: folds[index] ?? emptyTranscript })));
       })

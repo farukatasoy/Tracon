@@ -54,7 +54,12 @@ export type TranscriptItem =
       requestId: string;
       name: string;
       args: string | null;
-      decided: 'approved' | 'rejected' | null;
+      /**
+       * `approved`/`rejected`: the operator's decision, or the one a recorded history holds. `answered`: the session
+       * says the request no longer waits though the history holds no answer to it (a run applied the answer and its
+       * caller left before the run ended), so the decision is not known. `null`: the request waits.
+       */
+      decided: 'approved' | 'rejected' | 'answered' | null;
       /**
        * The `IToolApprovalPresenter` result for this request, if any — arrives
        * separately from the `approvals` SSE frame, never
@@ -176,11 +181,17 @@ export const emptyTranscript: TranscriptState = { items: [], usage: null };
  */
 function classify(
   content: ChatContent,
-): 'text' | 'reasoning' | 'call' | 'result' | 'usage' | 'approval' | 'other' {
+): 'text' | 'reasoning' | 'call' | 'result' | 'usage' | 'approval' | 'approvalAnswer' | 'other' {
   const type = typeof content.$type === 'string' ? content.$type.toLowerCase() : '';
 
   if (type === 'text') {
     return 'text';
+  }
+
+  // The answer to a request carries the request's own `requestId` and `toolCall`, so the shape check below would read it as
+  // a second request. It is told apart by the discriminator, and by `approved`, which only an answer has.
+  if (type.includes('approvalresponse') || (typeof content['requestId'] === 'string' && typeof content['approved'] === 'boolean')) {
+    return 'approvalAnswer';
   }
 
   // Shape check comes first for approvals: the discriminator name is the part
@@ -330,6 +341,19 @@ function applyContent(state: TranscriptState, content: ChatContent, boundary = 0
         entityName: null,
         message: null,
       });
+
+      break;
+    }
+
+    case 'approvalAnswer': {
+      // The answer settles the card of its request. An answer whose request is not in the fold (an older history that was
+      // trimmed) has nothing to settle and adds nothing.
+      const requestId = typeof content['requestId'] === 'string' ? content['requestId'] : null;
+      const card = state.items.find((item) => item.kind === 'approval' && item.requestId === requestId);
+
+      if (card !== undefined && card.kind === 'approval') {
+        card.decided = content['approved'] === true ? 'approved' : 'rejected';
+      }
 
       break;
     }
@@ -658,7 +682,10 @@ export function foldUpdate(
  * only the items it newly added — the result message itself typically adds
  * none, since it mutates the call's item in place by reference.
  */
-export function foldMessages(messages: readonly ChatMessage[]): TranscriptState[] {
+export function foldMessages(
+  messages: readonly ChatMessage[],
+  pendingRequestIds?: readonly string[] | null,
+): TranscriptState[] {
   const shared: TranscriptState = { items: [], usage: null };
   const perMessage: TranscriptState[] = [];
 
@@ -670,6 +697,18 @@ export function foldMessages(messages: readonly ChatMessage[]): TranscriptState[
     }
 
     perMessage.push({ items: shared.items.slice(before), usage: shared.usage });
+  }
+
+  // The session reports which requests still wait. A request the history holds without an answer and the session does not
+  // list was answered by a run whose caller left before the run saved it, so it is not offered for a decision again.
+  if (pendingRequestIds !== undefined && pendingRequestIds !== null) {
+    const waiting = new Set(pendingRequestIds);
+
+    for (const item of shared.items) {
+      if (item.kind === 'approval' && item.decided === null && !waiting.has(item.requestId)) {
+        item.decided = 'answered';
+      }
+    }
   }
 
   return perMessage;

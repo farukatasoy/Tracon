@@ -342,9 +342,12 @@ internal static class SessionEndpoints
             return SessionNotFound(sessionId);
         }
 
-        var messages = await ChatHistoryReader
-            .ReadAsync(record, catalog, chatHistory, loggerFactory, cancellationToken)
+        var read = await ChatHistoryReader
+            .ReadWithSessionAsync(record, catalog, chatHistory, loggerFactory, cancellationToken)
             .ConfigureAwait(false);
+
+        // The request a run applied before its caller left is in the history without its answer; the session knows it was answered.
+        var pending = read is var (history, session) ? PendingInterruptReader.From(history, session) : null;
 
         return TypedResults.Ok(new SessionDetailResponse
         {
@@ -353,9 +356,12 @@ internal static class SessionEndpoints
             TenantId = record.TenantId,
             CreatedAt = record.CreatedAt,
             UpdatedAt = record.UpdatedAt,
-            Messages = messages is null
+            Messages = read is null
                 ? null
-                : JsonSerializer.SerializeToElement(messages, AIJsonUtilities.DefaultOptions),
+                : JsonSerializer.SerializeToElement(read.Value.History, AIJsonUtilities.DefaultOptions),
+            PendingRequestIds = pending is null
+                ? null
+                : [.. pending.ApprovalRequestIds.Concat(pending.InputRequestIds).Order(StringComparer.Ordinal)],
             State = record.State,
         });
     }

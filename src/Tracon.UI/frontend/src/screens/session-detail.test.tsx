@@ -5,7 +5,7 @@ import { SessionDetailScreen } from './session-detail';
 
 const sessionId = 'session-1';
 
-function session(messages: unknown[]) {
+function session(messages: unknown[], pendingRequestIds?: string[]) {
   return {
     id: sessionId,
     agentName: 'looper',
@@ -13,9 +13,16 @@ function session(messages: unknown[]) {
     createdAt: '2026-11-13T10:00:00Z',
     updatedAt: '2026-11-13T10:01:00Z',
     messages,
+    pendingRequestIds,
     state: {},
   };
 }
+
+const approvalRequest = {
+  $type: 'toolApprovalRequest',
+  requestId: 'req-1',
+  toolCall: { $type: 'functionCall', callId: 'c1', name: 'cancel_order', arguments: { orderId: 'ORD-7' } },
+};
 
 describe('SessionDetailScreen', () => {
   let restoreFetch: () => void;
@@ -56,5 +63,33 @@ describe('SessionDetailScreen', () => {
     expect(answerBlock).not.toBe(feedbackBlock);
     expect(within(feedbackBlock).getByText('user')).toBeTruthy();
     expect(within(answerBlock).getByText('assistant')).toBeTruthy();
+  });
+  it('shows an approval the session no longer waits for as answered, and one it still waits for as waiting', async () => {
+    // A run applied the answer and its caller left before the run saved the session: the history holds the request and no
+    // answer, and the session reports the request is no longer open. The card must not ask again for a decision that was made.
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/sessions/:sessionId', session([{ role: 'assistant', contents: [approvalRequest] }], [])),
+      fixture('GET', 'api/runs', []),
+    ]);
+
+    renderScreen(<SessionDetailScreen id={sessionId} />);
+
+    const card = await screen.findByTestId('approval-card');
+
+    expect(within(card).getByText('answered')).toBeTruthy();
+    expect(within(card).queryByText('approval required')).toBeNull();
+  });
+
+  it('keeps an approval the session still waits for as waiting', async () => {
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/sessions/:sessionId', session([{ role: 'assistant', contents: [approvalRequest] }], ['req-1'])),
+      fixture('GET', 'api/runs', []),
+    ]);
+
+    renderScreen(<SessionDetailScreen id={sessionId} />);
+
+    const card = await screen.findByTestId('approval-card');
+
+    expect(within(card).getByText('approval required')).toBeTruthy();
   });
 });

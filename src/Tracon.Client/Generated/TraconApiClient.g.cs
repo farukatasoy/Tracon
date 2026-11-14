@@ -27833,6 +27833,15 @@ namespace Tracon.Client.Generated
         public System.Text.Json.JsonElement? Messages { get; set; } = default!;
 
         /// <summary>
+        /// Identifiers of the tool approval requests and tool input requests that still wait for an answer,
+        /// <br/>in order. A request that is in `messages` but not in this list was answered: its run applied the
+        /// <br/>answer, and the history does not hold it yet (the caller left before the run ended). Returns `null` if
+        /// <br/>the history could not be read.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("pendingRequestIds")]
+        public System.Collections.Generic.ICollection<string>? PendingRequestIds { get; set; } = default!;
+
+        /// <summary>
         /// Serialized session state.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("state")]

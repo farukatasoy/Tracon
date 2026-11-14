@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`GET /api/sessions/{id}` lists the requests that still wait in `pendingRequestIds`, and the console shows an approval whose answer was applied as answered.** The session holds a request in its history until the run that applied the answer saves the session, and a run whose caller left saves nothing, so the same approval stayed on screen as waiting and a decision on it was refused with `409`. The console also read the answer in a recorded history as a second request and showed one more card for every approval that was answered. The new field is the requests of `messages` that wait, in order; it is `null` when the history could not be read, as `messages` is.
+  What to do:
+  - **If you build your own front end on `GET /api/sessions/{id}`, read `pendingRequestIds` to know which approval and tool input requests of `messages` still wait for an answer.** A request that is in `messages` and not in the list was answered. A client that does not read the field sees what it saw before.
+  - **If you use the generated `Tracon.Client` or `@tracon/client`, `SessionDetailResponse` has one more property:** `PendingRequestIds` and `pendingRequestIds`.
+
 - **A call to the Responses endpoint that chains with `previous_response_id` is refused with `400` when the agent keeps files for its session.** The run of a chained call loads the session of the earlier response and saves a session of its own under the new response's identifier, and the files of a session workspace sit under the identifier the run loaded. The second turn saw the first turn's files, every later turn started with none, and the files of the turns before stayed under an earlier response that deleting the new session did not reach. The call is now refused before the model runs, and the answer names the way to keep the files.
   What to do:
   - **If a client chains the calls of an agent with a workspace, send `conversation` set to the identifier of the first response and no `previous_response_id`:** the conversation keeps one workspace across the turns. The first call needs no change.

@@ -253,6 +253,7 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "transcript.reasoning": 'Akıl yürütme',
   "transcript.approved": 'onaylandı',
   "transcript.rejected": 'reddedildi',
+  "transcript.answered": 'yanıtlandı',
   "transcript.approve": 'Onayla',
   "transcript.reject": 'Reddet',
   "transcript.rememberDecision": 'Bu tool için bir daha sorma',

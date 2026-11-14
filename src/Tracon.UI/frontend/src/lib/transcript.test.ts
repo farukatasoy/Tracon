@@ -220,6 +220,69 @@ describe('foldMessages', () => {
   it('returns one state per message even for an empty message list', () => {
     expect(foldMessages([])).toEqual([]);
   });
+
+  describe('approvals in a recorded history', () => {
+    const request = {
+      $type: 'toolApprovalRequest',
+      requestId: 'req-1',
+      toolCall: { $type: 'functionCall', callId: 'c1', name: 'cancel_order', arguments: { orderId: 'ORD-7' } },
+    };
+    const answer = (approved: boolean) => ({
+      $type: 'toolApprovalResponse',
+      requestId: 'req-1',
+      approved,
+      toolCall: { $type: 'functionCall', callId: 'c1', name: 'cancel_order', arguments: { orderId: 'ORD-7' } },
+    });
+
+    const approvalItems = (folds: ReturnType<typeof foldMessages>) =>
+      folds.flatMap((fold) => fold.items).filter((item) => item.kind === 'approval');
+
+    it('shows a request and its answer as one card that carries the decision', () => {
+      // The answer carries the same requestId and toolCall as the request, so a reader that goes by shape
+      // alone sees a second request.
+      const messages: LooseChatMessage[] = [
+        { role: 'assistant', contents: [request] },
+        { role: 'user', contents: [answer(true)] },
+      ];
+
+      const items = approvalItems(foldMessages(messages as unknown as ChatMessage[]));
+
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({ requestId: 'req-1', decided: 'approved' });
+    });
+
+    it('shows a rejection as rejected', () => {
+      const messages: LooseChatMessage[] = [
+        { role: 'assistant', contents: [request] },
+        { role: 'user', contents: [answer(false)] },
+      ];
+
+      expect(approvalItems(foldMessages(messages as unknown as ChatMessage[]))[0]).toMatchObject({ decided: 'rejected' });
+    });
+
+    it('marks a request answered when the session says it no longer waits, though the history holds no answer', () => {
+      // The answer was applied and the run ended before the session kept it, so the stored history holds the
+      // request alone; the session reports which requests still wait.
+      const messages: LooseChatMessage[] = [{ role: 'assistant', contents: [request] }];
+
+      const folds = foldMessages(messages as unknown as ChatMessage[], []);
+
+      expect(approvalItems(folds)[0]).toMatchObject({ requestId: 'req-1', decided: 'answered' });
+    });
+
+    it('keeps a request that still waits as waiting', () => {
+      const messages: LooseChatMessage[] = [{ role: 'assistant', contents: [request] }];
+
+      expect(approvalItems(foldMessages(messages as unknown as ChatMessage[], ['req-1']))[0]).toMatchObject({ decided: null });
+    });
+
+    it('leaves a request as it was when the session reports nothing', () => {
+      const messages: LooseChatMessage[] = [{ role: 'assistant', contents: [request] }];
+
+      expect(approvalItems(foldMessages(messages as unknown as ChatMessage[]))[0]).toMatchObject({ decided: null });
+      expect(approvalItems(foldMessages(messages as unknown as ChatMessage[], null))[0]).toMatchObject({ decided: null });
+    });
+  });
 });
 
 describe('approval presentation', () => {

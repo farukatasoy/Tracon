@@ -18548,6 +18548,16 @@
               }
             ]
           },
+          "pendingRequestIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Identifiers of the tool approval requests and tool input requests that still wait for an answer,\nin order. A request that is in \u0060messages\u0060 but not in this list was answered: its run applied the\nanswer, and the history does not hold it yet (the caller left before the run ended). Returns \u0060null\u0060 if\nthe history could not be read."
+          },
           "state": {
             "description": "Serialized session state.",
             "$ref": "#/components/schemas/JsonElement"

@@ -3765,7 +3765,10 @@ answered into the session before the run starts, because a run whose client disc
 cancelled and saves nothing: the same answer sent again is refused (`409` on the management
 API, an invalid resume on AG-UI) and the tool does not run twice. The unanswered request the
 cancelled run leaves in the history is rejected by the agent framework on the next run of the
-session, so the user can carry on with a new message.
+session, so the user can carry on with a new message. That request is still in the history,
+though its answer was applied, so `GET /api/sessions/{id}` lists the requests that still wait in
+`pendingRequestIds`: a request in `messages` that is not in the list was answered. The console
+reads it and shows such an approval as answered instead of asking for the decision again.
 
 Saving a session under a **different** id than it was read from — what
 `/v1/responses` does when it chains with `previous_response_id` — writes a new record

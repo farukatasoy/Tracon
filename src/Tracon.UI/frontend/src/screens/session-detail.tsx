@@ -75,7 +75,7 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
   // guarantee a `ChatMessage[]` shape) but the built-in provider always returns
   // one; the old hand-written type trusted the same assumption.
   const messages = detail.messages as ChatMessage[] | null;
-  const folds = messages === null ? [] : foldMessages(messages);
+  const folds = messages === null ? [] : foldMessages(messages, detail.pendingRequestIds);
 
   return (
     <>

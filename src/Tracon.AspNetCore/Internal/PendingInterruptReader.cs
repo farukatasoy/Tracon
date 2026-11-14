@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -71,6 +72,22 @@ internal static class PendingInterruptReader
         {
             return PendingInterrupts.None;
         }
+
+        return From(history, session);
+    }
+
+    /// <summary>Reads the requests a history waits on, from the history and the session it was read with.</summary>
+    /// <param name="history">The messages of the session.</param>
+    /// <param name="session">The session the history was read from; it carries the answers the history does not hold yet.</param>
+    /// <returns>The pending requests.</returns>
+    /// <remarks>
+    /// The one place that decides which request still waits, for the answers that match a request by its identity and for the read
+    /// that shows a session's open requests: the two cannot disagree about a request whose answer a run applied before its caller left.
+    /// </remarks>
+    public static PendingInterrupts From(IReadOnlyList<ChatMessage> history, AgentSession session)
+    {
+        ArgumentNullException.ThrowIfNull(history);
+        ArgumentNullException.ThrowIfNull(session);
 
         // What a request already applied is not pending any more, though the history does not hold the answer yet.
         var answered = AnsweredInterrupts.Read(session);

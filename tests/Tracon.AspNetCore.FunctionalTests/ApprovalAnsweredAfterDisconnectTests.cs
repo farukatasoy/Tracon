@@ -72,6 +72,8 @@ public sealed class ApprovalAnsweredAfterDisconnectTests
 
         executions.ShouldBe(0, "the tool waits for the approval");
 
+        (await PendingRequestIdsAsync(host)).ShouldBe([requestId], "the session waits for the answer to the request");
+
         // The caller answers over a stream and goes away while the approved tool is running.
         using (var answer = AnswerRequest(requestId, buffered: false))
         {
@@ -90,11 +92,29 @@ public sealed class ApprovalAnsweredAfterDisconnectTests
 
         executions.ShouldBe(1);
 
+        // The session still holds the request, as it does the answer; the read tells the console which are open.
+        (await PendingRequestIdsAsync(host)).ShouldBeEmpty("the answer was applied: the console must not offer the same request again");
+
         using var again = AnswerRequest(requestId, buffered: true);
         using var repeated = await host.Client.SendAsync(again, TestContext.Current.CancellationToken);
 
         repeated.StatusCode.ShouldBe(HttpStatusCode.Conflict, await repeated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         executions.ShouldBe(1, "an approval is applied once, whatever became of the run that applied it");
+    }
+
+    /// <summary>The requests of the session that still wait for an answer, as <c>GET /api/sessions/{id}</c> reports them.</summary>
+    private static async Task<string[]> PendingRequestIdsAsync(TraconTestHost host)
+    {
+        using var response = await host.Client.GetAsync(new Uri($"/tracon/api/sessions/{SessionId}", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var detail = await TraconTestHost.ReadJsonAsync(response);
+
+        // A missing field is a failure of the test, not an empty list: before the field existed, this read nothing.
+        detail.TryGetProperty("pendingRequestIds", out var pending).ShouldBeTrue("the session detail names the requests that wait for an answer");
+
+        return [.. pending.EnumerateArray().Select(static id => id.GetString()!)];
     }
 
     private static HttpRequestMessage AnswerRequest(string requestId, bool buffered)

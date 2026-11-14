@@ -214,6 +214,8 @@ function ApprovalCard({
             <CheckIcon className="size-3" />
             {t('transcript.approved')}
           </Badge>
+        ) : item.decided === 'answered' ? (
+          <Badge tone="neutral">{t('transcript.answered')}</Badge>
         ) : (
           <Badge tone="danger">
             <CrossIcon className="size-3" />
