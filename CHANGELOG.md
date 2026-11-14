@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The in-memory trace store keeps each tenant's spans in the tenant's own trace.** It keyed a trace by its trace identifier alone, so two tenants whose runs shared one identifier (a gateway that sends a W3C `traceparent` gives every run the same one) wrote into one trace: the second tenant's spans joined the first tenant's trace, and the second tenant read no trace of its own. The SQL stores always keyed a trace by tenant and identifier. Two runs of one tenant that share an identifier still join one trace in every store.
+  What to do:
+  - **If you run the in-memory store with more than one tenant, nothing to do:** each tenant now reads its own spans.
+  - **If you wrote your own `ITraceStore` and run `TraceStoreContract`, expect one more case:** two tenants that share a trace identifier each read only their own spans.
+
 - **The error code a `tracon.content` event keeps is cut at 64 characters.** The event's text carries the code of an `ErrorContent` a provider returned, and it is written whether or not tool payloads are recorded. The adapters Tracon ships write a short token there, so nothing changes for them; an adapter that put a message in the code would have written it into the text.
   What to do:
   - **If you read `errorCode` from a `tracon.content` event, expect a code longer than 64 characters to end with the truncation marker.**

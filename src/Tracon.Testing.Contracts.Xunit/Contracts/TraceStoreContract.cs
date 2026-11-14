@@ -191,6 +191,46 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
     }
 
     [Fact]
+    public async Task Two_tenants_that_share_a_trace_id_each_read_only_their_own_spans()
+    {
+        // A caller that sends a W3C traceparent gives every run it starts the same trace id, and two
+        // tenants can be called by the same gateway. The id names a trace inside one tenant, so a
+        // second tenant's spans must not join the first tenant's trace, whichever store holds them.
+        var runA = TraconId.NewId();
+        var runB = TraconId.NewId();
+
+        AmbientTenant.TenantId = TenantA;
+        await SeedRunAsync(runA);
+        await Store.WriteSpansAsync(new TraceSpanBatch
+        {
+            TraceId = _traceId,
+            TenantId = TenantA,
+            RunId = runA,
+            Spans = [Span("tenant-a-root", parent: null)],
+        });
+
+        AmbientTenant.TenantId = TenantB;
+        await SeedRunAsync(runB);
+        await Store.WriteSpansAsync(new TraceSpanBatch
+        {
+            TraceId = _traceId,
+            TenantId = TenantB,
+            RunId = runB,
+            Spans = [Span("tenant-b-root", parent: null)],
+        });
+
+        var seenByB = await Store.GetTraceByRunAsync(runB);
+        seenByB.ShouldNotBeNull().Spans.ShouldHaveSingleItem().Name.ShouldBe("tenant-b-root");
+        (await Store.GetTraceByRunAsync(runA)).ShouldBeNull();
+
+        AmbientTenant.TenantId = TenantA;
+
+        var seenByA = await Store.GetTraceByRunAsync(runA);
+        seenByA.ShouldNotBeNull().Spans.ShouldHaveSingleItem().Name.ShouldBe("tenant-a-root");
+        (await Store.GetTraceByRunAsync(runB)).ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Unrecorded_run_returns_empty()
         => (await Store.GetTraceByRunAsync(TraconId.NewId())).ShouldBeNull();
 

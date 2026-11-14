@@ -16,12 +16,17 @@ namespace Tracon;
 /// while reads take it from <see cref="ITenantContext"/>. This is the
 /// same rule as the SQL implementation.
 /// </para>
+/// <para>
+/// A trace is keyed by its tenant and its trace identifier, as in the SQL
+/// implementation: a caller that sends a W3C <c>traceparent</c> gives every run it starts the
+/// same trace identifier, and two tenants' spans must not join one trace.
+/// </para>
 /// </remarks>
 internal sealed class InMemoryTraceStore : ITraceStore
 {
-    private readonly ConcurrentDictionary<string, RunTrace> _byTraceId = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<Guid, string> _traceIdByRun = new();
-    private readonly ConcurrentQueue<string> _insertionOrder = new();
+    private readonly ConcurrentDictionary<TraceKey, RunTrace> _byTrace = new();
+    private readonly ConcurrentDictionary<Guid, TraceKey> _traceByRun = new();
+    private readonly ConcurrentQueue<TraceKey> _insertionOrder = new();
     private readonly ITenantContext _tenantContext;
 
     /// <summary>Initializes a new in-memory span store.</summary>
@@ -45,18 +50,20 @@ internal sealed class InMemoryTraceStore : ITraceStore
             return default;
         }
 
-        _byTraceId.AddOrUpdate(
-            batch.TraceId,
-            static (traceId, state) => Create(traceId, state),
-            static (traceId, existing, state) => Merge(existing, state),
+        var key = new TraceKey(AmbientTenantScope.Normalize(batch.TenantId), batch.TraceId);
+
+        _byTrace.AddOrUpdate(
+            key,
+            static (created, state) => Create(created.TraceId, state),
+            static (_, existing, state) => Merge(existing, state),
             batch);
 
         if (batch.RunId is { } runId)
         {
-            _traceIdByRun[runId] = batch.TraceId;
+            _traceByRun[runId] = key;
         }
 
-        _insertionOrder.Enqueue(batch.TraceId);
+        _insertionOrder.Enqueue(key);
         TrimIfNeeded();
 
         return default;
@@ -67,9 +74,9 @@ internal sealed class InMemoryTraceStore : ITraceStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_traceIdByRun.TryGetValue(runId, out var traceId)
-            && _byTraceId.TryGetValue(traceId, out var trace)
-            && string.Equals(trace.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
+        if (_traceByRun.TryGetValue(runId, out var key)
+            && string.Equals(key.TenantId, _tenantContext.TenantId, StringComparison.Ordinal)
+            && _byTrace.TryGetValue(key, out var trace))
         {
             return new ValueTask<RunTrace?>(trace);
         }
@@ -139,17 +146,22 @@ internal sealed class InMemoryTraceStore : ITraceStore
 
     private void TrimIfNeeded()
     {
-        while (_byTraceId.Count > MaxTraces && _insertionOrder.TryDequeue(out var oldest))
+        while (_byTrace.Count > MaxTraces && _insertionOrder.TryDequeue(out var oldest))
         {
-            if (!_byTraceId.TryRemove(oldest, out var removed))
+            if (!_byTrace.TryRemove(oldest, out var removed))
             {
                 continue;
             }
 
             if (removed.RunId is { } runId)
             {
-                _traceIdByRun.TryRemove(runId, out _);
+                _traceByRun.TryRemove(runId, out _);
             }
         }
     }
+
+    /// <summary>The tenant and the W3C trace identifier that together name one trace.</summary>
+    /// <param name="TenantId">The tenant the spans were written under, normalized.</param>
+    /// <param name="TraceId">The W3C trace identifier.</param>
+    private readonly record struct TraceKey(string TenantId, string TraceId);
 }
