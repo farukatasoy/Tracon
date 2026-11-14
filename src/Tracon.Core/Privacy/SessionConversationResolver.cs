@@ -19,7 +19,8 @@ namespace Tracon;
 /// (Microsoft Agent Framework's explicit constraint) and cannot keep it as a field.
 /// Finding it therefore needs the session restored through its OWN agent — the
 /// same mechanism <see cref="ConversationBranchService"/> already uses for
-/// branching — not a SQL query.
+/// branching — or, when that agent is no longer registered, its stored state read as
+/// JSON; a SQL query cannot do either.
 /// </para>
 /// <para>
 /// Without this step, <see cref="DataSubjectScope.SessionIds"/> alone can erase a
@@ -30,14 +31,16 @@ namespace Tracon;
 /// OpenAI-compatible Conversations API — is actually reachable.
 /// </para>
 /// <para>
-/// A session whose agent is no longer registered, or whose state cannot be
-/// deserialized (a version mismatch, for example), is skipped, logged and COUNTED
-/// rather than thrown: one unresolvable session must not block export/erasure of
-/// every other session in the same request, and a skip nobody can see would let the
-/// caller read a <c>200</c> as "everything is gone". An agent the catalog refuses to
-/// compile is neither: that failure propagates, because an erasure that skipped the
-/// session would delete the rest of the subject's rows and leave its conversation
-/// behind.
+/// A session whose agent is no longer registered is read without it: the conversation id is
+/// plain JSON in the stored state, under the same key, so the agent that wrote it is not
+/// needed to find it. Only a state that does not have that shape (an engine that wrote it
+/// another way, a value that is not JSON the way this reads it) leaves the id unknown.
+/// A session whose state is unreadable, with or without its agent (a version mismatch, for
+/// example), is skipped, logged and COUNTED rather than thrown: one unresolvable session must
+/// not block export/erasure of every other session in the same request, and a skip nobody can
+/// see would let the caller read a <c>200</c> as "everything is gone". An agent the catalog
+/// refuses to compile is neither: that failure propagates, because an erasure that skipped the
+/// session would delete the rest of the subject's rows and leave its conversation behind.
 /// </para>
 /// <para>
 /// A session that does not exist in the ambient tenant is NOT counted. A session id of
@@ -109,9 +112,21 @@ internal sealed class SessionConversationResolver
 
             if (agent is null)
             {
+                // The agent is gone, the state it wrote is not: the id is read from the stored JSON.
+                if (TryReadStoredConversation(record.State, out var stored))
+                {
+                    if (stored is { } storedId)
+                    {
+                        found.Add(storedId);
+                    }
+
+                    continue;
+                }
+
                 _logger.LogWarning(
-                    "Session '{SessionId}' names agent '{AgentName}', which is no longer registered; " +
-                    "its internal conversation could not be resolved for export/erasure.",
+                    "Session '{SessionId}' names agent '{AgentName}', which is no longer registered, and its stored state " +
+                    "does not have the shape this reads the conversation from; its internal conversation could not be " +
+                    "resolved for export/erasure.",
                     sessionId,
                     record.AgentName);
 
@@ -154,13 +169,85 @@ internal sealed class SessionConversationResolver
 
         return new SessionConversationLookup(found, unresolved);
     }
+
+    /// <summary>
+    /// Reads the conversation id of a session from its stored state, without the agent that wrote it.
+    /// </summary>
+    /// <param name="state">The stored state of the session.</param>
+    /// <param name="conversationId">
+    /// The conversation id; <see langword="null"/> when the state is readable and the session has no chat history yet.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when the state has the shape the agent writes it in (an object with a <c>stateBag</c> object),
+    /// so a missing chat history means there is none; <see langword="false"/> when it does not, and nothing can be said
+    /// about the session's conversation.
+    /// </returns>
+    /// <remarks>
+    /// The shape is the one <c>AgentSession.StateBag</c> serializes to and the chat history provider writes into
+    /// (<see cref="TraconSessionStateKeys.ChatHistory"/> → <c>conversationId</c>). It belongs to the agent framework, not to
+    /// Tracon: a framework version that writes it differently turns this into <see langword="false"/>, which is the count the
+    /// session had before it was read here.
+    /// </remarks>
+    private static bool TryReadStoredConversation(JsonElement state, out Guid? conversationId)
+    {
+        conversationId = null;
+
+        if (state.ValueKind != JsonValueKind.Object
+            || !TryGetProperty(state, "stateBag", out var bag)
+            || bag.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        // The key is a state-bag key, compared as written; the framework's own property names are not case-sensitive here.
+        if (!bag.TryGetProperty(TraconSessionStateKeys.ChatHistory, out var history))
+        {
+            return true;
+        }
+
+        if (history.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (!TryGetProperty(history, "conversationId", out var id))
+        {
+            return true;
+        }
+
+        if (id.ValueKind != JsonValueKind.String || !id.TryGetGuid(out var parsed))
+        {
+            return false;
+        }
+
+        conversationId = parsed == Guid.Empty ? null : parsed;
+
+        return true;
+    }
+
+    private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+
+                return true;
+            }
+        }
+
+        value = default;
+
+        return false;
+    }
 }
 
 /// <summary>What looking up the internal conversations of a set of sessions found.</summary>
 /// <param name="ConversationIds">The conversation ids that were found.</param>
 /// <param name="Unresolved">
-/// How many sessions have a conversation this lookup could not find, because the agent of the session is not registered
-/// or the session state could not be restored. An upper bound: without the agent, whether the session had a conversation
-/// at all cannot be known.
+/// How many sessions have a conversation this lookup could not find, because the session state could not be restored
+/// through its agent or, with the agent not registered, did not have the shape the id is read from. An upper bound:
+/// without a readable state, whether the session had a conversation at all cannot be known.
 /// </param>
 internal readonly record struct SessionConversationLookup(IReadOnlyList<Guid> ConversationIds, int Unresolved);

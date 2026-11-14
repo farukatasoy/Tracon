@@ -23,9 +23,10 @@ internal sealed record DataSubjectErasureResult
 
     [Description(
         "Gets how many of the subject's sessions have an internal chat-history conversation that this\n" +
-        "request could not look up, because the session's agent is not registered (or the session\n" +
-        "state could not be restored). At most that many conversations are left out of an export and\n" +
-        "stay after an erasure. `0` when every conversation was looked up. A call that finds the\n" +
-        "session already erased counts it no more, so keep the answer of the first call.")]
+        "request could not look up, because the session's state could not be read: restored through\n" +
+        "its agent or, when that agent is not registered, read as stored. At most that many\n" +
+        "conversations are left out of an export and stay after an erasure. `0` when every\n" +
+        "conversation was looked up. A call that finds the session already erased counts it no more,\n" +
+        "so keep the answer of the first call.")]
     public required int UnresolvedConversations { get; init; }
 }

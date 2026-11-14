@@ -2523,11 +2523,15 @@ plaintext. Attachment file bytes are not included — only their metadata. A wor
 JSON text (a string), the same way it returns session state.
 
 **A session whose agent is gone.** Tracon finds a session's chat history through the
-session's own agent. If that agent is not registered, the call still answers `200`: an
-erasure deletes the session row and leaves the conversation. `unresolvedConversations`
-counts such sessions (an upper bound) in a preview, in an erasure and its audit entry, and
-in the `X-Tracon-Unresolved-Conversations` header of an export. Preview first, register the
-agent again, then erase. An agent that cannot be compiled fails the call with `400`.
+session's own agent. If that agent is not registered, it reads the conversation's identifier
+from the session's stored state instead, so an export lists the conversation and an erasure
+deletes it with the session. When the stored state does not have the shape the agent framework
+writes it in, the call still answers `200`, but an erasure deletes the session row and leaves
+the conversation. `unresolvedConversations` counts such sessions (an upper bound) in a preview,
+in an erasure and its audit entry, and in the `X-Tracon-Unresolved-Conversations` header of an
+export; it is `0` when every conversation was found. A session whose state cannot be restored by
+a registered agent is counted the same way. Preview first: a count above `0` means a conversation
+may stay. An agent that cannot be compiled fails the call with `400`.
 
 ## Content protection
 
@@ -22161,6 +22165,12 @@ Four have no contract yet: `IConversationBranchStore`, `IDataSubjectStore`,
 `ITenantStore` and `IVectorSearchStore`. Implementing one of those is supported;
 you write your own tests for it.
 
+One contract asks for a diagnostic suppression. `AgentFileStoreContract` hands you
+`AgentFileStore`, a Microsoft Agent Framework type that Microsoft marks experimental, so a test
+class that derives from it reports `MAAI001` until you suppress it
+(`#pragma warning disable MAAI001` around the class, or `<NoWarn>MAAI001</NoWarn>` in the test
+project). No other contract class has this requirement.
+
 `IJobStore`'s contract (`JobStoreContract`) also verifies lane behavior: `LeaseAsync`
 takes a `JobLeaseRequest` whose `Lanes` it must honor (only a job from one of them, `null`
 or an empty list applies no filter), and a retried job keeps its lane. See
@@ -23305,9 +23315,12 @@ member without updating that file **fails the build** — so an accidental surfa
 change cannot ship silently, and every intentional one is visible in the commit
 that made it.
 
-Two projects are deliberately excluded: `Tracon.Generators` is a `netstandard2.0`
+Four projects are deliberately excluded: `Tracon.Generators` is a `netstandard2.0`
 build-time analyzer carried inside the Core package, not a separate NuGet package;
-`Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
+`Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API;
+`Tracon.Cli` is a dotnet tool, so it ships an executable and no library surface; and
+`Tracon.Client` is generated from the OpenAPI document, whose own drift check is the gate
+for it, so a regeneration does not become a diff of thousands of lines nobody reads.
 The project it generates references the Tracon packages at **the template
 package's own version**, so a template and the runtime it writes always come
 from the same release. Pass `--TraconVersion x.y.z` to choose another one. The

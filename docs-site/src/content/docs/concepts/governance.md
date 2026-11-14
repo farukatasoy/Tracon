@@ -781,11 +781,15 @@ plaintext. Attachment file bytes are not included — only their metadata. A wor
 JSON text (a string), the same way it returns session state.
 
 **A session whose agent is gone.** Tracon finds a session's chat history through the
-session's own agent. If that agent is not registered, the call still answers `200`: an
-erasure deletes the session row and leaves the conversation. `unresolvedConversations`
-counts such sessions (an upper bound) in a preview, in an erasure and its audit entry, and
-in the `X-Tracon-Unresolved-Conversations` header of an export. Preview first, register the
-agent again, then erase. An agent that cannot be compiled fails the call with `400`.
+session's own agent. If that agent is not registered, it reads the conversation's identifier
+from the session's stored state instead, so an export lists the conversation and an erasure
+deletes it with the session. When the stored state does not have the shape the agent framework
+writes it in, the call still answers `200`, but an erasure deletes the session row and leaves
+the conversation. `unresolvedConversations` counts such sessions (an upper bound) in a preview,
+in an erasure and its audit entry, and in the `X-Tracon-Unresolved-Conversations` header of an
+export; it is `0` when every conversation was found. A session whose state cannot be restored by
+a registered agent is counted the same way. Preview first: a count above `0` means a conversation
+may stay. An agent that cannot be compiled fails the call with `400`.
 
 ## Content protection
 

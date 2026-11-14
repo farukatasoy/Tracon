@@ -48,8 +48,10 @@ internal static class DataSubjectEndpoints
                 "scores, workflow checkpoints, conversations, conversation items, and responses); " +
                 "a target with no matching rows is present as an empty array, not omitted. A " +
                 "session's internal conversation is found by restoring the session through its own " +
-                "agent. An agent that is no longer registered cannot do that: the session's row is " +
-                "still in the document, its conversation is not, and the response header " +
+                "agent; when that agent is no longer registered, its identifier is read from the " +
+                "session's stored state instead. A state that does not have the shape the agent " +
+                "framework writes cannot be read: the session's row is still in the document, its " +
+                "conversation is not, and the response header " +
                 "'X-Tracon-Unresolved-Conversations' says how many sessions this applies to (an " +
                 "upper bound; '0' when every conversation was looked up; written on every 200 " +
                 "response, and a proxy may drop it). A session whose saved state cannot be restored " +
@@ -83,13 +85,14 @@ internal static class DataSubjectEndpoints
                 "commits: '?dryRun=false' is refused with 409 that names those runs, and the preview " +
                 "lists them in 'activeRunIds'. '?force=true' erases anyway, for a row a crashed " +
                 "process left behind; cancel a run that is really running first. A session's " +
-                "internal conversation is found by restoring the session through its own agent. " +
-                "An agent that is no longer registered cannot do that: the session row IS erased, " +
-                "its conversation stays, and 'unresolvedConversations' says how many sessions this " +
-                "applies to (an upper bound, in the preview as well as in the erasure, and in the " +
+                "internal conversation is found by restoring the session through its own agent; " +
+                "when that agent is no longer registered, its identifier is read from the session's " +
+                "stored state instead, and the conversation goes with the session. A state that does " +
+                "not have the shape the agent framework writes cannot be read: the session row IS " +
+                "erased, its conversation stays, and 'unresolvedConversations' says how many sessions " +
+                "this applies to (an upper bound, in the preview as well as in the erasure, and in the " +
                 "audit entry; a session whose saved state cannot be restored is counted too). " +
-                "Preview first: when it is above 0 because an agent was deleted or renamed, register " +
-                "the agent again and erase afterwards, and the conversation goes with the session. " +
+                "Preview first: when it is above 0, a conversation may stay. " +
                 "A repeated call finds the session already gone and counts 0, so keep the answer of " +
                 "the first call. An agent that is registered but cannot be compiled (a tenant key " +
                 "with no value, an egress policy that no longer allows the provider) fails the " +

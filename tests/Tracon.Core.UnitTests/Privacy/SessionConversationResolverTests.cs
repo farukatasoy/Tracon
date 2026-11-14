@@ -50,14 +50,44 @@ public sealed class SessionConversationResolverTests
     }
 
     [Fact]
-    public async Task A_session_whose_agent_is_not_registered_is_counted_and_logged()
+    public async Task A_session_whose_agent_is_not_registered_is_read_from_its_stored_state_and_not_counted()
     {
         await SaveAsync("orphan", "vanished-agent", ConversationA);
 
         var lookup = await Resolver().ResolveAsync(["orphan"], TestContext.Current.CancellationToken);
 
+        lookup.ConversationIds.ShouldBe([ConversationA], "the id is plain JSON in the state the agent wrote; the agent is not needed to read it");
+        lookup.Unresolved.ShouldBe(0);
+        _logger.Warnings.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_session_whose_agent_is_not_registered_and_that_has_no_chat_history_is_not_counted()
+    {
+        await SaveAsync("orphan-fresh", "vanished-agent", conversationId: null);
+        await SaveAsync("orphan-empty", "vanished-agent", Guid.Empty);
+
+        var lookup = await Resolver().ResolveAsync(["orphan-fresh", "orphan-empty"], TestContext.Current.CancellationToken);
+
         lookup.ConversationIds.ShouldBeEmpty();
-        lookup.Unresolved.ShouldBe(1);
+        lookup.Unresolved.ShouldBe(0, "a readable state without a conversation has nothing to miss");
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("5")]
+    [InlineData("""{"stateBag":"not an object"}""")]
+    [InlineData("""{"stateBag":{"Tracon.ChatHistory":"not an object"}}""")]
+    [InlineData("""{"stateBag":{"Tracon.ChatHistory":{"conversationId":"not a guid"}}}""")]
+    [InlineData("""{"stateBag":{"Tracon.ChatHistory":{"conversationId":5}}}""")]
+    public async Task A_session_whose_agent_is_not_registered_and_whose_state_has_another_shape_is_counted_and_logged(string state)
+    {
+        await SaveStateAsync("orphan", "vanished-agent", JsonDocument.Parse(state).RootElement.Clone());
+
+        var lookup = await Resolver().ResolveAsync(["orphan"], TestContext.Current.CancellationToken);
+
+        lookup.ConversationIds.ShouldBeEmpty();
+        lookup.Unresolved.ShouldBe(1, "without a readable state, whether the session had a conversation cannot be known");
         _logger.Warnings.ShouldHaveSingleItem().ShouldContain("orphan");
     }
 
@@ -129,12 +159,14 @@ public sealed class SessionConversationResolverTests
         await SaveAsync("fresh", "support", conversationId: null);
         await SaveAsync("orphan-1", "vanished-agent", ConversationA);
         await SaveAsync("orphan-2", "renamed-agent", ConversationB);
+        await SaveStateAsync("unreadable-1", "vanished-agent", JsonDocument.Parse("{}").RootElement.Clone());
+        await SaveStateAsync("unreadable-2", "renamed-agent", JsonDocument.Parse("5").RootElement.Clone());
 
         var lookup = await Resolver().ResolveAsync(
-            ["found-1", "no-such-session", "orphan-1", "fresh", "found-2", "orphan-2"],
+            ["found-1", "no-such-session", "orphan-1", "fresh", "unreadable-1", "found-2", "orphan-2", "unreadable-2"],
             TestContext.Current.CancellationToken);
 
-        lookup.ConversationIds.ShouldBe([ConversationA, ConversationB]);
+        lookup.ConversationIds.ShouldBe([ConversationA, ConversationA, ConversationB, ConversationB]);
         lookup.Unresolved.ShouldBe(2);
     }
 
@@ -144,7 +176,7 @@ public sealed class SessionConversationResolverTests
         // The skip counted before the refusal is lost with the exception: the caller has no answer to act on.
         _catalog.Register("support");
         _catalog.Refuse("doomed-agent", new TraconException("Tracon:ProviderKeys:missing-on-purpose has no value."));
-        await SaveAsync("orphan", "vanished-agent", ConversationA);
+        await SaveStateAsync("orphan", "vanished-agent", JsonDocument.Parse("{}").RootElement.Clone());
         await SaveAsync("doomed", "doomed-agent", ConversationB);
 
         foreach (var order in (string[][])[["orphan", "doomed"], ["doomed", "orphan"]])
@@ -173,7 +205,7 @@ public sealed class SessionConversationResolverTests
         using var cancelled = new CancellationTokenSource();
         _catalog.Register("support");
         _catalog.CancelOn("support", cancelled);
-        await SaveAsync("orphan", "vanished-agent", ConversationB);
+        await SaveStateAsync("orphan", "vanished-agent", JsonDocument.Parse("{}").RootElement.Clone());
         await SaveAsync("found", "support", ConversationA);
 
         await Should.ThrowAsync<OperationCanceledException>(async () =>
@@ -183,7 +215,7 @@ public sealed class SessionConversationResolverTests
     [Fact]
     public async Task A_session_named_twice_is_one_session_to_look_up()
     {
-        await SaveAsync("orphan", "vanished-agent", ConversationA);
+        await SaveStateAsync("orphan", "vanished-agent", JsonDocument.Parse("{}").RootElement.Clone());
 
         var lookup = await Resolver().ResolveAsync(["orphan", "orphan"], TestContext.Current.CancellationToken);
 
@@ -239,6 +271,19 @@ public sealed class SessionConversationResolverTests
         var saved = (await _sessions.GetAsync(sessionId, TestContext.Current.CancellationToken))!;
         await _sessions.SaveAsync(saved with { AgentName = agentName }, TestContext.Current.CancellationToken);
     }
+
+    /// <summary>Saves a session whose stored state is the given JSON, for the agent of that name.</summary>
+    private async Task SaveStateAsync(string sessionId, string agentName, JsonElement state)
+        => await _sessions.SaveAsync(
+            new SessionRecord
+            {
+                Id = sessionId,
+                AgentName = agentName,
+                State = state,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            TestContext.Current.CancellationToken);
 
     private sealed class ScriptedCatalog : IAgentCatalog
     {

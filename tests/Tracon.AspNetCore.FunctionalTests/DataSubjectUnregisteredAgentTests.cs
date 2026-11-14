@@ -8,21 +8,22 @@ using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// A data subject export and erasure that meets a session whose agent is no longer registered still answers
-/// <c>200</c> and says how many conversations it could not look up.
+/// A data subject export and erasure that meets a session whose agent is no longer registered finds the session's
+/// conversation in the stored state, and says how many conversations it could not look up when the state does not allow that.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The internal chat-history conversation of a session lives in the session's own state, so finding it restores the
-/// session through its agent. An agent that was deleted or renamed leaves a session whose conversation cannot be found.
-/// Failing the whole request would let one stale session block the erasure of everything else the subject has, so the
+/// The internal chat-history conversation of a session lives in the session's own state. With the agent registered the
+/// session is restored through it; with an agent that was deleted or renamed, the id is read from the stored JSON, which
+/// does not need the agent. A state that does not have the shape the framework writes leaves the conversation unknown.
+/// Failing the whole request would let one such session block the erasure of everything else the subject has, so the
 /// session is skipped; skipping without a word would let the caller read <c>200</c> as "everything is gone". The count
 /// is that word.
 /// </para>
 /// <para>
 /// Every test seeds a REAL conversation: a first host that has the agent runs it over SQLite, then a second host on the
-/// same file has no such agent. A hand-written session row would carry no conversation and could not show that one stays
-/// behind.
+/// same file has no such agent. A hand-written session row would carry no conversation and could not show that one is
+/// erased, or stays behind.
 /// </para>
 /// </remarks>
 public sealed class DataSubjectUnregisteredAgentTests
@@ -32,7 +33,7 @@ public sealed class DataSubjectUnregisteredAgentTests
     private const string TenantHeader = "X-Tracon-Tenant";
 
     [Fact]
-    public async Task The_preview_counts_the_conversation_it_could_not_look_up_and_changes_nothing()
+    public async Task The_preview_finds_the_conversation_of_a_session_whose_agent_is_gone_and_changes_nothing()
     {
         using var database = new TempSqliteDatabase("subject-preview");
         await SeedAsync(database, "ghost-session");
@@ -43,8 +44,9 @@ public sealed class DataSubjectUnregisteredAgentTests
 
         reply.Status.ShouldBe(HttpStatusCode.OK, reply.Body);
         reply.Json.GetProperty("dryRun").GetBoolean().ShouldBeTrue();
-        reply.Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(1);
+        reply.Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
         reply.Json.GetProperty("rowsByTarget").GetProperty("sessions").GetInt32().ShouldBe(1);
+        reply.Json.GetProperty("rowsByTarget").GetProperty("conversations").GetInt32().ShouldBe(1, "the conversation is in the count of what an erasure would delete");
 
         Count(database, Table.Sessions).ShouldBe(1);
         Count(database, Table.Conversations).ShouldBe(1);
@@ -52,7 +54,7 @@ public sealed class DataSubjectUnregisteredAgentTests
     }
 
     [Fact]
-    public async Task The_erasure_deletes_the_session_row_leaves_the_conversation_and_says_so_in_the_answer_and_the_audit_trail()
+    public async Task The_erasure_deletes_the_conversation_with_the_session_when_the_agent_is_gone_and_the_audit_trail_says_nothing_was_left()
     {
         using var database = new TempSqliteDatabase("subject-erase");
         await SeedAsync(database, "ghost-session");
@@ -64,21 +66,49 @@ public sealed class DataSubjectUnregisteredAgentTests
 
         reply.Status.ShouldBe(HttpStatusCode.OK, reply.Body);
         reply.Json.GetProperty("dryRun").GetBoolean().ShouldBeFalse();
-        reply.Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(1);
+        reply.Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
 
         Count(database, Table.Sessions).ShouldBe(0);
-        Count(database, Table.Conversations).ShouldBe(1, "the agent is gone, so the conversation cannot be found");
-        Count(database, Table.ConversationItems).ShouldBeGreaterThan(0);
+        Count(database, Table.Conversations).ShouldBe(0, "the id is in the stored state, so the agent that wrote it is not needed");
+        Count(database, Table.ConversationItems).ShouldBe(0);
 
         var entry = (await AuditEntriesAsync(host, "subject")).ShouldHaveSingleItem();
         entry.GetProperty("action").GetString().ShouldBe("data_subject.erase");
 
         using var after = JsonDocument.Parse(entry.GetProperty("after").GetString()!);
-        after.RootElement.GetProperty("unresolvedConversations").GetInt32().ShouldBe(1);
+        after.RootElement.GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
         after.RootElement.GetProperty("rowsByTarget").GetProperty("sessions").GetInt32().ShouldBe(1);
+        after.RootElement.GetProperty("rowsByTarget").GetProperty("conversations").GetInt32().ShouldBe(1);
 
         var verify = await SendAsync(host, HttpMethod.Get, "audit/verify");
         verify.Json.GetProperty("status").GetString().ShouldBe("Valid", verify.Body);
+    }
+
+    [Fact]
+    public async Task A_session_whose_agent_is_gone_and_whose_state_has_another_shape_is_counted_and_its_conversation_stays()
+    {
+        using var database = new TempSqliteDatabase("subject-unreadable");
+        await SeedAsync(database, "ghost-session");
+
+        await using var host = await StartAsync(database, static _ => ["ghost-session"]);
+
+        // A state the framework did not write in the shape this reads: whether the session had a conversation cannot be known.
+        var sessions = host.Services.GetRequiredService<ISessionStore>();
+        var stored = (await sessions.GetAsync("ghost-session")).ShouldNotBeNull();
+        await sessions.SaveAsync(stored with { State = JsonDocument.Parse("{}").RootElement.Clone() });
+
+        var reply = await SendAsync(host, HttpMethod.Delete, "data-subjects/subject?dryRun=false");
+
+        reply.Status.ShouldBe(HttpStatusCode.OK, reply.Body);
+        reply.Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(1);
+
+        Count(database, Table.Sessions).ShouldBe(0);
+        Count(database, Table.Conversations).ShouldBe(1, "nothing says which conversation was the session's, so none is guessed");
+        Count(database, Table.ConversationItems).ShouldBeGreaterThan(0);
+
+        var entry = (await AuditEntriesAsync(host, "subject")).ShouldHaveSingleItem();
+        using var after = JsonDocument.Parse(entry.GetProperty("after").GetString()!);
+        after.RootElement.GetProperty("unresolvedConversations").GetInt32().ShouldBe(1);
     }
 
     [Fact]
@@ -90,17 +120,17 @@ public sealed class DataSubjectUnregisteredAgentTests
         await using var host = await StartAsync(database, static _ => ["ghost-session"]);
 
         (await SendAsync(host, HttpMethod.Delete, "data-subjects/subject?dryRun=false"))
-            .Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(1);
+            .Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
 
         var again = await SendAsync(host, HttpMethod.Delete, "data-subjects/subject?dryRun=false");
 
         again.Status.ShouldBe(HttpStatusCode.OK, again.Body);
         again.Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
-        Count(database, Table.Conversations).ShouldBe(1);
+        Count(database, Table.Conversations).ShouldBe(0);
     }
 
     [Fact]
-    public async Task The_export_carries_the_count_in_a_header_and_the_document_is_untouched()
+    public async Task The_export_lists_the_conversation_of_a_session_whose_agent_is_gone_and_carries_the_count_in_a_header()
     {
         using var database = new TempSqliteDatabase("subject-export");
         await SeedAsync(database, "ghost-session");
@@ -110,10 +140,32 @@ public sealed class DataSubjectUnregisteredAgentTests
         var reply = await SendAsync(host, HttpMethod.Get, "data-subjects/subject/export");
 
         reply.Status.ShouldBe(HttpStatusCode.OK, reply.Body);
-        reply.UnresolvedHeader.ShouldBe("1");
+        reply.UnresolvedHeader.ShouldBe("0");
         reply.Json.ValueKind.ShouldBe(JsonValueKind.Object);
         reply.Json.TryGetProperty("unresolvedConversations", out _).ShouldBeFalse("the document is the store's, the count travels in the header");
         reply.Json.GetProperty("sessions").GetArrayLength().ShouldBe(1);
+        reply.Json.GetProperty("conversations").GetArrayLength().ShouldBe(1, "the conversation was read from the stored state, without the agent");
+    }
+
+    [Fact]
+    public async Task The_export_counts_a_conversation_it_could_not_look_up_in_a_header_and_the_document_is_untouched()
+    {
+        using var database = new TempSqliteDatabase("subject-export-unreadable");
+        await SeedAsync(database, "ghost-session");
+
+        await using var host = await StartAsync(database, static _ => ["ghost-session"]);
+
+        var sessions = host.Services.GetRequiredService<ISessionStore>();
+        var stored = (await sessions.GetAsync("ghost-session")).ShouldNotBeNull();
+        await sessions.SaveAsync(stored with { State = JsonDocument.Parse("{}").RootElement.Clone() });
+
+        var reply = await SendAsync(host, HttpMethod.Get, "data-subjects/subject/export");
+
+        reply.Status.ShouldBe(HttpStatusCode.OK, reply.Body);
+        reply.UnresolvedHeader.ShouldBe("1");
+        reply.Json.TryGetProperty("unresolvedConversations", out _).ShouldBeFalse("the document is the store's, the count travels in the header");
+        reply.Json.GetProperty("sessions").GetArrayLength().ShouldBe(1);
+        reply.Json.GetProperty("conversations").GetArrayLength().ShouldBe(0);
     }
 
     [Fact]

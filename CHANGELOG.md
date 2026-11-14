@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A data subject export and erasure find the conversation of a session whose agent is no longer registered.** The conversation's identifier is plain JSON in the session's stored state, so the agent that wrote it is not needed to read it. An export lists the conversation and an erasure deletes it with the session; both used to skip it and count it in `unresolvedConversations`. A state that does not have the shape the agent framework writes is still skipped and counted, and so is a state that a registered agent cannot restore.
+  What to do:
+  - **If you erased a subject whose agent was deleted or renamed, you no longer need to register the agent again first.** Keep reading `unresolvedConversations` on the answer and the `X-Tracon-Unresolved-Conversations` header: a count above `0` still means a conversation may stay.
+  - **If you keep the first answer of an erasure as proof of what was left, expect `0` where such a session was counted before.**
+
 - **Two requests that answer the same pending tool call no longer both run it.** An approval, a tool input or a client tool result resumes a call that the session history says is pending, and the session is written when a run ends. Two requests that read the same version of the session both found the call pending and both ran the tool, and the later save reported the conflict after the tool had run twice. The request that takes the session's version first now goes on; the other one is answered `409` with `errorType: session_conflict` before it applies the answer or runs anything. `AgentSessionManager` gets `ClaimSessionAsync` for this.
   What to do:
   - **If a client can send the same answer twice (a double click, a retry), expect one `409` and treat it as "the other request has it".** Read the session before sending the answer again.
