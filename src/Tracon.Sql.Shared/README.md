@@ -41,6 +41,10 @@ A consumer reaches what these types do through the interfaces in
 **Rule:** no file here may reference the `Npgsql` or `Microsoft.Data.SqlClient`
 namespace. Anything provider-specific goes through `SqlDialect`.
 
+A new store is registered once, in `Internal/SqlPersistenceRegistration.cs`. Every
+provider's `Use*` method calls that registration and adds only what differs between
+databases: its store context and how its state is shared between processes.
+
 ## Links
 
 - Guide: <https://tracon.dev/getting-started/persistence/>

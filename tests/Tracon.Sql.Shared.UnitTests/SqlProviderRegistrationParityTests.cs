@@ -5,16 +5,17 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Tracon.SqlProviders.Tests;
 
 /// <summary>
-/// Gates the part of the three SQL providers that is still copied by hand: the
-/// registration body of <c>UsePostgreSql</c>, <c>UseSqlServer</c> and
-/// <c>UseSqlite</c>.
+/// Gates the registration of the three SQL providers: the store set that
+/// <c>UsePostgreSql</c>, <c>UseSqlServer</c> and <c>UseSqlite</c> share through
+/// <c>SqlPersistenceRegistration</c>, and what each of them still adds itself.
 /// </summary>
 /// <remarks>
 /// <para>
 /// 🚨 The defect class is SILENT. <c>AddTracon()</c> pre-registers an in-memory
-/// default for every store, so a <c>ReplaceTraconDefault</c> line forgotten in
-/// one provider does not fail anything: the store simply stays in memory and
-/// its data is lost with the process. Before this gate no test could see it —
+/// default for every store, so a <c>ReplaceTraconDefault</c> line missing from
+/// the shared registration (or a provider that stops calling it) does not fail
+/// anything: the store simply stays in memory and its data is lost with the
+/// process. Before this gate no test could see it —
 /// the contract tests build every store with <c>new</c> and skip DI, the three
 /// <c>ConsumerStoreRegistrationTests</c> resolve two contracts, and
 /// <c>AuditCoverageTests</c> builds its container from <c>AddTracon()</c> alone.
@@ -24,7 +25,8 @@ namespace Tracon.SqlProviders.Tests;
 /// </para>
 /// <para>
 /// Five checks, each closing a different miss: the three providers touch the
-/// same service types (a line added to one provider and forgotten in another);
+/// same service types (a registration added to one provider's <c>Use*</c> only,
+/// or a provider that no longer calls the shared registration);
 /// every persistence contract resolves to the provider's own implementation (a
 /// store added to Core and forgotten in all three); every contract keeps the
 /// decorator state <c>AddTracon()</c> gives it; a later provider in the chain
@@ -165,20 +167,21 @@ public sealed class SqlProviderRegistrationParityTests
     /// <remarks>
     /// <para>
     /// 🚨 A deliberate tolerance, not a design statement.
-    /// <c>IConversationBranchStore</c> is the only contract the three providers
-    /// register with <c>TryAddSingleton</c>; every other one goes through
+    /// <c>IConversationBranchStore</c> is the only contract the shared
+    /// registration adds with <c>TryAddSingleton</c>; every other one goes through
     /// <c>ReplaceTraconDefault</c>. With one provider the two verbs end
     /// the same, because <c>AddTracon()</c> registers no default for it. With two
     /// providers in one chain — a configuration error the documentation warns about — the
     /// FIRST provider keeps the branch store while every other contract follows
     /// the second, so branching writes to one database and sessions live in the
     /// other. Changing the verb is an open decision, not this gate's. The entry
-    /// is pinned: once all three providers switch to <c>ReplaceTraconDefault</c>
+    /// is pinned: once the shared registration switches to <c>ReplaceTraconDefault</c>
     /// the second provider takes over and this entry fails until it is removed.
     /// </para>
     /// <para>
-    /// Measured limit: a switch in ONE provider only is invisible here.
-    /// <c>ReplaceTraconDefault</c> sees the other provider's <c>TryAdd</c>
+    /// Measured limit: a switch in ONE provider only (a provider that registers
+    /// the contract itself instead of through the shared registration) is
+    /// invisible here. <c>ReplaceTraconDefault</c> sees the other provider's <c>TryAdd</c>
     /// descriptor as unmarked, treats it as the consumer's and keeps it, so the
     /// first provider still wins in every chain. Seeing that needs Core's
     /// internal default registry, which this project cannot read.
@@ -187,7 +190,7 @@ public sealed class SqlProviderRegistrationParityTests
     private static readonly Dictionary<Type, string> FirstProviderInTheChainKeeps = new()
     {
         [typeof(IConversationBranchStore)] =
-            "registered with TryAddSingleton in all three providers, not ReplaceTraconDefault",
+            "registered with TryAddSingleton by the shared registration, not ReplaceTraconDefault",
     };
 
     /// <summary>
@@ -218,9 +221,10 @@ public sealed class SqlProviderRegistrationParityTests
             .ToList();
 
         drift.ShouldBeEmpty(
-            customMessage: "The three Use* methods no longer register the same service types. A line added to " +
-                           "one provider was forgotten in another; add it to all three " +
-                           $"(src/Tracon.PostgreSql, src/Tracon.SqlServer, src/Tracon.Sqlite):{Environment.NewLine}" +
+            customMessage: "The three Use* methods no longer register the same service types. A registration " +
+                           "that every provider needs belongs in the shared " +
+                           "src/Tracon.Sql.Shared/Internal/SqlPersistenceRegistration.cs, not in one provider's " +
+                           $"Use* method, and every provider must call it:{Environment.NewLine}" +
                            string.Join(Environment.NewLine, drift));
     }
 
