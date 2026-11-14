@@ -388,7 +388,7 @@ carries the content itself, only metadata and, where noted, one bounded text.
 | `customType` | Written for | `Text` | Payload keys |
 |---|---|---|---|
 | `tracon.content` | A hosted tool call or result that no registered hosted tool owns (the harness's web search, image generation, hosted MCP) | `web_search call`, `web_search result` | `type` (`hosted_tool_call` or `hosted_tool_result`), `tool`, `callId` |
-| `tracon.content` | An `ErrorContent` the provider returned inside a response | `error: <code>` | `type` (`error`), `errorCode`, `message` (cut at 2 048 characters) |
+| `tracon.content` | An `ErrorContent` the provider returned inside a response | `error: <code>` (the code is cut at 64 characters) | `type` (`error`), `errorCode` (cut at 64 characters), `message` (cut at 2 048 characters) |
 | `tracon.content` | Generated or attached data | `data: <media type>` | `type` (`data`), `mediaType`, `length` in bytes — never the bytes |
 | `tracon.content` | A `UriContent` | `uri: <media type>` | `type` (`uri`), `mediaType` — never the address, because a signed URL can carry a credential |
 | `tracon.content` | A hosted file or vector store | `hosted file`, `hosted vector store` | `type`, `id` |

@@ -155,6 +155,31 @@ public sealed class ContentEventPayloadTests
     }
 
     [Fact]
+    public void An_error_code_that_is_a_message_is_cut_in_the_text_and_in_the_payload()
+    {
+        // The text of the event is kept when payloads are not: it may hold a code, not what an adapter wrote in its place.
+        var message = new string('x', 500);
+
+        var draft = ContentEventPayload.Describe(new ErrorContent("short") { ErrorCode = message });
+
+        using var payload = JsonDocument.Parse(draft.Payload!);
+
+        draft.Text!.Length.ShouldBeLessThan(ContentEventPayload.MaxErrorCodeLength + 32);
+        draft.Text.ShouldStartWith("error: " + new string('x', ContentEventPayload.MaxErrorCodeLength), Case.Sensitive);
+        payload.RootElement.GetProperty("errorCode").GetString()!.Length.ShouldBeLessThan(ContentEventPayload.MaxErrorCodeLength + 32);
+    }
+
+    [Fact]
+    public void An_error_code_of_the_length_of_a_code_is_kept_whole()
+    {
+        var code = new string('c', ContentEventPayload.MaxErrorCodeLength);
+
+        var draft = ContentEventPayload.Describe(new ErrorContent("short") { ErrorCode = code });
+
+        draft.Text.ShouldBe("error: " + code);
+    }
+
+    [Fact]
     public void A_message_that_fits_is_written_whole_whatever_the_limit()
     {
         var draft = ContentEventPayload.Describe(new ErrorContent("short"), maxPayloadLength: 8192);

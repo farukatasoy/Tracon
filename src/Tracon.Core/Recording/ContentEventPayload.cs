@@ -182,6 +182,9 @@ internal static class ContentEventPayload
         return string.Concat(value.AsSpan(0, SurrogateSafeText.PrefixLength(value, length)), RunEventWriter.TruncationMarker);
     }
 
+    /// <summary>The longest error code the event keeps; a longer one is cut and marked.</summary>
+    internal const int MaxErrorCodeLength = 64;
+
     private static (string Text, string Payload) HostedTool(string tool, bool isCall, string callId)
     {
         var type = isCall ? "hosted_tool_call" : "hosted_tool_result";
@@ -198,7 +201,10 @@ internal static class ContentEventPayload
 
     private static (string Text, string Payload) DescribeError(ErrorContent error, int maxPayloadLength)
     {
-        var code = Sanitize(error.ErrorCode);
+        // The code is a short token in every adapter Tracon ships (a fixed word, an enum name, or the short code of an API error)
+        // and it goes into the event's text, which is not a payload and is kept when payloads are not. An adapter that put a
+        // message there would write it into that text; the bound keeps what the text may hold to what a code is.
+        var code = Cut(Sanitize(error.ErrorCode), MaxErrorCodeLength);
 
         return (
             string.IsNullOrEmpty(code) ? "error" : $"error: {code}",

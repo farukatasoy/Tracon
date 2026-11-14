@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The error code a `tracon.content` event keeps is cut at 64 characters.** The event's text carries the code of an `ErrorContent` a provider returned, and it is written whether or not tool payloads are recorded. The adapters Tracon ships write a short token there, so nothing changes for them; an adapter that put a message in the code would have written it into the text.
+  What to do:
+  - **If you read `errorCode` from a `tracon.content` event, expect a code longer than 64 characters to end with the truncation marker.**
+
 - **A Gemini turn that ends on a function call it could not use fails the run instead of completing with an empty answer.** Gemini ends a turn with `MALFORMED_FUNCTION_CALL` when the model wrote a call that did not parse, or with `UNEXPECTED_TOOL_CALL` when it asked for a tool the request did not declare, and the answer holds no call. The agent framework's adapter reports both as a turn of tool calls, so the tool loop had nothing to run and the run ended `Completed` with no text. The run now fails as a provider error (`upstream_error`, class `ProviderError`), and a fallback chain goes on to the next model.
   What to do:
   - **If a Gemini agent returned an empty answer now and then, look for `upstream_error` runs that name `GoogleFunctionCallException`.** They are the same turns, recorded as the failures they were.
