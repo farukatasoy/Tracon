@@ -311,6 +311,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.GatedLoop`1[Tracon.JobQueueDepthObserver]",
         "Tracon.RunHeartbeatWriter | Singleton | Tracon.RunHeartbeatWriter",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.GatedLoop`1[Tracon.RunHeartbeatWriter]",
+        "Tracon.InterruptedRunQuotaWriter | Singleton | Factory",
         "Tracon.RunReconciliationService | Singleton | Tracon.RunReconciliationService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.GatedLoop`1[Tracon.RunReconciliationService]",
         "Tracon.ApprovalExpirationService | Singleton | Tracon.ApprovalExpirationService",
