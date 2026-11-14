@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A retried eval job reports the tokens of the whole job, not of its last attempt.** An eval job that a worker stopped is picked up again and runs only the cases that were left. The total in `inputTokens` and `outputTokens` of the eval run counted only what the last attempt spent, so a job that was picked up again reported less than it cost. The retry now reads the tokens of the cases that were done from the run each of them recorded, the same number a job that was never interrupted adds up.
+  What to do:
+  - **If you compare eval runs by tokens, expect the total of a run that was retried to rise to what it spent.** An eval run that lost a case's run record to retention counts nothing for that case.
+  - **If you wrote your own `IEvalStore`, nothing changes:** the handler reads the case results the store already lists.
+
 - **`GET /api/sessions/{id}` lists the requests that still wait in `pendingRequestIds`, and the console shows an approval whose answer was applied as answered.** The session holds a request in its history until the run that applied the answer saves the session, and a run whose caller left saves nothing, so the same approval stayed on screen as waiting and a decision on it was refused with `409`. The console also read the answer in a recorded history as a second request and showed one more card for every approval that was answered. The new field is the requests of `messages` that wait, in order; it is `null` when the history could not be read, as `messages` is.
   What to do:
   - **If you build your own front end on `GET /api/sessions/{id}`, read `pendingRequestIds` to know which approval and tool input requests of `messages` still wait for an answer.** A request that is in `messages` and not in the list was answered. A client that does not read the field sees what it saw before.

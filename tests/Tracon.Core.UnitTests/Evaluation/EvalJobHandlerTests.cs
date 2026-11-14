@@ -524,17 +524,124 @@ public sealed class EvalJobHandlerTests
         results[0].FailureReason!.ShouldContain("customer");
     }
 
+    [Fact]
+    public async Task A_retry_counts_the_tokens_of_the_cases_an_earlier_attempt_ran_with_those_of_its_own()
+    {
+        // The attempt that ran the first case died with its sums. The case's run kept its tokens on its record, and the retry that
+        // runs the rest reads them from there, so the eval run's total is the whole job's and not the last attempt's.
+        var evalStore = new InMemoryEvalStore();
+        var runStore = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var handler = CreateHandler(evalStore, new MapAgent(), runStore: runStore);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty","minLength":1}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("first question"), CaseInput("second question")]);
+
+        var jobId = Guid.NewGuid();
+        var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+        var earlierRunId = await RecordEarlierCaseRunAsync(evalStore, runStore, run, cases[0], inputTokens: 120, outputTokens: 30);
+
+        var reported = new List<JobItemResult>();
+        var items = new[]
+        {
+            Item(0, cases[0].Id) with { Status = JobItemStatus.Completed },
+            Item(1, cases[1].Id),
+        };
+        var context = BuildContextForItems(suite, items, jobId, reported);
+
+        await handler.ExecuteAsync(context);
+
+        reported.ShouldHaveSingleItem().Seq.ShouldBe(1, "only the case the earlier attempt did not reach runs again");
+
+        var completed = (await evalStore.GetRunAsync(TenantId, run.Id)).ShouldNotBeNull();
+
+        completed.Passed.ShouldBe(2);
+        completed.InputTokens.ShouldBe(120, "the first case's run spent 120, and the second case's fake agent reports none");
+        completed.OutputTokens.ShouldBe(30);
+        _ = earlierRunId;
+    }
+
+    [Fact]
+    public async Task A_retry_adds_nothing_for_a_case_whose_run_has_no_record_or_that_never_ran()
+    {
+        var evalStore = new InMemoryEvalStore();
+        var runStore = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var handler = CreateHandler(evalStore, new MapAgent(), runStore: runStore);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty","minLength":1}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("first question"), CaseInput("second question")]);
+
+        var jobId = Guid.NewGuid();
+        var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+
+        // One result names a run the store no longer holds, the other was refused before it ran.
+        await evalStore.RecordCaseResultAsync(new EvalCaseResult { EvalRunId = run.Id, CaseId = cases[0].Id, RunId = Guid.NewGuid(), Passed = true });
+        await evalStore.RecordCaseResultAsync(new EvalCaseResult { EvalRunId = run.Id, CaseId = cases[1].Id, RunId = null, Passed = false });
+
+        var items = new[]
+        {
+            Item(0, cases[0].Id) with { Status = JobItemStatus.Completed },
+            Item(1, cases[1].Id) with { Status = JobItemStatus.Failed },
+        };
+        var context = BuildContextForItems(suite, items, jobId, []);
+
+        await handler.ExecuteAsync(context);
+
+        var completed = (await evalStore.GetRunAsync(TenantId, run.Id)).ShouldNotBeNull();
+
+        completed.InputTokens.ShouldBe(0);
+        completed.OutputTokens.ShouldBe(0);
+    }
+
+    /// <summary>Writes what an earlier attempt left behind for one case: its run with its tokens, and the result that names it.</summary>
+    private static async Task<Guid> RecordEarlierCaseRunAsync(
+        InMemoryEvalStore evalStore,
+        InMemoryRunStore runStore,
+        EvalRun evalRun,
+        EvalCase evalCase,
+        long inputTokens,
+        long outputTokens)
+    {
+        var runId = TraconId.NewId();
+
+        await runStore.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = AgentName,
+            Kind = RunKind.Eval,
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = FixedTenantContext.Default.TenantId,
+        });
+
+        await runStore.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = inputTokens, OutputTokens = outputTokens, TotalTokens = inputTokens + outputTokens },
+        });
+
+        await evalStore.RecordCaseResultAsync(new EvalCaseResult { EvalRunId = evalRun.Id, CaseId = evalCase.Id, RunId = runId, Passed = true });
+
+        return runId;
+    }
+
     private static JsonElement PayloadWithVersion(string suiteName, int agentVersion)
         => JsonSerializer.SerializeToElement(new { suiteName, agentVersion });
 
-    private static EvalJobHandler CreateHandler(IEvalStore evalStore, AIAgent agent, int? agentVersion = 7, string? modelId = "gpt-test")
+    private static EvalJobHandler CreateHandler(
+        IEvalStore evalStore,
+        AIAgent agent,
+        int? agentVersion = 7,
+        string? modelId = "gpt-test",
+        IRunStore? runStore = null)
         => new(
             evalStore,
             new SingleAgentCatalog(agent, agentVersion, modelId),
             Parameterized(new InMemoryAgentDefinitionStore(), CreateCompiler()),
             new EvalCheckRegistry([]),
             new LocalEvalEvaluatorFactory(),
-            NullLogger<EvalJobHandler>.Instance);
+            NullLogger<EvalJobHandler>.Instance,
+            runStore: runStore);
 
     private static ParameterizedAgentFactory Parameterized(
         IAgentDefinitionStore definitions,
@@ -624,6 +731,20 @@ public sealed class EvalJobHandlerTests
             IsCancelledAsync = _ => new ValueTask<bool>(false),
         };
     }
+
+    /// <summary>A context over the items as they stand, some of them already processed by an earlier attempt.</summary>
+    private static JobContext BuildContextForItems(EvalSuite suite, IReadOnlyList<JobItemRecord> items, Guid jobId, List<JobItemResult> reported)
+        => new()
+        {
+            Job = Job(suite, jobId, items) with { Payload = Payload(suite.Name) },
+            Items = items,
+            ReportItemAsync = (result, _) =>
+            {
+                reported.Add(result);
+                return default;
+            },
+            IsCancelledAsync = _ => new ValueTask<bool>(false),
+        };
 
     private sealed class SingleAgentCatalog(AIAgent? agent, int? version, string? modelId) : IAgentCatalog
     {

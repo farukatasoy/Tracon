@@ -101,6 +101,12 @@ curl -X POST http://localhost:5081/tracon/api/evals/support/run
 curl http://localhost:5081/tracon/api/evals/support/runs
 ```
 
+The run's `inputTokens` and `outputTokens` add up what its cases' runs spent. A job that is
+picked up again after a worker stopped does not run the cases that were done, so it reads
+their tokens from the run each of them recorded; the total is the same as for a job that was
+never interrupted. A case whose run record is gone (a retention policy removed it) adds
+nothing.
+
 ### Checking which tool was called with which arguments
 
 A case lists the tool calls it expects in `expectedToolCalls`. Each entry is a tool

@@ -222,6 +222,7 @@ internal sealed class EvalJobHandler(
         long inputTokens = 0;
         long outputTokens = 0;
         var cancelled = false;
+        IReadOnlyList<EvalCaseResult>? earlierResults = null;
 
         foreach (var item in context.Items)
         {
@@ -236,6 +237,18 @@ internal sealed class EvalJobHandler(
                 else if (item.Status == JobItemStatus.Failed)
                 {
                     failedCases++;
+                }
+
+                // The tokens that case spent are not in this attempt's own sums, which died with the attempt that ran it. The
+                // run of each repetition kept them on its record.
+                if (Guid.TryParse(item.Input, out var earlierCaseId))
+                {
+                    earlierResults ??= await evalStore.ListCaseResultsAsync(evalRun.TenantId, evalRun.Id, cancellationToken).ConfigureAwait(false);
+
+                    var (earlierInput, earlierOutput) = await TokensOfEarlierCaseAsync(earlierResults, earlierCaseId, cancellationToken).ConfigureAwait(false);
+
+                    inputTokens += earlierInput;
+                    outputTokens += earlierOutput;
                 }
 
                 continue;
@@ -321,6 +334,43 @@ internal sealed class EvalJobHandler(
                 InputTokens = inputTokens,
                 OutputTokens = outputTokens,
             });
+    }
+
+    /// <summary>The tokens the runs of one case spent in an earlier attempt of the job, read from their run records.</summary>
+    /// <param name="results">The case results the eval run holds.</param>
+    /// <param name="caseId">The case.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The input and output tokens of the case's runs. A run with no record (a store that does not keep runs, or a run its retention
+    /// removed) and a result with no run (a case refused before it ran) add nothing, as they did when the attempt was the first.
+    /// </returns>
+    private async ValueTask<(long Input, long Output)> TokensOfEarlierCaseAsync(
+        IReadOnlyList<EvalCaseResult> results,
+        Guid caseId,
+        CancellationToken cancellationToken)
+    {
+        long input = 0;
+        long output = 0;
+
+        if (runStore is null)
+        {
+            return (input, output);
+        }
+
+        foreach (var result in results)
+        {
+            if (result.CaseId != caseId || result.RunId is not { } runId)
+            {
+                continue;
+            }
+
+            var usage = (await runStore.GetRunAsync(runId, cancellationToken).ConfigureAwait(false))?.Usage;
+
+            input += usage?.InputTokens ?? 0;
+            output += usage?.OutputTokens ?? 0;
+        }
+
+        return (input, output);
     }
 
     /// <summary>What a finished suite closes its eval run with.</summary>
