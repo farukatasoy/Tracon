@@ -340,8 +340,13 @@ stopped after it wrote text. The message item that was cut reads `"incomplete"` 
 a stream the last event is `response.incomplete` in place of `response.completed`, as on
 OpenAI's own stream, and it carries the final `response`. The `response.output_item.done`
 event of the cut message carries the same status, unless that item was already closed
-before the stream ended (a reasoning item that follows the text does it). A closed item
-keeps `completed` in its own event; the final `response` is whole and accurate.
+before the stream ended. A Gemini 3 model does it: it streams a last, empty part after the
+text that carries its `thoughtSignature`, the Responses stream shows that part as a
+`reasoning` item after the message, and the framework closes the open message item when
+that item starts. The order is Gemini's (measured on the raw stream of three Gemini 3
+models), so a client that reads `output_item.done` by position sees `message`, then
+`reasoning`. A closed item keeps `completed` in its own event; the final `response` is whole
+and accurate, and reading the status from it is the way that does not depend on the order.
 The OpenAI Python SDK's `stream.get_final_response()` raises `RuntimeError` when a
 stream ends in `response.incomplete`, against OpenAI itself too, so read the `response`
 of the last event instead. A complete answer keeps `completed` and has no
