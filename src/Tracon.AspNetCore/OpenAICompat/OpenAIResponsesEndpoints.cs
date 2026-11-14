@@ -103,7 +103,9 @@ internal static class OpenAIResponsesEndpoints
             .WithDescription(
                 "The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. " +
                 "If 'conversation' is given the session is stored under that identifier; if not, under the " +
-                "generated response identifier, so chaining with 'previous_response_id' works. If a " +
+                "generated response identifier, so chaining with 'previous_response_id' works. An agent that keeps " +
+                "files for its session (a session workspace) refuses a call that chains with 'previous_response_id' " +
+                "with 400, because every turn would get a session of its own: send 'conversation' instead. If a " +
                 "registered IRunAuthorizationHandler denies the caller, the response is 403. When " +
                 "session ownership is turned on, a 'conversation' or 'previous_response_id' that " +
                 "belongs to another user is refused the same way, and so is opening a NEW " +
@@ -247,6 +249,19 @@ internal static class OpenAIResponsesEndpoints
             return OpenAICompatSupport.Error(
                 StatusCodes.Status400BadRequest,
                 "'conversation' and 'previous_response_id' cannot start or end with whitespace.");
+        }
+
+        // 🚨 A call that chains with 'previous_response_id' runs in the session the earlier response saved but saves its own under
+        // the new response id. The files of a session workspace sit under the id the run loaded, so every turn would start in the
+        // directory of the turn before it and the files of the turns earlier still would stay behind an old response. The call is
+        // refused before anything is stored: a client that wants the files across turns names the conversation, which keeps one id.
+        if (!string.Equals(loadId, saveId, StringComparison.Ordinal) && agent.GetService<SessionWorkspaceProvider>() is not null)
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status400BadRequest,
+                $"The '{agentName}' agent keeps files for its session, and a call that chains with 'previous_response_id' gets a new " +
+                "session on every turn, so its files would be left behind. Send 'conversation' set to the id of the first response, " +
+                "and no 'previous_response_id', to keep the files across turns.");
         }
 
         // The attribution is checked before the run starts, as on the

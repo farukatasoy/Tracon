@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A call to the Responses endpoint that chains with `previous_response_id` is refused with `400` when the agent keeps files for its session.** The run of a chained call loads the session of the earlier response and saves a session of its own under the new response's identifier, and the files of a session workspace sit under the identifier the run loaded. The second turn saw the first turn's files, every later turn started with none, and the files of the turns before stayed under an earlier response that deleting the new session did not reach. The call is now refused before the model runs, and the answer names the way to keep the files.
+  What to do:
+  - **If a client chains the calls of an agent with a workspace, send `conversation` set to the identifier of the first response and no `previous_response_id`:** the conversation keeps one workspace across the turns. The first call needs no change.
+  - **If the agent has no workspace, nothing changes:** a chained call still loads the earlier response's history.
+
 - **An agent run that its process left behind is counted in the quota counter when the reconciliation closes it.** A run writes its share (one run and what its tools reported beyond tokens) when it ends, and a process that stopped never got there; the reconciliation closed the row and wrote nothing, so a workflow that stopped was counted and an agent run that stopped was not. The reconciliation now writes the run and the amount its tools reported, read from the records of its calls, under the agent's name and the run's user. The run's tokens were on the process that is gone and stay out. A process that was only silent and ends its run later adds its tokens and their price and not the run again.
   What to do:
   - **If a quota rule counted runs or cost of agents, expect the counter to rise by the agent runs a reconciliation closed.** Only a run that wrote an event is counted, and only when `Tracon:RunReconciliation:Enabled` is on.

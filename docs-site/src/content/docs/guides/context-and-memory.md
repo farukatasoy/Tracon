@@ -463,6 +463,11 @@ workspace off, or leave the agent off the allow list. See
   through the recorded tool playback, and a continuation could repeat a write or a delete. The run stays closed
   as it was.
 - **A replay with its recorded tools.** A replay has no session, so the agent has no workspace in it.
+- **A call to the Responses endpoint that chains with `previous_response_id`.** Every response saves a
+  session of its own, and the files of a workspace sit under the session's identifier, so the second turn
+  would see the first turn's files and every later turn would start with none. The endpoint answers `400`
+  before it calls the model. Send `conversation` set to the identifier of the first response, and no
+  `previous_response_id`, and the whole conversation keeps one workspace.
 
 ## Know the agent modes
 

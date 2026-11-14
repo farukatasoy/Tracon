@@ -117,6 +117,10 @@ curl -sS https://agents.example.com/tracon/v1/responses \
   -d "{\"model\":\"support\",\"conversation\":\"$CONVERSATION_ID\",\"input\":\"Hello\"}"
 ```
 
+An agent with a [session workspace](/guides/context-and-memory/#things-that-do-not-work) refuses a call
+that chains with `previous_response_id` (`400`): every chained response saves a session of its own, so
+its files would stay under the identifier of an earlier response. Send `conversation` instead, as above.
+
 Creating a conversation reserves an identifier; the session is born on the first
 response call. An identifier is local to the calling tenant: two tenants can use the
 same one, and each reaches only its own session. An identifier that only another
