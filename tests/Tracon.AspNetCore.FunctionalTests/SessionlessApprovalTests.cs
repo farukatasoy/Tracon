@@ -206,6 +206,110 @@ public sealed class SessionlessApprovalTests
         (await OnlyRunAsync(host, ExposedName)).Status.ShouldBe(RunStatus.Failed);
     }
 
+    [Fact]
+    public async Task An_MCP_tool_call_to_an_agent_saved_by_another_tenant_after_the_start_is_refused_when_its_tool_asks_for_an_approval()
+    {
+        // The guard that stops an exposed agent with an approval tool reads the catalog once, when the host starts, for the
+        // default tenant. An agent that another tenant saves later is not in what it read; the refusal at the call is.
+        await using var host = await StartAsync(
+            configureTracon: static builder =>
+            {
+                builder.UseTenancy(static options =>
+                {
+                    options.Enabled = true;
+                    options.AllowHeaderResolution = true;
+                });
+                builder.UseMcpServer(static o => o.ExposedAgents.Add(ExposedName));
+            },
+            configureAfterMap: static app => app.MapTraconMcpServer());
+
+        await SaveAgentAsync(host, HttpMethod.Post, "/tracon/api/agents", tenant: "tenant-b", withTool: false);
+        await SaveAgentAsync(host, HttpMethod.Put, $"/tracon/api/agents/{ExposedName}", tenant: "tenant-b", withTool: true);
+
+        var (response, body) = await McpTestClient.SendAsync(
+            host.Client,
+            "/tracon/mcp",
+            "tools/call",
+            new { name = $"tracon_{ExposedName}", arguments = new { message = "refund order 7" } },
+            tenantHeader: "tenant-b");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var result = body!.Value.GetProperty("result");
+        result.GetProperty("isError").GetBoolean().ShouldBeTrue();
+        result.GetProperty("content")[0].GetProperty("text").GetString().ShouldNotBeNull()
+            .ShouldContain("cannot respond to an approval request", Case.Sensitive);
+
+        (await OnlyRunAsync(host, ExposedName, tenant: "tenant-b")).Status.ShouldBe(RunStatus.Failed);
+    }
+
+    [Fact]
+    public async Task An_MCP_tool_call_to_an_agent_whose_sub_agent_asks_for_an_approval_never_runs_the_tool_and_tells_the_caller_why()
+    {
+        // The guard reads the agent that is exposed and not the agents it calls, so the sub-agent's tool is outside it. What holds
+        // is the rule of the sub-agent itself: it cannot ask for an approval, so the tool is refused before it runs and its refusal
+        // is the answer the model of the exposed agent reads, and the caller with it.
+        var executions = 0;
+
+        await using var host = await StartAsync(
+            configureTracon: builder =>
+            {
+                builder
+                    .AddTool(
+                        (Func<string, string>)(orderId =>
+                        {
+                            Interlocked.Increment(ref executions);
+
+                            return $"refunded {orderId}";
+                        }),
+                        name: "child_refund",
+                        description: "Refunds an order for the sub-agent.",
+                        configure: static options => options.RequiresApproval = true)
+                    .AddModelProvider(new FakeModelProvider("delegating-provider")
+                        .ForModel("parent-1", static cfg => cfg
+                            .CallsTool("child_approver", new { query = "refund order 7" })
+                            .EchoesLastToolResult())
+                        .ForModel("child-1", static cfg => cfg
+                            .CallsTool("child_refund", new { orderId = "7" })
+                            .EchoesLastToolResult()))
+                    .AddAgent(new AgentDefinition
+                    {
+                        Name = "child-approver",
+                        Instructions = "Refund the order.",
+                        Model = new ModelBinding { Provider = "delegating-provider", Model = "child-1" },
+                        ToolNames = ["child_refund"],
+                        Origin = AgentDefinitionOrigin.Code,
+                    })
+                    .AddAgent(new AgentDefinition
+                    {
+                        Name = "front-agent",
+                        Instructions = "Delegate.",
+                        Model = new ModelBinding { Provider = "delegating-provider", Model = "parent-1" },
+                        CallableAgents = ["child-approver"],
+                        SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
+                        Origin = AgentDefinitionOrigin.Code,
+                    })
+                    .UseMcpServer(static o => o.ExposedAgents.Add("front-agent"));
+            },
+            configureAfterMap: static app => app.MapTraconMcpServer());
+
+        var (response, body) = await McpTestClient.SendAsync(
+            host.Client,
+            "/tracon/mcp",
+            "tools/call",
+            new { name = "tracon_front-agent", arguments = new { message = "refund order 7" } });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body!.Value.TryGetProperty("result", out var result).ShouldBeTrue(body.Value.ToString());
+
+        var text = result.GetProperty("content")[0].GetProperty("text").GetString().ShouldNotBeNull();
+
+        text.ShouldContain("child_refund", Case.Sensitive);
+        text.ShouldContain("A sub-agent cannot request approval", Case.Sensitive);
+
+        executions.ShouldBe(0, "the tool of the sub-agent waited for an approval nobody could give");
+    }
+
     [Theory]
     [InlineData("SendMessage", "application/json")]
     [InlineData("SendStreamingMessage", "text/event-stream")]
@@ -378,9 +482,32 @@ public sealed class SessionlessApprovalTests
         updated.EnsureSuccessStatusCode();
     }
 
-    private static async Task<RunRecord> OnlyRunAsync(TraconTestHost host, string agentName)
-        => (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { AgentName = agentName }))
+    private static async Task<RunRecord> OnlyRunAsync(TraconTestHost host, string agentName, string? tenant = null)
+    {
+        using var scope = tenant is null ? null : AmbientTenantScope.Begin(tenant);
+
+        return (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { AgentName = agentName }))
             .ShouldHaveSingleItem();
+    }
+
+    /// <summary>Saves the exposed agent for a tenant: without a tool (the guard lets it through), then with the approval tool.</summary>
+    private static async Task SaveAgentAsync(TraconTestHost host, HttpMethod method, string path, string tenant, bool withTool)
+    {
+        using var request = new HttpRequestMessage(method, path)
+        {
+            Content = JsonContent.Create(
+                TestData.Request(ExposedName) with
+                {
+                    Model = new ModelBinding { Provider = "approval-provider", Model = ModelName },
+                    ToolNames = withTool ? ["refund_order"] : [],
+                }),
+        };
+        request.Headers.Add("X-Tracon-Tenant", tenant);
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.IsSuccessStatusCode.ShouldBeTrue(await response.Content.ReadAsStringAsync());
+    }
 
     private static Task<TraconTestHost> StartAsync(
         Action<ITraconBuilder>? configureTracon = null,
