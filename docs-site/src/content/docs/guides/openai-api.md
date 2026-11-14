@@ -345,7 +345,9 @@ of the last event instead. A complete answer keeps `completed` and has no
 only the answer's final model call decides, a tool turn or an earlier loop iteration that
 hit the limit does not count, and the status does not depend on run recording. A filter
 that stopped the final model call before it wrote anything is an error, not an `incomplete` answer,
-even when an earlier tool turn wrote a call.
+even when an earlier tool turn wrote a call. Gemini withholds the whole answer when its filter stops a call that is not
+streamed, so over `google` the non-streamed forms of these endpoints end in that error and never in
+`content_filter`; a streamed answer can be `incomplete` when the filter stops it after some text.
 The run's own `tracon.output.truncated` and `tracon.output.filtered` events stay on
 the run (see [Truncated output](/concepts/runs/#truncated-output) and
 [Filtered output](/concepts/runs/#filtered-output)).

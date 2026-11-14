@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A Gemini turn that ends on a function call it could not use fails the run instead of completing with an empty answer.** Gemini ends a turn with `MALFORMED_FUNCTION_CALL` when the model wrote a call that did not parse, or with `UNEXPECTED_TOOL_CALL` when it asked for a tool the request did not declare, and the answer holds no call. The agent framework's adapter reports both as a turn of tool calls, so the tool loop had nothing to run and the run ended `Completed` with no text. The run now fails as a provider error (`upstream_error`, class `ProviderError`), and a fallback chain goes on to the next model.
+  What to do:
+  - **If a Gemini agent returned an empty answer now and then, look for `upstream_error` runs that name `GoogleFunctionCallException`.** They are the same turns, recorded as the failures they were.
+  - **If you retry provider errors, nothing changes:** the turn is retried like any other failed model call.
+
 - **An approval or a tool input that a run applied cannot be applied a second time, though the run's client left.** The answer was applied when the run started and saved with the session when the run ended; a client that closed the stream while the approved tool ran cancelled the run before the save, so the history still held the request as pending and the same answer ran the tool again. The request that applies an answer now writes its identity into the session before the run starts. A repeated answer is refused with `409` on the management API and as an invalid resume on AG-UI, and the mailbox that resumes a queued run leaves it out.
   What to do:
   - **If a client retries an approval after a dropped stream, expect `409` (or an invalid resume) when the first attempt reached the tool.** Read the run, then send a new message: the framework rejects the request nobody answered and the conversation goes on.

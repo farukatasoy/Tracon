@@ -434,6 +434,12 @@ Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
 failed run with error type `content_filtered`; one whose final turn already has text completes with a
 `tracon.output.filtered` run event.
+Gemini answers a non-streamed call that its filter stops with no text at all, so on that path a filtered
+answer is always the empty case and a run fails with `content_filtered`; only a streamed call can send text
+before the filter stops it and complete with the event. A turn that Gemini ends because the model wrote a
+function call it could not use (finish reason `MALFORMED_FUNCTION_CALL`, or `UNEXPECTED_TOOL_CALL` when the
+request declared no such tool) and that holds no call fails the run as a provider error
+(`upstream_error`); it does not complete with an empty answer, and a fallback chain goes on to the next model.
 
 OpenAI and Azure OpenAI support one `ProviderSettings` key each, and both reject every
 other key:

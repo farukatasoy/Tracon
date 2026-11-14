@@ -137,7 +137,8 @@ internal sealed class GoogleChatClientFactory : IDisposable
                 "(-1 leaves it to the model, 0 turns thinking off).");
         }
 
-        IChatClient inner = Client.AsIChatClient(model);
+        // A turn that Gemini ended on a function call it could not use is a failure, not a finished answer.
+        IChatClient inner = new GoogleFunctionCallChatClient(Client.AsIChatClient(model));
 
         // The decorator is skipped entirely when there is no setting: the plain path
         // must not produce a ChatOptions copy and a settings object on every request.
