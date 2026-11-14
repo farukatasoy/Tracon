@@ -49,7 +49,14 @@ public sealed class WorkflowStepRefusalTests
         workflow.Error.ShouldNotBeNull();
         workflow.Error.Type.ShouldBe(TraconChildRunTimeoutException.ChildRunTimeoutErrorType);
         workflow.Error.Class.ShouldBe(RunErrorClass.Timeout);
-        workflow.Error.Message.ShouldContain($"Agent '{SlowAgent}' did not respond in time", Case.Sensitive);
+
+        // Both agents hang (the provider hangs for every agent). A concurrent workflow starts them together, so which timeout
+        // the run reports is the order the engine sees them end in, and under load that is not the order of the list. Every
+        // other kind reaches the slow agent first.
+        var named = kind == WorkflowKind.Concurrent ? new[] { SlowAgent, FastAgent } : [SlowAgent];
+
+        named.Any(agent => workflow.Error.Message.Contains($"Agent '{agent}' did not respond in time", StringComparison.Ordinal))
+            .ShouldBeTrue($"the run names the agent whose wait limit passed: {workflow.Error.Message}");
 
         (await RootEventTypesAsync(host, workflow.Id)).ShouldContain(RunEventType.ChildRunTimedOut);
     }
