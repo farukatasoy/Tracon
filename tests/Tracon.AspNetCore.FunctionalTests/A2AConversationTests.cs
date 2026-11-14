@@ -8,6 +8,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -605,6 +606,88 @@ public sealed class A2AConversationTests
         provider.Seen[^1].ShouldBe(["My name is Ada", "What is my name?"]);
     }
 
+    // ---- a streamed turn the caller left ------------------------------------------
+
+    [Fact]
+    public async Task A_streaming_caller_that_hangs_up_mid_turn_still_has_the_finished_turn_kept_under_its_conversation()
+    {
+        // The library runs a streamed turn on its own after the caller went away, and saves the session when the model
+        // answers: by then the request is over, and nothing but what Tracon bound at its start says whose turn it was.
+        var provider = new GatedEchoProvider();
+        var requests = new RequestEndProbe();
+        await using var host = await StartDetachedAsync(provider, requests, tenancy: false);
+        using var hangUp = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        var abandoned = SendStreamingAsync(host, Agent, "My name is Ada", contextId: "ctx-1", cancellationToken: hangUp.Token);
+
+        await WaitUntil.TrueAsync(() => provider.Calls == 1);
+        await HangUpAsync(hangUp, abandoned);
+        await requests.EndedAsync();
+
+        provider.Cancelled.ShouldBe(0, "the library keeps a streamed turn running after its caller left");
+        provider.Open();
+
+        await WaitUntil.TrueAsync(async () => (await SessionsAsync(host)).Count == 1, "the finished turn is saved after its request ended");
+
+        var (response, body) = await SendAsync(host, Agent, "What is my name?", contextId: "ctx-1");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        HasResult(body).ShouldBeTrue(body.ToString());
+        provider.Seen[^1].ShouldBe(["My name is Ada", "What is my name?"], "the turn the caller left is part of the conversation");
+    }
+
+    [Fact]
+    public async Task A_finished_streamed_turn_is_kept_in_the_tenant_and_under_the_caller_it_was_sent_by_after_the_caller_left()
+    {
+        var provider = new GatedEchoProvider();
+        var requests = new RequestEndProbe();
+        await using var host = await StartDetachedAsync(provider, requests, tenancy: true);
+        using var hangUp = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        var abandoned = SendStreamingAsync(host, Agent, "My name is Ada", contextId: "ctx-1", user: "ada", tenant: "acme", cancellationToken: hangUp.Token);
+
+        await WaitUntil.TrueAsync(() => provider.Calls == 1);
+        await HangUpAsync(hangUp, abandoned);
+        await requests.EndedAsync();
+        provider.Open();
+
+        await WaitUntil.TrueAsync(async () => (await SessionsAsync(host, "acme")).Count == 1, "the finished turn is saved in the caller's tenant");
+
+        (await SessionsAsync(host, "default")).ShouldBeEmpty("a turn is never written into the tenant a request without a tenant falls back to");
+
+        var (_, body) = await SendAsync(host, Agent, "What is my name?", contextId: "ctx-1", user: "ada", tenant: "acme");
+
+        HasResult(body).ShouldBeTrue(body.ToString());
+        provider.Seen[^1].ShouldBe(["My name is Ada", "What is my name?"]);
+
+        var (_, other) = await SendAsync(host, Agent, "What is my name?", contextId: "ctx-1", user: "grace", tenant: "acme");
+
+        HasResult(other).ShouldBeTrue(other.ToString());
+        provider.Seen[^1].ShouldBe(["What is my name?"], "the conversation belongs to the caller that started it");
+    }
+
+    [Fact]
+    public async Task A_finished_streamed_turn_belongs_to_the_user_who_sent_it_when_session_ownership_is_on()
+    {
+        // The user comes from the request, as a consumer's attribution reads it. When the turn is saved the request is over:
+        // a conversation saved with no owner would be nobody's, and with an owner required it would not be saved.
+        var provider = new GatedEchoProvider();
+        var requests = new RequestEndProbe();
+        await using var host = await StartDetachedAsync(provider, requests, tenancy: false, ownership: true);
+        using var hangUp = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        var abandoned = SendStreamingAsync(host, Agent, "My name is Ada", contextId: "ctx-1", user: "ada", cancellationToken: hangUp.Token);
+
+        await WaitUntil.TrueAsync(() => provider.Calls == 1);
+        await HangUpAsync(hangUp, abandoned);
+        await requests.EndedAsync();
+        provider.Open();
+
+        await WaitUntil.TrueAsync(async () => (await SessionsAsync(host)).Count == 1, "the finished turn is saved with an owner");
+
+        (await SessionsAsync(host)).ShouldHaveSingleItem().OwnerId.ShouldBe("ada");
+    }
+
     // ---- scaffolding -------------------------------------------------------------
 
     private static string CancelOrder(string orderId) => $"canceled: {orderId}";
@@ -677,6 +760,44 @@ public sealed class A2AConversationTests
                     services.AddSingleton(drain);
                 }
             },
+            configureAfterMap: static app => app.MapTraconA2A());
+
+    private static Task<TraconTestHost> StartDetachedAsync(GatedEchoProvider provider, RequestEndProbe requests, bool tenancy, bool ownership = false)
+        => TraconTestHost.StartAsync(
+            configureTracon: builder =>
+            {
+                builder
+                    .AddModelProvider(provider)
+                    .AddAgent(Definition(Agent))
+                    .UseA2A(static options => options.ExposedAgents.Add(Agent));
+
+                if (tenancy)
+                {
+                    builder.UseTenancy(static options =>
+                    {
+                        options.Enabled = true;
+                        options.ClaimType = UserFromHeadersHandler.TenantClaim;
+                    });
+                }
+            },
+            configureServices: services =>
+            {
+                services
+                    .AddAuthentication(UserFromHeadersHandler.SchemeName)
+                    .AddScheme<AuthenticationSchemeOptions, UserFromHeadersHandler>(UserFromHeadersHandler.SchemeName, configureOptions: null);
+
+                if (ownership)
+                {
+                    services.Configure<TraconSessionOwnershipOptions>(static options =>
+                    {
+                        options.Enabled = true;
+                        options.RequireAuthenticatedOwner = true;
+                    });
+                    services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(
+                        static provider => new RequestHeaderAttribution(provider.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>())));
+                }
+            },
+            configureApp: requests.Watch,
             configureAfterMap: static app => app.MapTraconA2A());
 
     private static AgentDefinition Definition(string name)
@@ -776,6 +897,72 @@ public sealed class A2AConversationTests
         return (response, JsonDocument.Parse(body).RootElement.Clone());
     }
 
+    /// <summary>Hangs up: the token is cancelled and the response, if the headers had already come, is dropped unread.</summary>
+    private static async Task HangUpAsync(CancellationTokenSource hangUp, Task<HttpResponseMessage> call)
+    {
+        await hangUp.CancelAsync();
+
+        try
+        {
+            using var response = await call;
+        }
+        catch (OperationCanceledException)
+        {
+            // The headers had not come: the call ended with the token, which is the hang-up.
+        }
+    }
+
+    /// <summary>
+    /// Sends <c>SendStreamingMessage</c> and returns when the response headers are in; the token ends the call before that.
+    /// </summary>
+    private static async Task<HttpResponseMessage> SendStreamingAsync(
+        TraconTestHost host,
+        string agentName,
+        string text,
+        string? contextId,
+        string? user = null,
+        string? tenant = null,
+        CancellationToken cancellationToken = default)
+    {
+        var sendMessageRequest = new A2A.SendMessageRequest
+        {
+            Message = new A2A.Message
+            {
+                Role = A2A.Role.User,
+                Parts = [A2A.Part.FromText(text)],
+                MessageId = Guid.NewGuid().ToString(),
+                ContextId = contextId,
+            },
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/tracon/a2a/{agentName}")
+        {
+            Content = JsonContent.Create(new
+            {
+                jsonrpc = "2.0",
+                id = 1,
+                method = "SendStreamingMessage",
+                @params = JsonSerializer.SerializeToElement(sendMessageRequest, A2A.A2AJsonUtilities.DefaultOptions),
+            }),
+        };
+        request.Headers.Accept.ParseAdd("text/event-stream");
+
+        if (user is not null)
+        {
+            request.Headers.Add(UserFromHeadersHandler.UserHeader, user);
+        }
+
+        if (tenant is not null)
+        {
+            request.Headers.Add(UserFromHeadersHandler.TenantHeader, tenant);
+        }
+
+        return await host.Client.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken.CanBeCanceled ? cancellationToken : TestContext.Current.CancellationToken);
+    }
+
     /// <summary>A consumer's store: remembers what it was asked and can be told to fail a save.</summary>
     private sealed class RecordingSessionStore : DelegatingAgentSessionStore
     {
@@ -858,6 +1045,72 @@ public sealed class A2AConversationTests
     private sealed class SwitchableDrainState : ITraconDrainState
     {
         public bool IsDraining { get; set; }
+    }
+
+    /// <summary>
+    /// A consumer's attribution: the user is the one the current request names, and there is none when there is no request.
+    /// </summary>
+    private sealed class RequestHeaderAttribution(Microsoft.AspNetCore.Http.IHttpContextAccessor accessor) : IRunAttributionContext
+    {
+        public string? UserId => accessor.HttpContext?.Request.Headers[UserFromHeadersHandler.UserHeader].ToString() is { Length: > 0 } user ? user : null;
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
+    }
+
+    /// <summary>
+    /// Says when an A2A request is over for the application: its handler returned and the request's
+    /// <see cref="Microsoft.AspNetCore.Http.HttpContext"/> is no longer reachable from where the request ran.
+    /// </summary>
+    /// <remarks>
+    /// The accessor holds the context in a holder object that the host empties when the request ends, so reading it from the
+    /// execution context the request ran in answers <see langword="null"/> exactly then. A test that opens a gate on the
+    /// model before that point would let the turn finish while a request is still there, and the case would pass for the wrong reason.
+    /// </remarks>
+    private sealed class RequestEndProbe
+    {
+        private readonly TaskCompletionSource<(Microsoft.AspNetCore.Http.IHttpContextAccessor Accessor, ExecutionContext Context)> _ended
+            = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Watch(WebApplication app)
+            => app.Use(async (context, next) =>
+            {
+                if (!context.Request.Path.StartsWithSegments("/tracon/a2a", StringComparison.Ordinal))
+                {
+                    await next(context);
+
+                    return;
+                }
+
+                var accessor = context.RequestServices.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
+                var captured = ExecutionContext.Capture();
+
+                try
+                {
+                    await next(context);
+                }
+                finally
+                {
+                    if (captured is not null)
+                    {
+                        _ended.TrySetResult((accessor, captured));
+                    }
+                }
+            });
+
+        public async Task EndedAsync()
+        {
+            var (accessor, captured) = await _ended.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+
+            await WaitUntil.TrueAsync(
+                () =>
+                {
+                    var gone = false;
+                    ExecutionContext.Run(captured.CreateCopy(), _ => gone = accessor.HttpContext is null, state: null);
+
+                    return gone;
+                },
+                "the request's HttpContext is gone from where it ran");
+        }
     }
 
     /// <summary>

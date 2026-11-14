@@ -287,6 +287,13 @@ Keep these effects in mind:
 - **Parallel messages.** Two messages on one `contextId` at the same time cannot both
   be stored. One succeeds. The other fails and the caller receives a JSON-RPC
   internal error (`-32603`). Send the messages one after the other.
+- **A streamed message the caller leaves.** The A2A library answers `SendStreamingMessage`
+  and keeps its turn running after the caller has gone, then saves the session when the
+  model answers. Tracon keeps the caller's tenant, key and user for that save, so the
+  finished turn is part of the conversation like any other. The model call is not
+  cancelled: a caller that leaves still pays for the turn. An `AgentIsolationKeyProvider`
+  of your own is asked at that save, when the request is over, and has to answer without
+  one; a provider that needs the request loses the turn.
 - **Refusals.** A call Tracon refuses reaches the caller as a JSON-RPC error with the
   code `-32603` and a text that says which refusal it is: the process is draining
   (retry shortly), the name has no agent in the catalog, the agent needs a parameter a

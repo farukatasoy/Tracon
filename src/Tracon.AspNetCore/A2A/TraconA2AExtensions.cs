@@ -137,7 +137,8 @@ public static class TraconA2AExtensions
                     "ends the run instead of waiting.")
                 // MapA2A returns the general convention builder, which has no Produces extension.
                 .WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status200OK, typeof(JsonElement), ["application/json"]))
-                .AddEndpointFilter(KeepStreamUnbufferedAsync);
+                .AddEndpointFilter(KeepStreamUnbufferedAsync)
+                .AddEndpointFilter(BindCallerAsync);
 
             // The card is answered here and not by the SDK's MapWellKnownAgentCard: that one serves a card built once, and
             // the card has two parts that change. The address has to be the one this request arrived on
@@ -187,6 +188,20 @@ public static class TraconA2AExtensions
         context.HttpContext.Response.Headers["X-Accel-Buffering"] = "no";
 
         return await next(context).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Binds the caller to the answer, so that a streamed turn the caller leaves is still saved under its tenant, its key and
+    /// its owner.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="A2ACallerScope"/> says why the binding is the answer's and not this filter's own scope.
+    /// </remarks>
+    private static async ValueTask<object?> BindCallerAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var answer = await next(context).ConfigureAwait(false);
+
+        return answer is IResult result ? A2ACallerScope.Bind(result, context.HttpContext) : answer;
     }
 
     /// <summary>Finds the catalog entry of an exposed agent as the catalog holds it now.</summary>

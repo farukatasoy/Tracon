@@ -70,19 +70,20 @@ internal sealed class TraconCallerIsolationKeyProvider : AgentIsolationKeyProvid
 
     /// <inheritdoc />
     /// <remarks>
-    /// <see langword="null"/> when there is no request, or when an authenticated
-    /// user has no readable actor. Microsoft Agent Framework's strict store
-    /// refuses the call in both cases.
+    /// <see langword="null"/> when there is no request and no turn that a request started is running, or when an
+    /// authenticated user has no readable actor. Microsoft Agent Framework's strict store refuses the call in both cases.
+    /// A turn the caller left keeps running without its request: the key bound when it started is answered then
+    /// (<see cref="A2ACallerScope"/>).
     /// </remarks>
     public override ValueTask<string?> GetIsolationKeyAsync(CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(Resolve(_accessor.HttpContext));
+        => ValueTask.FromResult(_accessor.HttpContext is { } httpContext ? ResolveFor(httpContext) : A2ACallerScope.CurrentIsolationKey);
 
-    private string? Resolve(HttpContext? httpContext)
+    /// <summary>Names the caller of a request.</summary>
+    /// <param name="httpContext">The request.</param>
+    /// <returns>The caller's key, or <see langword="null"/> when an authenticated user has no readable actor.</returns>
+    internal string? ResolveFor(HttpContext httpContext)
     {
-        if (httpContext is null)
-        {
-            return null;
-        }
+        ArgumentNullException.ThrowIfNull(httpContext);
 
         if (httpContext.User.Identity?.IsAuthenticated == true)
         {

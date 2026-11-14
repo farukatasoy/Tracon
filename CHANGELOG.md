@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A streamed A2A message that its caller leaves is still saved, under the caller's tenant, key and user.** The A2A library keeps a `SendStreamingMessage` turn running after the caller has gone and saves the session when the model answers, with no request left. The save found no isolation key and the strict store refused it, so the finished turn was lost, and the tenant and the owner would have been read from a request that no longer existed. Tracon now binds all three when the answer to the request starts executing.
+  What to do:
+  - **If a caller of `SendStreamingMessage` hung up mid-turn, send its next message with the same `contextId`: the finished turn is part of the conversation.** The model call is not cancelled, so the caller is charged for it.
+  - **If you registered your own `AgentIsolationKeyProvider`, make it answer without a request.** It is asked at that save, after the request is over; a provider that needs `HttpContext` still loses the turn.
+
 - **A data subject export and erasure find the conversation of a session whose agent is no longer registered.** The conversation's identifier is plain JSON in the session's stored state, so the agent that wrote it is not needed to read it. An export lists the conversation and an erasure deletes it with the session; both used to skip it and count it in `unresolvedConversations`. A state that does not have the shape the agent framework writes is still skipped and counted, and so is a state that a registered agent cannot restore.
   What to do:
   - **If you erased a subject whose agent was deleted or renamed, you no longer need to register the agent again first.** Keep reading `unresolvedConversations` on the answer and the `X-Tracon-Unresolved-Conversations` header: a count above `0` still means a conversation may stay.

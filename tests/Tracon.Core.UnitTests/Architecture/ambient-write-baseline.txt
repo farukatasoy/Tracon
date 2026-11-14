@@ -3,6 +3,7 @@
 # One line per <path>:<method>. The reason is at least 40 characters and explains
 # why the write site is safe. New entries this
 # refresh added carry a placeholder reason that MUST be replaced by hand.
+src/Tracon.AspNetCore/A2A/A2ACallerScope.cs:ExecuteAsync | The three scopes (tenant, attribution, isolation key) are opened in the body of the result that executes the A2A answer and held until it is done: the library starts a streamed turn when that answer is first read, so its task is created under them, which is the allowed parent-to-child direction. Nothing reads state back out of the turn, and the body is not an async iterator.
 src/Tracon.AspNetCore/McpServer/CatalogToolCallHandler.cs:HandleAsync | using var tenantScope opens and restores the ambient tenant for exactly one MCP call in this method's own body, same pattern as JobWorkerBackgroundService
 src/Tracon.AspNetCore/McpServer/McpTaskRunProvisioning.cs:FilterAsync | Both SetCurrent calls are in this method's own body around await next(...), never inside a nested async helper
 src/Tracon.AspNetCore/McpServer/McpTaskRunProvisioning.cs:SetCurrent | This IS the wrapper's own definition, a synchronous setter, not an ambient-write call site itself
