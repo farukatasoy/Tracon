@@ -131,8 +131,9 @@ public sealed class WorkflowTraceTests
         // written from tasks the framework started, so a span that found its run by trace id alone would land in
         // whichever run completed first.
         //
-        // The built-in stores key a trace by its trace id, so the two runs read back as one trace over HTTP. The
-        // question here is which run the collector gave each span to, so the store is one that keeps each batch.
+        // The question here is which run the collector gave each span to, so the store is one that keeps each batch
+        // as written. What the built-in store keeps of two runs that share the id is read over HTTP in
+        // TraceSharedIdentityTests.
         var store = new RecordingTraceStore();
 
         await using var host = await TraconTestHost.StartAsync(

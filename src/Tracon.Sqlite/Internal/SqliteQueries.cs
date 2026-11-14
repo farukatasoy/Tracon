@@ -1062,11 +1062,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // 🚨 SQLite's multi-argument min()/max() returns NULL if any argument
         // is NULL (the opposite of PostgreSQL's GREATEST/LEAST); this is why
         // the same CASE chain as SQL Server is used.
+        //
+        // The header is unique on the (tenant, run) pair; a second write for the run keeps
+        // the W3C id of that write, because the W3C id is the caller's to choose and
+        // several runs can carry the same one.
         UpsertTrace = $"""
             INSERT INTO {Schema}traces (id, tenant_id, trace_id, run_id, started_at, ended_at)
             VALUES (@id, @tenant_id, @trace_id, @run_id, @started_at, @ended_at)
-            ON CONFLICT (tenant_id, trace_id) DO UPDATE
-                SET run_id     = COALESCE(excluded.run_id, {Schema}traces.run_id),
+            ON CONFLICT (tenant_id, run_id) DO UPDATE
+                SET trace_id   = excluded.trace_id,
                     started_at = CASE WHEN excluded.started_at IS NULL THEN {Schema}traces.started_at
                                       WHEN {Schema}traces.started_at IS NULL THEN excluded.started_at
                                       WHEN excluded.started_at < {Schema}traces.started_at THEN excluded.started_at

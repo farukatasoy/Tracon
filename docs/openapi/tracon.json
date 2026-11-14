@@ -6977,7 +6977,7 @@
           "Runs"
         ],
         "summary": "Returns a run\u0027s span tree.",
-        "description": "Spans are written with sampling. Spans for failed runs are always recorded by default; successes are recorded at a configurable rate.",
+        "description": "Spans are written with sampling. Spans for failed runs are always recorded by default; successes are recorded at a configurable rate. A trace belongs to one run: runs that share a W3C trace ID, such as the runs a gateway starts with one traceparent header, each return their own spans and the shared traceId.",
         "operationId": "TraconGetRunTrace",
         "parameters": [
           {
@@ -18034,6 +18034,7 @@
         "required": [
           "id",
           "traceId",
+          "runId",
           "tenantId",
           "startedAt"
         ],
@@ -18046,14 +18047,11 @@
           },
           "traceId": {
             "type": "string",
-            "description": "The W3C trace identifier (32-character hex)."
+            "description": "The W3C trace identifier (32-character hex). Another run of the same tenant can\ncarry the same identifier; when this run was written under two identifiers, it is\nthe one of the last write."
           },
           "runId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The associated run. \u0060null\u0060 for spans without a run.",
+            "type": "string",
+            "description": "The run this trace belongs to.",
             "format": "uuid"
           },
           "tenantId": {

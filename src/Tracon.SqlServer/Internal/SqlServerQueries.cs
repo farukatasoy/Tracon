@@ -1224,9 +1224,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // LEAST / GREATEST do not exist in SQL Server 2019. In PostgreSQL,
         // these two functions SKIP a NULL argument; the CASE chain builds
         // the same behavior.
+        //
+        // The header is unique on the (tenant, run) pair, through a filtered unique
+        // index. `run_id IS NOT NULL` is spelled out in the WHERE so the optimizer can
+        // match the filtered index for a parameterized value and the SERIALIZABLE range
+        // lock covers the key that is written, not the table.
         UpsertTrace = $"""
             UPDATE {Schema}.traces WITH (UPDLOCK, SERIALIZABLE)
-               SET run_id     = COALESCE(@run_id, run_id),
+               SET trace_id   = @trace_id,
                    started_at = CASE WHEN @started_at IS NULL THEN started_at
                                      WHEN started_at IS NULL THEN @started_at
                                      WHEN @started_at < started_at THEN @started_at
@@ -1236,7 +1241,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                                      WHEN @ended_at > ended_at THEN @ended_at
                                      ELSE ended_at END
              OUTPUT inserted.id
-             WHERE tenant_id = @tenant_id AND trace_id = @trace_id;
+             WHERE tenant_id = @tenant_id AND run_id = @run_id AND run_id IS NOT NULL;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.traces (id, tenant_id, trace_id, run_id, started_at, ended_at)

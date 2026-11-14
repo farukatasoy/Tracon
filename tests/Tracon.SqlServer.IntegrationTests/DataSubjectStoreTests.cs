@@ -74,6 +74,39 @@ public sealed class DataSubjectStoreTests(SqlServerSchemaFixture schema) : IClas
     }
 
     [Fact]
+    public async Task Erase_cascades_from_run_to_its_own_trace_only()
+    {
+        // Two runs of one tenant carry the same W3C trace id. The run is what owns a trace, so erasing one run takes its
+        // header and its spans and leaves the other run's whole; when one header was shared, one erasure left the spans
+        // behind and the other took the spans of both.
+        var context = await schema.ResetAsync(tenantId: "default");
+        var first = await SeedRunAsync(context, "tenant-a");
+        var second = await SeedRunAsync(context, "tenant-a");
+        await SeedTraceAsync(context, "tenant-a", first, "first");
+        await SeedTraceAsync(context, "tenant-a", second, "second");
+
+        (await SpanCountAsync(context)).ShouldBe(4);
+
+        await context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(runIds: [first]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await TraceCountAsync(context, first)).ShouldBe(0);
+        (await TraceCountAsync(context, second)).ShouldBe(1);
+        (await SpanCountAsync(context)).ShouldBe(2);
+        (await SpanCountOfRunAsync(context, second)).ShouldBe(2);
+
+        await context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(runIds: [second]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await TraceCountAsync(context, second)).ShouldBe(0);
+        (await SpanCountAsync(context)).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Erase_removes_a_conversation_and_its_items_together()
     {
         var context = await schema.ResetAsync(tenantId: "default");
@@ -330,6 +363,29 @@ public sealed class DataSubjectStoreTests(SqlServerSchemaFixture schema) : IClas
         => await context.ExecuteAsync($"""
             UPDATE {context.SchemaName}.job_items SET run_id = '{runId}' WHERE job_id = '{jobId}' AND seq = {seq};
             """);
+
+    private static async Task SeedTraceAsync(SqlServerTestContext context, string tenantId, Guid runId, string name)
+        => await context.Traces.WriteSpansAsync(new TraceSpanBatch
+        {
+            TraceId = "0af7651916cd43dd8448eb211c80319c",
+            TenantId = tenantId,
+            RunId = runId,
+            Spans =
+            [
+                new TraceSpan { Id = TraconId.NewId(), SpanId = Guid.NewGuid().ToString("N")[..16], Name = $"{name}-root", StartedAt = DateTimeOffset.UtcNow },
+                new TraceSpan { Id = TraconId.NewId(), SpanId = Guid.NewGuid().ToString("N")[..16], Name = $"{name}-child", StartedAt = DateTimeOffset.UtcNow },
+            ],
+        });
+
+    private static async Task<int> TraceCountAsync(SqlServerTestContext context, Guid runId)
+        => await context.ScalarAsync<int>($"SELECT COUNT(*) FROM {context.SchemaName}.traces WHERE run_id = '{runId}';");
+
+    private static async Task<int> SpanCountOfRunAsync(SqlServerTestContext context, Guid runId)
+        => await context.ScalarAsync<int>(
+            $"SELECT COUNT(*) FROM {context.SchemaName}.spans WHERE trace_id IN (SELECT id FROM {context.SchemaName}.traces WHERE run_id = '{runId}');");
+
+    private static async Task<int> SpanCountAsync(SqlServerTestContext context)
+        => await context.ScalarAsync<int>($"SELECT COUNT(*) FROM {context.SchemaName}.spans;");
 
     private static DataSubjectScope Scope(
         IReadOnlyList<string>? sessionIds = null,

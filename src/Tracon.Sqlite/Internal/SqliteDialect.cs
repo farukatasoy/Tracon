@@ -27,8 +27,8 @@ namespace Tracon;
 ///     nullable Guids that pass through this path write lowercase. The same logical identity
 ///     would then be stored with two different texts, and <c>WHERE</c>/<c>JOIN</c> equality
 ///     (SQLite's default text comparison is BINARY, i.e. case-sensitive) would fail SILENTLY
-///     (example: <c>SqlTraceStore.UpsertTraceAsync</c> writes with <c>Dialect.AddUuid</c>,
-///     <c>GetTraceByRunAsync</c> reads with <c>DbHelpers.Add</c> — the same <c>run_id</c>
+///     (example: <c>SqlWorkflowCheckpointStore.CreateAsync</c> writes with <c>Dialect.AddUuid</c>,
+///     <c>ListByRunAsync</c> reads with <c>DbHelpers.Add</c> — the same <c>run_id</c>
 ///     column). As long as casing stays consistent, uuid v7's time-ordered prefix keeps its
 ///     lexicographic order.
 ///   </description></item>

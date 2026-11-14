@@ -414,6 +414,14 @@ Child spans are collected into the root run's tree. A `404` can mean that the ru
 not sampled, trace persistence was off, the trace was removed, or that no trace was
 written. It does not by itself mean the run never existed.
 
+A trace belongs to one run. The W3C trace ID is the caller's to choose: a gateway that
+sends a `traceparent` header gives every run it starts the same one. Those runs still
+keep a trace each, and each answers `GET /api/runs/{runId}/trace` with its own spans and
+the shared `traceId`. Deleting a run, erasing a data subject and the retention sweep act on
+the run's own trace. A run that is written under two IDs (a retried job) keeps one trace
+with the spans of both attempts and the ID of the last write. Do not look a trace up by its
+trace ID: the store has no such read, and several runs can hold the same ID.
+
 Other useful views are `GET /api/runs/{runId}/tools` and
 `GET /api/tools/usage`. The usage endpoint defaults to 50 tools and clamps its
 `maxTools` query value to the range 1 through 200.

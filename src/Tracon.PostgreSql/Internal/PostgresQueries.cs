@@ -1062,13 +1062,14 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // --- Spans ---
 
-        // A trace header is unique on the (tenant, W3C id) pair; a second
-        // write for the same run just updates the header.
+        // A trace header is unique on the (tenant, run) pair; a second write for the
+        // same run updates the header and keeps the W3C id of that write. The W3C id
+        // is the caller's to choose, so several runs can carry the same one.
         UpsertTrace = $"""
             INSERT INTO {Schema}.traces (id, tenant_id, trace_id, run_id, started_at, ended_at)
             VALUES (@id, @tenant_id, @trace_id, @run_id, @started_at, @ended_at)
-            ON CONFLICT (tenant_id, trace_id) DO UPDATE
-                SET run_id     = COALESCE(EXCLUDED.run_id, {Schema}.traces.run_id),
+            ON CONFLICT (tenant_id, run_id) DO UPDATE
+                SET trace_id   = EXCLUDED.trace_id,
                     started_at = LEAST({Schema}.traces.started_at, EXCLUDED.started_at),
                     ended_at   = GREATEST({Schema}.traces.ended_at, EXCLUDED.ended_at)
             RETURNING id;

@@ -14669,7 +14669,7 @@ namespace Tracon.Client.Generated
         /// Returns a run's span tree.
         /// </summary>
         /// <remarks>
-        /// Spans are written with sampling. Spans for failed runs are always recorded by default; successes are recorded at a configurable rate.
+        /// Spans are written with sampling. Spans for failed runs are always recorded by default; successes are recorded at a configurable rate. A trace belongs to one run: runs that share a W3C trace ID, such as the runs a gateway starts with one traceparent header, each return their own spans and the shared traceId.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -27427,16 +27427,18 @@ namespace Tracon.Client.Generated
         public System.Guid Id { get; set; } = default!;
 
         /// <summary>
-        /// The W3C trace identifier (32-character hex).
+        /// The W3C trace identifier (32-character hex). Another run of the same tenant can
+        /// <br/>carry the same identifier; when this run was written under two identifiers, it is
+        /// <br/>the one of the last write.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("traceId")]
         public string TraceId { get; set; } = default!;
 
         /// <summary>
-        /// The associated run. `null` for spans without a run.
+        /// The run this trace belongs to.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("runId")]
-        public System.Guid? RunId { get; set; } = default!;
+        public System.Guid RunId { get; set; } = default!;
 
         /// <summary>
         /// The tenant identifier.

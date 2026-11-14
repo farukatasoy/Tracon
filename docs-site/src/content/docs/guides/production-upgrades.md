@@ -185,6 +185,42 @@ read shows every plain value as `***`, so you have to know the values of the oth
 headers to send them again. `headers: {}` removes them instead. For an MCP server, call
 `POST {prefix}/api/mcp-servers/refresh` afterwards to reconnect.
 
+## Stored traces belong to one run
+
+Earlier releases keyed a stored trace by tenant and W3C trace ID. The caller chooses that ID, and
+a gateway that sends a `traceparent` header gives every run it starts the same one, so two runs
+of one tenant could share one trace: the first run answered `404` on `GET /api/runs/{runId}/trace`,
+the second answered the spans of both, and deleting one run took or kept the other run's spans.
+A trace is now keyed by tenant and run. Each run reads its own spans together with the shared
+`traceId`, and a run that is written under two IDs (a retried job) keeps one trace with the
+spans of both.
+
+The migration (`trace_run_key`, one file for each of PostgreSQL, SQL Server and SQLite) runs when
+the new version starts. It merges the traces that one run holds under several IDs and moves
+every span; it deletes none. It cannot be undone, so back up the database first.
+
+- **Start the new nodes before you stop the old ones.** On PostgreSQL and SQLite an old node's trace
+  write fails after the migration (`there is no unique or exclusion constraint matching the ON CONFLICT
+  specification` on PostgreSQL) and the collector logs it; the run is not affected, but the trace of
+  a run that ends on an old node is not stored. On SQL Server an old node keeps writing with the old
+  key, so a run that shares an ID with a stored trace takes that trace over, as it did before.
+- **Traces that already joined two runs under one ID stay joined.** The first run still answers `404`.
+  The migration does not split them, because it would have to guess which run owns each span.
+- **On SQLite the migration rebuilds the `traces` and `spans` tables.** Drop a view or trigger of
+  your own that names either table before you start, and create it again afterwards: while such a
+  view exists SQLite stops the migration with `error in view …` and changes nothing. The views that
+  `EnableReadViews` adds do not name them. An index of your own on either table is dropped with it:
+  create it again afterwards.
+- **Allow for the time.** With 400 thousand runs (440 thousand traces and 880 thousand spans) the
+  migration took 6.4 s on PostgreSQL and 5.5 s on SQL Server, measured in test containers (the SQL
+  Server one emulated x86-64). On SQLite, 550 thousand spans in 5 500 traces took 3.3 s. SQL Server runs
+  it as one command inside the 30-second command timeout; watch the first start of a much larger
+  database.
+
+A custom `ITraceStore` has to key by tenant and run, and `TraceSpanBatch.RunId` is now required.
+See the [observability guide](/guides/observability/#configure-trace-persistence) for how a run's
+trace is read.
+
 ## Read next
 
 - [Production deployment](/guides/production/) — storage, access control, topology, and retention for a production host

@@ -79,6 +79,38 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
     }
 
     [Fact]
+    public async Task Erase_cascades_from_run_to_its_own_trace_only()
+    {
+        // Two runs of one tenant carry the same W3C trace id. The run is what owns a trace, so erasing one run takes its
+        // header and its spans and leaves the other run's whole; when one header was shared, one erasure left the spans
+        // behind and the other took the spans of both.
+        var first = await SeedRunAsync("tenant-a");
+        var second = await SeedRunAsync("tenant-a");
+        await SeedTraceAsync("tenant-a", first, "first");
+        await SeedTraceAsync("tenant-a", second, "second");
+
+        (await SpanCountAsync()).ShouldBe(4);
+
+        await _context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(runIds: [first]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await TraceCountAsync(first)).ShouldBe(0);
+        (await TraceCountAsync(second)).ShouldBe(1);
+        (await SpanCountAsync()).ShouldBe(2);
+        (await SpanCountOfRunAsync(second)).ShouldBe(2);
+
+        await _context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(runIds: [second]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await TraceCountAsync(second)).ShouldBe(0);
+        (await SpanCountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Erase_removes_a_conversation_and_its_items_together()
     {
         // the exception: summarized/compacted messages are
@@ -332,6 +364,29 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
         => await _context.ExecuteAsync($"""
             UPDATE {_context.SchemaName}.job_items SET run_id = '{runId}' WHERE job_id = '{jobId}' AND seq = {seq};
             """);
+
+    private async Task SeedTraceAsync(string tenantId, Guid runId, string name)
+        => await _context.Traces.WriteSpansAsync(new TraceSpanBatch
+        {
+            TraceId = "0af7651916cd43dd8448eb211c80319c",
+            TenantId = tenantId,
+            RunId = runId,
+            Spans =
+            [
+                new TraceSpan { Id = TraconId.NewId(), SpanId = Guid.NewGuid().ToString("N")[..16], Name = $"{name}-root", StartedAt = DateTimeOffset.UtcNow },
+                new TraceSpan { Id = TraconId.NewId(), SpanId = Guid.NewGuid().ToString("N")[..16], Name = $"{name}-child", StartedAt = DateTimeOffset.UtcNow },
+            ],
+        });
+
+    private async Task<long> TraceCountAsync(Guid runId)
+        => await _context.ScalarAsync<long>($"SELECT COUNT(*) FROM {_context.SchemaName}.traces WHERE run_id = '{runId}';");
+
+    private async Task<long> SpanCountOfRunAsync(Guid runId)
+        => await _context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {_context.SchemaName}.spans WHERE trace_id IN (SELECT id FROM {_context.SchemaName}.traces WHERE run_id = '{runId}');");
+
+    private async Task<long> SpanCountAsync()
+        => await _context.ScalarAsync<long>($"SELECT COUNT(*) FROM {_context.SchemaName}.spans;");
 
     private static DataSubjectScope Scope(
         IReadOnlyList<string>? sessionIds = null,

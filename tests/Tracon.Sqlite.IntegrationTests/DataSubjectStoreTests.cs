@@ -75,6 +75,39 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
     }
 
     [Fact]
+    public async Task Erase_cascades_from_run_to_its_own_trace_only()
+    {
+        // Two runs of one tenant carry the same W3C trace id. The run is what owns a trace, so erasing one run takes its
+        // header and its spans and leaves the other run's whole; when one header was shared, one erasure left the spans
+        // behind and the other took the spans of both.
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+        var first = await SeedRunAsync(context, "tenant-a");
+        var second = await SeedRunAsync(context, "tenant-a");
+        await SeedTraceAsync(context, "tenant-a", first, "first");
+        await SeedTraceAsync(context, "tenant-a", second, "second");
+
+        (await SpanCountAsync(context)).ShouldBe(4);
+
+        await context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(runIds: [first]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await TraceCountAsync(context, first)).ShouldBe(0);
+        (await TraceCountAsync(context, second)).ShouldBe(1);
+        (await SpanCountAsync(context)).ShouldBe(2);
+        (await SpanCountOfRunAsync(context, second)).ShouldBe(2);
+
+        await context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(runIds: [second]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await TraceCountAsync(context, second)).ShouldBe(0);
+        (await SpanCountAsync(context)).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Erase_removes_a_conversation_and_its_items_together()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
@@ -380,6 +413,29 @@ public sealed class DataSubjectStoreTests(SqliteFixture fixture)
         (await context.Jobs.GetAsync("tenant-a", runId)).ShouldBeNull();
         (await context.Jobs.ListItemsAsync(batchId)).ShouldHaveSingleItem().Input.ShouldBe("other item");
     }
+
+    private static async Task SeedTraceAsync(SqliteTestContext context, string tenantId, Guid runId, string name)
+        => await context.Traces.WriteSpansAsync(new TraceSpanBatch
+        {
+            TraceId = "0af7651916cd43dd8448eb211c80319c",
+            TenantId = tenantId,
+            RunId = runId,
+            Spans =
+            [
+                new TraceSpan { Id = TraconId.NewId(), SpanId = Guid.NewGuid().ToString("N")[..16], Name = $"{name}-root", StartedAt = DateTimeOffset.UtcNow },
+                new TraceSpan { Id = TraconId.NewId(), SpanId = Guid.NewGuid().ToString("N")[..16], Name = $"{name}-child", StartedAt = DateTimeOffset.UtcNow },
+            ],
+        });
+
+    private static async Task<long> TraceCountAsync(SqliteTestContext context, Guid runId)
+        => await context.ScalarAsync<long>($"SELECT COUNT(*) FROM {context.TablePrefix}traces WHERE run_id = '{Sql(runId)}';");
+
+    private static async Task<long> SpanCountOfRunAsync(SqliteTestContext context, Guid runId)
+        => await context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {context.TablePrefix}spans WHERE trace_id IN (SELECT id FROM {context.TablePrefix}traces WHERE run_id = '{Sql(runId)}');");
+
+    private static async Task<long> SpanCountAsync(SqliteTestContext context)
+        => await context.ScalarAsync<long>($"SELECT COUNT(*) FROM {context.TablePrefix}spans;");
 
     private static DataSubjectScope Scope(
         IReadOnlyList<string>? sessionIds = null,

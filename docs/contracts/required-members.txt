@@ -349,6 +349,7 @@ Tracon.RunStatistics.TotalRuns
 Tracon.RunTimeSeriesQuery.From
 Tracon.RunTimeSeriesQuery.To
 Tracon.RunTrace.Id
+Tracon.RunTrace.RunId
 Tracon.RunTrace.StartedAt
 Tracon.RunTrace.TenantId
 Tracon.RunTrace.TraceId
@@ -456,6 +457,7 @@ Tracon.TraceSpan.Id
 Tracon.TraceSpan.Name
 Tracon.TraceSpan.SpanId
 Tracon.TraceSpan.StartedAt
+Tracon.TraceSpanBatch.RunId
 Tracon.TraceSpanBatch.Spans
 Tracon.TraceSpanBatch.TenantId
 Tracon.TraceSpanBatch.TraceId

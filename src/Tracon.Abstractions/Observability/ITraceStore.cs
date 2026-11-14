@@ -24,12 +24,19 @@ namespace Tracon;
 /// tenant parameter and filters by the current <c>ITenantContext</c>
 /// internally.
 /// </para>
+/// <para>
+/// <strong>A trace belongs to one run.</strong> The store keeps one trace per
+/// tenant and run. The W3C trace identifier is the caller's to choose: a gateway
+/// that sends a <c>traceparent</c> header gives every run it starts the same
+/// identifier, so the identifier names a property of the trace and never its key.
+/// </para>
 /// </remarks>
 public interface ITraceStore
 {
     /// <summary>
-    /// Writes a trace's spans. Can be called multiple times for the same
-    /// trace; spans are merged by identifier.
+    /// Writes a run's spans. Can be called multiple times for the same run;
+    /// spans are merged by identifier into the run's one trace, whatever W3C
+    /// trace identifier each call carries.
     /// </summary>
     /// <param name="batch">The span set to write.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -43,17 +50,21 @@ public interface ITraceStore
     ValueTask<RunTrace?> GetTraceByRunAsync(Guid runId, CancellationToken cancellationToken = default);
 }
 
-/// <summary>A span set belonging to a single trace.</summary>
+/// <summary>A span set belonging to a single run.</summary>
 public sealed record TraceSpanBatch
 {
-    /// <summary>The W3C trace identifier.</summary>
+    /// <summary>
+    /// The W3C trace identifier. Other runs of the same tenant can carry the same
+    /// identifier; the store does not key the trace by it. When one run is written
+    /// under two identifiers, the store keeps the identifier of the last write.
+    /// </summary>
     public required string TraceId { get; init; }
 
     /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>The associated run.</summary>
-    public Guid? RunId { get; init; }
+    /// <summary>The run these spans belong to. It names the trace.</summary>
+    public required Guid RunId { get; init; }
 
     /// <summary>The spans to write.</summary>
     public required IReadOnlyList<TraceSpan> Spans { get; init; }

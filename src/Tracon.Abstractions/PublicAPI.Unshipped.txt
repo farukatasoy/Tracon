@@ -2945,7 +2945,7 @@ Tracon.RunTrace.EndedAt.init -> void
 Tracon.RunTrace.Equals(Tracon.RunTrace? other) -> bool
 Tracon.RunTrace.Id.get -> System.Guid
 Tracon.RunTrace.Id.init -> void
-Tracon.RunTrace.RunId.get -> System.Guid?
+Tracon.RunTrace.RunId.get -> System.Guid
 Tracon.RunTrace.RunId.init -> void
 Tracon.RunTrace.RunTrace() -> void
 Tracon.RunTrace.Spans.get -> System.Collections.Generic.IReadOnlyList<Tracon.TraceSpan!>!
@@ -3713,7 +3713,7 @@ Tracon.TraceSpan.TraceSpan() -> void
 Tracon.TraceSpanBatch
 Tracon.TraceSpanBatch.<Clone>$() -> Tracon.TraceSpanBatch!
 Tracon.TraceSpanBatch.Equals(Tracon.TraceSpanBatch? other) -> bool
-Tracon.TraceSpanBatch.RunId.get -> System.Guid?
+Tracon.TraceSpanBatch.RunId.get -> System.Guid
 Tracon.TraceSpanBatch.RunId.init -> void
 Tracon.TraceSpanBatch.Spans.get -> System.Collections.Generic.IReadOnlyList<Tracon.TraceSpan!>!
 Tracon.TraceSpanBatch.Spans.init -> void

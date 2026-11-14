@@ -2357,7 +2357,7 @@ export interface paths {
         };
         /**
          * Returns a run's span tree.
-         * @description Spans are written with sampling. Spans for failed runs are always recorded by default; successes are recorded at a configurable rate.
+         * @description Spans are written with sampling. Spans for failed runs are always recorded by default; successes are recorded at a configurable rate. A trace belongs to one run: runs that share a W3C trace ID, such as the runs a gateway starts with one traceparent header, each return their own spans and the shared traceId.
          */
         get: operations["TraconGetRunTrace"];
         put?: never;
@@ -7351,13 +7351,17 @@ export interface components {
              * @description The database identifier.
              */
             id: string;
-            /** @description The W3C trace identifier (32-character hex). */
+            /**
+             * @description The W3C trace identifier (32-character hex). Another run of the same tenant can
+             *     carry the same identifier; when this run was written under two identifiers, it is
+             *     the one of the last write.
+             */
             traceId: string;
             /**
              * Format: uuid
-             * @description The associated run. `null` for spans without a run.
+             * @description The run this trace belongs to.
              */
-            runId?: null | string;
+            runId: string;
             /** @description The tenant identifier. */
             tenantId: string;
             /**

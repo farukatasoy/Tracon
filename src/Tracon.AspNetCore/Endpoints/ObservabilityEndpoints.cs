@@ -59,7 +59,9 @@ internal static class ObservabilityEndpoints
             .WithSummary("Returns a run's span tree.")
             .WithDescription(
                 "Spans are written with sampling. Spans for failed runs are always recorded " +
-                "by default; successes are recorded at a configurable rate.");
+                "by default; successes are recorded at a configurable rate. A trace belongs to " +
+                "one run: runs that share a W3C trace ID, such as the runs a gateway starts with " +
+                "one traceparent header, each return their own spans and the shared traceId.");
 
         builder.MapGet("/api/runs/{runId:guid}/tools", async Task<Results<Ok<IReadOnlyList<ToolInvocationRecord>>, ProblemHttpResult>> (
                 Guid runId,

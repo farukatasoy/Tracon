@@ -144,7 +144,7 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
     /// nullable Guids go through <c>Dialect.AddUuid</c>; if the two used
     /// DIFFERENT casing, the same logical id would be stored under two
     /// representations, and the JOIN/WHERE equality this test relies on
-    /// (trace lookup via run_id) would fail SILENTLY.
+    /// (lookup of a checkpoint through its run_id) would fail SILENTLY.
     /// </summary>
     [Fact]
     public async Task Nullable_and_required_guid_write_paths_are_consistent()
@@ -154,7 +154,26 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
         var runId = TraconId.NewId();
         await context.Runs.StartRunAsync(TestData.Run(runId));
 
-        // WriteSpansAsync -> UpsertTraceAsync writes run_id via Dialect.AddUuid (nullable).
+        // CreateAsync writes run_id via Dialect.AddUuid (nullable).
+        using var state = System.Text.Json.JsonDocument.Parse("""{"$type":0}""");
+
+        await context.WorkflowCheckpoints.CreateAsync(new WorkflowCheckpointRecord
+        {
+            Id = TraconId.NewId(),
+            TenantId = "default",
+            SessionId = "dialect-session",
+            CheckpointId = Guid.NewGuid().ToString("n"),
+            RunId = runId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            State = state.RootElement.Clone(),
+        });
+
+        // ListByRunAsync filters the same run_id via DbHelpers.Add (required).
+        var checkpoints = await context.WorkflowCheckpoints.ListByRunAsync("default", runId);
+
+        checkpoints.ShouldHaveSingleItem().RunId.ShouldBe(runId);
+
+        // The trace of a run is written and read through the required path alone, and the two meet on the same text.
         await context.Traces.WriteSpansAsync(new TraceSpanBatch
         {
             TenantId = "default",
@@ -173,11 +192,7 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
             ],
         });
 
-        // GetTraceByRunAsync filters the same run_id via DbHelpers.Add (required).
-        var trace = await context.Traces.GetTraceByRunAsync(runId);
-
-        trace.ShouldNotBeNull();
-        trace.RunId.ShouldBe(runId);
+        (await context.Traces.GetTraceByRunAsync(runId)).ShouldNotBeNull().RunId.ShouldBe(runId);
     }
 
     /// <summary>

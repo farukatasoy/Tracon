@@ -108,11 +108,15 @@ public sealed record RunTrace
     /// <summary>The database identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>The W3C trace identifier (32-character hex).</summary>
+    /// <summary>
+    /// The W3C trace identifier (32-character hex). Another run of the same tenant can
+    /// carry the same identifier; when this run was written under two identifiers, it is
+    /// the one of the last write.
+    /// </summary>
     public required string TraceId { get; init; }
 
-    /// <summary>The associated run. <see langword="null"/> for spans without a run.</summary>
-    public Guid? RunId { get; init; }
+    /// <summary>The run this trace belongs to.</summary>
+    public required Guid RunId { get; init; }
 
     /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }

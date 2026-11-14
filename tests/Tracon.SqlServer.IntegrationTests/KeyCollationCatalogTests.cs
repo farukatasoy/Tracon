@@ -33,8 +33,6 @@ public sealed class KeyCollationCatalogTests(SqlServerSchemaFixture schema) : IC
 
     private const string LibraryName = "a name the library chooses in its own code";
 
-    private const string TraceId = "the trace id the runtime assigns, always in the lower-case hex it writes";
-
     /// <summary>
     /// The key columns that may keep the collation of the database, each with the reason. Tenant ids are matched
     /// by column name in every table (<see cref="IsTenantId"/>): the tenant rule admits only the ASCII letters, the
@@ -47,7 +45,6 @@ public sealed class KeyCollationCatalogTests(SqlServerSchemaFixture schema) : IC
         ["tenants.slug"] = TenantAlphabet,
         ["tenant_provider_bindings.provider_name"] = Folded,
         ["audit_log.prev_hash"] = Digest,
-        ["traces.trace_id"] = TraceId,
         ["tool_approval_rules.arguments_hash"] = Digest,
         ["tool_approval_rules.conditions_hash"] = Digest,
         ["tool_approval_rules.source_fingerprint"] = Digest,

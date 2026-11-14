@@ -17,6 +17,12 @@ namespace Tracon;
 /// Span ids are derived from W3C ids, so the insert uses <c>ON CONFLICT
 /// DO UPDATE</c>; writing the same span twice does not create a duplicate.
 /// </para>
+/// <para>
+/// The trace header is unique on the tenant and the run. The W3C trace id is
+/// the caller's to choose and several runs can share it, so it is a column of
+/// the header and never its key; a second write for a run keeps the one
+/// header and stores the id of that write.
+/// </para>
 /// </remarks>
 internal sealed class SqlTraceStore : ITraceStore
 {
@@ -117,7 +123,7 @@ internal sealed class SqlTraceStore : ITraceStore
         DbHelpers.Add(command, "id", TraconId.NewId());
         DbHelpers.AddTenant(command, batch.TenantId);
         DbHelpers.Add(command, "trace_id", batch.TraceId);
-        Dialect.AddUuid(command, "run_id", batch.RunId);
+        DbHelpers.Add(command, "run_id", batch.RunId);
         Dialect.AddTimestamp(command, "started_at", startedAt);
         Dialect.AddTimestamp(command, "ended_at", endedAt);
 
@@ -209,7 +215,7 @@ internal sealed class SqlTraceStore : ITraceStore
         {
             Id = reader.GetGuid(0),
             TraceId = reader.GetString(1),
-            RunId = reader.IsDBNull(2) ? null : reader.GetGuid(2),
+            RunId = reader.GetGuid(2),
             TenantId = reader.GetString(3),
             StartedAt = DbHelpers.GetTimestamp(reader, 4),
             EndedAt = reader.IsDBNull(5) ? null : DbHelpers.GetTimestamp(reader, 5),

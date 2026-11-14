@@ -8,8 +8,8 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// <strong>Limits:</strong> process lifetime, one node, and limited capacity.
-/// When <see cref="MaxTraces"/> is exceeded, it removes the oldest trace.
-/// Use <c>Tracon.PostgreSql</c> in production.
+/// When <see cref="MaxTraces"/> is exceeded, it removes the trace of the run that
+/// was written first. Use <c>Tracon.PostgreSql</c> in production.
 /// </para>
 /// <para>
 /// Reads are limited to the current tenant. Writes take the tenant from the batch,
@@ -17,16 +17,17 @@ namespace Tracon;
 /// same rule as the SQL implementation.
 /// </para>
 /// <para>
-/// A trace is keyed by its tenant and its trace identifier, as in the SQL
-/// implementation: a caller that sends a W3C <c>traceparent</c> gives every run it starts the
-/// same trace identifier, and two tenants' spans must not join one trace.
+/// A trace is keyed by its tenant and its run, as in the SQL implementation. The W3C trace
+/// identifier is the caller's to choose: a caller that sends a <c>traceparent</c> gives every
+/// run it starts the same identifier, and neither two runs nor two tenants may join one trace
+/// because of it. A run written under two identifiers keeps one trace, with the identifier of
+/// the last write.
 /// </para>
 /// </remarks>
 internal sealed class InMemoryTraceStore : ITraceStore
 {
-    private readonly ConcurrentDictionary<TraceKey, RunTrace> _byTrace = new();
-    private readonly ConcurrentDictionary<Guid, TraceKey> _traceByRun = new();
-    private readonly ConcurrentQueue<TraceKey> _insertionOrder = new();
+    private readonly ConcurrentDictionary<RunKey, RunTrace> _byRun = new();
+    private readonly ConcurrentQueue<RunKey> _insertionOrder = new();
     private readonly ITenantContext _tenantContext;
 
     /// <summary>Initializes a new in-memory span store.</summary>
@@ -50,20 +51,29 @@ internal sealed class InMemoryTraceStore : ITraceStore
             return default;
         }
 
-        var key = new TraceKey(AmbientTenantScope.Normalize(batch.TenantId), batch.TraceId);
+        var key = new RunKey(AmbientTenantScope.Normalize(batch.TenantId), batch.RunId);
+        var created = false;
 
-        _byTrace.AddOrUpdate(
+        // The delegates close over `created` and set it on every pass: when another writer wins
+        // the insert, the update delegate runs last and clears it, so the run is queued once.
+        _byRun.AddOrUpdate(
             key,
-            static (created, state) => Create(created.TraceId, state),
-            static (_, existing, state) => Merge(existing, state),
-            batch);
+            _ =>
+            {
+                created = true;
+                return Create(batch);
+            },
+            (_, existing) =>
+            {
+                created = false;
+                return Merge(existing, batch);
+            });
 
-        if (batch.RunId is { } runId)
+        if (created)
         {
-            _traceByRun[runId] = key;
+            _insertionOrder.Enqueue(key);
         }
 
-        _insertionOrder.Enqueue(key);
         TrimIfNeeded();
 
         return default;
@@ -74,24 +84,19 @@ internal sealed class InMemoryTraceStore : ITraceStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_traceByRun.TryGetValue(runId, out var key)
-            && string.Equals(key.TenantId, _tenantContext.TenantId, StringComparison.Ordinal)
-            && _byTrace.TryGetValue(key, out var trace))
-        {
-            return new ValueTask<RunTrace?>(trace);
-        }
-
-        return new ValueTask<RunTrace?>((RunTrace?)null);
+        return _byRun.TryGetValue(new RunKey(_tenantContext.TenantId, runId), out var trace)
+            ? new ValueTask<RunTrace?>(trace)
+            : new ValueTask<RunTrace?>((RunTrace?)null);
     }
 
-    private static RunTrace Create(string traceId, TraceSpanBatch batch)
+    private static RunTrace Create(TraceSpanBatch batch)
     {
         var spans = Sort(batch.Spans);
 
         return new RunTrace
         {
             Id = TraconId.NewId(),
-            TraceId = traceId,
+            TraceId = batch.TraceId,
             RunId = batch.RunId,
             TenantId = AmbientTenantScope.Normalize(batch.TenantId),
             StartedAt = spans[0].StartedAt,
@@ -115,7 +120,7 @@ internal sealed class InMemoryTraceStore : ITraceStore
 
         return existing with
         {
-            RunId = batch.RunId ?? existing.RunId,
+            TraceId = batch.TraceId,
             StartedAt = spans[0].StartedAt,
             EndedAt = LatestEnd(spans),
             Spans = spans,
@@ -146,22 +151,14 @@ internal sealed class InMemoryTraceStore : ITraceStore
 
     private void TrimIfNeeded()
     {
-        while (_byTrace.Count > MaxTraces && _insertionOrder.TryDequeue(out var oldest))
+        while (_byRun.Count > MaxTraces && _insertionOrder.TryDequeue(out var oldest))
         {
-            if (!_byTrace.TryRemove(oldest, out var removed))
-            {
-                continue;
-            }
-
-            if (removed.RunId is { } runId)
-            {
-                _traceByRun.TryRemove(runId, out _);
-            }
+            _byRun.TryRemove(oldest, out _);
         }
     }
 
-    /// <summary>The tenant and the W3C trace identifier that together name one trace.</summary>
+    /// <summary>The tenant and the run that together name one trace.</summary>
     /// <param name="TenantId">The tenant the spans were written under, normalized.</param>
-    /// <param name="TraceId">The W3C trace identifier.</param>
-    private readonly record struct TraceKey(string TenantId, string TraceId);
+    /// <param name="RunId">The run the spans belong to.</param>
+    private readonly record struct RunKey(string TenantId, Guid RunId);
 }
