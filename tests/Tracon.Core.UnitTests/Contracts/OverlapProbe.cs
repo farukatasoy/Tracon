@@ -19,11 +19,23 @@ namespace Tracon.Core.UnitTests.Contracts;
 /// waits for the store's lock is inside the call, so two threads released together overlap for as long as one of them holds
 /// the lock.
 /// </para>
+/// <para>
+/// Two threads released together do not overlap on their own when the store answers in a microsecond: the thread that
+/// enters first has left before the other has been scheduled, and a loaded two-core runner showed it (a Windows leg of the
+/// public build, 46 ms, "no two calls were ever inside the store together"). Until a second caller has been seen the first
+/// one is held inside the call for a bounded wait, so the overlap does not depend on the scheduler. A case whose calls are
+/// started one after the other has no second caller to wait for and still shows one in flight.
+/// </para>
 /// </remarks>
 /// <typeparam name="T">The store interface.</typeparam>
 public class OverlapProbe<T> : DispatchProxy
     where T : class
 {
+    // The longest the first caller waits for a second one. A case that starts its calls together releases them within
+    // microseconds; the bound is for a runner that is starved for tens of milliseconds, and it costs nothing once two
+    // calls have been seen.
+    private static readonly TimeSpan SecondCaller = TimeSpan.FromMilliseconds(100);
+
     private T? _inner;
     private int _inFlight;
     private int _highest;
@@ -50,6 +62,11 @@ public class OverlapProbe<T> : DispatchProxy
 
         try
         {
+            if (Volatile.Read(ref _highest) < 2)
+            {
+                SpinWait.SpinUntil(() => Volatile.Read(ref _highest) >= 2, SecondCaller);
+            }
+
             return targetMethod.Invoke(_inner, args);
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)

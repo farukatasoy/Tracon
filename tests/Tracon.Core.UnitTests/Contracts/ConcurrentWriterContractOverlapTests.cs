@@ -159,6 +159,29 @@ public sealed class ConcurrentWriterContractOverlapTests
         probe.MostInFlight.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task Two_calls_released_together_are_inside_a_store_that_answers_at_once_together()
+    {
+        // The overlap of a real case rests on this: threads released together reach a store that answers in a
+        // microsecond, and the first must not be gone before the second has been scheduled. Repeated, because the failure
+        // this holds against was one round in many.
+        for (var round = 0; round < 200; round++)
+        {
+            var store = OverlapProbe.Wrap<ISessionStore>(new InMemorySessionStore(), out var probe);
+
+            using var barrier = new Barrier(2);
+            var calls = new[]
+            {
+                Task.Factory.StartNew(() => { barrier.SignalAndWait(); store.TryCreateAsync(TestData.Session($"a-{round}")).AsTask().GetAwaiter().GetResult(); }, TaskCreationOptions.LongRunning),
+                Task.Factory.StartNew(() => { barrier.SignalAndWait(); store.TryCreateAsync(TestData.Session($"b-{round}")).AsTask().GetAwaiter().GetResult(); }, TaskCreationOptions.LongRunning),
+            };
+
+            await Task.WhenAll(calls);
+
+            probe.MostInFlight.ShouldBe(2, $"round {round}");
+        }
+    }
+
     private static async Task AssertOverlapAsync<TContract>(TContract contract, Func<TContract, Task> fact)
         where TContract : IProbedContract
     {
