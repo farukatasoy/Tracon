@@ -328,7 +328,12 @@ public static partial class TraconServiceCollectionExtensions
         // Tracon.PostgreSql replaces this with PostgresChatHistoryProvider.
         services.TryAddTraconDefault<Microsoft.Agents.AI.ChatHistoryProvider>(
             static _ => new Microsoft.Agents.AI.InMemoryChatHistoryProvider(
-                new Microsoft.Agents.AI.InMemoryChatHistoryProviderOptions()));
+                new Microsoft.Agents.AI.InMemoryChatHistoryProviderOptions
+                {
+                    // The Agent Framework's own options cannot write the source information its memory providers put
+                    // on a message under Native AOT.
+                    JsonSerializerOptions = SessionStateJson.Options,
+                }));
 
         // File store for memory-backed AIContextProviders (FileMemoryProvider,
         // TextSearchProvider). MAF's own abstraction (not a file system); this

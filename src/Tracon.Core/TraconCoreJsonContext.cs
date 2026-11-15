@@ -28,6 +28,11 @@ namespace Tracon;
 // session state bag and writes it to the new session.
 [JsonSerializable(typeof(ChatHistoryState))]
 
+// The source information that the Agent Framework memory providers add to ChatMessage.AdditionalProperties. The
+// in-memory chat history keeps those messages in the session state, and writing the state under Native AOT throws
+// NotSupportedException for this type when no context declares it (`SessionStateJson`).
+[JsonSerializable(typeof(Microsoft.Agents.AI.AgentRequestMessageSourceAttribution))]
+
 // The ModelFallbackUsed run-event payload.
 [JsonSerializable(typeof(ModelFallbackUsedEventPayload))]
 
