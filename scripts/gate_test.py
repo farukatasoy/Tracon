@@ -4258,6 +4258,15 @@ class DispatchReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('--package-version "$RELEASE_VERSION"', dryrun)
         self.assertIn("if [ -n \"$RELEASE_VERSION\" ]", dryrun)
 
+    def test_the_rehearsal_restores_the_tool_project_before_the_notice_check_reads_the_nuget_folder(self):
+        """The notice of the packed tool reads licence texts from the NuGet folder; a job that packs nothing starts with none."""
+        dryrun = _job_block(self.uncommented, "release-dryrun")
+
+        self.assertIn("dotnet restore src/Tracon.Cli/Tracon.Cli.csproj", dryrun)
+        self.assertLess(
+            dryrun.index("dotnet restore src/Tracon.Cli/Tracon.Cli.csproj"),
+            dryrun.index("python3 scripts/gate.py release --dry-run --package-directory"))
+
     def test_nuget_is_checked_before_the_login_and_the_release_page_after_the_publication_is_checked(self):
         publish = _job_block(self.uncommented, "publish")
         release = _job_block(self.uncommented, "github-release")

@@ -1885,6 +1885,20 @@ jobs:
         with:
           global-json-file: global.json
 
+      # The rehearsal reads the licence text of every package the packed tool bundles from the NuGet folder
+      # (`scripts/third_party_notices.py`, the notice of `Tracon.Cli`). This job packs and builds nothing, so
+      # the folder starts empty and the check stopped the rehearsal with "is not in ...; restore the tool project
+      # first". The tool project's closure is restored into it; nothing else is.
+      - name: Cache the NuGet packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore the tool project
+        run: dotnet restore src/Tracon.Cli/Tracon.Cli.csproj
+
       # Only for `npm publish --dry-run` (the npm step of gate.py). This job does not pack; the UI
       # assets (TRACON0003) are needed in `build`.
       - name: Set up Node.js
