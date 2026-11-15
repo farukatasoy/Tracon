@@ -1,6 +1,6 @@
 {
- "version": "1.0.0-preview.11",
- "tag": "v1.0.0-preview.11",
+ "version": "1.0.0-preview.12",
+ "tag": "v1.0.0-preview.12",
  "providers": {
   "sqlite": [
    {
@@ -350,6 +350,12 @@
     "name": "0058_decimal_columns_as_text",
     "checksum": "26C8E204DA5CA0B59E163428D2570AEAD5571ED69A8F42FB4814FFB4FAF4A30C",
     "statements": "e03113a89b2ff4ea3a9e3ca04500edfd137a82a17711401f4134ce02f69fbc29"
+   },
+   {
+    "id": 59,
+    "name": "0059_trace_run_key",
+    "checksum": "DBC8E734B5EE6F62454775C06A6D321C2E5BDDFA9D45383403B324B1404ABA96",
+    "statements": "f5e6918a49b8aa3c92ccad886eba07e3f97dd823186eb5c0c7ed440c40c740cc"
    }
   ],
   "postgresql": [
@@ -766,6 +772,12 @@
     "name": "0070_rate_limit_counters",
     "checksum": "B5CC337B1FD301A5039269EA9EF0DB644FC7065ABEE9584F6AD2DC8D5CC45392",
     "statements": "1c5e7881ea2b073ae1f8162a3823a9e68f2400a453d3566fd676805a4fa8ac13"
+   },
+   {
+    "id": 71,
+    "name": "0071_trace_run_key",
+    "checksum": "EAC173433E6BF6A8DF5FB59542F840DD18CD650C3291127463E1456924BB6740",
+    "statements": "0fd0d9f9b3eebdab26bf886dcfe5431b4011aa215a9282756b5cc24bd0c47244"
    }
   ],
   "sqlserver": [
@@ -1146,6 +1158,12 @@
     "name": "0063_ordinal_request_and_parent_ids",
     "checksum": "173E38A8656DF5D3788C7672D3BCFB3AF9EA783EC5ED7C46C1F26263BAB3CA3E",
     "statements": "152cb8b4f1df9f13e394a72fc7ffa05b214fed49066f35220fe539ed16949019"
+   },
+   {
+    "id": 64,
+    "name": "0064_trace_run_key",
+    "checksum": "12ADEC026461EC557717D58B8BF916A2FFC711D1D564BCE811D01BE3490681AD",
+    "statements": "21a6e1065a3fc1ae58d1fdc7e56111b4916acb6b3063bb3d5946f10d8c2a2258"
    }
   ]
  },

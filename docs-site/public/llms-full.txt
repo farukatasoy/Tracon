@@ -6508,7 +6508,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.11`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.12`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -6529,7 +6529,7 @@ comes from the provider's own documentation. The template writes it to
 `appsettings.json`; you do not edit any code.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.11
+dotnet new install Tracon.Templates@1.0.0-preview.12
 dotnet new tracon-api -n MyAgents --model gpt-5.4-mini
 cd MyAgents
 ```
@@ -6683,7 +6683,7 @@ persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
 :::note[Preview release]
-Packages and templates are published as `1.0.0-preview.11`. The
+Packages and templates are published as `1.0.0-preview.12`. The
 [first-agent guide](/getting-started/first-agent/) starts with the public template;
 pin the exact package version when reproducibility matters.
 :::
@@ -10390,7 +10390,7 @@ pointer file, set `TraconWriteLocalReference` to `false`.
 Source: https://tracon.dev/guides/cli/
 
 :::note[Preview package]
-The CLI is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+The CLI is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for a reproducible tool manifest.
 :::
 
@@ -10830,7 +10830,7 @@ credential meant for exactly this.
 Source: https://tracon.dev/guides/coding-agents/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19608,7 +19608,7 @@ and still reject a fenced payload at the application boundary.
 Source: https://tracon.dev/guides/testing/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -19883,7 +19883,7 @@ mistake instead of hiding it.
 Source: https://tracon.dev/guides/typescript-client/
 
 :::note[Preview package]
-`@tracon/client` is published as `1.0.0-preview.11`. Install the `next` tag or pin
+`@tracon/client` is published as `1.0.0-preview.12`. Install the `next` tag or pin
 the exact version; do not use a floating range in production.
 :::
 
@@ -20120,7 +20120,7 @@ sync.
 Source: https://tracon.dev/guides/voice/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21330,7 +21330,7 @@ and `429`) is never retried, whatever class you return.
 Source: https://tracon.dev/guides/write-your-own-job-handler/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21570,7 +21570,7 @@ handler actually receives a queued job.
 Source: https://tracon.dev/guides/write-your-own-judge/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21899,7 +21899,7 @@ provider's circuit, how a safety filter and an output limit are reported) is des
 Source: https://tracon.dev/guides/write-your-own-script-executor/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -22101,7 +22101,7 @@ a new contract in a later package version does not go untested.
 Source: https://tracon.dev/guides/write-your-own-store/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -22234,7 +22234,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.11` is extracted into your
+by package id and version, so once `1.0.0-preview.12` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.
@@ -23289,7 +23289,7 @@ Every package is MIT. Details: [Licensing](/reference/licensing/).
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.11`. The command below selects it from
+The current release is `1.0.0-preview.12`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 
@@ -23553,6 +23553,14 @@ assume.
 
 ## Releases
 
+<a id="v1.0.0-preview.12"></a>
+
+### 1.0.0-preview.12 — 2026-11-15
+
+This release moves the runtime stack to Microsoft Agent Framework 1.28 and the Model Context Protocol SDK 2.4, and carries 99 entries that fix what reading the run, session, job, store, MCP, A2A and console code against its contracts found. Six entries are breaking, and the first of them includes a database migration with no way back: a trace belongs to one run (`ITraceStore`), an `OAuthCallbackBaseUri` without a closing slash stops the application at the start, a run cut at its output limit or left empty by the provider's filter and a run that ends on its own unmet rule answer `422` instead of `502`, the typed client's data subject export returns the status and headers, and a retention policy, schedule, trigger or webhook subscription built in code without `Enabled` is off. Read those entries before you upgrade; each one says what to do.
+
+[Read the 1.0.0-preview.12 entry](/reference/releases/1.0.0-preview.12/) (2 pages)
+
 <a id="v1.0.0-preview.11"></a>
 
 ### 1.0.0-preview.11 — 2026-11-11
@@ -23677,7 +23685,7 @@ package, and the surface may still be reduced before 1.0.
 Source: https://tracon.dev/reference/compatibility/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -25937,6 +25945,499 @@ This release moves every package to the MIT licence and changes the error body o
 
 ## Read next
 
+- [Release notes](/reference/changelog/) — every published version, newest first
+- [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
+
+---
+
+# Tracon 1.0.0-preview.12 release notes, part 2 of 2
+
+Source: https://tracon.dev/reference/releases/1.0.0-preview.12/part-2/
+
+Released on 2026-11-15. This entry covers every NuGet package of the family and the npm client
+at version 1.0.0-preview.12. [Release notes](/reference/changelog/) lists every version.
+
+This entry is split into 2 pages that each stay light to read: [part 1](/reference/releases/1.0.0-preview.12/), part 2 (this page).
+
+- **An agent with a harness and `Memory.EnableConversationMemory` now reads and writes the conversation memory of its user.** The harness builds its context providers in a list of its own, and the conversation memory provider was in the list of the chat agent only: the setting was accepted and did nothing, and no validation said so. A chat agent is unchanged.
+  What to do:
+  - **If you turned the setting on for a harness agent,** its model now sees the `## Memories` of the user and the search tool when the mode is `OnDemand`. The cost is the one a chat agent pays for it. Turn the setting off to keep the old behaviour.
+
+- **Google image generation refuses a `mediaType` before a request leaves, with a message that says to leave it out.** The Gemini API in API-key mode rejects `ImageConfig.OutputMimeType` for every value ("only supported in Gemini Enterprise Agent Platform mode"), and the SDK raised `NotSupportedException` from inside the call; `Tracon.Google` builds its client with an API key only, so no value could work. The model chooses the format and the response carries it. `/api/images/generate` and `generate_image` never sent a media type, so only a caller of `IImageGenerator` with `ImageGenerationOptions.MediaType` set sees the change.
+  What to do:
+  - **If you set `MediaType` on a Google image request,** remove it and read `DataContent.MediaType` from the response. The refusal is a `TraconException`, like the one for `ImageSize`.
+
+- **Twenty-five more concurrent-writer cases of the shipped contracts now hold a store to the race over many rounds, and the run input case can see a second writer overwrite the first.** `AgentDefinitionStoreContract` (two saves cases), `AuditLogContract` (the plain and the keyed chain), `EvalStoreContract.AddCaseAsync_concurrent_promotions_produce_distinct_seq`, `RateLimitCounterStoreContract` (both increment cases), `RetentionPolicyStoreContract` (save and progress), `RunInputStoreContract.Writes_of_one_run_that_arrive_at_once_are_all_ignored_but_the_first`, `RunStoreContract` (cost update beside a completion; two writers that start one run), `RunScoreStoreContract` (one target; summary beside a write), `SkillScriptGrantContract.Racing_grants_and_revocations_leave_one_record_for_the_key`, `TenantToolPolicyStoreContract.Concurrent_saves_for_one_tenant_leave_one_whole_policy`, `WebhookStoreContract` (save, failure counter, disable at the threshold), `WorkflowDefinitionStoreContract.Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content`, `WorkflowRequestStoreContract.Concurrent_expiries_close_each_row_exactly_once`, `QuotaStoreContract` (rule save; threshold claim), `IdempotencyStoreContract.Only_one_of_several_requests_that_race_for_an_expired_reservation_takes_it` and `ApiKeyStoreContract.A_revoked_key_stays_revoked_while_its_last_use_is_being_recorded` started their calls once, as two tasks, a gate or a loop beside one call; an in-memory store finished one call before the next began, and a store that checks and then writes in two steps passed them (measured with the in-memory stores made non-atomic: 20 of 24 cases failed in 10 or fewer of 20 runs, nine of them in none). Each case now starts its callers on dedicated threads that spin on one flag, so they enter the store together, repeats for 10 to 40 rounds with a fresh key in each round, and names the round in its message. The run input case only checked that the kept message started with `writer `, so a store that overwrote the row silently passed; every writer now reads the row back after its own write, and all of them must see the text the row ends with. Now 23 of the 24 that can be measured fail in all 20 runs, the last in 13. The cases that already used `SimultaneousCalls` are released the same way.
+  What to do:
+  - **If you wrote a store for one of these interfaces and run its contract,** a failure with `round N: …` means the store lets two callers through one check or one read-then-write. Make the check and the write one atomic step (a unique key, a conditional update, an atomic increment or a lock).
+  - **`IAuditLog`:** the chain is read in the order the writes landed; a store that sorts it by `CreatedAt` reports a gap when two writers land in another order than they stamped their entries.
+
+- **The in-memory audit log no longer reports a gap in an intact chain when writers land in another order than they stamped their entries.** `VerifyChainAsync` sorted the chain by `CreatedAt`, which the caller stamps before the write. Two writers that stamped one entry before the other and landed in the opposite order made an unbroken chain read as `AuditChainStatus.Gap`: the shipped `AuditLogContract` case of twenty writers released together failed in 10 of 10 runs against the in-memory log. The SQL stores read the chain by the sequence of the write and were not affected. The in-memory log now verifies the chain in the order it was written.
+  What to do:
+  - **Nothing.** A chain that was reported as a gap only because of the order of the instants now verifies as `Valid`; a chain that was altered or cut is still reported as before.
+
+- **Breaking: an `OAuthCallbackBaseUri` whose path does not end with a slash stops the application at the start, and the message shows the address it would have become.** The callback address of an MCP server is this address followed by a relative path, so `https://app.example.com/tracon` gave `https://app.example.com/api/mcp-servers/{name}/oauth/callback`: the last path segment was replaced, a provider that had the address with the prefix registered refused the redirect, and nothing said why. The documentation has always asked for the slash. The address is refused and not completed, because completing it would change the address a provider was registered with without saying so.
+  What to do:
+  - **If the application now stops with `must end with a slash`,** write the address the message gives (`https://app.example.com/tracon/`) and register that address with the provider. A value without a path (`https://app.example.com`) is fine.
+
+- **A factory agent that declares a provider nobody registered fails to compile like a definition agent: with `TraconCompilationException`, and a text that names the agent.** The declared model is built by the registry before the factory runs, and its failure left the catalog as a plain `TraconException` whose text names no agent. Over A2A and MCP that was the one compile failure answered with the library's bare internal error, because those surfaces recognise a compile failure by its type; over HTTP the `400 Agent compilation failed` did not say which agent. A tenant's refusal keeps its type (`TraconTenantProviderRefusedException`) and gains the same text. The `GET /api/agents/{name}` description of `definition: null` now names `AddAgent(name, model, factory)` next to `AddAgent(name, factory)`.
+  What to do:
+  - **Nothing.** `TraconCompilationException` derives from `TraconException`; a catch of the base type still sees it.
+
+- **Breaking: a run that is cut at its output token limit, or that the provider's filter leaves empty, is answered `422` with its error type, not `502`, on every endpoint that answers before a stream begins.** The provider had answered and the request was understood, so a `502` sent the caller to the wrong system and carried no `errorType`; sending the same request again ends the same way. The agent run endpoint answers a problem document with `errorType` (`output_truncated`, `content_filtered`) and the failed run's id in `runId`; Chat Completions and Responses answer the OpenAI error envelope with `type` set to the same value; the replay endpoint answers the problem document with the new run's id. A run that fails for any other reason still answers `502`, and the run endpoint now lists the `502` in the published document (it answered it before without saying so). The streamed answers are unchanged: the stop arrives as an error frame inside the stream. The internal list of the stops that are the run's own is now one place, where four endpoints each kept a copy.
+  What to do:
+  - **A client that retried or alerted on `502` for these runs** should treat `422` with these error types as the agent's own limit or the provider's filter: raise `ModelBinding.MaxOutputTokens`, shorten the conversation, or review the input; a retry of the same request will not change it.
+  - **A test that expected `502`** for a cut or filtered run expects `422`.
+
+- **An A2A call that Tracon refuses carries the reason to the caller, on `SendMessage` and `SendStreamingMessage` alike.** A process that is draining, a name that has no agent in the catalog, an agent that needs a parameter a message cannot carry and a turn that stops at a tool approval all reached the caller as the bare `-32603 "An internal error occurred."` (measured on both methods), so a caller could not tell a shutdown it should retry from an agent it should not call again. The proxy now raises the protocol's own error with Tracon's text (`The process is draining in-flight runs before it stops; … Retry shortly.`, `There is no agent named '…' in the catalog.`, the parameter names, `… cannot respond to an approval request.`). The code stays `-32603`, as for an agent that cannot be compiled; the texts name no configuration. The MCP server was not affected: it already answered these as tool errors with the same texts.
+  What to do:
+  - **Nothing.** A client that matched `-32603` finds the same code with a text; a client that matched the generic text should read the code and show the message.
+
+- **A host with content protection on and a database provider stops at the start when the active key has no value.** The key was read when the first protected value was written. Measured on SQLite with the key name configured and no value: the run answered `200` with the failure as a frame inside the stream, its record and its input were lost on a best-effort write (a warning in the log), and no session was saved. The start now refuses, before the migration creates the database, with a message that names the configuration key and never carries a value. A host on the in-memory stores still starts with the key name alone, as does a host that switched protection off or registered a protector of its own with `AddContentProtection<TProtector>()`. A key kept only for old rows is still not read.
+  What to do:
+  - **If a host with SQLite, PostgreSQL or SQL Server now stops with `which has no value, and a database store is registered`,** set the value the message names (`dotnet user-secrets` or an environment variable), or set `Tracon:ContentProtection:Enabled` to `false`. The runs were failing to record already.
+  - **`samples/Tracon.Api`:** a database connection string in `Staging` or `Production` needs `Tracon__ContentProtection__RawKeys__sample`, because `user-secrets` are not loaded there.
+
+- **The production profile asks the content protector whether content is protected at rest, not the `Tracon:ContentProtection:Enabled` flag.** `AddTracon()` registers a protector that writes the text unchanged and only `AddContentProtection(...)` replaces it, so a host that set the flag and never made the call stored clear text while `UnencryptedContentAtRest` read as answered. The check now reads `IContentProtector.IsEnabled`, the member the SQL stores read before they protect a column. The other direction is fixed too: a protector registered with `AddContentProtection<TProtector>()` that reports itself on answers the decision whatever the flag says. The failure text now says that the flag alone installs no protector, and the MCP token store start check gives the same advice.
+  What to do:
+  - **If a host with `RequireProductionProfile()` now stops on `UnencryptedContentAtRest`,** it was storing clear text: call `AddContentProtection(options => ...)` with an active key id, or call `AddContentProtection()` and keep `Tracon:ContentProtection:Enabled` true.
+  - **A host that already calls `AddContentProtection()`** is unaffected.
+
+- **Six concurrent-writer cases of the shipped contracts now hold a store to the race over many rounds, so a store that passed them by luck can fail.** `SessionStoreContract.TryCreateAsync_only_one_concurrent_call_with_the_same_id_wins` and `TryUpdateAsync_only_one_concurrent_call_from_the_same_version_wins`, `RunScoreStoreContract.Concurrent_writes_of_the_SAME_name_leave_exactly_one_row` and `Concurrent_writes_with_null_and_empty_MessageId_leave_exactly_one_row`, and `WorkflowResponseStoreContract.Concurrent_answers_to_one_request_leave_exactly_one_claim` and `Concurrent_replacements_of_one_record_leave_exactly_one_claim` started two tasks once, which an in-memory store finished one after the other; a store that checks and then writes in two steps passed all six. Each case now starts eight dedicated threads at one barrier, for twenty rounds (ten for the response cases) with a fresh key in each round.
+  What to do:
+  - **If you wrote an `ISessionStore`, `IRunScoreStore` or `IWorkflowResponseStore` and run these contracts,** a failure with `round N: …` means the store lets two callers through one check. Make the check and the write one atomic step (a unique key, a conditional update or a lock).
+
+- **A body sent with a content type the endpoint does not take is answered `415` with a problem document that names the content type it takes, and the published document lists the `415`.** The routing layer matches a route that declares its body (`Accepts<T>("application/json")`) on the request's content type before any code of Tracon runs, and answered a request with another type with an empty `415`, no body and no content type, in every environment: 46 operations answered a caller who sent XML to `POST /api/agents` with a status line only, while the same mistake on a route that reads its body by hand got a message. A middleware now writes the problem document (title `Unsupported media type`, the detail names `application/json`, or `multipart/form-data` for the attachment upload; the OpenAI error envelope on `/v1/*`) for a `415` that the routing layer wrote under Tracon's prefix. A route of your own application, and the MCP and A2A endpoints, keep what they answered. The OpenAPI document lists `415` on every operation that takes a body, so each generated client method gains a typed exception for it.
+  What to do:
+  - **Nothing.** A client that matched the empty `415` finds a problem document with the same status.
+
+- **A query parameter that cannot be read as the number, flag, GUID or date it stands for is answered with a problem document that names it.** For a nullable parameter the framework marks the request `400` and says nothing, in every environment: `?startedAfter=yesterday` got a bare `400` with no body. An endpoint filter on the group, the sibling of the one for enums, now answers `400` `Invalid request parameter` with a detail such as `'take' must be a whole number.`, `'startedAfter' must be a date and time in ISO 8601 format, for example 2026-11-12T08:00:00Z.` or `'parentRunId' must be a GUID.`; the OpenAI-compatible routes answer in their error envelope. A parameter that is not nullable keeps the framework's own sentence in Development.
+  What to do:
+  - **Nothing.** A client that matched the empty `400` body finds a problem document; the status is the same.
+
+- **Breaking (`Tracon.Client`, binary): `TraconExportDataSubjectAsync` returns the exported document with the status and the response headers (`TraconApiResponse<JsonElement>`), and the published document lists the export's answers.** `GET /api/data-subjects/{id}/export` declared `200` with no body schema, so the generated client returned `Task` and the document could only be read by a hand-made request. The document now lists the JSON answer (`application/json`, an open schema), the `409` problem an installation with no `IDataSubjectResolver` answers, and the `X-Tracon-Unresolved-Conversations` response header. The TypeScript schema carries all three; the C# client raises the `409` as `TraconApiException<ProblemDetails>`. The header is the count of sessions whose conversation the export could not look up, so it tells a caller whether the document is complete; the export is the only operation of the document that names a response header, and the only method of the C# client that returns the wrapper (`Result`, `Headers`, `StatusCode`).
+  What to do:
+  - **Source that awaited the call as `Task` or read the document by hand** reads `response.Result` for the document and `response.Headers["X-Tracon-Unresolved-Conversations"]` for the count. A build against the old `Task` signature as a delegate type or an interface does not compile.
+
+- **Breaking: a run that ends because its own rule was not met is answered `422` with its error type, not `502`, on every endpoint that answers before a stream begins.** A loop that reached its ceiling with a criterion unsatisfied (`TraconLoopUnsatisfiedException`) and an answer that is not the structured response the agent asked for (`TraconStructuredResponseException`) fell into the default branch: `502 Bad Gateway` with no `errorType`, which says "the provider is broken" and sends the caller to the wrong system although the provider answered. The agent run endpoint (with `Idempotency-Key`), Chat Completions, Responses and the replay endpoint now answer `422` with `errorType` `loop_unsatisfied` or `structured_response_invalid`; the problem document and the replay answer name the failed run in `runId`, and the OpenAI-compatible endpoints use their error envelope. A streamed answer still tells the refusal in an SSE `error` frame, unchanged.
+  What to do:
+  - **A client that retried or alerted on `502` for these runs** should treat `422` with these error types as the agent's own rule failing: a retry with the same input will not change the rule, and the failed run holds the detail.
+  - **A test that expected `502`** for a loop that cannot be satisfied or a rejected structured answer expects `422`.
+
+- **A call to an agent that cannot be compiled is answered with a text that says so, over A2A and MCP.** A tenant provider binding whose key has no value, or an egress policy that no longer allows the provider, makes the catalog refuse the agent. The A2A endpoint answered `-32603 "An internal error occurred."` and the MCP server `An error occurred invoking '<tool>'.`, the libraries' own sentences, which a remote caller cannot tell from a failure that a second try would cure. Both now answer `Agent '<name>' cannot be run: it could not be compiled (<error type>). This is a configuration error on the server and a retry will not succeed. (ref: <id>)`; the A2A code stays `-32603`. The text names no configuration key, and the full failure is in the server log under the reference.
+  What to do:
+  - **A client that matched the library sentence** should match the error type or the phrase `a retry will not succeed`.
+
+- **Added `ModelProviderSettings.ReadChoice(binding, key, accepted)`, the way for a provider outside this repository to refuse a setting value by name.** The registry in front of a provider answers a caller with the message of an exception Tracon raised itself and replaces any other exception, a `TraconException` raised by provider code included, with a generic upstream error. A third-party provider that rejected `contoso.mode: turbo` therefore showed the caller (and `POST /api/agents/validate`) only "the model provider request failed", without the key. `ReadChoice` matches the accepted values without regard to case and raises the exception the registry lets through, with a message that names the key and the accepted values and never the value given. The Anthropic provider uses it for its own closed-set settings; the text of its refusals is unchanged.
+  What to do:
+  - **A provider that refuses a value of a closed-set setting** should read it with `ReadChoice` instead of throwing its own exception.
+
+- **An interrupted run with no recorded input, or whose parameter values were not recorded, is refused before a continuation exists.** The reconciler queued a continuation for it, and the continuation job then refused it after a `Queued` placeholder run had been opened: `GET /api/runs` listed a `Failed` run that never started and the interrupted run learned nothing. The reconciler now reads the recorded input and applies the same rules, and writes a `RunContinuationBlocked` event on the interrupted run.
+  What to do:
+  - **Nothing.** A filter that expected a `Failed` continuation row for these runs finds the `RunContinuationBlocked` event on the interrupted run instead.
+
+- **A host with content protection on stops at the start when its active key has a value that cannot be a key.** The key was read when the first protected value was written, and a recording write is best effort: a key of 31 bytes made every run answer `200`, left every protected column empty, and showed only in a counter. A value that is not base64, or that does not decode to 32 bytes, now stops the start with a message that names the configuration key and never the value. Only the active key is read, and only when it has a value: a key kept for old rows can still be missing during a rotation, and a host on in-memory stores can still start with the key name and no material.
+  What to do:
+  - **If a host now stops with `Content protection key '…' …`,** fix the value the message names: it was already failing on every write, silently.
+  - **A custom `IContentProtector`** registered with `AddContentProtection<TProtector>()` is not asked for a key.
+
+- **The call graph check follows the version a callable agent is pinned to.** It read the names of the callee's current version for every reference, so `a` pinned to `b@1` was saved although version 1 of `b` calls `a` (the run then spent model calls up to the depth limit), and `a` pinned to a `b@1` that calls nobody was refused with a cycle that the current version of `b` closes but the pin cannot run. A reference now follows the stored version it names, and an unpinned one follows the current version with the pins that version carries. The refusal names the pin in its path (`a -> b@1 -> a`), for a save, an import and `POST /api/agents/validate`.
+  What to do:
+  - **If a save that worked is now refused with `cycle`,** pin another version of the callee, remove the call from the pinned version's successor, or leave the pin out. Agents already saved are not re-checked; the depth limit still stops a cycle that was stored before.
+  - **A custom `IAgentDefinitionStore`** is asked for `GetVersionAsync` of each pinned callee on a save and for `GetAsync` of an unpinned callee that calls other agents.
+
+- **The console's token breakdown draws cache writes as a slice of their own.** The bar split the input into "cache hit" and "input", and the tokens a run wrote to the provider's cache (short and long retention together) are counted inside the input total, so they were drawn as plain input. The bar now has five slices (cache hit, cache write, input, reasoning, output), the cache write is cut out of the plain input like the cache hit is, and the legend names it in English and Turkish.
+  What to do:
+  - **Nothing.**
+
+- **The console refuses a quota or retention limit it cannot send exactly, instead of rounding it or saving it as no limit.** The quota form's `maxRuns` and `maxTokens` and the retention form's `maxAgeDays` and `maxRows` are 64-bit numbers on the server and JavaScript numbers in the browser. `9223372036854775807` went out as `9223372036854775808`, and text that is not a number (`abc`, `-5`) became an empty field, which the server reads as no limit at all, so a typo removed the limit. Each field now shows a message (English and Turkish) and the save button stays disabled until the field is empty (no limit) or a whole number from 0 up to 9007199254740991.
+  What to do:
+  - **Nothing.** A limit already stored above that number reads back rounded by the browser, as it always did, and now fails the same check until it is replaced.
+
+- **The job worker gives up on a lease call, and on a schedule's store calls, that never answer.** The poll loop's `LeaseAsync` and the scheduler's `ListDueAsync`, `TryClaimNextRunAsync` and `EnqueueAsync` had no time limit, so a store call that hung stopped the loop (no job was leased, no schedule dispatched, for every tenant) for as long as the store took. SQL Server's command timeout (`CommandTimeoutSeconds`, 30 s by default) bounded it there; a custom store, or PostgreSQL, did not. Each call is now given one lease duration (`Tracon:Scheduling:LeaseDuration`); when it is spent the worker cancels the call's token, logs it and goes on to the next tick, and a due schedule whose claim was given up is tried again on the next tick. A lease the store grants after the worker gave up on the call belongs to nobody: it ends with its duration and the job is leased again then, with its attempt count one higher.
+  What to do:
+  - **A custom `IJobStore` or `IJobScheduleStore` should honor the token** these calls get; a call that ignores it still ends with its answer, and a lease it grants late is the case above.
+
+- **A host that registers Google speech or images without `UseGoogle` fails when it starts.** `UseGoogleSpeech` and `UseGoogleImages` share the authenticated client that `UseGoogle` registers and resolve it when something first uses them, so a host that forgot `UseGoogle` started, and `GET /api/voice/providers` then answered `500` for every provider with an `InvalidOperationException` that named an internal type (`GoogleModelProvider`). A start-up check (an options validator registered with `ValidateOnStart`) now fails the host with `UseGoogleSpeech needs the Google provider, and UseGoogle(...) was not called. Add UseGoogle(...) to the same AddTracon() chain (before or after this call)`. The order of the calls on the chain is still free.
+  What to do:
+  - **Add `UseGoogle(...)` to the chain** of a host that now fails to start with this message. A host that never used the speech or the images it registered has to remove the call or add the provider.
+
+- **Breaking: a retention policy, a job schedule, an inbound trigger and a webhook subscription built in code without `Enabled` are off, and the console forms open them off.** The save requests of the HTTP API already default `enabled` to `false` (a policy deletes rows and the other three start work, so a body that only named the target started it), but the records themselves (`RetentionPolicy`, `JobSchedule`, `InboundTrigger`, `WebhookSubscription`) still defaulted to `true`, so code that built one and said nothing about `Enabled` started it, and the console's retention policy, schedule and trigger forms opened with the box checked. The record defaults are `false` now and those forms open unchecked; the webhook form gained the checkbox it lacked (it sent `true` on its own) and opens unchecked. A quota stays on by default.
+  What to do:
+  - **If your code builds one of these records and expects it to run, set `Enabled = true`.** A record read from a store is not touched: the value stored is the value read.
+  - **A test that saves a webhook subscription and expects the publisher to deliver it** needs `Enabled = true`; `FindForEventAsync` returns only enabled subscriptions.
+
+- **A repeated single-answer request follows a job that runs its run a second time under the same id.** With workflow recovery off, a queued answer whose first attempt ended is leased again and runs the same run id: the row goes back to `Running` and its events continue the sequence. The stream that follows the answer had read the run to its end and then waited for a continuation run that never comes, so it ended with `done` without a word of the second attempt. It now looks for events it has not written (and for a row that is running again) while the job is unfinished and reads on from its last event, without announcing a second `run` frame.
+  What to do:
+  - **Nothing.** A client that followed such a request now receives the second attempt's events before `done`.
+
+- **A single-answer request is no longer locked by a run row the server could not close.** A streamed answer opens the run's row before the engine takes over; when the engine fails first, the endpoint closes that row. A store error in that close escaped after the response headers had been sent, so the caller got an exception for an answer the server had already refused. It is now logged (`Run … opened for a streamed answer that never started, could not be closed`) and the response ends with its `error` frame. A queued answer whose job ended while its run stayed `Queued` (a close that failed) made every repeat of the same answer follow that run for ever; a repeat now closes such a run as `Failed` and starts the work again.
+  What to do:
+  - **Nothing.** A run row left `Queued` by a failed close is `Failed` after the next repeat of its answer.
+
+- **An interrupted run whose agent cannot be continued is refused before a continuation exists.** The reconciler queued a continuation for any root agent run it had closed, and the continuation job then refused agents with skills, callable sub-agents, agent extensions or a session workspace (their calls do not pass through the tool playback a continuation relies on) and agents with no stored definition. The refusal came after a `Queued` placeholder run had been opened, so `GET /api/runs` listed an extra `Failed` run that never started, and the interrupted run itself learned nothing. The reconciler now reads the definition and applies the same rules first: no second run is opened and the interrupted run gets a `RunContinuationBlocked` event that names the agent and the reason. The job still applies the rules to a job queued earlier or by hand, and the parameters check (it needs the recorded input) stays in the job.
+  What to do:
+  - **Nothing.** A filter that expected a `Failed` continuation row for these agents finds the `RunContinuationBlocked` event on the interrupted run instead.
+
+- **A refusal Tracon raises as a plain `TraconException` is no longer filed as a timeout or a rate limit because its message contains those words.** The default error classifier reads the words "timed out" and "rate limit" (and `429`) from the message of an error that has no stable identity, and the message of a Tracon refusal names what it is about: `Agent 'timeout-bot' has no persistent definition` was classified `Timeout`. A workflow node's retry policy treats `Timeout` and `RateLimited` as worth another try, so such a refusal was retried although it could never succeed, and the `GET /api/stats` bucket of timeouts counted it. For an error whose type is exactly `Tracon.TraconException`, the type decides and those three words in the message do not; the quota and tool patterns still read the message, and every error with a stable identity (the timeout and rate-limit exceptions among them) keeps its class.
+  What to do:
+  - **Nothing, unless a dashboard or an alert counted a plain `TraconException` as a timeout or a rate limit.** It is `Unknown` (or `ToolError` or `QuotaExceeded` when the message says tool or quota) from this version on; a row written before keeps its class.
+
+- **A filtered or cut-off answer that a fallback model gave is reported once, in the fallback's name.** A fallback model is built through the same pipeline as the primary, so it judges its own answer (a content filter, an output cut off) and writes the `tracon.output.filtered` or `tracon.output.truncated` run event naming itself. The detector outside the fallback chain then saw the same answer and judged it again as the primary, so the run held a second event whose `provider` was the model that had failed. The chain now marks an answer a fallback gave and the outer detector leaves it alone. An answer the primary gave is judged once, as before; the error a fallback's empty filtered answer raises is unchanged.
+  What to do:
+  - **Nothing, unless a dashboard counted the second event.** A run that fell back and was filtered or cut off holds one event now, not two.
+
+- **Two uploads of the same source to the PostgreSQL knowledge store no longer fail on its unique key.** `PgVectorSearchStore.UpsertAsync` deletes the source's chunks and inserts its own in one transaction. Two uploads of one source at once both deleted what they could see and then inserted the same `(tenant, collection, source, chunk index)` keys, so the second to commit failed with `23505` and the caller got an exception for a valid upload. The upload now takes a transaction-scoped advisory lock on the source, so the second waits for the first and replaces it; another source is not affected. The transaction also runs through the same store context as the other stores, so a deadlock victim is run again whole.
+  What to do:
+  - **Nothing.** A host that caught the unique violation and uploaded again can drop that code. The constructor of `PgVectorSearchStore` is internal.
+
+- **The schedule, inbound trigger and skill a SQL store returns from a save are the rows it stored.** `PUT /api/schedules/{name}`, `PUT /api/triggers/{name}` and `PUT /api/skills/{name}` answered with the record the caller sent, with only the id and the creation time taken from the row. The text and the times could differ from the `GET` that follows: U+0000 is stored as U+FFFD, PostgreSQL keeps microseconds, and a `jsonb` payload or parameter schema loses its spaces. The schedule and the trigger statements now return the whole row, and the skill's resources and scripts are read back in the transaction that wrote them, so the response and the next `GET` agree. The stores of the other write paths already did this.
+  What to do:
+  - **Nothing, unless a client compares the body of a save with what it sent.** It sees the stored text and times now. The new `The_saved_*_is_the_*_a_read_reports` cases of `JobScheduleStoreContract`, `InboundTriggerStoreContract` and `AgentSkillStoreContract` apply to a custom store: the record it returns from a save must be the record it reads.
+
+- **In memory, two callers that add the same approval rule at once keep one rule, and a checkpoint is no longer lost to a delete of its session.** `InMemoryToolApprovalRuleStore.AddAsync` looked for an equal rule and then added, so two simultaneous "do not ask again" answers could both find none and keep two rules. The look and the add are now one step, as the unique key of the SQL stores makes them. `InMemoryWorkflowCheckpointStore.CreateAsync` could add a checkpoint to the list of a session that a delete had just removed, and answer success for a checkpoint that nobody could read; it now starts again on the list that is there, and a delete counts the checkpoints it removed under the list's lock. `InMemoryJobStore.EnqueueAsync` publishes the job and its items together.
+  What to do:
+  - **Nothing.** The SQL stores were not affected.
+
+- **A webhook subscription that a failed delivery switched off is reported in the log even when the write's answer was lost on the way back.** The delivery that reaches the failure threshold asks the store to count it, and the store answers whether this call switched the subscription off. When the call committed and the connection dropped before the answer arrived, the write was tried again, the store found the subscription off already and answered `false`, and the `Webhook subscription '…' was disabled` warning was never written. After a write that threw once, the handler now reads the subscription back and writes the warning when it is disabled. The failure counter can still be counted twice in that case (the second try is a second count); that part is unchanged.
+  What to do:
+  - **Nothing.** A log alert on that warning now fires in the case it missed.
+
+- **In memory and on SQLite a run that keeps its heartbeat is not closed as orphaned because the wall clock stepped forward.** The heartbeat was stamped with the wall clock and aged with the wall clock, so a clock moved ahead by a time service or a resumed virtual machine made every beating run look older than the threshold, and the next orphan pass closed it `Failed`. It is now stamped and aged on the reading a step of the wall clock does not move, the same one the lease stores already use. A run that never beat is still aged by its start time on the wall clock, because that time belongs to the run's own record. PostgreSQL and SQL Server are unchanged: they read the database server's clock.
+  What to do:
+  - **A test that expires a heartbeat by advancing a fake `TimeProvider` has to advance the monotonic reading (`GetTimestamp`) as well as `GetUtcNow`**; `Microsoft.Extensions.Time.Testing.FakeTimeProvider` does. A fake that moves only `GetUtcNow` no longer ages a heartbeat.
+  - **Nothing else.** A custom `IRunStore` is not affected; the dialect types are internal.
+
+- **The two events of a tool call in a run that does not stream carry the time the call ran, and a failed run's calls are laid out by the run clock.** A run that does not stream reads its tool calls from the messages of the answer, after the calls are over, so the `ToolInvoking` and `ToolInvoked` events of a call were both stamped at the moment they were written and showed no duration, while the row of the call already carried the real one. The two events now take the time the tool chain noted (the same time as the row). A run that streams is unchanged: it stamps each event as the content arrives. The calls a run that failed or was cancelled had made are written when the run closes, and their order was read from wall-clock times, so a wall clock corrected backwards between two calls wrote the second call first. The order now comes from the run clock, which does not go backwards; the `timestamp` of an event is still a wall-clock label, and the order of the events is their sequence number.
+  What to do:
+  - **Nothing, unless you compute a duration from the two events.** It is now the real duration of the call. An event's timestamp can be earlier than the timestamp of an event with a lower sequence number written beside it, as it already could for a call the ledger wrote after a failure.
+
+- **A model judge whose model rejects sampling stops the host at start.** `AddModelRunJudge` and `AddEvaluatorJudge` with options take a `ModelBinding`, and the binding could set `Temperature` or `TopP` on a model whose catalog entry says it rejects sampling; the host started and the judge failed on its first sampled run with the provider's `400`, so the scores stopped. The same rule an agent definition has now applies to the judge, and a binding that breaks it fails `ValidateOnStart` with the model named.
+  What to do:
+  - **If a host fails at start with `ModelRunJudgeOptions.Model sets Temperature or TopP`**, remove the two fields from the judge's binding. A judge that never set them, or one on a model the catalog does not mark as rejecting sampling, is not affected.
+
+- **The time limit of a sub-agent call runs on the `TimeProvider` registered in the container.** The limit a workflow step or a sub-agent call puts on its child, and the hard cutoff behind it, were armed on the real clock whatever `TimeProvider` the host registered. They now follow the registered one, as the rest of Tracon's timers do.
+  What to do:
+  - **Nothing, unless you registered a `FakeTimeProvider`** (a test host, usually) and relied on the real clock to end a slow child. Advance the registered clock past the limit instead.
+
+- **A run that fails before it starts records the same error type and class as one that failed while running.** A queued agent run, a continuation, an approval resume, a workflow recovery and the reconciliation pass close a row that never started, and they wrote the short CLR name of the exception (`TraconTenantProviderRefusedException`) as `error.type` and no class, so `GET /api/runs?errorType=tenant_provider_refused` and the `Unknown` bucket of the statistics told the wrong story. They now write what every other path writes: the `ErrorType` of a Tracon exception, the full name of any other, and the class and fingerprint of the built-in classifier.
+  What to do:
+  - **A filter or an alert that matches `error.type` on those rows** by the short name (`InvalidOperationException`) matches the full name (`System.InvalidOperationException`) from this version on; a row written before keeps the old value.
+
+- **A response-cache read that fails is counted as `error`, not as `miss`.** The `tracon.model.cache` counter tagged a lookup whose read of the distributed cache threw as `miss`, so an unreachable cache store looked like a cold cache and moved a hit-ratio dashboard the same way a miss does. `tracon.model.cache.result` now also takes the value `error`; the call still goes on to the model, as before.
+  What to do:
+  - **A panel or alert that divides `hit` by all lookups** now sees fewer lookups when the store is down. Add `error` to the denominator if you want it counted, or alert on it by itself.
+
+- **The run row of an MCP task carries the user and labels of the request that created it.** `UseMcpServer` with `EnableTasks` opens a queued row for the task inside the request, and that row had neither. A task that the server turned away before its agent started (an approval-requiring tool, for one) never got them later, so `GET /api/runs` filtered by `userId` or a label did not list it. The row now takes the attribution the request resolved, through the same reader the other queued rows use.
+  What to do:
+  - **Nothing.** A task whose agent ran keeps the user and labels the run recorded.
+
+- **A queued continuation of an interrupted run carries the user and labels of the run it continues.** The recovery pass opens a queued row for the continuation before a worker takes the job, and that row had neither, so `GET /api/runs` filtered by `userId` or a label did not list it while it waited, nor when it closed without ever running. The worker already recorded both once the run started; the queued row now says so from the start.
+  What to do:
+  - **Nothing.** A continuation that already ran keeps the user and labels the worker wrote.
+
+- **The in-memory run store takes a group of events whose tenant differs only in letter case as one group.** `AppendEventsAsync` compared the tenant of each event as written, so a group that spelled one tenant two ways (`Tenant-A`, `tenant-a`) was refused as mixed tenants, while the SQLite, PostgreSQL and SQL Server stores fold the tenant first and wrote it. The in-memory store now folds the tenant the same way; a group of two different tenants is still refused. The run writer stamps one tenant on a group, so a host that records through Tracon is not affected.
+  What to do:
+  - **Nothing, unless you wrote an `IRunStore`.** A store that overrides `AppendEventsAsync` and compares the tenants of the events as written must fold them (`AmbientTenantScope.Normalize`). New contract test, which a store that compares them as written fails: `RunStoreContract.AppendEventsAsync_takes_tenant_ids_that_differ_only_in_letter_case_as_one_tenant`.
+
+- **The run page's thumbs and comment box wait for the run's scores.** The feedback control of the embedded console took a click before the list of the run's scores had come back, so it did not know the reviewer's own row: a thumb pressed in that window added a second `Binary` score where it should have removed the first. The two thumbs and the comment box are now disabled until the list has loaded.
+  What to do:
+  - **Nothing.** The control is part of the console that `Tracon.UI` embeds; a host that talks to the API with `@tracon/client` is not affected. A run that already carries duplicate scores keeps them; remove the extra rows through the feedback endpoint.
+
+- **`Tracon.Cli` carries the notices of the packages it bundles.** The `tracon` tool ships its whole publish output: Npgsql, `Microsoft.Data.SqlClient`, SQLitePCLRaw, Google.Protobuf and
+  the Microsoft libraries beneath them travelled inside the package as assemblies and native libraries, without the package that held their licence. `THIRD-PARTY-NOTICES.txt` now sits at the
+  package root with the licence text of every one of them (MIT, BSD-3-Clause, Apache-2.0, the PostgreSQL licence, and the SQL Server network library's own terms). The release build derives it
+  from the tool's own dependency manifest and fails when a package is added to the tool without its notice.
+  What to do:
+  - **Nothing.** A licence scanner that read the tool package as "MIT, with unnamed binaries" now finds the licence of each binary.
+
+- **Dependencies move to the newest releases of the runtime stack.** Microsoft Agent Framework `1.26.0` to `1.28.0` (Hosting `1.28.0-preview.261106.1`, Hosting.OpenAI `1.28.0-alpha.261106.1`, `A2A.AspNetCore`
+  `1.0.0-preview4`), `ModelContextProtocol` `2.3.0` to `2.4.0`, the .NET 10 platform packages `10.0.14` to `10.0.15`, `Anthropic` `13.3.0` to `13.8.0`, `Google.GenAI` `1.27.0` to `2.1.0` (a major), `Azure.Core` `1.64.0` to `1.65.0`, `Microsoft.Data.SqlClient` `7.1.1` to `7.1.2` and `Microsoft.ML.Tokenizers` `2.0.1` to `3.0.0` (a major). `OpenAI` stays at `2.14.0` and `Microsoft.Extensions.AI` stays at
+  `10.11.0`: its 11.0 release belongs to .NET 11 (on `net10.0` it asks for the 11.0 platform packages) and Agent Framework 1.28 still stands on 10.11. A project that references `Microsoft.Extensions.AI` 11.0.0 next to the
+  Tracon packages restores, starts, and runs an Agent Framework agent turn over a chat client written against it, which the package tests now keep. `Tracon.SqlServer` no longer references `System.Security.Cryptography.Pkcs` itself: SqlClient 7.1.2 pulls a patched one (`9.0.21`).
+  What to do:
+  - **Raise your own `Microsoft.Agents.AI*` references to 1.28.0 or later.** `Tracon.AspNetCore` is built against the 1.28 Hosting packages, and a host that keeps a 1.26 Hosting package fails to restore (`NU1608`/`NU1107`).
+  - **A project that references `Google.GenAI` 1.x directly moves to 2.1.0 or later, and one that references `Microsoft.ML.Tokenizers` 2.x moves to 3.0.0 or later.** The floors of `Tracon.Google` and `Tracon.Core` rose with them.
+  - **Do not raise `OpenAI` to 2.15.0 yet.** 2.15.0 changed the return type of `ResponsesClient.CreateResponseStreamingAsync`, and `Microsoft.Extensions.AI.OpenAI` (10.11.0 and 11.0.0, the newest) calls the old one: the `openai-responses` provider then fails at its first streamed call with a `MissingMethodException` (measured). Tracon declares no upper bound, so restore does not stop you.
+  - **Nothing else, for the same behavior.** The measurements behind each version are in the entries below.
+
+- **A workflow's span is named `invoke_workflow <workflow name>`, and a workflow's executor input and output are never written.** Agent Framework 1.28 renamed `workflow_invoke` and tags the span with `gen_ai.operation.name`
+  and `gen_ai.workflow.name`; it also stopped writing `executor.input` and `executor.output` whatever the telemetry option says (the option is obsolete). A stored workflow keeps its `workflow.session` and
+  `executor.process <step>` spans.
+  What to do:
+  - **A dashboard, an alert or a trace query that matches the span name `workflow_invoke` matches the name that starts with `invoke_workflow` instead.**
+  - **Nothing for the content setting.** `RecordSensitiveData` still drops the two keys, and a store that kept the executor payloads of an earlier run keeps them.
+
+- **A call to an Anthropic model that thinks records its thinking tokens as reasoning tokens.** Anthropic SDK 13.8 reads `output_tokens_details.thinking_tokens` of the response into the usage, where 13.3 left it empty. The run's
+  `usage.reasoningTokens` is now filled for such a call (it is part of `usage.outputTokens`, as the API reports it, not an addition to it). The cost does not change: Tracon prices the output tokens it was told about and does not
+  price the reasoning counter separately.
+  What to do:
+  - **Nothing, unless you added `reasoningTokens` to `outputTokens` yourself.** A report that did so counts the thinking twice from now on.
+
+- **An Anthropic structured response whose JSON schema names no required property is now held to the schema.** Anthropic SDK 13.3 sent a response format's schema only when it held both `properties` and a `required` array, so a schema with
+  nothing required went out as plain text. 13.8 sends it whenever there are properties.
+  What to do:
+  - **Nothing, unless an agent relied on the answer not being constrained.** The request carries the schema as `output_config.format`, as it does for a schema that names a required property.
+
+- **An MCP server whose authorization server publishes no metadata cannot be authorized.** ModelContextProtocol 2.4 fails the authorization before it asks for a code when the authorization server metadata cannot be
+  discovered, where 2.3 fell back to the 2025-03-26 default endpoints (`/authorize` and `/token`). The fallback exists behind a process-wide switch that is off, and Tracon does not turn it on. A metadata document that names no `S256`
+  was refused before and still is.
+  What to do:
+  - **Make the authorization server publish its metadata** (RFC 8414 or OpenID Connect discovery), with `code_challenge_methods_supported` that includes `S256`. A server that already does is not affected.
+
+- **A Magentic workflow that waits for plan review ignores an ordinary turn and says so with a warning event.** Agent Framework 1.28 also refuses a plan review answer that arrives when the orchestrator is not waiting for one
+  (`InvalidOperationException`). A checkpoint taken before the upgrade resumes in the state it was in.
+  What to do:
+  - **Nothing.** Tracon answers a plan review only for a request that is pending.
+
+## Read next
+
+- [Release notes](/reference/changelog/) — every published version, newest first
+- [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
+
+---
+
+# Tracon 1.0.0-preview.12 release notes
+
+Source: https://tracon.dev/reference/releases/1.0.0-preview.12/
+
+Released on 2026-11-15. This entry covers every NuGet package of the family and the npm client
+at version 1.0.0-preview.12. [Release notes](/reference/changelog/) lists every version.
+
+This entry is split into 2 pages that each stay light to read: part 1 (this page), [part 2](/reference/releases/1.0.0-preview.12/part-2/).
+
+This release moves the runtime stack to Microsoft Agent Framework 1.28 and the Model Context Protocol SDK 2.4, and carries 99 entries that fix what reading the run, session, job, store, MCP, A2A and console code against its contracts found. Six entries are breaking, and the first of them includes a database migration with no way back: a trace belongs to one run (`ITraceStore`), an `OAuthCallbackBaseUri` without a closing slash stops the application at the start, a run cut at its output limit or left empty by the provider's filter and a run that ends on its own unmet rule answer `422` instead of `502`, the typed client's data subject export returns the status and headers, and a retention policy, schedule, trigger or webhook subscription built in code without `Enabled` is off. Read those entries before you upgrade; each one says what to do.
+
+- **Breaking, for a custom `ITraceStore`: a trace belongs to one run. `TraceSpanBatch.RunId` is `required`, `RunTrace.RunId` is a `Guid`, and the stores key a trace by tenant and run.** The built-in stores keyed a trace by tenant and W3C trace ID. The caller chooses that ID, and a gateway that sends a `traceparent` header gives every run it starts the same one. Two runs of one tenant that shared an ID shared one stored trace: `GET /api/runs/{id}/trace` answered `404` for the first run and the spans of both for the second, deleting a run or erasing a data subject took the other run's spans or left the run's own, the retention sweep removed the newer run's spans at the older run's cutoff, and a run written under two IDs (a retried job) had two traces and the read picked one. Each run now answers with its own spans and the ID it was written under, and a run written under two IDs keeps one trace with the spans of both and the ID of the last write. The migrations are PostgreSQL `0071`, SQL Server `0064` and SQLite `0059` (`trace_run_key`): they merge the traces that one run has under several IDs, move every span (none is deleted) and swap the unique key; SQLite rebuilds `traces` and `spans`. In `Tracon.Client`, `RunTrace.RunId` is `System.Guid` and not `System.Guid?`; in `@tracon/client` and in the published OpenAPI document `runId` of `RunTrace` is required.
+  What to do:
+  - **Back up the database before you start the new version, and start the new nodes before you stop the old ones.** The migration has no way back. An old release cannot write a trace into the new shape: on PostgreSQL and SQLite its write fails (`there is no unique or exclusion constraint matching the ON CONFLICT specification` on PostgreSQL) and the collector logs it. The run is not affected, but the trace of a run that ends on an old node is not stored. On SQL Server the old release keeps writing with its old key: a run that shares an ID with a stored trace takes that trace over, as it did before.
+  - **Rows that already joined two runs under one ID stay as they were.** The first run still answers `404` and the second still holds both runs' spans; the migration changes no such row, because splitting them would mean guessing which run a span belongs to. New runs are not affected.
+  - **On SQLite, drop a view or trigger of your own that names `traces` or `spans` before you start, and create it again afterwards.** The migration drops and rebuilds both tables, and SQLite stops with `error in view …` while a view names a table that is not there; nothing is changed when it stops. The views that `EnableReadViews` adds do not name them. An index of your own on either table is dropped with the table: create it again afterwards.
+  - **Allow for the time:** measured with 400 thousand runs (440 thousand traces, 880 thousand spans), the migration took 6.4 s on PostgreSQL and 5.5 s on SQL Server (test containers; SQL Server in an emulated x86-64 one), and with 550 thousand spans in 5 500 traces it took 3.3 s on SQLite. The SQL Server migration runs as one command inside the 30-second command timeout. Larger tables are not measured: on SQL Server, start the new version in a quiet hour and watch the first start.
+  - **If you wrote your own `ITraceStore`, or you build a `TraceSpanBatch`, set `RunId`:** it is `required` now. Key your store by tenant and run, keep the ID of the last write when a run is written again, and run `TraceStoreContract`, which has four more cases: `TraceStoreContract.Two_runs_of_one_tenant_that_share_a_trace_id_each_read_only_their_own_spans`, `TraceStoreContract.A_run_written_under_two_trace_ids_reads_back_as_one_trace`, `TraceStoreContract.Two_tenants_that_write_one_run_id_keep_their_own_traces` and `TraceStoreContract.Concurrent_writes_for_one_run_leave_one_trace_with_every_span`.
+
+- **A removed field is refused in a body of any charset, and in the JSON syntax the host allows.** The `400` with the title `Removed field` (an MCP server's `authorizationConfigurationKey`, an agent's `model.allowConcurrentToolCalls` and `callableAgentNames`, an eval case's `expectedTools`) read the body as UTF-8 with the framework's default JSON settings, while the endpoint itself reads it in the charset the request declares and with the host's own settings. A body sent as `charset=utf-16` or `utf-32`, or one with comments or a trailing comma on a host that allows them, was saved with the removed field dropped and answered `200`. The refusal now reads the body the way the endpoint does.
+  What to do:
+  - **Nothing, unless a client still sends a removed field in one of those bodies.** It now gets the `400` that names the replacement, as a UTF-8 body already did.
+
+- **A JSON body in a charset the runtime does not know is `415`, not an empty `500`.** `Content-Type: application/json; charset=<a name no encoding matches>` made the framework's reader throw on every route that takes a body, including `POST /v1/chat/completions`, `POST /v1/responses` and `POST /api/voice/live/sessions`. The answer is now `415` that asks for UTF-8, in the OpenAI error shape on the OpenAI-compatible routes.
+  What to do:
+  - **Nothing.** Send the body as UTF-8, or leave the `charset` out.
+
+- **`POST /v1/conversations` reads `metadata` in the charset the request declares.** The body was always decoded as UTF-8, so a value sent as `charset=iso-8859-1` lost every character UTF-8 does not share with it (an accented letter came back as the replacement character U+FFFD) and the answer was still `200`.
+  What to do:
+  - **Nothing.** A client that sends UTF-8 is not affected.
+
+- **A workflow run no longer fails at the super-step limit because the engine started it in two steps.** The runner sends a run's input and then its turn token. Now and then (measured at 2 starts in 1200 with eight runs at once) the engine's loop took the input alone as its first super-step and the token as a second, so a chain at the limit that needs `N + 1` steps needed `N + 2` and failed with `Workflow exceeded the N super-step limit`. The second step of a fresh start that activates the same executor as the first is no longer counted. A resume and an answer to a request count every step, as before.
+  What to do:
+  - **If a sequential chain at the limit failed once and then ran, it was this:** nothing changes in what the validator allows (a chain of `agentNames` still needs one super-step more than it has agents).
+  - **If a loop that went on with one executor alone stopped at the limit, it stops one step later now:** a split start is forgiven once.
+
+- **A model whose runs report cache-written tokens but has no cache-write price is logged once.** Anthropic bills the tokens it writes into the prompt cache apart from plain input. With no `CacheWriteCostPerMillionTokens` (or `CacheWriteLongCostPerMillionTokens`) for the model, Tracon prices those tokens at the plain input price, as it did before, and nothing said that the cost of the model's runs was below the provider's bill. The resolver now writes one warning for each model and class the first time a run reports such tokens, naming the setting.
+  What to do:
+  - **If you see the warning, give the model's catalog entry or its `Tracon:Pricing` entry the write price named in it.** The prices of runs already recorded do not change until you recalculate them.
+  - **If your logs are collected, expect at most one line for each model and class for the life of the process, and none for a model that has the price.**
+
+- **A retried eval job reports the tokens of the whole job, not of its last attempt.** An eval job that a worker stopped is picked up again and runs only the cases that were left. The total in `inputTokens` and `outputTokens` of the eval run counted only what the last attempt spent, so a job that was picked up again reported less than it cost. The retry now reads the tokens of the cases that were done from the run each of them recorded, the same number a job that was never interrupted adds up.
+  What to do:
+  - **If you compare eval runs by tokens, expect the total of a run that was retried to rise to what it spent.** An eval run that lost a case's run record to retention counts nothing for that case.
+  - **If you wrote your own `IEvalStore`, nothing changes:** the handler reads the case results the store already lists.
+
+- **`GET /api/sessions/{id}` lists the requests that still wait in `pendingRequestIds`, and the console shows an approval whose answer was applied as answered.** The session holds a request in its history until the run that applied the answer saves the session, and a run whose caller left saves nothing, so the same approval stayed on screen as waiting and a decision on it was refused with `409`. The console also read the answer in a recorded history as a second request and showed one more card for every approval that was answered. The new field is the requests of `messages` that wait, in order; it is `null` when the history could not be read, as `messages` is.
+  What to do:
+  - **If you build your own front end on `GET /api/sessions/{id}`, read `pendingRequestIds` to know which approval and tool input requests of `messages` still wait for an answer.** A request that is in `messages` and not in the list was answered. A client that does not read the field sees what it saw before.
+  - **If you use the generated `Tracon.Client` or `@tracon/client`, `SessionDetailResponse` has one more property:** `PendingRequestIds` and `pendingRequestIds`.
+
+- **A call to the Responses endpoint that chains with `previous_response_id` is refused with `400` when the agent keeps files for its session.** The run of a chained call loads the session of the earlier response and saves a session of its own under the new response's identifier, and the files of a session workspace sit under the identifier the run loaded. The second turn saw the first turn's files, every later turn started with none, and the files of the turns before stayed under an earlier response that deleting the new session did not reach. The call is now refused before the model runs, and the answer names the way to keep the files.
+  What to do:
+  - **If a client chains the calls of an agent with a workspace, send `conversation` set to the identifier of the first response and no `previous_response_id`:** the conversation keeps one workspace across the turns. The first call needs no change.
+  - **If the agent has no workspace, nothing changes:** a chained call still loads the earlier response's history.
+
+- **An agent run that its process left behind is counted in the quota counter when the reconciliation closes it.** A run writes its share (one run and what its tools reported beyond tokens) when it ends, and a process that stopped never got there; the reconciliation closed the row and wrote nothing, so a workflow that stopped was counted and an agent run that stopped was not. The reconciliation now writes the run and the amount its tools reported, read from the records of its calls, under the agent's name and the run's user. The run's tokens were on the process that is gone and stay out. A process that was only silent and ends its run later adds its tokens and their price and not the run again.
+  What to do:
+  - **If a quota rule counted runs or cost of agents, expect the counter to rise by the agent runs a reconciliation closed.** Only a run that wrote an event is counted, and only when `Tracon:RunReconciliation:Enabled` is on.
+  - **If an agent that did not stream reported tool costs and its process died, those costs are not counted:** such a run writes its calls when it ends.
+  - **If you wrote your own `IQuotaStore`, nothing changes:** the entry is one more `AddUsageAsync` with the run id of the closed run.
+
+- **A run keeps conversation memory only for a session whose record it could write.** The record of a session is written when a run ends, after the memory, so a run whose own save then failed (another request opened the same session first, or the store failed) had already stored what the user said under a session that no record named. The delete of a session, the retention policy and the erasure of a data subject all start at the record and could not reach those records. The memory is now written after the record of a new session, and a run whose record is refused answers as usual and does not remember that turn.
+  What to do:
+  - **If you saw conversation memory of a session that `GET /api/sessions/{id}` answers `404` for, find it with your vector store's own tools:** the records of a run that lost the race are still there, and nothing in Tracon deletes them.
+  - **If you wrote your own `ISessionStore`, expect one more write on the first turn of a new session with conversation memory:** a creation before the run's end, then an update at its end, as a session that keeps files has.
+
+- **The in-memory trace store keeps each tenant's spans in the tenant's own trace.** It keyed a trace by its trace identifier alone, so two tenants whose runs shared one identifier (a gateway that sends a W3C `traceparent` gives every run the same one) wrote into one trace: the second tenant's spans joined the first tenant's trace, and the second tenant read no trace of its own. The SQL stores always keyed a trace by tenant and identifier.
+  What to do:
+  - **If you run the in-memory store with more than one tenant, nothing to do:** each tenant now reads its own spans.
+  - **If you wrote your own `ITraceStore` and run `TraceStoreContract`, expect one more case:** `TraceStoreContract.Two_tenants_that_share_a_trace_id_each_read_only_their_own_spans` (two tenants that share a trace identifier each read only their own spans).
+
+- **The error code a `tracon.content` event keeps is cut at 64 characters.** The event's text carries the code of an `ErrorContent` a provider returned, and it is written whether or not tool payloads are recorded. The adapters Tracon ships write a short token there, so nothing changes for them; an adapter that put a message in the code would have written it into the text.
+  What to do:
+  - **If you read `errorCode` from a `tracon.content` event, expect a code longer than 64 characters to end with the truncation marker.**
+
+- **A Gemini turn that ends on a function call it could not use fails the run instead of completing with an empty answer.** Gemini ends a turn with `MALFORMED_FUNCTION_CALL` when the model wrote a call that did not parse, or with `UNEXPECTED_TOOL_CALL` when it asked for a tool the request did not declare, and the answer holds no call. The agent framework's adapter reports both as a turn of tool calls, so the tool loop had nothing to run and the run ended `Completed` with no text. The run now fails as a provider error (`upstream_error`, class `ProviderError`), and a fallback chain goes on to the next model.
+  What to do:
+  - **If a Gemini agent returned an empty answer now and then, look for `upstream_error` runs that name `GoogleFunctionCallException`.** They are the same turns, recorded as the failures they were.
+  - **If you retry provider errors, nothing changes:** the turn is retried like any other failed model call.
+
+- **An approval or a tool input that a run applied cannot be applied a second time, though the run's client left.** The answer was applied when the run started and saved with the session when the run ended; a client that closed the stream while the approved tool ran cancelled the run before the save, so the history still held the request as pending and the same answer ran the tool again. The request that applies an answer now writes its identity into the session before the run starts. A repeated answer is refused with `409` on the management API and as an invalid resume on AG-UI, and the mailbox that resumes a queued run leaves it out.
+  What to do:
+  - **If a client retries an approval after a dropped stream, expect `409` (or an invalid resume) when the first attempt reached the tool.** Read the run, then send a new message: the framework rejects the request nobody answered and the conversation goes on.
+  - **A tool that was cancelled while it ran is not run again for that approval.** Ask for it again in a message if it has to run.
+
+- **The first file an agent keeps in a session writes the session's record, so a run that fails afterwards leaves nothing a delete cannot reach.** A session's record was written when a run ended, and a run that fails writes none. A write that asks for no approval (a code policy, a rule the user once kept) could put a file under a session that did not exist, and `DELETE /api/sessions/{id}`, the retention policy and the erasure of a data subject all begin at the record. The file is now written after the record, which the run's own save then updates. A sub-agent's file is kept under its root's session and gives the root's session the record. With session ownership on, the user who ran owns the record, and another user's run on the same id is refused before the model.
+  What to do:
+  - **If your own `AgentFileStore` is registered for session workspaces, nothing changes:** the record is a call to the session store, not to the file store.
+  - **If a session id of a failed run was `404` on delete and its files stayed, delete the session now and the files go with it.**
+
+- **A workflow run whose process stopped is counted in the quota counter when the recovery or the reconciliation closes it.** Its run and what its function nodes reported beyond tokens were written only by the process that ran it, so a run that stopped left the counter below what it had spent, and a tenant's quota could be passed without a sign. The closer now writes that share once, after the row is closed, under the workflow's name and the run's user. A run that wrote no event, a step of a workflow and an agent run claimed this way add nothing. A process that was only silent and ends its run later does not write it again.
+  What to do:
+  - **If a quota rule counted runs or cost of a workflow that was interrupted, expect the counter to rise by the run and what it reported.** The agent steps of the run had added their own tokens before.
+  - **If you wrote your own `IQuotaStore`, nothing changes:** the entry is one more `AddUsageAsync` with the run id of the interrupted run.
+
+- **A streamed A2A message that its caller leaves is still saved, under the caller's tenant, key and user.** The A2A library keeps a `SendStreamingMessage` turn running after the caller has gone and saves the session when the model answers, with no request left. The save found no isolation key and the strict store refused it, so the finished turn was lost, and the tenant and the owner would have been read from a request that no longer existed. Tracon now binds all three when the answer to the request starts executing.
+  What to do:
+  - **If a caller of `SendStreamingMessage` hung up mid-turn, send its next message with the same `contextId`: the finished turn is part of the conversation.** The model call is not cancelled, so the caller is charged for it.
+  - **If you registered your own `AgentIsolationKeyProvider`, make it answer without a request.** It is asked at that save, after the request is over; a provider that needs `HttpContext` still loses the turn.
+
+- **A data subject export and erasure find the conversation of a session whose agent is no longer registered.** The conversation's identifier is plain JSON in the session's stored state, so the agent that wrote it is not needed to read it. An export lists the conversation and an erasure deletes it with the session; both used to skip it and count it in `unresolvedConversations`. A state that does not have the shape the agent framework writes is still skipped and counted, and so is a state that a registered agent cannot restore.
+  What to do:
+  - **If you erased a subject whose agent was deleted or renamed, you no longer need to register the agent again first.** Keep reading `unresolvedConversations` on the answer and the `X-Tracon-Unresolved-Conversations` header: a count above `0` still means a conversation may stay.
+  - **If you keep the first answer of an erasure as proof of what was left, expect `0` where such a session was counted before.**
+
+- **Two requests that answer the same pending tool call no longer both run it.** An approval, a tool input or a client tool result resumes a call that the session history says is pending, and the session is written when a run ends. Two requests that read the same version of the session both found the call pending and both ran the tool, and the later save reported the conflict after the tool had run twice. The request that takes the session's version first now goes on; the other one is answered `409` with `errorType: session_conflict` before it applies the answer or runs anything. `AgentSessionManager` gets `ClaimSessionAsync` for this.
+  What to do:
+  - **If a client can send the same answer twice (a double click, a retry), expect one `409` and treat it as "the other request has it".** Read the session before sending the answer again.
+  - **If a run's client disconnects after the answer, a later answer to the same approval is refused.** See the entry on answered approvals below.
+
+- **A2A messages and MCP tool calls refuse an attribution that breaks the limits.** A user identifier over 200 characters, more than 8 labels, a key over 64 or a value over 256 characters used to start an unattributed run over the two external protocols, while the management API answered `400`. They now refuse the call before the run starts, with or without an `IRunAuthorizationHandler`: over A2A the error carries the sentence, over MCP the tool result has `isError` set. The handler is not asked.
+  What to do:
+  - **If your `IRunAttributionContext` can produce a long user identifier or many labels over these protocols, shorten them.** The sentence names the limit.
+
+- **Deleting an attachment, a session or a data subject is refused when an attachment holds external content and no `IAttachmentStorage` is registered.** The three deletes ran a plain `DELETE`, so the row, which is the only record of where the bytes are, went and the bytes stayed in your store; an erasure reported the subject erased while their files stayed. They now fail with an error that names no location, and delete nothing: not the row, not the session's other attachments, and an erasure fails before it erases the first copy. Retention already kept such rows.
+  What to do:
+  - **If you removed the `IAttachmentStorage` registration after attachments were saved with it, register it again before you delete.** Rows with their bytes in the database are deleted as before.
+  - **If a session delete or an erasure now fails with a message about `IAttachmentStorage`, that is the case above.** The preview (`dryRun`) still counts the rows.
+
+- **`IRunStore` has a `PromoteQueuedRunAsync` member, and a queued workflow run closed while it waited stays closed.** The job of a run that waits for a concurrency slot can be cancelled on another instance, which closes the run's row. The write that took the run out of the queue then wrote `Running` over it. The new member writes only while the row still reads `Queued`; the in-memory and SQL stores decide inside the write, and the run ends `Canceled` without starting its graph. The member has a default implementation, so a store of yours keeps compiling. `RunStoreContract` gets five cases and two flags, `PromotesQueuedRunsAtomically` and `MarksAStartedRunAlive`, both `false` by default.
+  What to do:
+  - **If you wrote your own `IRunStore`, nothing is required.** To close the window between the check and the write, override `PromoteQueuedRunAsync` and check the status inside your write, then return `true` from the flag.
+  - **If your store shares its database between nodes and marks a run alive in the write that makes it `Running`, return `true` from `MarksAStartedRunAlive`.** A case then checks that the first orphan scan leaves a run started an hour ago alone.
+
+- **A caller's name over 200 characters is shortened, and SQL Server shortens a tool name, a call identifier and a span name over their column.** The name of the authenticated caller comes from a claim that has no bound, and ten SQL Server columns hold it in 200 characters, so a write of `created_by`, `decided_by` or `responded_by` could be refused. The actor resolver now keeps the start of such a name and a digest of the whole, the same on every store. A tool name, call identifier or span name that a model or provider chose is shortened the same way on SQL Server, where it used to fail the write that recorded the run. A name that fits is unchanged.
+  What to do:
+  - **If you read `created_by` or an audit actor and compare it with a claim, compare with the shortened form for a claim over 200 characters.**
+  - **Nothing for the other stores.**
+
+- **A tool of an MCP server whose qualified name is over 64 characters is skipped and no longer takes the server's other tools with it.** A tool is registered as `{server}_{tool}`, the registry takes at most 64 characters, and the exception for a longer one dropped the whole server's tool list. The tool is now left out with a warning that names both rules.
+  What to do:
+  - **If a tool of an MCP server is missing, read the warning.** A shorter server name makes room.
+
+- **A2A messages and MCP tool calls now ask `IRunAuthorizationHandler` before a run starts.** The two external protocols were the only run surfaces that never asked the handler, so a host's own rule for who may run an agent did not reach them. Every A2A `SendMessage` and `SendStreamingMessage`, and every MCP `tools/call` that names an exposed agent (task mode included), is now put to the handler as `RunAccess.Start` with the tenant, the agent, the user from `IRunAttributionContext` and, for A2A, the conversation's identity. A refused call starts no run and calls no model; a handler that throws refuses the call and is logged. A2A answers the opaque JSON-RPC `-32603` error every refusal on that surface is, and MCP answers a tool result with `isError` set and the reason.
+  What to do:
+  - **If no `IRunAuthorizationHandler` is registered, nothing.** The built-in default allows every call.
+  - **If a handler is registered and refuses some callers, expect it to refuse them over A2A and MCP too.** A key that speaks for several users needs `IRunAttributionContext` bound so the handler can tell them apart.
+
+- **The items of a conversation list the images and files a turn carried.** `GET /v1/conversations/{id}/items` listed only the text of a message, so an image or a file a user sent was missing from the history. They now come back as `input_image` and `input_file` parts of the message item, in their place among its other parts. `image_url` and `file_url` point at the attachment through the address `GET /api/attachments/{id}` serves (or at the remote link the user sent), `detail` is `auto` unless the part said otherwise, and `filename` is there when the file has a name; the bytes are never embedded. Because a part is no longer always text, `ItemContent.text` is optional and can be null in the OpenAPI document, in the generated C# client (`ItemContent.Text` is `string?`) and in `@tracon/client` (`text?: null | string`), and the part gains `image_url`, `detail`, `file_url` and `filename`.
+  What to do:
+  - **If a client reads the `text` of an item's content, check the part's `type` first.** Only `input_text` and `output_text` parts carry text.
+  - **If a client rebuilds a transcript from the items, read `image_url` and `file_url`.** Fetch the address with a credential that may read attachments to get the bytes.
+
+- **A file's name and an image's detail survive the later turns of a conversation.** An attachment is kept in the history as a small reference. The first turn resolved it with the file's name and the image's `detail`, but a later turn read the history back from the session store and sent the file unnamed, with an internal property leaking to the provider. A later turn now sends what the first one did.
+  What to do:
+  - **Nothing.**
+
+- **A name or identifier that is too long for its column is now a `400` at the request, on every store.** SQL Server holds an identifier in 200 characters (a configuration name, a path or a file name in 400, a URL in 2000) and the other stores kept any length, so the same request got `400 Value too long for the store` with no field name on one store and `200` on the others. The HTTP API now refuses the value before any store is asked. A name in the path of a `PUT` (`/api/agents|evals|experiments|mcp-servers|schedules|skills|triggers|webhooks|workflows/{name}`, `/api/retention/{target}`, `/api/tenants/{tenantId}/providers/{provider}`) over 200 characters and an upload file name over 400 answer `400` with the title `Value too long`. The text fields of a body that the store keeps in such a column answer `400` with the title `Invalid request body`: the `name` of an agent definition, API key and skill (and its resources and scripts), the `model` and `provider` of a model binding, an experiment variant `name`, a tenant `displayName`, an approval rule's `agentName` and `toolName`, the `agentName` of an eval suite, experiment and quota, a schedule's `targetName`, `cron` and `timeZone`, a trigger's `targetName`, `signingSecretConfigurationName` and `payloadPath`, a webhook's `url` and `secretConfigurationKey`, an MCP server's `endpoint`, `oAuthClientId` and `oAuthClientSecretConfigurationKey`, a tenant binding's `apiKeyConfigurationName` and `endpoint`, a skill script grant's `skillName` and `scriptName`, and a feedback `messageId`; the same names inside a definition bundle. The `detail` names the field and its limit and never repeats the value. A `GET` or `DELETE` with a name that long is still a `404`.
+  What to do:
+  - **If a client or a script sent a name over its limit, shorten it.** PostgreSQL, SQLite and the in-memory stores used to keep it; they now refuse it as SQL Server always did.
+  - **If a test of yours expected `Value too long for the store` for one of these fields, expect the new title and detail.** That store answer remains for a field no input bounds.
+
+- **A tenant's rotated provider key now replaces the old client instead of leaving it behind.** The `Tracon.OpenAI`, `Tracon.Anthropic`, `Tracon.Google` and `Tracon.Azure` packages kept the SDK client of a tenant's own key in a cache keyed by the key's value. A rotation built a second client, the old one (with its HTTP connection pool) stayed for the life of the process, and the old key stayed in memory as a dictionary key. The cache now keeps one entry for each tenant binding (the tenant and the provider), replaces it when the key or the endpoint changes, and holds only a SHA-256 fingerprint of the key. The replaced client is not disposed, because a run that began before the rotation may still use it; it is released once that run ends. Two tenants that hold the same key value now get a client each, where they shared one before.
+  What to do:
+  - **Nothing.** Change the value the binding's configuration name points at; the next run uses it.
+  - **If you wrote a provider that implements `ITenantCredentialModelProvider`,** the contract is unchanged: the same credential still gives the same client. The credential does not carry the binding name to your code, so keep your own cache bounded as before.
+
+- **A content filter that leaves the final turn empty now fails the run, even after tool calls.** The finish-reason check counted a tool call or text from an earlier turn of the tool loop as content of the answer, so a run whose last turn the provider filtered with no text completed with a `tracon.output.filtered` event and an empty answer. It now judges the final turn alone: the run is `Failed` with error type `content_filtered`, the agent run endpoint, `/v1/responses` and `/v1/chat/completions` answer `422` (an `error` frame on a stream) instead of `200` or `response.incomplete`, and no `tracon.output.filtered` event is written. A final turn that wrote text still completes with the event.
+  What to do:
+  - **If an alert or a client treated such a run as a success,** read `content_filtered` as a failure: the run status is `Failed` and the HTTP status is `422`.
+  - **If a dashboard counted `tracon.output.filtered` events for these runs,** count `content_filtered` run errors as well.
+
+- **The loop iteration event keeps its payload when `RunRecording:RecordToolPayloads` is off.** The `LoopIterationCompleted` run event holds counters, flags and criterion kinds, never feedback or answer text, and the `loop.iteration-completed` frame of the agent stream is that event; with the option off the frame reached the client with a `null` payload, so the playground drew no iteration separator and a client could not find the iteration that holds the answer. The payload is now written whatever the option says. This changes recorded data: a run recorded with the option off now stores the loop payload, and `GET /api/runs/{id}/events` serves it.
+  What to do:
+  - **If you turned the option off for privacy,** nothing sensitive is added: the payload names the iteration number, flags and criterion kinds, and the judge model or reviewer agent of a criterion.
+  - **If a client skipped the iteration frame because its payload was `null`,** read the payload; it is always there now.
+
+- **Retention keeps attachment rows that point at external content when no `IAttachmentStorage` is registered.** A retention run in an application that had dropped its attachment storage deleted those rows with a plain `DELETE`, and the bytes stayed in the external store with nothing that names them. The rows are now kept: the run still deletes the attachments whose content is in the database, the preview does not count the kept rows, and the last batch of a run logs one warning with the number of rows kept (never a tenant or a location).
+  What to do:
+  - **If you removed the `IAttachmentStorage` registration and kept the database,** register the storage that wrote the bytes again; the next run deletes the bytes and the rows.
+  - **If the warning appears and you no longer need those attachments,** delete the rows and their bytes yourself.
+
+- **A sub-agent now runs with the culture of the run that calls it.** `AgentRunScope.Culture` (new, additive) carries the culture a run was requested with, and every callable agent below it resolves its `InstructionsByCulture` with it: in tool mode, in background mode, as a loop reviewer, as a bound workflow step, and a sub-agent of a sub-agent. A callable agent with no entry for the culture runs with its default instructions, as a root run does. Before this, a Turkish run handed its work to a sub-agent that ran with default instructions.
+  What to do:
+  - **If a multilingual agent calls other agents,** give those callable agents their own `InstructionsByCulture` entries; until now they always ran with their default instructions.
+  - **If you read `AgentRunScope` in your own tool,** `Culture` is `null` for a run requested with none.
+
+- **A workflow step that fails on its child's answer no longer leaves the child's run `Canceled`.** On the streaming path, the handoff that crosses `maxHandoffs` (and a tool approval a step cannot host) failed the step while the child's stream was still open, so the child's run closed `Canceled` for a call nobody cancelled. The step now reads the child's stream to its end first, so the child's run closes `Completed` (`Failed` for an approval request) as it already did on the one-answer path. The workflow still fails with `handoff_limit_exceeded`, and the handoff past the limit is still never passed up.
+  What to do:
+  - **If you look for handoff-limit failures through `Canceled` child runs,** read the workflow run's error type instead.
+  - **If a dashboard counted the `Canceled` child run of such a step,** the count now moves to `Completed` (handoff) or `Failed` (approval).
+
+- **Playground shows a loop's feedback to the model as its own note.** The feedback a looping agent gives the model between two iterations is now a muted "Feedback to the model" note under the iteration divider, and no longer opens the next answer's paragraph. The Run screen's transcript does the same for a recorded run whose iteration events kept their payload.
+  What to do:
+  - **If you read the `update` frames of the native run stream yourself,** treat an `update` whose `role` is `user` as the loop's feedback, not as part of the reply.
+
+- **The `tenant_id` guard of the migration runner tells the operator what to do with the files of a session workspace.** The guard that stops the runner on a `tenant_id` outside lower-case ASCII letters, digits, `_`, `.` and `-` sends the operator to rename the rows. The rows of `agent_files` whose `path` has a `/~workspace/` segment cannot be renamed that way: the path of such a file starts with the tenant and holds a key computed from it, so a file whose `tenant_id` alone was renamed is not found again, and SQL cannot compute the key. When `agent_files` is among the tables it names, the message of the guard, and the persistence page, now say so. What the guard checks and refuses did not change.
+  What to do:
+  - **If the guard stopped an upgrade on `agent_files`,** rename the rows whose `path` has no `/~workspace/` segment as before; export the files of the rows that have one, then delete those rows.
+  - **Otherwise,** nothing.
+
+- **`POST /api/workflows/runs/{runId}/resume` answers `409` while the run, or the last continuation of its chain, is `Running` or `Queued`.** A queued workflow run that an interruption stopped is continued by its job, which closes the interrupted run and opens a continuation. A resume an operator started from the interrupted run in the same minutes was taken for the newest link of that chain: the recovery closed it as `interrupted` while it ran and counted it against `MaxResumeAttempts`, and two runs could work from one checkpoint. The same call on a run that is really running would do its work twice. The chain is read forward from the source run, as recovery reads it. The published document lists the `409` for the operation.
+  What to do:
+  - **If a script resumed a run that was still `Running`,** wait for the run to end, or cancel it (`POST /api/runs/{id}/cancel`) and resume again. A run that stopped without anyone closing it (a process that died with run reconciliation off) is cancelled the same way.
+  - **If you use `Tracon.Client` or `@tracon/client`,** the operation's `409` is a problem document like its other refusals.
+
+- **The published OpenAPI document lists the `403` that the four OpenAI-compatible conversation operations answer a refused role with, and no schema carries `"examples": [null]` any more.** `POST /v1/conversations`, `GET` and `DELETE /v1/conversations/{id}` and `GET /v1/conversations/{id}/items` answer a refused role with the OpenAI error envelope (the chat and responses operations listed it already); the document now says so, and `Tracon.Client` and `@tracon/client` are generated from it. Seven schemas whose XML documentation holds a C# sample (`LoopSettings`, `SkillSettings`, `SubAgentSettings`, `WorkspaceSettings`, `CallableAgentReference` and the two `headerConfigurationKeys`) were written with an empty example; the repository's own document drops it, and the sample stays in the XML documentation where the examples are compiled.
+  What to do:
+  - **If you call these four operations through `Tracon.Client`,** a refused role now throws `TraconApiException<OpenAIErrorEnvelope>` (status `403`) where it threw the client's untyped exception. A catch of `TraconApiException` still sees it.
+  - **If your own application generates its OpenAPI document,** the empty `examples` of those seven schemas is the generator's output for a C# sample under `<example>`; remove it with a schema transformer as `samples/Tracon.Api/OpenApi/PublishedDocumentCorrections.cs` does, if it matters to you.
+
+- **A queued workflow resume or answer whose job is cancelled before the engine wrote its run no longer stays `Queued` for good.** The queue opens the run's row before the engine does. The cancel endpoint closes a queued row only when the run is not registered on a node; a run the engine had registered was left to close its own row, and a stop that came before the engine wrote it left the row as the queue wrote it: no heartbeat, so reconciliation did not claim it, and the job was cancelled, so no attempt came back. The handler closes the row `Canceled` when the job was cancelled (a worker that is stopping still leaves the row to the next attempt).
+  What to do:
+  - **Nothing.** A row you saw stuck at `Queued` after cancelling a resume can be cancelled through `POST /api/runs/{id}/cancel`.
+
+- **A stored skill that is switched off keeps a skill of the same name under a skill root away from the agents of its tenant, in a run as the catalog already said.** The catalog and the validator treat a disabled record as owning its name ("disabled") and do not look on disk for it; the run composed the store source (enabled records only) with the disk source behind it, so the disabled record left its name free and the run offered the disk skill. Switching the record off is the one way a tenant takes an installation-wide skill away from its agents, and it did not work on the path a run takes. The disk source now offers no skill whose name a record owns, enabled or not.
+  What to do:
+  - **If a tenant switched off a stored skill and relied on the disk skill of the same name still reaching its agents,** delete the stored record instead (a name with no record is served from disk).
+
+- **A request that took an answer under `SingleAnswer` stays answered when a later run names a version that opens a branch for every answer.** A resumed run publishes its pending requests again under the same session and request id. The gate decided the mode from the version of the run being answered, and in `Branch` mode it never read the claim, so `POST /api/workflows/runs/{id}/resume` with `definitionVersion` set to a `Branch` version (an `Operator` or `Admin` call) made an answered request open again: a second, different answer started another run. The gate reads the claim first now and treats the request as single-answer when one exists.
+  What to do:
+  - **Nothing.** A request that was never answered, and a workflow that is `Branch` throughout, behave as before. A second answer to a request that was claimed answers `409` (a different answer) or follows the first run (the same answer), as in `SingleAnswer`.
+
+- **A model call that a function node of a workflow makes no longer writes `ModelFallbackUsed` onto the workflow run's event stream when its binding falls back; the switch is logged instead.** The workflow run has no model attribution (`runs.model_id` and the cost belong to the agent runs of its steps), so the event told "the model of this run fell back" about a run that has none, and nothing else in the run's record changed with it. A side-channel call (the compaction summarizer, an `aiJudge` judge) was already handled this way.
+  What to do:
+  - **If a dashboard or an alert counts `ModelFallbackUsed` on workflow runs,** read the `Tracon.ModelProvider` log category for the node's switch; the events of the agent runs of the workflow's steps are unchanged.
+
+- **The in-memory run store returns its event, tool-call and non-token-usage records with `TenantId` empty, as the SQL stores do, and `RunStoreContract` has a case for it.** The expected tenant of a write guards the write and is not stored; the in-memory store kept the object it was given, so a record written with `"Tenant-A"` read back with `"Tenant-A"` there and with nothing in SQL. Nothing in Tracon read the field back; a consumer that did saw the difference between a test on the in-memory store and a deployment.
+  What to do:
+  - **If you wrote an `IRunStore` and run the contract,** `Records_written_with_an_expected_tenant_read_back_without_it` fails when your store returns the tenant it was handed. Store the record without it (the field is `[JsonIgnore]` and documented as write-side only).
+
+- **An MCP server deleted and created again under the same name no longer takes the token of the deleted one, and no longer loses its own to the cleanup of a refresh that was running.** The token cache was found by the server's name, and its binding held the endpoint and the client id only. A server created again with the same name, endpoint and client id was handed the token nobody had issued to it; and a server created and authorized while a refresh ran was forgotten as "deleted", because the refresh had listed the servers when the name was free. The binding carries the identifier of the server definition now, and the cleanup forgets a token only when the entry still has the binding of the server it saw deleted.
+  What to do:
+  - **If you use `OAuthTokenStore = DistributedCache`,** the tokens stored before the upgrade are written without the identifier and match no server: authorize each OAuth server once more. The in-memory mode holds nothing across a restart and needs nothing.
+
+- **The OpenAI live voice sideband socket opens the address the egress guard judged, not an address the operating system resolves a second time.** The socket was checked before it was opened (`EgressSocketGuard.ValidateAsync`) and then connected by `ClientWebSocket` on its own, which resolved the name again: a name that answered differently the second time was judged on one address and opened on another. The socket is now connected through the guard's own handler, so the guard resolves the name once and connects to that answer. The refusal the caller reads is unchanged (`TraconException` that names `AllowPrivateNetworkTargets`).
+  What to do:
+  - **If the sideband reached the live endpoint through a proxy set in the environment** (`HTTPS_PROXY`), it no longer does: the guard's handler never uses a proxy, as for every other outbound call of Tracon, because the connect callback would judge the proxy's address and not the target's. Give the live endpoint a direct route.
+
+- **A host that reloads its configuration and writes a value the options validation refuses no longer ends the loops that depend on the single-executor lease, the metrics scrape of the gauges, or the drain at shutdown.** Only a host that adds its own change token source can reach this (Tracon registers none). The lease guard read its options on every scan tick and every renewal, outside any `try`; the monitor throws on every read after a refused reload, so the five scan loops (canary evaluation, run reconciliation, model provider health, approval expiration, workflow request expiration) ended, and a service whose loop throws stops the host. While the options cannot be read, an instance does not act as the executor, a renewal tick does not call the store, and a lease it held runs out by its own duration; the first read of a valid value puts it back to work. A gauge scrape returns the last snapshot, and a shutdown drains nothing instead of failing.
+  What to do:
+  - **Nothing.** The warning is written once per refusal, as for the other loops.
+
+- **A run that called `search_knowledge` or `search_conversation_memory` is continued automatically after an interruption.** Tracon adds the two searches to a run itself, so they are not in the tool registry, and the reconciler read "not in the registry" as "its effect can no longer be read" and refused to continue the run (`RunContinuationBlocked`). Both only read: a repeat has no effect to undo. A tool that is registered, and a tool that is no longer registered, are judged as before.
+  What to do:
+  - **Nothing.** With `RunContinuation` on, a run that was blocked only because of a search now continues; the search is not replayed from the record but runs again, and costs one embedding.
+
+## Read next
+
+- [Part 2 of 2](/reference/releases/1.0.0-preview.12/part-2/) — the rest of the entry
 - [Release notes](/reference/changelog/) — every published version, newest first
 - [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
 
@@ -31320,7 +31821,7 @@ required](/guides/embedding/#make-a-production-decision-required).
 Source: https://tracon.dev/reference/versioning/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.11`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.12`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -31850,11 +32351,11 @@ Only a preview exists. Select it explicitly:
 dotnet add package Tracon --prerelease
 ```
 
-Pin `1.0.0-preview.11` for reproducible builds. Install the template by exact
+Pin `1.0.0-preview.12` for reproducible builds. Install the template by exact
 version too:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.11
+dotnet new install Tracon.Templates@1.0.0-preview.12
 ```
 
 ### The generated project rejects a template option
