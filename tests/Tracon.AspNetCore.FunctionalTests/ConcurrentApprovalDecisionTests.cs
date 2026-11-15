@@ -21,8 +21,12 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// cancels an order or sends a message must not run twice.
 /// </para>
 /// <para>
-/// The race is set by the store, not by timing: the first two loads of the session wait for each other, so both requests
-/// hold the same version of it whatever the thread pool does.
+/// The race is set by the store, not by timing: the first two writes of the session wait for each other, so both requests
+/// reach the claim of the session holding the same version of it whatever the thread pool does. The wait is on the
+/// writes and not on the loads because a request loads the session more than once (the check that refuses a repeated
+/// answer before the stream starts, then the turn itself): a wait on the first two loads was spent by those two checks,
+/// the claims then ran in whatever order the scheduler gave them, and the second request answered 200 without applying
+/// anything when it loaded the session after the first one had marked its answer.
 /// </para>
 /// </remarks>
 public sealed class ConcurrentApprovalDecisionTests
@@ -74,12 +78,12 @@ public sealed class ConcurrentApprovalDecisionTests
 
         toolCalls.ShouldBe(0, "the tool waits for the approval");
 
-        // From here on, the first two loads of the session wait for each other.
+        // From here on, the first two writes of the session (the two claims) wait for each other.
         sessions.Arm();
 
         var answers = await Task.WhenAll(AnswerAsync(host, requestId), AnswerAsync(host, requestId));
 
-        sessions.BothLoaded.ShouldBeTrue("the race was not set: the two requests did not hold the session together");
+        sessions.BothClaiming.ShouldBeTrue("the race was not set: the two requests did not claim the session together");
         toolCalls.ShouldBe(1, "one approval was decided twice and the tool ran for each decision");
         answers.Count(static status => status == HttpStatusCode.OK).ShouldBe(1);
         answers.Count(static status => status == HttpStatusCode.Conflict).ShouldBe(1);
@@ -127,19 +131,19 @@ public sealed class ConcurrentApprovalDecisionTests
     }
 
     /// <summary>
-    /// A session store with the generation check of a real one, whose first two reads, once armed, wait for each other so
-    /// that both hold the same generation of the session.
+    /// A session store with the generation check of a real one, whose first two conditional writes, once armed, wait for each
+    /// other so that both requests claim the session holding the same generation of it.
     /// </summary>
     private sealed class RendezvousSessionStore : ISessionStore
     {
         private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
 
         private readonly ConcurrentDictionary<string, SessionRecord> _records = new(StringComparer.Ordinal);
-        private readonly TaskCompletionSource _bothLoaded = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _bothClaiming = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _armed;
         private int _arrived;
 
-        public bool BothLoaded => _bothLoaded.Task.IsCompletedSuccessfully;
+        public bool BothClaiming => _bothClaiming.Task.IsCompletedSuccessfully;
 
         public void Arm() => Volatile.Write(ref _armed, 1);
 
@@ -153,47 +157,43 @@ public sealed class ConcurrentApprovalDecisionTests
         public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
             => new(_records.TryAdd(record.Id, record with { Version = 1 }));
 
-        public ValueTask<bool> TryUpdateAsync(SessionRecord record, long expectedVersion, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> TryUpdateAsync(SessionRecord record, long expectedVersion, CancellationToken cancellationToken = default)
         {
-            lock (_records)
-            {
-                if (!_records.TryGetValue(record.Id, out var current) || current.Version != expectedVersion)
-                {
-                    return new ValueTask<bool>(false);
-                }
-
-                _records[record.Id] = record with { Version = expectedVersion + 1 };
-
-                return new ValueTask<bool>(true);
-            }
-        }
-
-        public async ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
-        {
-            SessionRecord? held;
-
-            lock (_records)
-            {
-                held = _records.GetValueOrDefault(sessionId);
-            }
-
             if (Volatile.Read(ref _armed) == 1)
             {
                 var arrival = Interlocked.Increment(ref _arrived);
 
                 if (arrival == 2)
                 {
-                    _bothLoaded.TrySetResult();
+                    _bothClaiming.TrySetResult();
                 }
 
                 if (arrival <= 2)
                 {
-                    // Both requests hold the generation they read before either goes on.
-                    await _bothLoaded.Task.WaitAsync(Patience, cancellationToken).ConfigureAwait(false);
+                    // Both requests hold the generation they read before either one writes.
+                    await _bothClaiming.Task.WaitAsync(Patience, cancellationToken).ConfigureAwait(false);
                 }
             }
 
-            return held;
+            lock (_records)
+            {
+                if (!_records.TryGetValue(record.Id, out var current) || current.Version != expectedVersion)
+                {
+                    return false;
+                }
+
+                _records[record.Id] = record with { Version = expectedVersion + 1 };
+
+                return true;
+            }
+        }
+
+        public ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
+        {
+            lock (_records)
+            {
+                return new ValueTask<SessionRecord?>(_records.GetValueOrDefault(sessionId));
+            }
         }
 
         public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default)
