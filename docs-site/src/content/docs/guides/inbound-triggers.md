@@ -106,7 +106,7 @@ The queued run carries the user and labels your `IRunAttributionContext`
 resolves for the accept request — for example labels read from a header the
 sender sets. An attribution that breaks a label limit is a `400`, as on every
 endpoint that starts a run
-([run attribution](/concepts/runs/#who-ran-it-and-for-what)).
+([run attribution](/concepts/starting-runs/#who-ran-it-and-for-what)).
 
 ```json
 {
@@ -205,5 +205,5 @@ system's webhook configuration.
 ## Read next
 
 - [Jobs, schedules, and queues](/guides/background-work/) — how a queued run actually executes
-- [Runs and recording](/concepts/runs/) — the four ways a run starts
+- [Starting runs and who they belong to](/concepts/starting-runs/) — the four ways a run starts
 - [Security](/getting-started/security/) — bind endpoint authorization and tenant resolution to your host.

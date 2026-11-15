@@ -22,12 +22,20 @@
 //   under `/reference/releases/<version>/`. An anchor that package metadata or a
 //   GitHub release body already links to still lands on that version's entry.
 //   The release pages stay out of the sidebar: the index is the way in.
+//
+// Why a release can be several pages:
+//
+//   A page weighs what its Markdown weighs, and one release (1.0.0-preview.12: 98 KB, about a hundred entries) can
+//   outweigh the ceiling by itself. `changelog-split.mjs` cuts an entry that does not fit one page into parts at the
+//   boundary of an entry. The first part keeps the address `/reference/releases/<version>/` that the index links to;
+//   the others are `/reference/releases/<version>/part-<n>/`.
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { site } from '../site.config.mjs';
+import { countEntries, splitBody } from './changelog-split.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../..');
@@ -62,7 +70,15 @@ function main() {
   mkdirSync(releasesDirectory, { recursive: true });
 
   for (const release of releases) {
-    writeFileSync(join(releasesDirectory, `${release.version}.md`), renderRelease(release));
+    const parts = splitBody(release.body);
+
+    release.partCount = parts.length;
+
+    parts.forEach((body, index) => {
+      const file = index === 0 ? `${release.version}.md` : `${release.version}-part-${index + 1}.md`;
+
+      writeFileSync(join(releasesDirectory, file), renderRelease(release, body, index + 1, parts.length));
+    });
   }
 
   writeFileSync(outputPath, renderIndex(releases));
@@ -162,10 +178,14 @@ metadata will link straight to it.
 
 /**
  * What the index says about a release: its opening paragraph when the entry has one, otherwise
- * the sections it carries and how many entries each holds.
+ * the sections it carries and how many entries each holds, otherwise how many entries it holds.
+ *
+ * The opening paragraph ends where the first section or the first entry begins. An entry that carries no
+ * paragraph of its own and no section is a list, and taking the list for the paragraph copied the whole
+ * entry into the index (1.0.0-preview.12: 98 KB on the page that is meant to be the short way in).
  */
 function summarize(release) {
-  const lead = release.body.split(/^## /m)[0].trim();
+  const lead = release.body.split(/^(?:## |- )/m)[0].trim();
 
   if (lead) {
     return lead;
@@ -181,24 +201,42 @@ function summarize(release) {
       return `${name} (${entries})`;
     });
 
+  if (sections.length === 0) {
+    return `This release carries ${countEntries(release.body)} entries.`;
+  }
+
   return `This release carries ${sections.join(', ')}.`;
 }
 
-function renderRelease(release) {
+function renderRelease(release, body, part, partCount) {
+  const only = partCount === 1;
+  const address = (number) =>
+    number === 1 ? `/reference/releases/${release.version}/` : `/reference/releases/${release.version}/part-${number}/`;
+  const slug = part === 1 ? `reference/releases/${release.version}` : `reference/releases/${release.version}/part-${part}`;
+  const title = only || part === 1 ? `Tracon ${release.version} release notes` : `Tracon ${release.version} release notes, part ${part} of ${partCount}`;
+  const description = only
+    ? `What changed in Tracon ${release.version}, released on ${release.date}, grouped as the changelog groups it.`
+    : `What changed in Tracon ${release.version}, released on ${release.date}, part ${part} of ${partCount} of the entry.`;
+  const parts = only
+    ? ''
+    : `This entry is split into ${partCount} pages that each stay light to read: ` +
+      `${Array.from({ length: partCount }, (_, index) => (index + 1 === part ? `part ${index + 1} (this page)` : `[part ${index + 1}](${address(index + 1)})`)).join(', ')}.\n\n`;
+  const next = part < partCount ? `- [Part ${part + 1} of ${partCount}](${address(part + 1)}) — the rest of the entry\n` : '';
+
   return `---
-title: Tracon ${release.version} release notes
-description: What changed in Tracon ${release.version}, released on ${release.date}, grouped as the changelog groups it.
-slug: reference/releases/${release.version}
+title: ${title}
+description: ${description}
+slug: ${slug}
 ---
 
 Released on ${release.date}. This entry covers every NuGet package of the family and the npm client
 at version ${release.version}. [Release notes](/reference/changelog/) lists every version.
 
-${release.body}
+${parts}${body}
 
 ## Read next
 
-- [Release notes](/reference/changelog/) — every published version, newest first
+${next}- [Release notes](/reference/changelog/) — every published version, newest first
 - [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift
 `;
 }
@@ -209,7 +247,8 @@ function renderIndex(releases) {
       (release) =>
         `<a id="v${release.version}"></a>\n\n` +
         `### ${release.version} — ${release.date}\n\n${summarize(release)}\n\n` +
-        `[Read the ${release.version} entry](/reference/releases/${release.version}/)\n`,
+        `[Read the ${release.version} entry](/reference/releases/${release.version}/)` +
+        `${release.partCount > 1 ? ` (${release.partCount} pages)` : ''}\n`,
     )
     .join('\n');
 

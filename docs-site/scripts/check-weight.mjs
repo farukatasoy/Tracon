@@ -24,8 +24,12 @@ const dist = resolve(here, '../dist');
 // The ceiling is the measured worst page plus headroom. Last measured 2026-11-12: concepts/runs, the
 // heaviest page, at 59 381 B gzip on a local build, 119 B under the ceiling (concepts/governance, the heaviest before
 // its Webhooks section became a page of its own, now weighs 57 860 B). A CI build of the same commit
-// weighs about 56 B more than a local one (every page also carries the same 23 925 B of shared assets), so the
-// headroom must never shrink below that gap.
+// weighs more than a local one (every page also carries the same 23 925 B of shared assets): about 56 B more
+// was measured on 2026-11-12 and 97 B more on 2026-11-14, when concepts/runs weighed 59 495 B here and 59 592 B
+// in CI, 5 B under the ceiling locally and 92 B over it on the runner, and the public build went red while this
+// gate was green. The gap differs from page to page, so the headroom a page keeps is a rule of its own
+// (MIN_HEADROOM below) and the gate fails on it; it was a sentence in this comment until a page was squeezed
+// under the ceiling by trimming a sentence twice.
 //
 // When a page crosses the ceiling, split it instead of raising the number. Every earlier crossing was settled
 // that way (the build diagnostics, voice, live voice, function nodes, upgrades and the package-level
@@ -35,29 +39,17 @@ const dist = resolve(here, '../dist');
 // `git log -p -- docs-site/scripts/check-weight.mjs`.
 const CEILING = 59_500;
 
-// The release notes were one generated page that grew with every release, not with what a reader
-// needs from one visit: a reader lands on one version's anchor (each package's PackageReleaseNotes
-// links there). It crossed its ceiling twice - 97 534 B at the 1.0.0-preview.4 cut (ceiling 110 000 B),
-// 131 792 B at the 1.0.0-preview.6 cut (raised to 150 000 B once, with the split promised for the
-// next release). Split 2026-10-29: `reference/changelog/` is the index (a summary and a link
-// per version, under CEILING) and every release has its own page under `reference/releases/`.
-// Measured the same day: 1.0.0-preview.6 stays under CEILING; 1.0.0-preview.4 does not, at 75 956 B
-// (its section alone is 131 194 B of Markdown, 44 221 B gzipped, on top of the 23 925 B every page
-// shares). That release is closed: its section cannot grow, so the exception is a ceiling for that
-// one page, 80 000 B, about 5% headroom, and not a pattern. A later release that crosses CEILING is
-// split or measured the same way.
-//
-// 1.0.0-preview.8 crosses CEILING too, and by more: measured 2026-11-08 at 129 070 B gzip locally (its section is
-// 256 786 B of Markdown with 249 entries, 111 of them under Fixed, on top of the 23 925 B every page shares). The
-// cut is the moment it becomes a closed release, so the same rule applies: a ceiling for that one page, 135 000 B,
-// about 4.6% over the measured page, which also covers the roughly 60 B by which a CI build differs from a local
-// one. It was not split at the cut because the page is the unit each package's release-notes link lands on, and a
-// split changes that link of every package of the release; the next release that crosses CEILING is split, and the
-// generator is the place to do it (one page per section of a version).
-const PAGE_CEILINGS_RELEASE = [
-  ['reference/releases/1.0.0-preview.4/index.html', 80_000],
-  ['reference/releases/1.0.0-preview.8/index.html', 135_000],
-];
+// What a CI build adds to a page, measured (97 B, see above), and the headroom every page keeps under its ceiling:
+// twice the measured gap, because the gap is not the same on every page. A page that fails this is split along a
+// topic of its own; trimming a sentence to get back under only moves the next edit to the next failure.
+const CI_BUILD_GAP = 100;
+const MIN_HEADROOM = 2 * CI_BUILD_GAP;
+
+// The release notes used to be one page per release, and the pages of 1.0.0-preview.4 (80 000 B) and 1.0.0-preview.8
+// (135 000 B) each carried a ceiling of their own after they crossed this one, with the promise that the next release
+// to cross it would be split. It was: `build-changelog.mjs` cuts a release whose Markdown does not fit one page into
+// parts at the boundary of an entry (`changelog-split.mjs`), so no release page needs a ceiling of its own and a
+// release that grows adds a part, not an exception.
 
 // The generated API page of TraconBuilderExtensions is the second page that grows with the product and
 // not with what a reader needs from one visit: DocFX writes one page per type, and every capability of the
@@ -84,7 +76,6 @@ const PAGE_CEILINGS_RELEASE = [
 // now says that the page grows and where to read instead. About 4.9% headroom, which also covers the roughly 60 B by which a CI
 // build differs from a local one.
 const PAGE_CEILINGS = new Map([
-  ...PAGE_CEILINGS_RELEASE,
   ['api/tracon.traconbuilderextensions/index.html', 64_000],
   ['api/tracon.testing.contracts.storage.runstorecontract/index.html', 67_500],
 ]);
@@ -117,6 +108,7 @@ function assetWeight(url) {
 
 const pages = collect(dist).filter((file) => file.endsWith('.html'));
 const over = [];
+const tight = [];
 let heaviest = { page: '', weight: 0 };
 
 for (const page of pages) {
@@ -143,6 +135,8 @@ for (const page of pages) {
 
   if (weight > ceiling) {
     over.push(`${name}: ${weight} B gzip, ceiling ${ceiling} B`);
+  } else if (ceiling - weight < MIN_HEADROOM) {
+    tight.push(`${name}: ${weight} B gzip, ${ceiling - weight} B under its ${ceiling} B ceiling`);
   }
 }
 
@@ -150,6 +144,16 @@ if (over.length > 0) {
   console.error(`${over.length} page(s) over the weight ceiling:`);
   for (const entry of over.slice(0, 20)) console.error(`  ${entry}`);
   console.error('\nEither reduce the page, or raise CEILING in this file with the measurement.');
+  process.exit(1);
+}
+
+if (tight.length > 0) {
+  console.error(`${tight.length} page(s) under the ceiling by less than ${MIN_HEADROOM} B:`);
+  for (const entry of tight.slice(0, 20)) console.error(`  ${entry}`);
+  console.error(
+    `\nA CI build weighs up to ${CI_BUILD_GAP} B more than this one, so these pages pass here and fail there. ` +
+      'Split the page along a topic of its own (see the comment above CEILING); do not trim it to fit.',
+  );
   process.exit(1);
 }
 

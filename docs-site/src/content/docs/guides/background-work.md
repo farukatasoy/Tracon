@@ -413,7 +413,7 @@ is ever a real input.
 ### Attribute the runs a schedule starts
 
 A schedule has no caller when it fires, so its runs carry no
-[user or labels](/concepts/runs/#who-ran-it-and-for-what) unless the payload names
+[user or labels](/concepts/starting-runs/#who-ran-it-and-for-what) unless the payload names
 them. For `tracon.workflow` and `tracon.agent-batch`, wrap the items in an envelope —
 an object whose only members are `items`, `userId`, and `labels`:
 

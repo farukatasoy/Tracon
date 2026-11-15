@@ -94,7 +94,7 @@ in-memory default.
 For work that runs outside an HTTP request — a queued job, a scheduled task — no
 `HttpContext` exists for `ITenantContext` to read. Open an ambient scope for the
 duration of that work instead. It composes with
-[`AmbientRunAttributionScope`](/concepts/runs/#who-ran-it-and-for-what) — a
+[`AmbientRunAttributionScope`](/concepts/starting-runs/#who-ran-it-and-for-what) — a
 background job binds both together, since neither has a request to read from:
 
 ```csharp
@@ -114,7 +114,7 @@ scope reads as "empty tenant", not as an exception, so it fails silently.
 ### 2 — Run attribution
 
 Attributes a run to a user and, optionally, job labels — see
-[Runs: who ran it and for what](/concepts/runs/#who-ran-it-and-for-what) for the
+[Starting runs: who ran it and for what](/concepts/starting-runs/#who-ran-it-and-for-what) for the
 full contract, including why the value is never read from the run request body.
 
 ### 3 — Tool authorization

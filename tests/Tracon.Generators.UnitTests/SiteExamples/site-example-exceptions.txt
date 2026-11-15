@@ -9,8 +9,8 @@ concepts/agents.md#53a5fd0d | CS1002: ; expected
 concepts/governance.md#a6869dcf | CS0246: The type or namespace name 'IOrderRepository' could not be found (are you missing a using directive or an assembly reference?)
 concepts/governance.md#7a3dbcdf | CS0103: The name 'LookUpSessionIds' does not exist in the current context
 concepts/runs.md#2f07892c | CS0246: The type or namespace name 'Channel<>' could not be found (are you missing a using directive or an assembly reference?)
-concepts/runs.md#87ffd461 | CS0246: The type or namespace name 'IHttpContextAccessor' could not be found (are you missing a using directive or an assembly reference?)
-concepts/runs.md#62edf14e | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
+concepts/starting-runs.md#87ffd461 | CS0246: The type or namespace name 'IHttpContextAccessor' could not be found (are you missing a using directive or an assembly reference?)
+concepts/starting-runs.md#62edf14e | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
 concepts/sessions.md#89d0e49b | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
 concepts/tools.md#a66094c1 | CS0103: The name 'CallerHasPermission' does not exist in the current context
 concepts/tools.md#21e95d6d | CS8635: Unexpected character sequence '...'
@@ -74,7 +74,7 @@ guides/hosted-tools.md#0a92a9be | CS0103: The name 'Docs' does not exist in the 
 guides/inbound-triggers.md#aa2107a0 | CS0103: The name 'rawBody' does not exist in the current context
 guides/mcp-across-instances.md#6b548b4b | CS1061: 'IServiceCollection' does not contain a definition for 'AddStackExchangeRedisCache' and no accessible extension method 'AddStackExchangeRedisCache' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
 guides/model-providers.md#4cbee201 | CS1002: ; expected
-guides/model-providers.md#62d1404c | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-provider.md#62d1404c | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
 guides/model-providers.md#08f83e42 | CS1002: ; expected
 guides/observability.md#f70b7335 | CS1061: 'IServiceCollection' does not contain a definition for 'AddOpenTelemetry' and no accessible extension method 'AddOpenTelemetry' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
 guides/openai-api.md#811b9f54 | CS0103: The name 'client' does not exist in the current context

@@ -84,8 +84,14 @@ export const agentMapBudgetBytes = 11264;
  * Microsoft's control planes add two lines, and the index then measures 26,923 B, over the ceiling by 299 B. Both
  * descriptions double as search snippets, and the two lines together cost 452 B, so shortening them could not pay for
  * the pages. 27 KiB leaves about 720 B.
+ *
+ * Raised a fifth time, from 27 KiB to 28 KiB, measured: the weight gate split two pages that sat within 5 B and 45 B of
+ * their ceiling, the runs page and the model providers guide, along a topic of its own each (who starts a run and who it
+ * belongs to; writing a provider Tracon has no package for). Two pages are two index lines, and the index then measures
+ * 27,907 B, 259 B over the ceiling. A shorter description would not have paid for the lines and the descriptions double
+ * as search snippets. 28 KiB leaves about 760 B.
  */
-export const llmsBudgetBytes = 27648;
+export const llmsBudgetBytes = 28672;
 
 /** The byte ceiling of each budgeted artifact. */
 export const budgets = { agentMap: agentMapBudgetBytes, llms: llmsBudgetBytes };

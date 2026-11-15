@@ -113,7 +113,7 @@ database, is what binds a tenant's total consumption.
 The tenant answers "whose data is this". Two further questions — which **user**
 spent this, and which **job** it was spent on — are answered by
 `IRunAttributionContext`, the sibling interface described in
-[Runs](/concepts/runs/#who-ran-it-and-for-what).
+[Runs](/concepts/starting-runs/#who-ran-it-and-for-what).
 
 The security property is the same one the tenant header has: the value is never
 taken from the run request body. A `userId` field there would let any client

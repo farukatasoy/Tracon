@@ -603,7 +603,7 @@ response a caller reads. Which key that is depends on how the call was made:
 - **The key the provider was set up with**, such as `UseOpenAI(apiKey)`, `UseAnthropic`, `UseGoogle`,
   `UseAzureOpenAI` and `UseOpenAICompatible`, whether you pass it in code or read it from configuration.
   Every provider Tracon ships reports its key. A provider you write reports its key by overriding
-  `IModelProvider.SetupApiKeys` (see [A provider without a package](/guides/model-providers/#a-provider-without-a-package)).
+  `IModelProvider.SetupApiKeys` (see [A provider without a package](/guides/write-your-own-provider/#a-provider-without-a-package)).
 
 The match is exact. It finds the key as it is sent (a key that ends in a line break is sent without
 it), escaped for JSON and encoded for a URL. Everything else the provider wrote stays: the sentence,
