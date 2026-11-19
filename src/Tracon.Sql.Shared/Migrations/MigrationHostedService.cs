@@ -145,7 +145,7 @@ internal sealed class MigrationHostedService : IHostedService
     /// stays at information.
     /// </para>
     /// <para>
-    /// 🚨 Nothing here stops the host. A deployment that applies the schema in its own step must not be held back by a
+    /// Nothing here stops the host. A deployment that applies the schema in its own step must not be held back by a
     /// database that is slow to answer, so the read is bounded and a failure of it is a warning too.
     /// </para>
     /// </remarks>

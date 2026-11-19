@@ -44,6 +44,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Core/Voice/LiveVoiceSessionHost.cs"] = "VoiceLiveOptions.DelegationTimeout — VoiceLiveOptionsValidator",
         ["src/Tracon.Core/Voice/VoiceConversationDriver.cs"] = "VoiceConversationOptions.IdleTimeout / MaxConnectionDuration — VoiceConversationOptionsValidator",
         ["src/Tracon.Core/Webhooks/WebhookDeliveryJobHandler.cs"] = "TraconWebhookOptions.Timeout — TraconWebhookOptionsValidator",
+        ["src/Tracon.Sql.Shared/Migrations/MigrationHostedService.cs"] = "constant 10 s (VerificationTimeout) that no operator sets, bounding one read of the migration ledger at start; a timeout is a logged warning, not a failure (MigrationStartupWarningTests)",
         ["src/Tracon.Sqlite/Internal/SqliteDialect.cs"] = "constant 100 ms poll interval between two tries of the migration lock; the wait itself (the command timeout) is compared with the elapsed monotonic time, not armed as a timer",
         ["src/Tracon.Mcp/Internal/McpConnection.cs"] = "TraconMcpOptions.ConnectionTimeout — TraconMcpOptionsValidator",
         ["src/Tracon.Mcp/Internal/McpDiscoveryService.cs"] = "TraconMcpOptions.RefreshInterval — TraconMcpOptionsValidator (TimerPeriod.IsValid); the value is read again after every pass and checked with TimerPeriod.IsValid before it is armed (McpDiscoveryLoopTests)",
