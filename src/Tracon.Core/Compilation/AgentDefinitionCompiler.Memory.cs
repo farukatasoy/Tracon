@@ -185,8 +185,8 @@ public sealed partial class AgentDefinitionCompiler
         if (_vectorSearchStore is null)
         {
             throw new TraconCompilationException(
-                $"Agent '{definition.Name}' wants semantic search, but IVectorSearchStore is not " +
-                "registered (today only the Tracon.PostgreSql package: UsePostgreSql()).")
+                $"Agent '{definition.Name}' wants semantic search, but this host has no vector search store. " +
+                "Turn on EnableKnowledge in UsePostgreSql() (the Tracon.PostgreSql package), or register your own IVectorSearchStore.")
             {
                 AgentName = definition.Name,
             };

@@ -610,7 +610,7 @@ internal sealed class QuotaEnforcer : IQuotaRecorder
                     Limit = limit,
                     Used = used,
                     ResetsAt = resetsAt,
-                    RunId = consumption.RunId,
+                    RunId = consumption.RunId?.ToString(),
                     UserId = consumption.UserId,
                 },
             },

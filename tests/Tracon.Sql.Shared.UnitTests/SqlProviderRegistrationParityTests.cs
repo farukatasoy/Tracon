@@ -122,6 +122,10 @@ public sealed class SqlProviderRegistrationParityTests
         [typeof(SqlPersistenceRegistrationMarker)] =
             "holds no state: each provider adds one (AddSingleton, not Replace), and /api/diagnostics reports " +
             "their count as RegisteredPersistenceProviders",
+        [typeof(VectorSearchStoreSlot)] =
+            "says whether the host has a vector search store and carries it; PostgreSQL replaces Core's " +
+            "empty default with a slot that holds its own store while EnableKnowledge is on " +
+            "(ServiceRegistrationTests in the PostgreSQL integration tests checks the store it holds)",
         [typeof(StateSharing)] =
             "says whether the provider's state is shared between processes, not where it is stored: each provider " +
             "Replaces Core's in-process default with its own value, and only the production profile reads it " +
@@ -138,8 +142,10 @@ public sealed class SqlProviderRegistrationParityTests
     private static readonly Dictionary<Type, string> NotEveryProviderImplements = new()
     {
         [typeof(IVectorSearchStore)] =
-            "PostgreSQL only: SQL Server and SQLite register nothing, and PostgreSQL's " +
-            "factory returns null while EnableKnowledge is off",
+            "no provider registers it: PostgreSQL fills Core's vector search slot instead, because its " +
+            "store exists only while EnableKnowledge is on and a factory that returns null fails under Autofac",
+        [typeof(VectorSearchStoreSlot)] =
+            "PostgreSQL only: the one provider that ships a vector search store fills the slot",
     };
 
     /// <summary>
@@ -153,7 +159,7 @@ public sealed class SqlProviderRegistrationParityTests
             "UseVoiceConversation() and UseLiveVoice() register its in-memory default, not AddTracon()",
         [typeof(IConversationBranchStore)] =
             "no in-memory equivalent: MAF's in-memory history cannot be copied up to a sequence number",
-        [typeof(IVectorSearchStore)] = "PostgreSQL only",
+        [typeof(IVectorSearchStore)] = "no provider registers it; see NotEveryProviderImplements",
         [typeof(IMigrationApplier)] = "provider-only seam: there is no database to migrate without a provider",
         [typeof(IStatePreflightReader)] = "provider-only seam: there is no stored state without a provider",
         [typeof(ISqlPersistenceDiagnostics)] = "provider-only seam: GetService null means 'no SQL provider'",
@@ -374,11 +380,16 @@ public sealed class SqlProviderRegistrationParityTests
     [Fact]
     public async Task Every_exemption_still_matches_what_the_providers_register()
     {
-        // PostgreSQL registers the vector store; the other two do not.
+        // No provider registers the vector store contract itself; PostgreSQL fills the slot.
         var vectorStore = Describe(typeof(IVectorSearchStore), optionsType: null);
-        RegisteredServiceTypes(PostgreSql).Contains(vectorStore).ShouldBeTrue("PostgreSQL registers IVectorSearchStore");
+        RegisteredServiceTypes(PostgreSql).Contains(vectorStore).ShouldBeFalse("PostgreSQL fills the slot, not IVectorSearchStore");
         RegisteredServiceTypes(SqlServer).Contains(vectorStore).ShouldBeFalse("SQL Server has no vector store");
         RegisteredServiceTypes(Sqlite).Contains(vectorStore).ShouldBeFalse("SQLite has no vector store");
+
+        var slot = Describe(typeof(VectorSearchStoreSlot), optionsType: null);
+        RegisteredServiceTypes(PostgreSql).Contains(slot).ShouldBeTrue("PostgreSQL fills the vector search slot");
+        RegisteredServiceTypes(SqlServer).Contains(slot).ShouldBeFalse("SQL Server leaves Core's empty slot");
+        RegisteredServiceTypes(Sqlite).Contains(slot).ShouldBeFalse("SQLite leaves Core's empty slot");
 
         // A contract without an AddTracon() default must be declared, and a
         // declared one must really have none — this is also what verifies that

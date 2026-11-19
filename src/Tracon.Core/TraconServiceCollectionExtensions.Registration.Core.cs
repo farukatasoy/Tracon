@@ -383,10 +383,10 @@ public static partial class TraconServiceCollectionExtensions
                 // compilation error. Tracon.Mcp's UseMcp() call registers this.
                 McpResources = provider.GetService<IMcpResourceContextProviderFactory>(),
 
-                // When not registered, a definition requesting
+                // When the slot holds no store, a definition requesting
                 // EnableVectorSearch gets a compilation error.
-                // Tracon.PostgreSql's UsePostgreSql() call registers this.
-                VectorSearchStore = provider.GetService<IVectorSearchStore>(),
+                // Tracon.PostgreSql's UsePostgreSql() call fills the slot.
+                VectorSearchStore = provider.GetRequiredService<VectorSearchStoreSlot>().Store,
 
                 // The consumer registers their own IEmbeddingGenerator; the compiler takes it
                 // inside the OpenTelemetry ring.
@@ -433,6 +433,11 @@ public static partial class TraconServiceCollectionExtensions
         // throws an overt TraconException.
         // Every embedding call passes the tenant's provider checks; the
         // explicit factory makes the stores reach the check by construction.
+        // Whether this host has a vector search store. The consumer's own registration, if any;
+        // a provider that ships a store replaces this. Never resolve IVectorSearchStore to ask:
+        // see VectorSearchStoreSlot.
+        services.TryAddSingleton(static provider => new VectorSearchStoreSlot(provider.GetService<IVectorSearchStore>()));
+
         // The registered generator is wrapped once, and the three callers below take that one.
         services.TryAddSingleton(static provider => new InstrumentedEmbeddings(
             provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
@@ -449,7 +454,7 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddSingleton(static provider => new KnowledgeIngestionService(
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>(),
-            provider.GetService<IVectorSearchStore>(),
+            provider.GetRequiredService<VectorSearchStoreSlot>().Store,
             provider.GetRequiredService<InstrumentedEmbeddings>().Generator,
             provider.GetRequiredService<EmbeddingProviderAccess>()));
 

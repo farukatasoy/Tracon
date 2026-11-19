@@ -28,8 +28,8 @@ not manage the knowledge base. It receives only the search tool.
 
 Knowledge becomes functional only when both dependencies exist:
 
-1. An `IVectorSearchStore`. The built-in implementation comes from
-   `UsePostgreSql()`.
+1. A vector search store. The built-in one comes from `UsePostgreSql()` with
+   `EnableKnowledge` on, or you register your own `IVectorSearchStore`.
 2. An `IEmbeddingGenerator<string, Embedding<float>>`. The host chooses and
    registers it.
 
@@ -82,9 +82,12 @@ should never see `pgvector` unless it asked for it). Turn it on wherever
 }
 ```
 
-With it off, `IVectorSearchStore` never resolves and an agent definition that sets
+With it off, the provider has no vector search store, and an agent definition that sets
 `EnableVectorSearch` fails compilation with a clear error — see
-[Persistence](/getting-started/persistence/#pick-one).
+[Persistence](/getting-started/persistence/#pick-one). The PostgreSQL store is not a container
+service in either state: resolving `IVectorSearchStore` returns only a store you registered
+yourself. A registration whose factory returns nothing for "off" works in Microsoft's container
+but not in Autofac and the others, so Tracon reaches its own store internally.
 
 Name the provider the generator calls in `EmbeddingProvider`, as a tenant egress
 policy names it (`openai`, `azure-openai`, ...). Every embedding call — an upload, a

@@ -22,10 +22,20 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton, optional.</strong> No default
-/// implementation is registered; <c>Tracon.PostgreSql</c> registers one
-/// with <c>TryAdd</c> when <c>EnableVectorSearch = true</c>. A consumer's
-/// own registration must be a singleton — a scoped registration would be a
-/// captive dependency.
+/// implementation is registered. Register your own as a singleton, before or
+/// after <c>AddTracon()</c> — a scoped registration would be a captive
+/// dependency — and it wins over the <c>Tracon.PostgreSql</c> store.
+/// </para>
+/// <para>
+/// <strong>The PostgreSQL store is not a container service.</strong>
+/// <c>UsePostgreSql()</c> registers no <see cref="IVectorSearchStore"/>: its store
+/// exists only while <c>TraconPostgreSqlOptions.EnableKnowledge</c> is on, which is
+/// known only when the container is built, and a factory that returns
+/// <see langword="null"/> for "off" fails in containers other than Microsoft's.
+/// Tracon reaches the store internally, so resolving
+/// <see cref="IVectorSearchStore"/> yourself returns your own registration or
+/// nothing. Use the knowledge endpoints or a definition with
+/// <c>EnableVectorSearch</c> to reach the PostgreSQL store.
 /// </para>
 /// </remarks>
 public interface IVectorSearchStore

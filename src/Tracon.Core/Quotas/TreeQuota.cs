@@ -123,7 +123,7 @@ internal static class TreeQuota
                     Tokens = tokens,
                     Cost = amount,
                     OccurredAt = occurredAt,
-                    RunId = runId.ToString(),
+                    RunId = runId,
                     UserId = account.UserId,
                 },
                 cancellationToken).ConfigureAwait(false);

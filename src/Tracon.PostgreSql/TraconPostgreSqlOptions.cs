@@ -83,10 +83,9 @@ public sealed class TraconPostgreSqlOptions
     /// The knowledge set needs the <c>pgvector</c> extension; a
     /// consumer on a managed PostgreSQL without permission to install
     /// extensions never sees it unless this is turned on. While it is
-    /// <see langword="false"/>, no <see cref="IVectorSearchStore"/> is
-    /// registered — an agent definition that requests vector search fails
-    /// compilation with a clear error instead of a database error at run
-    /// time.
+    /// <see langword="false"/>, the provider has no vector search store, and
+    /// an agent definition that requests vector search fails compilation with
+    /// a clear error instead of a database error at run time.
     /// </remarks>
     public bool EnableKnowledge { get; set; }
 

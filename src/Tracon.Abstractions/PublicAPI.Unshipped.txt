@@ -2109,7 +2109,7 @@ Tracon.QuotaConsumption.Equals(Tracon.QuotaConsumption? other) -> bool
 Tracon.QuotaConsumption.OccurredAt.get -> System.DateTimeOffset
 Tracon.QuotaConsumption.OccurredAt.init -> void
 Tracon.QuotaConsumption.QuotaConsumption() -> void
-Tracon.QuotaConsumption.RunId.get -> string?
+Tracon.QuotaConsumption.RunId.get -> System.Guid?
 Tracon.QuotaConsumption.RunId.init -> void
 Tracon.QuotaConsumption.Runs.get -> long
 Tracon.QuotaConsumption.Runs.init -> void

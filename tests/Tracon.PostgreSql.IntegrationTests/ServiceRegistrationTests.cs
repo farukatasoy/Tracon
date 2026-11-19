@@ -71,26 +71,93 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// <c>IVectorSearchStore</c> stays REGISTERED either way
-    /// (<c>TryAddSingleton</c> ran); the factory decides whether it resolves
-    /// to a real store or <see langword="null"/> based on <c>EnableKnowledge</c>,
-    /// reusing the "GetService null = not available" gate
-    /// (<c>TraconServiceCollectionExtensions</c>, <c>EnableVectorSearch</c>).
+    /// The provider fills the slot Tracon reads vector search availability from:
+    /// empty while <c>EnableKnowledge</c> is off, which is what makes a definition
+    /// with <c>EnableVectorSearch</c> fail compilation (<c>TraconServiceCollectionExtensions</c>).
+    /// It registers no <c>IVectorSearchStore</c> in either state: a factory that
+    /// returns null for "off" fails under Autofac (see <c>RegistrationFactoryNullTests</c>).
     /// </summary>
     [Fact]
-    public void IVectorSearchStore_resolves_to_null_when_knowledge_is_disabled()
+    public void The_vector_search_slot_is_empty_when_knowledge_is_disabled()
     {
         using var provider = BuildProvider(static options => options.EnableKnowledge = false);
 
+        provider.GetRequiredService<VectorSearchStoreSlot>().Store.ShouldBeNull();
         provider.GetService<IVectorSearchStore>().ShouldBeNull();
     }
 
     [Fact]
-    public void IVectorSearchStore_resolves_to_the_real_store_when_knowledge_is_enabled()
+    public void The_vector_search_slot_holds_the_real_store_when_knowledge_is_enabled()
     {
         using var provider = BuildProvider(static options => options.EnableKnowledge = true);
 
-        provider.GetService<IVectorSearchStore>().ShouldBeOfType<PgVectorSearchStore>();
+        provider.GetRequiredService<VectorSearchStoreSlot>().Store.ShouldBeOfType<PgVectorSearchStore>();
+        provider.GetService<IVectorSearchStore>().ShouldBeNull();
+    }
+
+    /// <summary>
+    /// A consumer's own <c>IVectorSearchStore</c> wins over the PostgreSQL store, whether it is
+    /// registered before or after <c>UsePostgreSql()</c>.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_consumers_own_vector_store_wins_over_the_provider(bool registeredFirst)
+    {
+        var own = new ConsumerVectorSearchStore();
+        var services = new ServiceCollection();
+
+        if (registeredFirst)
+        {
+            services.AddSingleton<IVectorSearchStore>(own);
+        }
+
+        services.AddTracon().UsePostgreSql(static options =>
+        {
+            options.ConnectionString = "Host=localhost;Port=1;Database=unused;Username=unused;Timeout=1";
+            options.AutoApplyMigrations = false;
+            options.EnableKnowledge = true;
+        });
+
+        if (!registeredFirst)
+        {
+            services.AddSingleton<IVectorSearchStore>(own);
+        }
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<VectorSearchStoreSlot>().Store.ShouldBeSameAs(own);
+    }
+
+    private sealed class ConsumerVectorSearchStore : IVectorSearchStore
+    {
+        public int Dimensions => 3;
+
+        public ValueTask UpsertAsync(
+            string tenantId,
+            string collection,
+            string sourceId,
+            IReadOnlyList<VectorChunk> chunks,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<VectorSearchHit>> SearchAsync(
+            VectorSearchRequest request,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<int> DeleteSourceAsync(
+            string tenantId,
+            string collection,
+            string sourceId,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<string>> ListSourcesAsync(
+            string tenantId,
+            string collection,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 
     /// <summary>

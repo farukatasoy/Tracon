@@ -587,9 +587,9 @@ Register PostgreSQL, SQL Server, or SQLite for a built-in persistent implementat
 reference uses `{server}:{uri}`, and the resource stays within the configured byte
 budgets.
 
-**Vector search fails to compile.** It needs both an `IVectorSearchStore` and an
+**Vector search fails to compile.** It needs both a vector search store and an
 `IEmbeddingGenerator<string, Embedding<float>>`. The built-in store comes from
-PostgreSQL.
+`UsePostgreSql()` with `EnableKnowledge` on; your own `IVectorSearchStore` takes its place.
 
 **The agent does not remember the user.** Check four things. The request names a
 `sessionId`. Your attribution resolves a user for the run. The earlier session was

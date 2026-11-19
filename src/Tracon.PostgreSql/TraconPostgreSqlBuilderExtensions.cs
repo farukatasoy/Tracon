@@ -101,38 +101,45 @@ public static class TraconPostgreSqlBuilderExtensions
             // The state lives in a database server, so every instance that reaches it shares the state.
             ServiceDescriptor.Singleton(StateSharing.DatabaseServer(ProviderDisplayName)));
 
-        // Vector-based semantic search. The ONLY concrete
-        // implementation. TryAdd: if a consumer has already registered their
-        // own IVectorSearchStore (for SQL Server/SQLite), theirs wins.
+        // Vector-based semantic search. The ONLY concrete implementation. It fills
+        // the slot Tracon reads availability from, and registers no IVectorSearchStore
+        // of its own: the store exists only while EnableKnowledge is on, which IOptions
+        // decides after this call, and a factory that returns null for "off" breaks
+        // every container but Microsoft's (Autofac throws on the first agent compile).
         //
-        // Returns null while EnableKnowledge is off, so
-        // provider.GetService<IVectorSearchStore>() sees "not available" the
-        // same way it would if this line never ran — an agent definition
-        // requesting EnableVectorSearch fails compilation with a clear error
+        // A consumer's own IVectorSearchStore (for SQL Server/SQLite) still wins.
+        // With knowledge off the slot is empty, so an agent definition requesting
+        // EnableVectorSearch fails compilation with a clear error
         // (TraconServiceCollectionExtensions) instead of the
         // "document_embeddings does not exist" database error the store
         // would otherwise hit, because the "knowledge" migration set never applied.
-        services.TryAddSingleton<IVectorSearchStore>(static provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<TraconPostgreSqlOptions>>().Value;
-
-            if (!options.EnableKnowledge)
-            {
-                return null!;
-            }
-
-            // The shared context's DataSource is always an NpgsqlDataSource for
-            // this provider (NpgsqlDataSourceFactory.Resolve enforces it above);
-            // reusing the context avoids building a second data source (and, when
-            // the consumer supplied one, a second pool) just for this store, and
-            // gives the upload the deadlock retry the other stores have.
-            return new PgVectorSearchStore(
-                provider.GetRequiredService<SqlStoreContext>(),
-                options,
-                provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>().Value);
-        });
+        services.Replace(ServiceDescriptor.Singleton(static provider => new VectorSearchStoreSlot(
+            provider.GetService<IVectorSearchStore>() ?? CreateVectorSearchStore(provider))));
 
         return builder;
+    }
+
+    /// <summary>Builds the PostgreSQL vector store, or nothing while knowledge is off.</summary>
+    /// <param name="provider">The service provider the store's dependencies are resolved from.</param>
+    /// <returns>The store, or <see langword="null"/> while <see cref="TraconPostgreSqlOptions.EnableKnowledge"/> is off.</returns>
+    private static PgVectorSearchStore? CreateVectorSearchStore(IServiceProvider provider)
+    {
+        var options = provider.GetRequiredService<IOptions<TraconPostgreSqlOptions>>().Value;
+
+        if (!options.EnableKnowledge)
+        {
+            return null;
+        }
+
+        // The shared context's DataSource is always an NpgsqlDataSource for
+        // this provider (NpgsqlDataSourceFactory.Resolve enforces it above);
+        // reusing the context avoids building a second data source (and, when
+        // the consumer supplied one, a second pool) just for this store, and
+        // gives the upload the deadlock retry the other stores have.
+        return new PgVectorSearchStore(
+            provider.GetRequiredService<SqlStoreContext>(),
+            options,
+            provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>().Value);
     }
 
     /// <summary>Builds the shared store layer's context from this provider's settings.</summary>

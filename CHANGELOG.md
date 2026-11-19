@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Breaking, for code that reads `QuotaConsumption`: `QuotaConsumption.RunId` is a `Guid?`, not a `string?`.** Every other Tracon type that names a run carries its identifier as a `Guid`; this one carried the same value as text, so a consumer who compared it to a run or stored it next to one had to parse it. The value is the same run. The quota threshold webhook still sends `runId` as a string, as every webhook payload does.
+  What to do:
+  - **If you implement `IQuotaStore` or read `QuotaConsumption.RunId`, use the `Guid?`.** Code that called `Guid.Parse` on it drops the call; code that stores it as text writes `RunId?.ToString()`.
+
+- **`UsePostgreSql()` works in Autofac and every other container, not only in Microsoft's.** It registered `IVectorSearchStore` with a factory that returned `null` while `EnableKnowledge` was off, which is the default. Microsoft's container hands that `null` back; Autofac throws "A delegate registered to create instances of 'Tracon.IVectorSearchStore' returned null", so a host built on it (every ABP host, for one) failed on the first agent the catalog compiled. The provider now registers no `IVectorSearchStore`: Tracon reaches the PostgreSQL store internally, and knows from that whether vector search is available.
+  What to do:
+  - **Remove a workaround that removed the `IVectorSearchStore` registration after `UsePostgreSql()`.** It is no longer needed, and it no longer has an effect.
+  - **If your own code resolved `IVectorSearchStore` to reach the PostgreSQL store, use the knowledge endpoints or an agent with `EnableVectorSearch` instead.** Resolving it now returns only a store you registered yourself. A store you register as `IVectorSearchStore` still takes the place of the PostgreSQL one.
+
 ## [1.0.0-preview.12] - 2026-11-15
 
 This release moves the runtime stack to Microsoft Agent Framework 1.28 and the Model Context Protocol SDK 2.4, and carries 100 entries that fix what reading the run, session, job, store, MCP, A2A and console code against its contracts found. Six entries are breaking, and the first of them includes a database migration with no way back: a trace belongs to one run (`ITraceStore`), an `OAuthCallbackBaseUri` without a closing slash stops the application at the start, a run cut at its output limit or left empty by the provider's filter and a run that ends on its own unmet rule answer `422` instead of `502`, the typed client's data subject export returns the status and headers, and a retention policy, schedule, trigger or webhook subscription built in code without `Enabled` is off. Read those entries before you upgrade; each one says what to do.

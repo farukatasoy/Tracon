@@ -391,7 +391,7 @@ public sealed class LateToolCompletionTests
         late.Cost.ShouldBe(0.04m);
 
         // The entry names the run whose tool spent it, which is what a threshold webhook shows.
-        late.RunId.ShouldBe(runId.ToString());
+        late.RunId.ShouldBe(runId);
 
         // The run's snapshot is the one frozen at its close.
         var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull();

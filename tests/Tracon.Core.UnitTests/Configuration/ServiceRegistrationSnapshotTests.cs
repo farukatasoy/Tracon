@@ -221,6 +221,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.CompiledAgentCache | Singleton | Factory",
         "Tracon.CallableAgentResolver | Singleton | Tracon.CallableAgentResolver",
         "Tracon.AgentDefinitionCompiler | Singleton | Factory",
+        "Tracon.VectorSearchStoreSlot | Singleton | Factory",
         "Tracon.InstrumentedEmbeddings | Singleton | Factory",
         "Tracon.EmbeddingProviderAccess | Singleton | Factory",
         "Tracon.KnowledgeIngestionService | Singleton | Factory",

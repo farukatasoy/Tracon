@@ -415,9 +415,9 @@ migrations before the first request.
 
 All three dependencies must exist:
 
-- `UsePostgreSql()` (the `Tracon.PostgreSql` package) with `EnableKnowledge = true` supplies
-  `IVectorSearchStore` and pgvector storage. It is off by default; with it off, `IVectorSearchStore` never
-  resolves.
+- `UsePostgreSql()` (the `Tracon.PostgreSql` package) with `EnableKnowledge = true` supplies the
+  vector search store and pgvector storage. It is off by default; with it off, there is no store. A
+  store you register yourself as `IVectorSearchStore` takes the place of the PostgreSQL one.
 - The application registers `IEmbeddingGenerator<string, Embedding<float>>`.
 
 SQL Server and SQLite implement the other durable stores but do not implement vector

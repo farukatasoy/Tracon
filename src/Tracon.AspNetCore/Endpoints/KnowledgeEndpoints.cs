@@ -250,7 +250,7 @@ internal static class KnowledgeEndpoints
     private static ProblemHttpResult NotSupported()
         => TypedResults.Problem(
             title: "Knowledge base not supported",
-            detail: "An IVectorSearchStore (today only the Tracon.PostgreSql package: UsePostgreSql()) AND an " +
+            detail: "A vector search store (the Tracon.PostgreSql package: UsePostgreSql() with EnableKnowledge on, or your own IVectorSearchStore) AND an " +
                     "IEmbeddingGenerator<string, Embedding<float>> must both be registered.",
             statusCode: StatusCodes.Status501NotImplemented);
 }

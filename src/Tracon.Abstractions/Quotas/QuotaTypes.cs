@@ -188,7 +188,7 @@ public sealed record QuotaConsumption
     /// outside a run (there is no such caller today, but the field stays
     /// optional rather than assume one always exists).
     /// </summary>
-    public string? RunId { get; init; }
+    public Guid? RunId { get; init; }
 
     /// <summary>
     /// The user the run belongs to. <see langword="null"/> when the run

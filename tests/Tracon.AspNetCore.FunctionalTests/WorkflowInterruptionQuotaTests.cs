@@ -232,7 +232,7 @@ public sealed class WorkflowInterruptionQuotaTests
         await WaitForReconciliationPassAsync(host, neverRan);
 
         quota.Entries.Select(static entry => entry.RunId).ShouldBe(
-            [parent.ToString()],
+            [parent],
             "a root that ran writes its run even with nothing reported; a step of a workflow, an agent run below a root and a row that never wrote an event write nothing");
         quota.Entries.Single().Cost.ShouldBeNull();
 
@@ -242,7 +242,7 @@ public sealed class WorkflowInterruptionQuotaTests
     private const string Orphan = "doomed-workflow";
 
     private static List<QuotaConsumption> EntriesOf(EntryRecordingQuotaStore quota, Guid runId)
-        => [.. quota.Entries.Where(entry => string.Equals(entry.RunId, runId.ToString(), StringComparison.Ordinal))];
+        => [.. quota.Entries.Where(entry => entry.RunId == runId)];
 
     private static Task<TraconTestHost> StartWithQuotaAsync(RecoveryProbe probe, EntryRecordingQuotaStore quota)
         => StartAsync(
