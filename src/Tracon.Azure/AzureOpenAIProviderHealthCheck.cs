@@ -41,7 +41,7 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
     internal const string DefaultAudience = "https://cognitiveservices.azure.com/.default";
 
     private readonly ProviderHealthCheckCore _core;
-    private readonly AzureOpenAIProviderOptions _options;
+    private readonly Func<AzureOpenAIProviderOptions> _options;
     private readonly TokenCredential? _credential;
 
     /// <summary>Builds a new health check.</summary>
@@ -53,22 +53,42 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
     /// new credential object on every check would waste the token cache.
     /// </remarks>
     public AzureOpenAIProviderHealthCheck(string providerName, AzureOpenAIProviderOptions options, ILogger? logger = null)
+        : this(providerName, options, () => options, logger)
     {
+    }
+
+    /// <summary>Builds a health check that reads the key and the address again every time it runs.</summary>
+    /// <param name="providerName">The provider name.</param>
+    /// <param name="options">The options the provider was set up with; the credential factory is taken from them.</param>
+    /// <param name="current">Reads the options of one check: the key and the address that are current now.</param>
+    /// <param name="logger">Receives a credential failure; the health result carries only its type name.</param>
+    public AzureOpenAIProviderHealthCheck(
+        string providerName,
+        AzureOpenAIProviderOptions options,
+        Func<AzureOpenAIProviderOptions> current,
+        ILogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(current);
+
         _core = new ProviderHealthCheckCore(providerName, logger);
-        _options = options;
+        _options = current;
         _credential = options.CredentialFactory?.Invoke();
     }
 
     /// <inheritdoc />
     public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
     {
-        if (_options.Endpoint is null)
+        // One read: the address and the key of a check come from the same snapshot.
+        var options = _options();
+
+        if (options.Endpoint is null)
         {
             return ValueTask.FromResult(
                 _core.Unhealthy(DateTimeOffset.UtcNow, TimeSpan.Zero, "The resource address is not defined."));
         }
 
-        if (_credential is not null && !string.Equals(_options.Endpoint.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        if (_credential is not null && !string.Equals(options.Endpoint.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
         {
             return ValueTask.FromResult(_core.Unhealthy(
                 DateTimeOffset.UtcNow,
@@ -77,25 +97,28 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
         }
 
         return _core.CheckAsync(
-            BuildModelsEndpoint(_options.Endpoint),
-            _options.Timeout,
-            AuthorizeAsync,
+            BuildModelsEndpoint(options.Endpoint),
+            options.Timeout,
+            (request, token) => AuthorizeAsync(request, options, token),
             ReadModelIdsAsync,
             cancellationToken);
     }
 
-    internal async ValueTask AuthorizeAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    internal ValueTask AuthorizeAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        => AuthorizeAsync(request, _options(), cancellationToken);
+
+    private async ValueTask AuthorizeAsync(HttpRequestMessage request, AzureOpenAIProviderOptions options, CancellationToken cancellationToken)
     {
         if (_credential is not null)
         {
-            var scope = string.IsNullOrWhiteSpace(_options.Audience) ? DefaultAudience : _options.Audience;
+            var scope = string.IsNullOrWhiteSpace(options.Audience) ? DefaultAudience : options.Audience;
             var token = await _credential
                 .GetTokenAsync(new TokenRequestContext([scope]), cancellationToken)
                 .ConfigureAwait(false);
 
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token.Token);
         }
-        else if (OutboundApiKey.Normalize(AzureOpenAIChatClientFactory.ApiKeyOptionName, _options.ApiKey) is { } apiKey)
+        else if (OutboundApiKey.Normalize(AzureOpenAIChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } apiKey)
         {
             // The same header form the chat call sends for a key: the v1 API takes
             // `Authorization: Bearer <key>`, so one resource or gateway answers

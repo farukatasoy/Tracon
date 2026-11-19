@@ -45,8 +45,7 @@ namespace Tracon;
 /// </remarks>
 internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
 {
-    private readonly ClientPipeline _pipeline;
-    private readonly Uri _endpoint;
+    private readonly Func<OpenAIPipelineTarget> _target;
     private readonly string _model;
     private readonly ImageGeneratorMetadata _metadata;
 
@@ -56,17 +55,33 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
     /// <param name="model">The image model or Azure deployment. The generator is bound to it.</param>
     /// <param name="providerName">The provider name the metadata reports.</param>
     public OpenAIPipelineImageGenerator(OpenAIClient client, Uri endpoint, string model, string providerName)
+        : this(FixedTarget(client, endpoint), model, providerName)
     {
-        ArgumentNullException.ThrowIfNull(client);
-        ArgumentNullException.ThrowIfNull(endpoint);
+    }
+
+    /// <summary>Creates a generator that asks for the client and the address every time it generates.</summary>
+    /// <param name="target">Returns the pipeline and the address of the key and the address that are current.</param>
+    /// <param name="model">The image model or Azure deployment. The generator is bound to it.</param>
+    /// <param name="providerName">The provider name the metadata reports.</param>
+    /// <remarks>
+    /// The metadata names the address the generator was created with. A host whose address changes keeps that name on its
+    /// traces until it restarts; the key and the address a call sends are always the current ones.
+    /// </remarks>
+    public OpenAIPipelineImageGenerator(Func<OpenAIPipelineTarget> target, string model, string providerName)
+    {
+        ArgumentNullException.ThrowIfNull(target);
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
 
-        _pipeline = client.Pipeline;
-
-        // A relative path resolves against a base that ends in a slash, or it replaces the last segment.
-        _endpoint = endpoint.AbsoluteUri.EndsWith('/') ? endpoint : new Uri(endpoint.AbsoluteUri + "/");
+        _target = target;
         _model = model;
-        _metadata = new ImageGeneratorMetadata(providerName, _endpoint, model);
+        _metadata = new ImageGeneratorMetadata(providerName, target().Endpoint, model);
+    }
+
+    private static Func<OpenAIPipelineTarget> FixedTarget(OpenAIClient client, Uri endpoint)
+    {
+        var target = OpenAIPipelineTarget.Of(client, endpoint);
+
+        return () => target;
     }
 
     /// <inheritdoc />
@@ -190,12 +205,15 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var message = _pipeline.CreateMessage();
+        // The pipeline and the address of one call come from one read.
+        var target = _target();
+
+        using var message = target.Pipeline.CreateMessage();
         message.Apply(new RequestOptions { CancellationToken = cancellationToken });
 
         var request = message.Request;
         request.Method = "POST";
-        request.Uri = new Uri(_endpoint, path);
+        request.Uri = new Uri(target.Endpoint, path);
         request.Headers.Set("Content-Type", contentType);
         request.Content = content;
 
@@ -208,7 +226,7 @@ internal sealed class OpenAIPipelineImageGenerator : IImageGenerator
             // compiled into Tracon.OpenAI, which restores 1.16 where the overload does not exist, and the
             // package must not raise that floor for a call that behaves the same.
 #pragma warning disable CA2016
-            await _pipeline.SendAsync(message).ConfigureAwait(false);
+            await target.Pipeline.SendAsync(message).ConfigureAwait(false);
 #pragma warning restore CA2016
         }
         catch (Exception exception) when (cancellationToken.IsCancellationRequested && exception is not OperationCanceledException)

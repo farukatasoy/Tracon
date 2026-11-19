@@ -268,12 +268,13 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, ILiv
 
         if (credential is null && _live is { } live)
         {
+            // One client is built now, so that a setting the provider refuses stops the compile of the agent and not its
+            // first call. The cache keeps it: the first call gets the same one.
+            _ = SetupChatClient(live, binding);
+
             // The client is picked when the call starts: an agent, a fallback link, a judge or a summarizer holds this
             // one and follows a rotation without being built again.
-            return new LiveSetupChatClient(() => live.ChatClient(
-                live.Snapshot(),
-                binding,
-                (factory, liveBinding) => factory.CreateChatClient(liveBinding, ApiSurface)));
+            return new LiveSetupChatClient(() => SetupChatClient(live, binding));
         }
 
         return credential is null
@@ -284,6 +285,9 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, ILiv
                 BuildCredentialFactory,
                 (factory, tenantBinding) => factory.CreateChatClient(tenantBinding, ApiSurface));
     }
+
+    private IChatClient SetupChatClient(LiveSetup<OpenAIChatClientFactory> live, ModelBinding binding)
+        => live.ChatClient(live.Snapshot(), binding, (factory, liveBinding) => factory.CreateChatClient(liveBinding, ApiSurface));
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
     /// <remarks>

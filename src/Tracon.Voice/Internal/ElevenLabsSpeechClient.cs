@@ -59,6 +59,12 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
     private readonly bool _ownsHttpClient;
     private readonly VoiceOptions _options;
     private readonly SlotPool _concurrency;
+    private readonly Func<ElevenLabsTarget> _target;
+
+    /// <summary>The key and the address one request is sent with, read together.</summary>
+    /// <param name="ApiKey">The key; <see langword="null"/> sends no key header.</param>
+    /// <param name="Endpoint">The base address.</param>
+    internal readonly record struct ElevenLabsTarget(string? ApiKey, Uri Endpoint);
 
     /// <summary>Builds a new client.</summary>
     /// <param name="options">The settings.</param>
@@ -66,11 +72,17 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
     /// The client to use. When <see langword="null"/>, the client is built here
     /// and owned by this instance. Tests pass a fake <c>HttpMessageHandler</c>.
     /// </param>
-    public ElevenLabsSpeechClient(VoiceOptions options, HttpClient? httpClient = null)
+    /// <param name="target">
+    /// Reads the key and the address of the next request. When <see langword="null"/>, they are the ones in
+    /// <paramref name="options"/>. A host that names configuration keys for them passes a reader of those keys, so a
+    /// rotated key is the one the next request carries.
+    /// </param>
+    public ElevenLabsSpeechClient(VoiceOptions options, HttpClient? httpClient = null, Func<ElevenLabsTarget>? target = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         _options = options;
+        _target = target ?? (() => new ElevenLabsTarget(options.ApiKey, options.Endpoint ?? DefaultEndpoint));
         _ownsHttpClient = httpClient is null;
 
         // PooledConnectionLifetime bounds how long a resolved address is
@@ -95,8 +107,6 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         MaxCharactersPerRequest = _options.MaxDialogueCharactersPerRequest,
         SupportsSegmentTimestamps = true,
     };
-
-    private Uri BaseEndpoint => _options.Endpoint ?? DefaultEndpoint;
 
     /// <inheritdoc />
     public async ValueTask<SpeechAudio> SynthesizeAsync(
@@ -350,8 +360,11 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
                 ? $"v2/voices?page_size={VoicePageSize}"
                 : $"v2/voices?page_size={VoicePageSize}&next_page_token={Uri.EscapeDataString(pageToken)}";
 
-            using var message = new HttpRequestMessage(HttpMethod.Get, BuildUri(path));
-            AddApiKey(message);
+            // The address and the key of one request come from one read.
+            var target = _target();
+
+            using var message = new HttpRequestMessage(HttpMethod.Get, Combine(target.Endpoint, path));
+            AddApiKey(message, target);
 
             using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
@@ -406,12 +419,14 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
                 content.Add(new StringContent(language), "language_code");
             }
 
-            using var message = new HttpRequestMessage(HttpMethod.Post, BuildUri("v1/speech-to-text"))
+            var target = _target();
+
+            using var message = new HttpRequestMessage(HttpMethod.Post, Combine(target.Endpoint, "v1/speech-to-text"))
             {
                 Content = content,
             };
 
-            AddApiKey(message);
+            AddApiKey(message, target);
 
             using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
@@ -533,7 +548,8 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             (true, true) => throw new UnreachableException(),
         };
 
-        var uri = BuildUri($"{path}?output_format={Uri.EscapeDataString(format)}");
+        var target = _target();
+        var uri = Combine(target.Endpoint, $"{path}?output_format={Uri.EscapeDataString(format)}");
 
         var body = JsonSerializer.Serialize(
             new ElevenLabsSynthesisRequest
@@ -558,7 +574,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
 
-        AddApiKey(message);
+        AddApiKey(message, target);
 
         return message;
     }
@@ -570,7 +586,8 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         string format)
     {
         var path = request.IncludeTimestamps ? "v1/text-to-dialogue/with-timestamps" : "v1/text-to-dialogue";
-        var uri = BuildUri($"{path}?output_format={Uri.EscapeDataString(format)}");
+        var target = _target();
+        var uri = Combine(target.Endpoint, $"{path}?output_format={Uri.EscapeDataString(format)}");
 
         var body = JsonSerializer.Serialize(
             new ElevenLabsDialogueRequest
@@ -591,7 +608,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
 
-        AddApiKey(message);
+        AddApiKey(message, target);
 
         return message;
     }
@@ -617,11 +634,11 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
     private string SynthesisModel(SpeechRequest request)
         => request.ModelId ?? _options.SynthesisModelId ?? DefaultSynthesisModel;
 
-    private void AddApiKey(HttpRequestMessage message)
+    private static void AddApiKey(HttpRequestMessage message, ElevenLabsTarget target)
     {
         // The header is added without validation, so a line break in the key would reach the wire as it is. The key is
         // trimmed here, and one that still holds a character a header cannot carry stops the call, without the key.
-        if (OutboundApiKey.Normalize(ElevenLabsSpeechClient.ApiKeyOptionName, _options.ApiKey) is { } apiKey)
+        if (OutboundApiKey.Normalize(ElevenLabsSpeechClient.ApiKeyOptionName, target.ApiKey) is { } apiKey)
         {
             message.Headers.TryAddWithoutValidation(ApiKeyHeader, apiKey);
         }
@@ -634,7 +651,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
     /// before combining. <c>internal</c>: unit tests verify this without a
     /// network call.
     /// </remarks>
-    internal Uri BuildUri(string relativePath) => Combine(BaseEndpoint, relativePath);
+    internal Uri BuildUri(string relativePath) => Combine(_target().Endpoint, relativePath);
 
     /// <inheritdoc cref="BuildUri"/>
     internal static Uri Combine(Uri baseEndpoint, string relativePath)

@@ -101,7 +101,9 @@ public static class OpenAILiveProviderExtensions
             provider.GetRequiredService<IOptionsMonitor<OpenAILiveOptions>>(),
             provider.GetRequiredService<IOptionsMonitor<OpenAIProviderOptions>>(),
             provider.GetRequiredService<EgressSocketGuard>(),
-            provider.GetRequiredService<ILoggerFactory>()));
+            provider.GetRequiredService<ILoggerFactory>(),
+            provider.GetService<OpenAINamedChatClientFactoryCache>(),
+            provider.GetService<IConfiguration>()));
 
         return builder;
     }
@@ -130,6 +132,11 @@ public static class OpenAILiveProviderExtensions
             "Endpoint",
             static o => o.Endpoint,
             static (o, v) => o.Endpoint = v);
+
+        if (section[nameof(OpenAILiveOptions.EndpointConfigurationName)] is { Length: > 0 } endpointConfigurationName)
+        {
+            options.EndpointConfigurationName = endpointConfigurationName;
+        }
 
         read.Int32(
             "MaxAppendCharacters",

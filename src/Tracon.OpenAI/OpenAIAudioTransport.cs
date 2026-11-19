@@ -42,8 +42,7 @@ internal sealed class OpenAIAudioTransport
     /// <summary>The most bytes one streamed chunk holds.</summary>
     private const int StreamChunkSize = 16 * 1024;
 
-    private readonly ClientPipeline _pipeline;
-    private readonly Uri _endpoint;
+    private readonly Func<OpenAIPipelineTarget> _target;
 
     /// <summary>Creates a transport over a client's pipeline.</summary>
     /// <param name="client">The shared OpenAI client.</param>
@@ -53,13 +52,18 @@ internal sealed class OpenAIAudioTransport
     /// </param>
     public OpenAIAudioTransport(OpenAIClient client, Uri endpoint)
     {
-        ArgumentNullException.ThrowIfNull(client);
-        ArgumentNullException.ThrowIfNull(endpoint);
+        var target = OpenAIPipelineTarget.Of(client, endpoint);
 
-        _pipeline = client.Pipeline;
+        _target = () => target;
+    }
 
-        // A relative path resolves against a base that ends in a slash, or it replaces the last segment.
-        _endpoint = endpoint.AbsoluteUri.EndsWith('/') ? endpoint : new Uri(endpoint.AbsoluteUri + "/");
+    /// <summary>Creates a transport that asks for the client and the address every time it posts.</summary>
+    /// <param name="target">Returns the pipeline and the address of the key and the address that are current.</param>
+    public OpenAIAudioTransport(Func<OpenAIPipelineTarget> target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        _target = target;
     }
 
     /// <summary>Posts a body and returns the response content.</summary>
@@ -77,19 +81,22 @@ internal sealed class OpenAIAudioTransport
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var message = _pipeline.CreateMessage();
+        // The pipeline and the address of one call come from one read, at the start of the call.
+        var target = _target();
+
+        using var message = target.Pipeline.CreateMessage();
 
         message.Apply(new RequestOptions { CancellationToken = cancellationToken });
 
         var request = message.Request;
         request.Method = "POST";
-        request.Uri = new Uri(_endpoint, path);
+        request.Uri = new Uri(target.Endpoint, path);
         request.Headers.Set("Content-Type", contentType);
         request.Content = content;
 
         try
         {
-            await _pipeline.SendAsync(message).ConfigureAwait(false);
+            await target.Pipeline.SendAsync(message).ConfigureAwait(false);
         }
         catch (Exception exception) when (cancellationToken.IsCancellationRequested && exception is not OperationCanceledException)
         {
@@ -128,7 +135,10 @@ internal sealed class OpenAIAudioTransport
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var message = _pipeline.CreateMessage();
+        // The pipeline and the address of one call come from one read, at the start of the call.
+        var target = _target();
+
+        using var message = target.Pipeline.CreateMessage();
 
         // The option, not the message property: Apply copies the option's BufferResponse (true by
         // default) onto the message, so a flag set on the message first is overwritten (measured).
@@ -136,13 +146,13 @@ internal sealed class OpenAIAudioTransport
 
         var request = message.Request;
         request.Method = "POST";
-        request.Uri = new Uri(_endpoint, path);
+        request.Uri = new Uri(target.Endpoint, path);
         request.Headers.Set("Content-Type", contentType);
         request.Content = content;
 
         try
         {
-            await _pipeline.SendAsync(message).ConfigureAwait(false);
+            await target.Pipeline.SendAsync(message).ConfigureAwait(false);
         }
         catch (Exception exception) when (cancellationToken.IsCancellationRequested && exception is not OperationCanceledException)
         {

@@ -161,6 +161,11 @@ internal sealed class LiveVoiceSessionLauncher
             return new LiveVoiceLaunchResult(null, null, LiveVoiceLaunchFailure.TenantPolicyRefused, exception.Message);
         }
 
+        // No tenant credential: the session is opened with the key and the address the provider was set up with. When
+        // those follow configuration keys, they are read ONCE here and the same pair goes to both calls to the service;
+        // a rotation between create and attach never splits one session across two keys.
+        credential ??= (_provider as ILiveSetupVoiceProvider)?.SetupCredential();
+
         AIAgentHandle agent;
 
         try

@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -33,7 +34,7 @@ namespace Tracon;
 /// sent somewhere the tenant did not choose.
 /// </para>
 /// </remarks>
-internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
+internal sealed class OpenAILiveProvider : ILiveVoiceProvider, ILiveSetupVoiceProvider, IDisposable
 {
     private static readonly Uri DefaultEndpoint = new("https://api.openai.com/v1/");
 
@@ -43,17 +44,23 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<OpenAILiveProvider> _logger;
     private readonly HttpClient _http;
+    private readonly OpenAINamedChatClientFactoryCache? _setups;
+    private readonly SetupCredentialSource? _endpointSource;
 
     /// <summary>Creates a provider.</summary>
     /// <param name="liveOptions">The live options.</param>
     /// <param name="providerOptions">The OpenAI provider options, which carry the API key.</param>
     /// <param name="egress">The outbound address guard.</param>
     /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="setups">The setups of the OpenAI provider; when its key follows a configuration key, so do the sessions.</param>
+    /// <param name="configuration">The configuration the live address is read from when the options name a configuration key for it.</param>
     public OpenAILiveProvider(
         IOptionsMonitor<OpenAILiveOptions> liveOptions,
         IOptionsMonitor<OpenAIProviderOptions> providerOptions,
         EgressSocketGuard egress,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        OpenAINamedChatClientFactoryCache? setups = null,
+        IConfiguration? configuration = null)
     {
         ArgumentNullException.ThrowIfNull(liveOptions);
         ArgumentNullException.ThrowIfNull(providerOptions);
@@ -69,6 +76,46 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
         // 🚨 Built from the guard, never with `new HttpClient()`: a path that built
         // its own handler would be outside the egress policy without saying so.
         _http = egress.CreateHttpClient(liveOptions.CurrentValue.Timeout);
+
+        _setups = setups;
+
+        if (!string.IsNullOrWhiteSpace(liveOptions.CurrentValue.EndpointConfigurationName))
+        {
+            _endpointSource = new SetupCredentialSource(
+                "openai-live",
+                OpenAIChatClientFactory.ApiKeyOptionName,
+                startupApiKey: null,
+                liveOptions.CurrentValue.Endpoint,
+                apiKeyName: null,
+                liveOptions.CurrentValue.EndpointConfigurationName,
+                configuration,
+                _logger,
+                keyless: true);
+        }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The key of the OpenAI provider and the live address, read together once for a session. <see langword="null"/> when
+    /// neither follows a configuration key: the session then reads the options as it always did.
+    /// </remarks>
+    public ModelProviderCredential? SetupCredential()
+    {
+        var keySetup = _setups?.Setup(Options.DefaultName).Live;
+
+        if (keySetup is null && _endpointSource is null)
+        {
+            return null;
+        }
+
+        var key = keySetup is not null
+            ? keySetup.Snapshot().ApiKey
+            : OutboundApiKey.Normalize(OpenAIChatClientFactory.ApiKeyOptionName, _providerOptions.CurrentValue.ApiKey)
+                ?? throw new TraconException("The OpenAI live voice provider needs an API key. Call UseOpenAI(...) before UseOpenAILive(...).");
+
+        return TenantCredentialScope.AttachSetup(
+            new ModelProviderCredential { ApiKey = key, Endpoint = _endpointSource?.Current().Endpoint },
+            "openai-live");
     }
 
     /// <inheritdoc />
@@ -91,7 +138,7 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
         ArgumentNullException.ThrowIfNull(request);
 
         var options = _liveOptions.CurrentValue;
-        var target = new Uri(options.Endpoint ?? DefaultEndpoint, "live/sessions");
+        var target = new Uri(RootFor(request.Credential, options), "live/sessions");
 
         var body = new OpenAILiveCreateRequest
         {
@@ -182,7 +229,7 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
         var apiKey = ApiKeyFor(request.Credential);
 
         var options = _liveOptions.CurrentValue;
-        var root = options.Endpoint ?? DefaultEndpoint;
+        var root = RootFor(request.Credential, options);
         var https = new Uri(root, $"live/sessions/{Uri.EscapeDataString(providerSessionId)}/attach");
 
         // 🚨 The socket opens through the egress guard's own handler (ClientWebSocket takes an invoker), so the
@@ -230,6 +277,15 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
     private static TraconException? FindRefusal(Exception exception)
         => ProviderFailureGraph.Frames(exception).OfType<TraconException>().FirstOrDefault();
 
+    // The live address of a session. A setup credential carries the address read for this session; a tenant's credential
+    // never does (a binding's endpoint names a chat API base and is refused by ApiKeyFor), so the options decide.
+    private static Uri RootFor(ModelProviderCredential? credential, OpenAILiveOptions options)
+        => credential is not null
+            && TenantCredentialScope.IsSetup(credential)
+            && Uri.TryCreate(credential.Endpoint, UriKind.Absolute, out var snapshotRoot)
+                ? snapshotRoot
+                : options.Endpoint ?? DefaultEndpoint;
+
     /// <summary>Picks the key a call is made with: the tenant's when given, otherwise the configured one.</summary>
     /// <param name="credential">The tenant's credential, or <see langword="null"/>.</param>
     /// <returns>The API key.</returns>
@@ -239,6 +295,12 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
     /// </exception>
     private string ApiKeyFor(ModelProviderCredential? credential)
     {
+        if (credential is not null && TenantCredentialScope.IsSetup(credential))
+        {
+            // The key and the address this session was opened with, read once by the launcher.
+            return credential.ApiKey;
+        }
+
         if (credential is not null)
         {
             // The tenant's key and nothing else: no fallback to the configured key.

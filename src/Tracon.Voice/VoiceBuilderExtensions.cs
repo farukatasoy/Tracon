@@ -92,8 +92,10 @@ public static class VoiceBuilderExtensions
         // the same instance is bound to all three interfaces so the
         // concurrency limit is held in ONE counter. Separate instances would
         // allow twice the intended number of requests.
-        services.TryAddSingleton(static provider =>
-            new ElevenLabsSpeechClient(provider.GetRequiredService<IOptions<VoiceOptions>>().Value));
+        services.TryAddSingleton(static provider => ElevenLabsClientFactory.Create(
+            provider.GetRequiredService<IOptions<VoiceOptions>>().Value,
+            provider.GetService<IConfiguration>(),
+            provider.GetService<ILoggerFactory>()));
 
         services.TryAddSingleton<ISpeechSynthesizer>(static provider =>
             provider.GetRequiredService<ElevenLabsSpeechClient>());
@@ -178,6 +180,16 @@ public static class VoiceBuilderExtensions
         if (section[nameof(VoiceOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
             options.ApiKey = apiKey;
+        }
+
+        if (section[nameof(VoiceOptions.ApiKeyConfigurationName)] is { Length: > 0 } apiKeyConfigurationName)
+        {
+            options.ApiKeyConfigurationName = apiKeyConfigurationName;
+        }
+
+        if (section[nameof(VoiceOptions.EndpointConfigurationName)] is { Length: > 0 } endpointConfigurationName)
+        {
+            options.EndpointConfigurationName = endpointConfigurationName;
         }
 
         read.Uri(

@@ -112,11 +112,14 @@ public static class AzureOpenAIProviderExtensions
 
         var alreadyRegistered = ProviderRegistrationCore.IsRegistered<AzureOpenAIChatClientFactory>(services);
 
-        // One client, one HTTP connection pool.
-        services.TryAddSingleton(static provider => new AzureOpenAIChatClientFactory(
+        // One client, one HTTP connection pool. The setup builds it from the options, and from the key and the address a
+        // configuration key names when the options name one.
+        services.TryAddSingleton(static provider => AzureOpenAISetup.Create(
             provider.GetRequiredService<IOptions<AzureOpenAIProviderOptions>>().Value,
             provider.GetService<ILoggerFactory>(),
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>(),
+            provider.GetService<IConfiguration>()));
+        services.TryAddSingleton(static provider => provider.GetRequiredService<AzureOpenAISetup>().Initial);
 
         if (alreadyRegistered)
         {
@@ -134,7 +137,8 @@ public static class AzureOpenAIProviderExtensions
                 provider.GetService<ILogger<AzureOpenAIModelProvider>>(),
                 healthCheckOptions: options,
                 egressGuard: provider.GetService<EgressSocketGuard>(),
-                timeProvider: provider.GetService<TimeProvider>());
+                timeProvider: provider.GetService<TimeProvider>(),
+                liveSetup: provider.GetRequiredService<AzureOpenAISetup>().Live);
         });
 
         return builder;
@@ -165,6 +169,16 @@ public static class AzureOpenAIProviderExtensions
         if (section[nameof(AzureOpenAIProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
             options.ApiKey = apiKey;
+        }
+
+        if (section[nameof(AzureOpenAIProviderOptions.ApiKeyConfigurationName)] is { Length: > 0 } apiKeyConfigurationName)
+        {
+            options.ApiKeyConfigurationName = apiKeyConfigurationName;
+        }
+
+        if (section[nameof(AzureOpenAIProviderOptions.EndpointConfigurationName)] is { Length: > 0 } endpointConfigurationName)
+        {
+            options.EndpointConfigurationName = endpointConfigurationName;
         }
 
         if (section[nameof(AzureOpenAIProviderOptions.DefaultDeployment)] is { Length: > 0 } defaultDeployment)

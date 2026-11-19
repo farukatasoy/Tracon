@@ -44,6 +44,18 @@ public sealed class OpenAILiveOptions
     public Uri? Endpoint { get; set; }
 
     /// <summary>
+    /// Gets or sets the name of the configuration key the API root is read from when a session is opened, or
+    /// <see langword="null"/> to use <see cref="Endpoint"/> for the life of the host.
+    /// </summary>
+    /// <remarks>
+    /// The key of the sessions comes from <see cref="OpenAIProviderOptions.ApiKeyConfigurationName"/>; this is the address
+    /// only. A session reads the pair once, when it is created, and uses it again when it is attached, so a rotation
+    /// between the two never splits a session across two keys. A value that is not an absolute address leaves the last valid
+    /// one in use. Unlike the address of a chat provider, a live address always goes through the outbound address guard.
+    /// </remarks>
+    public string? EndpointConfigurationName { get; set; }
+
+    /// <summary>
     /// Gets or sets the per-append character ceiling. The default is derived from
     /// <see cref="ProviderAppendTokenLimit"/> and <see cref="ConservativeCharactersPerToken"/>.
     /// </summary>

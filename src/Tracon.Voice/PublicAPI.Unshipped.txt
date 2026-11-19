@@ -4,12 +4,16 @@ Tracon.VoiceBuilderExtensions
 Tracon.VoiceOptions
 Tracon.VoiceOptions.ApiKey.get -> string?
 Tracon.VoiceOptions.ApiKey.set -> void
+Tracon.VoiceOptions.ApiKeyConfigurationName.get -> string?
+Tracon.VoiceOptions.ApiKeyConfigurationName.set -> void
 Tracon.VoiceOptions.DefaultVoiceId.get -> string?
 Tracon.VoiceOptions.DefaultVoiceId.set -> void
 Tracon.VoiceOptions.DialogueModelId.get -> string?
 Tracon.VoiceOptions.DialogueModelId.set -> void
 Tracon.VoiceOptions.Endpoint.get -> System.Uri?
 Tracon.VoiceOptions.Endpoint.set -> void
+Tracon.VoiceOptions.EndpointConfigurationName.get -> string?
+Tracon.VoiceOptions.EndpointConfigurationName.set -> void
 Tracon.VoiceOptions.MaxCharactersPerRequest.get -> int
 Tracon.VoiceOptions.MaxCharactersPerRequest.set -> void
 Tracon.VoiceOptions.MaxConcurrentRequests.get -> int

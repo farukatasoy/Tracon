@@ -5,6 +5,8 @@ Tracon.OpenAIImageBuilderExtensions
 Tracon.OpenAILiveOptions
 Tracon.OpenAILiveOptions.Endpoint.get -> System.Uri?
 Tracon.OpenAILiveOptions.Endpoint.set -> void
+Tracon.OpenAILiveOptions.EndpointConfigurationName.get -> string?
+Tracon.OpenAILiveOptions.EndpointConfigurationName.set -> void
 Tracon.OpenAILiveOptions.MaxAppendCharacters.get -> int
 Tracon.OpenAILiveOptions.MaxAppendCharacters.set -> void
 Tracon.OpenAILiveOptions.Model.get -> string!

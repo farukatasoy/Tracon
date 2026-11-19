@@ -42,18 +42,41 @@ public sealed class VoiceOptions
     /// <c>dotnet user-secrets</c> or an environment variable.
     /// </summary>
     /// <remarks>
-    /// The key's <em>value</em> is held here, not its <em>name</em>. The rule forbids
-    /// writing secrets to the DATABASE; voice configuration never reaches the
-    /// database, and the other four provider packages also carry a plain <c>ApiKey</c>.
+    /// The key's <em>value</em> is held here, not its <em>name</em>; <see cref="ApiKeyConfigurationName"/> names the
+    /// configuration key to read it from instead. Voice configuration never reaches the database, and the other four
+    /// provider packages also carry a plain <c>ApiKey</c>.
     /// White space at both ends is removed before the key is sent. A key that still holds a
     /// control character, or another character an HTTP header cannot carry, stops the host at start.
     /// </remarks>
     public string? ApiKey { get; set; }
 
     /// <summary>
+    /// Gets or sets the name of the configuration key the API key is read from on every request, or
+    /// <see langword="null"/> to use <see cref="ApiKey"/> for the life of the host.
+    /// </summary>
+    /// <remarks>
+    /// With a name, a key that changes in the configuration source (a file or a secret store that reloads) is the one
+    /// the next request carries; the host does not restart. The value is read from <c>IConfiguration</c> and never
+    /// stored or shown. A value that is missing, blank or unusable leaves the last valid key in use and writes one
+    /// warning that names this configuration key. <see cref="ApiKey"/> is the key the host starts with when the name has
+    /// no value yet. An environment variable does not reload.
+    /// </remarks>
+    public string? ApiKeyConfigurationName { get; set; }
+
+    /// <summary>
     /// Base address. When empty, the provider's public address is used.
     /// </summary>
     public Uri? Endpoint { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of the configuration key the base address is read from on every request, or
+    /// <see langword="null"/> to use <see cref="Endpoint"/> for the life of the host.
+    /// </summary>
+    /// <remarks>
+    /// Read together with <see cref="ApiKeyConfigurationName"/>, so a request never carries the old key to the new
+    /// address. A value that is not an absolute address leaves the last valid one in use.
+    /// </remarks>
+    public string? EndpointConfigurationName { get; set; }
 
     /// <summary>Voice to use when the request gives no voice id.</summary>
     public string? DefaultVoiceId { get; set; }

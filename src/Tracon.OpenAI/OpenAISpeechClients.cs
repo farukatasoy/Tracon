@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -31,7 +32,7 @@ internal static class OpenAISpeechClientRegistration
     public static void AddTextToSpeech(IServiceCollection services, OpenAISpeechClientKey key, string model)
         => services.AddKeyedSingleton<ITextToSpeechClient>(
             key,
-            (provider, _) => OpenAIFactoryFor(provider).CreateTextToSpeechClient(model));
+            (provider, _) => OpenAISetupFor(provider).CreateTextToSpeechClient(model));
 
     /// <summary>Registers a speech-to-text client bound to one model.</summary>
     /// <param name="services">The service collection.</param>
@@ -40,11 +41,12 @@ internal static class OpenAISpeechClientRegistration
     public static void AddSpeechToText(IServiceCollection services, OpenAISpeechClientKey key, string model)
         => services.AddKeyedSingleton<ISpeechToTextClient>(
             key,
-            (provider, _) => OpenAIFactoryFor(provider).CreateSpeechToTextClient(model));
+            (provider, _) => OpenAISetupFor(provider).CreateSpeechToTextClient(model));
 
-    private static OpenAIChatClientFactory OpenAIFactoryFor(IServiceProvider provider)
-        => provider.GetService<OpenAIChatClientFactory>()
-            ?? throw new TraconException(
+    private static OpenAISetup OpenAISetupFor(IServiceProvider provider)
+        => provider.GetService<OpenAIChatClientFactory>() is not null
+            ? provider.GetRequiredService<OpenAINamedChatClientFactoryCache>().Setup(Options.DefaultName)
+            : throw new TraconException(
                 "UseOpenAISpeech shares the OpenAI client of UseOpenAI, and UseOpenAI was not called. " +
                 "Call UseOpenAI(...) on the same Tracon chain.");
 }

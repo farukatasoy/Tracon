@@ -5,6 +5,8 @@ Tracon.AzureOpenAIProviderNames
 Tracon.AzureOpenAIProviderOptions
 Tracon.AzureOpenAIProviderOptions.ApiKey.get -> string?
 Tracon.AzureOpenAIProviderOptions.ApiKey.set -> void
+Tracon.AzureOpenAIProviderOptions.ApiKeyConfigurationName.get -> string?
+Tracon.AzureOpenAIProviderOptions.ApiKeyConfigurationName.set -> void
 Tracon.AzureOpenAIProviderOptions.Audience.get -> string?
 Tracon.AzureOpenAIProviderOptions.Audience.set -> void
 Tracon.AzureOpenAIProviderOptions.AzureOpenAIProviderOptions() -> void
@@ -14,6 +16,8 @@ Tracon.AzureOpenAIProviderOptions.DefaultDeployment.get -> string?
 Tracon.AzureOpenAIProviderOptions.DefaultDeployment.set -> void
 Tracon.AzureOpenAIProviderOptions.Endpoint.get -> System.Uri?
 Tracon.AzureOpenAIProviderOptions.Endpoint.set -> void
+Tracon.AzureOpenAIProviderOptions.EndpointConfigurationName.get -> string?
+Tracon.AzureOpenAIProviderOptions.EndpointConfigurationName.set -> void
 Tracon.AzureOpenAIProviderOptions.Models.get -> System.Collections.Generic.IList<Tracon.ModelDescriptor!>!
 Tracon.AzureOpenAIProviderOptions.Timeout.get -> System.TimeSpan?
 Tracon.AzureOpenAIProviderOptions.Timeout.set -> void

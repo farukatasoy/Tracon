@@ -193,7 +193,27 @@ internal sealed class OpenAIChatClientFactory
 #pragma warning restore MEAI001
 
     private OpenAIAudioTransport AudioTransport()
-        => new(
+    {
+        var target = AudioTarget();
+
+        return new OpenAIAudioTransport(() => target);
+    }
+
+    /// <summary>Gets the pipeline and the address image generation posts to.</summary>
+    /// <returns>The pair of this factory's client.</returns>
+    /// <exception cref="TraconException">The factory was built from a tenant's own credential and knows no address.</exception>
+    internal OpenAIPipelineTarget ImageTarget()
+        => OpenAIPipelineTarget.Of(
+            _client,
+            _endpoint ?? throw new TraconException(
+                "OpenAI images need the setup-time OpenAI client, whose address is known. " +
+                "A client built from a tenant's own credential carries no image registration."));
+
+    /// <summary>Gets the pipeline and the address speech posts to.</summary>
+    /// <returns>The pair of this factory's client.</returns>
+    /// <exception cref="TraconException">The factory was built from a tenant's own credential and knows no address.</exception>
+    internal OpenAIPipelineTarget AudioTarget()
+        => OpenAIPipelineTarget.Of(
             _client,
             _endpoint ?? throw new TraconException(
                 "OpenAI speech needs the setup-time OpenAI client, whose address is known. " +

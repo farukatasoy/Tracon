@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -147,6 +149,104 @@ public sealed class LiveSetupKeyRotationTests
         warnings[0].ShouldContain("last valid");
         host.Logs.AllText.ShouldNotContain("with a line break");
         server.ReceivedAuthorizationHeaders.ShouldBe(["Bearer key-one", "Bearer key-one", "Bearer key-one", "Bearer key-one"]);
+    }
+
+    [Fact]
+    public async Task The_setup_client_a_judge_and_a_summarizer_take_follows_the_rotation_too()
+    {
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        var configuration = Configuration((KeyName, "key-one"));
+
+        await using var host = await StartAsync(
+            configuration,
+            options =>
+            {
+                options.Endpoint = server.BaseAddress;
+                options.ApiKeyConfigurationName = KeyName;
+            });
+
+        var registry = host.Services.GetRequiredService<IModelProviderRegistry>();
+        var binding = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "fake-local-model" };
+
+        // A judge, a loop evaluator and the context summarizer build their client with the setup credential, once, and keep
+        // it. The one built here is held across the rotation.
+        using var judge = await registry.CreateSetupChatClientAsync(binding, TestContext.Current.CancellationToken);
+
+        await judge.GetResponseAsync([new ChatMessage(ChatRole.User, "judge this")], cancellationToken: TestContext.Current.CancellationToken);
+
+        configuration[KeyName] = "key-two";
+
+        await judge.GetResponseAsync([new ChatMessage(ChatRole.User, "judge this again")], cancellationToken: TestContext.Current.CancellationToken);
+
+        server.ReceivedAuthorizationHeaders.ShouldBe(["Bearer key-one", "Bearer key-two"]);
+    }
+
+    [Fact]
+    public async Task The_model_health_check_uses_the_key_that_is_current_when_it_runs()
+    {
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        var configuration = Configuration((KeyName, "key-one"));
+
+        await using var host = await StartAsync(
+            configuration,
+            options =>
+            {
+                options.Endpoint = server.BaseAddress;
+                options.ApiKeyConfigurationName = KeyName;
+            });
+
+        using (await host.Client.GetAsync(new Uri("/tracon/api/models/health/openai?refresh=true", UriKind.Relative), TestContext.Current.CancellationToken))
+        {
+        }
+
+        configuration[KeyName] = "key-two";
+
+        using (await host.Client.GetAsync(new Uri("/tracon/api/models/health/openai?refresh=true", UriKind.Relative), TestContext.Current.CancellationToken))
+        {
+        }
+
+        server.ModelsAuthorizationHeaders.ShouldBe(["Bearer key-one", "Bearer key-two"]);
+    }
+
+    [Fact]
+    public async Task A_failure_that_quotes_the_rotated_key_is_masked_and_so_is_the_one_it_replaced()
+    {
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        var configuration = Configuration((KeyName, "canary-old-key-1111aaaa"));
+
+        await using var host = await StartAsync(
+            configuration,
+            options =>
+            {
+                options.Endpoint = server.BaseAddress;
+                options.ApiKeyConfigurationName = KeyName;
+            });
+
+        await RunAsync(host);
+
+        configuration[KeyName] = "canary-new-key-2222bbbb";
+
+        // The service refuses the new key and says which key it refused.
+        server.ChatCompletionOverride = async (context, _) =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsync("Incorrect API key provided: canary-new-key-2222bbbb.", context.RequestAborted);
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hello", SessionId = Guid.NewGuid().ToString("N") }),
+        };
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+
+        using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldNotBe(HttpStatusCode.OK);
+        body.ShouldNotContain("canary-new-key-2222bbbb");
+        body.ShouldNotContain("canary-old-key-1111aaaa");
+        host.Logs.AllText.ShouldNotContain("canary-new-key-2222bbbb");
+        host.Logs.AllText.ShouldNotContain("canary-old-key-1111aaaa");
     }
 
     private static IConfiguration Configuration(params (string Name, string Value)[] values)

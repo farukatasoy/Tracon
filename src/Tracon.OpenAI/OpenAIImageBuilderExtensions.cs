@@ -57,7 +57,7 @@ public static class OpenAIImageBuilderExtensions
                 ?? throw new TraconException(
                     $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Model)} is required for OpenAI image generation.");
 
-            return provider.GetRequiredService<OpenAIChatClientFactory>().CreateImageGenerator(model);
+            return provider.GetRequiredService<OpenAINamedChatClientFactoryCache>().Setup(Options.DefaultName).CreateImageGenerator(model);
         });
 
         return builder;

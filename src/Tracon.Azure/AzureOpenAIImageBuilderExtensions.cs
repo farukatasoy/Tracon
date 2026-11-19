@@ -50,7 +50,7 @@ public static class AzureOpenAIImageBuilderExtensions
                 ?? throw new TraconException(
                     $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Model)} is required for Azure OpenAI image generation.");
 
-            return provider.GetRequiredService<AzureOpenAIChatClientFactory>().CreateImageGenerator(deploymentName);
+            return provider.GetRequiredService<AzureOpenAISetup>().CreateImageGenerator(deploymentName);
         });
 
         return builder;

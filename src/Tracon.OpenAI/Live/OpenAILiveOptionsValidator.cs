@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -17,14 +18,17 @@ namespace Tracon;
 internal sealed class OpenAILiveOptionsValidator : IValidateOptions<OpenAILiveOptions>
 {
     private readonly IOptionsMonitor<OpenAIProviderOptions> _providerOptions;
+    private readonly IConfiguration? _configuration;
 
     /// <summary>Creates a validator.</summary>
     /// <param name="providerOptions">The OpenAI provider options, which carry the API key.</param>
-    public OpenAILiveOptionsValidator(IOptionsMonitor<OpenAIProviderOptions> providerOptions)
+    /// <param name="configuration">The configuration a configuration key name of the API key is read from.</param>
+    public OpenAILiveOptionsValidator(IOptionsMonitor<OpenAIProviderOptions> providerOptions, IConfiguration? configuration = null)
     {
         ArgumentNullException.ThrowIfNull(providerOptions);
 
         _providerOptions = providerOptions;
+        _configuration = configuration;
     }
 
     /// <inheritdoc />
@@ -69,7 +73,13 @@ internal sealed class OpenAILiveOptionsValidator : IValidateOptions<OpenAILiveOp
         // 🚨 The message says WHICH CALL is missing. The live provider reuses the
         // OpenAI key, so an application that calls UseOpenAILive() without UseOpenAI()
         // would otherwise fail at the first session with an opaque authentication error.
-        if (string.IsNullOrWhiteSpace(_providerOptions.CurrentValue.ApiKey))
+        OptionText.AddWhenOnlyWhiteSpace(options.EndpointConfigurationName, nameof(OpenAILiveOptions), nameof(OpenAILiveOptions.EndpointConfigurationName), ref failures);
+
+        if (string.IsNullOrWhiteSpace(_providerOptions.CurrentValue.ApiKey)
+            && !SetupConfigurationName.GivesUsableKey(
+                _configuration,
+                _providerOptions.CurrentValue.ApiKeyConfigurationName,
+                OpenAIChatClientFactory.ApiKeyOptionName))
         {
             (failures ??= []).Add(
                 "The OpenAI live voice provider reuses the OpenAI API key, and none is configured. " +

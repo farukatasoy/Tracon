@@ -112,14 +112,20 @@ internal sealed class SetupCredentialSource
 
         try
         {
-            if (_apiKeyName is not null)
+            // The key is read again after the address. A reload that lands between the two reads changes the key, and the
+            // pair is read once more: a call is never given the old key with the new address. Three tries bound the work
+            // for a source that never settles; the last one is used.
+            for (var attempt = 0; attempt < 3; attempt++)
             {
-                rawKey = _configuration?[_apiKeyName];
-            }
+                rawKey = _apiKeyName is null ? null : _configuration?[_apiKeyName];
+                rawEndpoint = _endpointName is null ? null : _configuration?[_endpointName];
 
-            if (_endpointName is not null)
-            {
-                rawEndpoint = _configuration?[_endpointName];
+                if (_apiKeyName is null
+                    || _endpointName is null
+                    || string.Equals(rawKey, _configuration?[_apiKeyName], StringComparison.Ordinal))
+                {
+                    break;
+                }
             }
         }
         catch (Exception exception)

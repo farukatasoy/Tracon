@@ -73,6 +73,9 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
     /// <summary>How many times <c>/v1/models</c> was called.</summary>
     public int ModelsCallCount { get; private set; }
 
+    /// <summary>The Authorization header values received on requests to <c>/v1/models</c>.</summary>
+    public List<string?> ModelsAuthorizationHeaders { get; } = [];
+
     /// <summary>
     /// The HTTP status code to return from <c>/v1/chat/completions</c>.
     /// Defaults to 200; can be changed to exercise error scenarios.
@@ -113,9 +116,11 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
         var app = builder.Build();
         FakeOpenAiCompatibleServer? server = null;
 
-        app.MapGet("/v1/models", () =>
+        app.MapGet("/v1/models", (HttpContext context) =>
         {
             server!.ModelsCallCount++;
+            server.ModelsAuthorizationHeaders.Add(
+                context.Request.Headers.Authorization is { Count: > 0 } values ? values.ToString() : null);
 
             return server.ModelsStatusCode == StatusCodes.Status200OK
                 ? Results.Json(new { data = new[] { new { id = "fake-local-model", @object = "model" } } })

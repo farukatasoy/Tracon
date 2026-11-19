@@ -30,6 +30,37 @@ public sealed class AzureOpenAIProviderOptions
     /// </remarks>
     public Uri? Endpoint { get; set; }
 
+    /// <summary>
+    /// The name of the configuration key the resource's address is read from on every call, or <see langword="null"/>
+    /// to use <see cref="Endpoint"/> for the life of the host.
+    /// </summary>
+    /// <remarks>
+    /// Read together with <see cref="ApiKeyConfigurationName"/>, so a call never sends the old key to the new address. A
+    /// value that is not an absolute address leaves the last valid one in use. The address you set up this way is your own
+    /// decision and is not checked by the outbound address guard, the same as <see cref="Endpoint"/>. It works with a
+    /// <see cref="CredentialFactory"/> too: the client is built again for the new address and the factory is called for it.
+    /// </remarks>
+    public string? EndpointConfigurationName { get; set; }
+
+    /// <summary>
+    /// The name of the configuration key the API key is read from on every call, or <see langword="null"/> to use
+    /// <see cref="ApiKey"/> for the life of the host.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// With a name, a key that changes in the configuration source (a file or a secret store that reloads) is used by the
+    /// next call; the host does not restart. The value is read from <c>IConfiguration</c> and never stored or shown. A
+    /// value that is missing, blank or unusable leaves the last valid key in use and writes one warning that names this
+    /// configuration key. <see cref="ApiKey"/> is the key the host starts with when the name has no value yet. An
+    /// environment variable does not reload.
+    /// </para>
+    /// <para>
+    /// A <see cref="CredentialFactory"/> wins over a key, so a host that gives both a factory and this name is refused at
+    /// start instead of ignoring the name.
+    /// </para>
+    /// </remarks>
+    public string? ApiKeyConfigurationName { get; set; }
+
     /// <summary>The Azure OpenAI resource's API key.</summary>
     /// <remarks>
     /// <para>

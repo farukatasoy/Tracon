@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -27,12 +28,16 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
         "a registration added after UseVoice is not seen.";
 
     private readonly VoiceProviderBinding _binding;
+    private readonly IConfiguration? _configuration;
 
     /// <summary>Creates a validator.</summary>
     /// <param name="binding">Which contracts the consumer bound before <c>UseVoice</c>.</param>
-    public VoiceOptionsValidator(VoiceProviderBinding binding)
+    /// <param name="configuration">The configuration a configuration key name of the API key is read from.</param>
+    public VoiceOptionsValidator(VoiceProviderBinding binding, IConfiguration? configuration = null)
     {
         ArgumentNullException.ThrowIfNull(binding);
+
+        _configuration = configuration;
 
         _binding = binding;
     }
@@ -106,7 +111,11 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
                 RegisterFirst);
         }
 
-        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        OptionText.AddWhenOnlyWhiteSpace(options.ApiKeyConfigurationName, nameof(VoiceOptions), nameof(VoiceOptions.ApiKeyConfigurationName), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.EndpointConfigurationName, nameof(VoiceOptions), nameof(VoiceOptions.EndpointConfigurationName), ref failures);
+
+        if (string.IsNullOrWhiteSpace(options.ApiKey)
+            && !SetupConfigurationName.GivesUsableKey(_configuration, options.ApiKeyConfigurationName, ElevenLabsSpeechClient.ApiKeyOptionName))
         {
             (failures ??= []).Add(
                 $"{nameof(VoiceOptions)}: no API key was given, and {DescribeBuiltInUse()}. " +

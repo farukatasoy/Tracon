@@ -22,7 +22,7 @@ namespace Tracon;
 /// already has text — there is no extra code in this package for it.
 /// </para>
 /// </remarks>
-internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport, IResponseSchemaSupport
+internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, ILiveSetupModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport, IResponseSchemaSupport
 {
     private readonly AzureOpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<AzureOpenAIModelProvider>? _logger;
@@ -32,6 +32,9 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 
     // Known-model set, BYOK caches and the tenant endpoint guard rule (shared source).
     private readonly ModelProviderCore<AzureOpenAIChatClientFactory> _core;
+
+    // Set when the host named the configuration keys of the key and the address: the clients follow them.
+    private readonly LiveSetup<AzureOpenAIChatClientFactory>? _live;
 
     /// <summary>Creates a new provider.</summary>
     /// <param name="name">The provider name. <see cref="ModelBinding.Provider"/> in agent definitions matches this value.</param>
@@ -52,6 +55,10 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
     /// <param name="timeProvider">
     /// The clock the retry wait of a tenant's own client runs on; <see cref="TimeProvider.System"/> when omitted.
     /// </param>
+    /// <param name="liveSetup">
+    /// The clients that follow the configuration keys the options name for the key and the address, or
+    /// <see langword="null"/> when they are fixed for the life of the host.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public AzureOpenAIModelProvider(
@@ -61,7 +68,8 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
         ILogger<AzureOpenAIModelProvider>? logger = null,
         AzureOpenAIProviderOptions? healthCheckOptions = null,
         EgressSocketGuard? egressGuard = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        LiveSetup<AzureOpenAIChatClientFactory>? liveSetup = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -72,8 +80,13 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 
         _chatClientFactory = chatClientFactory;
         _logger = logger;
-        _healthCheck = healthCheckOptions is null ? null : new AzureOpenAIProviderHealthCheck(name, healthCheckOptions, logger);
-        _configurationDiagnostic = healthCheckOptions is null
+        _live = liveSetup;
+        _healthCheck = healthCheckOptions is null
+            ? null
+            : liveSetup is null
+                ? new AzureOpenAIProviderHealthCheck(name, healthCheckOptions, logger)
+                : new AzureOpenAIProviderHealthCheck(name, healthCheckOptions, () => HealthOptionsOf(liveSetup, healthCheckOptions), logger);
+        _configurationDiagnostic = healthCheckOptions is null || liveSetup is not null
             ? null
             : ModelProviderCore.ConfigurationDiagnosticFor(
                 AzureOpenAIProviderOptions.SectionName,
@@ -94,7 +107,36 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
     /// The key the provider's client was built with, trimmed as it is sent. Empty when the provider was built from a
     /// ready-made client (no key is known). Empty when the provider was set up with a credential factory: a managed credential is not a key.
     /// </remarks>
-    public IReadOnlyList<string> SetupApiKeys => _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+    public IReadOnlyList<string> SetupApiKeys
+        => _live is not null
+            ? _baseOptions?.CredentialFactory is not null ? [] : _live.Source.RecentKeys
+            : _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+
+    /// <inheritdoc />
+    bool ILiveSetupModelProvider.SetupKeysChange => _live is not null && _baseOptions?.CredentialFactory is null;
+
+    // The options of one health check: the key and the address of the current snapshot, the rest as set up.
+    private static AzureOpenAIProviderOptions HealthOptionsOf(
+        LiveSetup<AzureOpenAIChatClientFactory> live,
+        AzureOpenAIProviderOptions options)
+    {
+        var snapshot = live.Snapshot();
+
+        return new AzureOpenAIProviderOptions
+        {
+            Endpoint = Uri.TryCreate(snapshot.Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null,
+            ApiKey = options.CredentialFactory is null ? snapshot.ApiKey : null,
+            CredentialFactory = options.CredentialFactory,
+            Audience = options.Audience,
+            Timeout = options.Timeout,
+        };
+    }
+
+    // The address the setup key is sent to now: the one a configuration key names, or the one the host started with.
+    private Uri? SetupEndpoint()
+        => _live is null
+            ? _baseOptions?.Endpoint
+            : Uri.TryCreate(_live.Snapshot().Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null;
 
     /// <inheritdoc />
     /// <remarks>
@@ -157,6 +199,17 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
             LogUnknownDeployment(binding.Model);
         }
 
+        if (credential is null && _live is { } live)
+        {
+            // One client is built now, so that a setting the provider refuses stops the compile of the agent and not its
+            // first call. The cache keeps it: the first call gets the same one.
+            _ = SetupChatClient(live, binding);
+
+            // The client is picked when the call starts: an agent, a fallback link, a judge or a summarizer holds this one
+            // and follows a rotation without being built again.
+            return new LiveSetupChatClient(() => SetupChatClient(live, binding));
+        }
+
         return credential is null
             ? _chatClientFactory.CreateChatClient(binding)
             : _core.GetTenantChatClient(
@@ -165,6 +218,9 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
                 BuildCredentialFactory,
                 static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding));
     }
+
+    private static IChatClient SetupChatClient(LiveSetup<AzureOpenAIChatClientFactory> live, ModelBinding binding)
+        => live.ChatClient(live.Snapshot(), binding, static (factory, liveBinding) => factory.CreateChatClient(liveBinding));
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
     /// <remarks>
@@ -187,7 +243,7 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 
         var overrideEndpoint = ModelProviderCore.TenantEndpoint(credential);
 
-        options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
+        options.Endpoint = overrideEndpoint ?? SetupEndpoint();
 
         var client = AzureOpenAIChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint), timeProvider: _core.Clock);
 
@@ -200,7 +256,15 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
             ?? ValueTask.FromResult(ModelProviderCore.UnknownHealth(Name));
 
     /// <inheritdoc />
-    public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
+    public ConfigurationDiagnostic? GetConfigurationDiagnostic()
+        => _live is { } live
+            ? ModelProviderCore.ConfigurationDiagnosticFor(
+                AzureOpenAIProviderOptions.SectionName,
+                resolved: _baseOptions?.CredentialFactory is not null
+                    || !string.Equals(live.Snapshot().ApiKey, SetupCredentialSource.KeylessPlaceholder, StringComparison.Ordinal),
+                alternative: $"assign {nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.CredentialFactory)}",
+                keyName: _baseOptions?.ApiKeyConfigurationName)
+            : _configurationDiagnostic;
 
     private void LogUnknownDeployment(string deployment)
     {

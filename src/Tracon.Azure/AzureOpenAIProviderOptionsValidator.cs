@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -17,7 +18,7 @@ namespace Tracon;
 /// exception.
 /// </para>
 /// </remarks>
-internal sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<AzureOpenAIProviderOptions>
+internal sealed class AzureOpenAIProviderOptionsValidator(IConfiguration? configuration = null) : IValidateOptions<AzureOpenAIProviderOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AzureOpenAIProviderOptions options)
@@ -26,7 +27,27 @@ internal sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azu
 
         List<string>? failures = null;
 
-        if (options.Endpoint is null)
+        // A key or an address the host names a configuration key for is read when a call is made; the host still has to
+        // start with one, so a missing value stops it here as it does for a literal.
+        var nameGivesKey = SetupConfigurationName.GivesUsableKey(
+            configuration,
+            options.ApiKeyConfigurationName,
+            AzureOpenAIChatClientFactory.ApiKeyOptionName);
+        var nameGivesEndpoint = SetupConfigurationName.GivesEndpoint(configuration, options.EndpointConfigurationName);
+
+        OptionText.AddWhenOnlyWhiteSpace(options.ApiKeyConfigurationName, nameof(AzureOpenAIProviderOptions), nameof(AzureOpenAIProviderOptions.ApiKeyConfigurationName), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.EndpointConfigurationName, nameof(AzureOpenAIProviderOptions), nameof(AzureOpenAIProviderOptions.EndpointConfigurationName), ref failures);
+
+        // A credential factory wins over a key, so a name for the key would be read by nothing. Refused, not ignored.
+        if (options.CredentialFactory is not null && !string.IsNullOrWhiteSpace(options.ApiKeyConfigurationName))
+        {
+            (failures ??= []).Add(
+                $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.ApiKeyConfigurationName)} cannot be used with " +
+                $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.CredentialFactory)}: a credential factory " +
+                "wins over a key, so the name would never be read. Remove one of the two.");
+        }
+
+        if (options.Endpoint is null && !nameGivesEndpoint)
         {
             (failures ??= []).Add(
                 $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Endpoint)} cannot be empty. " +
@@ -34,7 +55,7 @@ internal sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azu
                 $"Give the '{AzureOpenAIProviderOptions.SectionName}:{nameof(AzureOpenAIProviderOptions.Endpoint)}' " +
                 "option in the form 'https://<resource-name>.openai.azure.com/'.");
         }
-        else if (!options.Endpoint.IsAbsoluteUri)
+        else if (options.Endpoint is { IsAbsoluteUri: false })
         {
             // The address value itself is NOT written into the message: an
             // organization's resource name exposes a topology, and validation
@@ -44,7 +65,7 @@ internal sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azu
                 "must be an absolute address.");
         }
 
-        if (string.IsNullOrWhiteSpace(options.ApiKey) && options.CredentialFactory is null)
+        if (string.IsNullOrWhiteSpace(options.ApiKey) && options.CredentialFactory is null && !nameGivesKey)
         {
             (failures ??= []).Add(
                 $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.ApiKey)} or " +
