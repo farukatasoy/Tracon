@@ -6236,7 +6236,7 @@ owner that outlives the process: the job. With `ResumeInterruptedRuns` on, the j
 continues an interrupted run when it is leased again:
 
 ```csharp
-builder.Services.AddTracon()
+builder.AddTracon()
     .UsePostgreSql(connectionString)
     .UseWorkflows(options =>
     {
@@ -7426,7 +7426,7 @@ key without the scope, another tenant's resource) carry an `application/problem+
 so by default one API speaks two shapes. One call makes them the same:
 
 ```csharp
-builder.Services.AddTracon()
+builder.AddTracon()
     .UseProblemDetailsOnDenial();
 ```
 
@@ -9891,7 +9891,9 @@ failure at run time, start with [Troubleshooting](/troubleshooting/).
 
 ## The build reports a TRC diagnostic
 
-`Tracon.Core` ships an analyzer with two families.
+`Tracon.Core` ships an analyzer with two families, named by their category: `Tracon.Tools`
+and `Tracon.Usage`. The diagram after the table sorts them into six groups by what they
+report.
 
 | Ids | Category | What it reports |
 |---|---|---|
@@ -9910,8 +9912,8 @@ section of the [capability map](/capabilities/) that documents it.
 
 ```mermaid
 flowchart LR
-    accTitle: The families of TRC diagnostics the build can report
-    accDescr: The build runs Tracon's analyzer. It reports six families. TRC0001 to TRC0012 mean a method marked as a tool cannot be generated. TRC0101 and TRC0102 mean a registration is never made. TRC0201 means a definition carries a literal secret. TRC0301 and TRC0302 mean hand-written code duplicates a shipped behaviour. TRC0401 to TRC0403 mean the agent map or the gate skill is stale or unreachable. TRC0501 and TRC0502 mean ambient state is lost or never restored. Each family has its own section below.
+    accTitle: The groups of TRC diagnostics the build can report
+    accDescr: The build runs Tracon's analyzer. It reports six groups in two families. TRC0001 to TRC0012 mean a method marked as a tool cannot be generated. TRC0101 and TRC0102 mean a registration is never made. TRC0201 means a definition carries a literal secret. TRC0301 and TRC0302 mean hand-written code duplicates a shipped behaviour. TRC0401 to TRC0403 mean the agent map or the gate skill is stale or unreachable. TRC0501 and TRC0502 mean ambient state is lost or never restored. Each group has its own section below.
     B[dotnet build] --> A[Tracon analyzer]
     A --> T["TRC0001–TRC0012<br/>a tool method cannot be generated"]
     A --> R["TRC0101, TRC0102<br/>a registration is never made"]
@@ -10893,7 +10895,7 @@ flowchart LR
 
 ### `AGENTS.md` — the capability map
 
-Written once to your **repository root**, about 10 KB, and read by most coding agents
+Written once to your **repository root**, at most 11 KiB, and read by most coding agents
 at the start of a session. It names every registration entry point, the package it
 lives in, and the rule each capability group obeys.
 
@@ -10956,10 +10958,10 @@ The same capability map, plus one line per documentation page, plus the full tex
 every page — three sizes for three questions, published on the documentation site:
 
 - [`llms.txt`](/llms.txt) — the capability map, then **which page answers
-  what**: one line per hand-written page, with its title, address, and subject. About
-  24 KB.
+  what**: one line per hand-written page, with its title, address, and subject. At
+  most 28 KiB; the build refuses a larger file.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 2046 KB.
+  page concatenated, about 2200 KB. The capability map states the same figure.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
@@ -11097,8 +11099,8 @@ agent reliably reads.
 | `TRC0501` | A loop in an async iterator advances the enumeration without repeating an ambient write | An assignment in an async iterator body does not cross `yield return`; repeat it inside the loop, right before the call that advances it |
 | `TRC0502` | The scope an ambient `Begin…` call returns is discarded | The previous value is never restored; assign the result to a `using var` |
 
-A separate family, `TRC0001`–`TRC0008`, validates tool registration itself and comes
-from the source generator. Both families carry a help link into the
+A separate family, `Tracon.Tools` (`TRC0001`–`TRC0012`), validates tool registration
+itself and comes from the source generator. Both families carry a help link into the
 [capability map](/capabilities/).
 
 ### Turning them off
@@ -11833,7 +11835,7 @@ recorded:
 public sealed class SupportTicket
 {
     public Guid Id { get; set; }
-    public required string RunId { get; set; }   // reference, not a copy
+    public required Guid RunId { get; set; }     // reference, not a copy
     // ... your own domain fields
 }
 ```
@@ -11961,6 +11963,21 @@ var tracon = builder.AddTracon()
 The order above — bindings first, `AddTracon()` second — is the only order that
 works. `AddTracon()` calls `TryAdd*` for all six; called first, it claims every
 slot and your registrations that follow do nothing.
+
+### A host that gives you only `IServiceCollection`
+
+Some module systems hand each module an `IServiceCollection` and no host builder.
+Call the `IServiceCollection` overload there, and pass it the `Tracon` section
+itself, not the configuration root:
+
+```csharp
+services.AddTracon(configuration.GetSection(TraconOptions.SectionName));
+```
+
+`builder.AddTracon()` passes that section for you. `services.AddTracon()` with no
+argument reads **no** configuration: every `Tracon:*` setting in `appsettings.json`
+or the environment is ignored, and each option keeps its default until code changes
+it. The provider and store calls that follow take their own sections, as above.
 
 ### 1 — Tenant resolution
 
@@ -12285,6 +12302,38 @@ resolved for the run record, not a new concept — just a second place to read i
 from. `AgentRunScope` also carries `RootRunId` (the top of an
 agent-calls-agent tree) and `Budget` (the shared token/depth/count ceiling for that
 tree).
+
+### Your own tenant scope does not follow a queued run
+
+A queued or scheduled run starts on Tracon's job worker, with no request. The worker
+opens `AmbientTenantScope` for the job's tenant, so `TraconRunContext.Current.TenantId`
+is that tenant. Your application's own ambient tenant does not change: a framework
+service that a request middleware sets still holds what the worker has, which is no
+tenant. A tool that reads your own tenant-filtered data opens your framework's scope
+from the run's tenant, in its own body, around that read. Below, the two delegates stand
+for your framework's scope call and your own query:
+
+```csharp
+public sealed class OpenOrderCount(
+    Func<string?, IDisposable> beginYourTenantScope,
+    Func<CancellationToken, Task<int>> countOpenOrders)
+{
+    public async Task<int> CountAsync(CancellationToken cancellationToken)
+    {
+        var scope = TraconRunContext.Current
+            ?? throw new InvalidOperationException("The tool ran outside a run.");
+
+        using (beginYourTenantScope(scope.TenantId))
+        {
+            return await countOpenOrders(cancellationToken);
+        }
+    }
+}
+```
+
+The same code is correct on a run that a request starts, where both values already
+agree. The tool takes both when it is built, not at call time (see
+[A tool that takes a dependency](/guides/from-maf-hosting/#a-tool-that-takes-a-dependency)).
 
 ## Two data planes, one connection pool or two
 
@@ -13055,6 +13104,15 @@ equivalent is a model provider: `UseOpenAI`, one of the other provider packages,
 `AddModelProvider` for your own. The provider builds the client from a model binding, which
 is a provider name and a model name. The tenant's key and the egress policy apply to that
 path, and a client you register in the container does not use it.
+
+To keep a client you already build, return it from your own provider: implement
+`IModelProvider` and register it with `AddModelProvider`, as
+[Write your own model provider](/guides/write-your-own-provider/) shows. The egress
+policy then applies to it by the provider's `Name`. A tenant's own key reaches it only
+if it also implements `ITenantCredentialModelProvider`; without that, a run of a tenant
+that has its own key for the provider fails instead of falling back to yours. Return the client without
+`UseFunctionInvocation()`. Tracon adds the tool-call loop above the content guard, and
+a second loop inside your client would run the tool results beneath the guard.
 
 ## A tool that takes a dependency
 
@@ -23553,6 +23611,10 @@ assume.
 
 ## Releases
 
+These numbers have no entry: `1.0.0-preview.7`, `1.0.0-preview.9`. The tag was pushed, its release run failed before any
+package was published, and a public tag is never moved, so the release went out under the next
+number. Nothing was ever published under a missing number, so there is nothing withdrawn to avoid.
+
 <a id="v1.0.0-preview.12"></a>
 
 ### 1.0.0-preview.12 — 2026-11-15
@@ -23610,7 +23672,7 @@ source in several places: read Upgrading from 1.0.0-preview.5 first.
 
 <a id="v1.0.0-preview.5"></a>
 
-### 1.0.0-preview.5 — 2026-10-17
+### 1.0.0-preview.5 — 2026-10-27
 
 The public API gets smaller before it freezes, and every dependency moves to its
 newest line. Twelve interfaces, 23 types that only they used, 81 HTTP request and
@@ -23622,6 +23684,10 @@ Microsoft Agent Framework `1.25.0` and Microsoft.Extensions.AI `10.11.0`.
 adaptive thinking, and a configuration value Tracon cannot read now stops startup. The
 release adds one migration to each SQL provider and breaks source in several places:
 read Upgrading from 1.0.0-preview.4 first.
+
+The release was cut on 2026-10-17. Its release run failed on that day and was run again on
+2026-10-27, so the packages reached NuGet the same day as 1.0.0-preview.6. The content is the
+2026-10-17 cut; the date above is the day it was published.
 
 [Read the 1.0.0-preview.5 entry](/reference/releases/1.0.0-preview.5/)
 
@@ -28781,7 +28847,7 @@ each SQL provider: read Upgrading from 1.0.0-preview.3 first.
 
 Source: https://tracon.dev/reference/releases/1.0.0-preview.5/
 
-Released on 2026-10-17. This entry covers every NuGet package of the family and the npm client
+Released on 2026-10-27. This entry covers every NuGet package of the family and the npm client
 at version 1.0.0-preview.5. [Release notes](/reference/changelog/) lists every version.
 
 The public API gets smaller before it freezes, and every dependency moves to its
@@ -28794,6 +28860,10 @@ Microsoft Agent Framework `1.25.0` and Microsoft.Extensions.AI `10.11.0`.
 adaptive thinking, and a configuration value Tracon cannot read now stops startup. The
 release adds one migration to each SQL provider and breaks source in several places:
 read Upgrading from 1.0.0-preview.4 first.
+
+The release was cut on 2026-10-17. Its release run failed on that day and was run again on
+2026-10-27, so the packages reached NuGet the same day as 1.0.0-preview.6. The content is the
+2026-10-17 cut; the date above is the day it was published.
 
 ## Upgrading from 1.0.0-preview.4
 

@@ -131,7 +131,7 @@ key without the scope, another tenant's resource) carry an `application/problem+
 so by default one API speaks two shapes. One call makes them the same:
 
 ```csharp
-builder.Services.AddTracon()
+builder.AddTracon()
     .UseProblemDetailsOnDenial();
 ```
 

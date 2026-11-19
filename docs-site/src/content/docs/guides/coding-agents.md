@@ -68,7 +68,7 @@ flowchart LR
 
 ### `AGENTS.md` — the capability map
 
-Written once to your **repository root**, about 10 KB, and read by most coding agents
+Written once to your **repository root**, at most 11 KiB, and read by most coding agents
 at the start of a session. It names every registration entry point, the package it
 lives in, and the rule each capability group obeys.
 
@@ -131,10 +131,10 @@ The same capability map, plus one line per documentation page, plus the full tex
 every page — three sizes for three questions, published on the documentation site:
 
 - [`llms.txt`](/llms.txt) — the capability map, then **which page answers
-  what**: one line per hand-written page, with its title, address, and subject. About
-  24 KB.
+  what**: one line per hand-written page, with its title, address, and subject. At
+  most 28 KiB; the build refuses a larger file.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 2046 KB.
+  page concatenated, about 2200 KB. The capability map states the same figure.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
@@ -272,8 +272,8 @@ agent reliably reads.
 | `TRC0501` | A loop in an async iterator advances the enumeration without repeating an ambient write | An assignment in an async iterator body does not cross `yield return`; repeat it inside the loop, right before the call that advances it |
 | `TRC0502` | The scope an ambient `Begin…` call returns is discarded | The previous value is never restored; assign the result to a `using var` |
 
-A separate family, `TRC0001`–`TRC0008`, validates tool registration itself and comes
-from the source generator. Both families carry a help link into the
+A separate family, `Tracon.Tools` (`TRC0001`–`TRC0012`), validates tool registration
+itself and comes from the source generator. Both families carry a help link into the
 [capability map](/capabilities/).
 
 ### Turning them off

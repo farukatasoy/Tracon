@@ -343,7 +343,7 @@ function renderMap({ lead, sections }, packages, fullTextKilobytes) {
   lines.push('## Wiring');
   lines.push('');
   lines.push('```csharp');
-  lines.push('builder.Services.AddTracon();  // required: catalog, runs, in-memory stores');
+  lines.push('builder.AddTracon();           // required: catalog, runs, in-memory stores');
   lines.push('app.MapTracon();               // optional: management HTTP API and console');
   lines.push('```');
   lines.push('');

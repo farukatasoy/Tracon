@@ -241,6 +241,60 @@ ${next}- [Release notes](/reference/changelog/) — every published version, new
 `;
 }
 
+/**
+ * The prerelease numbers that have no entry between the first and last one of their line.
+ *
+ * A number goes missing in one way only: its tag was pushed, the release run failed before any
+ * package was published, and a public tag is never moved, so the fix is cut under the next number
+ * and the changelog heading moves with it. A consumer who pins versions reads a gap as a withdrawn
+ * package unless the page says otherwise, so the gaps are computed here rather than typed: a
+ * sentence written by hand would miss the next one.
+ */
+function missingNumbers(releases) {
+  const lines = new Map();
+
+  for (const { version } of releases) {
+    const match = /^(?<line>.+-[0-9A-Za-z-]+)\.(?<number>\d+)$/.exec(version);
+
+    if (match) {
+      const numbers = lines.get(match.groups.line) ?? new Set();
+      numbers.add(Number(match.groups.number));
+      lines.set(match.groups.line, numbers);
+    }
+  }
+
+  const missing = [];
+
+  for (const [line, numbers] of lines) {
+    const highest = Math.max(...numbers);
+
+    for (let number = Math.min(...numbers) + 1; number < highest; number++) {
+      if (!numbers.has(number)) {
+        missing.push(`${line}.${number}`);
+      }
+    }
+  }
+
+  return missing;
+}
+
+function renderMissingNumbers(releases) {
+  const missing = missingNumbers(releases);
+
+  if (missing.length === 0) {
+    return '';
+  }
+
+  const list = missing.map((version) => `\`${version}\``).join(', ');
+  const subject = missing.length === 1 ? 'This number has' : 'These numbers have';
+
+  return `${subject} no entry: ${list}. The tag was pushed, its release run failed before any
+package was published, and a public tag is never moved, so the release went out under the next
+number. Nothing was ever published under a missing number, so there is nothing withdrawn to avoid.
+
+`;
+}
+
 function renderIndex(releases) {
   const entries = releases
     .map(
@@ -268,7 +322,7 @@ assume.
 
 ## Releases
 
-${entries}
+${renderMissingNumbers(releases)}${entries}
 ## Read next
 
 - [Versions and upgrades](/reference/versioning/) — how to pin the family and upgrade it without drift

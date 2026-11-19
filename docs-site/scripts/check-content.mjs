@@ -24,7 +24,13 @@ import { checkVerifiedPlatforms } from './check-verified-platforms.mjs';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build as buildAgentMap, outputs as agentMapOutputs, releasePagesSlug, verifyBudget } from './build-agent-map.mjs';
+import {
+  budgets as agentMapBudgets,
+  build as buildAgentMap,
+  outputs as agentMapOutputs,
+  releasePagesSlug,
+  verifyBudget,
+} from './build-agent-map.mjs';
 import { formerHosts, repositoryIsPublic, repositoryUrl, site, siteUrl } from '../site.config.mjs';
 import { portableRelative as relative } from './path-utils.mjs';
 import { sidebar, sectionImages } from '../src/sidebar.mjs';
@@ -941,6 +947,42 @@ for (const id of [...listedUsageDiagnostics].filter((id) => !usageDiagnosticIds.
   errors.push(`guides/coding-agents.md: the diagnostics table lists ${id}, which UsageDiagnostics.cs does not define`);
 }
 
+// The Tracon.Tools diagnostics are quoted as a range, never as a table, so the
+// range's upper end is the number that drifts: a consumer read `TRC0001`–`TRC0008`
+// on the coding-agents guide while the build-diagnostics guide, and the
+// generator, had reached TRC0012. Every range that starts at TRC0001, on every
+// hand-written page, ends at the highest id ToolDiagnostics.cs defines, read
+// the same way the Tracon.Usage table above reads UsageDiagnostics.cs.
+const toolDiagnosticIds = [
+  ...readFileSync(join(sourceRoot, 'Tracon.Generators/ToolDiagnostics.cs'), 'utf8').matchAll(
+    /new\(\s*"(TRC\d{4})"/g,
+  ),
+]
+  .map(([, id]) => id)
+  .sort();
+
+if (toolDiagnosticIds.length === 0) {
+  errors.push(
+    'No diagnostic ids found in ToolDiagnostics.cs; refusing to validate zero ids. ' +
+      'Check the `new("TRCnnnn", ...)` shape the collector above matches.',
+  );
+} else {
+  const lastToolDiagnostic = toolDiagnosticIds.at(-1);
+
+  for (const file of manualContent) {
+    const text = readFileSync(file, 'utf8');
+
+    for (const [, end] of text.matchAll(/`?TRC0001`?\s*(?:–|-|to)\s*`?(TRC\d{4})/g)) {
+      if (end !== lastToolDiagnostic) {
+        errors.push(
+          `${relative(docsRoot, file)}: quotes the Tracon.Tools range as TRC0001–${end}, ` +
+            `but ToolDiagnostics.cs defines ids up to ${lastToolDiagnostic}`,
+        );
+      }
+    }
+  }
+}
+
 const diagnostics = readFileSync(
   join(sourceRoot, 'Tracon.Core/Diagnostics/TraconDiagnostics.cs'),
   'utf8',
@@ -1674,33 +1716,50 @@ if (repositoryIsPublic) {
 // still said "about 400 KB" for a file that had reached 713 KB, and "under
 // 10 KB" for a map of 10.3 KB. A reader sizes a context window with these, so
 // the rule is the one this file already applies to counts - state it accurately
-// or leave it out. The band is wide because the prose says "about": it catches
-// a number that has drifted, not one that rounded.
+// or leave it out.
+//
+// A 15% band around "about N KB" was not accurate enough: a consumer read
+// "about 24 KB" for a 27.9 KB index (14% off, inside the band) and "about
+// 2046 KB" on the page while llms.txt itself said "about 2200 KB" for the same
+// file. So neither figure is an estimate any more. The two budgeted files are
+// stated by their budget, which the generator enforces and which only moves when
+// a maintainer raises it; the full text is stated by the one rounded figure the
+// generator prints into the map, so the page and the map cannot disagree.
 // ---------------------------------------------------------------------------
-const sizeTolerance = 0.15;
+const fullTextFigure = /\(about (\d+) KB; prefer one page\)/.exec(agentMap.agentMap)?.[1];
+
+if (!fullTextFigure) {
+  errors.push(
+    'build-agent-map.mjs no longer prints the size of llms-full.txt in the map; ' +
+      'restore the line, or drop the full-text entry from quotedSizes in this gate.',
+  );
+}
 
 const quotedSizes = [
   {
     page: 'guides/coding-agents.md',
-    path: join(repositoryRoot, 'src', 'Tracon.Core', 'buildTransitive', 'Tracon.AgentMap.md'),
-    pattern: /repository root\*\*, about (\d+(?:\.\d+)?) KB/,
+    pattern: /repository root\*\*, at most (\d+) KiB/,
     label: 'the capability map',
+    expected: agentMapBudgets.agentMap / 1024,
+    source: 'agentMapBudgetBytes in build-agent-map.mjs',
   },
   {
     page: 'guides/coding-agents.md',
-    path: join(siteRoot, 'public', 'llms.txt'),
-    pattern: /title, address, and subject\. About (\d+(?:\.\d+)?) KB/,
+    pattern: /title, address, and subject\. At most (\d+) KiB/,
     label: 'llms.txt',
+    expected: agentMapBudgets.llms / 1024,
+    source: 'llmsBudgetBytes in build-agent-map.mjs',
   },
   {
     page: 'guides/coding-agents.md',
-    path: join(siteRoot, 'public', 'llms-full.txt'),
-    pattern: /page concatenated, about (\d+(?:\.\d+)?) KB/,
+    pattern: /page concatenated, about (\d+) KB/,
     label: 'llms-full.txt',
+    expected: Number(fullTextFigure),
+    source: 'the figure the capability map prints',
   },
 ];
 
-for (const { page, path, pattern, label } of quotedSizes) {
+for (const { page, pattern, label, expected, source } of quotedSizes) {
   // Line breaks are not meaningful to a prose claim, the same way they are not
   // to the counted claims above.
   const text = readFileSync(join(docsRoot, page), 'utf8').replace(/\s+/g, ' ');
@@ -1714,13 +1773,9 @@ for (const { page, path, pattern, label } of quotedSizes) {
     continue;
   }
 
-  const actual = statSync(path).size / 1000;
-  const claimed = Number(match[1]);
-
-  if (Math.abs(actual - claimed) / actual > sizeTolerance) {
+  if (Number(match[1]) !== expected) {
     errors.push(
-      `${page}: says ${label} is about ${claimed} KB, but it is ${actual.toFixed(1)} KB. ` +
-        'Update the number, or drop it if the page does not need to size the file.',
+      `${page}: states ${match[1]} for the size of ${label}, but ${source} is ${expected}. Update the number.`,
     );
   }
 }

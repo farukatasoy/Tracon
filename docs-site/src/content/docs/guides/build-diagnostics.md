@@ -10,7 +10,9 @@ failure at run time, start with [Troubleshooting](/troubleshooting/).
 
 ## The build reports a TRC diagnostic
 
-`Tracon.Core` ships an analyzer with two families.
+`Tracon.Core` ships an analyzer with two families, named by their category: `Tracon.Tools`
+and `Tracon.Usage`. The diagram after the table sorts them into six groups by what they
+report.
 
 | Ids | Category | What it reports |
 |---|---|---|
@@ -29,8 +31,8 @@ section of the [capability map](/capabilities/) that documents it.
 
 ```mermaid
 flowchart LR
-    accTitle: The families of TRC diagnostics the build can report
-    accDescr: The build runs Tracon's analyzer. It reports six families. TRC0001 to TRC0012 mean a method marked as a tool cannot be generated. TRC0101 and TRC0102 mean a registration is never made. TRC0201 means a definition carries a literal secret. TRC0301 and TRC0302 mean hand-written code duplicates a shipped behaviour. TRC0401 to TRC0403 mean the agent map or the gate skill is stale or unreachable. TRC0501 and TRC0502 mean ambient state is lost or never restored. Each family has its own section below.
+    accTitle: The groups of TRC diagnostics the build can report
+    accDescr: The build runs Tracon's analyzer. It reports six groups in two families. TRC0001 to TRC0012 mean a method marked as a tool cannot be generated. TRC0101 and TRC0102 mean a registration is never made. TRC0201 means a definition carries a literal secret. TRC0301 and TRC0302 mean hand-written code duplicates a shipped behaviour. TRC0401 to TRC0403 mean the agent map or the gate skill is stale or unreachable. TRC0501 and TRC0502 mean ambient state is lost or never restored. Each group has its own section below.
     B[dotnet build] --> A[Tracon analyzer]
     A --> T["TRC0001–TRC0012<br/>a tool method cannot be generated"]
     A --> R["TRC0101, TRC0102<br/>a registration is never made"]

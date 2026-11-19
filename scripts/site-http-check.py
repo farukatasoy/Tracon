@@ -25,10 +25,12 @@ checks = [('/', 200, 'text/html'), ('/getting-started/', 200, 'text/html'),
           ('/getting-started/index.html', 200, 'text/html'),
           ('/seo-audit-missing-page/', 404, None), ('/404/', 404, None),
           ('/404.html', 404, None), ('/robots.txt', 200, 'text/plain'),
-          ('/sitemap-index.xml', 200, 'text/xml'),
+          ('/sitemap-index.xml', 200, 'text/xml'), ('/sitemap.xml', 301, None),
           ('/llms.txt', 200, 'text/plain; charset=utf-8'),
           ('/capabilities/index.md', 200, 'text/markdown; charset=utf-8'),
           ('/api/tracon.agentdefinition/index.md', 200, 'text/markdown; charset=utf-8')]
+# Where each 301 above must point. nginx answers with a relative Location (absolute_redirect off).
+redirects = {'/getting-started?ref=seo': '/getting-started/?ref=seo', '/sitemap.xml': '/sitemap-index.xml'}
 for path, expected, content_type in checks:
     for request_host in [host, 'preview.invalid']:
         connection = http.client.HTTPConnection(origin.hostname, origin.port, timeout=10)
@@ -37,7 +39,7 @@ for path, expected, content_type in checks:
         body = response.read().decode()
         if response.status != expected:
             errors.append(f'{path}: {response.status} != {expected}')
-        if expected == 301 and response.getheader('Location') != '/getting-started/?ref=seo':
+        if expected == 301 and response.getheader('Location') != redirects[path]:
             errors.append(f'{path}: wrong redirect {response.getheader("Location")}')
         if (response.getheader('X-Robots-Tag') == 'noindex') != (request_host != host):
             errors.append(f'{request_host}{path}: wrong X-Robots-Tag')

@@ -63,7 +63,7 @@ recorded:
 public sealed class SupportTicket
 {
     public Guid Id { get; set; }
-    public required string RunId { get; set; }   // reference, not a copy
+    public required Guid RunId { get; set; }     // reference, not a copy
     // ... your own domain fields
 }
 ```

@@ -124,6 +124,15 @@ equivalent is a model provider: `UseOpenAI`, one of the other provider packages,
 is a provider name and a model name. The tenant's key and the egress policy apply to that
 path, and a client you register in the container does not use it.
 
+To keep a client you already build, return it from your own provider: implement
+`IModelProvider` and register it with `AddModelProvider`, as
+[Write your own model provider](/guides/write-your-own-provider/) shows. The egress
+policy then applies to it by the provider's `Name`. A tenant's own key reaches it only
+if it also implements `ITenantCredentialModelProvider`; without that, a run of a tenant
+that has its own key for the provider fails instead of falling back to yours. Return the client without
+`UseFunctionInvocation()`. Tracon adds the tool-call loop above the content guard, and
+a second loop inside your client would run the tool results beneath the guard.
+
 ## A tool that takes a dependency
 
 `WithAITool(sp => tool)` and `AddTool(sp => tool)` are the same idea. The factory gets the host's

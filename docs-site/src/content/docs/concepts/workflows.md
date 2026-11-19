@@ -503,7 +503,7 @@ owner that outlives the process: the job. With `ResumeInterruptedRuns` on, the j
 continues an interrupted run when it is leased again:
 
 ```csharp
-builder.Services.AddTracon()
+builder.AddTracon()
     .UsePostgreSql(connectionString)
     .UseWorkflows(options =>
     {

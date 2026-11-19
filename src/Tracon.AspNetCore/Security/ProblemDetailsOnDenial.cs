@@ -51,7 +51,7 @@ public static class TraconProblemDetailsOnDenialBuilderExtensions
     /// </para>
     /// <example>
     /// <code>
-    /// builder.Services.AddTracon()
+    /// builder.AddTracon()
     ///     .UseProblemDetailsOnDenial();
     /// </code>
     /// </example>

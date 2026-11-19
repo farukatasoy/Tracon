@@ -2894,7 +2894,7 @@ source in several places: read Upgrading from 1.0.0-preview.5 first.
 - An image's `detail` and a file's name now reach the model on `/v1/responses` and on
   `POST /api/agents/{name}/run` attachments. The attachment reference dropped both.
 
-## [1.0.0-preview.5] - 2026-10-17
+## [1.0.0-preview.5] - 2026-10-27
 
 The public API gets smaller before it freezes, and every dependency moves to its
 newest line. Twelve interfaces, 23 types that only they used, 81 HTTP request and
@@ -2906,6 +2906,10 @@ Microsoft Agent Framework `1.25.0` and Microsoft.Extensions.AI `10.11.0`.
 adaptive thinking, and a configuration value Tracon cannot read now stops startup. The
 release adds one migration to each SQL provider and breaks source in several places:
 read Upgrading from 1.0.0-preview.4 first.
+
+The release was cut on 2026-10-17. Its release run failed on that day and was run again on
+2026-10-27, so the packages reached NuGet the same day as 1.0.0-preview.6. The content is the
+2026-10-17 cut; the date above is the day it was published.
 
 ### Upgrading from 1.0.0-preview.4
 

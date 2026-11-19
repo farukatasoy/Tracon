@@ -55,6 +55,21 @@ The order above — bindings first, `AddTracon()` second — is the only order t
 works. `AddTracon()` calls `TryAdd*` for all six; called first, it claims every
 slot and your registrations that follow do nothing.
 
+### A host that gives you only `IServiceCollection`
+
+Some module systems hand each module an `IServiceCollection` and no host builder.
+Call the `IServiceCollection` overload there, and pass it the `Tracon` section
+itself, not the configuration root:
+
+```csharp
+services.AddTracon(configuration.GetSection(TraconOptions.SectionName));
+```
+
+`builder.AddTracon()` passes that section for you. `services.AddTracon()` with no
+argument reads **no** configuration: every `Tracon:*` setting in `appsettings.json`
+or the environment is ignored, and each option keeps its default until code changes
+it. The provider and store calls that follow take their own sections, as above.
+
 ### 1 — Tenant resolution
 
 ```csharp
@@ -378,6 +393,38 @@ resolved for the run record, not a new concept — just a second place to read i
 from. `AgentRunScope` also carries `RootRunId` (the top of an
 agent-calls-agent tree) and `Budget` (the shared token/depth/count ceiling for that
 tree).
+
+### Your own tenant scope does not follow a queued run
+
+A queued or scheduled run starts on Tracon's job worker, with no request. The worker
+opens `AmbientTenantScope` for the job's tenant, so `TraconRunContext.Current.TenantId`
+is that tenant. Your application's own ambient tenant does not change: a framework
+service that a request middleware sets still holds what the worker has, which is no
+tenant. A tool that reads your own tenant-filtered data opens your framework's scope
+from the run's tenant, in its own body, around that read. Below, the two delegates stand
+for your framework's scope call and your own query:
+
+```csharp
+public sealed class OpenOrderCount(
+    Func<string?, IDisposable> beginYourTenantScope,
+    Func<CancellationToken, Task<int>> countOpenOrders)
+{
+    public async Task<int> CountAsync(CancellationToken cancellationToken)
+    {
+        var scope = TraconRunContext.Current
+            ?? throw new InvalidOperationException("The tool ran outside a run.");
+
+        using (beginYourTenantScope(scope.TenantId))
+        {
+            return await countOpenOrders(cancellationToken);
+        }
+    }
+}
+```
+
+The same code is correct on a run that a request starts, where both values already
+agree. The tool takes both when it is built, not at call time (see
+[A tool that takes a dependency](/guides/from-maf-hosting/#a-tool-that-takes-a-dependency)).
 
 ## Two data planes, one connection pool or two
 

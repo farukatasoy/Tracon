@@ -42,10 +42,20 @@ public static partial class TraconServiceCollectionExtensions
 
     /// <summary>Adds Tracon to the service collection.</summary>
     /// <param name="services">Service collection.</param>
-    /// <param name="configurationSection">Configuration section settings are read from.</param>
+    /// <param name="configurationSection">
+    /// The <c>Tracon</c> section itself, usually
+    /// <c>configuration.GetSection(TraconOptions.SectionName)</c>, not the configuration root.
+    /// <see langword="null"/> reads no configuration: every <c>Tracon:*</c> setting is ignored and
+    /// each option keeps its default until code changes it.
+    /// </param>
     /// <returns>The configuration chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
     /// <remarks>
+    /// <para>
+    /// Use this overload where only an <see cref="IServiceCollection"/> is in reach, such as a
+    /// module that is not given the host builder. <see cref="AddTracon(IHostApplicationBuilder)"/>
+    /// passes the <c>Tracon</c> section for you.
+    /// </para>
     /// <para>
     /// All services are registered with <c>TryAdd</c>. If you register your own
     /// implementation <em>before</em> this call, yours wins; Tracon does not overwrite it.
