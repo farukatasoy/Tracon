@@ -76,6 +76,9 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     /// <summary>The raw create bodies received.</summary>
     public List<string> CreateBodies { get; } = [];
 
+    /// <summary>Runs once the create call is read and before it answers: a test changes the world between create and attach here.</summary>
+    public Action? AfterCreateRead { get; set; }
+
     /// <summary>How many times a session was created.</summary>
     public int CreateCallCount { get; private set; }
 
@@ -104,6 +107,7 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
             server.CreateAuthorizationHeaders.Add(
                 context.Request.Headers.Authorization is { Count: > 0 } values ? values.ToString() : null);
             server.CreateBodies.Add(await new StreamReader(context.Request.Body).ReadToEndAsync());
+            server.AfterCreateRead?.Invoke();
 
             if (server.CreateStatusCode != StatusCodes.Status201Created)
             {

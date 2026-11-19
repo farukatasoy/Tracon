@@ -208,46 +208,149 @@ public sealed class LiveSetupKeyRotationTests
         server.ModelsAuthorizationHeaders.ShouldBe(["Bearer key-one", "Bearer key-two"]);
     }
 
-    [Fact]
-    public async Task A_failure_that_quotes_the_rotated_key_is_masked_and_so_is_the_one_it_replaced()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_two_openai_surfaces_keep_their_own_client_for_the_same_model(bool responsesFirst)
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
-        var configuration = Configuration((KeyName, "canary-old-key-1111aaaa"));
+        var configuration = Configuration((KeyName, "key-one"));
 
-        await using var host = await StartAsync(
-            configuration,
-            options =>
-            {
-                options.Endpoint = server.BaseAddress;
-                options.ApiKeyConfigurationName = KeyName;
-            });
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseOpenAI(options =>
+                {
+                    options.Endpoint = server.BaseAddress;
+                    options.ApiKeyConfigurationName = KeyName;
+                })
+                .AddAgent(Agent("chat-agent", OpenAIProviderNames.ChatCompletions))
+                .AddAgent(Agent("responses-agent", OpenAIProviderNames.Responses)),
+            configureServices: services => services.AddSingleton(configuration));
+
+        string[] order = responsesFirst ? ["responses-agent", "chat-agent"] : ["chat-agent", "responses-agent"];
+
+        foreach (var agent in order)
+        {
+            await RunAsync(host, agent);
+        }
+
+        // One setup serves both surfaces and the model name is the same. Each surface still builds its own chat client: the
+        // first one to compile must not hand its client to the other.
+        server.ChatCompletionBodies.Count.ShouldBe(1);
+        server.ResponsesBodies.Count.ShouldBe(1);
+
+        configuration[KeyName] = "key-two";
+
+        foreach (var agent in order)
+        {
+            await RunAsync(host, agent);
+        }
+
+        server.ChatCompletionBodies.Count.ShouldBe(2);
+        server.ResponsesBodies.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task A_tenant_with_its_own_key_and_no_address_follows_the_setup_address_and_keeps_its_own_key()
+    {
+        await using var first = await FakeOpenAiCompatibleServer.StartAsync();
+        await using var second = await FakeOpenAiCompatibleServer.StartAsync();
+        const string TenantKeyName = "Tracon:ProviderKeys:tenant-a:Key";
+        var configuration = Configuration(
+            (KeyName, "setup-key-one"),
+            (EndpointName, first.BaseAddress.ToString()),
+            (TenantKeyName, "tenant-key-one"));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseTenancy(static options =>
+                {
+                    options.Enabled = true;
+                    options.AllowHeaderResolution = true;
+                })
+                .UseOpenAI(options =>
+                {
+                    options.Endpoint = first.BaseAddress;
+                    options.ApiKeyConfigurationName = KeyName;
+                    options.EndpointConfigurationName = EndpointName;
+                })
+                .AddAgent(Agent(AgentName, OpenAIProviderNames.ChatCompletions)),
+            configureServices: services => services.AddSingleton(configuration));
+
+        // The tenant binds its own key and names no address: it goes where the host's setup goes.
+        using (var bind = new HttpRequestMessage(HttpMethod.Put, new Uri($"/tracon/api/tenants/tenant-a/providers/{OpenAIProviderNames.ChatCompletions}", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { apiKeyConfigurationName = TenantKeyName }),
+        })
+        {
+            bind.Headers.Add("X-Tracon-Tenant", "tenant-a");
+
+            using var response = await host.Client.SendAsync(bind, TestContext.Current.CancellationToken);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        await RunAsync(host, AgentName, tenant: "tenant-a");
+
+        // The operator moves the gateway. The tenant's key and binding are untouched, and the tenant follows.
+        configuration[EndpointName] = second.BaseAddress.ToString();
+        configuration[KeyName] = "setup-key-two";
+
+        await RunAsync(host, AgentName, tenant: "tenant-a");
+
+        first.ReceivedAuthorizationHeaders.ShouldBe(["Bearer tenant-key-one"]);
+        second.ReceivedAuthorizationHeaders.ShouldBe(["Bearer tenant-key-one"]);
+    }
+
+    [Fact]
+    public async Task A_fallback_link_an_agent_built_before_the_rotation_sends_the_current_key()
+    {
+        await using var unavailable = await FakeOpenAiCompatibleServer.StartAsync();
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        unavailable.ChatCompletionStatusCode = StatusCodes.Status503ServiceUnavailable;
+        var configuration = Configuration((KeyName, "key-one"));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseOpenAICompatible("primary", options => options.Endpoint = unavailable.BaseAddress)
+                .UseOpenAI(options =>
+                {
+                    options.Endpoint = server.BaseAddress;
+                    options.ApiKeyConfigurationName = KeyName;
+                })
+                .AddAgent(new AgentDefinition
+                {
+                    Name = AgentName,
+                    Instructions = "Answer briefly.",
+                    Model = new ModelBinding
+                    {
+                        Provider = "primary",
+                        Model = "fake-local-model",
+                        Fallbacks = [new ModelFallback { Provider = OpenAIProviderNames.ChatCompletions, Model = "fake-local-model" }],
+                    },
+                    Origin = AgentDefinitionOrigin.Code,
+                }),
+            configureServices: services => services.AddSingleton(configuration));
 
         await RunAsync(host);
 
-        configuration[KeyName] = "canary-new-key-2222bbbb";
+        configuration[KeyName] = "key-two";
 
-        // The service refuses the new key and says which key it refused.
-        server.ChatCompletionOverride = async (context, _) =>
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await context.Response.WriteAsync("Incorrect API key provided: canary-new-key-2222bbbb.", context.RequestAborted);
-        };
+        await RunAsync(host);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative))
-        {
-            Content = JsonContent.Create(new AgentRunRequest { Message = "hello", SessionId = Guid.NewGuid().ToString("N") }),
-        };
-        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
-
-        using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-
-        response.StatusCode.ShouldNotBe(HttpStatusCode.OK);
-        body.ShouldNotContain("canary-new-key-2222bbbb");
-        body.ShouldNotContain("canary-old-key-1111aaaa");
-        host.Logs.AllText.ShouldNotContain("canary-new-key-2222bbbb");
-        host.Logs.AllText.ShouldNotContain("canary-old-key-1111aaaa");
+        // The primary was refused both times, so the answer came from the fallback link, which the first run built and the
+        // second run held. It still sends the key that is current.
+        server.ReceivedAuthorizationHeaders.ShouldBe(["Bearer key-one", "Bearer key-two"]);
     }
+
+    private static AgentDefinition Agent(string name, string provider)
+        => new()
+        {
+            Name = name,
+            Instructions = "Answer briefly.",
+            Model = new ModelBinding { Provider = provider, Model = "fake-local-model" },
+            Origin = AgentDefinitionOrigin.Code,
+        };
 
     private static IConfiguration Configuration(params (string Name, string Value)[] values)
         => new ConfigurationBuilder()
@@ -267,15 +370,22 @@ public sealed class LiveSetupKeyRotationTests
                 }),
             configureServices: services => services.AddSingleton(configuration));
 
-    private static async Task RunAsync(TraconTestHost host)
+    private static Task RunAsync(TraconTestHost host) => RunAsync(host, AgentName);
+
+    private static async Task RunAsync(TraconTestHost host, string agentName, string? tenant = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative))
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{agentName}/run", UriKind.Relative))
         {
             Content = JsonContent.Create(new AgentRunRequest { Message = "hello", SessionId = Guid.NewGuid().ToString("N") }),
         };
 
         // The Idempotency-Key header selects the single JSON response.
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+
+        if (tenant is not null)
+        {
+            request.Headers.Add("X-Tracon-Tenant", tenant);
+        }
 
         using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
 

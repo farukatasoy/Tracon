@@ -24,7 +24,12 @@ internal sealed class LiveSetupChatClient(Func<IChatClient> current) : IChatClie
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
-        => await current().GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
+    {
+        // A call that is already cancelled reads no configuration and builds no client.
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await current().GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
@@ -32,6 +37,8 @@ internal sealed class LiveSetupChatClient(Func<IChatClient> current) : IChatClie
         ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         await foreach (var update in current().GetStreamingResponseAsync(messages, options, cancellationToken).ConfigureAwait(false))
         {
             yield return update;

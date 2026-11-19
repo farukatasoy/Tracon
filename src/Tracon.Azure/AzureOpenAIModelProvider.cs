@@ -132,6 +132,11 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
         };
     }
 
+    // What a tenant that names no address of its own is built from besides its key: the setup address, which moves with a
+    // configuration key. A moved address replaces the tenant's client, so a tenant is never left on the old gateway.
+    private string? TenantEnvironment(ModelProviderCredential credential)
+        => ModelProviderCore.TenantEnvironment(credential, SetupEndpoint(), setupAddressChanges: _live is not null);
+
     // The address the setup key is sent to now: the one a configuration key names, or the one the host started with.
     private Uri? SetupEndpoint()
         => _live is null
@@ -216,7 +221,8 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
                 credential,
                 binding,
                 BuildCredentialFactory,
-                static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding));
+                static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding),
+                TenantEnvironment(credential));
     }
 
     private static IChatClient SetupChatClient(LiveSetup<AzureOpenAIChatClientFactory> live, ModelBinding binding)

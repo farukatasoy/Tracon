@@ -192,11 +192,17 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, ILiv
                 credential,
                 binding,
                 BuildCredentialFactory,
-                static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding));
+                static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding),
+                TenantEnvironment(credential));
     }
 
     private static IChatClient SetupChatClient(LiveSetup<GoogleChatClientFactory> live, ModelBinding binding)
         => live.ChatClient(live.Snapshot(), binding, static (factory, liveBinding) => factory.CreateChatClient(liveBinding));
+
+    // What a tenant that names no address of its own is built from besides its key: the setup address, which moves with a
+    // configuration key. A moved address replaces the tenant's client, so a tenant is never left on the old gateway.
+    private string? TenantEnvironment(ModelProviderCredential credential)
+        => ModelProviderCore.TenantEnvironment(credential, SetupEndpoint(), setupAddressChanges: _live is not null);
 
     // The address the setup key is sent to now: the one a configuration key names, or the one the host started with.
     private Uri? SetupEndpoint()
@@ -225,7 +231,7 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, ILiv
     /// Google speech shares it: a tenant has one SDK client per credential, whether it chats or speaks.
     /// </remarks>
     internal GoogleChatClientFactory GetTenantFactory(ModelProviderCredential credential)
-        => _core.GetTenantFactory(credential, BuildCredentialFactory);
+        => _core.GetTenantFactory(credential, BuildCredentialFactory, TenantEnvironment(credential));
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
     /// <remarks>See <c>OpenAIModelProvider.BuildCredentialFactory</c> for the endpoint fallback rationale.</remarks>

@@ -72,9 +72,10 @@ internal sealed class AzureOpenAISetup(AzureOpenAIChatClientFactory initial, Liv
                 loggerFactory,
                 timeProvider);
 
-        var initial = Build(source.Current());
+        var first = source.Current();
+        var initial = Build(first);
 
-        return new AzureOpenAISetup(initial, new LiveSetup<AzureOpenAIChatClientFactory>(source, initial, Build));
+        return new AzureOpenAISetup(initial, new LiveSetup<AzureOpenAIChatClientFactory>(source, first, initial, Build));
     }
 
     /// <summary>Creates the image generator of this setup.</summary>

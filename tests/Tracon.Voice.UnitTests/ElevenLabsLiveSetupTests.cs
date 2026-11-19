@@ -60,6 +60,42 @@ public sealed class ElevenLabsLiveSetupTests
     }
 
     [Fact]
+    public async Task The_client_the_registration_builds_sends_the_key_that_is_current_with_each_request()
+    {
+        var configuration = Configuration((KeyName, "key-one-0001"));
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(Mp3Bytes));
+        var options = new VoiceOptions { DefaultVoiceId = "voice-1", ApiKeyConfigurationName = KeyName };
+
+        // The factory the registration uses, with the handler a test can read.
+        using var client = ElevenLabsClientFactory.Create(options, configuration, loggerFactory: null, httpClient: new HttpClient(handler));
+
+        _ = await client.SynthesizeAsync(new SpeechRequest { Text = "hello" }, TestContext.Current.CancellationToken);
+
+        configuration[KeyName] = "key-two-0002";
+
+        _ = await client.SynthesizeAsync(new SpeechRequest { Text = "hello again" }, TestContext.Current.CancellationToken);
+
+        handler.Requests.Select(static request => request.Headers["xi-api-key"]).ShouldBe(["key-one-0001", "key-two-0002"]);
+    }
+
+    [Fact]
+    public void The_two_names_are_read_from_the_configuration_section()
+    {
+        var services = new ServiceCollection();
+
+        services.AddTracon().UseVoice(Configuration(
+            ("ApiKey", "key-one-0001"),
+            ("ApiKeyConfigurationName", KeyName),
+            ("EndpointConfigurationName", EndpointName)));
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<VoiceOptions>>().Value;
+
+        options.ApiKeyConfigurationName.ShouldBe(KeyName);
+        options.EndpointConfigurationName.ShouldBe(EndpointName);
+    }
+
+    [Fact]
     public void A_client_whose_options_name_nothing_keeps_the_options_it_was_given()
     {
         var configuration = Configuration((KeyName, "ignored-0001"));

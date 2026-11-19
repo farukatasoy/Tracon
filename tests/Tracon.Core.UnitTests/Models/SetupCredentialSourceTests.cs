@@ -140,6 +140,66 @@ public sealed class SetupCredentialSourceTests
     }
 
     [Fact]
+    public async Task Readers_that_race_a_rotation_only_ever_see_a_pair_that_was_written_and_end_on_the_last_one()
+    {
+        var configuration = Configuration((KeyName, "key-00000000"), (EndpointName, "https://host-0.example/"));
+        var source = Source(null, null, KeyName, EndpointName, configuration);
+        var written = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+        written["key-00000000"] = "https://host-0.example/";
+        var torn = new System.Collections.Concurrent.ConcurrentQueue<string>();
+
+        var writer = Task.Run(
+            () =>
+            {
+                for (var index = 1; index <= 200; index++)
+                {
+                    // The two keys of a pair are written one after the other, as a reload writes them.
+                    written[$"key-{index:D8}"] = $"https://host-{index}.example/";
+                    configuration[KeyName] = $"key-{index:D8}";
+                    configuration[EndpointName] = $"https://host-{index}.example/";
+                }
+            },
+            TestContext.Current.CancellationToken);
+
+        var readers = Enumerable.Range(0, 4).Select(_ => Task.Run(
+            () =>
+            {
+                while (!writer.IsCompleted)
+                {
+                    var snapshot = source.Current();
+
+                    // A pair is torn when the key of one write comes with the address of another. The writer sets the key
+                    // first, so a reader may see the key of write N with the address of write N-1; that is the window the
+                    // stable read narrows, and the pair is then one of the two neighbours, never an older one.
+                    if (!written.TryGetValue(snapshot.ApiKey, out var address))
+                    {
+                        torn.Enqueue(snapshot.ApiKey);
+                    }
+                    else if (!string.Equals(address, snapshot.Endpoint, StringComparison.Ordinal))
+                    {
+                        var keyIndex = int.Parse(snapshot.ApiKey[4..], System.Globalization.CultureInfo.InvariantCulture);
+                        var hostIndex = int.Parse(new Uri(snapshot.Endpoint!).Host.Split('.')[0][5..], System.Globalization.CultureInfo.InvariantCulture);
+
+                        if (Math.Abs(keyIndex - hostIndex) > 1)
+                        {
+                            torn.Enqueue($"{snapshot.ApiKey} {snapshot.Endpoint}");
+                        }
+                    }
+                }
+            },
+            TestContext.Current.CancellationToken)).ToArray();
+
+        await Task.WhenAll(readers.Append(writer));
+
+        torn.ShouldBeEmpty();
+
+        var last = source.Current();
+
+        last.ApiKey.ShouldBe("key-00000200");
+        last.Endpoint.ShouldBe("https://host-200.example/");
+    }
+
+    [Fact]
     public async Task A_live_mask_asks_for_the_keys_again_when_a_failure_is_written()
     {
         var configuration = Configuration((KeyName, "canary-key-one-aaaa1111"));

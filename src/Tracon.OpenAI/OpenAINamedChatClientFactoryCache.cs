@@ -36,7 +36,7 @@ internal sealed class OpenAINamedChatClientFactoryCache
     private readonly ILoggerFactory? _loggerFactory;
     private readonly TimeProvider? _timeProvider;
     private readonly IConfiguration? _configuration;
-    private readonly ConcurrentDictionary<string, OpenAISetup> _setups = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Lazy<OpenAISetup>> _setups = new(StringComparer.OrdinalIgnoreCase);
 
     public OpenAINamedChatClientFactoryCache(
         IOptionsMonitor<OpenAIProviderOptions> optionsMonitor,
@@ -65,7 +65,9 @@ internal sealed class OpenAINamedChatClientFactoryCache
     /// <param name="name">The name of the options instance; <see cref="Options.DefaultName"/> for <c>UseOpenAI()</c>.</param>
     /// <returns>The same setup for the same name.</returns>
     public OpenAISetup Setup(string name)
-        => _setups.GetOrAdd(name, CreateSetup);
+        // The setup builds SDK clients and reads the configuration for the first time. Two callers that ask at once must
+        // not build two of them, so the value is built once, by whoever reads it first.
+        => _setups.GetOrAdd(name, static (key, self) => new Lazy<OpenAISetup>(() => self.CreateSetup(key)), this).Value;
 
     private OpenAISetup CreateSetup(string name)
     {
@@ -100,9 +102,10 @@ internal sealed class OpenAINamedChatClientFactoryCache
                 Uri.TryCreate(snapshot.Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null,
                 keyless);
 
-        var initial = Build(source.Current());
+        var first = source.Current();
+        var initial = Build(first);
 
-        return new OpenAISetup(initial, new LiveSetup<OpenAIChatClientFactory>(source, initial, Build));
+        return new OpenAISetup(initial, new LiveSetup<OpenAIChatClientFactory>(source, first, initial, Build));
     }
 
     private OpenAIChatClientFactory CreateFactory(OpenAIProviderOptions options, string? apiKey, Uri? endpoint, bool keyless)

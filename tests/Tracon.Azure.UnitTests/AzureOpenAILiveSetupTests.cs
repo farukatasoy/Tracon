@@ -46,6 +46,74 @@ public sealed class AzureOpenAILiveSetupTests
         (await second.RequestHead).ShouldContain("Authorization: Bearer key-two-0002");
     }
 
+    private const string CompletionBody =
+        """{"id":"c1","object":"chat.completion","created":1,"model":"production-gpt","choices":[{"index":0,"message":{"role":"assistant","content":"pong"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}""";
+
+    [Fact]
+    public async Task A_chat_client_taken_before_the_rotation_sends_the_key_and_the_address_that_are_current_when_it_is_called()
+    {
+        await using var first = StubHttpServer.Respond(200, "OK", CompletionBody);
+        await using var second = StubHttpServer.Respond(200, "OK", CompletionBody);
+        var configuration = Configuration((KeyName, "key-one-0001"), (EndpointName, first.BaseAddress.ToString()));
+
+        await using var provider = Build(
+            configuration,
+            options =>
+            {
+                options.ApiKeyConfigurationName = KeyName;
+                options.EndpointConfigurationName = EndpointName;
+            });
+
+        var model = provider.GetServices<IModelProvider>().Single(static p => string.Equals(p.Name, AzureOpenAIProviderNames.AzureOpenAI, StringComparison.Ordinal));
+
+        // The client an agent keeps from its compile.
+        using var client = model.CreateChatClient(TestData.Binding());
+
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "ping")], cancellationToken: TestContext.Current.CancellationToken);
+
+        configuration[KeyName] = "key-two-0002";
+        configuration[EndpointName] = second.BaseAddress.ToString();
+
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "ping")], cancellationToken: TestContext.Current.CancellationToken);
+
+        (await first.RequestHead).ShouldContain("Authorization: Bearer key-one-0001");
+        (await second.RequestHead).ShouldStartWith("POST /openai/v1/chat/completions HTTP/1.1");
+        (await second.RequestHead).ShouldContain("Authorization: Bearer key-two-0002");
+    }
+
+    [Fact]
+    public async Task A_moved_address_builds_the_client_again_and_calls_the_credential_factory_for_it()
+    {
+        var calls = 0;
+        var configuration = Configuration((EndpointName, "https://one.example/"));
+
+        await using var provider = Build(
+            configuration,
+            options =>
+            {
+                options.EndpointConfigurationName = EndpointName;
+                options.CredentialFactory = () =>
+                {
+                    Interlocked.Increment(ref calls);
+
+                    return new FakeTokenCredential();
+                };
+            });
+
+        var live = provider.GetRequiredService<AzureOpenAISetup>().Live.ShouldNotBeNull();
+        var started = calls;
+
+        live.Current();
+
+        calls.ShouldBe(started, "the same address is the same factory");
+
+        configuration[EndpointName] = "https://two.example/";
+
+        live.Current();
+
+        calls.ShouldBe(started + 1, "a new address builds a new client, and the credential factory is called for it");
+    }
+
     [Fact]
     public async Task The_health_check_reads_the_key_and_the_address_when_it_runs()
     {

@@ -72,8 +72,9 @@ internal sealed class AnthropicSetup
                 loggerFactory,
                 timeProvider);
 
-        var initial = Build(source.Current());
+        var first = source.Current();
+        var initial = Build(first);
 
-        return new AnthropicSetup(initial, new LiveSetup<AnthropicChatClientFactory>(source, initial, Build));
+        return new AnthropicSetup(initial, new LiveSetup<AnthropicChatClientFactory>(source, first, initial, Build));
     }
 }

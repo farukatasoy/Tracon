@@ -75,6 +75,19 @@ internal sealed class OpenAILiveOptionsValidator : IValidateOptions<OpenAILiveOp
         // would otherwise fail at the first session with an opaque authentication error.
         OptionText.AddWhenOnlyWhiteSpace(options.EndpointConfigurationName, nameof(OpenAILiveOptions), nameof(OpenAILiveOptions.EndpointConfigurationName), ref failures);
 
+        // The address of a live session has a default (the OpenAI service). A host that names a configuration key for it
+        // means another address: a name with no value and no address in code would send the session, and the key with it,
+        // to the default.
+        if (!string.IsNullOrWhiteSpace(options.EndpointConfigurationName)
+            && options.Endpoint is null
+            && !SetupConfigurationName.GivesEndpoint(_configuration, options.EndpointConfigurationName))
+        {
+            (failures ??= []).Add(
+                $"{nameof(OpenAILiveOptions)}.{nameof(OpenAILiveOptions.EndpointConfigurationName)} names the configuration key " +
+                $"'{options.EndpointConfigurationName}', which holds no absolute address, and no {nameof(OpenAILiveOptions.Endpoint)} " +
+                "is set. The session would go to the default OpenAI address. Give the key a value, or set the address.");
+        }
+
         if (string.IsNullOrWhiteSpace(_providerOptions.CurrentValue.ApiKey)
             && !SetupConfigurationName.GivesUsableKey(
                 _configuration,

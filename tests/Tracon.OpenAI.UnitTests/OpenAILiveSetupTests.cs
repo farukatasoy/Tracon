@@ -87,6 +87,58 @@ public sealed class OpenAILiveSetupTests
         (await second.RequestHead).ShouldContain("Authorization: Bearer key-two-0002");
     }
 
+    private const string CompletionBody =
+        """{"id":"c1","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"pong"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}""";
+
+    [Fact]
+    public async Task A_compatible_server_that_asks_for_no_key_follows_a_moved_address()
+    {
+        await using var first = StubHttpServer.Respond(200, "OK", CompletionBody);
+        await using var second = StubHttpServer.Respond(200, "OK", CompletionBody);
+        var configuration = Configuration((EndpointName, V1(first)));
+
+        await using var provider = BuildCompatible(configuration, options => options.EndpointConfigurationName = EndpointName);
+
+        using var client = provider.GetRequiredService<IModelProviderRegistry>().CreateChatClient(new ModelBinding { Provider = "local", Model = "m" });
+
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "ping")], cancellationToken: TestContext.Current.CancellationToken);
+
+        configuration[EndpointName] = V1(second);
+
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "ping")], cancellationToken: TestContext.Current.CancellationToken);
+
+        (await first.RequestHead).ShouldStartWith("POST /v1/chat/completions HTTP/1.1");
+        (await second.RequestHead).ShouldStartWith("POST /v1/chat/completions HTTP/1.1");
+    }
+
+    [Fact]
+    public async Task A_compatible_server_that_gets_a_key_by_name_sends_the_key_that_is_current_when_it_is_called()
+    {
+        await using var first = StubHttpServer.Respond(200, "OK", CompletionBody);
+        await using var second = StubHttpServer.Respond(200, "OK", CompletionBody);
+        var configuration = Configuration((KeyName, "key-one-0001"), (EndpointName, V1(first)));
+
+        await using var provider = BuildCompatible(
+            configuration,
+            options =>
+            {
+                options.ApiKeyConfigurationName = KeyName;
+                options.EndpointConfigurationName = EndpointName;
+            });
+
+        using var client = provider.GetRequiredService<IModelProviderRegistry>().CreateChatClient(new ModelBinding { Provider = "local", Model = "m" });
+
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "ping")], cancellationToken: TestContext.Current.CancellationToken);
+
+        configuration[KeyName] = "key-two-0002";
+        configuration[EndpointName] = V1(second);
+
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "ping")], cancellationToken: TestContext.Current.CancellationToken);
+
+        (await first.RequestHead).ShouldContain("Authorization: Bearer key-one-0001");
+        (await second.RequestHead).ShouldContain("Authorization: Bearer key-two-0002");
+    }
+
     [Fact]
     public async Task A_provider_that_names_no_configuration_key_keeps_one_factory_for_the_life_of_the_host()
     {
@@ -196,6 +248,16 @@ public sealed class OpenAILiveSetupTests
         => new ConfigurationBuilder()
             .AddInMemoryCollection(values.Select(static pair => new KeyValuePair<string, string?>(pair.Name, pair.Value)))
             .Build();
+
+    private static ServiceProvider BuildCompatible(IConfiguration configuration, Action<OpenAIProviderOptions> configure)
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton(configuration);
+        services.AddTracon().UseOpenAICompatible("local", configure);
+
+        return services.BuildServiceProvider();
+    }
 
     private static ServiceProvider Build(IConfiguration configuration, Action<OpenAIProviderOptions> configure)
     {

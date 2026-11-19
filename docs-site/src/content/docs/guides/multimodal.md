@@ -231,6 +231,9 @@ If the tenant has an egress policy that does not name the image provider
 tenant has its own key for the image provider, generation is refused in the same
 way: the provider package builds the generator with the setup key and cannot use
 the tenant's, so Tracon does not generate the tenant's images on the host's account.
+When the provider names a configuration key for its key and address, the image generator
+sends the pair that is current when it generates; see
+[change the provider key without a restart](/guides/model-providers/#change-the-provider-key-without-a-restart).
 
 ## Troubleshooting
 

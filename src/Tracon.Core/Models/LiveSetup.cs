@@ -26,12 +26,22 @@ internal sealed class LiveSetup<TFactory>
 
     /// <summary>Initializes a new instance.</summary>
     /// <param name="source">The source of the key and the address.</param>
-    /// <param name="initial">The factory the host started with; it serves the first snapshot instead of a second one.</param>
+    /// <param name="initialSnapshot">The snapshot the host's first factory was built from.</param>
+    /// <param name="initial">The factory the host started with; it serves <paramref name="initialSnapshot"/> instead of a second one.</param>
     /// <param name="build">Builds the factory of a snapshot the cache has not seen.</param>
     /// <exception cref="ArgumentNullException">A parameter is <see langword="null"/>.</exception>
-    internal LiveSetup(SetupCredentialSource source, TFactory initial, Func<ModelProviderCredential, TFactory> build)
+    /// <remarks>
+    /// The snapshot is the one <paramref name="initial"/> was built from, not a new read: a configuration that reloads
+    /// between the two reads would otherwise bind a factory built with the old key to the new snapshot.
+    /// </remarks>
+    internal LiveSetup(
+        SetupCredentialSource source,
+        ModelProviderCredential initialSnapshot,
+        TFactory initial,
+        Func<ModelProviderCredential, TFactory> build)
     {
         ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(initialSnapshot);
         ArgumentNullException.ThrowIfNull(initial);
         ArgumentNullException.ThrowIfNull(build);
 
@@ -41,7 +51,7 @@ internal sealed class LiveSetup<TFactory>
 
         // The factory the host started with serves the snapshot it was built for. Without this the first call would
         // build a second client for the same key.
-        _cache.GetOrAdd(source.Current(), _ => initial);
+        _cache.GetOrAdd(initialSnapshot, _ => initial);
     }
 
     /// <summary>Gets the source of the key and the address.</summary>
@@ -67,11 +77,16 @@ internal sealed class LiveSetup<TFactory>
     internal TFactory For(ModelProviderCredential snapshot)
         => _cache.GetOrAdd(snapshot, _build);
 
-    /// <summary>Returns the chat client of a snapshot, a model and its settings.</summary>
+    /// <summary>Returns the chat client of a snapshot, a provider, a model and its settings.</summary>
     /// <param name="snapshot">The snapshot a call read once.</param>
     /// <param name="binding">The model binding.</param>
     /// <param name="create">Creates the chat client from the factory.</param>
     /// <returns>The same client for the same snapshot and binding.</returns>
+    /// <remarks>
+    /// One setup serves every provider name of an options instance (OpenAI registers a Chat Completions provider and a
+    /// Responses provider over one client), and they build different chat clients for the same model. The provider
+    /// name is part of the key, so the client one of them built is never handed to the other.
+    /// </remarks>
     internal IChatClient ChatClient(ModelProviderCredential snapshot, ModelBinding binding, Func<TFactory, ModelBinding, IChatClient> create)
-        => _cache.GetOrAddChatClient(snapshot, binding, _build, create);
+        => _cache.GetOrAddChatClient(snapshot, binding, _build, create, variant: binding.Provider);
 }

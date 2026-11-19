@@ -227,6 +227,11 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, ILiv
         => SetupEndpoint() is not { } endpoint
             || string.Equals(endpoint.Host, "api.openai.com", StringComparison.OrdinalIgnoreCase);
 
+    // What a tenant that names no address of its own is built from besides its key: the setup address, which moves with a
+    // configuration key. A moved address replaces the tenant's client, so a tenant is never left on the old gateway.
+    private string? TenantEnvironment(ModelProviderCredential credential)
+        => ModelProviderCore.TenantEnvironment(credential, SetupEndpoint(), setupAddressChanges: _live is not null);
+
     // The address the setup key is sent to now: the one a configuration key names, or the one the host started with.
     private Uri? SetupEndpoint()
         => _live is null
@@ -283,7 +288,8 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, ILiv
                 credential,
                 binding,
                 BuildCredentialFactory,
-                (factory, tenantBinding) => factory.CreateChatClient(tenantBinding, ApiSurface));
+                (factory, tenantBinding) => factory.CreateChatClient(tenantBinding, ApiSurface),
+                TenantEnvironment(credential));
     }
 
     private IChatClient SetupChatClient(LiveSetup<OpenAIChatClientFactory> live, ModelBinding binding)

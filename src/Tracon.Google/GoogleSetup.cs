@@ -75,9 +75,10 @@ internal sealed class GoogleSetup
                 },
                 loggerFactory);
 
-        var initial = Build(source.Current());
+        var first = source.Current();
+        var initial = Build(first);
 
-        return new GoogleSetup(initial, new LiveSetup<GoogleChatClientFactory>(source, initial, Build));
+        return new GoogleSetup(initial, new LiveSetup<GoogleChatClientFactory>(source, first, initial, Build));
     }
 
     /// <summary>Returns the factory of the key and the address that are current now.</summary>

@@ -87,6 +87,7 @@ internal sealed class ModelProviderCore<TFactory>
     /// </summary>
     /// <param name="credential">The tenant's resolved credential.</param>
     /// <param name="buildFactory">Builds the provider factory for a credential the binding has not used before.</param>
+    /// <param name="environment">The address a tenant that names none falls back to, when that address can change; otherwise <see langword="null"/>.</param>
     /// <returns>The same factory instance for the same credential.</returns>
     /// <remarks>
     /// A capability next to chat (Google speech) takes its SDK client from this factory, so the
@@ -96,12 +97,13 @@ internal sealed class ModelProviderCore<TFactory>
     /// </remarks>
     internal TFactory GetTenantFactory(
         ModelProviderCredential credential,
-        Func<ModelProviderCredential, TFactory> buildFactory)
+        Func<ModelProviderCredential, TFactory> buildFactory,
+        string? environment = null)
     {
         ArgumentNullException.ThrowIfNull(credential);
         ArgumentNullException.ThrowIfNull(buildFactory);
 
-        return _tenantClients.GetOrAdd(credential, buildFactory);
+        return _tenantClients.GetOrAdd(credential, buildFactory, environment);
     }
 
     /// <summary>
@@ -112,19 +114,21 @@ internal sealed class ModelProviderCore<TFactory>
     /// <param name="binding">The model binding.</param>
     /// <param name="buildFactory">Builds the provider factory for a credential not seen before.</param>
     /// <param name="createChatClient">Creates the chat client from the factory.</param>
+    /// <param name="environment">The address a tenant that names none falls back to, when that address can change; otherwise <see langword="null"/>.</param>
     /// <returns>The same client instance for the same credential and binding.</returns>
     internal IChatClient GetTenantChatClient(
         ModelProviderCredential credential,
         ModelBinding binding,
         Func<ModelProviderCredential, TFactory> buildFactory,
-        Func<TFactory, ModelBinding, IChatClient> createChatClient)
+        Func<TFactory, ModelBinding, IChatClient> createChatClient,
+        string? environment = null)
     {
         ArgumentNullException.ThrowIfNull(credential);
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(buildFactory);
         ArgumentNullException.ThrowIfNull(createChatClient);
 
-        return _tenantClients.GetOrAddChatClient(credential, binding, buildFactory, createChatClient);
+        return _tenantClients.GetOrAddChatClient(credential, binding, buildFactory, createChatClient, environment: environment);
     }
 
     /// <summary>
@@ -175,6 +179,21 @@ internal static class ModelProviderCore
                 ? endpointUri
                 : null;
     }
+
+    /// <summary>
+    /// Returns what a tenant's factory is built from besides its credential, when that can change while the host runs.
+    /// </summary>
+    /// <param name="credential">The tenant's resolved credential.</param>
+    /// <param name="setupAddress">The address the setup key is sent to now, or <see langword="null"/> when none is set.</param>
+    /// <param name="setupAddressChanges">Whether the setup address follows a configuration key.</param>
+    /// <returns>
+    /// The setup address a tenant that names no address of its own falls back to, so that moving it replaces the tenant's
+    /// client; <see langword="null"/> when the tenant names its own address or the setup address never changes.
+    /// </returns>
+    internal static string? TenantEnvironment(ModelProviderCredential credential, Uri? setupAddress, bool setupAddressChanges)
+        => setupAddressChanges && TenantEndpoint(credential) is null
+            ? setupAddress?.AbsoluteUri ?? string.Empty
+            : null;
 
     /// <summary>Returns the health result of a provider set up without health check options.</summary>
     /// <param name="providerName">The provider name.</param>

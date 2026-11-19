@@ -69,14 +69,18 @@ internal sealed class ProviderCredentialClientCache<TFactory>
     /// </summary>
     /// <param name="credential">The resolved credential.</param>
     /// <param name="build">Builds a factory from the credential when none is cached for it.</param>
+    /// <param name="environment">
+    /// What else the factory is built from besides the credential (the address a tenant that names none falls back to), or
+    /// <see langword="null"/>. It is compared with the credential: a change replaces the entry.
+    /// </param>
     /// <returns>The cached factory.</returns>
     /// <exception cref="ArgumentNullException">A parameter is <see langword="null"/>.</exception>
-    public TFactory GetOrAdd(ModelProviderCredential credential, Func<ModelProviderCredential, TFactory> build)
+    public TFactory GetOrAdd(ModelProviderCredential credential, Func<ModelProviderCredential, TFactory> build, string? environment = null)
     {
         ArgumentNullException.ThrowIfNull(credential);
         ArgumentNullException.ThrowIfNull(build);
 
-        return Resolve(credential, build).Factory;
+        return Resolve(credential, build, environment).Factory;
     }
 
     /// <summary>
@@ -87,6 +91,11 @@ internal sealed class ProviderCredentialClientCache<TFactory>
     /// <param name="binding">The model binding the client is for.</param>
     /// <param name="build">Builds the factory from the credential when none is cached for it.</param>
     /// <param name="create">Creates the chat client from the factory.</param>
+    /// <param name="variant">
+    /// A name that keeps two callers of one entry apart (a provider name), or <see langword="null"/> when one provider
+    /// owns the entry.
+    /// </param>
+    /// <param name="environment">See <see cref="GetOrAdd"/>.</param>
     /// <returns>The same client for the same credential, model and settings.</returns>
     /// <remarks>
     /// The chat clients live inside the entry of the credential they were built from, so a rotation replaces the
@@ -97,21 +106,26 @@ internal sealed class ProviderCredentialClientCache<TFactory>
         ModelProviderCredential credential,
         ModelBinding binding,
         Func<ModelProviderCredential, TFactory> build,
-        Func<TFactory, ModelBinding, IChatClient> create)
+        Func<TFactory, ModelBinding, IChatClient> create,
+        string? variant = null,
+        string? environment = null)
     {
         ArgumentNullException.ThrowIfNull(credential);
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(build);
         ArgumentNullException.ThrowIfNull(create);
 
-        var entry = Resolve(credential, build);
+        var entry = Resolve(credential, build, environment);
+        var key = TenantChatClientCacheKey.For(binding);
 
-        return entry.ChatClients.GetOrAdd(TenantChatClientCacheKey.For(binding), _ => create(entry.Factory, binding));
+        // A variant keeps two providers that share one entry from sharing a chat client: the key of a client names only the
+        // model and its settings.
+        return entry.ChatClients.GetOrAdd(variant is null ? key : variant + "\u001f" + key, _ => create(entry.Factory, binding));
     }
 
-    private Entry Resolve(ModelProviderCredential credential, Func<ModelProviderCredential, TFactory> build)
+    private Entry Resolve(ModelProviderCredential credential, Func<ModelProviderCredential, TFactory> build, string? environment)
     {
-        var fingerprint = Fingerprint(credential);
+        var fingerprint = Fingerprint(credential, environment);
         var scope = TenantCredentialScope.Of(credential);
 
         // A binding is kept under its name. A credential that names none is kept under its own fingerprint, so
@@ -143,14 +157,16 @@ internal sealed class ProviderCredentialClientCache<TFactory>
 
     // The length of the key is written first, so that a key and an endpoint that join to the same text are still two
     // credentials. A missing endpoint and an empty one are the same credential, as they are to every provider.
-    private static string Fingerprint(ModelProviderCredential credential)
+    private static string Fingerprint(ModelProviderCredential credential, string? environment)
     {
         var text = string.Concat(
             credential.ApiKey.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ":",
             credential.ApiKey,
             "|",
-            credential.Endpoint ?? string.Empty);
+            credential.Endpoint ?? string.Empty,
+            "|",
+            environment ?? string.Empty);
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
     }

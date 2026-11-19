@@ -14,17 +14,19 @@ internal static class ElevenLabsClientFactory
     /// <param name="options">The voice options.</param>
     /// <param name="configuration">The configuration the names are read from.</param>
     /// <param name="loggerFactory">The logger factory a warning is written with.</param>
+    /// <param name="httpClient">The HTTP client to use, or <see langword="null"/> to build one; a test passes a fake handler.</param>
     /// <returns>The client.</returns>
     internal static ElevenLabsSpeechClient Create(
         VoiceOptions options,
         IConfiguration? configuration,
-        ILoggerFactory? loggerFactory)
+        ILoggerFactory? loggerFactory,
+        HttpClient? httpClient = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         if (string.IsNullOrWhiteSpace(options.ApiKeyConfigurationName) && string.IsNullOrWhiteSpace(options.EndpointConfigurationName))
         {
-            return new ElevenLabsSpeechClient(options);
+            return new ElevenLabsSpeechClient(options, httpClient);
         }
 
         var source = new SetupCredentialSource(
@@ -39,7 +41,7 @@ internal static class ElevenLabsClientFactory
 
         return new ElevenLabsSpeechClient(
             options,
-            httpClient: null,
+            httpClient,
             target: () =>
             {
                 // One read: the key and the address of a request belong together.

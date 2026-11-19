@@ -645,7 +645,7 @@ What follows the rotation:
 | Live voice session | Yes, read once for each session. The sideband socket keeps the key it opened with |
 | Tenant with its own key ([BYOK](#per-tenant-credentials-byok)) | No. That tenant sends its own key |
 
-Four limits apply:
+These limits apply:
 
 - **Azure OpenAI.** A credential factory (Entra) wins over a key, so Tracon refuses a
   host that gives both `CredentialFactory` and `ApiKeyConfigurationName`. A name for the
@@ -656,6 +656,12 @@ Four limits apply:
   so the cost is a few clients.
 - **The response cache and the telemetry lane do not follow the address.** The response
   cache key holds no address, and a trace names the address the host started with.
+- **A call that started with a key you have since revoked can still fail.** It counts
+  toward the shared circuit of the provider, which can open for its break time and then
+  tries again with the new key. Revoke the old key after the last call that holds it ends.
+- **A tenant with its own key and no address of its own follows the setup address.** When
+  you move the address, Tracon builds that tenant's client again for the new address; the
+  tenant's key is untouched.
 - **A failure that quotes the key is masked for the key in use and the ones it replaced.**
   Tracon keeps the last four keys of a provider in memory for this.
 
