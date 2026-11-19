@@ -23,7 +23,7 @@ namespace Tracon;
 /// normal; in that case nothing is logged.
 /// </para>
 /// </remarks>
-internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport, IResponseSchemaSupport
+internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, ILiveSetupModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport, IResponseSchemaSupport
 {
     // Chat Completions: "up to 4 sequences" (documented for the stop parameter).
     private static readonly SamplingLimits ChatCompletionsLimits = new() { MaxStopSequences = 4 };
@@ -33,6 +33,10 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     private readonly OpenAIProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
     private readonly OpenAIProviderOptions? _baseOptions;
+
+    // Set when the host named the configuration keys of the key and the address: the clients follow them.
+    private readonly LiveSetup<OpenAIChatClientFactory>? _live;
+    private readonly string? _configurationSectionKey;
 
     // Where the operator edits the catalog; named in the out-of-catalog log entry.
     private readonly string _modelsSetting;
@@ -69,6 +73,10 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     /// <param name="timeProvider">
     /// The clock the retry wait of a tenant's own client runs on; <see cref="TimeProvider.System"/> when omitted.
     /// </param>
+    /// <param name="liveSetup">
+    /// The clients that follow the configuration keys the options name for the key and the address, or
+    /// <see langword="null"/> when the key and the address are fixed for the life of the host.
+    /// </param>
     /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public OpenAIModelProvider(
@@ -80,7 +88,8 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
         OpenAIProviderOptions? healthCheckOptions = null,
         string? configurationSectionKey = OpenAIProviderOptions.SectionName,
         EgressSocketGuard? egressGuard = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        LiveSetup<OpenAIChatClientFactory>? liveSetup = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -92,8 +101,14 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
 
         _chatClientFactory = chatClientFactory;
         _logger = logger;
-        _healthCheck = healthCheckOptions is null ? null : new OpenAIProviderHealthCheck(name, healthCheckOptions, logger);
-        _configurationDiagnostic = healthCheckOptions is null || configurationSectionKey is null
+        _live = liveSetup;
+        _configurationSectionKey = configurationSectionKey;
+        _healthCheck = healthCheckOptions is null
+            ? null
+            : liveSetup is null
+                ? new OpenAIProviderHealthCheck(name, healthCheckOptions, logger)
+                : new OpenAIProviderHealthCheck(name, () => HealthTargetOf(liveSetup, healthCheckOptions), logger);
+        _configurationDiagnostic = healthCheckOptions is null || configurationSectionKey is null || liveSetup is not null
             ? null
             : ModelProviderCore.ConfigurationDiagnosticFor(
                 configurationSectionKey,
@@ -122,7 +137,15 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     /// The key the provider's client was built with, trimmed as it is sent. Empty when the provider was built from a
     /// ready-made client (no key is known).
     /// </remarks>
-    public IReadOnlyList<string> SetupApiKeys => _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+    /// <remarks>
+    /// When the host named a configuration key for the key, the keys the provider has sent: the one now in use first, then
+    /// the ones it replaced, so the text of a call that began before a rotation is masked too.
+    /// </remarks>
+    public IReadOnlyList<string> SetupApiKeys
+        => _live is not null ? _live.Source.RecentKeys : _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+
+    /// <inheritdoc />
+    bool ILiveSetupModelProvider.SetupKeysChange => _live is not null;
 
     /// <inheritdoc />
     /// <remarks>
@@ -201,8 +224,30 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     // The strict-mode refusals were measured against OpenAI itself. A custom address is a
     // gateway or a compatible server, which can accept what OpenAI refuses.
     private bool IsOpenAIService
-        => _baseOptions?.Endpoint is not { } endpoint
+        => SetupEndpoint() is not { } endpoint
             || string.Equals(endpoint.Host, "api.openai.com", StringComparison.OrdinalIgnoreCase);
+
+    // The address the setup key is sent to now: the one a configuration key names, or the one the host started with.
+    private Uri? SetupEndpoint()
+        => _live is null
+            ? _baseOptions?.Endpoint
+            : Uri.TryCreate(_live.Snapshot().Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null;
+
+    private static OpenAIProviderHealthCheck.HealthTarget HealthTargetOf(
+        LiveSetup<OpenAIChatClientFactory> live,
+        OpenAIProviderOptions options)
+    {
+        // Key and address of one check come from one snapshot. A compatible server that asks for no key gets no header.
+        var snapshot = live.Snapshot();
+        var key = string.Equals(snapshot.ApiKey, SetupCredentialSource.KeylessPlaceholder, StringComparison.Ordinal) && live.Source.Keyless
+            ? null
+            : snapshot.ApiKey;
+
+        return new OpenAIProviderHealthCheck.HealthTarget(
+            key,
+            Uri.TryCreate(snapshot.Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null,
+            options.Timeout);
+    }
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)
@@ -219,6 +264,16 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
         if (_core.IsOutsideCatalog(binding.Model))
         {
             ModelProviderCore.LogOutsideCatalog(_logger, binding.Model, Name, _modelsSetting);
+        }
+
+        if (credential is null && _live is { } live)
+        {
+            // The client is picked when the call starts: an agent, a fallback link, a judge or a summarizer holds this
+            // one and follows a rotation without being built again.
+            return new LiveSetupChatClient(() => live.ChatClient(
+                live.Snapshot(),
+                binding,
+                (factory, liveBinding) => factory.CreateChatClient(liveBinding, ApiSurface)));
         }
 
         return credential is null
@@ -249,7 +304,7 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
 
         var overrideEndpoint = ModelProviderCore.TenantEndpoint(credential);
 
-        options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
+        options.Endpoint = overrideEndpoint ?? SetupEndpoint();
 
         var client = OpenAIChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint), _core.Clock);
 
@@ -266,5 +321,11 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
             ?? ValueTask.FromResult(ModelProviderCore.UnknownHealth(Name));
 
     /// <inheritdoc />
-    public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
+    public ConfigurationDiagnostic? GetConfigurationDiagnostic()
+        => _live is { } live && _configurationSectionKey is { } section
+            ? ModelProviderCore.ConfigurationDiagnosticFor(
+                section,
+                resolved: !string.Equals(live.Snapshot().ApiKey, SetupCredentialSource.KeylessPlaceholder, StringComparison.Ordinal),
+                keyName: _baseOptions?.ApiKeyConfigurationName)
+            : _configurationDiagnostic;
 }

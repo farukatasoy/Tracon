@@ -149,7 +149,8 @@ public static class OpenAICompatibleProviderExtensions
         OpenAIApiSurface apiSurface)
     {
         var options = provider.GetRequiredService<IOptionsMonitor<OpenAIProviderOptions>>().Get(optionsName);
-        var factory = provider.GetRequiredService<OpenAINamedChatClientFactoryCache>().Get(optionsName);
+        var setup = provider.GetRequiredService<OpenAINamedChatClientFactoryCache>().Setup(optionsName);
+        var factory = setup.Initial;
 
         return new OpenAIModelProvider(
             providerName,
@@ -170,7 +171,8 @@ public static class OpenAICompatibleProviderExtensions
             // guard. Without it a host name resolving to a private address was
             // never checked (the binding save path checks only IP literals).
             egressGuard: provider.GetService<EgressSocketGuard>(),
-            timeProvider: provider.GetService<TimeProvider>());
+            timeProvider: provider.GetService<TimeProvider>(),
+            liveSetup: setup.Live);
     }
 
     private static void ValidateName(string name)

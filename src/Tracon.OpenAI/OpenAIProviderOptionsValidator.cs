@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -26,7 +27,7 @@ namespace Tracon;
 /// left empty, the request would silently go to the official OpenAI address.
 /// </para>
 /// </remarks>
-internal sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIProviderOptions>
+internal sealed class OpenAIProviderOptionsValidator(IConfiguration? configuration = null) : IValidateOptions<OpenAIProviderOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, OpenAIProviderOptions options)
@@ -36,13 +37,25 @@ internal sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIPr
         var isDefaultInstance = string.IsNullOrEmpty(name);
         List<string>? failures = null;
 
-        if (isDefaultInstance && string.IsNullOrWhiteSpace(options.ApiKey))
+        // A key or an address the host names a configuration key for is read when a call is made; the host still has to
+        // start with one, so a missing value stops it here as it does for a literal.
+        var nameGivesKey = SetupConfigurationName.GivesUsableKey(
+            configuration,
+            options.ApiKeyConfigurationName,
+            OpenAIChatClientFactory.ApiKeyOptionName);
+        var nameGivesEndpoint = SetupConfigurationName.GivesEndpoint(configuration, options.EndpointConfigurationName);
+
+        OptionText.AddWhenOnlyWhiteSpace(options.ApiKeyConfigurationName, nameof(OpenAIProviderOptions), nameof(OpenAIProviderOptions.ApiKeyConfigurationName), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.EndpointConfigurationName, nameof(OpenAIProviderOptions), nameof(OpenAIProviderOptions.EndpointConfigurationName), ref failures);
+
+        if (isDefaultInstance && string.IsNullOrWhiteSpace(options.ApiKey) && !nameGivesKey)
         {
             (failures ??= []).Add(
                 $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.ApiKey)} cannot be empty. " +
                 "Pass the key to the `UseOpenAI(apiKey)` call, or define " +
                 $"'{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.ApiKey)}' " +
-                "in `dotnet user-secrets`.");
+                "in `dotnet user-secrets`." +
+                SetupConfigurationName.Hint(options.ApiKeyConfigurationName));
         }
         else if (OutboundApiKey.Refusal(OpenAIChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } refusal)
         {
@@ -50,7 +63,7 @@ internal sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIPr
             (failures ??= []).Add(refusal);
         }
 
-        if (!isDefaultInstance && options.Endpoint is null)
+        if (!isDefaultInstance && options.Endpoint is null && !nameGivesEndpoint)
         {
             (failures ??= []).Add(
                 $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Endpoint)} is required for " +

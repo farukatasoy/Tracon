@@ -98,11 +98,13 @@ public static class OpenAIProviderExtensions
 
         var alreadyRegistered = ProviderRegistrationCore.IsRegistered<OpenAIChatClientFactory>(services);
 
-        // One client, one HTTP connection pool. Both providers share it.
-        services.TryAddSingleton(static provider => new OpenAIChatClientFactory(
-            provider.GetRequiredService<IOptions<OpenAIProviderOptions>>().Value,
-            provider.GetService<ILoggerFactory>(),
-            provider.GetService<TimeProvider>()));
+        // One client, one HTTP connection pool. Both providers, the image and the speech clients share it. The cache
+        // builds it from the options, and from the key and the address a configuration key names when the options name one.
+        services.TryAddSingleton<OpenAINamedChatClientFactoryCache>();
+        services.TryAddSingleton(static provider => provider
+            .GetRequiredService<OpenAINamedChatClientFactoryCache>()
+            .Setup(Options.DefaultName)
+            .Initial);
 
         if (alreadyRegistered)
         {
@@ -137,7 +139,8 @@ public static class OpenAIProviderExtensions
             provider.GetService<ILogger<OpenAIModelProvider>>(),
             healthCheckOptions: options,
             egressGuard: provider.GetService<EgressSocketGuard>(),
-            timeProvider: provider.GetService<TimeProvider>());
+            timeProvider: provider.GetService<TimeProvider>(),
+            liveSetup: provider.GetRequiredService<OpenAINamedChatClientFactoryCache>().Setup(Options.DefaultName).Live);
     }
 
     /// <summary>
@@ -160,6 +163,16 @@ public static class OpenAIProviderExtensions
         if (section[nameof(OpenAIProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
             options.ApiKey = apiKey;
+        }
+
+        if (section[nameof(OpenAIProviderOptions.ApiKeyConfigurationName)] is { Length: > 0 } apiKeyConfigurationName)
+        {
+            options.ApiKeyConfigurationName = apiKeyConfigurationName;
+        }
+
+        if (section[nameof(OpenAIProviderOptions.EndpointConfigurationName)] is { Length: > 0 } endpointConfigurationName)
+        {
+            options.EndpointConfigurationName = endpointConfigurationName;
         }
 
         if (section[nameof(OpenAIProviderOptions.DefaultModel)] is { Length: > 0 } defaultModel)

@@ -19,6 +19,8 @@ internal static class TenantCredentialScope
 {
     private const string Separator = "/";
 
+    private const string SetupPrefix = "setup:";
+
     /// <summary>Returns the name of the binding of a tenant and a provider.</summary>
     /// <param name="tenantId">The tenant, as the binding store holds it.</param>
     /// <param name="providerName">The provider name, as the binding store holds it.</param>
@@ -44,6 +46,38 @@ internal static class TenantCredentialScope
         ArgumentNullException.ThrowIfNull(credential);
 
         return credential with { BindingScope = For(tenantId, providerName) };
+    }
+
+    /// <summary>
+    /// Returns a copy of a credential that carries the scope of the key and the address a provider was set up with.
+    /// </summary>
+    /// <param name="credential">The snapshot of the setup key and address.</param>
+    /// <param name="providerName">The provider name.</param>
+    /// <returns>The credential with its setup scope.</returns>
+    /// <remarks>
+    /// The scope has a <c>:</c> in it, and a tenant name cannot (see the alphabet above), so a tenant called
+    /// <c>setup</c> never gets the client of the setup key. A credential with a scope is kept under it and replaced
+    /// when its value changes; one without would be kept under its value for ever.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="credential"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="providerName"/> is <see langword="null"/> or blank.</exception>
+    public static ModelProviderCredential AttachSetup(ModelProviderCredential credential, string providerName)
+    {
+        ArgumentNullException.ThrowIfNull(credential);
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
+
+        return credential with { BindingScope = SetupPrefix + providerName };
+    }
+
+    /// <summary>Tells whether a credential is the snapshot of the key and the address a provider was set up with.</summary>
+    /// <param name="credential">The credential.</param>
+    /// <returns><see langword="true"/> for a credential made by <see cref="AttachSetup"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="credential"/> is <see langword="null"/>.</exception>
+    public static bool IsSetup(ModelProviderCredential credential)
+    {
+        ArgumentNullException.ThrowIfNull(credential);
+
+        return credential.BindingScope is { } scope && scope.StartsWith(SetupPrefix, StringComparison.Ordinal);
     }
 
     /// <summary>Returns the name of the binding a credential was resolved for.</summary>

@@ -194,15 +194,18 @@ internal static class ModelProviderCore
     /// <param name="sectionKey">The fixed configuration section of the provider.</param>
     /// <param name="resolved">Whether a usable credential is configured.</param>
     /// <param name="alternative">A second way to satisfy the setting (Azure: a credential factory), or <see langword="null"/>.</param>
+    /// <param name="keyName">The configuration key the API key is read from when the host named one; the diagnostic names it instead of the section's own.</param>
     /// <returns>The diagnostic.</returns>
     internal static ConfigurationDiagnostic ConfigurationDiagnosticFor(
         string sectionKey,
         bool resolved,
-        string? alternative = null)
+        string? alternative = null,
+        string? keyName = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sectionKey);
 
-        var key = $"{sectionKey}:ApiKey";
+        // A host that names the configuration key the API key is read from is told to set that key.
+        var key = string.IsNullOrWhiteSpace(keyName) ? $"{sectionKey}:ApiKey" : keyName;
         var command = $"dotnet user-secrets set \"{key}\" \"<key>\"";
 
         return new ConfigurationDiagnostic

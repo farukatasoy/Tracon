@@ -40,6 +40,10 @@ internal sealed class ProviderSecretMask
     /// <summary>The shortest value that is masked.</summary>
     internal const int MinimumValueLength = 8;
 
+    // A live mask asks its source for the values every time text is masked. What it last built is kept by reference, so a
+    // failure that is written while the keys are unchanged does not build the needles again.
+    private readonly Func<IEnumerable<string?>>? _live;
+    private LiveNeedles? _liveNeedles;
     private readonly string[] _needles;
 
     private ProviderSecretMask(string[] needles)
@@ -47,11 +51,17 @@ internal sealed class ProviderSecretMask
         _needles = needles;
     }
 
+    private ProviderSecretMask(Func<IEnumerable<string?>> live)
+    {
+        _needles = [];
+        _live = live;
+    }
+
     /// <summary>Gets the mask that replaces nothing.</summary>
     internal static ProviderSecretMask Empty { get; } = new([]);
 
     /// <summary>Gets a value indicating whether this mask replaces nothing.</summary>
-    internal bool IsEmpty => _needles.Length == 0;
+    internal bool IsEmpty => _live is null && _needles.Length == 0;
 
     /// <summary>Builds the mask of one call's credential.</summary>
     /// <param name="credential">The credential the client was built with, or <see langword="null"/> when the call has none (the setup keys are built with <see cref="ForValues"/>).</param>
@@ -76,6 +86,29 @@ internal sealed class ProviderSecretMask
     {
         ArgumentNullException.ThrowIfNull(values);
 
+        var needles = BuildNeedles(values);
+
+        return needles.Length == 0 ? Empty : new(needles);
+    }
+
+    /// <summary>Builds a mask whose values are asked for again every time text is masked.</summary>
+    /// <param name="values">Reports the values to replace now: the keys a provider whose key changes while the host runs has sent.</param>
+    /// <returns>The mask; it is never <see cref="Empty"/>.</returns>
+    /// <remarks>
+    /// A pipeline is built once and its mask with it, but the key a call sends is the one that is current when the
+    /// call starts. A mask that held the key of the pipeline's build would let the new key through in the text of a
+    /// failure. The source is asked when a failure is written, which is rare, never on the success path. A source that
+    /// throws leaves the values it last reported.
+    /// </remarks>
+    internal static ProviderSecretMask Live(Func<IEnumerable<string?>> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        return new(values);
+    }
+
+    private static string[] BuildNeedles(IEnumerable<string?> values)
+    {
         // A set, longest first: a shape that contains another is replaced before the shorter one can split it.
         var shapes = new HashSet<string>(StringComparer.Ordinal);
 
@@ -95,10 +128,43 @@ internal sealed class ProviderSecretMask
             AddShape(shapes, value, static v => System.Net.WebUtility.UrlEncode(v));
         }
 
-        return shapes.Count == 0
-            ? Empty
-            : new([.. shapes.OrderByDescending(static shape => shape.Length).ThenBy(static shape => shape, StringComparer.Ordinal)]);
+        return [.. shapes.OrderByDescending(static shape => shape.Length).ThenBy(static shape => shape, StringComparer.Ordinal)];
     }
+
+    private string[] Needles()
+    {
+        if (_live is null)
+        {
+            return _needles;
+        }
+
+        string?[] values;
+
+        try
+        {
+            values = [.. _live()];
+        }
+        catch (Exception)
+        {
+            // The source is the provider's: what it last reported is still the best list there is.
+            return Volatile.Read(ref _liveNeedles)?.Needles ?? [];
+        }
+
+        var held = Volatile.Read(ref _liveNeedles);
+
+        if (held is not null && held.Values.AsSpan().SequenceEqual(values))
+        {
+            return held.Needles;
+        }
+
+        var built = new LiveNeedles(values, BuildNeedles(values));
+
+        Volatile.Write(ref _liveNeedles, built);
+
+        return built.Needles;
+    }
+
+    private sealed record LiveNeedles(string?[] Values, string[] Needles);
 
     // A value the encoders refuse (an unpaired surrogate) has no escaped form; the raw form is still replaced. The mask is
     // built while a client is built, outside any handler of a provider failure, so it must not throw.
@@ -123,14 +189,16 @@ internal sealed class ProviderSecretMask
     {
         ArgumentNullException.ThrowIfNull(text);
 
-        if (_needles.Length == 0 || text.Length == 0)
+        var needles = Needles();
+
+        if (needles.Length == 0 || text.Length == 0)
         {
             return text;
         }
 
         var masked = text;
 
-        foreach (var needle in _needles)
+        foreach (var needle in needles)
         {
             masked = masked.Replace(needle, Marker, StringComparison.Ordinal);
         }

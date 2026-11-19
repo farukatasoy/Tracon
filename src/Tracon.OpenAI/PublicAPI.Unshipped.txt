@@ -20,12 +20,16 @@ Tracon.OpenAIProviderNames
 Tracon.OpenAIProviderOptions
 Tracon.OpenAIProviderOptions.ApiKey.get -> string?
 Tracon.OpenAIProviderOptions.ApiKey.set -> void
+Tracon.OpenAIProviderOptions.ApiKeyConfigurationName.get -> string?
+Tracon.OpenAIProviderOptions.ApiKeyConfigurationName.set -> void
 Tracon.OpenAIProviderOptions.DefaultModel.get -> string?
 Tracon.OpenAIProviderOptions.DefaultModel.set -> void
 Tracon.OpenAIProviderOptions.EnableResponsesSurface.get -> bool
 Tracon.OpenAIProviderOptions.EnableResponsesSurface.set -> void
 Tracon.OpenAIProviderOptions.Endpoint.get -> System.Uri?
 Tracon.OpenAIProviderOptions.Endpoint.set -> void
+Tracon.OpenAIProviderOptions.EndpointConfigurationName.get -> string?
+Tracon.OpenAIProviderOptions.EndpointConfigurationName.set -> void
 Tracon.OpenAIProviderOptions.Models.get -> System.Collections.Generic.IList<Tracon.ModelDescriptor!>!
 Tracon.OpenAIProviderOptions.OpenAIProviderOptions() -> void
 Tracon.OpenAIProviderOptions.Organization.get -> string?

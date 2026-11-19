@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -29,44 +30,103 @@ internal sealed class OpenAINamedChatClientFactoryCache
     /// The fixed placeholder for compatible providers without a key. It is not a real
     /// secret; it is needed only because <c>OpenAIClient</c> rejects an empty credential.
     /// </summary>
-    private const string PlaceholderApiKey = "no-key-required";
+    private const string PlaceholderApiKey = SetupCredentialSource.KeylessPlaceholder;
 
     private readonly IOptionsMonitor<OpenAIProviderOptions> _optionsMonitor;
     private readonly ILoggerFactory? _loggerFactory;
     private readonly TimeProvider? _timeProvider;
-    private readonly ConcurrentDictionary<string, OpenAIChatClientFactory> _factories = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IConfiguration? _configuration;
+    private readonly ConcurrentDictionary<string, OpenAISetup> _setups = new(StringComparer.OrdinalIgnoreCase);
 
     public OpenAINamedChatClientFactoryCache(
         IOptionsMonitor<OpenAIProviderOptions> optionsMonitor,
         ILoggerFactory? loggerFactory = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IConfiguration? configuration = null)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
 
         _optionsMonitor = optionsMonitor;
         _loggerFactory = loggerFactory;
         _timeProvider = timeProvider;
+        _configuration = configuration;
     }
 
     /// <summary>Returns the factory for the given name, building and caching it when absent.</summary>
     /// <param name="name">The name of the named options instance.</param>
-    /// <returns>The cached factory.</returns>
+    /// <returns>The factory the host started with.</returns>
     public OpenAIChatClientFactory Get(string name)
-        => _factories.GetOrAdd(name, CreateFactory);
+        => Setup(name).Initial;
 
-    private OpenAIChatClientFactory CreateFactory(string name)
+    /// <summary>
+    /// Returns the setup of the given options instance: the factory the host started with and, when the options name a
+    /// configuration key for the key or the address, the live clients that follow them.
+    /// </summary>
+    /// <param name="name">The name of the options instance; <see cref="Options.DefaultName"/> for <c>UseOpenAI()</c>.</param>
+    /// <returns>The same setup for the same name.</returns>
+    public OpenAISetup Setup(string name)
+        => _setups.GetOrAdd(name, CreateSetup);
+
+    private OpenAISetup CreateSetup(string name)
     {
         var options = _optionsMonitor.Get(name);
 
-        if (!string.IsNullOrWhiteSpace(options.ApiKey))
+        // The unnamed instance is the official service and needs a key; a named one is an OpenAI compatible server, which
+        // may ask for none.
+        var keyless = name.Length > 0;
+
+        if (string.IsNullOrWhiteSpace(options.ApiKeyConfigurationName) && string.IsNullOrWhiteSpace(options.EndpointConfigurationName))
         {
-            return new OpenAIChatClientFactory(options, _loggerFactory, _timeProvider);
+            return new OpenAISetup(CreateFactory(options, options.ApiKey, options.Endpoint, keyless), live: null);
+        }
+
+        var providerName = name.Length == 0 ? OpenAIProviderNames.ChatCompletions : name;
+
+        var source = new SetupCredentialSource(
+            providerName,
+            OpenAIChatClientFactory.ApiKeyOptionName,
+            options.ApiKey,
+            options.Endpoint,
+            options.ApiKeyConfigurationName,
+            options.EndpointConfigurationName,
+            _configuration,
+            _loggerFactory?.CreateLogger("Tracon.ModelProvider"),
+            keyless);
+
+        OpenAIChatClientFactory Build(ModelProviderCredential snapshot)
+            => CreateFactory(
+                options,
+                keyless && string.Equals(snapshot.ApiKey, PlaceholderApiKey, StringComparison.Ordinal) ? null : snapshot.ApiKey,
+                Uri.TryCreate(snapshot.Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null,
+                keyless);
+
+        var initial = Build(source.Current());
+
+        return new OpenAISetup(initial, new LiveSetup<OpenAIChatClientFactory>(source, initial, Build));
+    }
+
+    private OpenAIChatClientFactory CreateFactory(OpenAIProviderOptions options, string? apiKey, Uri? endpoint, bool keyless)
+    {
+        if (!string.IsNullOrWhiteSpace(apiKey) || !keyless)
+        {
+            // The setup address is the operator's own and is never put behind the outbound address guard.
+            return new OpenAIChatClientFactory(
+                new OpenAIProviderOptions
+                {
+                    ApiKey = apiKey,
+                    Endpoint = endpoint,
+                    DefaultModel = options.DefaultModel,
+                    Organization = options.Organization,
+                    Timeout = options.Timeout,
+                },
+                _loggerFactory,
+                _timeProvider);
         }
 
         var client = OpenAIChatClientFactory.CreateClient(new OpenAIProviderOptions
         {
             ApiKey = PlaceholderApiKey,
-            Endpoint = options.Endpoint,
+            Endpoint = endpoint,
             Organization = options.Organization,
             Timeout = options.Timeout,
         }, timeProvider: _timeProvider);

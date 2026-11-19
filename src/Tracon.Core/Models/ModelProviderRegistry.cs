@@ -477,6 +477,13 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// </remarks>
     private ProviderSecretMask SetupKeyMask(IModelProvider provider, string providerName)
     {
+        // A provider whose key changes while the host runs is asked again when a failure is written: the key a call
+        // sent is the one that was current when it started, and the pipeline is built long before.
+        if (provider is ILiveSetupModelProvider { SetupKeysChange: true })
+        {
+            return ProviderSecretMask.Live(() => provider.SetupApiKeys);
+        }
+
         try
         {
             return ProviderSecretMask.ForValues(provider.SetupApiKeys);
