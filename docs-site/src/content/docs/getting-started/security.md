@@ -263,9 +263,11 @@ The address you pass to a `Use...()` call is **not** guarded, whatever it points
 `UseOpenAI`, `UseOpenAICompatible`, `UseAnthropic`, `UseGoogle` and `UseAzureOpenAI`
 take their endpoint from your code or your configuration, so it is your decision, and a
 sovereign cloud, an internal proxy or a local Ollama on `localhost` works with the
-setting off. Only an address a tenant adds to its own provider binding passes through
-the guard; a binding that adds no address of its own uses your setup address, which
-stays unguarded.
+setting off. The same holds for an address you name a configuration key for
+(`EndpointConfigurationName`): you write the name, so the address is your decision. Only an
+address a tenant adds to its own provider binding passes through the guard; a binding that
+adds no address of its own uses your setup address, which stays unguarded. The OpenAI live
+voice address is the exception: it always passes through the guard.
 
 The check lives inside the socket connect callback, so the address that is validated
 is the address the socket connects to. Validating a URL and then calling it would

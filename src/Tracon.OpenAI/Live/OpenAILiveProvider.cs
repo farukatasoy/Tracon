@@ -23,7 +23,9 @@ namespace Tracon;
 /// <item>
 /// There is no ephemeral-token endpoint for this model
 /// (<c>POST /v1/live/client_secrets</c> answers <c>404</c>), and none is needed:
-/// Tracon creates the session with its own key and attaches with the same one.
+/// Tracon creates the session with its own key and attaches with the same one: when the key or the live address follows
+/// a configuration key, <see cref="SetupCredential"/> reads the pair once before the session is created and the same
+/// credential goes to both calls.
 /// </item>
 /// </list>
 /// <para>

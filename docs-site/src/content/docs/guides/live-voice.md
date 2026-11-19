@@ -101,11 +101,18 @@ The OpenAI provider reads `Tracon:Providers:OpenAI:Live`, bound to
 | `Model` | `gpt-live-1` | The live model. |
 | `Voice` | *(provider default)* | The output voice. |
 | `Endpoint` | `https://api.openai.com/v1/` | The API root. |
+| `EndpointConfigurationName` | *(none)* | The name of a configuration key the API root is read from when a session opens. A value that is not an absolute address leaves the last valid one in place. |
 | `MaxAppendCharacters` | `1000` | The per-append ceiling. The provider states its limit in tokens; Tracon ships no tokenizer, so the limit is converted once and conservatively — text over it is split, never dropped. |
 | `Timeout` | `00:00:30` | The timeout of the session-creation call. |
 
 The API key comes from `Tracon:Providers:OpenAI:ApiKey`; the live provider does
-not take one of its own.
+not take one of its own. When `UseOpenAI()` names a configuration key for the key
+([change the provider key without a restart](/guides/model-providers/#change-the-provider-key-without-a-restart)),
+a session reads the key and the live address **once**, before it is created, and uses that
+pair for the creation and for the sideband attach, so a rotation between the two calls
+never splits one session across two keys. The sideband socket keeps the key it opened with;
+the next session reads the new one. The live address always goes through the outbound
+address guard, whether you write it in code or name a configuration key for it.
 
 ## Tenant policy and credentials
 

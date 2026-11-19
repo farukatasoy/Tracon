@@ -120,9 +120,11 @@ Tracon:Pricing:Providers:*:*:OutputCostPerMillionTokens
 Tracon:Pricing:Voice:*:*:PerMillionCharacters
 Tracon:Pricing:Voice:*:*:PerMinute
 Tracon:Providers:Anthropic:ApiKey
+Tracon:Providers:Anthropic:ApiKeyConfigurationName
 Tracon:Providers:Anthropic:DefaultMaxOutputTokens
 Tracon:Providers:Anthropic:DefaultModel
 Tracon:Providers:Anthropic:Endpoint
+Tracon:Providers:Anthropic:EndpointConfigurationName
 Tracon:Providers:Anthropic:MaxRetries
 Tracon:Providers:Anthropic:Models:*:CacheWriteCostPerMillionTokens
 Tracon:Providers:Anthropic:Models:*:CacheWriteLongCostPerMillionTokens
@@ -141,9 +143,11 @@ Tracon:Providers:Anthropic:Models:*:SupportsStructuredOutput
 Tracon:Providers:Anthropic:Models:*:SupportsTools
 Tracon:Providers:Anthropic:Timeout
 Tracon:Providers:AzureOpenAI:ApiKey
+Tracon:Providers:AzureOpenAI:ApiKeyConfigurationName
 Tracon:Providers:AzureOpenAI:Audience
 Tracon:Providers:AzureOpenAI:DefaultDeployment
 Tracon:Providers:AzureOpenAI:Endpoint
+Tracon:Providers:AzureOpenAI:EndpointConfigurationName
 Tracon:Providers:AzureOpenAI:Models:*:CacheWriteCostPerMillionTokens
 Tracon:Providers:AzureOpenAI:Models:*:CacheWriteLongCostPerMillionTokens
 Tracon:Providers:AzureOpenAI:Models:*:CachedInputCostPerMillionTokens
@@ -161,9 +165,11 @@ Tracon:Providers:AzureOpenAI:Models:*:SupportsStructuredOutput
 Tracon:Providers:AzureOpenAI:Models:*:SupportsTools
 Tracon:Providers:AzureOpenAI:Timeout
 Tracon:Providers:Google:ApiKey
+Tracon:Providers:Google:ApiKeyConfigurationName
 Tracon:Providers:Google:ApiVersion
 Tracon:Providers:Google:DefaultModel
 Tracon:Providers:Google:Endpoint
+Tracon:Providers:Google:EndpointConfigurationName
 Tracon:Providers:Google:Models:*:CacheWriteCostPerMillionTokens
 Tracon:Providers:Google:Models:*:CacheWriteLongCostPerMillionTokens
 Tracon:Providers:Google:Models:*:CachedInputCostPerMillionTokens
@@ -181,10 +187,13 @@ Tracon:Providers:Google:Models:*:SupportsStructuredOutput
 Tracon:Providers:Google:Models:*:SupportsTools
 Tracon:Providers:Google:Timeout
 Tracon:Providers:OpenAI:ApiKey
+Tracon:Providers:OpenAI:ApiKeyConfigurationName
 Tracon:Providers:OpenAI:DefaultModel
 Tracon:Providers:OpenAI:EnableResponsesSurface
 Tracon:Providers:OpenAI:Endpoint
+Tracon:Providers:OpenAI:EndpointConfigurationName
 Tracon:Providers:OpenAI:Live:Endpoint
+Tracon:Providers:OpenAI:Live:EndpointConfigurationName
 Tracon:Providers:OpenAI:Live:MaxAppendCharacters
 Tracon:Providers:OpenAI:Live:Model
 Tracon:Providers:OpenAI:Live:Timeout
@@ -332,6 +341,7 @@ Tracon:UtilityModel:Temperature
 Tracon:UtilityModel:TopP
 Tracon:Validation:McpTimeout
 Tracon:Voice:ApiKey
+Tracon:Voice:ApiKeyConfigurationName
 Tracon:Voice:Conversation:IdleTimeout
 Tracon:Voice:Conversation:InputSampleRate
 Tracon:Voice:Conversation:MaxConcurrentConnectionsPerTenant
@@ -345,6 +355,7 @@ Tracon:Voice:Conversation:VoiceId
 Tracon:Voice:DefaultVoiceId
 Tracon:Voice:DialogueModelId
 Tracon:Voice:Endpoint
+Tracon:Voice:EndpointConfigurationName
 Tracon:Voice:Live:DelegationMode
 Tracon:Voice:Live:DelegationTimeout
 Tracon:Voice:Live:Instructions

@@ -102,7 +102,7 @@ builder.AddTracon().UseVoice(o => o.SynthesisModelId = "my-model");
 ```
 
 With **both** contracts registered first, no API key is needed: `Provider`,
-`ApiKey` and `Endpoint` configure only the built-in client. A registration added
+`ApiKey` and `Endpoint` configure only the built-in client; `ApiKeyConfigurationName` and `EndpointConfigurationName` name the configuration keys it reads them from on every request, so a rotated key needs no restart. A registration added
 **after** `UseVoice` is not seen, and startup fails with a message that says so.
 
 Three behaviors follow your implementation, not the settings: the `speak`

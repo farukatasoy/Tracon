@@ -82,6 +82,11 @@ Tracon reads its options once, when the host starts. A configuration provider th
 it does not change the options Tracon reads, and no option of Tracon is meant to change while
 the host runs. Restart the host to apply a change.
 
+One exception: the key and the address of a model provider and of the voice client. Name the
+configuration keys they are read from (`ApiKeyConfigurationName`, `EndpointConfigurationName`)
+and Tracon reads them on every call
+([change the provider key without a restart](/guides/model-providers/#change-the-provider-key-without-a-restart)).
+
 The `Tracon:Workflows` options hold the same rule. `UseWorkflows()` binds the section by hand and
 registers no change token source, so a reload reaches none of its readers: not the run limits a
 save checks (`RunTimeout`, `MaxRunTimeout`, `MaxSuperSteps`), not the resume settings the job

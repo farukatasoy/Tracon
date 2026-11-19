@@ -195,6 +195,11 @@ GET /tracon/api/models/health/google
 
 `ApiKey` is **never** written to this file — use `dotnet user-secrets`.
 
+To change the key or the address while the host runs, set `ApiKeyConfigurationName` and `EndpointConfigurationName` to the
+**names** of configuration keys that live in a source that reloads. Tracon reads them on every call and keeps the last valid
+value when one is missing; the value itself is never stored or shown. See
+<https://tracon.dev/guides/model-providers/#change-the-provider-key-without-a-restart>.
+
 ## Links
 
 - Guide: <https://tracon.dev/guides/model-providers/>

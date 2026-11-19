@@ -7,7 +7,8 @@ namespace Tracon;
 /// <remarks>
 /// This type carries the actual secret <em>value</em>. It is produced only
 /// at call time, by resolving a <see cref="TenantProviderBinding"/>'s
-/// configuration key through the application's configuration system; it is
+/// configuration key through the application's configuration system (or, inside Tracon, from the configuration
+/// keys a host named for its provider's key and address); it is
 /// never constructed from a database row and never persisted anywhere.
 /// When a chat model call is made with this credential and the provider's error text quotes
 /// <see cref="ApiKey"/> back, Tracon replaces the key with <c>[redacted]</c> before that text reaches

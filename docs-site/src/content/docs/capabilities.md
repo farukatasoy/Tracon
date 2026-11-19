@@ -74,6 +74,10 @@ stable provider name.
 | `Tracon.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure deployments with an API key or a consumer-supplied Entra credential |
 | Any package | `AddModelProvider()` | Chosen by the implementation | A custom `IModelProvider` without a provider package |
 
+Name the configuration keys of a provider's key and address (`ApiKeyConfigurationName`,
+`EndpointConfigurationName`) and Tracon reads them on every call, so a rotated key needs no
+restart; see [Change the provider key without a restart](/guides/model-providers/#change-the-provider-key-without-a-restart).
+
 All built-in providers can publish a configured model catalog. The catalog feeds the
 console and pricing; it is not an allowlist. Health checks are cached. A shared
 circuit breaker protects provider calls. Tracon does not invent model names or

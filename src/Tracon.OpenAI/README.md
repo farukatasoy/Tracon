@@ -197,6 +197,11 @@ dotnet add package Tracon.OpenAI --prerelease
 environment variable, or a secret manager. The key is never written to the database,
 never returned from the API, and never shown in the user interface.
 
+To change the key or the address while the host runs, set `ApiKeyConfigurationName` and `EndpointConfigurationName` to the
+**names** of configuration keys that live in a source that reloads. Tracon reads them on every call and keeps the last valid
+value when one is missing; the value itself is never stored or shown. See
+<https://tracon.dev/guides/model-providers/#change-the-provider-key-without-a-restart>.
+
 **The model catalog comes from configuration.** The package carries no built-in model
 list: OpenAI model names and prices change much faster than a NuGet package release
 cycle. The catalog is not a validation list either — a model name absent from it can

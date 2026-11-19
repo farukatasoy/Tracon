@@ -17,8 +17,9 @@ public static class OpenAIProviderExtensions
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="apiKey"/> is empty.</exception>
     /// <remarks>
-    /// The key is passed in by the caller; Tracon never reads
-    /// <c>IConfiguration</c> on its own, and the key is never written to the
+    /// The key is passed in by the caller; Tracon reads <c>IConfiguration</c> only for the configuration keys you
+    /// name in <see cref="OpenAIProviderOptions.ApiKeyConfigurationName"/> and
+    /// <see cref="OpenAIProviderOptions.EndpointConfigurationName"/>, and the key is never written to the
     /// database.
     /// <example>
     /// <code>

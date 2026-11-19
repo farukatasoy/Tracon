@@ -579,65 +579,98 @@ providers next to the model providers, by the name a policy uses. See
 
 ## Change the provider key without a restart
 
-The key and the address that a `Use...()` call receives are read once, when the host
-starts. A new value in `appsettings.json` or in a secret store reaches `IConfiguration`
-and does not reach the running provider.
-[A change to the configuration needs a restart](/reference/configuration/#a-change-to-the-configuration-needs-a-restart).
+A `Use...()` call receives a key and an address, and the provider reads them once, when
+the host starts. A new value in `appsettings.json` or in a secret store reaches
+`IConfiguration` and does not reach the running provider.
+[A change to the configuration needs a restart](/reference/configuration/#a-change-to-the-configuration-needs-a-restart),
+with one exception: the key and the address of a model provider and of the voice client,
+when you name the configuration keys they live under.
 
-A host that runs one tenant can still change the key while it runs. Bind the default
-tenant to a configuration key, as for a [tenant's own key](#per-tenant-credentials-byok).
-Tracon reads that key from configuration on every run, so the next run sends the new
-value. Tracon replaces the client when the key or the address changes.
+### Name the configuration keys
 
-1. Put the key under a flat name below the allowed prefix, in a configuration source
-   that reloads. A flat name belongs to the default tenant (`Tracon:DefaultTenantId`,
-   `default` unless you changed it):
+Give the provider the **name** of a configuration key instead of the value. Tracon reads
+the key on every call, so the next call sends the new value.
 
-   ```bash
-   dotnet user-secrets set "Tracon:ProviderKeys:OpenAI" "<key>"
-   ```
+```csharp
+builder.AddTracon()
+    .UseOpenAI(options =>
+    {
+        options.ApiKeyConfigurationName = "Platform:OpenAI:Key";
+        options.EndpointConfigurationName = "Platform:OpenAI:Endpoint"; // optional
+    });
+```
 
-2. Bind the default tenant to that name. The provider name is the one an agent's
-   `ModelBinding.Provider` uses: `openai`, `openai-responses`, `anthropic`, `google`,
-   `azure-openai`, or the name of a compatible endpoint. Each name needs its own binding.
+The same two options exist on `OpenAIProviderOptions` (and so on `UseOpenAICompatible`),
+`AnthropicProviderOptions`, `GoogleProviderOptions`, `AzureOpenAIProviderOptions` and
+`VoiceOptions`. From configuration, write the names in the provider's section:
 
-   ```bash
-   curl -X PUT "http://localhost:5081/tracon/api/tenants/default/providers/openai" \
-     -H "Authorization: Bearer $TRACON_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{"apiKeyConfigurationName": "Tracon:ProviderKeys:OpenAI"}'
-   ```
+```json
+{ "Tracon": { "Providers": { "OpenAI": { "ApiKeyConfigurationName": "Platform:OpenAI:Key" } } } }
+```
 
-3. Rotate the key by changing the value that the name holds. A run that already started
-   may finish with the old key. `GET /tracon/api/tenants/default/providers` reports
-   `resolved: true` when the name holds a value; it never returns the value.
+Then keep the value in a source that reloads, and rotate it there:
 
-To change the address as well, add `"endpoint": "https://..."` to the binding. Tracon
-sends the address of a binding through the outbound address guard, as for any tenant:
-a host on a private network sets `Tracon:Egress:AllowPrivateNetworkTargets`.
+```bash
+dotnet user-secrets set "Platform:OpenAI:Key" "<new key>"
+```
+
+The rules:
+
+- **The pair is read together.** A call never sends the old key to the new address, or the
+  new key to the old address.
+- **A value that cannot be used does not fail the call.** A missing, blank or unusable
+  value (an address that is not absolute, a key an HTTP header cannot carry) leaves the
+  last valid value in place. Tracon writes one warning that names the configuration key,
+  never its value, and picks up the next valid value without a restart.
+- **The host still starts with a value.** The key or the address you pass in code, or the
+  value the name holds when the host starts, must be usable; otherwise the host stops at
+  start. A value in code is the one Tracon starts with when the name has no value yet.
+- **The source must reload.** An environment variable is read when the process starts and
+  does not change. Use a JSON file added with `reloadOnChange` or a vault provider with a
+  refresh interval.
+- **A call that started finishes with the key it started with.** The client that held the
+  old key is not disposed while it serves that call, and the next call gets a new client.
+- **Tracon never stores the value.** The name is your setting, written in code or in your
+  own configuration. The key does not enter the API, the console or the database.
+
+What follows the rotation:
+
+| Call | Follows the new key and address |
+|---|---|
+| Agent run, including an agent that was compiled and cached before the rotation | Yes |
+| Run judge, loop evaluator, context summarizer and fallback model | Yes |
+| Model health check (`/api/models/health`) | Yes. The result is cached for its time to live; pass `refresh=true` to check now |
+| Image generation (OpenAI, Azure OpenAI, Google) | Yes |
+| Speech (OpenAI, Google) and the built-in ElevenLabs client | Yes |
+| Live voice session | Yes, read once for each session. The sideband socket keeps the key it opened with |
+| Tenant with its own key ([BYOK](#per-tenant-credentials-byok)) | No. That tenant sends its own key |
 
 Four limits apply:
 
-- **The source must reload.** An environment variable is read when the process starts and
-  does not change. Use a JSON file added with `reloadOnChange` (the default host does this
-  for `appsettings.json`) or a vault provider with a refresh interval.
-- **The host still starts with a key.** A registration validates its key at start (a
-  compatible endpoint can be keyless). The binding replaces the key for agent runs; it
-  does not remove the need for the key at start.
-- **Some calls keep the key from startup.** Tracon makes these calls for itself, so a
-  tenant's key is never charged for them:
+- **Azure OpenAI.** A credential factory (Entra) wins over a key, so Tracon refuses a
+  host that gives both `CredentialFactory` and `ApiKeyConfigurationName`. A name for the
+  address works with a credential factory: the client is built again for the new address
+  and the factory is called for it.
+- **Replaced clients are not disposed.** A rotation leaves the old client to the
+  collector, and a Google client keeps its HTTP connection until then. A rotation is rare,
+  so the cost is a few clients.
+- **The response cache and the telemetry lane do not follow the address.** The response
+  cache key holds no address, and a trace names the address the host started with.
+- **A failure that quotes the key is masked for the key in use and the ones it replaced.**
+  Tracon keeps the last four keys of a provider in memory for this.
 
-  | Call | Key it sends |
-  |---|---|
-  | Agent run of the default tenant | The key the bound name holds now |
-  | Run judge and loop evaluator | The key the provider started with |
-  | Provider health check (`/api/models/health`) | The key the provider started with |
+An address you name this way is your own decision, the same as an address you pass in code,
+and the [outbound address guard](/getting-started/security/#outbound-requests-are-guarded-too)
+does not check it. The live voice address always goes through the guard.
 
-  Revoke the old key at the provider only when you accept that judges and the health
-  check fail until the next restart. Replace the startup key at the next deploy.
-- **A name with no value fails the run.** The call does not fall back to the key from
-  startup. Remove the value only after you remove the binding
-  (`DELETE /tracon/api/tenants/default/providers/{provider}`).
+### One tenant's own key
+
+A tenant that brings its own key uses a binding, not these options. A host that runs one
+tenant can bind the default tenant to a configuration key as well; see
+[Per-tenant credentials](#per-tenant-credentials-byok). Tracon reads that key on every run
+and replaces the client when it changes. The default tenant binding does not reach the run
+judge, the loop evaluator or the health check, which send the key the provider was set up
+with; naming the configuration key (above) does.
 
 ## Model catalog is metadata, not permission
 

@@ -165,6 +165,12 @@ public interface IModelProvider
     /// It reads this member once for each client it builds, and a getter that throws leaves that client without a
     /// replacement and writes a warning that names the provider and the exception type.
     /// </para>
+    /// <para>
+    /// A provider that ships with Tracon and reads its key from a configuration key you name
+    /// (<c>ApiKeyConfigurationName</c>) reports the key in use first and then the keys it replaced, up to four, and Tracon
+    /// reads the member again each time a failure is written, so the text of a call that began before a rotation is
+    /// masked too. A provider you write reports fixed keys, as above.
+    /// </para>
     /// </remarks>
     IReadOnlyList<string> SetupApiKeys => [];
 

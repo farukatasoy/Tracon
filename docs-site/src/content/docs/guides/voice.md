@@ -60,6 +60,12 @@ file with a trailing newline works; a key that still holds a control character, 
 character an HTTP header cannot carry, stops the host at start with a message that names
 the option and never repeats the key.
 
+To rotate the key while the host runs, name the configuration key it lives under with
+`Tracon:Voice:ApiKeyConfigurationName` (and the address with `EndpointConfigurationName`).
+The client reads both on every request, together. A value that is missing or unusable leaves
+the last valid one in place and writes one warning that names the configuration key. See
+[change the provider key without a restart](/guides/model-providers/#change-the-provider-key-without-a-restart).
+
 ```csharp
 var tracon = builder.AddTracon()
     .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName));

@@ -40,12 +40,15 @@ library default.
 
 | Section | Verified defaults |
 |---|---|
-| `Tracon:Providers:OpenAI` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for OpenAI, `Organization=null`, `Timeout=null`, `Models=[]` |
+| `Tracon:Providers:OpenAI` | `ApiKey=null`, `ApiKeyConfigurationName=null`, `EndpointConfigurationName=null`, `DefaultModel=null`, `Endpoint=null` for OpenAI, `Organization=null`, `Timeout=null`, `Models=[]` |
 | `Tracon:Providers:OpenAICompatible:{name}` | Same shape as OpenAI; `EnableResponsesSurface=false` |
-| `Tracon:Providers:Anthropic` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Anthropic, `DefaultMaxOutputTokens=4096`, `Timeout=null`, `MaxRetries=null`, `Models=[]` |
-| `Tracon:Providers:Google` | `ApiKey=null`, `DefaultModel=null`, `Endpoint=null` for Google, `ApiVersion=null`, `Timeout=null`, `Models=[]` |
-| `Tracon:Providers:AzureOpenAI` | `Endpoint=null` but required, `ApiKey=null`, `CredentialFactory=null`, `DefaultDeployment=null`, `Audience=null` for public cloud, `Timeout=null`, `Models=[]` |
+| `Tracon:Providers:Anthropic` | `ApiKey=null`, `ApiKeyConfigurationName=null`, `EndpointConfigurationName=null`, `DefaultModel=null`, `Endpoint=null` for Anthropic, `DefaultMaxOutputTokens=4096`, `Timeout=null`, `MaxRetries=null`, `Models=[]` |
+| `Tracon:Providers:Google` | `ApiKey=null`, `ApiKeyConfigurationName=null`, `EndpointConfigurationName=null`, `DefaultModel=null`, `Endpoint=null` for Google, `ApiVersion=null`, `Timeout=null`, `Models=[]` |
+| `Tracon:Providers:AzureOpenAI` | `Endpoint=null` but required, `EndpointConfigurationName=null`, `ApiKey=null`, `ApiKeyConfigurationName=null`, `CredentialFactory=null`, `DefaultDeployment=null`, `Audience=null` for public cloud, `Timeout=null`, `Models=[]` |
 
+`ApiKeyConfigurationName` and `EndpointConfigurationName` name the configuration keys the key
+and the address are read from on every call
+([change the provider key without a restart](/guides/model-providers/#change-the-provider-key-without-a-restart)).
 `CredentialFactory` is code-only because it is a delegate. When it is set, Azure does
 not use `ApiKey`. The consumer chooses and references `Azure.Identity` when managed
 identity is required.
@@ -198,7 +201,9 @@ from one millisecond to about 49.7 days and fails at startup otherwise, while `E
 |---|---:|
 | `Provider` | `elevenlabs` |
 | `ApiKey` | `null` |
+| `ApiKeyConfigurationName` | `null`; the name of the configuration key the key is read from on every request |
 | `Endpoint` | `null`; provider public endpoint |
+| `EndpointConfigurationName` | `null`; the name of the configuration key the address is read from on every request |
 | `DefaultVoiceId` | `null` |
 | `SynthesisModelId` | `null` |
 | `TranscriptionModelId` | `null` |
