@@ -5,12 +5,16 @@ Tracon.AnthropicProviderOptions
 Tracon.AnthropicProviderOptions.AnthropicProviderOptions() -> void
 Tracon.AnthropicProviderOptions.ApiKey.get -> string?
 Tracon.AnthropicProviderOptions.ApiKey.set -> void
+Tracon.AnthropicProviderOptions.ApiKeyConfigurationName.get -> string?
+Tracon.AnthropicProviderOptions.ApiKeyConfigurationName.set -> void
 Tracon.AnthropicProviderOptions.DefaultMaxOutputTokens.get -> int
 Tracon.AnthropicProviderOptions.DefaultMaxOutputTokens.set -> void
 Tracon.AnthropicProviderOptions.DefaultModel.get -> string?
 Tracon.AnthropicProviderOptions.DefaultModel.set -> void
 Tracon.AnthropicProviderOptions.Endpoint.get -> System.Uri?
 Tracon.AnthropicProviderOptions.Endpoint.set -> void
+Tracon.AnthropicProviderOptions.EndpointConfigurationName.get -> string?
+Tracon.AnthropicProviderOptions.EndpointConfigurationName.set -> void
 Tracon.AnthropicProviderOptions.MaxRetries.get -> int?
 Tracon.AnthropicProviderOptions.MaxRetries.set -> void
 Tracon.AnthropicProviderOptions.Models.get -> System.Collections.Generic.IList<Tracon.ModelDescriptor!>!

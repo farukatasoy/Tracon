@@ -88,11 +88,14 @@ public static class AnthropicProviderExtensions
 
         var alreadyRegistered = ProviderRegistrationCore.IsRegistered<AnthropicChatClientFactory>(services);
 
-        // One client, one HTTP connection pool.
-        services.TryAddSingleton(static provider => new AnthropicChatClientFactory(
+        // One client, one HTTP connection pool. The setup builds it from the options, and from the key and the address a
+        // configuration key names when the options name one.
+        services.TryAddSingleton(static provider => AnthropicSetup.Create(
             provider.GetRequiredService<IOptions<AnthropicProviderOptions>>().Value,
             provider.GetService<ILoggerFactory>(),
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>(),
+            provider.GetService<IConfiguration>()));
+        services.TryAddSingleton(static provider => provider.GetRequiredService<AnthropicSetup>().Initial);
 
         if (alreadyRegistered)
         {
@@ -110,7 +113,8 @@ public static class AnthropicProviderExtensions
                 provider.GetService<ILogger<AnthropicModelProvider>>(),
                 healthCheckOptions: options,
                 egressGuard: provider.GetService<EgressSocketGuard>(),
-                timeProvider: provider.GetService<TimeProvider>());
+                timeProvider: provider.GetService<TimeProvider>(),
+                liveSetup: provider.GetRequiredService<AnthropicSetup>().Live);
         });
 
         return builder;
@@ -129,6 +133,16 @@ public static class AnthropicProviderExtensions
         if (section[nameof(AnthropicProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
             options.ApiKey = apiKey;
+        }
+
+        if (section[nameof(AnthropicProviderOptions.ApiKeyConfigurationName)] is { Length: > 0 } apiKeyConfigurationName)
+        {
+            options.ApiKeyConfigurationName = apiKeyConfigurationName;
+        }
+
+        if (section[nameof(AnthropicProviderOptions.EndpointConfigurationName)] is { Length: > 0 } endpointConfigurationName)
+        {
+            options.EndpointConfigurationName = endpointConfigurationName;
         }
 
         if (section[nameof(AnthropicProviderOptions.DefaultModel)] is { Length: > 0 } defaultModel)

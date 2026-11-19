@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -17,7 +18,7 @@ namespace Tracon;
 /// expose it.
 /// </para>
 /// </remarks>
-internal sealed class AnthropicProviderOptionsValidator : IValidateOptions<AnthropicProviderOptions>
+internal sealed class AnthropicProviderOptionsValidator(IConfiguration? configuration = null) : IValidateOptions<AnthropicProviderOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AnthropicProviderOptions options)
@@ -26,13 +27,24 @@ internal sealed class AnthropicProviderOptionsValidator : IValidateOptions<Anthr
 
         List<string>? failures = null;
 
-        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        // A key the host names a configuration key for is read when a call is made; the host still has to start with
+        // one, so a missing value stops it here as it does for a literal.
+        var nameGivesKey = SetupConfigurationName.GivesUsableKey(
+            configuration,
+            options.ApiKeyConfigurationName,
+            AnthropicChatClientFactory.ApiKeyOptionName);
+
+        OptionText.AddWhenOnlyWhiteSpace(options.ApiKeyConfigurationName, nameof(AnthropicProviderOptions), nameof(AnthropicProviderOptions.ApiKeyConfigurationName), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.EndpointConfigurationName, nameof(AnthropicProviderOptions), nameof(AnthropicProviderOptions.EndpointConfigurationName), ref failures);
+
+        if (string.IsNullOrWhiteSpace(options.ApiKey) && !nameGivesKey)
         {
             (failures ??= []).Add(
                 $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.ApiKey)} cannot be empty. " +
                 "Provide the key through the `UseAnthropic(apiKey)` call, or define " +
                 $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.ApiKey)}' " +
-                "inside `dotnet user-secrets`.");
+                "inside `dotnet user-secrets`." +
+                SetupConfigurationName.Hint(options.ApiKeyConfigurationName));
         }
         else if (OutboundApiKey.Refusal(AnthropicChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } refusal)
         {

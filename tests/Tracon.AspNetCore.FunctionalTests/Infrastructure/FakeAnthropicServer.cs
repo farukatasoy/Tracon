@@ -42,6 +42,16 @@ internal sealed class FakeAnthropicServer : IAsyncDisposable
     public List<JsonObject> Bodies { get; } = [];
 
     /// <summary>
+    /// The <c>Authorization</c> header of every <c>/v1/messages</c> request, in the order the requests arrived;
+    /// <see langword="null"/> for a request that carried none.
+    /// </summary>
+    /// <remarks>
+    /// The SDK carries the API key as a bearer token (measured with the 13.8.0 client; the request has no
+    /// <c>x-api-key</c> header). The key that counts is the one on the wire, not the one the options held.
+    /// </remarks>
+    public List<string?> ReceivedAuthorizationHeaders { get; } = [];
+
+    /// <summary>
     /// Answers a <c>/v1/messages</c> request itself: a status, a header, a body that is not a message. The request is
     /// already counted in <see cref="Bodies"/>; the second argument is its 1-based position. Return
     /// <see langword="true"/> when the handler wrote the response. Return <see langword="false"/> to let the server
@@ -95,6 +105,8 @@ internal sealed class FakeAnthropicServer : IAsyncDisposable
             lock (server!.Bodies)
             {
                 server.Bodies.Add(body);
+                server.ReceivedAuthorizationHeaders.Add(
+                    context.Request.Headers.Authorization is { Count: > 0 } values ? values.ToString() : null);
                 position = server.Bodies.Count;
             }
 

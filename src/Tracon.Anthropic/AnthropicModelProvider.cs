@@ -18,13 +18,16 @@ namespace Tracon;
 /// at the <c>ModelProviderRegistry</c> level; this package gets both for free.
 /// </para>
 /// </remarks>
-internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
+internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, ILiveSetupModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
 {
     private readonly AnthropicChatClientFactory _chatClientFactory;
     private readonly ILogger<AnthropicModelProvider>? _logger;
     private readonly AnthropicProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
     private readonly AnthropicProviderOptions? _baseOptions;
+
+    // Set when the host named the configuration keys of the key and the address: the clients follow them.
+    private readonly LiveSetup<AnthropicChatClientFactory>? _live;
 
     // Known-model set, BYOK caches and the tenant endpoint guard rule (shared source).
     private readonly ModelProviderCore<AnthropicChatClientFactory> _core;
@@ -48,6 +51,10 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
     /// The clock a date in a <c>Retry-After</c> header of a tenant's own client is read against;
     /// <see cref="TimeProvider.System"/> when omitted.
     /// </param>
+    /// <param name="liveSetup">
+    /// The clients that follow the configuration keys the options name for the key and the address, or
+    /// <see langword="null"/> when the key and the address are fixed for the life of the host.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public AnthropicModelProvider(
@@ -57,7 +64,8 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
         ILogger<AnthropicModelProvider>? logger = null,
         AnthropicProviderOptions? healthCheckOptions = null,
         EgressSocketGuard? egressGuard = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        LiveSetup<AnthropicChatClientFactory>? liveSetup = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -68,8 +76,13 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
         _chatClientFactory = chatClientFactory;
         _logger = logger;
-        _healthCheck = healthCheckOptions is null ? null : new AnthropicProviderHealthCheck(name, healthCheckOptions, logger);
-        _configurationDiagnostic = healthCheckOptions is null
+        _live = liveSetup;
+        _healthCheck = healthCheckOptions is null
+            ? null
+            : liveSetup is null
+                ? new AnthropicProviderHealthCheck(name, healthCheckOptions, logger)
+                : new AnthropicProviderHealthCheck(name, () => HealthTargetOf(liveSetup, healthCheckOptions), logger);
+        _configurationDiagnostic = healthCheckOptions is null || liveSetup is not null
             ? null
             : ModelProviderCore.ConfigurationDiagnosticFor(
                 AnthropicProviderOptions.SectionName,
@@ -86,10 +99,20 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
     /// The key the provider's client was built with, trimmed as it is sent. Empty when the provider was built from a
     /// ready-made client (no key is known).
+    /// </para>
+    /// <para>
+    /// When the host named a configuration key for the key, the keys the provider has sent: the one now in use first,
+    /// then the ones it replaced, so the text of a call that began before a rotation is masked too.
+    /// </para>
     /// </remarks>
-    public IReadOnlyList<string> SetupApiKeys => _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+    public IReadOnlyList<string> SetupApiKeys
+        => _live is not null ? _live.Source.RecentKeys : _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+
+    /// <inheritdoc />
+    bool ILiveSetupModelProvider.SetupKeysChange => _live is not null;
 
     /// <inheritdoc />
     /// <remarks>
@@ -141,6 +164,22 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
                 _logger, binding.Model, Name, $"{AnthropicProviderOptions.SectionName}:Models");
         }
 
+        if (credential is null && _live is { } live)
+        {
+            // The client is picked when the call starts: an agent, a fallback link, a judge or a summarizer holds this
+            // one and follows a rotation without being built again.
+            IChatClient Current() => live.ChatClient(
+                live.Snapshot(),
+                binding,
+                static (factory, liveBinding) => factory.CreateChatClient(liveBinding));
+
+            // The first client is made now, as a fixed key makes it at compile time: a model name or a provider setting
+            // that cannot be used stops the compilation here and not the first call. The cache keeps it for that call.
+            _ = Current();
+
+            return new LiveSetupChatClient(Current);
+        }
+
         return credential is null
             ? _chatClientFactory.CreateChatClient(binding)
             : _core.GetTenantChatClient(
@@ -148,6 +187,28 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
                 binding,
                 BuildCredentialFactory,
                 static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding));
+    }
+
+    // The address the setup key is sent to now: the one a configuration key names, or the one the host started with.
+    private Uri? SetupEndpoint()
+        => _live is null
+            ? _baseOptions?.Endpoint
+            : Uri.TryCreate(_live.Snapshot().Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null;
+
+    private static AnthropicProviderHealthCheck.HealthTarget HealthTargetOf(
+        LiveSetup<AnthropicChatClientFactory> live,
+        AnthropicProviderOptions options)
+    {
+        // Key and address of one check come from one snapshot. The placeholder stands for "no key known"; it is not sent.
+        var snapshot = live.Snapshot();
+        var key = string.Equals(snapshot.ApiKey, SetupCredentialSource.KeylessPlaceholder, StringComparison.Ordinal)
+            ? null
+            : snapshot.ApiKey;
+
+        return new AnthropicProviderHealthCheck.HealthTarget(
+            key,
+            Uri.TryCreate(snapshot.Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null,
+            options.Timeout);
     }
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
@@ -165,7 +226,7 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
         var overrideEndpoint = ModelProviderCore.TenantEndpoint(credential);
 
-        options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
+        options.Endpoint = overrideEndpoint ?? SetupEndpoint();
 
         var client = AnthropicChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint), _core.Clock);
 
@@ -178,5 +239,11 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
             ?? ValueTask.FromResult(ModelProviderCore.UnknownHealth(Name));
 
     /// <inheritdoc />
-    public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
+    public ConfigurationDiagnostic? GetConfigurationDiagnostic()
+        => _live is { } live
+            ? ModelProviderCore.ConfigurationDiagnosticFor(
+                AnthropicProviderOptions.SectionName,
+                resolved: !string.Equals(live.Snapshot().ApiKey, SetupCredentialSource.KeylessPlaceholder, StringComparison.Ordinal),
+                keyName: _baseOptions?.ApiKeyConfigurationName)
+            : _configurationDiagnostic;
 }
