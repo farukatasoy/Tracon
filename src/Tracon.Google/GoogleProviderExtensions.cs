@@ -89,10 +89,13 @@ public static class GoogleProviderExtensions
         var alreadyRegistered = ProviderRegistrationCore.IsRegistered<GoogleChatClientFactory>(services);
 
         // A single client, a single HTTP connection pool. The factory implements
-        // IDisposable, so the client closes when the container shuts down.
-        services.TryAddSingleton(static provider => new GoogleChatClientFactory(
+        // IDisposable, so the client closes when the container shuts down. Chat, images and speech all take the factory
+        // from the setup object, which also builds the one that follows the configuration keys the options name.
+        services.TryAddSingleton(static provider => GoogleSetup.Create(
             provider.GetRequiredService<IOptions<GoogleProviderOptions>>().Value,
-            provider.GetService<ILoggerFactory>()));
+            provider.GetService<ILoggerFactory>(),
+            provider.GetService<IConfiguration>()));
+        services.TryAddSingleton(static provider => provider.GetRequiredService<GoogleSetup>().Initial);
 
         if (alreadyRegistered)
         {
@@ -111,7 +114,8 @@ public static class GoogleProviderExtensions
                 GoogleModelCatalog.Build(options),
                 provider.GetService<ILogger<GoogleModelProvider>>(),
                 healthCheckOptions: options,
-                egressGuard: provider.GetService<EgressSocketGuard>());
+                egressGuard: provider.GetService<EgressSocketGuard>(),
+                liveSetup: provider.GetRequiredService<GoogleSetup>().Live);
         });
         builder.AddModelProvider(static provider => provider.GetRequiredService<GoogleModelProvider>());
 
@@ -131,6 +135,16 @@ public static class GoogleProviderExtensions
         if (section[nameof(GoogleProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
             options.ApiKey = apiKey;
+        }
+
+        if (section[nameof(GoogleProviderOptions.ApiKeyConfigurationName)] is { Length: > 0 } apiKeyConfigurationName)
+        {
+            options.ApiKeyConfigurationName = apiKeyConfigurationName;
+        }
+
+        if (section[nameof(GoogleProviderOptions.EndpointConfigurationName)] is { Length: > 0 } endpointConfigurationName)
+        {
+            options.EndpointConfigurationName = endpointConfigurationName;
         }
 
         if (section[nameof(GoogleProviderOptions.DefaultModel)] is { Length: > 0 } defaultModel)

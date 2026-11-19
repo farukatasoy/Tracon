@@ -15,6 +15,10 @@ namespace Tracon;
 /// one egress rule (the provider name <c>google</c>). It holds no per-call state.
 /// </para>
 /// <para>
+/// When the host names the configuration keys of the key and the address (<see cref="GoogleProviderOptions.ApiKeyConfigurationName"/>),
+/// the client of the setup credential is picked again when each call starts, so a rotated key is sent from the next call.
+/// </para>
+/// <para>
 /// A request that carries a tenant credential is served by the client the tenant's chat requests use:
 /// <see cref="GoogleModelProvider.GetTenantFactory"/> builds one for the credential of the tenant's binding and keeps it until the tenant rotates the key.
 /// </para>
@@ -40,16 +44,31 @@ internal sealed class GoogleSpeechSynthesizer : ISpeechSynthesizer, ISpeechDialo
     private readonly int _maxDialogueCharacters;
     private readonly GoogleDialogueSpeakerMode _speakerMode;
     private readonly IReadOnlyList<VoiceDescriptor> _voices;
-    private readonly Client _setupClient;
+    private readonly Func<Client> _setupClient;
     private readonly Func<ModelProviderCredential, Client> _tenantClient;
 
-    /// <summary>Builds the synthesizer.</summary>
+    /// <summary>Builds the synthesizer over the one client built with the setup credential.</summary>
     /// <param name="options">The settings; the values are copied.</param>
     /// <param name="setupClient">The client built with the setup credential.</param>
     /// <param name="tenantClient">Returns the client for a tenant's own credential.</param>
     public GoogleSpeechSynthesizer(
         GoogleSpeechOptions options,
         Client setupClient,
+        Func<ModelProviderCredential, Client> tenantClient)
+        : this(options, Fixed(setupClient), tenantClient)
+    {
+    }
+
+    /// <summary>Builds the synthesizer over a setup client that is picked again when each call starts.</summary>
+    /// <param name="options">The settings; the values are copied.</param>
+    /// <param name="setupClient">
+    /// Returns the client of the key and the address the setup credential has now. A host that follows a configuration
+    /// key gets the client of a rotated key from the next call on.
+    /// </param>
+    /// <param name="tenantClient">Returns the client for a tenant's own credential.</param>
+    public GoogleSpeechSynthesizer(
+        GoogleSpeechOptions options,
+        Func<Client> setupClient,
         Func<ModelProviderCredential, Client> tenantClient)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -268,7 +287,14 @@ internal sealed class GoogleSpeechSynthesizer : ISpeechSynthesizer, ISpeechDialo
         => string.IsNullOrWhiteSpace(requested) ? _model : requested.Trim();
 
     private Client ClientFor(ModelProviderCredential? credential)
-        => credential is null ? _setupClient : _tenantClient(credential);
+        => credential is null ? _setupClient() : _tenantClient(credential);
+
+    private static Func<Client> Fixed(Client client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+
+        return () => client;
+    }
 
     /// <summary>Checks a single-voice request, before any network call.</summary>
     private void CheckSpeech(SpeechRequest request)

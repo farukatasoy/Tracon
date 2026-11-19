@@ -116,11 +116,19 @@ public static class GoogleSpeechBuilderExtensions
         builder.AddSpeechSynthesizer(settings.Name, provider =>
         {
             var google = provider.GetRequiredService<GoogleModelProvider>();
+            var setup = provider.GetRequiredService<GoogleSetup>();
 
-            return new GoogleSpeechSynthesizer(
-                settings,
-                provider.GetRequiredService<GoogleChatClientFactory>().Client,
-                credential => google.GetTenantFactory(credential).Client);
+            // A host that names the configuration keys of the key and the address gets a client that is picked when each
+            // call starts; otherwise the client the host started with is the one for the life of the host.
+            return setup.Live is null
+                ? new GoogleSpeechSynthesizer(
+                    settings,
+                    provider.GetRequiredService<GoogleChatClientFactory>().Client,
+                    credential => google.GetTenantFactory(credential).Client)
+                : new GoogleSpeechSynthesizer(
+                    settings,
+                    () => setup.Current().Client,
+                    credential => google.GetTenantFactory(credential).Client);
         });
 
         if (settings.UseAsDefault)

@@ -64,7 +64,15 @@ public static class GoogleImageBuilderExtensions
         services.TryAddKeyedSingleton<IImageGenerator>(GoogleProviderNames.Google, static (provider, _) =>
         {
             _ = provider.GetRequiredService<IOptions<TraconImageOptions>>().Value;
-            return provider.GetRequiredService<GoogleChatClientFactory>().CreateImageGenerator();
+
+            // One instance for the life of the host: the image resolver keeps one telemetry ring for each registered
+            // instance. A host that names the configuration keys of the key and the address gets the generator that
+            // picks the client of the current ones when a call starts.
+            var setup = provider.GetRequiredService<GoogleSetup>();
+
+            return setup.Live is null
+                ? provider.GetRequiredService<GoogleChatClientFactory>().CreateImageGenerator()
+                : new GoogleImageGenerator(() => setup.Current().Client);
         });
 
         return builder;

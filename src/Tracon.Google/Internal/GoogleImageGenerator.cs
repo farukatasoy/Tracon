@@ -26,9 +26,19 @@ internal sealed class GoogleImageGenerator : IImageGenerator
     /// </remarks>
     private static readonly List<string> ImageModality = ["IMAGE"];
 
-    private readonly Client _client;
+    private readonly Func<Client> _client;
 
     public GoogleImageGenerator(Client client)
+        : this(Fixed(client))
+    {
+    }
+
+    /// <summary>Builds the generator over a client that is picked again when each call starts.</summary>
+    /// <param name="client">
+    /// Returns the Google client of the key and the address that are current. A host that follows a configuration key
+    /// gets the client of a rotated key from the next call on.
+    /// </param>
+    public GoogleImageGenerator(Func<Client> client)
     {
         ArgumentNullException.ThrowIfNull(client);
         _client = client;
@@ -80,13 +90,16 @@ internal sealed class GoogleImageGenerator : IImageGenerator
             throw new TraconException("Google image-generation model is required.");
         }
 
+        // The client is picked once, when the call starts: the key and the address of one call come from one client.
+        var client = _client();
+
         var config = new GenerateContentConfig
         {
             ResponseModalities = ImageModality,
             CandidateCount = options.Count,
         };
 
-        var response = await _client.Models
+        var response = await client.Models
             .GenerateContentAsync(options.ModelId, request.Prompt, config, cancellationToken)
             .ConfigureAwait(false);
 
@@ -115,6 +128,13 @@ internal sealed class GoogleImageGenerator : IImageGenerator
         }
 
         return new ImageGenerationResponse(contents);
+    }
+
+    private static Func<Client> Fixed(Client client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+
+        return () => client;
     }
 
     public object? GetService(System.Type serviceType, object? serviceKey = null)

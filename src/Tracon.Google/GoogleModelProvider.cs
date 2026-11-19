@@ -18,13 +18,16 @@ namespace Tracon;
 /// an empty response, the run is recorded with a <c>content_filtered</c> error.
 /// </para>
 /// </remarks>
-internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
+internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, ILiveSetupModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
 {
     private readonly GoogleChatClientFactory _chatClientFactory;
     private readonly ILogger<GoogleModelProvider>? _logger;
     private readonly GoogleProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
     private readonly GoogleProviderOptions? _baseOptions;
+
+    // Set when the host named the configuration keys of the key and the address: the clients follow them.
+    private readonly LiveSetup<GoogleChatClientFactory>? _live;
 
     // Known-model set, BYOK caches and the tenant endpoint guard rule (shared source).
     // 🚨 GoogleChatClientFactory is IDisposable (owns an HttpClient); entries in _core
@@ -48,6 +51,10 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
     /// tenant-supplied endpoint override; when <see langword="null"/>, such an
     /// override is not guarded.
     /// </param>
+    /// <param name="liveSetup">
+    /// The clients that follow the configuration keys the options name for the key and the address, or
+    /// <see langword="null"/> when the key and the address are fixed for the life of the host.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public GoogleModelProvider(
@@ -56,7 +63,8 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
         IReadOnlyList<ModelDescriptor> models,
         ILogger<GoogleModelProvider>? logger = null,
         GoogleProviderOptions? healthCheckOptions = null,
-        EgressSocketGuard? egressGuard = null)
+        EgressSocketGuard? egressGuard = null,
+        LiveSetup<GoogleChatClientFactory>? liveSetup = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -67,8 +75,13 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 
         _chatClientFactory = chatClientFactory;
         _logger = logger;
-        _healthCheck = healthCheckOptions is null ? null : new GoogleProviderHealthCheck(name, healthCheckOptions, logger);
-        _configurationDiagnostic = healthCheckOptions is null
+        _live = liveSetup;
+        _healthCheck = healthCheckOptions is null
+            ? null
+            : liveSetup is null
+                ? new GoogleProviderHealthCheck(name, healthCheckOptions, logger)
+                : new GoogleProviderHealthCheck(name, () => HealthTargetOf(liveSetup, healthCheckOptions), logger);
+        _configurationDiagnostic = healthCheckOptions is null || liveSetup is not null
             ? null
             : ModelProviderCore.ConfigurationDiagnosticFor(
                 GoogleProviderOptions.SectionName,
@@ -85,10 +98,20 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
     /// The key the provider's client was built with, trimmed as it is sent. Empty when the provider was built from a
     /// ready-made client (no key is known).
+    /// </para>
+    /// <para>
+    /// When the host named a configuration key for the key, the keys the provider has sent: the one now in use first, then
+    /// the ones it replaced, so the text of a call that began before a rotation is masked too.
+    /// </para>
     /// </remarks>
-    public IReadOnlyList<string> SetupApiKeys => _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+    public IReadOnlyList<string> SetupApiKeys
+        => _live is not null ? _live.Source.RecentKeys : _chatClientFactory.SetupApiKey is { } key ? [key] : [];
+
+    /// <inheritdoc />
+    bool ILiveSetupModelProvider.SetupKeysChange => _live is not null;
 
     /// <inheritdoc />
     /// <remarks>
@@ -153,6 +176,16 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
                 _logger, binding.Model, Name, $"{GoogleProviderOptions.SectionName}:Models");
         }
 
+        if (credential is null && _live is { } live)
+        {
+            // The first client is built now, so a setting the provider refuses stops the compilation of the agent as it
+            // does without a live setup. The client the call uses is picked when the call starts: an agent, a fallback
+            // link, a judge or a summarizer holds this one and follows a rotation without being built again.
+            _ = SetupChatClient(live, binding);
+
+            return new LiveSetupChatClient(() => SetupChatClient(live, binding));
+        }
+
         return credential is null
             ? _chatClientFactory.CreateChatClient(binding)
             : _core.GetTenantChatClient(
@@ -160,6 +193,29 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
                 binding,
                 BuildCredentialFactory,
                 static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding));
+    }
+
+    private static IChatClient SetupChatClient(LiveSetup<GoogleChatClientFactory> live, ModelBinding binding)
+        => live.ChatClient(live.Snapshot(), binding, static (factory, liveBinding) => factory.CreateChatClient(liveBinding));
+
+    // The address the setup key is sent to now: the one a configuration key names, or the one the host started with.
+    private Uri? SetupEndpoint()
+        => _live is null
+            ? _baseOptions?.Endpoint
+            : Uri.TryCreate(_live.Snapshot().Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null;
+
+    private static GoogleProviderHealthCheck.HealthTarget HealthTargetOf(
+        LiveSetup<GoogleChatClientFactory> live,
+        GoogleProviderOptions options)
+    {
+        // Key and address of one check come from one snapshot.
+        var snapshot = live.Snapshot();
+
+        return new GoogleProviderHealthCheck.HealthTarget(
+            string.Equals(snapshot.ApiKey, SetupCredentialSource.KeylessPlaceholder, StringComparison.Ordinal) ? null : snapshot.ApiKey,
+            Uri.TryCreate(snapshot.Endpoint, UriKind.Absolute, out var endpoint) ? endpoint : null,
+            options.ApiVersion,
+            options.Timeout);
     }
 
     /// <summary>Returns the client factory for a tenant credential (BYOK), the one the tenant's chat clients are built from.</summary>
@@ -185,7 +241,7 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 
         var overrideEndpoint = ModelProviderCore.TenantEndpoint(credential);
 
-        options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
+        options.Endpoint = overrideEndpoint ?? SetupEndpoint();
 
         var client = GoogleChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint));
 
@@ -198,5 +254,11 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
             ?? ValueTask.FromResult(ModelProviderCore.UnknownHealth(Name));
 
     /// <inheritdoc />
-    public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
+    public ConfigurationDiagnostic? GetConfigurationDiagnostic()
+        => _live is { } live && _baseOptions is { } options
+            ? ModelProviderCore.ConfigurationDiagnosticFor(
+                GoogleProviderOptions.SectionName,
+                resolved: !string.Equals(live.Snapshot().ApiKey, SetupCredentialSource.KeylessPlaceholder, StringComparison.Ordinal),
+                keyName: options.ApiKeyConfigurationName)
+            : _configurationDiagnostic;
 }

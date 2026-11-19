@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -15,7 +16,7 @@ namespace Tracon;
 /// <strong>Error messages never include the API key.</strong>
 /// </para>
 /// </remarks>
-internal sealed class GoogleProviderOptionsValidator : IValidateOptions<GoogleProviderOptions>
+internal sealed class GoogleProviderOptionsValidator(IConfiguration? configuration = null) : IValidateOptions<GoogleProviderOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, GoogleProviderOptions options)
@@ -24,13 +25,24 @@ internal sealed class GoogleProviderOptionsValidator : IValidateOptions<GooglePr
 
         List<string>? failures = null;
 
-        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        // A key the host names a configuration key for is read when a call is made; the host still has to start with one,
+        // so a missing value stops it here as it does for a literal.
+        var nameGivesKey = SetupConfigurationName.GivesUsableKey(
+            configuration,
+            options.ApiKeyConfigurationName,
+            GoogleChatClientFactory.ApiKeyOptionName);
+
+        OptionText.AddWhenOnlyWhiteSpace(options.ApiKeyConfigurationName, nameof(GoogleProviderOptions), nameof(GoogleProviderOptions.ApiKeyConfigurationName), ref failures);
+        OptionText.AddWhenOnlyWhiteSpace(options.EndpointConfigurationName, nameof(GoogleProviderOptions), nameof(GoogleProviderOptions.EndpointConfigurationName), ref failures);
+
+        if (string.IsNullOrWhiteSpace(options.ApiKey) && !nameGivesKey)
         {
             (failures ??= []).Add(
                 $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.ApiKey)} cannot be empty. " +
                 "Pass the key in the `UseGoogle(apiKey)` call, or " +
                 $"set '{GoogleProviderOptions.SectionName}:{nameof(GoogleProviderOptions.ApiKey)}' " +
-                "inside `dotnet user-secrets`.");
+                "inside `dotnet user-secrets`." +
+                SetupConfigurationName.Hint(options.ApiKeyConfigurationName));
         }
         else if (OutboundApiKey.Refusal(GoogleChatClientFactory.ApiKeyOptionName, options.ApiKey) is { } refusal)
         {

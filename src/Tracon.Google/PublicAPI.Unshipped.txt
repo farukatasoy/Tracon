@@ -5,12 +5,16 @@ Tracon.GoogleProviderNames
 Tracon.GoogleProviderOptions
 Tracon.GoogleProviderOptions.ApiKey.get -> string?
 Tracon.GoogleProviderOptions.ApiKey.set -> void
+Tracon.GoogleProviderOptions.ApiKeyConfigurationName.get -> string?
+Tracon.GoogleProviderOptions.ApiKeyConfigurationName.set -> void
 Tracon.GoogleProviderOptions.ApiVersion.get -> string?
 Tracon.GoogleProviderOptions.ApiVersion.set -> void
 Tracon.GoogleProviderOptions.DefaultModel.get -> string?
 Tracon.GoogleProviderOptions.DefaultModel.set -> void
 Tracon.GoogleProviderOptions.Endpoint.get -> System.Uri?
 Tracon.GoogleProviderOptions.Endpoint.set -> void
+Tracon.GoogleProviderOptions.EndpointConfigurationName.get -> string?
+Tracon.GoogleProviderOptions.EndpointConfigurationName.set -> void
 Tracon.GoogleProviderOptions.GoogleProviderOptions() -> void
 Tracon.GoogleProviderOptions.Models.get -> System.Collections.Generic.IList<Tracon.ModelDescriptor!>!
 Tracon.GoogleProviderOptions.Timeout.get -> System.TimeSpan?
