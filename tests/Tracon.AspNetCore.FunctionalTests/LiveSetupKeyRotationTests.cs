@@ -19,8 +19,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// that count are the ones on the wire.
 /// </para>
 /// <para>
-/// The configuration is changed in memory and the next call reads it. A real file source that reloads is the manual case
-/// of the phase; no test waits for a file watcher.
+/// The configuration is changed in memory and the next call reads it. A file source that reloads is exercised by hand
+/// against the sample host; no test waits for a file watcher.
 /// </para>
 /// </remarks>
 public sealed class LiveSetupKeyRotationTests
