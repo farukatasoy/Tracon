@@ -31,6 +31,7 @@ public sealed class TenantProviderKeyRotationTests
     private const string Model = "fake-local-model";
     private const string AgentName = "rotating-key-agent";
     private const string TenantHeader = "X-Tracon-Tenant";
+    private const string FlatKeyName = "Tracon:ProviderKeys:RotatingKey";
 
     [Fact]
     public async Task A_rotated_key_is_the_key_of_the_next_run_and_another_tenants_client_is_left_alone()
@@ -128,6 +129,55 @@ public sealed class TenantProviderKeyRotationTests
         provider.Scopes.ShouldBe(["tenant-a/rotating-key", "tenant-b/rotating-key", null]);
     }
 
+    [Fact]
+    public async Task A_host_without_tenancy_rotates_the_key_that_its_default_tenant_binding_names()
+    {
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection([new(FlatKeyName, "key-one")])
+            .Build();
+
+        // The shape the site documents for a host that runs one tenant: tenancy stays off, the provider is set up with
+        // its own key, and the key the runs use afterwards is the one a flat configuration name holds.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseOpenAICompatible(Provider, options =>
+                {
+                    options.Endpoint = server.BaseAddress;
+                    options.ApiKey = "setup-key";
+                })
+                .AddAgent(new AgentDefinition
+                {
+                    Name = AgentName,
+                    Instructions = "Answer briefly.",
+                    Model = new ModelBinding { Provider = Provider, Model = Model },
+                    Origin = AgentDefinitionOrigin.Code,
+                }),
+            configureServices: services => services.AddSingleton<IConfiguration>(configuration));
+
+        await RunAsync(host, tenant: null);
+
+        using (var bind = new HttpRequestMessage(HttpMethod.Put, new Uri($"/tracon/api/tenants/default/providers/{Provider}", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { apiKeyConfigurationName = FlatKeyName }),
+        })
+        {
+            using var response = await host.Client.SendAsync(bind, TestContext.Current.CancellationToken);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        await RunAsync(host, tenant: null);
+
+        configuration[FlatKeyName] = "key-two";
+
+        await RunAsync(host, tenant: null);
+
+        // The first run used the key the provider was set up with. Once the binding exists every run is sent with the key
+        // the name holds at that moment, and the rotation needed no restart.
+        server.ReceivedAuthorizationHeaders.ShouldBe(["Bearer setup-key", "Bearer key-one", "Bearer key-two"]);
+    }
+
     private static string KeyName(string tenant) => $"Tracon:ProviderKeys:{tenant}:RotatingKey";
 
     private static Task<TraconTestHost> StartAsync(FakeOpenAiCompatibleServer server, IConfiguration configuration)
@@ -167,7 +217,7 @@ public sealed class TenantProviderKeyRotationTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
-    private static async Task RunAsync(TraconTestHost host, string tenant)
+    private static async Task RunAsync(TraconTestHost host, string? tenant)
     {
         using var request = Post(tenant);
         using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -175,16 +225,20 @@ public sealed class TenantProviderKeyRotationTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
-    private static HttpRequestMessage Post(string tenant)
+    private static HttpRequestMessage Post(string? tenant)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative))
         {
-            Content = JsonContent.Create(new AgentRunRequest { Message = $"hello from {tenant}", SessionId = Guid.NewGuid().ToString("N") }),
+            Content = JsonContent.Create(new AgentRunRequest { Message = $"hello from {tenant ?? "the default tenant"}", SessionId = Guid.NewGuid().ToString("N") }),
         };
 
         // The Idempotency-Key header selects the single JSON response.
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
-        request.Headers.Add(TenantHeader, tenant);
+
+        if (tenant is not null)
+        {
+            request.Headers.Add(TenantHeader, tenant);
+        }
 
         return request;
     }
