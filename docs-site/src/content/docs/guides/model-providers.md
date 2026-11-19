@@ -573,6 +573,68 @@ is refused for that tenant rather than billed to the host. The console lists spe
 providers next to the model providers, by the name a policy uses. See
 [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
 
+## Change the provider key without a restart
+
+The key and the address that a `Use...()` call receives are read once, when the host
+starts. A new value in `appsettings.json` or in a secret store reaches `IConfiguration`
+and does not reach the running provider.
+[A change to the configuration needs a restart](/reference/configuration/#a-change-to-the-configuration-needs-a-restart).
+
+A host that runs one tenant can still change the key while it runs. Bind the default
+tenant to a configuration key, as for a [tenant's own key](#per-tenant-credentials-byok).
+Tracon reads that key from configuration on every run, so the next run sends the new
+value. Tracon replaces the client when the key or the address changes.
+
+1. Put the key under a flat name below the allowed prefix, in a configuration source
+   that reloads. A flat name belongs to the default tenant (`Tracon:DefaultTenantId`,
+   `default` unless you changed it):
+
+   ```bash
+   dotnet user-secrets set "Tracon:ProviderKeys:OpenAI" "<key>"
+   ```
+
+2. Bind the default tenant to that name. The provider name is the one an agent's
+   `ModelBinding.Provider` uses: `openai`, `openai-responses`, `anthropic`, `google`,
+   `azure-openai`, or the name of a compatible endpoint. Each name needs its own binding.
+
+   ```bash
+   curl -X PUT "http://localhost:5081/tracon/api/tenants/default/providers/openai" \
+     -H "Authorization: Bearer $TRACON_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"apiKeyConfigurationName": "Tracon:ProviderKeys:OpenAI"}'
+   ```
+
+3. Rotate the key by changing the value that the name holds. A run that already started
+   may finish with the old key. `GET /tracon/api/tenants/default/providers` reports
+   `resolved: true` when the name holds a value; it never returns the value.
+
+To change the address as well, add `"endpoint": "https://..."` to the binding. Tracon
+sends the address of a binding through the outbound address guard, as for any tenant:
+a host on a private network sets `Tracon:Egress:AllowPrivateNetworkTargets`.
+
+Four limits apply:
+
+- **The source must reload.** An environment variable is read when the process starts and
+  does not change. Use a JSON file added with `reloadOnChange` (the default host does this
+  for `appsettings.json`) or a vault provider with a refresh interval.
+- **The host still starts with a key.** A registration validates its key at start (a
+  compatible endpoint can be keyless). The binding replaces the key for agent runs; it
+  does not remove the need for the key at start.
+- **Some calls keep the key from startup.** Tracon makes these calls for itself, so a
+  tenant's key is never charged for them:
+
+  | Call | Key it sends |
+  |---|---|
+  | Agent run of the default tenant | The key the bound name holds now |
+  | Run judge and loop evaluator | The key the provider started with |
+  | Provider health check (`/api/models/health`) | The key the provider started with |
+
+  Revoke the old key at the provider only when you accept that judges and the health
+  check fail until the next restart. Replace the startup key at the next deploy.
+- **A name with no value fails the run.** The call does not fall back to the key from
+  startup. Remove the value only after you remove the binding
+  (`DELETE /tracon/api/tenants/default/providers/{provider}`).
+
 ## Model catalog is metadata, not permission
 
 Every provider options type has a `Models` collection. It drives the console model
