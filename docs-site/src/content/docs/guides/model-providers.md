@@ -505,8 +505,12 @@ bill stay separate from every other tenant's.
 
 BYOK is an **optional** provider capability, not a universal contract. A provider
 opts in by implementing `ITenantCredentialModelProvider` in addition to
-`IModelProvider`; the four built-in providers (OpenAI, Anthropic, Google, Azure
-OpenAI) all do. A provider that does not implement it simply never sees a tenant
+`IModelProvider`. The four built-in providers (OpenAI, Anthropic, Google, Azure
+OpenAI) all do, and so does every endpoint you register with
+`UseOpenAICompatible(name, ...)`: it is served by the same provider as `UseOpenAI()`,
+so a tenant binds it under the name you gave it. A provider you add yourself with
+`AddModelProvider` supports BYOK only if it implements the interface too. A provider
+that does not implement it simply never sees a tenant
 credential, and Tracon never falls back to the setup-time key on its behalf: a
 tenant binding saved against a provider that does not support BYOK fails **every**
 run with a stable `tenant_provider_refused` error (class `TenantProviderRefused`)

@@ -128,9 +128,11 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconInboundTriggerOptions>, TraconInboundTriggerOptionsValidator>());
 
-        // Outbound network guard. Governs all three outbound
-        // surfaces: webhook delivery, MCP connections and model provider
-        // calls. AllowPrivateNetworkTargets defaults to false, so the guard
+        // Outbound network guard. Governs every outbound address a user or a
+        // remote service supplies: webhook delivery, MCP connections, a tenant
+        // binding's provider endpoint, generated image URLs and live voice. A
+        // setup-time provider endpoint is the operator's own and is not guarded.
+        // AllowPrivateNetworkTargets defaults to false, so the guard
         // arrives open and the private network arrives closed.
         UnreadableConfigurationValidator.Add<TraconEgressOptions>(services);
 

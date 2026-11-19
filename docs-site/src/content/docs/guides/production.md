@@ -273,8 +273,9 @@ guard.
 ## Add readiness, liveness, and diagnostics
 
 Use the Tracon check for readiness. It is `Unhealthy` when SQL is unreachable or
-migrations are pending. It is `Degraded` when storage works but provider health is
-not confirmed, a circuit is open, or several persistence providers are registered.
+migrations are pending. It is `Degraded` when storage works but every model provider that
+has been probed is unhealthy, a circuit is open, or several persistence providers are
+registered. A provider nobody has probed yet does not colour the result.
 It does not make a paid model completion.
 
 Keep liveness independent of database and provider availability so the orchestrator
@@ -336,7 +337,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Orphan reconciliation | Off | Enable after choosing heartbeat and orphan thresholds |
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
-| Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
+| Private network egress | Refused | Allow only if MCP servers or tenant provider endpoints really are on the internal network; a private `Use...()` endpoint does not need it |
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node or a tool call from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node or a tool call from starting once it has passed |
 | Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |

@@ -225,18 +225,20 @@ neither is a client that sends no `Origin` header, such as a server.
 
 ## Outbound requests are guarded too
 
-Tracon reaches the network from three places, and each one accepts an address that
-ultimately came from a user. That makes all three an SSRF risk — cloud metadata
-endpoints (`169.254.169.254`) included, which often hand out unauthenticated temporary
-credentials.
+Tracon reaches the network from several places, and each one accepts an address that
+ultimately came from a user or from a remote service. That makes each an SSRF risk —
+cloud metadata endpoints (`169.254.169.254`) included, which often hand out
+unauthenticated temporary credentials.
 
 | Surface | Address comes from |
 |---|---|
 | Webhook delivery | A subscription's `url` |
 | MCP server connections | A server definition's `endpoint` |
 | Model provider calls | A tenant's provider binding `endpoint` (BYOK) |
+| Generated images | The URL an image model returns instead of the image bytes |
+| OpenAI live voice | The live voice `Endpoint` option |
 
-One guard covers all three. Private network targets are refused by default:
+One guard covers all of them. Private network targets are refused by default:
 
 ```json
 {
@@ -256,6 +258,14 @@ reduced to that IPv4 address first and judged by the same rules, so
 
 Turn the setting on if your MCP servers really do run inside the private network. The
 rejection message names the setting, so an operator who hits it knows what to change.
+
+The address you pass to a `Use...()` call is **not** guarded, whatever it points at.
+`UseOpenAI`, `UseOpenAICompatible`, `UseAnthropic`, `UseGoogle` and `UseAzureOpenAI`
+take their endpoint from your code or your configuration, so it is your decision, and a
+sovereign cloud, an internal proxy or a local Ollama on `localhost` works with the
+setting off. Only an address a tenant adds to its own provider binding passes through
+the guard; a binding that adds no address of its own uses your setup address, which
+stays unguarded.
 
 The check lives inside the socket connect callback, so the address that is validated
 is the address the socket connects to. Validating a URL and then calling it would
@@ -492,7 +502,8 @@ model](/reference/threat-model/).
       [script executor](/guides/write-your-own-script-executor/) bound with
       `RequireCustomBinding<ISkillScriptExecutor>()`
 - [ ] `Tracon:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
-      provider endpoints really are on the internal network
+      tenant provider endpoints really are on the internal network (the endpoint of a
+      `Use...()` call is not guarded, so a private setup endpoint does not need it)
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout) —
       or, in a multi-tenant host, `Tracon:Tools:RequireTenantPolicy` is on and each tenant has a

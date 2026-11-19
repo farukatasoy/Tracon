@@ -221,7 +221,7 @@ experiment, and automatic rollback is off until you configure it.
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain that an HMAC key from `Tracon:Audit:ChainKeyId` signs; best-effort except for [eight fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, credential headers by configuration key name, retry jobs, and failure disablement |
-| Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
+| Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, tenant provider endpoints, generated image URLs and live voice; private network targets refused by default, checked inside the socket connect callback. The endpoint of a `Use...()` call is not guarded |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix; a credential-looking plain header is refused |
 | At-rest content protection | `AddContentProtection(...)` | Off by default; AES-256-GCM encrypts session state, chat history, run inputs and events, tool arguments/results, agent files, and attachments before they reach the database |
 | Retention and archive | Stored operational data | Deletion defaults are off (`false`)<!-- claim:option TraconRetentionOptions.Enabled=false -->; preview and jobs make cleanup explicit |
@@ -7520,18 +7520,20 @@ neither is a client that sends no `Origin` header, such as a server.
 
 ## Outbound requests are guarded too
 
-Tracon reaches the network from three places, and each one accepts an address that
-ultimately came from a user. That makes all three an SSRF risk — cloud metadata
-endpoints (`169.254.169.254`) included, which often hand out unauthenticated temporary
-credentials.
+Tracon reaches the network from several places, and each one accepts an address that
+ultimately came from a user or from a remote service. That makes each an SSRF risk —
+cloud metadata endpoints (`169.254.169.254`) included, which often hand out
+unauthenticated temporary credentials.
 
 | Surface | Address comes from |
 |---|---|
 | Webhook delivery | A subscription's `url` |
 | MCP server connections | A server definition's `endpoint` |
 | Model provider calls | A tenant's provider binding `endpoint` (BYOK) |
+| Generated images | The URL an image model returns instead of the image bytes |
+| OpenAI live voice | The live voice `Endpoint` option |
 
-One guard covers all three. Private network targets are refused by default:
+One guard covers all of them. Private network targets are refused by default:
 
 ```json
 {
@@ -7551,6 +7553,14 @@ reduced to that IPv4 address first and judged by the same rules, so
 
 Turn the setting on if your MCP servers really do run inside the private network. The
 rejection message names the setting, so an operator who hits it knows what to change.
+
+The address you pass to a `Use...()` call is **not** guarded, whatever it points at.
+`UseOpenAI`, `UseOpenAICompatible`, `UseAnthropic`, `UseGoogle` and `UseAzureOpenAI`
+take their endpoint from your code or your configuration, so it is your decision, and a
+sovereign cloud, an internal proxy or a local Ollama on `localhost` works with the
+setting off. Only an address a tenant adds to its own provider binding passes through
+the guard; a binding that adds no address of its own uses your setup address, which
+stays unguarded.
 
 The check lives inside the socket connect callback, so the address that is validated
 is the address the socket connects to. Validating a URL and then calling it would
@@ -7787,7 +7797,8 @@ model](/reference/threat-model/).
       [script executor](/guides/write-your-own-script-executor/) bound with
       `RequireCustomBinding<ISkillScriptExecutor>()`
 - [ ] `Tracon:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
-      provider endpoints really are on the internal network
+      tenant provider endpoints really are on the internal network (the endpoint of a
+      `Use...()` call is not guarded, so a private setup endpoint does not need it)
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout) —
       or, in a multi-tenant host, `Tracon:Tools:RequireTenantPolicy` is on and each tenant has a
@@ -14878,8 +14889,12 @@ bill stay separate from every other tenant's.
 
 BYOK is an **optional** provider capability, not a universal contract. A provider
 opts in by implementing `ITenantCredentialModelProvider` in addition to
-`IModelProvider`; the four built-in providers (OpenAI, Anthropic, Google, Azure
-OpenAI) all do. A provider that does not implement it simply never sees a tenant
+`IModelProvider`. The four built-in providers (OpenAI, Anthropic, Google, Azure
+OpenAI) all do, and so does every endpoint you register with
+`UseOpenAICompatible(name, ...)`: it is served by the same provider as `UseOpenAI()`,
+so a tenant binds it under the name you gave it. A provider you add yourself with
+`AddModelProvider` supports BYOK only if it implements the interface too. A provider
+that does not implement it simply never sees a tenant
 credential, and Tracon never falls back to the setup-time key on its behalf: a
 tenant binding saved against a provider that does not support BYOK fails **every**
 run with a stable `tenant_provider_refused` error (class `TenantProviderRefused`)
@@ -17736,8 +17751,9 @@ guard.
 ## Add readiness, liveness, and diagnostics
 
 Use the Tracon check for readiness. It is `Unhealthy` when SQL is unreachable or
-migrations are pending. It is `Degraded` when storage works but provider health is
-not confirmed, a circuit is open, or several persistence providers are registered.
+migrations are pending. It is `Degraded` when storage works but every model provider that
+has been probed is unhealthy, a circuit is open, or several persistence providers are
+registered. A provider nobody has probed yet does not colour the result.
 It does not make a paid model completion.
 
 Keep liveness independent of database and provider availability so the orchestrator
@@ -17799,7 +17815,7 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Orphan reconciliation | Off | Enable after choosing heartbeat and orphan thresholds |
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
-| Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
+| Private network egress | Refused | Allow only if MCP servers or tenant provider endpoints really are on the internal network; a private `Use...()` endpoint does not need it |
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node or a tool call from starting once it is spent. For a workflow the tree is the whole chain of runs that continue one another, so an approval loop does not get the ceiling again with every answer |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node or a tool call from starting once it has passed |
 | Workflow runs per tenant | No per-tenant limit; 4 workflows at once in a process, shared by every tenant | In a multi-tenant host set `Tracon:Workflows:MaxConcurrentRunsPerTenant`: one tenant that starts many runs takes every slot and the front of the job queue otherwise. The limit is exact in a process and a soft count across the processes that share the queue |
@@ -25175,8 +25191,11 @@ embedding generator exist.
 |---|---:|
 | `AllowPrivateNetworkTargets` | `false`<!-- claim:option TraconEgressOptions.AllowPrivateNetworkTargets=false --> |
 
-Covers all three surfaces that reach the network: webhook delivery, MCP server
-connections, and per-tenant model provider endpoints. While it is off, a target that
+Covers the surfaces that reach the network with an address a user or a remote service
+supplied: webhook delivery, MCP server connections, per-tenant model provider endpoints,
+the URL of a generated image, and the OpenAI live voice endpoint. The endpoint you pass to
+a `Use...()` call is not covered: it is your own setting, so a private one works with this
+option off. While it is off, a target that
 resolves to a private network address is refused — at save time for an address written
 as an IP literal, and on every connection for one written as a host name. See
 [Security](/getting-started/security/#outbound-requests-are-guarded-too).

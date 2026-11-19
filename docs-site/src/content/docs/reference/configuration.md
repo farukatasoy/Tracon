@@ -609,8 +609,11 @@ embedding generator exist.
 |---|---:|
 | `AllowPrivateNetworkTargets` | `false`<!-- claim:option TraconEgressOptions.AllowPrivateNetworkTargets=false --> |
 
-Covers all three surfaces that reach the network: webhook delivery, MCP server
-connections, and per-tenant model provider endpoints. While it is off, a target that
+Covers the surfaces that reach the network with an address a user or a remote service
+supplied: webhook delivery, MCP server connections, per-tenant model provider endpoints,
+the URL of a generated image, and the OpenAI live voice endpoint. The endpoint you pass to
+a `Use...()` call is not covered: it is your own setting, so a private one works with this
+option off. While it is off, a target that
 resolves to a private network address is refused — at save time for an address written
 as an IP literal, and on every connection for one written as a host name. See
 [Security](/getting-started/security/#outbound-requests-are-guarded-too).

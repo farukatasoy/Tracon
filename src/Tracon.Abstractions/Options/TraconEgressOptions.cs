@@ -4,9 +4,18 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// Read from the <c>Tracon:Egress</c> configuration section. Tracon
-/// sends outbound requests from three surfaces — webhook delivery, MCP server
-/// connections and model provider calls — and this option governs all three,
-/// so an operator reasons about one setting instead of three.
+/// sends outbound requests to addresses that a user or a remote service supplied —
+/// webhook delivery, MCP server connections, the address a tenant's provider binding
+/// overrides, the URL of a generated image and the OpenAI live voice endpoint — and this
+/// option governs all of them, so an operator reasons about one setting instead of
+/// several.
+/// </para>
+/// <para>
+/// The endpoint that a <c>Use...()</c> call receives (<c>UseOpenAI</c>,
+/// <c>UseOpenAICompatible</c>, <c>UseAnthropic</c>, <c>UseGoogle</c>,
+/// <c>UseAzureOpenAI</c>) is not covered. It is the operator's own decision and is
+/// written in code or configuration, and guarding it would break sovereign cloud,
+/// internal proxy and local model setups that are private on purpose.
 /// </para>
 /// <para>
 /// <see cref="AllowPrivateNetworkTargets"/> is a security boundary, not a
