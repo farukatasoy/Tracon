@@ -13,6 +13,7 @@ public sealed class OpenAILiveOptionsBindingTests
             ["Tracon:Providers:OpenAI:Live:Model"] = "gpt-live-binding-probe",
             ["Tracon:Providers:OpenAI:Live:Voice"] = "binding-probe-voice",
             ["Tracon:Providers:OpenAI:Live:Endpoint"] = "https://gateway.example.net/realtime/",
+            ["Tracon:Providers:OpenAI:Live:EndpointConfigurationName"] = "Platform:Probe:Endpoint",
             ["Tracon:Providers:OpenAI:Live:MaxAppendCharacters"] = "640",
             ["Tracon:Providers:OpenAI:Live:Timeout"] = "00:01:15",
         };
@@ -25,6 +26,7 @@ public sealed class OpenAILiveOptionsBindingTests
         options.Model.ShouldBe("gpt-live-binding-probe");
         options.Voice.ShouldBe("binding-probe-voice");
         options.Endpoint.ShouldBe(new Uri("https://gateway.example.net/realtime/"));
+        options.EndpointConfigurationName.ShouldBe("Platform:Probe:Endpoint");
         options.MaxAppendCharacters.ShouldBe(640);
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(75));
         OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Providers:OpenAI:Live", options);

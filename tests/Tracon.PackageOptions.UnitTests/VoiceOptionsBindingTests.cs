@@ -15,6 +15,8 @@ public sealed class VoiceOptionsBindingTests
             ["Tracon:Voice:Provider"] = "ElevenLabs",
             ["Tracon:Voice:ApiKey"] = "placeholder-not-a-credential",
             ["Tracon:Voice:Endpoint"] = "https://voice.example.net/",
+            ["Tracon:Voice:ApiKeyConfigurationName"] = "Platform:Probe:Key",
+            ["Tracon:Voice:EndpointConfigurationName"] = "Platform:Probe:Endpoint",
             ["Tracon:Voice:DefaultVoiceId"] = "binding-probe-voice",
             ["Tracon:Voice:SynthesisModelId"] = "binding-probe-synthesis",
             ["Tracon:Voice:TranscriptionModelId"] = "binding-probe-transcription",
@@ -33,6 +35,8 @@ public sealed class VoiceOptionsBindingTests
         options.Provider.ShouldBe("ElevenLabs");
         options.ApiKey.ShouldBe("placeholder-not-a-credential");
         options.Endpoint.ShouldBe(new Uri("https://voice.example.net/"));
+        options.ApiKeyConfigurationName.ShouldBe("Platform:Probe:Key");
+        options.EndpointConfigurationName.ShouldBe("Platform:Probe:Endpoint");
         options.DefaultVoiceId.ShouldBe("binding-probe-voice");
         options.SynthesisModelId.ShouldBe("binding-probe-synthesis");
         options.TranscriptionModelId.ShouldBe("binding-probe-transcription");

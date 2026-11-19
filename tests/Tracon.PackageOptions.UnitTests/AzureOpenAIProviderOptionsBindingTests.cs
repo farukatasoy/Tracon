@@ -15,6 +15,8 @@ public sealed class AzureOpenAIProviderOptionsBindingTests
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Tracon:Providers:AzureOpenAI:Endpoint"] = "https://binding-probe.openai.azure.com/",
+            ["Tracon:Providers:AzureOpenAI:ApiKeyConfigurationName"] = "Platform:Probe:Key",
+            ["Tracon:Providers:AzureOpenAI:EndpointConfigurationName"] = "Platform:Probe:Endpoint",
             ["Tracon:Providers:AzureOpenAI:ApiKey"] = "placeholder-not-a-credential",
             ["Tracon:Providers:AzureOpenAI:DefaultDeployment"] = "binding-probe-deployment",
             ["Tracon:Providers:AzureOpenAI:Audience"] = "https://cognitiveservices.azure.us/.default",
@@ -26,6 +28,8 @@ public sealed class AzureOpenAIProviderOptionsBindingTests
             values, static (builder, tracon) => builder.UseAzureOpenAI(tracon.GetSection("Providers:AzureOpenAI")));
 
         options.Endpoint.ShouldBe(new Uri("https://binding-probe.openai.azure.com/"));
+        options.ApiKeyConfigurationName.ShouldBe("Platform:Probe:Key");
+        options.EndpointConfigurationName.ShouldBe("Platform:Probe:Endpoint");
         options.ApiKey.ShouldBe("placeholder-not-a-credential");
         options.DefaultDeployment.ShouldBe("binding-probe-deployment");
         options.Audience.ShouldBe("https://cognitiveservices.azure.us/.default");

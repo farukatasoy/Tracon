@@ -13,6 +13,8 @@ public sealed class OpenAIProviderOptionsBindingTests
             ["Tracon:Providers:OpenAI:ApiKey"] = "placeholder-not-a-credential",
             ["Tracon:Providers:OpenAI:DefaultModel"] = "gpt-binding-probe",
             ["Tracon:Providers:OpenAI:Endpoint"] = "https://gateway.example.net/openai/v1/",
+            ["Tracon:Providers:OpenAI:ApiKeyConfigurationName"] = "Platform:Probe:Key",
+            ["Tracon:Providers:OpenAI:EndpointConfigurationName"] = "Platform:Probe:Endpoint",
             ["Tracon:Providers:OpenAI:Organization"] = "org-binding-probe",
             ["Tracon:Providers:OpenAI:Timeout"] = "00:00:45",
             ["Tracon:Providers:OpenAI:EnableResponsesSurface"] = "true",
@@ -25,6 +27,8 @@ public sealed class OpenAIProviderOptionsBindingTests
         options.ApiKey.ShouldBe("placeholder-not-a-credential");
         options.DefaultModel.ShouldBe("gpt-binding-probe");
         options.Endpoint.ShouldBe(new Uri("https://gateway.example.net/openai/v1/"));
+        options.ApiKeyConfigurationName.ShouldBe("Platform:Probe:Key");
+        options.EndpointConfigurationName.ShouldBe("Platform:Probe:Endpoint");
         options.Organization.ShouldBe("org-binding-probe");
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(45));
         options.EnableResponsesSurface.ShouldBeTrue();

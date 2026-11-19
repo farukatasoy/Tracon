@@ -13,6 +13,8 @@ public sealed class AnthropicProviderOptionsBindingTests
             ["Tracon:Providers:Anthropic:ApiKey"] = "placeholder-not-a-credential",
             ["Tracon:Providers:Anthropic:DefaultModel"] = "claude-binding-probe",
             ["Tracon:Providers:Anthropic:Endpoint"] = "https://gateway.example.net/anthropic/",
+            ["Tracon:Providers:Anthropic:ApiKeyConfigurationName"] = "Platform:Probe:Key",
+            ["Tracon:Providers:Anthropic:EndpointConfigurationName"] = "Platform:Probe:Endpoint",
             ["Tracon:Providers:Anthropic:DefaultMaxOutputTokens"] = "8192",
             ["Tracon:Providers:Anthropic:Timeout"] = "00:00:45",
             ["Tracon:Providers:Anthropic:MaxRetries"] = "3",
@@ -25,6 +27,8 @@ public sealed class AnthropicProviderOptionsBindingTests
         options.ApiKey.ShouldBe("placeholder-not-a-credential");
         options.DefaultModel.ShouldBe("claude-binding-probe");
         options.Endpoint.ShouldBe(new Uri("https://gateway.example.net/anthropic/"));
+        options.ApiKeyConfigurationName.ShouldBe("Platform:Probe:Key");
+        options.EndpointConfigurationName.ShouldBe("Platform:Probe:Endpoint");
         options.DefaultMaxOutputTokens.ShouldBe(8192);
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(45));
         options.MaxRetries.ShouldBe(3);
