@@ -196,8 +196,10 @@ false and apply migrations from one controlled deployment step before new
 application instances become ready: run `tracon migrate`, or call `ApplyAsync()` on
 the registered `IMigrationApplier`. With automatic
 migration disabled, Tracon opens its schema-ready gate on the assumption that the
-external step completed. The health check still reports pending migrations as
-unhealthy.
+external step completed, reads the migration ledger once at startup and logs a warning
+if migrations are pending. The health check keeps reporting pending migrations as
+unhealthy, so an orchestrator that waits for it does not send traffic to an instance
+whose schema step did not run.
 
 Never edit an applied embedded migration. A checksum mismatch is an integrity error,
 not a warning to bypass.

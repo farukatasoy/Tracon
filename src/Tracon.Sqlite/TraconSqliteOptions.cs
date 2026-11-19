@@ -65,6 +65,12 @@ public sealed class TraconSqliteOptions
     /// <summary>
     /// Whether pending migrations should be applied automatically at application startup.
     /// </summary>
+    /// <remarks>
+    /// Can be set to <see langword="false"/> when migrations are applied as a separate deployment step - the
+    /// <c>tracon migrate</c> command, or <see cref="IMigrationApplier.ApplyAsync"/>. The host then reads the
+    /// migration ledger when it starts, writes nothing, and logs a warning when migrations are pending or the
+    /// database cannot be reached; it starts either way.
+    /// </remarks>
     public bool AutoApplyMigrations { get; set; } = true;
 
     /// <summary>Upper time limit for a single SQL command (seconds). 0 means unlimited.</summary>

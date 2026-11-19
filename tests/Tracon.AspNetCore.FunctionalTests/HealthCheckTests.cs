@@ -171,6 +171,49 @@ public sealed class HealthCheckTests
         (await response.Content.ReadAsStringAsync()).ShouldContain("Unhealthy");
     }
 
+    [Fact]
+    public async Task Pending_migrations_return_503_Unhealthy_and_say_how_many()
+    {
+        // A host that applies no migration itself (AutoApplyMigrations off) starts without the schema; this is the
+        // check an orchestrator reads before it sends traffic, so a pending migration must keep the instance out.
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services =>
+            {
+                services.AddSingleton(new SqlPersistenceRegistrationMarker("PostgreSQL"));
+                services.AddSingleton<ISqlPersistenceDiagnostics>(new PendingSqlDiagnostics("PostgreSQL", "0001_initial", "0002_retention"));
+                services.AddHealthChecks().AddTraconHealthChecks();
+            },
+            configureApp: static app => app.MapHealthChecks(
+                "/health",
+                new HealthCheckOptions
+                {
+                    ResponseWriter = static async (context, report) =>
+                    {
+                        context.Response.ContentType = "text/plain";
+                        await context.Response.WriteAsync(
+                            report.Status + "|" + string.Join(
+                                "|",
+                                report.Entries.Select(entry => entry.Value.Description)));
+                    },
+                }));
+
+        using var response = await host.Client.GetAsync(Health);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
+        var body = await response.Content.ReadAsStringAsync();
+
+        body.ShouldStartWith("Unhealthy");
+        body.ShouldContain("2 migration(s) are pending");
+    }
+
+    private sealed class PendingSqlDiagnostics(string providerName, params string[] pending) : ISqlPersistenceDiagnostics
+    {
+        public string ProviderName { get; } = providerName;
+
+        public ValueTask<SqlPersistenceDiagnosticsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new SqlPersistenceDiagnosticsSnapshot { CanConnect = true, PendingMigrations = pending });
+    }
+
     private sealed class AlwaysHealthySqlDiagnostics(string providerName) : ISqlPersistenceDiagnostics
     {
         public string ProviderName { get; } = providerName;

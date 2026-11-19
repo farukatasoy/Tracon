@@ -13,7 +13,9 @@ namespace Tracon;
 /// If <c>AutoApplyMigrations</c> is off, no migration is applied. In that case
 /// making sure the schema is ready is the consumer's responsibility: a
 /// deployment step runs <c>tracon migrate</c> or calls
-/// <see cref="IMigrationApplier.ApplyAsync"/>.
+/// <see cref="IMigrationApplier.ApplyAsync"/>. Start reads the migration ledger,
+/// writes nothing, and logs a warning when migrations are pending or the database
+/// cannot be reached; the host starts either way.
 /// </para>
 /// <para>
 /// <strong>A failure does not start the application.</strong> A Tracon
@@ -29,6 +31,12 @@ namespace Tracon;
 /// </remarks>
 internal sealed class MigrationHostedService : IHostedService
 {
+    /// <summary>How many pending migration names the warning lists.</summary>
+    private const int FirstPendingShown = 3;
+
+    /// <summary>How long start waits for the ledger of a host that applies no migration itself.</summary>
+    private static readonly TimeSpan VerificationTimeout = TimeSpan.FromSeconds(10);
+
     private readonly MigrationRunner _runner;
     private readonly SqlStoreContext _storeContext;
     private readonly TraconOptions _traconOptions;
@@ -102,13 +110,12 @@ internal sealed class MigrationHostedService : IHostedService
 
         if (!_storeContext.AutoApplyMigrations)
         {
-            _logger.LogInformation(
-                "Tracon migrations are not applied automatically (AutoApplyMigrations is off). " +
-                "Keeping the schema current is the caller's responsibility.");
-
-            // The gate OPENS: the schema is the consumer's responsibility, and
-            // there is no benefit in holding background services waiting forever.
+            // The gate OPENS first: the schema is the consumer's responsibility, and
+            // there is no benefit in holding background services waiting forever. The
+            // check below reads the ledger and writes nothing, so it can run beside them.
             _schemaReadyGate.MarkReady();
+
+            await ReportSchemaStateAsync(cancellationToken).ConfigureAwait(false);
 
             return;
         }
@@ -125,6 +132,72 @@ internal sealed class MigrationHostedService : IHostedService
 
     /// <inheritdoc />
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>
+    /// Tells the operator whether the schema a host that applies nothing itself is about to run on is current.
+    /// </summary>
+    /// <param name="cancellationToken">The host's start-up token.</param>
+    /// <returns>A task that completes when the state has been logged.</returns>
+    /// <remarks>
+    /// <para>
+    /// Without this the host starts without a word and the first run fails on a missing table, behind a run-recording
+    /// warning the run itself survives. A pending migration and an unreachable database are warnings; a current schema
+    /// stays at information.
+    /// </para>
+    /// <para>
+    /// 🚨 Nothing here stops the host. A deployment that applies the schema in its own step must not be held back by a
+    /// database that is slow to answer, so the read is bounded and a failure of it is a warning too.
+    /// </para>
+    /// </remarks>
+    private async ValueTask ReportSchemaStateAsync(CancellationToken cancellationToken)
+    {
+        using var verification = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        verification.CancelAfter(VerificationTimeout);
+
+        SqlPersistenceDiagnosticsSnapshot snapshot;
+
+        try
+        {
+            snapshot = await _runner.GetSnapshotAsync(verification.Token).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            _logger.LogWarning(
+                exception,
+                "Tracon migrations are not applied automatically (AutoApplyMigrations is off) and the schema could not " +
+                "be verified within {Seconds} seconds; the host starts anyway. Keeping the schema current is the " +
+                "caller's responsibility.",
+                VerificationTimeout.TotalSeconds);
+
+            return;
+        }
+
+        if (!snapshot.CanConnect)
+        {
+            _logger.LogWarning(
+                "Tracon migrations are not applied automatically (AutoApplyMigrations is off) and the database could " +
+                "not be reached, so the schema was not verified. Run `tracon migrate` or " +
+                "IMigrationApplier.ApplyAsync before this instance takes traffic.");
+
+            return;
+        }
+
+        if (snapshot.PendingMigrations.Count > 0)
+        {
+            _logger.LogWarning(
+                "Tracon migrations are not applied automatically (AutoApplyMigrations is off) and {PendingCount} " +
+                "migration(s) are pending, starting with {FirstPending}. Runs and other writes fail until the schema " +
+                "is current: run `tracon migrate` or IMigrationApplier.ApplyAsync before this instance takes traffic.",
+                snapshot.PendingMigrations.Count,
+                string.Join(", ", snapshot.PendingMigrations.Take(FirstPendingShown)));
+
+            return;
+        }
+
+        _logger.LogInformation(
+            "Tracon migrations are not applied automatically (AutoApplyMigrations is off). " +
+            "Keeping the schema current is the caller's responsibility.");
+    }
 
     /// <summary>
     /// Warns when more than one persistence provider is registered.

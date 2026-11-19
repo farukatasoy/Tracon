@@ -388,6 +388,14 @@ That flag makes schema deployment your responsibility. Apply the embedded migrat
 in the deployment step before application traffic starts. The optional diagnostics
 report shows applied and pending state, but its endpoint must be enabled explicitly.
 
+The host reads the migration ledger when it starts and writes nothing. If migrations are
+pending, the log has a warning that starts `Tracon migrations are not applied
+automatically` and gives the number pending and the first three names. If the database
+cannot be reached, the warning says the schema was not verified. A schema that is current
+logs the same sentence at information level. The host starts in every case, so watch for
+the warning in a deployment that applies the schema as its own step: it means that step
+did not run.
+
 Requests that need a table which does not exist yet answer `503` with the title
 `Database schema is not current` and the number of pending migrations, so you do
 not have to read the server log to find out why a write failed. Retrying does not

@@ -116,11 +116,11 @@ starts, unless that responsibility is moved to its own deployment step:
 ```mermaid
 flowchart TD
     accTitle: Two ways a migration is applied
-    accDescr: With AutoApplyMigrations true, the application applies pending migrations itself at startup. With it false, a separate tracon migrate step applies the schema first, and the application only verifies it before starting.
+    accDescr: With AutoApplyMigrations true, the application applies pending migrations itself at startup. With it false, a separate tracon migrate step applies the schema first, and the application only reads the migration ledger at startup and warns when migrations are pending.
     START["Application starts"] --> CHECK{"AutoApplyMigrations"}
     CHECK -->|"true (default)"| APPLY["Applies pending migrations itself<br/>provider lock serializes concurrent instances"]
     CHECK -->|"false"| SEPARATE["tracon migrate<br/>runs as its own deployment step, no app needed"]
-    SEPARATE --> APP2["Application starts, verifies the schema, does not write"]
+    SEPARATE --> APP2["Application starts, reads the ledger, warns if pending, does not write"]
     APPLY --> READY["Ready"]
     APP2 --> READY
 ```
@@ -318,7 +318,9 @@ of `runs_v1`: its `total_cost` adds the write charge and the five columns are pu
 at the end of the view ([Read contract views](/reference/read-views/)).
 
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
-Tracon then verifies but does not write. The diagnostics endpoint can report
+Tracon then reads the migration ledger at startup, writes nothing, and logs a warning
+when migrations are pending or the database cannot be reached; the host starts either
+way. The diagnostics endpoint can report
 whether the schema is current, but it is deliberately not mapped by default because
 it exposes setup details:
 

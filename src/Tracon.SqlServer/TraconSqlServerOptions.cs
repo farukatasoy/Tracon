@@ -62,7 +62,9 @@ public sealed class TraconSqlServerOptions
     /// Can be set to <see langword="false"/> in production, with migrations applied
     /// as a separate deployment step - the <c>tracon migrate</c> command, or
     /// <see cref="IMigrationApplier.ApplyAsync"/> - so a long-running migration
-    /// does not block application startup.
+    /// does not block application startup. The host then reads the migration ledger
+    /// when it starts, writes nothing, and logs a warning when migrations are pending
+    /// or the database cannot be reached; it starts either way.
     /// </remarks>
     public bool AutoApplyMigrations { get; set; } = true;
 
