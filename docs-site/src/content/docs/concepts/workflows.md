@@ -415,7 +415,7 @@ to the executor ids in the run events, which is how the console colours nodes li
 the workflow progresses. The response also carries MAF's generated Mermaid text.
 
 A workflow run's `error` follows the [same redaction rule as an agent
-run](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from): a
+run](/concepts/run-errors/#the-error-message-is-safe-to-display-not-safe-to-debug-from): a
 node that throws a `TraconException` keeps its message. Any other exception —
 your own node's included — carries only its exception type and a correlation id,
 and its message goes to the server log under the same id. Throw a

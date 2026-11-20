@@ -358,8 +358,8 @@ even when an earlier tool turn wrote a call. Gemini withholds the whole answer w
 streamed, so over `google` the non-streamed forms of these endpoints end in that error and never in
 `content_filter`; a streamed answer can be `incomplete` when the filter stops it after some text.
 The run's own `tracon.output.truncated` and `tracon.output.filtered` events stay on
-the run (see [Truncated output](/concepts/runs/#truncated-output) and
-[Filtered output](/concepts/runs/#filtered-output)).
+the run (see [Truncated output](/concepts/run-errors/#truncated-output) and
+[Filtered output](/concepts/run-errors/#filtered-output)).
 
 A field that carries no model setting can be accepted without becoming a Tracon
 feature. Do not assume every OpenAI storage flag, service tier, or retrieval surface

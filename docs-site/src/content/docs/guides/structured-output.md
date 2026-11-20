@@ -305,7 +305,7 @@ empty and the provider sends a lower default (Anthropic sends 4096 unless
 `DefaultMaxOutputTokens` says otherwise), `POST /api/agents/validate` returns an
 `output_truncation_risk` warning that names both numbers, as long as the catalog
 states the model's own `MaxOutputTokens`. See
-[Truncated output](/concepts/runs/#truncated-output).
+[Truncated output](/concepts/run-errors/#truncated-output).
 
 ## The schema the provider receives
 

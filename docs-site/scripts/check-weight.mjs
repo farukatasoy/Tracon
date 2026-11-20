@@ -31,6 +31,9 @@ const dist = resolve(here, '../dist');
 // (MIN_HEADROOM below) and the gate fails on it; it was a sentence in this comment until a page was squeezed
 // under the ceiling by trimming a sentence twice.
 //
+// 2026-11-20: concepts/runs moved its errors section to concepts/run-errors. It now weighs about 50 480 B here (26 555 B of
+// page and the shared assets); concepts/governance is the heaviest page at 58 816 B, 684 B under the ceiling.
+//
 // When a page crosses the ceiling, split it instead of raising the number. Every earlier crossing was settled
 // that way (the build diagnostics, voice, live voice, function nodes, upgrades and the package-level
 // configuration each moved to a page of their own); the ceiling was raised only when a page sat within a few

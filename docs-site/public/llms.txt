@@ -283,6 +283,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Evaluation and experiments](https://tracon.dev/concepts/evaluation/) — Improve agents with regression suites, production-run promotion, online judges, human feedback, and controlled experiments.
 - [Governance](https://tracon.dev/concepts/governance/) — Govern agents with tenant isolation, audit, approvals, quotas, retention, content guards, API keys, and webhooks.
 - [Architecture](https://tracon.dev/concepts/) — The layers, the dependency direction, and the four conventions behind the default setup and the extension model.
+- [Run errors](https://tracon.dev/concepts/run-errors/) — How a failed run carries an error class, a fingerprint and a safe message, and what truncated and filtered output mean.
 - [Runs and recording](https://tracon.dev/concepts/runs/) — Understand default-on run recording, ordered events, streaming, errors, replay, comparison, and traces.
 - [Sessions and conversations](https://tracon.dev/concepts/sessions/) — Learn how sessions carry conversation state, how branching copies history, and how attachments are owned and removed.
 - [Starting runs and who they belong to](https://tracon.dev/concepts/starting-runs/) — Which user and job a run is attributed to, who may start a run and with what identity, and the ways a run starts.

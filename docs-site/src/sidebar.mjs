@@ -96,6 +96,7 @@ export const sidebar = [
       { label: 'Persistence', slug: 'getting-started/persistence' },
       { label: 'Security', slug: 'getting-started/security' },
       { label: 'Runs and recording', slug: 'concepts/runs' },
+      { label: 'Run errors', slug: 'concepts/run-errors' },
       { label: 'Starting runs and attribution', slug: 'concepts/starting-runs' },
       { label: 'Reliable runs', slug: 'guides/reliability' },
       { label: 'Observability and cost', slug: 'guides/observability' },

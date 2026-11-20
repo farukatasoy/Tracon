@@ -417,7 +417,7 @@ agent sends the same request as before:
   set `MaxOutputTokens` explicitly. Without it, the request goes out with
   `DefaultMaxOutputTokens` (4096), and the validation report warns when the
   catalog states a higher maximum for the model. See
-  [Truncated output](/concepts/runs/#truncated-output).
+  [Truncated output](/concepts/run-errors/#truncated-output).
 
 `ModelBinding.ReasoningEffort` maps differently on Anthropic: it becomes adaptive
 thinking (`thinking.type = adaptive`) plus `output_config.effort` (`low`, `medium`,

@@ -79,8 +79,8 @@ the same as `GET /api/runs/{runId}/events` serves it, in the order it was record
 
 | `customType` | Sent |
 |---|---|
-| `tracon.output.truncated` | Always. The model cut a plain-text answer off at its output token limit or its context window; the streamed text is incomplete (see [Truncated output](/concepts/runs/#truncated-output)) |
-| `tracon.output.filtered` | Always. The provider's content filter stopped the model after it wrote text; the streamed text is incomplete (see [Filtered output](/concepts/runs/#filtered-output)). A filter that stopped the model before any text ends the stream with an `error` frame instead |
+| `tracon.output.truncated` | Always. The model cut a plain-text answer off at its output token limit or its context window; the streamed text is incomplete (see [Truncated output](/concepts/run-errors/#truncated-output)) |
+| `tracon.output.filtered` | Always. The provider's content filter stopped the model after it wrote text; the streamed text is incomplete (see [Filtered output](/concepts/run-errors/#filtered-output)). A filter that stopped the model before any text ends the stream with an `error` frame instead |
 | `tracon.quota.threshold` | Only with `Quotas:PublishThresholdToRunStream` turned on (off by default): the run crossed a [quota threshold](/concepts/governance/#quotas-and-rate-limits) |
 
 No other custom event reaches this stream; a tool's own `Custom` event stays on
@@ -257,7 +257,7 @@ one of them.
 provider's own error text, only its exception type and a correlation id you can
 match against your server's log. The same rule applies to a streaming run's `error`
 frame and to MCP tool-call errors. See
-[errors are classified](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from)
+[errors are classified](/concepts/run-errors/#the-error-message-is-safe-to-display-not-safe-to-debug-from)
 for why.
 
 ## The groups
