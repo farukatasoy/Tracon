@@ -400,7 +400,8 @@ internal sealed class JobWorkerBackgroundService(
             // under the same correlation id.
             await FailWithoutRunningAsync(
                 job,
-                JobErrorCodes.Format(JobErrorCodes.UnknownHandlerKey, unknownKeyRef),
+                JobErrorCodes.UnknownHandlerKey,
+                unknownKeyRef,
                 now,
                 startedAt,
                 UnregisteredHandlerKeyTag,
@@ -436,7 +437,8 @@ internal sealed class JobWorkerBackgroundService(
 
             await FailWithoutRunningAsync(
                 job,
-                JobErrorCodes.Format(JobErrorCodes.AttemptsExhausted, exhaustedRef),
+                JobErrorCodes.AttemptsExhausted,
+                exhaustedRef,
                 now,
                 startedAt,
                 job.HandlerKey,
@@ -487,7 +489,8 @@ internal sealed class JobWorkerBackgroundService(
 
             await FailWithoutRunningAsync(
                 job,
-                JobErrorCodes.Format(JobErrorCodes.HostTenantScopeFailed, scopeRef),
+                JobErrorCodes.HostTenantScopeFailed,
+                scopeRef,
                 _clock.GetUtcNow(),
                 startedAt,
                 job.HandlerKey,
@@ -534,7 +537,8 @@ internal sealed class JobWorkerBackgroundService(
 
                 await FailWithoutRunningAsync(
                     job,
-                    JobErrorCodes.Format(JobErrorCodes.HandlerActivationFailed, activationRef),
+                    JobErrorCodes.HandlerActivationFailed,
+                    activationRef,
                     _clock.GetUtcNow(),
                     startedAt,
                     job.HandlerKey,
@@ -552,7 +556,8 @@ internal sealed class JobWorkerBackgroundService(
     /// Closes a job that never reached its handler, and counts the attempt.
     /// </summary>
     /// <param name="job">The leased job.</param>
-    /// <param name="errorMessage">The redacted message, already carrying a stable code.</param>
+    /// <param name="code">The stable code the job's error message starts with.</param>
+    /// <param name="correlationId">The id of the log entry that carries the cause.</param>
     /// <param name="completedAt">The wall-clock completion time.</param>
     /// <param name="startedAt">The monotonic timestamp taken when the attempt started.</param>
     /// <param name="handlerKeyTag">
@@ -567,13 +572,15 @@ internal sealed class JobWorkerBackgroundService(
     /// <param name="stoppingToken">The worker's shutdown token.</param>
     private async Task FailWithoutRunningAsync(
         JobRecord job,
-        string errorMessage,
+        string code,
+        string correlationId,
         DateTimeOffset completedAt,
         long startedAt,
         string handlerKeyTag,
         TimeSpan callBudget,
         CancellationToken stoppingToken)
     {
+        var errorMessage = JobErrorCodes.Format(code, correlationId);
         var completion = new JobCompletion
         {
             Status = JobStatus.Failed,
@@ -601,7 +608,43 @@ internal sealed class JobWorkerBackgroundService(
         }
 
         RecordJobMetric(job, JobStatus.Failed, startedAt, handlerKeyTag);
+
+        // The handler is what moves a queued run's row on and closes it when it fails; this job never reached it.
+        await CloseQueuedRunAsync(job, code, correlationId).ConfigureAwait(false);
         await PublishJobOutcomeAsync(job, JobStatus.Failed, errorMessage, stoppingToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Closes the <see cref="RunStatus.Queued"/> row of the run a job carried when the worker failed that job without
+    /// calling its handler, so a run the <c>202</c> promised does not stay <c>Queued</c> for ever.
+    /// </summary>
+    /// <param name="job">The job just failed.</param>
+    /// <param name="code">The job error code.</param>
+    /// <param name="correlationId">The id of the log entry that carries the cause.</param>
+    private async Task CloseQueuedRunAsync(JobRecord job, string code, string correlationId)
+    {
+        try
+        {
+            var scope = scopeFactory.CreateAsyncScope();
+
+            await using (scope.ConfigureAwait(false))
+            {
+                // A host without a run store (a unit test of the worker) has no row to close.
+                if (scope.ServiceProvider.GetService<IRunStore>() is { } runStore)
+                {
+                    await QueuedRunPlaceholder
+                        .CloseWhenJobFailsWithoutRunningAsync(runStore, job, code, correlationId, logger, _clock)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "Job {JobId} failed without running; its queued run row could not be looked up. (ref: {CorrelationId})", job.Id, correlationId);
+            }
+        }
     }
 
     private async Task ExecuteWithHandlerAsync(

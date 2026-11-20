@@ -38,9 +38,27 @@ namespace Tracon;
 /// <see cref="RunStatus.Queued"/> with no job; run reconciliation reads only
 /// running rows and does not close it.
 /// </para>
+/// <para>
+/// <strong>A job the worker ends without calling its handler</strong> closes the row too
+/// (<see cref="CloseWhenJobFailsWithoutRunningAsync"/>): the handler is what moves the row on and closes it
+/// when it fails, so a job that never reached it left the row <see cref="RunStatus.Queued"/> for ever.
+/// </para>
 /// </remarks>
 internal static class QueuedRunPlaceholder
 {
+    /// <summary>
+    /// The handler keys whose job id is the id of the run the job carries out, and whose run row is opened
+    /// <see cref="RunStatus.Queued"/> before the job: the queued agent run, the queued workflow operation, the
+    /// resume of an approval and the continuation of an interrupted run.
+    /// </summary>
+    private static readonly HashSet<string> RunOwningKeys = new(StringComparer.Ordinal)
+    {
+        JobHandlerKeys.AgentRun,
+        JobHandlerKeys.WorkflowRun,
+        JobHandlerKeys.ApprovalResume,
+        JobHandlerKeys.RunContinuation,
+    };
+
     /// <summary>Enqueues <paramref name="job"/>; closes its run's placeholder row if the enqueue throws.</summary>
     /// <param name="jobStore">The queue.</param>
     /// <param name="runStore">The store that holds the placeholder row.</param>
@@ -101,6 +119,66 @@ internal static class QueuedRunPlaceholder
             }
 
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Closes the <see cref="RunStatus.Queued"/> row of a run whose job the worker failed without calling its handler.
+    /// </summary>
+    /// <param name="runStore">The store that holds the row.</param>
+    /// <param name="job">The job the worker just failed. Its <see cref="JobRecord.Id"/> is the run id for the keys that carry a run.</param>
+    /// <param name="code">The job error code the job failed with.</param>
+    /// <param name="correlationId">The id of the log entry that carries the cause.</param>
+    /// <param name="logger">Logs a row that could not be closed.</param>
+    /// <param name="timeProvider">The clock the closed row is stamped with.</param>
+    /// <returns>A task that completes when the row is closed or there was none to close; it does not throw.</returns>
+    /// <remarks>
+    /// A row that is not <see cref="RunStatus.Queued"/> is left as it is: an earlier attempt that moved it on owns it,
+    /// and run reconciliation closes it if that attempt died. A store error is logged and ignored: the job is
+    /// already failed and nothing else can be done for the row.
+    /// </remarks>
+    public static async ValueTask CloseWhenJobFailsWithoutRunningAsync(
+        IRunStore runStore,
+        JobRecord job,
+        string code,
+        string correlationId,
+        ILogger? logger,
+        TimeProvider timeProvider)
+    {
+        if (!RunOwningKeys.Contains(job.HandlerKey))
+        {
+            return;
+        }
+
+        // The row is read through the ambient tenant. Opened here, in this method's own body, around the awaited
+        // calls: the worker reaches this before it opens its own scope for a job whose key or attempts are refused.
+        using var tenantScope = AmbientTenantScope.Begin(job.TenantId);
+
+        try
+        {
+            if (await runStore.GetRunAsync(job.Id, CancellationToken.None).ConfigureAwait(false) is not { Status: RunStatus.Queued })
+            {
+                return;
+            }
+
+            await runStore.CompleteRunAsync(
+                new RunCompletion
+                {
+                    RunId = job.Id,
+                    Status = RunStatus.Failed,
+                    CompletedAt = timeProvider.GetUtcNow(),
+                    Error = ClosingRunError.From(code, JobErrorCodes.Format(code, correlationId)),
+                    TenantId = job.TenantId,
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger?.LogWarning(
+                exception,
+                "Queued run {RunId} stays Queued: its job failed without running and the row could not be closed. (ref: {CorrelationId})",
+                job.Id,
+                correlationId);
         }
     }
 

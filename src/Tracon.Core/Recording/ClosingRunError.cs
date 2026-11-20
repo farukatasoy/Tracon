@@ -35,4 +35,19 @@ internal static class ClosingRunError
 
         return error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
     }
+
+    /// <summary>Builds the error a closing write carries for a failure that is not an exception: a job the worker ended itself.</summary>
+    /// <param name="errorType">The stable type the row records, such as a job error code.</param>
+    /// <param name="message">The persisted message; already safe to store.</param>
+    /// <returns>The error, classified.</returns>
+    public static RunError From(string errorType, string message)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorType);
+        ArgumentNullException.ThrowIfNull(message);
+
+        var error = new RunError { Type = errorType, Message = message };
+        var classification = new DefaultRunErrorClassifier().Classify(error);
+
+        return error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
+    }
 }
