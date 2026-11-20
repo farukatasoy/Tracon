@@ -447,9 +447,16 @@ internal static class AgentTurnService
         // The run records the values it was bound with, defaults
         // included, so a replay and a continuation repeat them. Only an agent
         // that declares a schema has anything to record.
-        var recordedValues = parameterGate.Definition is { Parameters.Count: > 0 } declared
-            ? ParameterValueSet.Resolve(declared.Parameters, request.Parameters)
-            : null;
+        //
+        // An agent the catalog compiled for the request's values carries the set it bound as a marker, and the run
+        // recording wrapper writes it from there: the set comes from the catalog's own read of the definition. The gate's
+        // read above only answers the early 400. Two reads that disagree (a source that changes its definition between
+        // them) would otherwise record a set the run was never bound with.
+        var recordedValues = agent.GetService<BoundParameterValues>() is not null
+            ? null
+            : parameterGate.Definition is { Parameters.Count: > 0 } declared
+                ? ParameterValueSet.Resolve(declared.Parameters, request.Parameters)
+                : null;
 
         return TurnPreparation.Ready(new PreparedTurn(agent, name, request, attachments, prefix, runId, assignment, recordedValues, surface));
     }

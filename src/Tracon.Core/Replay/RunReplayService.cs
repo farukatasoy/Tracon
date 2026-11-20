@@ -133,8 +133,9 @@ internal sealed class RunReplayService
                 "a retention policy; this run cannot be replayed.");
         }
 
-        var definition = await ResolveDefinitionAsync(source.AgentName, request.AgentVersion, cancellationToken)
+        var found = await ResolveDefinitionAsync(source.AgentName, request.AgentVersion, cancellationToken)
             .ConfigureAwait(false);
+        var definition = found.Definition;
 
         if (definition is null)
         {
@@ -223,7 +224,7 @@ internal sealed class RunReplayService
         }
 
         return RunReplayPreparation.Ready(
-            Decorate(agent, ToDescriptor(effective)),
+            Decorate(agent, ToDescriptor(effective, found.Origin)),
             input.Messages,
             source,
             effective.Version,
@@ -398,13 +399,15 @@ internal sealed class RunReplayService
                 "parameter values; it would run with different instructions. This run cannot be replayed.")
             : null;
 
-    private async ValueTask<AgentDefinition?> ResolveDefinitionAsync(
+    /// <summary>
+    /// Reads the definition the replay compiles: the one the catalog would run for the name, so a source that outranks
+    /// the store is replayed from its own definition and never from an older stored copy of the same name.
+    /// </summary>
+    private ValueTask<FoundDefinition> ResolveDefinitionAsync(
         string agentName,
         int? version,
         CancellationToken cancellationToken)
-        => version is { } requested
-            ? await _definitions.GetVersionAsync(agentName, requested, cancellationToken).ConfigureAwait(false)
-            : await _definitions.GetAsync(agentName, cancellationToken).ConfigureAwait(false);
+        => CompilableDefinitionReader.ReadAsync(_definitions, _parameterFactory, agentName, version, cancellationToken);
 
     /// <summary>
     /// Applies the request's overrides to a definition.
@@ -505,8 +508,8 @@ internal sealed class RunReplayService
     private AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor)
         => AgentDecoratorPipeline.Apply(agent, descriptor, _decorators);
 
-    private static AgentDescriptor ToDescriptor(AgentDefinition definition)
-        => AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, "replay");
+    private static AgentDescriptor ToDescriptor(AgentDefinition definition, AgentDefinitionOrigin origin)
+        => AgentDescriptorProjection.FromDefinition(definition, origin, "replay");
 }
 
 /// <summary>Represents the outcome of a replay preparation.</summary>

@@ -121,6 +121,7 @@ internal sealed class RunContinuationJobHandler(
         Guid? experimentId;
         string? variant;
         IReadOnlyDictionary<string, string>? parameterValues = null;
+        var definitionOrigin = AgentDefinitionOrigin.Database;
 
         try
         {
@@ -146,18 +147,21 @@ internal sealed class RunContinuationJobHandler(
             experimentId = source.ExperimentId;
             variant = source.Variant;
 
-            var stored = agentVersion is { } version
-                ? await definitions.GetVersionAsync(source.AgentName, version, cancellationToken).ConfigureAwait(false)
-                : await definitions.GetAsync(source.AgentName, cancellationToken).ConfigureAwait(false);
+            // The definition the catalog runs for the name, not the store's copy: a source that outranks the store
+            // is continued from its own definition.
+            var found = await CompilableDefinitionReader
+                .ReadAsync(definitions, parameterFactory, source.AgentName, agentVersion, cancellationToken)
+                .ConfigureAwait(false);
 
             // The same rules the reconciler applies before it queues this job (a job queued earlier, or by hand, comes
             // here without them).
-            if (RunContinuationEligibility.DefinitionRefusal(stored, source.AgentName, agentVersion) is { } definitionRefusal)
+            if (RunContinuationEligibility.DefinitionRefusal(found.Definition, source.AgentName, agentVersion) is { } definitionRefusal)
             {
                 throw new TraconException(definitionRefusal);
             }
 
-            var definition = stored!;
+            var definition = found.Definition!;
+            definitionOrigin = found.Origin;
 
             // The source run recorded the values it was bound with, and the turn continues with the SAME ones.
             var (parameterRefusal, recordedValues) = RunContinuationEligibility.ParameterDecision(
@@ -194,7 +198,7 @@ internal sealed class RunContinuationJobHandler(
                     .ConfigureAwait(false);
             }
 
-            agent = Decorate(compiled, ToDescriptor(definition));
+            agent = Decorate(compiled, ToDescriptor(definition, definitionOrigin));
             session = await sessions.GetOrCreateSessionAsync(agent, sessionId, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
@@ -241,8 +245,8 @@ internal sealed class RunContinuationJobHandler(
     // Skill names, callable agents and extensions are zeroed on purpose: a continuation
     // compiles the definition without them (the extension gate above refuses before that).
     // The skill settings stay: without skill names they change nothing.
-    private static AgentDescriptor ToDescriptor(AgentDefinition definition)
-        => AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, "continuation") with
+    private static AgentDescriptor ToDescriptor(AgentDefinition definition, AgentDefinitionOrigin origin)
+        => AgentDescriptorProjection.FromDefinition(definition, origin, "continuation") with
         {
             SkillNames = [],
             ExtensionNames = [],

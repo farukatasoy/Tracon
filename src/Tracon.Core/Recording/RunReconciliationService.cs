@@ -258,11 +258,25 @@ internal sealed class RunReconciliationService(
             // refuses leaves a placeholder run that is Failed and never started, and the interrupted run learns nothing.
             if (definitions is not null)
             {
-                var stored = record.AgentVersion is { } version
-                    ? await definitions.GetVersionAsync(record.AgentName, version, cancellationToken).ConfigureAwait(false)
-                    : await definitions.GetAsync(record.AgentName, cancellationToken).ConfigureAwait(false);
+                // The definition the catalog runs for the name: the job that continues the run reads the same one.
+                AgentDefinition? stored = null;
+                string? lookupFailure = null;
 
-                definitionRefusal = RunContinuationEligibility.DefinitionRefusal(stored, record.AgentName, record.AgentVersion);
+                try
+                {
+                    stored = (await CompilableDefinitionReader
+                        .ReadAsync(definitions, parameterFactory, record.AgentName, record.AgentVersion, cancellationToken)
+                        .ConfigureAwait(false)).Definition;
+                }
+                catch (TraconException exception)
+                {
+                    // A source that fails while the name is looked up: the run is not continued and the event says why.
+                    // The lookup has already recorded the failure and normalized its text.
+                    lookupFailure = $"The definition of agent '{record.AgentName}' could not be read, so the run cannot be continued: {exception.Message}";
+                }
+
+                definitionRefusal = lookupFailure
+                    ?? RunContinuationEligibility.DefinitionRefusal(stored, record.AgentName, record.AgentVersion);
 
                 // The recorded input and the parameter values the turn is sent with: the handler refuses a run without
                 // them after the job exists, and the run it leaves behind is a placeholder that never started.

@@ -636,7 +636,11 @@ on the code, never on the sentence around it.
   instructions, because the run record does not store the culture. It does bind
   the [parameter values](/concepts/agents/#parameters) the source run recorded;
   a `parameters` field in the replay request changes the names it gives and keeps
-  the rest. A workflow run is not replayed — it continues from its checkpoints
+  the rest. A replay compiles the definition the catalog runs for the agent's name: the stored
+  one, or the one a custom [`IAgentDefinitionSource`](/guides/write-your-own-agent-source/)
+  returns when that source outranks the store. An agent registered in code, or one that a custom
+  `IAgentSource` builds, has no definition Tracon can compile again; it replays only in
+  `LiveTools` mode, with no override. A workflow run is not replayed — it continues from its checkpoints
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 
@@ -650,7 +654,9 @@ automatic: when reconciliation closes a run a process never finished, a session-
 run can be picked up again in that same session, as a new run whose
 `continuedFromRunId` points back at the interrupted one. The run tree shows the link,
 so an operator sees "this run continued that one" rather than two unrelated rows.
-Continuation is off by default and does not run every tool call again — see
+A continued turn compiles the same definition a replay does, so an agent whose definition a custom
+[`IAgentDefinitionSource`](/guides/write-your-own-agent-source/) returns can be continued; an agent
+registered in code cannot. Continuation is off by default and does not run every tool call again — see
 [Continue an interrupted run automatically](/guides/reliability/#continue-an-interrupted-run-automatically)
 for what gets replayed, what runs live, and which tools it refuses to continue.
 

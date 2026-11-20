@@ -1,45 +1,53 @@
 {
-  "measuredAt": "2026-11-07T15:28:38Z",
+  "measuredAt": "2026-11-20T03:43:15Z",
   "benchmarks": {
+    "Tracon.Benchmarks.AgentDefinitionLookupBenchmarks.ScanOfAListingBuiltEachCall": {
+      "allocatedBytes": 192024,
+      "meanNanoseconds": 29881.150708879744
+    },
+    "Tracon.Benchmarks.AgentDefinitionLookupBenchmarks.ScanOfAListingBuiltOnce": {
+      "allocatedBytes": 0,
+      "meanNanoseconds": 2327.711300776555
+    },
     "Tracon.Benchmarks.ChatTelemetryRingBenchmarks.ModelCall": {
       "allocatedBytes": 264,
-      "meanNanoseconds": 61.111587347128456
+      "meanNanoseconds": 44.884502883140854
     },
     "Tracon.Benchmarks.CompiledAgentCacheBenchmarks.CacheHit": {
       "allocatedBytes": 0,
-      "meanNanoseconds": 58.824647981590694
+      "meanNanoseconds": 39.29675936273166
     },
     "Tracon.Benchmarks.CompiledAgentCacheBenchmarks.EvictOnMiss": {
       "allocatedBytes": 124464,
-      "meanNanoseconds": 5547632.365026596
+      "meanNanoseconds": 3624495.5540865385
     },
     "Tracon.Benchmarks.InMemoryRunStoreQueryBenchmarks.QueryRuns": {
       "allocatedBytes": 50008,
-      "meanNanoseconds": 434580.6561633695
+      "meanNanoseconds": 394300.56888253347
     },
     "Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent": {
       "allocatedBytes": 112,
-      "meanNanoseconds": 693.6857783717494
+      "meanNanoseconds": 555.7126586550758
     },
     "Tracon.Benchmarks.RunEventWriterStoreBenchmarks.AllChunksAsOneGroup": {
       "allocatedBytes": 267808,
-      "meanNanoseconds": 1682712.195825442
+      "meanNanoseconds": 1354466.9259114584
     },
     "Tracon.Benchmarks.RunEventWriterStoreBenchmarks.BuildOnly": {
       "allocatedBytes": 40960,
-      "meanNanoseconds": 273207.6583340045
+      "meanNanoseconds": 217242.93518880208
     },
     "Tracon.Benchmarks.RunEventWriterStoreBenchmarks.EachChunkOnItsOwn": {
       "allocatedBytes": 1480960,
-      "meanNanoseconds": 16185817.149193548
+      "meanNanoseconds": 14207273.07451923
     },
     "Tracon.Benchmarks.RunStoreQueryBenchmarks.QueryRuns": {
       "allocatedBytes": 60624,
-      "meanNanoseconds": 1494499.8951056986
+      "meanNanoseconds": 1077198.3067801339
     },
     "Tracon.Benchmarks.SqliteConnectionOpenBenchmarks.PooledOpen": {
       "allocatedBytes": 1504,
-      "meanNanoseconds": 3947.702952889835
+      "meanNanoseconds": 2784.30239377703
     }
   }
 }
