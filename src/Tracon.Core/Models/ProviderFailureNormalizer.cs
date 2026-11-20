@@ -394,31 +394,66 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner, Provid
     }
 }
 
-/// <summary>Internal stable provider failure carried to public protocol adapters.</summary>
+/// <summary>
+/// A call to a model provider failed. The message is a fixed sentence, the status the provider answered with is a
+/// property, and whether sending the same call again can change the answer is a property too.
+/// </summary>
 /// <remarks>
-/// The message is a fixed sentence plus facts Tracon chose. The provider's own failure stays whole in
-/// <see cref="Original"/>, so a retry decision above this ring (a workflow node, a job) reads the same graph the
-/// fallback chain did, through <see cref="ProviderFailureGraph"/>. What a writer reaches is masked: <see cref="ToString"/>
-/// replaces the call's credential, and the inner exception is a <see cref="MaskedFailureView"/> of the original (the
-/// original itself when the call had no credential value to hide). The loggers that take this exception (the run
-/// recorder, the endpoints, the protocol adapters) write the provider's text without the key of the call.
+/// <para>
+/// A caller that retries (a job queue, a pipeline step) asks one question of a failed model call: is it worth sending
+/// again. <see cref="IsTransient"/> answers it with the decision the model fallback chain uses to move to the next
+/// provider, so the caller and Tracon do not disagree about which failure is worth another try: no answer from the
+/// provider (a refused connection, a name that did not resolve, a stream that broke), a timeout, a <c>429</c> and a
+/// <c>5xx</c> are transient; any other <c>4xx</c> (a <c>400</c> the provider rejected, a <c>401</c> or <c>403</c> for a
+/// key that is wrong, a <c>404</c> for a model that does not exist) gets the same answer on every attempt until
+/// something outside the call changes, and so does a failure that happened before a request was sent (an argument the
+/// client refused, a body it could not serialize).
+/// </para>
+/// <para>
+/// <see cref="Exception.Message"/> carries a sentence Tracon chose plus the provider name, the fault type and the status,
+/// never the provider's own words: they can quote the request, an internal address or part of a credential, and a run
+/// record is permanent. <see cref="Exception.InnerException"/> and <see cref="ToString"/> do carry the provider's text,
+/// with the key of the call replaced; treat them as log material, as you would the raw exception. The type is also the
+/// one a protocol adapter reads to answer an HTTP, SSE or MCP caller.
+/// </para>
 /// </remarks>
-internal sealed class ProviderInvocationException : TraconException
+public sealed class ProviderInvocationException : TraconException
 {
     private readonly ProviderSecretMask _mask;
 
-    private ProviderInvocationException(string errorType, string message, Exception original, Exception inner, ProviderSecretMask mask)
+    private ProviderInvocationException(string errorType, string message, string provider, Exception original, Exception inner, ProviderSecretMask mask)
         : base(message, inner)
     {
         ErrorType = errorType;
+        Provider = provider;
         _mask = mask;
         Original = original;
     }
 
+    /// <inheritdoc />
     public override string ErrorType { get; }
 
-    /// <summary>Gets the HTTP status the provider answered with, or <see langword="null"/> when it carried none.</summary>
-    internal int? StatusCode { get; private init; }
+    /// <summary>Gets the name of the model provider the failed call went to.</summary>
+    public string Provider { get; }
+
+    /// <summary>Gets the HTTP status the provider answered with, or <see langword="null"/> when the failure carried none.</summary>
+    /// <remarks>
+    /// A failure with no status got no answer from the provider (a refused connection, a name that did not resolve, a
+    /// stream that broke) or never sent a request. <see cref="IsTransient"/> tells which.
+    /// </remarks>
+    public int? StatusCode { get; private init; }
+
+    /// <summary>
+    /// Gets a value indicating whether sending the same call again can change the answer.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="true"/> for a failure that got no answer from the provider (connection, timeout) and for a
+    /// <c>429</c> or a <c>5xx</c>. <see langword="false"/> for any other <c>4xx</c>, a <c>401</c> and a <c>403</c> included
+    /// (a key the provider refuses stays refused until it is replaced, and a retry before that spends a call to learn it
+    /// again), and for a failure that happened before a request was sent. The same decision moves a call to the next
+    /// model in <c>ModelBinding.Fallbacks</c>.
+    /// </remarks>
+    public bool IsTransient => FallbackRetryClassifier.IsRetryable(Original);
 
     /// <summary>Gets the exception the provider client threw, whole and unmasked.</summary>
     internal Exception Original { get; }
@@ -426,7 +461,7 @@ internal sealed class ProviderInvocationException : TraconException
     /// <summary>Builds the same failure with the provider client's own exception as its inner exception.</summary>
     /// <returns>An exception with the masked text, for the code that decides from the graph.</returns>
     internal ProviderInvocationException ForDecision()
-        => new(ErrorType, Message, Original, Original, _mask) { StatusCode = StatusCode };
+        => new(ErrorType, Message, Provider, Original, Original, _mask) { StatusCode = StatusCode };
 
     /// <inheritdoc />
     public override string ToString()
@@ -455,6 +490,7 @@ internal sealed class ProviderInvocationException : TraconException
         return new(
             ProviderFailureNormalizer.UpstreamErrorType,
             ProviderFailureNormalizer.DescribeUpstreamFailure(provider, ProviderFailureNormalizer.ReadFaultType(exception), status),
+            provider,
             exception,
             mask.Shown(exception),
             mask)

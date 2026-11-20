@@ -10,6 +10,9 @@ internal static class WriteRuleCodes
     /// <summary>The agent name is empty.</summary>
     public const string AgentNameEmpty = "agent_name_empty";
 
+    /// <summary>The agent name cannot be a segment of the agent's address.</summary>
+    public const string AgentNameInvalid = "agent_name_invalid";
+
     /// <summary>The agent has no model binding.</summary>
     public const string AgentModelMissing = "agent_model_missing";
 

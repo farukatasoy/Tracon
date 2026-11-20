@@ -73,6 +73,26 @@ public sealed class OpenAIProviderOptions
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>
+    /// Gets or sets how many times the OpenAI client sends a call again after a failure it considers worth repeating.
+    /// When <see langword="null"/>, three.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The client repeats the call itself, before Tracon sees a failure: with the default, a single call that the server
+    /// answers with <c>429</c>, <c>500</c> or <c>503</c> reaches the server four times (measured), and a <c>400</c> or
+    /// <c>401</c> once. The wait between two tries follows the <c>Retry-After</c> header when there is one, up to a
+    /// minute. Tracon's own circuit breaker and fallback models see only the failure of the last try.
+    /// </para>
+    /// <para>
+    /// Lower it (<c>0</c> sends the call once) when something above Tracon already retries, a job queue for example: the
+    /// two multiply, and a rate-limited provider is called more often exactly when it asked to be called less. Must be
+    /// from <c>0</c> to <c>10</c> when set; any other value fails at startup. It applies to the key the host started
+    /// with and to a tenant's own key alike.
+    /// </para>
+    /// </remarks>
+    public int? MaxRetries { get; set; }
+
+    /// <summary>
     /// Gets the model catalog shown in the user interface.
     /// </summary>
     /// <remarks>

@@ -933,3 +933,9 @@ static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconB
 static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconBuilder! builder, string! name, Microsoft.Extensions.AI.IChatClient! client, System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>? models) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ModelBinding!, Microsoft.Extensions.AI.IChatClient!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ModelBinding!, Microsoft.Extensions.AI.IChatClient!>! factory, System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>? models) -> Tracon.ITraconBuilder!
+Tracon.ProviderInvocationException
+Tracon.ProviderInvocationException.IsTransient.get -> bool
+Tracon.ProviderInvocationException.Provider.get -> string!
+Tracon.ProviderInvocationException.StatusCode.get -> int?
+override Tracon.ProviderInvocationException.ErrorType.get -> string!
+override Tracon.ProviderInvocationException.ToString() -> string!

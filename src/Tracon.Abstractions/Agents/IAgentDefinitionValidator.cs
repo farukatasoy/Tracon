@@ -17,7 +17,10 @@ namespace Tracon;
 /// check independently, so one call reports every finding. <see cref="AgentValidationReport.Valid"/> is
 /// <see langword="false"/> when a finding has <see cref="ValidationSeverity.Error"/>; a warning leaves it
 /// <see langword="true"/>. A check that cannot finish because a resource is unreachable (an MCP server) sets
-/// <see cref="AgentValidationReport.Inconclusive"/> and does not fail the call.
+/// <see cref="AgentValidationReport.Inconclusive"/> and does not fail the call. So does a definition that names a model
+/// provider this process does not register (a migrator or a script that holds no provider key): the report then carries
+/// <c>unknown_model</c>, and the checks that need the provider (the sampling fields it accepts, the compilation that
+/// builds its client) did not run, so a clean rest of the report is not the whole answer.
 /// </para>
 /// <para>
 /// The implementation is registered by <c>AddTracon()</c> as a singleton. A call reads the ambient tenant for the

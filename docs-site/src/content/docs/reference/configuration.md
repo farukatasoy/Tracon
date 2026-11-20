@@ -401,6 +401,12 @@ the call (`openai-responses`, `anthropic`, `google`), and `{kind}` is `WebSearch
 `FileSearch`; a name that is none of them stops the host at start. A kind with no price is listed on the
 run and not added to its cost; Tracon never prices it at zero.
 
+A model that no price covers is recorded with empty cost columns and the pricing source `Unknown`.
+Tracon says so at startup for the models a provider's catalog lists. A definition may bind a model the
+catalog does not list, so it also warns once for each such model, the first time a price is looked up
+for it (a run being recorded, a cost budget, a judge call or a recalculation of past runs): the line
+names the model and the provider, and the model's price goes under `Tracon:Pricing`.
+
 Values label and calculate reports only. Tracon performs no currency conversion, so
 `Currency` also decides which reported amounts add up: an amount that a workflow function node or a
 tool reported beyond tokens joins the run's non-token total only when it is in this
@@ -730,6 +736,8 @@ configuration section.
 | `RequireRolePolicies` | `false` |
 | `EnableDiagnosticsEndpoint` | `false` |
 | `MapOpenAIConversations` | `true` |
+| `MapInboundTriggers` | `true` |
+| `MapMcpOAuthCallback` | `true` |
 | `RunEventPollInterval` | 250 ms |
 | `StreamKeepAliveInterval` | 15 seconds |
 | `MaxJsonBodyBytes` | 8 MiB |
@@ -745,13 +753,24 @@ app.MapTracon("/tracon", options =>
 });
 ```
 
-`MapOpenAIConversations` is the only one that starts on (`true`).<!-- claim:option TraconEndpointOptions.MapOpenAIConversations=true --> Setting it to `false`
+Three options start on. `MapOpenAIConversations` is `true`.<!-- claim:option TraconEndpointOptions.MapOpenAIConversations=true --> `MapInboundTriggers` is `true`.<!-- claim:option TraconEndpointOptions.MapInboundTriggers=true --> `MapMcpOAuthCallback` is `true`.<!-- claim:option TraconEndpointOptions.MapMcpOAuthCallback=true --> Setting `MapOpenAIConversations` to `false`
 leaves the four `/v1/conversations` routes unmapped: they answer `404` and
 disappear from the OpenAPI document, while `/v1/responses` and
 `/v1/chat/completions` are unaffected. It shrinks the surface a deployment that
 never calls those routes exposes; it is not a security control, since the
 routes go through the same role policies, API key scopes, session ownership and
 `IRunAuthorizationHandler` gate as `/api/sessions`.
+
+The other two switches remove the two addresses that no bearer token guards. `POST /api/triggers/{tenantId}/{name}` accepts a call from a third-party
+server on the open internet and relies on the request's signature alone;
+`GET /api/mcp-servers/{name}/oauth/callback` receives the browser redirect of an
+MCP server that signs in with the authorization code flow, and relies on its
+single-use `state` value (the loopback restriction and your authorization policy still
+apply to it). A host that defines no trigger and connects no MCP server
+through OAuth sets both to `false` and carries neither address: they answer `404`
+and disappear from the OpenAPI document. With `MapInboundTriggers` off, a trigger
+you define can no longer be fired from outside; with `MapMcpOAuthCallback` off, an
+MCP server that needs the authorization code flow cannot finish its sign-in.
 
 `StreamKeepAliveInterval` is the longest a streaming response (an agent or
 workflow run, a resume or answer, the OpenAI-compatible endpoints) stays

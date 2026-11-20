@@ -49,6 +49,50 @@ Both the class and the clustering fingerprint come from a classifier you can
 replace or compose with your own rules — see
 [Write your own error classifier](/guides/write-your-own-error-classifier/).
 
+### Decide a retry from the failure, not from its text
+
+A model call that fails throws `ProviderInvocationException`, a `TraconException` with
+error type `upstream_error`. Three properties answer what a job or a pipeline step asks:
+`Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when it
+answered nothing) and `IsTransient`.
+
+```csharp
+async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken cancellationToken)
+{
+    try
+    {
+        await agent.RunAsync(message, cancellationToken: cancellationToken);
+
+        return true;
+    }
+    catch (ProviderInvocationException failure) when (failure.IsTransient)
+    {
+        // No answer, timeout, 429 or 5xx: a later try can succeed. The caller schedules one.
+        return false;
+    }
+    catch (ProviderInvocationException failure)
+    {
+        // 400, 401, 403, 404 and every other 4xx: the same call gets the same answer. Fail it.
+        throw new InvalidOperationException($"The {failure.Provider} call was refused with {failure.StatusCode}.", failure);
+    }
+}
+```
+
+`IsTransient` is the decision the model fallback chain makes to move a call to the next
+provider, so your retry and Tracon's do not disagree about which failure is worth another
+try. No answer from the provider (a refused connection, a timeout), a `429` and a `5xx`
+are transient. Every other `4xx` is not, and neither is a failure that happened before a
+request was sent. A `401` or `403` is not transient: a key the provider refuses stays
+refused until it is replaced.
+
+`Message` is a fixed sentence with the provider, the fault type and the status; it does
+not carry the provider's own words. `InnerException` and `ToString()` do, with the key of
+the call replaced, so treat them as you would the raw exception: log material. The full
+failure also goes to the server log under the same correlation id.
+
+A run that the circuit breaker stopped throws `TraconProviderUnavailableException`
+instead. Its `RetryAfter` says when a try can reach the provider again.
+
 ### Truncated output
 
 A model that reaches its output token limit stops in the middle of its answer and

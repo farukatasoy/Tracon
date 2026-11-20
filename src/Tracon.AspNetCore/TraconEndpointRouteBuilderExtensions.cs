@@ -188,7 +188,7 @@ public static class TraconEndpointRouteBuilderExtensions
         // (UseProblemDetailsOnDenial); the mark keeps that to Tracon's own endpoints.
         group.WithMetadata(ProblemDetailsOnDenialMarker.Instance);
         group.WithMetadata(new JsonBodyLimitMetadata(options.MaxJsonBodyBytes, normalizedPrefix + "/v1/"));
-        group.AddEndpointFilter(new TraconEndpointFilter(options));
+        group.AddEndpointFilter(new TraconEndpointFilter(options, rolePolicies: roles));
 
         // Rate limiting. The filter is always added but is OFF BY
         // DEFAULT: until the setting is turned on no request is rejected, so
@@ -281,8 +281,17 @@ public static class TraconEndpointRouteBuilderExtensions
         }
 
         MapUi(endpoints, services, options, normalizedPrefix);
-        MapMcpOAuthCallback(endpoints, options, normalizedPrefix);
-        MapInboundTriggerAccept(endpoints, options, normalizedPrefix);
+
+        if (options.MapMcpOAuthCallback)
+        {
+            MapMcpOAuthCallback(endpoints, options, normalizedPrefix);
+        }
+
+        if (options.MapInboundTriggers)
+        {
+            MapInboundTriggerAccept(endpoints, options, normalizedPrefix);
+        }
+
         MapVoiceConversation(endpoints, services, options, normalizedPrefix, roles);
 
         // MapTraconMcpServer/MapTraconA2A are separate,

@@ -32,6 +32,24 @@ public sealed class AgentValidateEndpointTests
     }
 
     [Fact]
+    public async Task A_provider_the_host_does_not_register_makes_the_report_inconclusive()
+    {
+        // The checks that need the provider do not run, so a client that reads the report must not take it for complete.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            Validate,
+            TestData.Request() with { Model = new ModelBinding { Provider = "no-such-provider", Model = "any-model" } });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await TraconTestHost.ReadJsonAsync(response);
+        json.GetProperty("valid").GetBoolean().ShouldBeFalse();
+        json.GetProperty("inconclusive").GetBoolean().ShouldBeTrue();
+        json.GetProperty("messages")[0].GetProperty("code").GetString().ShouldBe("unknown_model");
+    }
+
+    [Fact]
     public async Task Unknown_tool_returns_200_and_valid_false()
     {
         await using var host = await TraconTestHost.StartAsync();

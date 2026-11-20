@@ -196,6 +196,11 @@ public static class OpenAIProviderExtensions
             static o => o.Timeout,
             static (o, v) => o.Timeout = v);
 
+        read.Int32(
+            nameof(OpenAIProviderOptions.MaxRetries),
+            static o => o.MaxRetries,
+            static (o, v) => o.MaxRetries = v);
+
         read.Boolean(
             nameof(OpenAIProviderOptions.EnableResponsesSurface),
             static o => o.EnableResponsesSurface,

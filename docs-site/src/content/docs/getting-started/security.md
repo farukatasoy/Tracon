@@ -122,6 +122,17 @@ role is treated as not registered and a `Warning` is logged in the
 `Tracon.RolePolicies` category; with `RequireRolePolicies` on, the startup error
 carries the provider's exception as its inner exception.
 
+With `AllowRemoteAccess` on, all three role policies are also enough to let a remote
+caller in: a request whose caller your authentication has identified (a cookie, say) and
+that passes its role policy needs no `AuthToken`, no `RequireAuthorization` and no API
+key. The identity is read from the request, so a policy that lets everyone through does
+not make an anonymous caller known, and a request from this machine is judged as before,
+`Host` and `Origin` included. With one or two policies registered nothing changes: the
+other roles' routes carry no policy. A bearer token in the `Authorization` header is
+still read by Tracon's own token layer, as an API key. `RequireProductionProfile()` still
+asks for `AuthToken` or `RequireAuthorization`. The console shell and the OAuth callback
+sit outside the role policies; the shell carries no data.
+
 ### A refused role answers with a body
 
 When a role policy refuses a request, ASP.NET Core's authorization middleware writes the

@@ -60,6 +60,17 @@ public sealed class DefinitionImportParityTests
     }
 
     [Fact]
+    public async Task An_agent_whose_name_cannot_be_an_address_is_refused_as_the_save_refuses_it()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+        var request = TestData.Request("team/support");
+
+        var detail = await SaveRefusalAsync(host, HttpMethod.Post, "agents", request, expected: HttpStatusCode.BadRequest);
+
+        await AssertRefusedTheSameWayAsync(host, TransferHost.NewBundle().WithAgent(request), "agent", "team/support", detail);
+    }
+
+    [Fact]
     public async Task An_agent_without_a_model_is_refused_as_the_save_refuses_it()
     {
         await using var host = await TraconTestHost.StartAsync();

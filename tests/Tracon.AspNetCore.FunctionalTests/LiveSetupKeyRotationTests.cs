@@ -194,6 +194,41 @@ public sealed class LiveSetupKeyRotationTests
     }
 
     [Fact]
+    public async Task A_blank_key_of_a_named_compatible_provider_warns_once_after_a_rotation()
+    {
+        // The consumer measured two identical warnings for one blank value on a compatible provider that names both its
+        // key and its address and had been rotated before the value went blank.
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        var configuration = Configuration((KeyName, "key-one"), (EndpointName, server.BaseAddress.ToString()));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseOpenAICompatible("fake-model", options =>
+                {
+                    options.Endpoint = server.BaseAddress;
+                    options.ApiKeyConfigurationName = KeyName;
+                    options.EndpointConfigurationName = EndpointName;
+                })
+                .AddAgent(Agent(AgentName, "fake-model")),
+            configureServices: services => services.AddSingleton(configuration));
+
+        await RunAsync(host);
+
+        configuration[KeyName] = "key-two";
+
+        await RunAsync(host);
+
+        configuration[KeyName] = "   ";
+
+        await RunAsync(host);
+        await RunAsync(host);
+
+        var warnings = host.Logs.Entries.Where(static entry => entry.Contains(KeyName, StringComparison.Ordinal)).ToList();
+
+        warnings.Count.ShouldBe(1, string.Join('\n', warnings));
+    }
+
+    [Fact]
     public async Task A_keyless_compatible_endpoint_that_names_a_key_with_no_value_does_not_warn()
     {
         // A compatible server may ask for no key. Naming the configuration key it would be read from is a promise to
@@ -373,6 +408,57 @@ public sealed class LiveSetupKeyRotationTests
 
         first.ReceivedAuthorizationHeaders.ShouldBe(["Bearer tenant-key-one"]);
         second.ReceivedAuthorizationHeaders.ShouldBe(["Bearer tenant-key-one"]);
+    }
+
+    [Fact]
+    public async Task A_tenants_own_key_is_called_with_the_retry_limit_the_provider_was_set_up_with()
+    {
+        // The client of a tenant's own key is built from the tenant's credential, not from the setup options, so a limit
+        // that only the setup client carried would let the tenant's call reach the server four times.
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        server.ChatCompletionStatusCode = StatusCodes.Status503ServiceUnavailable;
+        const string TenantKeyName = "Tracon:ProviderKeys:tenant-a:Key";
+        var configuration = Configuration((TenantKeyName, "tenant-key-one"));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseTenancy(static options =>
+                {
+                    options.Enabled = true;
+                    options.AllowHeaderResolution = true;
+                })
+                .UseOpenAI("setup-key", options =>
+                {
+                    options.Endpoint = server.BaseAddress;
+                    options.MaxRetries = 0;
+                })
+                .AddAgent(Agent(AgentName, OpenAIProviderNames.ChatCompletions)),
+            configureServices: services => services.AddSingleton(configuration));
+
+        using (var bind = new HttpRequestMessage(HttpMethod.Put, new Uri($"/tracon/api/tenants/tenant-a/providers/{OpenAIProviderNames.ChatCompletions}", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { apiKeyConfigurationName = TenantKeyName }),
+        })
+        {
+            bind.Headers.Add("X-Tracon-Tenant", "tenant-a");
+
+            using var response = await host.Client.SendAsync(bind, TestContext.Current.CancellationToken);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+
+        using var run = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hello", SessionId = Guid.NewGuid().ToString("N") }),
+        };
+
+        run.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+        run.Headers.Add("X-Tracon-Tenant", "tenant-a");
+
+        using var failed = await host.Client.SendAsync(run, TestContext.Current.CancellationToken);
+
+        failed.IsSuccessStatusCode.ShouldBeFalse();
+        server.ReceivedAuthorizationHeaders.ShouldBe(["Bearer tenant-key-one"], "the tenant's own key, sent once");
     }
 
     [Fact]

@@ -310,6 +310,7 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, ILiv
             DefaultModel = _baseOptions?.DefaultModel,
             Organization = _baseOptions?.Organization,
             Timeout = _baseOptions?.Timeout,
+            MaxRetries = _baseOptions?.MaxRetries,
         };
 
         var overrideEndpoint = ModelProviderCore.TenantEndpoint(credential);

@@ -26,12 +26,14 @@ public sealed record AgentValidationReport
     public required bool Valid { get; init; }
 
     /// <summary>
-    /// Gets a value that tells whether a check could not finish because a resource was unreachable, an MCP server for
-    /// example. It does not affect <c>Valid</c>.
+    /// Gets a value that tells whether a check could not finish or could not run: a resource was unreachable (an MCP
+    /// server for example), or the model provider the definition names is not registered in this process, so the checks
+    /// that need it did not run. It does not affect <c>Valid</c>.
     /// </summary>
     [Description(
-        "Gets a value that tells whether a check could not finish because a resource was\n" +
-        "unreachable, an MCP server for example. It does not affect `Valid`.")]
+        "Gets a value that tells whether a check could not finish or could not run: a resource was\n" +
+        "unreachable (an MCP server for example), or the model provider the definition names is not\n" +
+        "registered in this process, so the checks that need it did not run. It does not affect `Valid`.")]
     public required bool Inconclusive { get; init; }
 
     /// <summary>Gets every finding. Validation does not stop at the first error.</summary>

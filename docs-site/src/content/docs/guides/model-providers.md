@@ -176,6 +176,21 @@ The name must match `[a-z0-9][a-z0-9-]{0,31}`. The names `openai` and
 server with no key is valid; Tracon supplies only the fixed placeholder required
 by the OpenAI client library.
 
+### The OpenAI client retries before Tracon sees a failure
+
+The OpenAI client library repeats a failed call itself. With its default of three
+retries, one call that the server answers with `429`, `500` or `503` reaches the server
+four times; a `400` or a `401` reaches it once (measured against a local server). The
+wait between two tries follows the `Retry-After` header, up to a minute. Tracon's
+circuit breaker and fallback models see only the last failure, and a job queue that
+retries on top multiplies the two.
+
+`OpenAIProviderOptions.MaxRetries` sets the count, from `0` (send once) to `10`. Left
+empty it is three, the count the client library made when this was measured. It applies to the setup key and to a tenant's own
+key alike, and it is bound from `Tracon:Providers:OpenAI:MaxRetries` as well. The Anthropic
+provider has an option of the same name. Azure OpenAI uses the OpenAI default and has no
+option for it yet.
+
 :::caution[Compatibility is measured per server and model]
 A successful health check proves reachability. It does not prove tool calling,
 structured output, streaming usage, or Responses API compatibility. Some compatible
@@ -842,6 +857,7 @@ as a rejection, since there is nothing to compare the prompt against.
 | Health cache | 60 seconds |
 | Background health checks | Off; checks run on request unless an interval is configured |
 | Circuit breaker | On; 5 consecutive failures; one half-open attempt after 30 seconds |
+| OpenAI client retries | Three, before Tracon sees the failure; `MaxRetries` changes it |
 | Model catalog | Empty until the host supplies entries |
 | Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
 | Fallback chain | Empty; an unavailable primary throws |

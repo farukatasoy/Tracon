@@ -28,11 +28,23 @@ internal sealed class OpenAIBoundedRetryPolicy : ClientRetryPolicy
     // The library's own first delay. It is private there, so the ordinary backoff is rebuilt from the same number.
     private static readonly TimeSpan InitialDelay = TimeSpan.FromSeconds(0.8);
 
+    /// <summary>
+    /// The number of retries made when none is asked for. It is the number the OpenAI client library made when it was
+    /// measured against a local server (a call that answers <c>503</c> arrived four times), kept as Tracon's own default
+    /// so that a library that changes its own does not change the count of a host that never asked.
+    /// </summary>
+    internal const int LibraryDefaultMaxRetries = 3;
+
+    /// <summary>The most retries an option may ask for.</summary>
+    internal const int MaximumMaxRetries = 10;
+
     private readonly TimeProvider _timeProvider;
 
     /// <summary>Initializes a new policy.</summary>
     /// <param name="timeProvider">The clock the wait between two tries runs on; <see cref="TimeProvider.System"/> when omitted.</param>
-    public OpenAIBoundedRetryPolicy(TimeProvider? timeProvider = null)
+    /// <param name="maxRetries">How many times a failed call is sent again; <see cref="LibraryDefaultMaxRetries"/> when omitted.</param>
+    public OpenAIBoundedRetryPolicy(TimeProvider? timeProvider = null, int? maxRetries = null)
+        : base(maxRetries ?? LibraryDefaultMaxRetries)
     {
         _timeProvider = timeProvider ?? TimeProvider.System;
     }

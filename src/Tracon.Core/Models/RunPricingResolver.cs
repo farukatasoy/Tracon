@@ -28,6 +28,10 @@ internal sealed class RunPricingResolver : IRunPricingResolver
     private readonly ConcurrentDictionary<(string Provider, string Model, bool LongClass), byte> _warnedUnpricedWrites = new();
     private const int MaxWarnedUnpricedWrites = 256;
 
+    // The models already warned about for having no price at all. Bounded in the same way.
+    private readonly ConcurrentDictionary<(string Provider, string Model), byte> _warnedUnpricedModels = new();
+    private const int MaxWarnedUnpricedModels = 256;
+
     /// <summary>Initializes a price resolver.</summary>
     /// <param name="registry">The model catalog.</param>
     /// <param name="options">The Tracon options and <c>Pricing</c> section.</param>
@@ -95,7 +99,33 @@ internal sealed class RunPricingResolver : IRunPricingResolver
                 model);
         }
 
+        WarnUnpricedModelOnce(provider, model);
+
         return new RunCost { Source = PricingSource.Unknown };
+    }
+
+    // A model that no price source covers is recorded with empty cost columns and PricingSource.Unknown, which is honest but
+    // easy to miss: the startup warning lists only the models of a provider's catalog, and a definition may name a model the
+    // catalog does not list. One line for each model, so a busy model does not write one for every run. The price is looked
+    // up when a run is recorded, when a cost budget is counted, by a judge and when past runs are recalculated, and the
+    // first of them to find no price says so. A lookup that names no provider (an old row recalculated without one) says
+    // nothing: it cannot name the provider the price belongs to.
+    private void WarnUnpricedModelOnce(string? provider, string model)
+    {
+        if (provider is not { Length: > 0 }
+            || !_logger.IsEnabled(LogLevel.Warning)
+            || _warnedUnpricedModels.Count >= MaxWarnedUnpricedModels
+            || !_warnedUnpricedModels.TryAdd((provider, model), 0))
+        {
+            return;
+        }
+
+        _logger.LogWarning(
+            "Model {Model} of provider {Provider} has no price in the model catalog or in Tracon:Pricing, so its runs are " +
+            "recorded with empty cost columns and PricingSource.Unknown: no cost budget or cost report can use them. Set the " +
+            "price in the model catalog or under Tracon:Pricing:Providers. This is said once for each model.",
+            model,
+            provider);
     }
 
     private ModelDescriptor? FindCatalogPrice(string? provider, string model)

@@ -36,20 +36,30 @@ namespace Tracon;
 /// <see cref="SocketOriginGuard"/>, because a browser sends its cookie on a
 /// socket from any page.
 /// </para>
+/// <para>
+/// The three role policies loosen one thing and only when all three are registered: a REMOTE request whose caller the
+/// host's authentication has already identified is not refused as anonymous. The identity is read from the request
+/// (<c>User.Identity.IsAuthenticated</c>), not assumed from the registration, so a policy that lets everyone through
+/// (<c>RequireAssertion(_ =&gt; true)</c>) or a route marked anonymous does not turn an anonymous caller into a known one.
+/// A request from this machine is judged as before, <c>Host</c> and <c>Origin</c> included.
+/// </para>
 /// </remarks>
 internal static class AnonymousAccessGuard
 {
     /// <summary>Returns the rejection for an anonymous request, or <see langword="null"/> when it may pass.</summary>
     /// <param name="httpContext">The current request. It presented no credential, and no static token is configured.</param>
     /// <param name="authorizationPolicyConfigured">
-    /// Whether <see cref="TraconEndpointOptions.RequireAuthorization"/> set a policy,
-    /// read when the endpoints were mapped.
+    /// Whether <see cref="TraconEndpointOptions.RequireAuthorization"/> set a policy, read when the endpoints were mapped.
+    /// </param>
+    /// <param name="rolePoliciesRegistered">
+    /// Whether all three role policies were registered when the endpoints were mapped. It lets an authenticated remote
+    /// request through; it changes nothing for a request from this machine.
     /// </param>
     /// <returns>
     /// <c>401</c> for a remote request, <c>403</c> for a foreign host or origin,
     /// <see langword="null"/> otherwise.
     /// </returns>
-    public static ProblemHttpResult? Check(HttpContext httpContext, bool authorizationPolicyConfigured)
+    public static ProblemHttpResult? Check(HttpContext httpContext, bool authorizationPolicyConfigured, bool rolePoliciesRegistered = false)
     {
         if (authorizationPolicyConfigured)
         {
@@ -60,6 +70,11 @@ internal static class AnonymousAccessGuard
         {
             // Reached only with AllowRemoteAccess on: the loopback restriction
             // already refused a remote request while it is off.
+            if (rolePoliciesRegistered && httpContext.User.Identity?.IsAuthenticated == true)
+            {
+                return null;
+            }
+
             httpContext.Response.Headers.WWWAuthenticate = "Bearer";
 
             return TypedResults.Problem(
@@ -67,7 +82,7 @@ internal static class AnonymousAccessGuard
                 detail: "Remote access is on, but no authentication method is configured, so an " +
                         "anonymous request is accepted only from this machine. Configure " +
                         $"{nameof(TraconEndpointOptions.AuthToken)} or " +
-                        $"{nameof(TraconEndpointOptions.RequireAuthorization)}, or send an API key " +
+                        $"{nameof(TraconEndpointOptions.RequireAuthorization)}, register the three role policies, or send an API key " +
                         "as 'Authorization: Bearer <key>'.",
                 statusCode: StatusCodes.Status401Unauthorized);
         }

@@ -9953,7 +9953,7 @@
           },
           "inconclusive": {
             "type": "boolean",
-            "description": "Gets a value that tells whether a check could not finish because a resource was unreachable, an MCP server for\nexample. It does not affect \u0060Valid\u0060."
+            "description": "Gets a value that tells whether a check could not finish or could not run: a resource was unreachable (an MCP\nserver for example), or the model provider the definition names is not registered in this process, so the checks\nthat need it did not run. It does not affect \u0060Valid\u0060."
           },
           "messages": {
             "type": "array",

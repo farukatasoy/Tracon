@@ -198,6 +198,7 @@ Tracon:Providers:OpenAI:Live:MaxAppendCharacters
 Tracon:Providers:OpenAI:Live:Model
 Tracon:Providers:OpenAI:Live:Timeout
 Tracon:Providers:OpenAI:Live:Voice
+Tracon:Providers:OpenAI:MaxRetries
 Tracon:Providers:OpenAI:Models:*:CacheWriteCostPerMillionTokens
 Tracon:Providers:OpenAI:Models:*:CacheWriteLongCostPerMillionTokens
 Tracon:Providers:OpenAI:Models:*:CachedInputCostPerMillionTokens

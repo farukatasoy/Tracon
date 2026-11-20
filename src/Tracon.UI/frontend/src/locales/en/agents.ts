@@ -172,7 +172,7 @@ export const enAgents = {
   "agentEditor.validationTitle": 'Validation result',
   "agentEditor.validationValid": 'Valid',
   "agentEditor.validationInvalid": 'Invalid',
-  "agentEditor.validationInconclusive": 'Inconclusive — an MCP server could not be reached',
+  "agentEditor.validationInconclusive": 'Inconclusive — some checks could not run',
   "agentEditor.validationNoMessages": 'No issues found. Nothing was saved and no model was called.',
   "agentEditor.loop.title": 'Loop',
   "agentEditor.loop.enable": 'Run the agent again until a stop criterion is met',

@@ -177,7 +177,7 @@ export const trAgents: Pick<Messages, keyof typeof enAgents> = {
   "agentEditor.validationTitle": 'Doğrulama sonucu',
   "agentEditor.validationValid": 'Geçerli',
   "agentEditor.validationInvalid": 'Geçersiz',
-  "agentEditor.validationInconclusive": 'Sonuçsuz — bir MCP sunucusuna ulaşılamadı',
+  "agentEditor.validationInconclusive": 'Sonuçsuz — bazı denetimler çalışamadı',
   "agentEditor.validationNoMessages": 'Sorun bulunamadı. Hiçbir şey kaydedilmedi, hiçbir model çağrılmadı.',
   "agentEditor.loop.title": 'Döngü',
   "agentEditor.loop.enable": "Bir durdurma ölçütü karşılanana kadar agent'ı yeniden çalıştır",

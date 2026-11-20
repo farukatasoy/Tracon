@@ -20,7 +20,7 @@ internal static class AgentDefinitionWriteRules
 {
     /// <summary>Checks the fields every agent needs.</summary>
     /// <param name="request">The definition to write.</param>
-    /// <returns>The refusal; <see langword="null"/> when the request has a name and a model.</returns>
+    /// <returns>The refusal; <see langword="null"/> when the request has a routable name and a model.</returns>
     public static WriteRuleFinding? Validate(AgentDefinitionRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -31,6 +31,18 @@ internal static class AgentDefinitionWriteRules
                 "Agent name empty",
                 "'name' is required.",
                 WriteRuleCodes.AgentNameEmpty,
+                "name");
+        }
+
+        // The name is a segment of the agent's own address (/api/agents/{name}). A '/' in it cannot be routed, and its escaped
+        // form is not decoded back, so a definition saved under such a name could be created and then never read, updated,
+        // deleted or run by name. The store and the catalog accept the name; the writer that makes it an address does not.
+        if (request.Name.Contains('/', StringComparison.Ordinal))
+        {
+            return WriteRuleFinding.BadRequest(
+                "Agent name invalid",
+                "'name' must not contain '/': the name is a segment of the agent's address, and a '/' in it cannot be routed.",
+                WriteRuleCodes.AgentNameInvalid,
                 "name");
         }
 

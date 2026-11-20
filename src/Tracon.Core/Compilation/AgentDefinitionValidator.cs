@@ -133,7 +133,7 @@ internal sealed partial class AgentDefinitionValidator : IAgentDefinitionValidat
         var messages = new List<ValidationMessage>();
         var inconclusive = false;
 
-        var modelClient = await CheckModelAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        var modelClient = await CheckModelAsync(definition, messages, () => inconclusive = true, cancellationToken).ConfigureAwait(false);
         await CheckOutputLimitsAsync(definition, messages, modelClient, cancellationToken).ConfigureAwait(false);
         var responseSchemas = CheckResponseSchemas(definition, messages, cancellationToken);
 
@@ -185,7 +185,11 @@ internal sealed partial class AgentDefinitionValidator : IAgentDefinitionValidat
         return false;
     }
 
-    private async ValueTask<IChatClient?> CheckModelAsync(AgentDefinition definition, List<ValidationMessage> messages, CancellationToken cancellationToken)
+    private async ValueTask<IChatClient?> CheckModelAsync(
+        AgentDefinition definition,
+        List<ValidationMessage> messages,
+        Action markInconclusive,
+        CancellationToken cancellationToken)
     {
         var providers = _models.List();
         var registered = false;
@@ -201,6 +205,11 @@ internal sealed partial class AgentDefinitionValidator : IAgentDefinitionValidat
 
         if (!registered)
         {
+            // The checks that need the provider (the sampling fields it accepts, the compilation that builds its client)
+            // cannot run in a process that does not register it, so the report is not the whole answer. A host that
+            // validates in a process with no provider (a migrator, a script) reads Inconclusive to know that.
+            markInconclusive();
+
             var known = providers.Count == 0
                 ? "no provider is registered"
                 : string.Join(", ", providers.Select(static provider => provider.Name));

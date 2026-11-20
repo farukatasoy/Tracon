@@ -92,6 +92,11 @@ all tenants of a multi-tenant host one set of agents the host owns, which the bu
 cannot do: each tenant's run compiles the shared definition for itself. A source that reads `ITenantContext` serves
 each tenant its own.
 
+A tenant that saves a definition under a name your source serves cannot shadow it. The management API refuses
+the write with `409` (`agent_custom_source`) and names your source. `IAgentDefinitionStore.SaveAsync`, called
+from your own code, is a storage contract and does not make that check: a row saved there under the same name
+is kept and never runs, because the source wins the name. Check the catalog first in a seed or a migration.
+
 Implement `IVersionedAgentDefinitionSource` as well when the source keeps a version history. It adds
 `GetVersionAsync(name, version)`. Without it, a run that is pinned to a version of the source's agents is
 refused: an A/B experiment arm, a callable agent with a fixed version, or a workflow step with a pin. The

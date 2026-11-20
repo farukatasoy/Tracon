@@ -25,7 +25,11 @@ namespace Tracon;
 /// <description>
 /// <strong>Authorization policy</strong> — <see cref="RequireAuthorization(string)"/>
 /// connects to the ASP.NET Core authentication pipeline. This is the path used
-/// in production.
+/// in production. The three role policies (<see cref="TraconPolicies.Reader"/>,
+/// <see cref="TraconPolicies.Operator"/>, <see cref="TraconPolicies.Admin"/>) are not this layer,
+/// but when all three are registered a remote request whose caller the host's authentication has
+/// identified (a cookie, say) is not refused as an anonymous one. A request from this machine is judged
+/// as before.
 /// </description>
 /// </item>
 /// </list>
@@ -209,6 +213,11 @@ public sealed class TraconEndpointOptions
     /// worse than a door believed to be closed.
     /// </para>
     /// <para>
+    /// The console shell (its HTML, scripts and styles) and the OAuth callback of an MCP server are mapped outside the
+    /// role policies: a browser cannot attach a token to a script request, and the redirect of a provider carries none.
+    /// The shell carries no data. Only a general <see cref="RequireAuthorization(string)"/> policy covers them.
+    /// </para>
+    /// <para>
     /// A policy provider that THROWS while a role name is resolved is treated
     /// as "not registered" in both modes. It is written to the log as a
     /// warning (category <c>Tracon.RolePolicies</c>); when this option is on,
@@ -268,6 +277,46 @@ public sealed class TraconEndpointOptions
     /// </para>
     /// </remarks>
     public bool MapOpenAIConversations { get; set; } = true;
+
+    /// <summary>
+    /// Whether the inbound trigger accept endpoint, <c>POST /api/triggers/{tenantId}/{name}</c>, is connected. Default
+    /// <see langword="true"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This endpoint is how a third-party server (a chat platform, a source host) starts a run. It is reachable from the
+    /// open internet by design: it applies neither the loopback restriction nor <see cref="AuthToken"/> nor the
+    /// authorization policy, because the caller cannot complete either. The request's signature is its only
+    /// authentication, so a request without a valid one is refused before any work.
+    /// </para>
+    /// <para>
+    /// A deployment that defines no trigger never receives such a request, and turning this off removes the route entirely:
+    /// the path answers <c>404</c> and vanishes from the OpenAPI document, so the host carries no unauthenticated address it
+    /// does not use. The management routes that create and list triggers (<c>/api/triggers</c>) are not governed by this
+    /// flag. Default <see langword="true"/> because the surface has shipped and silently withdrawing it would stop every
+    /// existing trigger.
+    /// </para>
+    /// </remarks>
+    public bool MapInboundTriggers { get; set; } = true;
+
+    /// <summary>
+    /// Whether the OAuth callback of an MCP server that signs in with the authorization code flow,
+    /// <c>GET /api/mcp-servers/{name}/oauth/callback</c>, is connected. Default <see langword="true"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The browser the provider redirects to the callback cannot carry the bearer token, so this route is outside the bearer
+    /// layer; the loopback restriction and the authorization policy still apply, and the single-use <c>state</c> value
+    /// is what authenticates the redirect. A deployment that connects no MCP server through OAuth never receives one.
+    /// Turning this off removes the route entirely: the path answers <c>404</c> and vanishes from the OpenAPI document.
+    /// </para>
+    /// <para>
+    /// With it off, an MCP server that signs in with the authorization code flow cannot complete its sign-in. Servers
+    /// that use a static header or a client credential are not affected. Default <see langword="true"/> because the
+    /// surface has shipped.
+    /// </para>
+    /// </remarks>
+    public bool MapMcpOAuthCallback { get; set; } = true;
 
     /// <summary>
     /// Origins allowed to call the Tracon endpoints from a browser. Empty

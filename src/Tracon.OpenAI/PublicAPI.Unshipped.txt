@@ -38,6 +38,8 @@ Tracon.OpenAIProviderOptions.Organization.get -> string?
 Tracon.OpenAIProviderOptions.Organization.set -> void
 Tracon.OpenAIProviderOptions.Timeout.get -> System.TimeSpan?
 Tracon.OpenAIProviderOptions.Timeout.set -> void
+Tracon.OpenAIProviderOptions.MaxRetries.get -> int?
+Tracon.OpenAIProviderOptions.MaxRetries.set -> void
 Tracon.OpenAISpeechBuilderExtensions
 Tracon.OpenAISpeechOptions
 Tracon.OpenAISpeechOptions.MaxCharactersPerRequest.get -> int

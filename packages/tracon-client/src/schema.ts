@@ -3480,8 +3480,9 @@ export interface components {
             /** @description Gets a value that is `true` when no finding has ValidationSeverity.Error. */
             valid: boolean;
             /**
-             * @description Gets a value that tells whether a check could not finish because a resource was unreachable, an MCP server for
-             *     example. It does not affect `Valid`.
+             * @description Gets a value that tells whether a check could not finish or could not run: a resource was unreachable (an MCP
+             *     server for example), or the model provider the definition names is not registered in this process, so the checks
+             *     that need it did not run. It does not affect `Valid`.
              */
             inconclusive: boolean;
             /** @description Gets every finding. Validation does not stop at the first error. */

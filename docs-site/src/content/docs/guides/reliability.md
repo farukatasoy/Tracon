@@ -81,7 +81,9 @@ shows the provider is unhealthy counts: no connection, a timeout, a `5xx`, `408`
 same way. Any other permanent `4xx`, for example a `400` or a `404`, rejects the
 request and not the provider, so it does not count. On a setup-time key that several
 tenants share, one tenant's bad requests therefore cannot open the circuit for the
-others. A failure that starts inside Tracon does not count either: caller
+others. A call that uses a tenant's own key (BYOK) is counted on a circuit of its own,
+per provider and tenant: a key that tenant lets expire, or a quota it exhausts, stops
+that tenant's calls and no other tenant's. A failure that starts inside Tracon does not count either: caller
 cancellation, `TraconContentBlockedException`, an exhausted run budget, a missing
 attachment, or a tool failure. The status is read from
 `HttpRequestException.StatusCode` or from an `HTTP nnn` exception message, the same

@@ -17,6 +17,7 @@ public sealed class OpenAIProviderOptionsBindingTests
             ["Tracon:Providers:OpenAI:EndpointConfigurationName"] = "Platform:Probe:Endpoint",
             ["Tracon:Providers:OpenAI:Organization"] = "org-binding-probe",
             ["Tracon:Providers:OpenAI:Timeout"] = "00:00:45",
+            ["Tracon:Providers:OpenAI:MaxRetries"] = "1",
             ["Tracon:Providers:OpenAI:EnableResponsesSurface"] = "true",
             ["Tracon:Providers:OpenAI:Models:0:Name"] = "gpt-binding-probe",
         };
@@ -31,6 +32,7 @@ public sealed class OpenAIProviderOptionsBindingTests
         options.EndpointConfigurationName.ShouldBe("Platform:Probe:Endpoint");
         options.Organization.ShouldBe("org-binding-probe");
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(45));
+        options.MaxRetries.ShouldBe(1);
         options.EnableResponsesSurface.ShouldBeTrue();
         options.Models.Select(static model => model.Name).ShouldBe(["gpt-binding-probe"]);
         OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Providers:OpenAI", options);

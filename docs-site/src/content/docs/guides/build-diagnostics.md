@@ -246,7 +246,8 @@ builder.AddTracon()
 ## TRC0101 or TRC0102 fires although the registration exists
 
 An analyzer sees a single compilation. When `AddTracon()` or a provider
-registration lives in another assembly, the diagnostic cannot see it. Turn the
+registration lives in another assembly, the diagnostic cannot see it. It is a
+warning, and `TreatWarningsAsErrors` turns it into a build error. Turn the
 whole usage family off with one property:
 
 ```xml

@@ -121,6 +121,7 @@ internal sealed class OpenAINamedChatClientFactoryCache
                     DefaultModel = options.DefaultModel,
                     Organization = options.Organization,
                     Timeout = options.Timeout,
+                    MaxRetries = options.MaxRetries,
                 },
                 _loggerFactory,
                 _timeProvider);
@@ -132,6 +133,7 @@ internal sealed class OpenAINamedChatClientFactoryCache
             Endpoint = endpoint,
             Organization = options.Organization,
             Timeout = options.Timeout,
+            MaxRetries = options.MaxRetries,
         }, timeProvider: _timeProvider);
 
         return OpenAIChatClientFactory.FromClient(client, options.DefaultModel, _loggerFactory);

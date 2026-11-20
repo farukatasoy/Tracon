@@ -17,6 +17,7 @@ public sealed partial class ConfigurationPermutationTests
     private static readonly Dictionary<string, string> ZeroIsDocumented = new(StringComparer.Ordinal)
     {
         ["Tracon:Providers:Anthropic:MaxRetries"] = "no retry: the SDK makes one attempt (documented in the remarks)",
+        ["Tracon:Providers:OpenAI:MaxRetries"] = "no retry: the client makes one attempt (documented in the remarks)",
         ["Tracon:Mcp:StaleToolRetention"] = "keeps no stale tool list; only a negative value is refused (compared with an age, it arms no timer)",
         ["Tracon:Mcp:MaxResourcesPerServer"] = "documented: a value below one keeps no resource",
         ["Tracon:Mcp:MaxPromptsPerServer"] = "documented: a value below one keeps no prompt",

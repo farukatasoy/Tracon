@@ -273,7 +273,7 @@ internal sealed class OpenAIChatClientFactory
 
         // A Retry-After above a minute is ignored, not obeyed: the library's own policy waited a day for a
         // day and threw out of its retry loop for a value past ~49 days (OpenAIBoundedRetryPolicy).
-        var clientOptions = new OpenAIClientOptions { RetryPolicy = new OpenAIBoundedRetryPolicy(timeProvider) };
+        var clientOptions = new OpenAIClientOptions { RetryPolicy = new OpenAIBoundedRetryPolicy(timeProvider, options.MaxRetries) };
 
         if (options.Endpoint is not null)
         {

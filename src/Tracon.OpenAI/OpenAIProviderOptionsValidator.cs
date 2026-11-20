@@ -88,6 +88,15 @@ internal sealed class OpenAIProviderOptionsValidator(IConfiguration? configurati
                 timeout));
         }
 
+        // A negative count has no meaning, and a count past ten turns one failed call into a long wait that the circuit
+        // breaker and the fallback chain above never see the end of.
+        if (options.MaxRetries is { } maxRetries && maxRetries is < 0 or > OpenAIBoundedRetryPolicy.MaximumMaxRetries)
+        {
+            (failures ??= []).Add(
+                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.MaxRetries)} must be from 0 to " +
+                $"{OpenAIBoundedRetryPolicy.MaximumMaxRetries}. Received value: {maxRetries}.");
+        }
+
         // A text of blanks is a typing mistake: the host would call a model called "   ". The check is on the value
         // the options hold, so a value that code assigns is refused too.
         OptionText.AddWhenOnlyWhiteSpace(options.DefaultModel, nameof(OpenAIProviderOptions), nameof(OpenAIProviderOptions.DefaultModel), ref failures);

@@ -71,7 +71,8 @@ internal sealed class UnboundParameterGuard : DelegatingAIAgent
         return new TraconException(
             $"Agent '{_agentName}' requires parameter(s) {names}, which have no default value, and this run was " +
             "started without parameter values. Start it with 'POST /api/agents/{name}/run' and a 'parameters' " +
-            "object, or give the parameters a default value.");
+            "object, or from code with 'IAgentCatalog.ResolveAsync' and 'AgentResolveOptions.Parameters', " +
+            "or give the parameters a default value.");
     }
 
     /// <inheritdoc />

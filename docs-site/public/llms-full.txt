@@ -2928,6 +2928,50 @@ Both the class and the clustering fingerprint come from a classifier you can
 replace or compose with your own rules — see
 [Write your own error classifier](/guides/write-your-own-error-classifier/).
 
+### Decide a retry from the failure, not from its text
+
+A model call that fails throws `ProviderInvocationException`, a `TraconException` with
+error type `upstream_error`. Three properties answer what a job or a pipeline step asks:
+`Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when it
+answered nothing) and `IsTransient`.
+
+```csharp
+async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken cancellationToken)
+{
+    try
+    {
+        await agent.RunAsync(message, cancellationToken: cancellationToken);
+
+        return true;
+    }
+    catch (ProviderInvocationException failure) when (failure.IsTransient)
+    {
+        // No answer, timeout, 429 or 5xx: a later try can succeed. The caller schedules one.
+        return false;
+    }
+    catch (ProviderInvocationException failure)
+    {
+        // 400, 401, 403, 404 and every other 4xx: the same call gets the same answer. Fail it.
+        throw new InvalidOperationException($"The {failure.Provider} call was refused with {failure.StatusCode}.", failure);
+    }
+}
+```
+
+`IsTransient` is the decision the model fallback chain makes to move a call to the next
+provider, so your retry and Tracon's do not disagree about which failure is worth another
+try. No answer from the provider (a refused connection, a timeout), a `429` and a `5xx`
+are transient. Every other `4xx` is not, and neither is a failure that happened before a
+request was sent. A `401` or `403` is not transient: a key the provider refuses stays
+refused until it is replaced.
+
+`Message` is a fixed sentence with the provider, the fault type and the status; it does
+not carry the provider's own words. `InnerException` and `ToString()` do, with the key of
+the call replaced, so treat them as you would the raw exception: log material. The full
+failure also goes to the server log under the same correlation id.
+
+A run that the circuit breaker stopped throws `TraconProviderUnavailableException`
+instead. Its `RetryAfter` says when a try can reach the provider again.
+
 ### Truncated output
 
 A model that reaches its output token limit stops in the middle of its answer and
@@ -7542,6 +7586,17 @@ role is treated as not registered and a `Warning` is logged in the
 `Tracon.RolePolicies` category; with `RequireRolePolicies` on, the startup error
 carries the provider's exception as its inner exception.
 
+With `AllowRemoteAccess` on, all three role policies are also enough to let a remote
+caller in: a request whose caller your authentication has identified (a cookie, say) and
+that passes its role policy needs no `AuthToken`, no `RequireAuthorization` and no API
+key. The identity is read from the request, so a policy that lets everyone through does
+not make an anonymous caller known, and a request from this machine is judged as before,
+`Host` and `Origin` included. With one or two policies registered nothing changes: the
+other roles' routes carry no policy. A bearer token in the `Authorization` header is
+still read by Tracon's own token layer, as an API key. `RequireProductionProfile()` still
+asks for `AuthToken` or `RequireAuthorization`. The console shell and the OAuth callback
+sit outside the role policies; the shell carries no data.
+
 ### A refused role answers with a body
 
 When a role policy refuses a request, ASP.NET Core's authorization middleware writes the
@@ -10265,7 +10320,8 @@ builder.AddTracon()
 ## TRC0101 or TRC0102 fires although the registration exists
 
 An analyzer sees a single compilation. When `AddTracon()` or a provider
-registration lives in another assembly, the diagnostic cannot see it. Turn the
+registration lives in another assembly, the diagnostic cannot see it. It is a
+warning, and `TreatWarningsAsErrors` turns it into a build error. Turn the
 whole usage family off with one property:
 
 ```xml
@@ -14789,6 +14845,21 @@ The name must match `[a-z0-9][a-z0-9-]{0,31}`. The names `openai` and
 server with no key is valid; Tracon supplies only the fixed placeholder required
 by the OpenAI client library.
 
+### The OpenAI client retries before Tracon sees a failure
+
+The OpenAI client library repeats a failed call itself. With its default of three
+retries, one call that the server answers with `429`, `500` or `503` reaches the server
+four times; a `400` or a `401` reaches it once (measured against a local server). The
+wait between two tries follows the `Retry-After` header, up to a minute. Tracon's
+circuit breaker and fallback models see only the last failure, and a job queue that
+retries on top multiplies the two.
+
+`OpenAIProviderOptions.MaxRetries` sets the count, from `0` (send once) to `10`. Left
+empty it is three, the count the client library made when this was measured. It applies to the setup key and to a tenant's own
+key alike, and it is bound from `Tracon:Providers:OpenAI:MaxRetries` as well. The Anthropic
+provider has an option of the same name. Azure OpenAI uses the OpenAI default and has no
+option for it yet.
+
 :::caution[Compatibility is measured per server and model]
 A successful health check proves reachability. It does not prove tool calling,
 structured output, streaming usage, or Responses API compatibility. Some compatible
@@ -15455,6 +15526,7 @@ as a rejection, since there is nothing to compare the prompt against.
 | Health cache | 60 seconds |
 | Background health checks | Off; checks run on request unless an interval is configured |
 | Circuit breaker | On; 5 consecutive failures; one half-open attempt after 30 seconds |
+| OpenAI client retries | Three, before Tracon sees the failure; `MaxRetries` changes it |
 | Model catalog | Empty until the host supplies entries |
 | Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
 | Fallback chain | Empty; an unavailable primary throws |
@@ -18658,7 +18730,9 @@ shows the provider is unhealthy counts: no connection, a timeout, a `5xx`, `408`
 same way. Any other permanent `4xx`, for example a `400` or a `404`, rejects the
 request and not the provider, so it does not count. On a setup-time key that several
 tenants share, one tenant's bad requests therefore cannot open the circuit for the
-others. A failure that starts inside Tracon does not count either: caller
+others. A call that uses a tenant's own key (BYOK) is counted on a circuit of its own,
+per provider and tenant: a key that tenant lets expire, or a quota it exhausts, stops
+that tenant's calls and no other tenant's. A failure that starts inside Tracon does not count either: caller
 cancellation, `TraconContentBlockedException`, an exhausted run budget, a missing
 attachment, or a tool failure. The status is read from
 `HttpRequestException.StatusCode` or from an `HTTP nnn` exception message, the same
@@ -21561,6 +21635,11 @@ A definition source that ignores the ambient tenant serves the same definitions 
 all tenants of a multi-tenant host one set of agents the host owns, which the built-in database store, being per tenant,
 cannot do: each tenant's run compiles the shared definition for itself. A source that reads `ITenantContext` serves
 each tenant its own.
+
+A tenant that saves a definition under a name your source serves cannot shadow it. The management API refuses
+the write with `409` (`agent_custom_source`) and names your source. `IAgentDefinitionStore.SaveAsync`, called
+from your own code, is a storage contract and does not make that check: a row saved there under the same name
+is kept and never runs, because the source wins the name. Check the catalog first in a seed or a migration.
 
 Implement `IVersionedAgentDefinitionSource` as well when the source keeps a version history. It adds
 `GetVersionAsync(name, version)`. Without it, a run that is pinned to a version of the source's agents is
@@ -25326,6 +25405,12 @@ the call (`openai-responses`, `anthropic`, `google`), and `{kind}` is `WebSearch
 `FileSearch`; a name that is none of them stops the host at start. A kind with no price is listed on the
 run and not added to its cost; Tracon never prices it at zero.
 
+A model that no price covers is recorded with empty cost columns and the pricing source `Unknown`.
+Tracon says so at startup for the models a provider's catalog lists. A definition may bind a model the
+catalog does not list, so it also warns once for each such model, the first time a price is looked up
+for it (a run being recorded, a cost budget, a judge call or a recalculation of past runs): the line
+names the model and the provider, and the model's price goes under `Tracon:Pricing`.
+
 Values label and calculate reports only. Tracon performs no currency conversion, so
 `Currency` also decides which reported amounts add up: an amount that a workflow function node or a
 tool reported beyond tokens joins the run's non-token total only when it is in this
@@ -25655,6 +25740,8 @@ configuration section.
 | `RequireRolePolicies` | `false` |
 | `EnableDiagnosticsEndpoint` | `false` |
 | `MapOpenAIConversations` | `true` |
+| `MapInboundTriggers` | `true` |
+| `MapMcpOAuthCallback` | `true` |
 | `RunEventPollInterval` | 250 ms |
 | `StreamKeepAliveInterval` | 15 seconds |
 | `MaxJsonBodyBytes` | 8 MiB |
@@ -25670,13 +25757,24 @@ app.MapTracon("/tracon", options =>
 });
 ```
 
-`MapOpenAIConversations` is the only one that starts on (`true`).<!-- claim:option TraconEndpointOptions.MapOpenAIConversations=true --> Setting it to `false`
+Three options start on. `MapOpenAIConversations` is `true`.<!-- claim:option TraconEndpointOptions.MapOpenAIConversations=true --> `MapInboundTriggers` is `true`.<!-- claim:option TraconEndpointOptions.MapInboundTriggers=true --> `MapMcpOAuthCallback` is `true`.<!-- claim:option TraconEndpointOptions.MapMcpOAuthCallback=true --> Setting `MapOpenAIConversations` to `false`
 leaves the four `/v1/conversations` routes unmapped: they answer `404` and
 disappear from the OpenAPI document, while `/v1/responses` and
 `/v1/chat/completions` are unaffected. It shrinks the surface a deployment that
 never calls those routes exposes; it is not a security control, since the
 routes go through the same role policies, API key scopes, session ownership and
 `IRunAuthorizationHandler` gate as `/api/sessions`.
+
+The other two switches remove the two addresses that no bearer token guards. `POST /api/triggers/{tenantId}/{name}` accepts a call from a third-party
+server on the open internet and relies on the request's signature alone;
+`GET /api/mcp-servers/{name}/oauth/callback` receives the browser redirect of an
+MCP server that signs in with the authorization code flow, and relies on its
+single-use `state` value (the loopback restriction and your authorization policy still
+apply to it). A host that defines no trigger and connects no MCP server
+through OAuth sets both to `false` and carries neither address: they answer `404`
+and disappear from the OpenAPI document. With `MapInboundTriggers` off, a trigger
+you define can no longer be fired from outside; with `MapMcpOAuthCallback` off, an
+MCP server that needs the authorization code flow cannot finish its sign-in.
 
 `StreamKeepAliveInterval` is the longest a streaming response (an agent or
 workflow run, a resume or answer, the OpenAI-compatible endpoints) stays

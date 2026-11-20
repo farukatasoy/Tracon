@@ -38,6 +38,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
     private readonly string? _authToken;
     private readonly string? _staticAuthToken;
     private readonly bool _authorizationPolicyConfigured;
+    private readonly bool _rolePoliciesRegistered;
 
     /// <summary>Creates a filter from the settings.</summary>
     /// <param name="options">The access settings.</param>
@@ -59,8 +60,17 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
     /// <see langword="true"/> — the shell only lets the user see the correct message when
     /// a probe request to those endpoints returns 403.
     /// </param>
+    /// <param name="rolePolicies">
+    /// The role policies of the group the filter guards, or <see langword="null"/> for a group that applies none. When
+    /// all three are registered, the anonymous guard lets an authenticated remote request through (it has been through the
+    /// policy of its route); it does not treat the registration as a general policy.
+    /// </param>
     /// <exception cref="ArgumentNullException">When <paramref name="options"/> is <see langword="null"/>.</exception>
-    public TraconEndpointFilter(TraconEndpointOptions options, bool requireBearerToken = true, bool requireLoopback = true)
+    public TraconEndpointFilter(
+        TraconEndpointOptions options,
+        bool requireBearerToken = true,
+        bool requireLoopback = true,
+        TraconRolePolicies? rolePolicies = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -73,6 +83,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
         _authToken = requireBearerToken ? options.AuthToken : null;
         _staticAuthToken = options.AuthToken;
         _authorizationPolicyConfigured = options.AuthorizationPolicy is { Length: > 0 };
+        _rolePoliciesRegistered = rolePolicies is { AllRegistered: true };
     }
 
     /// <inheritdoc />
@@ -156,7 +167,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             // and a provider's form_post carries the provider's Origin, and the
             // voice socket checks its own subprotocol credential first.
             if (_requireBearerToken
-                && AnonymousAccessGuard.Check(httpContext, _authorizationPolicyConfigured) is { } rejectedAnonymous)
+                && AnonymousAccessGuard.Check(httpContext, _authorizationPolicyConfigured, _rolePoliciesRegistered) is { } rejectedAnonymous)
             {
                 return rejectedAnonymous;
             }

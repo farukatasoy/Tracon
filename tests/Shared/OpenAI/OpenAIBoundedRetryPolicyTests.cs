@@ -169,6 +169,41 @@ public sealed class OpenAIBoundedRetryPolicyTests
         transport.Calls.ShouldBe(1, "the retry is not sent after the caller gave up");
     }
 
+    /// <summary>
+    /// The number of tries is the limit plus the first one. With no limit asked for it is three retries, the documented
+    /// default, so a change to the number is a change a test shows and a release note names.
+    /// </summary>
+    [Theory]
+    [InlineData(null, 4, false)]
+    [InlineData(null, 4, true)]
+    [InlineData(0, 1, false)]
+    [InlineData(0, 1, true)]
+    [InlineData(1, 2, false)]
+    [InlineData(5, 6, false)]
+    public async Task A_call_that_keeps_failing_is_sent_once_and_then_as_often_as_the_limit_allows(int? maxRetries, int expectedCalls, bool synchronous)
+    {
+        var clock = new ManualClock();
+        var transport = new Script((503, null));
+
+        await clock.AdvanceUntilAsync(Start(transport, clock, synchronous, CancellationToken.None, maxRetries));
+
+        transport.Calls.ShouldBe(expectedCalls);
+        OpenAIBoundedRetryPolicy.LibraryDefaultMaxRetries.ShouldBe(3);
+    }
+
+    [Theory]
+    [InlineData(400)]
+    [InlineData(401)]
+    public async Task A_status_the_library_does_not_retry_is_sent_once_whatever_the_limit(int status)
+    {
+        var clock = new ManualClock();
+        var transport = new Script((status, null));
+
+        await clock.AdvanceUntilAsync(Start(transport, clock, synchronous: false, CancellationToken.None, maxRetries: 5));
+
+        transport.Calls.ShouldBe(1);
+    }
+
     // The call ends by itself when the policy honors the token; one that ignored it would wait on a clock nobody moves,
     // so the end is awaited as a condition (bounded as a failure) before the outcome is read.
     private static async Task AssertCancelledAsync(Task send)
@@ -199,11 +234,11 @@ public sealed class OpenAIBoundedRetryPolicyTests
         }
     }
 
-    private static Task Start(Script transport, TimeProvider clock, bool synchronous, CancellationToken cancellationToken)
+    private static Task Start(Script transport, TimeProvider clock, bool synchronous, CancellationToken cancellationToken, int? maxRetries = null)
     {
         var pipeline = ClientPipeline.Create(new ClientPipelineOptions
         {
-            RetryPolicy = new OpenAIBoundedRetryPolicy(clock),
+            RetryPolicy = new OpenAIBoundedRetryPolicy(clock, maxRetries),
             Transport = new HttpClientPipelineTransport(new HttpClient(transport)),
         });
         var message = pipeline.CreateMessage(Address, "GET");

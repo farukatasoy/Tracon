@@ -52,6 +52,16 @@ internal sealed class TraconRolePolicies
     public string? Admin { get; }
 
     /// <summary>
+    /// Gets a value indicating whether all three role policies are registered, so every route that takes a role
+    /// asks a policy before it runs.
+    /// </summary>
+    /// <remarks>
+    /// All three, not any: with one role registered the routes of another role carry no policy, and a request
+    /// that no policy asked must not be taken for one a policy let through.
+    /// </remarks>
+    public bool AllRegistered => Reader is not null && Operator is not null && Admin is not null;
+
+    /// <summary>
     /// Resolves the registration state of the role policies. When
     /// <see cref="TraconEndpointOptions.RequireRolePolicies"/> is on and a policy is
     /// missing, it fails at startup.

@@ -38,6 +38,20 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
+    public async Task A_provider_this_process_does_not_register_makes_the_report_inconclusive()
+    {
+        // The checks that need the provider (the compilation, the sampling fields it accepts) do not run, so a report
+        // with no other finding is not the whole answer. A host that validates without a provider key reads this flag.
+        var (validator, _, _) = CreateValidator();
+
+        var definition = TestData.Definition() with { Model = TestData.Binding(provider: "no-such") };
+        var report = await validator.ValidateAsync(definition);
+
+        report.Inconclusive.ShouldBeTrue();
+        report.Valid.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task A_provider_name_in_another_letter_case_is_the_provider_the_registry_serves()
     {
         // The registry matches the provider name ignoring letter case, so a definition that a run serves must not be

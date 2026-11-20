@@ -101,6 +101,45 @@ public sealed class DefinitionSourceTenantTests
         }
     }
 
+    [Fact]
+    public async Task A_tenant_cannot_save_a_definition_under_a_name_the_source_holds()
+    {
+        // The source wins a name clash with a stored definition, so a row saved under the same name would be kept and
+        // never run. The management API says no, and names the source that holds the name.
+        var provider = Provider();
+        var (host, source) = await StartAsync(provider);
+
+        await using (host)
+        {
+            source.Add(Definition("host-owned", "From the source."), "tenant-a");
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/tracon/api/agents")
+            {
+                Content = JsonContent.Create(new AgentDefinitionRequest
+                {
+                    Name = "host-owned",
+                    Instructions = "Mine.",
+                    Model = new ModelBinding { Provider = ProviderName, Model = ModelName },
+                }),
+            };
+
+            request.Headers.Add(TenantHeader, "tenant-a");
+
+            using var response = await host.Client.SendAsync(request);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.Conflict, await response.Content.ReadAsStringAsync());
+
+            var problem = await TraconTestHost.ReadJsonAsync(response);
+
+            problem.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain(source.Name);
+
+            using var run = await RunAsync(host, "tenant-a", "host-owned");
+
+            run.StatusCode.ShouldBe(HttpStatusCode.OK, await run.Content.ReadAsStringAsync());
+            provider.Requests.Select(static captured => captured.Options!.Instructions).ShouldBe(["From the source."]);
+        }
+    }
+
     private static AgentParameter Required(string name) => new() { Name = name, Kind = AgentParameterKind.Text, Required = true };
 
     private static AgentDefinition Definition(string name, string instructions) => new()

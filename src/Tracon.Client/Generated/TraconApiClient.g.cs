@@ -19796,8 +19796,9 @@ namespace Tracon.Client.Generated
         public bool Valid { get; set; } = default!;
 
         /// <summary>
-        /// Gets a value that tells whether a check could not finish because a resource was unreachable, an MCP server for
-        /// <br/>example. It does not affect `Valid`.
+        /// Gets a value that tells whether a check could not finish or could not run: a resource was unreachable (an MCP
+        /// <br/>server for example), or the model provider the definition names is not registered in this process, so the checks
+        /// <br/>that need it did not run. It does not affect `Valid`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("inconclusive")]
         public bool Inconclusive { get; set; } = default!;
