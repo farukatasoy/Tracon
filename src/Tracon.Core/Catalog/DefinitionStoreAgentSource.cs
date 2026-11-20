@@ -6,7 +6,7 @@ namespace Tracon;
 /// A source that exposes definitions from <see cref="IAgentDefinitionStore"/> in the catalog.
 /// Agents created through the UI come from this source.
 /// </summary>
-internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource, IDescribingAgentSource, IDefinitionBackedSource
+internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource, IDescribingAgentSource, IDefinitionBackedSource, INamedDescriptorSource
 {
     private readonly IAgentDefinitionStore _store;
     private readonly AgentDefinitionCompiler _compiler;
@@ -88,6 +88,17 @@ internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource, IDescr
         }
 
         return descriptors;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<AgentDescriptor?> DescribeAsync(string agentName, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await _store.GetAsync(agentName, cancellationToken).ConfigureAwait(false) is { } definition
+            ? AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, Name)
+            : null;
     }
 
     /// <inheritdoc />

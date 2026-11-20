@@ -89,6 +89,48 @@ public sealed class CallableAgentVersionPinTests
         (await ChildRowAsync(host)).AgentVersion.ShouldBe(2);
     }
 
+    // --- What the caller reads about its callees is those callees, not the catalog's listing ---
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_calling_agent_describes_its_callees_by_name_and_does_not_list_every_agent_on_each_resolve(bool pinned)
+    {
+        var listings = 0;
+        var provider = Provider(SubAgentCallMode.Tool);
+
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddModelProvider(provider);
+
+            // Counts the listings and fails none of them: the predicate never accepts a call, so every call goes through.
+            builder.Services.ThrowFrom<IAgentDefinitionStore>(
+                nameof(IAgentDefinitionStore.ListAsync),
+                static () => new InvalidOperationException("never thrown"),
+                when: _ =>
+                {
+                    Interlocked.Increment(ref listings);
+
+                    return false;
+                });
+        });
+
+        await CreateResearcherAsync(host, "ALPHA text", "ALPHA description");
+        await CreateRouterAsync(host, SubAgentCallMode.Tool, pinned
+            ? new CallableAgentReference { Name = Researcher, Version = 1 }
+            : new CallableAgentReference { Name = Researcher });
+
+        // The first run compiles the router, the second one finds it in the cache; both read the callee's description.
+        await RunRouterAsync(host, streaming: false);
+
+        Interlocked.Exchange(ref listings, 0);
+
+        await RunRouterAsync(host, streaming: false);
+
+        ShownToRouter(provider).ShouldContain("ALPHA description", Case.Sensitive);
+        listings.ShouldBe(0, "describing the callees listed every agent of the tenant");
+    }
+
     // --- A parent pinned to a version of its own runs the callee versions that version names ---
 
     [Fact]

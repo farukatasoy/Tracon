@@ -105,6 +105,65 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         return result;
     }
 
+    /// <summary>
+    /// Finds the descriptor of one agent, the one <see cref="ListAsync"/> would list for the name, without listing
+    /// the sources that can describe a name on their own.
+    /// </summary>
+    /// <param name="agentName">The agent's name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The descriptor of the source that wins the name; <see langword="null"/> when none holds it.</returns>
+    /// <remarks>
+    /// <para>
+    /// The sources are walked in the order <see cref="ListAsync"/> uses, so the same source wins the name, and a source
+    /// that fails is recorded under <c>list</c> and skipped, as there. A source that implements
+    /// <see cref="INamedDescriptorSource"/> (the database source and the adapter of a definition source) is asked for the
+    /// one name; any other is listed and searched, as before. The code source is one of those, and listing it reads
+    /// memory.
+    /// </para>
+    /// <para>
+    /// Reading the whole listing to describe the few agents another agent calls cost about 9 µs for each agent of the
+    /// tenant on every resolve of the caller, 45 ms with 5 000 agents on PostgreSQL.
+    /// </para>
+    /// </remarks>
+    internal async ValueTask<AgentDescriptor?> FindDescriptorAsync(string agentName, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
+
+        foreach (var source in _sources)
+        {
+            AgentDescriptor? found;
+
+            try
+            {
+                if (source is INamedDescriptorSource named)
+                {
+                    found = await named.DescribeAsync(agentName, cancellationToken).ConfigureAwait(false);
+                    found = found is null ? null : Freeze(found);
+                }
+                else
+                {
+                    var listed = await source.ListAsync(cancellationToken).ConfigureAwait(false);
+
+                    found = FreezeAndValidate(source, listed)?
+                        .Find(descriptor => string.Equals(descriptor.Name, agentName, StringComparison.Ordinal));
+                }
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+            {
+                _failures.Record(source, "list", exception, LogLevel.Error);
+
+                continue;
+            }
+
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     /// <inheritdoc />
     public async ValueTask<AIAgent?> ResolveAsync(
         string agentName,

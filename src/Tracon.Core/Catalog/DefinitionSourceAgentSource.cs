@@ -25,7 +25,7 @@ namespace Tracon;
 /// possible by that interface alone.
 /// </para>
 /// </remarks>
-internal class DefinitionSourceAgentSource : IAgentSource, IDescribingAgentSource, IDefinitionBackedSource
+internal class DefinitionSourceAgentSource : IAgentSource, IDescribingAgentSource, IDefinitionBackedSource, INamedDescriptorSource
 {
     private readonly IAgentDefinitionSource _source;
     private readonly AgentDefinitionCompiler _compiler;
@@ -97,6 +97,17 @@ internal class DefinitionSourceAgentSource : IAgentSource, IDescribingAgentSourc
         }
 
         return descriptors;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<AgentDescriptor?> DescribeAsync(string agentName, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await GetDefinitionAsync(agentName, version: null, cancellationToken).ConfigureAwait(false) is { } definition
+            ? AgentDescriptorProjection.FromDefinition(definition, Origin, Name)
+            : null;
     }
 
     /// <inheritdoc />

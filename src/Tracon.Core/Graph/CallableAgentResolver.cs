@@ -122,7 +122,7 @@ internal sealed class CallableAgentResolver
             return [];
         }
 
-        var byName = await DescribeCatalogAsync(cancellationToken).ConfigureAwait(false);
+        var byName = await DescribeCatalogAsync(ResolveCatalog(), callableAgentNames, cancellationToken).ConfigureAwait(false);
         var result = new List<CallableAgentInfo>(callableAgentNames.Count);
 
         foreach (var name in callableAgentNames)
@@ -184,7 +184,11 @@ internal sealed class CallableAgentResolver
             return [];
         }
 
-        var byName = await DescribeCatalogAsync(catalog ?? ResolveCatalog(), cancellationToken).ConfigureAwait(false);
+        var byName = await DescribeCatalogAsync(
+                catalog ?? ResolveCatalog(),
+                [.. callableAgents.Select(static reference => reference.Name)],
+                cancellationToken)
+            .ConfigureAwait(false);
         var result = new List<CallableAgentInfo>(callableAgents.Count);
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -244,15 +248,36 @@ internal sealed class CallableAgentResolver
         return new CallableAgentInfo(calleeName, descriptor.Description, version);
     }
 
-    private ValueTask<Dictionary<string, AgentDescriptor>> DescribeCatalogAsync(CancellationToken cancellationToken)
-        => DescribeCatalogAsync(ResolveCatalog(), cancellationToken);
-
+    /// <summary>
+    /// Reads the descriptors of the named agents. Only the names asked for are read when the catalog is Tracon's own;
+    /// a catalog a host replaced is listed, because it says nothing about how it finds one name.
+    /// </summary>
+    /// <param name="catalog">The catalog to read.</param>
+    /// <param name="names">The names to describe.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The descriptor of each name the catalog holds, keyed by name.</returns>
     private static async ValueTask<Dictionary<string, AgentDescriptor>> DescribeCatalogAsync(
         IAgentCatalog catalog,
+        IReadOnlyList<string> names,
         CancellationToken cancellationToken)
     {
-        var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
         var byName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
+
+        if (catalog is CompositeAgentCatalog composite)
+        {
+            foreach (var name in names)
+            {
+                if (!byName.ContainsKey(name) &&
+                    await composite.FindDescriptorAsync(name, cancellationToken).ConfigureAwait(false) is { } found)
+                {
+                    byName[name] = found;
+                }
+            }
+
+            return byName;
+        }
+
+        var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
 
         foreach (var descriptor in descriptors)
         {
