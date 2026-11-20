@@ -146,6 +146,20 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
         stored.Kind.ShouldBe(TraceSpanKind.Client);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_batch_without_a_run_is_refused_and_nothing_is_written(bool withSpans)
+    {
+        // The in-memory store accepted it and kept a trace under the empty identifier; a SQL store failed on its foreign key
+        // with an error that names no cause. Every store answers the same, and an empty batch is no exception.
+        var batch = Batch(Guid.Empty, withSpans ? [Span("tracon.run", parent: null)] : []);
+
+        await Should.ThrowAsync<ArgumentException>(async () => await Store.WriteSpansAsync(batch));
+
+        (await Store.GetTraceByRunAsync(Guid.Empty)).ShouldBeNull();
+    }
+
     [Fact]
     public async Task Attributes_are_preserved()
     {

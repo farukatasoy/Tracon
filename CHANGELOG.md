@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`ITraceStore.WriteSpansAsync` refuses a batch whose `RunId` is `Guid.Empty`, in every store.** The in-memory store kept a trace under the empty identifier and a SQL store failed on its foreign key without naming the cause, so one contract had two answers. All four stores now throw `ArgumentException` before they write, also for a batch with no spans. Tracon's own collector never sends an empty identifier, so nothing changes for a host that uses it.
+  What to do:
+  - **If you implement `ITraceStore`, refuse an empty `RunId` the same way.** `TraceStoreContract` has a case for it.
+
 - **With SQLite, a deep page of the run list is no longer slow.** The query ran the 24 per-row subqueries that total a run's tree for the rows `skip` left out as well, about 20 µs for each, so reading 100 runs after skipping 5 000 took about 90 ms and a full scan of a large table (the cost recalculation) grew with the square of its size. The page is now cut first and only its rows are totalled: 6.6 ms for the same page. The rows, their order and their totals are unchanged. PostgreSQL and SQL Server were not measured.
 
 - **A queued run whose job fails before its handler runs is closed as `Failed` and no longer stays `Queued`.** The `202` of `Prefer: respond-async` promises a run row that `GET /api/runs/{id}` answers `Queued` until the handler picks it up. A job the worker ended without calling the handler (your `IHostTenantScope` threw, the handler could not be built, no handler holds the key, or the lease ran out of attempts) left that row `Queued` for ever, because run reconciliation reads only running rows, and the job was `Failed`. The row now closes as `Failed` with the job's error code as its error type (`tracon.job.host-tenant-scope-failed`, `tracon.job.attempts-exhausted`, `tracon.job.handler-activation-failed`, `tracon.job.unknown-handler-key`). A row an earlier attempt already moved on is left to run reconciliation.

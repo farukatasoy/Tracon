@@ -44,6 +44,11 @@ internal sealed class InMemoryTraceStore : ITraceStore
     public ValueTask WriteSpansAsync(TraceSpanBatch batch, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        if (batch.RunId == Guid.Empty)
+        {
+            throw new ArgumentException("A span batch belongs to a run; Guid.Empty names none.", nameof(batch));
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         if (batch.Spans.Count == 0)

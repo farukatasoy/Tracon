@@ -789,6 +789,7 @@ Tracon.Testing.Contracts.Storage.ToolInvocationContract.Summary_is_ordered_by_ca
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.ToolInvocationContract() -> void
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Unknown_duration_stays_empty() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TraceStoreContract
+Tracon.Testing.Contracts.Storage.TraceStoreContract.A_batch_without_a_run_is_refused_and_nothing_is_written(bool withSpans) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TraceStoreContract.A_run_written_under_two_trace_ids_reads_back_as_one_trace() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TraceStoreContract.Attributes_are_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TraceStoreContract.Concurrent_writes_for_one_run_leave_one_trace_with_every_span() -> System.Threading.Tasks.Task!

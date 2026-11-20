@@ -41,6 +41,10 @@ public interface ITraceStore
     /// <param name="batch">The span set to write.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
+    /// <exception cref="ArgumentException">
+    /// <see cref="TraceSpanBatch.RunId"/> is <see cref="Guid.Empty"/>. A trace belongs to a run, and an empty identifier
+    /// names none: every store refuses it before it writes, whether or not the batch holds spans.
+    /// </exception>
     ValueTask WriteSpansAsync(TraceSpanBatch batch, CancellationToken cancellationToken = default);
 
     /// <summary>Fetches a run's span tree.</summary>
@@ -63,7 +67,7 @@ public sealed record TraceSpanBatch
     /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>The run these spans belong to. It names the trace.</summary>
+    /// <summary>The run these spans belong to. It names the trace; <see cref="Guid.Empty"/> is refused.</summary>
     public required Guid RunId { get; init; }
 
     /// <summary>The spans to write.</summary>
