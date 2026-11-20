@@ -3640,7 +3640,10 @@ takes the generation first goes on; the other gets the same `409` before it appl
 or runs anything. The request that applies a tool approval or a tool input also writes what it
 answered into the session before the run starts, because a run whose client disconnects is
 cancelled and saves nothing: the same answer sent again is refused (`409` on the management
-API, an invalid resume on AG-UI) and the tool does not run twice. The unanswered request the
+API, an invalid resume on AG-UI) and the tool does not run twice. A decision made at
+`POST /api/approvals/{id}/decide` does the same: the job that applies it writes the mark before the
+tool runs, so answering the same request over `/run` while that job runs, or after the worker that
+ran it died, is refused with `409` as well. The unanswered request the
 cancelled run leaves in the history is rejected by the agent framework on the next run of the
 session, so the user can carry on with a new message. That request is still in the history,
 though its answer was applied, so `GET /api/sessions/{id}` lists the requests that still wait in
