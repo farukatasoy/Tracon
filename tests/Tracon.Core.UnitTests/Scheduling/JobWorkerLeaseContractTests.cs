@@ -993,10 +993,13 @@ public sealed class JobWorkerLeaseContractTests
         handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
 
         // The failure is logged, not lost: a callback that throws is the handler's own bug and must be findable.
-        logger.Entries.ShouldContain(
-            entry => entry.Level == LogLevel.Warning
-                && entry.Message.Contains("a callback on the handler's token threw", StringComparison.Ordinal),
-            "the exception the callback threw was swallowed without a trace");
+        // The callback signals from inside the cancellation, and the worker logs what it threw once the cancellation
+        // returns: the entry is awaited, not read at the moment the signal arrives.
+        await WaitUntil.TrueAsync(
+            () => logger.Entries.Any(
+                static entry => entry.Level == LogLevel.Warning
+                    && entry.Message.Contains("a callback on the handler's token threw", StringComparison.Ordinal)),
+            "the warning about the callback that threw (the exception the callback threw was swallowed without a trace)");
 
         UnobservedTaskGuard.ForceCollection();
 
@@ -1040,10 +1043,11 @@ public sealed class JobWorkerLeaseContractTests
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
         handler.ReasonWhenCancelled.ShouldBe(JobStopReason.LeaseLost);
-        logger.Entries.ShouldContain(
-            entry => entry.Level == LogLevel.Warning
-                && entry.Message.Contains("a callback on the handler's token threw", StringComparison.Ordinal),
-            "an ObjectDisposedException the callback threw was swallowed as if the attempt had ended");
+        await WaitUntil.TrueAsync(
+            () => logger.Entries.Any(
+                static entry => entry.Level == LogLevel.Warning
+                    && entry.Message.Contains("a callback on the handler's token threw", StringComparison.Ordinal)),
+            "the warning about the callback that threw (an ObjectDisposedException the callback threw was swallowed as if the attempt had ended)");
     }
 
     /// <summary>
