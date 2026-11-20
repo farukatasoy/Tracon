@@ -57,6 +57,20 @@ public sealed class AgentDefinitionValidatorPlaceholderTests
     }
 
     [Fact]
+    public async Task A_variant_for_a_culture_is_checked_too_and_the_path_names_it()
+    {
+        var report = await ValidateAsync(
+            "Hello {{customer}}",
+            [Customer],
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["tr"] = "Merhaba {customer}" });
+
+        var warning = report.Messages.ShouldHaveSingleItem();
+
+        warning.Code.ShouldBe("single_brace_placeholder");
+        warning.Path.ShouldBe("instructionsByCulture[tr]");
+    }
+
+    [Fact]
     public async Task A_definition_without_parameters_is_not_checked()
     {
         var report = await ValidateAsync("Hello {customer}", []);
@@ -74,7 +88,10 @@ public sealed class AgentDefinitionValidatorPlaceholderTests
         report.Messages.Select(static message => message.Code).ShouldBe(["single_brace_placeholder", "single_brace_placeholder"]);
     }
 
-    private static async Task<AgentValidationReport> ValidateAsync(string instructions, IReadOnlyList<AgentParameter> parameters)
+    private static async Task<AgentValidationReport> ValidateAsync(
+        string instructions,
+        IReadOnlyList<AgentParameter> parameters,
+        IReadOnlyDictionary<string, string>? byCulture = null)
     {
         var models = TestData.Providers(new FakeModelProvider());
         var tools = TestData.Registry();
@@ -85,7 +102,7 @@ public sealed class AgentDefinitionValidatorPlaceholderTests
         var validator = new AgentDefinitionValidator(models, tools, skills, catalog, compiler, options);
 
         return await validator.ValidateAsync(
-            TestData.Definition() with { Instructions = instructions, Parameters = parameters },
+            TestData.Definition() with { Instructions = instructions, InstructionsByCulture = byCulture, Parameters = parameters },
             TestContext.Current.CancellationToken);
     }
 }

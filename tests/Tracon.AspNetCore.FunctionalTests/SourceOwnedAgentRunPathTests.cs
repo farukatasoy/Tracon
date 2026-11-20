@@ -82,6 +82,44 @@ public sealed class SourceOwnedAgentRunPathTests
     }
 
     [Fact]
+    public async Task A_source_that_fails_when_the_agent_is_looked_up_leaves_a_blocked_event_and_no_continuation()
+    {
+        var provider = Provider();
+        var source = new InMemoryDefinitionSource().Add(Definition(FromSource));
+        await using var host = await StartAsync(provider, source, continuation: true);
+
+        // The source fails from here on, before the interrupted run exists for the reconciler to find.
+        source.BeforeRead = static _ => throw new InvalidOperationException("raw upstream failure");
+
+        var sourceRunId = await SeedInterruptedRunAsync(host);
+        var runs = host.Services.GetRequiredService<IRunStore>();
+
+        var blocked = await WaitUntil.ValueAsync<RunEvent?>(
+            async () =>
+            {
+                await foreach (var runEvent in runs.ReadEventsAsync(sourceRunId))
+                {
+                    if (runEvent.Type == RunEventType.RunContinuationBlocked)
+                    {
+                        return runEvent;
+                    }
+                }
+
+                return null;
+            },
+            static runEvent => runEvent is not null,
+            "a RunContinuationBlocked event on the interrupted run");
+
+        var text = blocked.ShouldNotBeNull().Text.ShouldNotBeNull();
+
+        text.ShouldContain("could not be read", Case.Sensitive);
+        text.ShouldNotContain("raw upstream failure", Case.Sensitive);
+
+        (await runs.QueryRunsAsync(new RunQuery { SessionId = SessionId, OnlyRootRuns = false })).Count.ShouldBe(1);
+        provider.Requests.ShouldBeEmpty("nothing was continued");
+    }
+
+    [Fact]
     public async Task A_run_records_the_values_the_catalog_bound_when_the_source_changed_its_definition_after_the_gate_read_it()
     {
         // The gate reads the first definition (no default for "tone"); the catalog resolves with the second one, which
@@ -226,6 +264,9 @@ public sealed class SourceOwnedAgentRunPathTests
             TenantId = tenant,
             SessionId = SessionId,
             ModelId = ModelName,
+
+            // The catalog stamps a run with the version number its definition carries; a source with no history carries 1.
+            AgentVersion = 1,
         });
 
         await inputs.SaveAsync(new RunInputRecord

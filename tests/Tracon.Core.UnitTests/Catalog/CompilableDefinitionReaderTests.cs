@@ -74,6 +74,36 @@ public sealed class CompilableDefinitionReaderTests
     }
 
     [Fact]
+    public async Task A_source_that_keeps_no_history_is_read_for_the_version_a_run_recorded_as_its_current_definition()
+    {
+        // The catalog stamps every run with the version number its definition carries, whether or not the source keeps a
+        // history. That number is not a pin: the source holds one definition, and it is the one to compile.
+        var store = new InMemoryAgentDefinitionStore();
+        var source = new InMemoryDefinitionSource("definitions", priority: AgentSourcePriority.Database - 50)
+            .Add(TestData.Definition(Name) with { Instructions = "from the source" });
+
+        var read = await ReadAsync(store, [DefinitionSource(source)], version: 1);
+
+        read.Definition.ShouldNotBeNull().Instructions.ShouldBe("from the source");
+    }
+
+    [Fact]
+    public async Task A_source_that_keeps_a_history_is_asked_for_exactly_the_version_a_run_recorded()
+    {
+        var store = new InMemoryAgentDefinitionStore();
+        var source = new VersionedInMemoryDefinitionSource("definitions", priority: AgentSourcePriority.Database - 50)
+            .Add(TestData.Definition(Name) with { Instructions = "first" })
+            .Add(TestData.Definition(Name) with { Instructions = "second" });
+
+        var first = await ReadAsync(store, [DefinitionSource(source)], version: 1);
+        var gone = await ReadAsync(store, [DefinitionSource(source)], version: 9);
+
+        first.Definition.ShouldNotBeNull().Instructions.ShouldBe("first");
+        gone.Definition.ShouldBeNull("a pin the source cannot meet is not answered with another version");
+        gone.Held.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task A_code_registered_definition_is_not_compiled_again()
     {
         // A code agent is built by the host's own factory; compiling its definition would skip that code.
@@ -97,13 +127,13 @@ public sealed class CompilableDefinitionReaderTests
             async () => await ReadAsync(store, [DefinitionSource(failing)]));
     }
 
-    private static async Task<FoundDefinition> ReadAsync(IAgentDefinitionStore store, IAgentSource[] sources)
+    private static async Task<FoundDefinition> ReadAsync(IAgentDefinitionStore store, IAgentSource[] sources, int? version = null)
     {
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
         var lookup = new AgentDefinitionLookup(sources);
         var factory = new ParameterizedAgentFactory(lookup, compiler, [], TestData.DefaultOptionsMonitor());
 
-        return await CompilableDefinitionReader.ReadAsync(store, factory, Name, version: null, TestContext.Current.CancellationToken);
+        return await CompilableDefinitionReader.ReadAsync(store, factory, Name, version, TestContext.Current.CancellationToken);
     }
 
     private static IAgentSource DefinitionSource(InMemoryDefinitionSource source)

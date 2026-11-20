@@ -51,6 +51,14 @@ internal static class CompilableDefinitionReader
 
         var found = await factory.FindAsync(agentName, version, cancellationToken).ConfigureAwait(false);
 
+        // A source that keeps no history has one definition, and the version a run recorded is the number that
+        // definition carried (the catalog stamps every run with it), not a version somebody pinned. Asking such a source
+        // for it finds nothing, so the current definition is read: it is the only one the source has.
+        if (version is not null && found is { Held: true, Definition: null } && found.Source is not IVersionedAgentSource)
+        {
+            found = await factory.FindAsync(agentName, version: null, cancellationToken).ConfigureAwait(false);
+        }
+
         return found.Origin == AgentDefinitionOrigin.Code ? found with { Definition = null } : found;
     }
 }
