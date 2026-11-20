@@ -100,7 +100,7 @@ guides/write-your-own-agent-decorator.md#5504ffdf | CS0246: The type or namespac
 guides/write-your-own-agent-source.md#4be79edd | CS0246: The type or namespace name 'GitAgentSourceOptions' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-agent-source.md#88661327 | CS0246: The type or namespace name 'GitAgentDefinitionSource' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-agent-source.md#68d82415 | CS0246: The type or namespace name 'GitAgentSourceOptions' could not be found (are you missing a using directive or an assembly reference?)
-guides/write-your-own-agent-source.md#45ec6984 | CS0246: The type or namespace name 'GitAgentDefinitionSource' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-source.md#a47db977 | CS0246: The type or namespace name 'GitAgentDefinitionSource' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-job-handler.md#0ca5e761 | CS0246: The type or namespace name 'ILogger<>' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-job-handler.md#20bf4a04 | CS0246: The type or namespace name 'NightlyReportJobHandler' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-job-handler.md#38d09a5b | CS0246: The type or namespace name 'NightlyReportJobHandler' could not be found (are you missing a using directive or an assembly reference?)
