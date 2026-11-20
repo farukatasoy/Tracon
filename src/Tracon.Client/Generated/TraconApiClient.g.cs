@@ -19783,36 +19783,35 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
-    /// The result of a validation that builds an agent definition without saving it and
-    /// <br/>without calling any model.
+    /// The result of validating an agent definition: every finding, and whether the definition can be built.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class AgentValidationReport
     {
 
         /// <summary>
-        /// Gets a value that is `true` when the definition carries no ValidationSeverity.Error.
+        /// Gets a value that is `true` when no finding has ValidationSeverity.Error.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("valid")]
         public bool Valid { get; set; } = default!;
 
         /// <summary>
-        /// Gets a value that tells whether a check could not finish because a resource was
-        /// <br/>unreachable, an MCP server for example. It does not affect `Valid`.
+        /// Gets a value that tells whether a check could not finish because a resource was unreachable, an MCP server for
+        /// <br/>example. It does not affect `Valid`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("inconclusive")]
         public bool Inconclusive { get; set; } = default!;
 
         /// <summary>
-        /// Gets every message found. Validation does not stop at the first error.
+        /// Gets every finding. Validation does not stop at the first error.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("messages")]
         public System.Collections.Generic.ICollection<ValidationMessage> Messages { get; set; } = new System.Collections.Generic.List<ValidationMessage>();
 
         /// <summary>
-        /// Gets the response schema each model provider's client sends, for a definition whose response
-        /// <br/>format is a JSON schema. It is empty when the definition has no such format, and it lists only
-        /// <br/>the providers that state their schema.
+        /// Gets the response schema each model provider's client sends, for a definition whose response format is a JSON
+        /// <br/>schema. It is empty when the definition has no such format, and it lists only the providers that state their
+        /// <br/>schema.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("responseSchemas")]
         public System.Collections.Generic.ICollection<ResponseSchemaReport> ResponseSchemas { get; set; } = new System.Collections.Generic.List<ResponseSchemaReport>();
@@ -25647,15 +25646,15 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Gets a value that is `true` when the client asks the provider to enforce the schema while
-        /// <br/>the model generates. A fallback link is described without the primary binding's provider
-        /// <br/>settings, because the link receives none of them.
+        /// <br/>the model generates. A fallback link is described without the primary binding's provider settings, because
+        /// <br/>the link receives none of them.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("strict")]
         public bool Strict { get; set; } = default!;
 
         /// <summary>
-        /// Gets the schema the client sends. It can differ from the one in the definition: the OpenAI
-        /// <br/>clients close every object, make every property required and move bounds into `description`.
+        /// Gets the schema the client sends. It can differ from the one in the definition: the OpenAI clients close every
+        /// <br/>object, make every property required and move bounds into `description`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("schema")]
         public System.Text.Json.JsonElement Schema { get; set; } = default!;
@@ -29838,7 +29837,8 @@ namespace Tracon.Client.Generated
         public ValidationSeverity Severity { get; set; } = default!;
 
         /// <summary>
-        /// Gets the stable machine-readable code, for example `unknown_tool` or `cycle`.
+        /// Gets the stable machine-readable code, for example `unknown_tool` or `cycle`. A code never changes
+        /// <br/>inside a major version; a new code is a minor change.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("code")]
         public string Code { get; set; } = default!;
@@ -29850,8 +29850,8 @@ namespace Tracon.Client.Generated
         public string Message { get; set; } = default!;
 
         /// <summary>
-        /// Gets the path of the offending field inside the definition, for example
-        /// <br/>`toolNames[2]`. It is `null` when the finding points at no field.
+        /// Gets the path of the offending field inside the definition, for example `toolNames[2]`. It is
+        /// <br/>`null` when the finding points at no field.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("path")]
         public string? Path { get; set; } = default!;

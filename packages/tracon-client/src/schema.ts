@@ -3475,24 +3475,21 @@ export interface components {
             /** @description Gets the implementation type name. */
             implementation: string;
         };
-        /**
-         * @description The result of a validation that builds an agent definition without saving it and
-         *     without calling any model.
-         */
+        /** @description The result of validating an agent definition: every finding, and whether the definition can be built. */
         AgentValidationReport: {
-            /** @description Gets a value that is `true` when the definition carries no ValidationSeverity.Error. */
+            /** @description Gets a value that is `true` when no finding has ValidationSeverity.Error. */
             valid: boolean;
             /**
-             * @description Gets a value that tells whether a check could not finish because a resource was
-             *     unreachable, an MCP server for example. It does not affect `Valid`.
+             * @description Gets a value that tells whether a check could not finish because a resource was unreachable, an MCP server for
+             *     example. It does not affect `Valid`.
              */
             inconclusive: boolean;
-            /** @description Gets every message found. Validation does not stop at the first error. */
+            /** @description Gets every finding. Validation does not stop at the first error. */
             messages: components["schemas"]["ValidationMessage"][];
             /**
-             * @description Gets the response schema each model provider's client sends, for a definition whose response
-             *     format is a JSON schema. It is empty when the definition has no such format, and it lists only
-             *     the providers that state their schema.
+             * @description Gets the response schema each model provider's client sends, for a definition whose response format is a JSON
+             *     schema. It is empty when the definition has no such format, and it lists only the providers that state their
+             *     schema.
              */
             responseSchemas: components["schemas"]["ResponseSchemaReport"][];
         };
@@ -6352,13 +6349,13 @@ export interface components {
             model: string;
             /**
              * @description Gets a value that is `true` when the client asks the provider to enforce the schema while
-             *     the model generates. A fallback link is described without the primary binding's provider
-             *     settings, because the link receives none of them.
+             *     the model generates. A fallback link is described without the primary binding's provider settings, because
+             *     the link receives none of them.
              */
             strict: boolean;
             /**
-             * @description Gets the schema the client sends. It can differ from the one in the definition: the OpenAI
-             *     clients close every object, make every property required and move bounds into `description`.
+             * @description Gets the schema the client sends. It can differ from the one in the definition: the OpenAI clients close every
+             *     object, make every property required and move bounds into `description`.
              */
             schema: components["schemas"]["JsonElement"];
         };
@@ -8594,13 +8591,16 @@ export interface components {
         ValidationMessage: {
             /** @description Gets the severity of the finding. */
             severity: components["schemas"]["ValidationSeverity"];
-            /** @description Gets the stable machine-readable code, for example `unknown_tool` or `cycle`. */
+            /**
+             * @description Gets the stable machine-readable code, for example `unknown_tool` or `cycle`. A code never changes
+             *     inside a major version; a new code is a minor change.
+             */
             code: string;
             /** @description Gets the human-readable description. It is not translated. */
             message: string;
             /**
-             * @description Gets the path of the offending field inside the definition, for example
-             *     `toolNames[2]`. It is `null` when the finding points at no field.
+             * @description Gets the path of the offending field inside the definition, for example `toolNames[2]`. It is
+             *     `null` when the finding points at no field.
              */
             path?: null | string;
         };
