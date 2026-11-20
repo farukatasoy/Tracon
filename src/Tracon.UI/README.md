@@ -25,7 +25,7 @@ the UI under the same prefix; the prefix is written in one place.
 
 ## Screens
 
-30 screens behind 36 routes. The console groups them into **Operate** — what the
+31 screens behind 37 routes. The console groups them into **Operate** — what the
 agents are doing right now — and **Configure** — what they are allowed to do.
 By the area they manage:
 

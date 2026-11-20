@@ -254,6 +254,10 @@ const uiRoutes = readFileSync(join(sourceRoot, 'Tracon.UI/frontend/src/app.tsx')
 // claims, which is a gate that cannot fail for the reason it exists.
 const screenCount = new Set([...uiRoutes.matchAll(/<([A-Z]\w*Screen)\b/g)].map((match) => match[1])).size;
 
+// A "route" is one entry of the console's route table: the pattern a path is matched against. Several routes can render
+// one screen (the dashboard has two, the playground has two), so this is not the screen count.
+const routeCount = (uiRoutes.match(/\bpattern: '/g) ?? []).length;
+
 // Domain tags, excluding the umbrella tag every operation also carries.
 const tagCount = new Set(
   Object.values(openApi.paths ?? {}).flatMap((item) =>
@@ -295,6 +299,25 @@ for (const [, stated] of readme.matchAll(/\b(\d+) operations\b/g)) {
   }
 }
 
+// The console's size is written in the repository README and in the package READMEs that nuget.org renders, and a
+// package README said "30 screens behind 36 routes" for a console that had 31 and 37: the site pages were gated, the
+// READMEs were not. The count is read from the route table, not written here.
+function checkConsoleSize(label, text) {
+  for (const [, stated] of text.matchAll(/\b(\d+) screens\b/g)) {
+    if (Number(stated) !== screenCount) {
+      errors.push(`${label} says ${stated} screens, expected ${screenCount}`);
+    }
+  }
+
+  for (const [, stated] of text.matchAll(/\b(\d+) routes\b/g)) {
+    if (Number(stated) !== routeCount) {
+      errors.push(`${label} says ${stated} routes, expected ${routeCount}`);
+    }
+  }
+}
+
+checkConsoleSize('README.md', readme);
+
 // The install commands the reader meets first: the repository README and the
 // package README that nuget.org renders on each package page.
 checkPreviewInstallCommands('README.md', readme);
@@ -320,6 +343,8 @@ for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
         );
       }
     }
+
+    checkConsoleSize(`src/${entry.name}/README.md`, packagedReadmeText);
   }
 }
 
