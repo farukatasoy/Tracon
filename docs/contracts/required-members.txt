@@ -35,6 +35,10 @@ Tracon.AgentSkillScriptDefinition.Name
 Tracon.AgentSourceDiagnostic.Implementation
 Tracon.AgentSourceDiagnostic.Name
 Tracon.AgentSourceDiagnostic.Priority
+Tracon.AgentValidationReport.Inconclusive
+Tracon.AgentValidationReport.Messages
+Tracon.AgentValidationReport.ResponseSchemas
+Tracon.AgentValidationReport.Valid
 Tracon.ApiKeyCreationResult.PlaintextKey
 Tracon.ApiKeyCreationResult.Record
 Tracon.ApiKeyDraft.Name
@@ -263,6 +267,10 @@ Tracon.QuotaUsageRecord.TenantId
 Tracon.QuotaUsageRecord.UpdatedAt
 Tracon.RateLimitWindowCount.Count
 Tracon.RateLimitWindowCount.WindowStart
+Tracon.ResponseSchemaReport.Model
+Tracon.ResponseSchemaReport.Provider
+Tracon.ResponseSchemaReport.Schema
+Tracon.ResponseSchemaReport.Strict
 Tracon.ResponseSchemaShape.EffectiveSchema
 Tracon.ResponseSchemaShape.Strict
 Tracon.RetentionPolicy.CreatedAt
@@ -480,6 +488,9 @@ Tracon.TraconExternalCallException.Protocol
 Tracon.UploadDocumentChunk.Content
 Tracon.UploadDocumentChunk.Index
 Tracon.UploadDocumentRequest.SourceId
+Tracon.ValidationMessage.Code
+Tracon.ValidationMessage.Message
+Tracon.ValidationMessage.Severity
 Tracon.VectorChunk.Content
 Tracon.VectorChunk.Embedding
 Tracon.VectorChunk.Index

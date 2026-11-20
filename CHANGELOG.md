@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Your own code can validate a definition before it saves it: `IAgentDefinitionValidator`.** `IAgentDefinitionStore.SaveAsync` stores what it is given, so a seed or a migrator saved a definition that could not be compiled (an Anthropic model with a `Temperature`, a tool nobody registered) and the first resolve of the agent failed. The HTTP writers and the import ran the check; your own code had no way to. `ValidateAsync(definition)` returns the same report as `POST /api/agents/validate` (`AgentValidationReport`, `ValidationMessage`, `ValidationSeverity` and `ResponseSchemaReport` are now public types, with the same JSON). It reads the registries and the ambient tenant, writes nothing and calls no model.
+  What to do:
+  - **If you write definitions from code, call it first and save only a report with `Valid` true.** Read the warnings too.
+
+- **A parameter written in single braces now gets a validation warning: `single_brace_placeholder`.** The placeholder is `{{name}}`; a prompt moved from a system that writes `{name}` compiled, ran and sent the braces to the model. When the instructions of a definition that declares a parameter `customer` contain `{customer}`, validation reports a warning (the definition stays valid) with the path `instructions`. A name the definition does not declare, and text such as a JSON example, stay quiet.
+
+- **A chat client you already have becomes a model provider in one call: `AddChatClientProvider(name, client)`.** It was an `IModelProvider` class to write. A client that carries its own tool-call loop (`UseFunctionInvocation()`) is **refused** with a `TraconException`: Tracon adds the loop above its content guard, and a second loop inside the client runs the tool results beneath the guard. A factory overload `(services, binding) => client` and a model catalog argument exist; a tenant's own key does not reach the client.
+
+- **A replay, an automatic continuation and the reconciler that queues one read the definition the catalog runs.** They read the definition store by name. A custom source that outranks the store (`IAgentSource.Priority`, `IAgentDefinitionSource`) wins the name in the catalog, so a run of the source's agent was replayed from an older stored copy of the same name, and an agent only a source holds could not be continued at all. They now take the definition from the same walk the parameter schema uses; the source that holds the name first decides.
+  What to do:
+  - **If a source outranks the store for a name and you relied on the stored copy being replayed, give the stored copy another name.** The replay now runs the agent a run of that name ran.
+  - **An agent whose definition a custom `IAgentDefinitionSource` returns can now be continued after an interruption**, with the same value set its run recorded. An agent registered in code, or one an `IAgentSource` builds, still cannot.
+
+- **`POST /api/agents/{name}/run` records the value set the agent was bound with, read once.** The run recorded the set it computed from the definition the early parameter check read, and the catalog bound the agent from its own read a moment later. A source that changed its definition between the two reads left a record of values the run never had. The recorded set now comes from the agent the catalog compiled.
+
 - **A placeholder with spaces inside its braces, `{{ articleContent }}`, is substituted.** The binder read only `{{articleContent}}`. A prompt written for a template engine, which spaces its placeholders, compiled without a word and went to the model with the braces in it and the value nowhere, because the schema check matched with the same pattern and saw no placeholder. Spaces and tabs inside the braces are now allowed, in the binder and in the check, so an undeclared `{{ name }}` is a compile error like an undeclared `{{name}}`. A single-brace `{name}`, a dotted `{{a.b}}` and a placeholder split over two lines are still plain text. This changes the text of an agent that declares parameters and writes a spaced placeholder: it used to be sent as written.
   What to do:
   - **If a definition with parameters carries `{{ name }}` as literal text, rewrite it.** A declared name is now replaced, and an undeclared one fails the compile with the name.

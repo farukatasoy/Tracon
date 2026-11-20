@@ -124,14 +124,32 @@ equivalent is a model provider: `UseOpenAI`, one of the other provider packages,
 is a provider name and a model name. The tenant's key and the egress policy apply to that
 path, and a client you register in the container does not use it.
 
-To keep a client you already build, return it from your own provider: implement
-`IModelProvider` and register it with `AddModelProvider`, as
-[Write your own model provider](/guides/write-your-own-provider/) shows. The egress
-policy then applies to it by the provider's `Name`. A tenant's own key reaches it only
-if it also implements `ITenantCredentialModelProvider`; without that, a run of a tenant
-that has its own key for the provider fails instead of falling back to yours. Return the client without
-`UseFunctionInvocation()`. Tracon adds the tool-call loop above the content guard, and
-a second loop inside your client would run the tool results beneath the guard.
+To keep a client you already build, register it as a provider. `AddChatClientProvider` gives the client a
+name and an optional model catalog, and nothing more:
+
+```csharp
+var client = provider.GetRequiredService<IChatClient>();
+
+tracon.AddChatClientProvider("on-premise", client)
+      .AddAgent(new AgentDefinition
+      {
+          Name = "orders",
+          Instructions = "Answer questions about orders.",
+          Model = new ModelBinding { Provider = "on-premise", Model = "llama-3" },
+      });
+```
+
+An overload takes a factory, `(services, binding) => client`, for a client that you build from the
+container or from the binding. The egress policy applies to the provider's name. A tenant's own key does
+not reach the client: the provider is not an `ITenantCredentialModelProvider`, so a run of a tenant that has
+its own key for the provider fails instead of falling back to yours. Implement
+`IModelProvider` yourself, as [Write your own model provider](/guides/write-your-own-provider/) shows, when a
+tenant needs its own key.
+
+Build the client without `UseFunctionInvocation()`. Tracon adds the tool-call loop above the content guard, and
+a second loop inside your client would run the tool results beneath the guard, which is the path a prompt
+injection takes. `AddChatClientProvider` refuses a client that carries one with a `TraconException`: at
+registration for a client you hand it, and the first time a factory returns one.
 
 ## A tool that takes a dependency
 

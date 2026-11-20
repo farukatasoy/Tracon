@@ -929,3 +929,7 @@ Tracon.ChatClientSlot.Turn = 1 -> Tracon.ChatClientSlot
 static Tracon.TraconBuilderExtensions.AddAgentDefinitionSource(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IAgentDefinitionSource!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddAgentDefinitionSource(this Tracon.ITraconBuilder! builder, Tracon.IAgentDefinitionSource! source) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddAgentDefinitionSource<TSource>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconBuilder! builder, string! name, Microsoft.Extensions.AI.IChatClient! client) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconBuilder! builder, string! name, Microsoft.Extensions.AI.IChatClient! client, System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>? models) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ModelBinding!, Microsoft.Extensions.AI.IChatClient!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddChatClientProvider(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ModelBinding!, Microsoft.Extensions.AI.IChatClient!>! factory, System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>? models) -> Tracon.ITraconBuilder!

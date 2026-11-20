@@ -476,6 +476,10 @@ public static partial class TraconServiceCollectionExtensions
             // A loop reviewer's version pin is looked up here, the way a workflow node's is.
             provider.GetService<IAgentDefinitionStore>()));
 
+        // The same instance behind the public interface, for a host that writes definitions from its own code. The
+        // host's own registration of the interface wins (TryAdd).
+        services.TryAddSingleton<IAgentDefinitionValidator>(static provider => provider.GetRequiredService<AgentDefinitionValidator>());
+
         // Audit trail. The actor is read from AuditActorContext (AsyncLocal);
         // Tracon.AspNetCore writes HttpContext.User there at the start of
         // every protected request. This way Core can read the actor without

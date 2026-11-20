@@ -451,6 +451,51 @@ same text. Open your own tenant and attribution scope around the call, in the wo
 as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
 `TraconParameterException` carries. `samples/Tracon.Embedded` runs this from its job worker.
 
+### Check a definition before you save it
+
+A host that writes definitions from its own code (a seed, a migration, an import tool) calls
+`IAgentDefinitionStore.SaveAsync`. The store keeps what it is given. It does not compile the
+definition, so one that cannot be compiled (an Anthropic model with a `Temperature`, a tool nobody
+registered) is saved, and the first call that resolves the agent fails. The HTTP writers and the
+import check a definition before they save it. `IAgentDefinitionValidator` is the same check, for
+your own code:
+
+```csharp
+var validator = provider.GetRequiredService<IAgentDefinitionValidator>();
+var store = provider.GetRequiredService<IAgentDefinitionStore>();
+
+var definition = new AgentDefinition
+{
+    Name = "support",
+    Instructions = "Answer questions about orders.",
+    Model = new ModelBinding { Provider = "anthropic", Model = "claude-sonnet-5-5", Temperature = 0.2f },
+};
+
+var report = await validator.ValidateAsync(definition);
+
+if (report.Valid)
+{
+    await store.SaveAsync(definition);
+}
+else
+{
+    foreach (var message in report.Messages)
+    {
+        if (message.Severity == ValidationSeverity.Error)
+        {
+            Console.Error.WriteLine($"{message.Code} at {message.Path}: {message.Message}");
+        }
+    }
+}
+```
+
+The report lists every finding, not the first. A finding with `Warning` severity leaves `Valid` true;
+read it too, for example `single_brace_placeholder` when the instructions write `{customer}` and the
+agent declares a parameter `customer` (the placeholder is `{{customer}}`). The report never calls a
+model and writes nothing. It reads the model credential and the egress policy of the ambient tenant, so
+call it inside the tenant the definition belongs to. The codes are the ones `POST /api/agents/validate`
+returns and never change inside a major version.
+
 ## Two data planes, one connection pool or two
 
 Your application's own schema and Tracon's tables can live in the same

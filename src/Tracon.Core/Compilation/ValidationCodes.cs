@@ -141,6 +141,9 @@ internal static class ValidationCodes
     /// <summary>Validation finding <c>value_too_long</c>.</summary>
     public const string ValueTooLong = "value_too_long";
 
+    /// <summary>Validation finding <c>single_brace_placeholder</c>.</summary>
+    public const string SingleBracePlaceholder = "single_brace_placeholder";
+
     /// <summary>Validation finding <c>duplicate_hosted_tool_kind</c>.</summary>
     public const string DuplicateHostedToolKind = "duplicate_hosted_tool_kind";
 

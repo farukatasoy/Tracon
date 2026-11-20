@@ -226,6 +226,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.EmbeddingProviderAccess | Singleton | Factory",
         "Tracon.KnowledgeIngestionService | Singleton | Factory",
         "Tracon.AgentDefinitionValidator | Singleton | Factory",
+        "Tracon.IAgentDefinitionValidator | Singleton | Factory",
         "Tracon.IAuditLog | Singleton | Tracon.InMemoryAuditLog",
         "Tracon.IAuditActorResolver | Singleton | Tracon.AmbientAuditActorResolver",
         "Tracon.IContentProtector | Singleton | Instance:Tracon.NullContentProtector",

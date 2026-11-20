@@ -3,9 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace Tracon;
 
+/// <summary>The severity of a <see cref="ValidationMessage"/>.</summary>
 [Description("The severity of a ValidationMessage.")]
 [JsonConverter(typeof(JsonStringEnumConverter<ValidationSeverity>))]
-internal enum ValidationSeverity
+public enum ValidationSeverity
 {
     /// <summary>The definition cannot be built. <c>AgentValidationReport.Valid</c> is therefore <see langword="false"/>.</summary>
     Error = 1,

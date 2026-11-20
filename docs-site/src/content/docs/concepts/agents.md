@@ -79,6 +79,9 @@ a letter or underscore followed by letters, digits or underscores, and it must b
 `Parameters`: an undeclared one is a compile error. Nothing else is substituted. A single-brace
 `{name}`, a dotted `{{a.b}}` and a placeholder split over two lines stay in the text as written, so
 a prompt that was written for another template engine needs its placeholders rewritten to `{{name}}`.
+Validation warns about the likeliest mistake: a single-brace `{name}` of a parameter that the agent declares
+is reported as `single_brace_placeholder` (a warning, so the definition stays valid), by
+`POST /api/agents/validate` and by `IAgentDefinitionValidator`.
 
 A run supplies values on the `parameters` field of `POST /api/agents/{name}/run` (and
 `/estimate`, which checks the same values without calling a model). A required

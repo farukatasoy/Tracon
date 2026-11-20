@@ -52,7 +52,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
 | Definition transfer | Export agents, workflows, skills and MCP servers as one file; import it with a dry run first, version pins translated, nothing written unless the whole file is valid | `tracon export/import` | No history, run, `secret`, token or plain header value travels ([guide](/guides/move-definitions/)) |
 | Custom agent source | Lists agents from a repository or external runtime, and builds each agent itself | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API. The agent is opaque: it takes no parameter values |
-| Agent definition source | Returns agent definitions from Git, an object store, or your own database; Tracon compiles them | `AddAgentDefinitionSource<T>()`, instance, or factory | Parameters, cache, version pins and descriptor work as for a stored agent. A lower `Priority` than the database wins the name. Read-only in the management API |
+| Definition source | Returns agent definitions from Git, an object store, or your own database; Tracon compiles them | `AddAgentDefinitionSource<T>()`, instance, or factory | Parameters, cache, version pins and descriptor work as for a stored agent. A lower `Priority` than the database wins the name. Read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only; a response cut off at the output limit fails as `OutputTruncated` and is never repaired (plain text completes with a `tracon.output.truncated` event); OpenAI and Azure OpenAI take `strictJsonSchema`, and `POST /api/agents/validate` shows the schema each provider receives |
@@ -65,8 +65,8 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
 | Request fields | Temperature, top-p, seed, top-k, stop sequences, penalties, tool mode, parallel tool calls, and reasoning output are part of the definition | `ModelBinding` | Unset sends nothing; a provider states what its API surface sends (`ISamplingSupport`), and a field it would drop, on the primary model or a fallback, fails to compile and validation |
 | Tool-call loop | The loop that runs a turn's tool calls: concurrency, tolerated failed turns, and what an unknown tool does | `ModelBinding.ToolLoop` | `AllowConcurrentToolCalls` is off by default; each call still gets its own authorization, result, and metric; a fallback link takes the whole object |
-| Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values, from the HTTP run request or from your own code | `AgentDefinition.Parameters`, `AgentResolveOptions.Parameters` | Value substitution only — no expression, condition, loop, or field access. The run records the values, so a replay repeats them |
-| Workflow and queued run parameters | A workflow declares a schema; each agent step binds the values its own schema names; queued runs, batch items, replay, continuation and approval resume carry or repeat values | `WorkflowDefinition.Parameters`, `WorkflowRunRequest.Parameters`, `GetRunParameters()`, `RunReplayRequest.Parameters` | A run that recorded no values is not repeated for an agent with parameters; a code-defined workflow declares its schema in `WorkflowRegistrationOptions.Parameters`; `jobs.payload` is not content-protected |
+| Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values, from the HTTP run request or from your own code | `AgentDefinition.Parameters`, `AgentResolveOptions` | Value substitution only — no expression, condition, loop, or field access. The run records the values, so a replay repeats them |
+| Workflow run parameters | A workflow declares a schema; each agent step binds the values its own schema names; queued runs, batch items, replay, continuation and approval resume carry or repeat values | `WorkflowDefinition.Parameters`, `WorkflowRunRequest.Parameters`, `GetRunParameters()`, `RunReplayRequest.Parameters` | A run that recorded no values is not repeated for an agent with parameters; a code-defined workflow declares its schema in `WorkflowRegistrationOptions.Parameters`; `jobs.payload` is not content-protected |
 | Shared instructions blocks | One definition's instructions prepended to another's at compile time | `AgentDefinition.SharedInstructionsName` | A block cannot reference another block |
 
 Tracon uses `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction` directly.
@@ -84,7 +84,7 @@ stable provider name.
 | `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Claude, with effort, adaptive or budgeted thinking, prompt caching (TTL, breakpoint placement) settings, and cache writes priced by TTL |
 | `Tracon.Google` | `UseGoogle()` | `google` | Gemini safety thresholds and thinking settings |
 | `Tracon.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure deployments with an API key or a consumer-supplied Entra credential |
-| Any package | `AddModelProvider()` | Chosen by the implementation | A custom `IModelProvider` without a provider package |
+| Any package | `AddModelProvider()`, `AddChatClientProvider()` | Chosen by the implementation | A custom `IModelProvider`, or a chat client you already have, without a provider package |
 
 Name the configuration keys of a provider's key and address (`ApiKeyConfigurationName`,
 `EndpointConfigurationName`) and Tracon reads them on every call, so a rotated key needs no
@@ -444,6 +444,9 @@ a letter or underscore followed by letters, digits or underscores, and it must b
 `Parameters`: an undeclared one is a compile error. Nothing else is substituted. A single-brace
 `{name}`, a dotted `{{a.b}}` and a placeholder split over two lines stay in the text as written, so
 a prompt that was written for another template engine needs its placeholders rewritten to `{{name}}`.
+Validation warns about the likeliest mistake: a single-brace `{name}` of a parameter that the agent declares
+is reported as `single_brace_placeholder` (a warning, so the definition stays valid), by
+`POST /api/agents/validate` and by `IAgentDefinitionValidator`.
 
 A run supplies values on the `parameters` field of `POST /api/agents/{name}/run` (and
 `/estimate`, which checks the same values without calling a model). A required
@@ -3512,7 +3515,11 @@ on the code, never on the sentence around it.
   instructions, because the run record does not store the culture. It does bind
   the [parameter values](/concepts/agents/#parameters) the source run recorded;
   a `parameters` field in the replay request changes the names it gives and keeps
-  the rest. A workflow run is not replayed — it continues from its checkpoints
+  the rest. A replay compiles the definition the catalog runs for the agent's name: the stored
+  one, or the one a custom [`IAgentDefinitionSource`](/guides/write-your-own-agent-source/)
+  returns when that source outranks the store. An agent registered in code, or one that a custom
+  `IAgentSource` builds, has no definition Tracon can compile again; it replays only in
+  `LiveTools` mode, with no override. A workflow run is not replayed — it continues from its checkpoints
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 
@@ -3526,7 +3533,9 @@ automatic: when reconciliation closes a run a process never finished, a session-
 run can be picked up again in that same session, as a new run whose
 `continuedFromRunId` points back at the interrupted one. The run tree shows the link,
 so an operator sees "this run continued that one" rather than two unrelated rows.
-Continuation is off by default and does not run every tool call again — see
+A continued turn compiles the same definition a replay does, so an agent whose definition a custom
+[`IAgentDefinitionSource`](/guides/write-your-own-agent-source/) returns can be continued; an agent
+registered in code cannot. Continuation is off by default and does not run every tool call again — see
 [Continue an interrupted run automatically](/guides/reliability/#continue-an-interrupted-run-automatically)
 for what gets replayed, what runs live, and which tools it refuses to continue.
 
@@ -12452,6 +12461,48 @@ same text. Open your own tenant and attribution scope around the call, in the wo
 as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
 `TraconParameterException` carries. `samples/Tracon.Embedded` runs this from its job worker.
 
+### Check a definition before you save it
+
+A host that writes definitions from its own code (a seed, a migration, an import tool) calls
+`IAgentDefinitionStore.SaveAsync`. The store keeps what it is given. It does not compile the
+definition, so one that cannot be compiled (an Anthropic model with a `Temperature`, a tool nobody
+registered) is saved, and the first call that resolves the agent fails. The HTTP writers and the
+import check a definition before they save it. `IAgentDefinitionValidator` is the same check, for
+your own code:
+
+```csharp
+var validator = provider.GetRequiredService<IAgentDefinitionValidator>();
+var store = provider.GetRequiredService<IAgentDefinitionStore>();
+
+var definition = new AgentDefinition
+{
+    Name = "support",
+    Instructions = "Answer questions about orders.",
+    Model = new ModelBinding { Provider = "anthropic", Model = "claude-sonnet-5-5", Temperature = 0.2f },
+};
+
+var report = await validator.ValidateAsync(definition);
+
+if (report.Valid)
+{
+    await store.SaveAsync(definition);
+}
+else
+{
+    foreach (var message in report.Messages.Where(static message => message.Severity == ValidationSeverity.Error))
+    {
+        Console.Error.WriteLine($"{message.Code} at {message.Path}: {message.Message}");
+    }
+}
+```
+
+The report lists every finding, not the first. A finding with `Warning` severity leaves `Valid` true;
+read it too, for example `single_brace_placeholder` when the instructions write `{customer}` and the
+agent declares a parameter `customer` (the placeholder is `{{customer}}`). The report never calls a
+model and writes nothing. It reads the model credential and the egress policy of the ambient tenant, so
+call it inside the tenant the definition belongs to. The codes are the ones `POST /api/agents/validate`
+returns and never change inside a major version.
+
 ## Two data planes, one connection pool or two
 
 Your application's own schema and Tracon's tables can live in the same
@@ -13222,14 +13273,32 @@ equivalent is a model provider: `UseOpenAI`, one of the other provider packages,
 is a provider name and a model name. The tenant's key and the egress policy apply to that
 path, and a client you register in the container does not use it.
 
-To keep a client you already build, return it from your own provider: implement
-`IModelProvider` and register it with `AddModelProvider`, as
-[Write your own model provider](/guides/write-your-own-provider/) shows. The egress
-policy then applies to it by the provider's `Name`. A tenant's own key reaches it only
-if it also implements `ITenantCredentialModelProvider`; without that, a run of a tenant
-that has its own key for the provider fails instead of falling back to yours. Return the client without
-`UseFunctionInvocation()`. Tracon adds the tool-call loop above the content guard, and
-a second loop inside your client would run the tool results beneath the guard.
+To keep a client you already build, register it as a provider. `AddChatClientProvider` gives the client a
+name and an optional model catalog, and nothing more:
+
+```csharp
+var client = provider.GetRequiredService<IChatClient>();
+
+tracon.AddChatClientProvider("on-premise", client)
+      .AddAgent(new AgentDefinition
+      {
+          Name = "orders",
+          Instructions = "Answer questions about orders.",
+          Model = new ModelBinding { Provider = "on-premise", Model = "llama-3" },
+      });
+```
+
+An overload takes a factory, `(services, binding) => client`, for a client that you build from the
+container or from the binding. The egress policy applies to the provider's name. A tenant's own key does
+not reach the client: the provider is not an `ITenantCredentialModelProvider`, so a run of a tenant that has
+its own key for the provider fails instead of falling back to yours. Implement
+`IModelProvider` yourself, as [Write your own model provider](/guides/write-your-own-provider/) shows, when a
+tenant needs its own key.
+
+Build the client without `UseFunctionInvocation()`. Tracon adds the tool-call loop above the content guard, and
+a second loop inside your client would run the tool results beneath the guard, which is the path a prompt
+injection takes. `AddChatClientProvider` refuses a client that carries one with a `TraconException`: at
+registration for a client you hand it, and the first time a factory returns one.
 
 ## A tool that takes a dependency
 

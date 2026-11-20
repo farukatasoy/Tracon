@@ -95,6 +95,20 @@ internal static class ExamplePrelude
             public IChatClient CreateChatClient(ModelBinding binding) => null!;
         }
 
+        // Stands in for "a chat client your host already builds", named in one <example> only.
+        internal sealed class OnPremiseChatClient(Uri endpoint) : IChatClient
+        {
+            public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) => null!;
+
+            public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) => null!;
+
+            public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+            public void Dispose()
+            {
+            }
+        }
+
         // Stands in for "your own settings type", named in one <example> only: the
         // function's code declares the shape and an operator fills in values for it.
         internal sealed record TtsSettings

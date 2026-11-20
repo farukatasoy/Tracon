@@ -61,6 +61,10 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         { "AddModelProvider<T>", "IModelProvider|Singleton|type:SnapshotProvider" },
         { "AddModelProvider(instance)", "IModelProvider|Singleton|instance:SnapshotProvider ; IModelProvider|Singleton|instance:SnapshotProvider" },
         { "AddModelProvider(factory)", "IModelProvider|Singleton|factory ; IModelProvider|Singleton|factory" },
+        { "AddChatClientProvider(client)", "IModelProvider|Singleton|instance:ChatClientModelProvider ; IModelProvider|Singleton|instance:ChatClientModelProvider" },
+        { "AddChatClientProvider(client, models)", "IModelProvider|Singleton|instance:ChatClientModelProvider ; IModelProvider|Singleton|instance:ChatClientModelProvider" },
+        { "AddChatClientProvider(factory)", "IModelProvider|Singleton|factory ; IModelProvider|Singleton|factory" },
+        { "AddChatClientProvider(factory, models)", "IModelProvider|Singleton|factory ; IModelProvider|Singleton|factory" },
         { "AddEvalCheck", "TraconEvalCheckRegistration|Singleton|instance:TraconEvalCheckRegistration ; TraconEvalCheckRegistration|Singleton|instance:TraconEvalCheckRegistration" },
         { "AddLoopEvaluator(instance)", "TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration ; TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration" },
         { "AddLoopEvaluator(instance, description)", "TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration ; TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration" },
@@ -210,6 +214,10 @@ public sealed class TraconBuilderRegistrationSnapshotTests
             "AddModelProvider<T>" => builder.AddModelProvider<SnapshotProvider>(),
             "AddModelProvider(instance)" => builder.AddModelProvider(new SnapshotProvider()),
             "AddModelProvider(factory)" => builder.AddModelProvider(static _ => new SnapshotProvider()),
+            "AddChatClientProvider(client)" => builder.AddChatClientProvider("snapshot-client", new SnapshotChatClient()),
+            "AddChatClientProvider(client, models)" => builder.AddChatClientProvider("snapshot-client", new SnapshotChatClient(), [new ModelDescriptor { Name = "snapshot" }]),
+            "AddChatClientProvider(factory)" => builder.AddChatClientProvider("snapshot-client", static (_, _) => new SnapshotChatClient()),
+            "AddChatClientProvider(factory, models)" => builder.AddChatClientProvider("snapshot-client", static (_, _) => new SnapshotChatClient(), [new ModelDescriptor { Name = "snapshot" }]),
             "AddEvalCheck" => builder.AddEvalCheck("snapshotCheck", FunctionEvaluator.Create("snapshotCheck", static (string _) => true)),
 #pragma warning disable MAAI001
             "AddLoopEvaluator(instance)" => builder.AddLoopEvaluator(
@@ -313,6 +321,22 @@ public sealed class TraconBuilderRegistrationSnapshotTests
 
         public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("The snapshot never runs a judge.");
+    }
+
+    private sealed class SnapshotChatClient : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("The snapshot never calls the client.");
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("The snapshot never calls the client.");
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+            // Nothing to release.
+        }
     }
 
     private sealed class SnapshotProvider : IModelProvider

@@ -5988,3 +5988,59 @@ Tracon.TraconParameterException.UnknownParameters.get -> System.Collections.Gene
 const Tracon.TraconErrorTypes.InvalidParameters = "invalid_parameters" -> string!
 const Tracon.TraconParameterException.InvalidParametersErrorType = "invalid_parameters" -> string!
 override Tracon.TraconParameterException.ErrorType.get -> string!
+Tracon.AgentValidationReport
+Tracon.AgentValidationReport.<Clone>$() -> Tracon.AgentValidationReport!
+Tracon.AgentValidationReport.AgentValidationReport() -> void
+Tracon.AgentValidationReport.Equals(Tracon.AgentValidationReport? other) -> bool
+Tracon.AgentValidationReport.Inconclusive.get -> bool
+Tracon.AgentValidationReport.Inconclusive.init -> void
+Tracon.AgentValidationReport.Messages.get -> System.Collections.Generic.IReadOnlyList<Tracon.ValidationMessage!>!
+Tracon.AgentValidationReport.Messages.init -> void
+Tracon.AgentValidationReport.ResponseSchemas.get -> System.Collections.Generic.IReadOnlyList<Tracon.ResponseSchemaReport!>!
+Tracon.AgentValidationReport.ResponseSchemas.init -> void
+Tracon.AgentValidationReport.Valid.get -> bool
+Tracon.AgentValidationReport.Valid.init -> void
+Tracon.IAgentDefinitionValidator
+Tracon.IAgentDefinitionValidator.ValidateAsync(Tracon.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentValidationReport!>
+Tracon.ResponseSchemaReport
+Tracon.ResponseSchemaReport.<Clone>$() -> Tracon.ResponseSchemaReport!
+Tracon.ResponseSchemaReport.Equals(Tracon.ResponseSchemaReport? other) -> bool
+Tracon.ResponseSchemaReport.Model.get -> string!
+Tracon.ResponseSchemaReport.Model.init -> void
+Tracon.ResponseSchemaReport.Provider.get -> string!
+Tracon.ResponseSchemaReport.Provider.init -> void
+Tracon.ResponseSchemaReport.ResponseSchemaReport() -> void
+Tracon.ResponseSchemaReport.Schema.get -> System.Text.Json.JsonElement
+Tracon.ResponseSchemaReport.Schema.init -> void
+Tracon.ResponseSchemaReport.Strict.get -> bool
+Tracon.ResponseSchemaReport.Strict.init -> void
+Tracon.ValidationMessage
+Tracon.ValidationMessage.<Clone>$() -> Tracon.ValidationMessage!
+Tracon.ValidationMessage.Code.get -> string!
+Tracon.ValidationMessage.Code.init -> void
+Tracon.ValidationMessage.Equals(Tracon.ValidationMessage? other) -> bool
+Tracon.ValidationMessage.Message.get -> string!
+Tracon.ValidationMessage.Message.init -> void
+Tracon.ValidationMessage.Path.get -> string?
+Tracon.ValidationMessage.Path.init -> void
+Tracon.ValidationMessage.Severity.get -> Tracon.ValidationSeverity
+Tracon.ValidationMessage.Severity.init -> void
+Tracon.ValidationMessage.ValidationMessage() -> void
+Tracon.ValidationSeverity
+Tracon.ValidationSeverity.Error = 1 -> Tracon.ValidationSeverity
+Tracon.ValidationSeverity.Warning = 2 -> Tracon.ValidationSeverity
+override Tracon.AgentValidationReport.Equals(object? obj) -> bool
+override Tracon.AgentValidationReport.GetHashCode() -> int
+override Tracon.AgentValidationReport.ToString() -> string!
+override Tracon.ResponseSchemaReport.Equals(object? obj) -> bool
+override Tracon.ResponseSchemaReport.GetHashCode() -> int
+override Tracon.ResponseSchemaReport.ToString() -> string!
+override Tracon.ValidationMessage.Equals(object? obj) -> bool
+override Tracon.ValidationMessage.GetHashCode() -> int
+override Tracon.ValidationMessage.ToString() -> string!
+static Tracon.AgentValidationReport.operator !=(Tracon.AgentValidationReport? left, Tracon.AgentValidationReport? right) -> bool
+static Tracon.AgentValidationReport.operator ==(Tracon.AgentValidationReport? left, Tracon.AgentValidationReport? right) -> bool
+static Tracon.ResponseSchemaReport.operator !=(Tracon.ResponseSchemaReport? left, Tracon.ResponseSchemaReport? right) -> bool
+static Tracon.ResponseSchemaReport.operator ==(Tracon.ResponseSchemaReport? left, Tracon.ResponseSchemaReport? right) -> bool
+static Tracon.ValidationMessage.operator !=(Tracon.ValidationMessage? left, Tracon.ValidationMessage? right) -> bool
+static Tracon.ValidationMessage.operator ==(Tracon.ValidationMessage? left, Tracon.ValidationMessage? right) -> bool

@@ -20,7 +20,7 @@ namespace Tracon;
 /// <c>runs</c> row is opened and no token is spent.
 /// </para>
 /// </remarks>
-internal sealed partial class AgentDefinitionValidator
+internal sealed partial class AgentDefinitionValidator : IAgentDefinitionValidator
 {
     private readonly IModelProviderRegistry _models;
     private readonly IToolRegistry _tools;
@@ -153,6 +153,7 @@ internal sealed partial class AgentDefinitionValidator
         CheckConversationMemory(definition, messages);
         CheckWorkspace(definition, messages);
         CheckHostedTools(definition, messages);
+        CheckParameterPlaceholders(definition, messages);
 
         // Compilation is not useful while the outcome is inconclusive. A tool
         // behind an unreachable MCP server cannot resolve in real compilation

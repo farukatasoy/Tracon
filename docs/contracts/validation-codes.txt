@@ -39,6 +39,7 @@ sampling_field_rejected_by_model
 sampling_field_unsupported
 sampling_unsupported
 sampling_value_out_of_range
+single_brace_placeholder
 skill_settings_without_skills
 sub_agent_tool_name_conflict
 unknown_agent
