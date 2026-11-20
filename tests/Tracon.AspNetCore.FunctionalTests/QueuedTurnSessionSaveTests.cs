@@ -123,10 +123,22 @@ public sealed class QueuedTurnSessionSaveTests
     {
         var provider = ApprovalProvider();
 
-        // The first turn opens the session (TryCreateAsync); the resume writes
-        // it again (TryUpdateAsync), so only the resume's save fails.
+        // The first turn opens the session (TryCreateAsync); the resume writes it
+        // twice (TryUpdateAsync): the mark of the answer it applies, then the turn's
+        // own save. Only the second one fails.
+        var updates = 0;
+
         await using var host = await StartAsync(
-            provider, nameof(ISessionStore.TryUpdateAsync), failures: 1, maxAttempts: 1, approvalTool: true);
+            provider,
+            failingMember: null,
+            failures: 0,
+            maxAttempts: 1,
+            approvalTool: true,
+            inject: services => services.ThrowFrom<ISessionStore>(
+                nameof(ISessionStore.TryUpdateAsync),
+                static () => new TimeoutException("Injected: the session store did not answer in time."),
+                times: 1,
+                when: _ => Interlocked.Increment(ref updates) == 2));
 
         var sourceRunId = await QueueAsync(host);
         await host.WaitForRunStatusAsync(sourceRunId, "AwaitingApproval");
@@ -156,6 +168,7 @@ public sealed class QueuedTurnSessionSaveTests
         job.Status.ShouldBe(JobStatus.Completed, job.ErrorMessage);
         (await RunAsync(host, resumed.Id)).Status.ShouldBe(RunStatus.Completed);
         provider.Requests.Count.ShouldBe(2);
+        updates.ShouldBe(3, "the mark, the turn's save that failed, and its second try");
     }
 
     /// <summary>

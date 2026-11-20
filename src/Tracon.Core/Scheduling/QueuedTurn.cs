@@ -155,6 +155,38 @@ internal sealed class QueuedTurn
     }
 
     /// <summary>
+    /// Writes the identity of the request this turn answers into the session and saves the session, before the run applies the
+    /// answer, as the request that applies an answer over HTTP does (<see cref="AnsweredInterrupts"/>).
+    /// </summary>
+    /// <param name="requestId">The identity of the request the turn answers.</param>
+    /// <param name="answeredInHistory">The identities the stored history already holds an answer for; they leave the set.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// The end-of-turn save is still due afterwards: this one does not count as the turn's save. A store error is tried again
+    /// like any other write of the turn, and past the window the turn fails before it applies the answer.
+    /// </remarks>
+    /// <exception cref="NonRetryableJobException">The session could not be saved.</exception>
+    public ValueTask MarkAnsweredAsync(string requestId, IReadOnlySet<string> answeredInHistory, CancellationToken cancellationToken)
+    {
+        if (_session is null || !AnsweredInterrupts.Write(_session, [requestId], answeredInHistory))
+        {
+            return default;
+        }
+
+        return WithinLeaseAsync(
+            async (_, token) => await _sessions.SaveSessionAsync(_agent, _session, token).ConfigureAwait(false),
+            (exception, delay) => _logger.LogWarning(
+                exception,
+                "Queued run {RunId}: could not save the answered mark of session {SessionId}; trying again in {Delay}.",
+                _runId,
+                AgentSessionIdentity.GetId(_session),
+                delay),
+            exception => GiveUp(_session, exception),
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Saves the session after the model call returned, unless
     /// <see cref="BeforePendingApprovalIsPublishedAsync"/> already saved it.
     /// </summary>

@@ -111,6 +111,7 @@ internal sealed class ApprovalResumeJobHandler(
         Microsoft.Agents.AI.AIAgent agent;
         Microsoft.Agents.AI.AgentSession session;
         ChatMessage approvalMessage;
+        IReadOnlySet<string> answeredInHistory;
         int? pinnedVersion;
         IReadOnlyDictionary<string, string>? parameterValues;
 
@@ -145,12 +146,15 @@ internal sealed class ApprovalResumeJobHandler(
                 .GetOrCreateSessionAsync(agent, approval.SessionId, cancellationToken)
                 .ConfigureAwait(false);
 
-            var request = await FindPendingRequestAsync(agent, session, chatHistory, approval.RequestId, cancellationToken)
-                    .ConfigureAwait(false)
+            var (found, answered) = await FindPendingRequestAsync(
+                agent, session, chatHistory, approval.RequestId, cancellationToken).ConfigureAwait(false);
+
+            var request = found
                 ?? throw new TraconException(
                     $"The tool approval request with identifier '{approval.RequestId}' was not found in the session history " +
                     "(the session might have been reset after this request). The decision cannot be applied.");
 
+            answeredInHistory = answered;
             approvalMessage = new ChatMessage(
                 ChatRole.User,
                 [request.CreateResponse(approval.Status == ApprovalStatus.Approved, reason: string.Empty)]);
@@ -172,6 +176,22 @@ internal sealed class ApprovalResumeJobHandler(
         var turn = new QueuedTurn(
             sessions, approvalStore, options, approvalOptionsMonitor, webhookPublisher, _clock, logger,
             context, newRunId, agent, session);
+
+        // 🚨 The answer is marked in the session BEFORE the run applies it, as the HTTP path does. The session holds the
+        // request as pending until the turn ends, and a worker that dies inside the approved tool never gets there: the same
+        // answer sent over HTTP then ran the tool a second time. The mark is the only thing that refuses it (the job's own
+        // re-lease is refused by its single attempt). A mark that cannot be saved fails the turn before the tool runs.
+        try
+        {
+            await turn.MarkAnsweredAsync(approval.RequestId, answeredInHistory, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            await FailQueuedRunAsync(newRunId, context.Job.TenantId, exception, cancellationToken)
+                .ConfigureAwait(false);
+
+            throw;
+        }
 
         await agent.RunAsync(
             [approvalMessage],
@@ -259,13 +279,17 @@ internal sealed class ApprovalResumeJobHandler(
     }
 
     /// <summary>Finds the unanswered approval request with the supplied identifier in the session history.</summary>
+    /// <returns>
+    /// The request, or <see langword="null"/> when there is none to answer, and the identities of the approval
+    /// requests the history already holds an answer for.
+    /// </returns>
     /// <remarks>
     /// Uses the same logic as <c>ToolApprovalResolver.CollectPendingRequests</c>
     /// in Tracon.AspNetCore, narrowed to one request. Approval is input for the
     /// next turn, and the request itself only exists in the session history
     /// (<c>ToolApprovalRequestContent.CreateResponse</c>).
     /// </remarks>
-    private static async ValueTask<ToolApprovalRequestContent?> FindPendingRequestAsync(
+    private static async ValueTask<(ToolApprovalRequestContent? Request, IReadOnlySet<string> AnsweredInHistory)> FindPendingRequestAsync(
         Microsoft.Agents.AI.AIAgent agent,
         Microsoft.Agents.AI.AgentSession session,
         Microsoft.Agents.AI.ChatHistoryProvider chatHistory,
@@ -281,12 +305,7 @@ internal sealed class ApprovalResumeJobHandler(
 
         var messages = await chatHistory.InvokingAsync(context, cancellationToken).ConfigureAwait(false);
 
-        // A request that another surface applied but that no run has saved yet (its client left) is answered, not pending.
-        if (AnsweredInterrupts.Read(session).Contains(requestId))
-        {
-            return null;
-        }
-
+        var answered = new HashSet<string>(StringComparer.Ordinal);
         ToolApprovalRequestContent? found = null;
 
         foreach (var message in messages)
@@ -300,17 +319,25 @@ internal sealed class ApprovalResumeJobHandler(
                         found = request;
                         break;
 
-                    case ToolApprovalResponseContent response
-                        when string.Equals(response.RequestId, requestId, StringComparison.Ordinal):
+                    case ToolApprovalResponseContent response:
+                        answered.Add(response.RequestId);
+
                         // This request is already answered, for example by a second
                         // resume attempt, so it must not receive another response.
-                        found = null;
+                        if (string.Equals(response.RequestId, requestId, StringComparison.Ordinal))
+                        {
+                            found = null;
+                        }
+
                         break;
                 }
             }
         }
 
-        return found;
+        // A request that another surface applied but that no run has saved yet (its client left) is answered, not pending.
+        return AnsweredInterrupts.Read(session).Contains(requestId)
+            ? (null, answered)
+            : (found, answered);
     }
 
     private async ValueTask FailQueuedRunAsync(
