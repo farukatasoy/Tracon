@@ -873,14 +873,7 @@ public sealed class RunResourceAuthorizationTests
         var handler = new ConfigurableRunAuthorizationHandler();
 
         await using var host = await TraconTestHost.StartAsync(
-            static builder => builder
-                .AddModelProvider(new FakeModelProvider(ModelId).RespondsWith("ok"))
-                .AddAgent(new AgentDefinition
-                {
-                    Name = AgentName,
-                    Instructions = "Reply briefly.",
-                    Model = new ModelBinding { Provider = ModelId, Model = ModelId },
-                }),
+            static builder => builder.AddModelProvider(new FakeModelProvider(ModelId).RespondsWith("ok")),
             configureServices: services => services.Replace(ServiceDescriptor.Singleton<IRunAuthorizationHandler>(handler)),
             configureApp: app => app.Use(async (HttpContext context, RequestDelegate next) =>
             {
@@ -897,6 +890,8 @@ public sealed class RunResourceAuthorizationTests
                     finished.TrySetResult();
                 }
             }));
+
+        await SaveAgentAsync(host);
 
         var runId = await SeedRunAsync(host);
 
@@ -1017,20 +1012,10 @@ public sealed class RunResourceAuthorizationTests
 
     /// <summary>Writes one complete run: the row, its input, a tool call, and a span.</summary>
     /// <remarks>
-    /// The agent definition is written to the definition store as well: a
-    /// replay recompiles from a stored DEFINITION, and an agent that only
-    /// exists in the catalog cannot be replayed at all (it would answer 400
-    /// before the gate was ever asked).
+    /// The agent is in the definition store (<see cref="SaveAgentAsync"/>): a replay recompiles from a stored DEFINITION.
     /// </remarks>
     private static async Task<Guid> SeedRunAsync(TraconTestHost host, string? tenantId = null)
     {
-        await host.Services.GetRequiredService<IAgentDefinitionStore>().SaveAsync(new AgentDefinition
-        {
-            Name = AgentName,
-            Instructions = "Reply briefly.",
-            Model = new ModelBinding { Provider = ModelId, Model = ModelId },
-        });
-
         var runs = host.Services.GetRequiredService<IRunStore>();
         var inputs = host.Services.GetRequiredService<IRunInputStore>();
         var traces = host.Services.GetRequiredService<ITraceStore>();
@@ -1131,16 +1116,10 @@ public sealed class RunResourceAuthorizationTests
         return id;
     }
 
-    private static Task<TraconTestHost> StartAsync(ConfigurableRunAuthorizationHandler? handler)
-        => TraconTestHost.StartAsync(
-            static builder => builder
-                .AddModelProvider(new FakeModelProvider(ModelId).RespondsWith("ok"))
-                .AddAgent(new AgentDefinition
-                {
-                    Name = AgentName,
-                    Instructions = "Reply briefly.",
-                    Model = new ModelBinding { Provider = ModelId, Model = ModelId },
-                }),
+    private static async Task<TraconTestHost> StartAsync(ConfigurableRunAuthorizationHandler? handler)
+    {
+        var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddModelProvider(new FakeModelProvider(ModelId).RespondsWith("ok")),
             configureServices: services =>
             {
                 if (handler is not null)
@@ -1150,6 +1129,23 @@ public sealed class RunResourceAuthorizationTests
                     services.Replace(ServiceDescriptor.Singleton<IRunAuthorizationHandler>(handler));
                 }
             });
+
+        await SaveAgentAsync(host);
+
+        return host;
+    }
+
+    /// <summary>
+    /// Puts the agent in the definition store. It is a stored agent and not a code one on purpose: a replay recompiles a
+    /// stored DEFINITION, and an agent registered in code answers a replay with <c>400</c> before the gate is ever asked.
+    /// </summary>
+    private static async Task SaveAgentAsync(TraconTestHost host)
+        => await host.Services.GetRequiredService<IAgentDefinitionStore>().SaveAsync(new AgentDefinition
+        {
+            Name = AgentName,
+            Instructions = "Reply briefly.",
+            Model = new ModelBinding { Provider = ModelId, Model = ModelId },
+        });
 
     private static Task<TraconTestHost> StartWorkflowAsync(ConfigurableRunAuthorizationHandler? handler)
         => TraconTestHost.StartAsync(
