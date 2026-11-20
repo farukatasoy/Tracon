@@ -1,4 +1,4 @@
-namespace Tracon.Testing.Contracts.AgentSources;
+namespace Tracon.Testing.Contracts.AgentDefinitionSources;
 
 /// <summary>Behavior tests for an <see cref="IAgentDefinitionSource"/> implementation.</summary>
 /// <remarks>

@@ -1,4 +1,4 @@
-namespace Tracon.Testing.Contracts.AgentSources;
+namespace Tracon.Testing.Contracts.AgentDefinitionSources;
 
 /// <summary>Additional behavior tests for an <see cref="IVersionedAgentDefinitionSource"/>.</summary>
 public abstract class VersionedAgentDefinitionSourceContract : AgentDefinitionSourceContract

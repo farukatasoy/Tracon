@@ -178,7 +178,7 @@ source owns.
 ## Prove the implementation
 
 ```csharp
-using Tracon.Testing.Contracts.AgentSources;
+using Tracon.Testing.Contracts.AgentDefinitionSources;
 
 public sealed class GitAgentDefinitionSourceTests : AgentDefinitionSourceContract
 {
@@ -191,7 +191,9 @@ public sealed class GitAgentDefinitionSourceTests : AgentDefinitionSourceContrac
 Derive `VersionedAgentDefinitionSourceContract` when your source implements
 `IVersionedAgentDefinitionSource`. Derive `TenantAwareAgentDefinitionSourceContract` when its list changes
 by tenant. The suite checks repeatability, concurrency, cancellation, name integrity, and list/get
-consistency without a network call. An `IAgentSource` has the matching `AgentSourceContract` family.
+consistency without a network call. An `IAgentSource` has the matching `AgentSourceContract` family, in the
+`Tracon.Testing.Contracts.AgentSources` namespace; the coverage check for each family is its own constant,
+`ContractCoverage.AgentDefinitionSourceContracts` and `ContractCoverage.AgentSourceContracts`.
 
 ## Scale and operations
 

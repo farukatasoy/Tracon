@@ -1,4 +1,4 @@
-namespace Tracon.Testing.Contracts.AgentSources;
+namespace Tracon.Testing.Contracts.AgentDefinitionSources;
 
 /// <summary>Additional behavior tests for a tenant-aware agent definition source.</summary>
 public abstract class TenantAwareAgentDefinitionSourceContract : AgentDefinitionSourceContract

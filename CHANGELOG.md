@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The contract suites of `IAgentDefinitionSource` moved to their own namespace, and have their own coverage constant.** `AgentDefinitionSourceContract`, `VersionedAgentDefinitionSourceContract` and `TenantAwareAgentDefinitionSourceContract` shared `Tracon.Testing.Contracts.AgentSources` with the three suites of `IAgentSource`, a different seam, so the coverage check for one seam reported the other's suites as missing and the sample project carried five exemptions for it. They are now in `Tracon.Testing.Contracts.AgentDefinitionSources`, and `ContractCoverage.AgentDefinitionSourceContracts` checks them; `ContractCoverage.AgentSourceContracts` checks only the three suites of `IAgentSource`.
+  What to do:
+  - **If you derive a definition-source suite, change the `using` to `Tracon.Testing.Contracts.AgentDefinitionSources`.** The type names are the same.
+  - **If your coverage test passes `ContractCoverage.AgentSourceContracts` for a definition source, pass `ContractCoverage.AgentDefinitionSourceContracts` instead** and drop the exemptions you wrote for the `IAgentSource` suites.
+
 - **An agent that calls other agents no longer reads the whole catalog each time it is resolved.** The text the model reads about each callee, and the cache key of the caller, came from a listing of every agent of the tenant, so a resolve cost about 9 µs for each agent: 45 ms with 5 000 agents on PostgreSQL, against 1 ms for an agent that calls none, and about 8 MB read for each resolve. The callees are now read by name through the same sources, in the same order and with the same winner, so a code agent that shadows a stored one still wins its name. A catalog you replaced with your own `IAgentCatalog` is listed as before.
 
 - **`ITraceStore.WriteSpansAsync` refuses a batch whose `RunId` is `Guid.Empty`, in every store.** The in-memory store kept a trace under the empty identifier and a SQL store failed on its foreign key without naming the cause, so one contract had two answers. All four stores now throw `ArgumentException` before they write, also for a batch with no spans. Tracon's own collector never sends an empty identifier, so nothing changes for a host that uses it.

@@ -97,7 +97,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.Voice` | No | net10 | Yes | ElevenLabs speech tools and reusable speech contracts. The Native AOT check runs synthesis, transcription and the voice list; dialogue is not part of it |
 | `Tracon.AGUI` | No | net10 | No | The AG-UI endpoint; it sits on `Tracon.AspNetCore`, whose minimal API routing uses reflection |
 | `Tracon.Testing` | No | net10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
-| `Tracon.Testing.Contracts.Xunit` | No | net10 | No promise | Behavior contract suite for eight extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, job handlers, skill script executors, custom tools, and the host tenant scope — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
+| `Tracon.Testing.Contracts.Xunit` | No | net10 | No promise | Behavior contract suite for nine extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, agent definition sources, job handlers, skill script executors, custom tools, and the host tenant scope — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `Tracon.Templates` | No | net10 output | N/A | `dotnet new tracon-api` content package |
 | `Tracon.Client` | No | net10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
 | `Tracon.Cli` | No | net10 (`DotnetTool`) | No | The `tracon` global tool; wraps `Tracon.Client` and ships as IL, not native code |

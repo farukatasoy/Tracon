@@ -36,8 +36,11 @@ public static class ContractCoverage
     /// <summary>The namespace holding run judge contracts.</summary>
     public const string JudgeContracts = "Tracon.Testing.Contracts.Judges";
 
-    /// <summary>The namespace holding agent-source contracts.</summary>
+    /// <summary>The namespace holding the contracts of <see cref="IAgentSource"/>, a source that builds its own agents.</summary>
     public const string AgentSourceContracts = "Tracon.Testing.Contracts.AgentSources";
+
+    /// <summary>The namespace holding the contracts of <see cref="IAgentDefinitionSource"/>, a source that hands back definitions.</summary>
+    public const string AgentDefinitionSourceContracts = "Tracon.Testing.Contracts.AgentDefinitionSources";
 
     /// <summary>The namespace holding the contracts of the host's tenant scope.</summary>
     public const string TenancyContracts = "Tracon.Testing.Contracts.Tenancy";

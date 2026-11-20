@@ -1,4 +1,4 @@
-using Tracon.Testing.Contracts.AgentSources;
+using Tracon.Testing.Contracts.AgentDefinitionSources;
 
 namespace Tracon.Samples.CustomAgentSource.Tests;
 

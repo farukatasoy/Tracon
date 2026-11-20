@@ -1,6 +1,8 @@
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.Core.UnitTests.Fakes;
 using Tracon.Testing.Contracts;
+using Tracon.Testing.Contracts.AgentDefinitionSources;
 using Tracon.Testing.Contracts.AgentSources;
 
 namespace Tracon.Core.UnitTests.Catalog;
@@ -99,6 +101,14 @@ public sealed class TenantAwareDefinitionSourceAdapterContractTests : TenantAwar
 }
 
 /// <summary>Builds the catalog adapter of a definition source the way the container does.</summary>
+public sealed class AgentDefinitionSourceContractCoverageTests
+{
+    [Fact]
+    public void Every_agent_definition_source_contract_has_a_derived_test()
+        => ContractCoverage.MissingDerivedTypes(
+            Assembly.GetExecutingAssembly(), ContractCoverage.AgentDefinitionSourceContracts).ShouldBeEmpty();
+}
+
 internal static class DefinitionSourceAdapters
 {
     public static IAgentSource Wrap(IAgentDefinitionSource source, ITenantContext tenant)

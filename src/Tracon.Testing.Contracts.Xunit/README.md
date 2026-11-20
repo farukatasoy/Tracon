@@ -269,7 +269,7 @@ public void Every_provider_contract_has_a_derived_test()
 
 One constant per family: `ContractCoverage.StorageContracts`,
 `ProviderContracts`, `JudgeContracts`, `AgentSourceContracts`,
-`ToolContracts`, `SchedulingContracts`, and `ScriptContracts`. A contract you deliberately do
+`AgentDefinitionSourceContracts`, `ToolContracts`, `SchedulingContracts`, and `ScriptContracts`. A contract you deliberately do
 not implement goes in the `except` argument, where a name that matches
 nothing is itself reported — a stale exemption must not pass quietly.
 
