@@ -113,6 +113,12 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     public ValueTask<AgentDefinition> SaveAsync(AgentDefinition definition, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
+
+        if (string.IsNullOrWhiteSpace(definition.Name))
+        {
+            throw new ArgumentException("An agent definition needs a name; the catalog looks a definition up by it.", nameof(definition));
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         var tenantId = _tenantContext.TenantId;

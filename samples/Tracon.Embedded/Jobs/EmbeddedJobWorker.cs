@@ -30,11 +30,21 @@ internal sealed class EmbeddedJobWorker(
             {
                 try
                 {
-                    var agent = await catalog.ResolveAsync("assistant", cancellationToken: stoppingToken).ConfigureAwait(false);
+                    // A job that carries text for the summarizer binds it at resolve time: the catalog checks it
+                    // against the agent's schema, compiles the agent for exactly that text, and the run records
+                    // it, so a replay of the run sends the same text again.
+                    var (agentName, options) = job.ArticleContent is { } article
+                        ? ("summarizer", new AgentResolveOptions
+                        {
+                            Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["articleContent"] = article },
+                        })
+                        : ("assistant", null);
+
+                    var agent = await catalog.ResolveAsync(agentName, options, stoppingToken).ConfigureAwait(false);
 
                     if (agent is null)
                     {
-                        logger.LogWarning("Job for tenant {TenantId} skipped: the 'assistant' agent is not in the catalog.", job.TenantId);
+                        logger.LogWarning("Job for tenant {TenantId} skipped: the '{AgentName}' agent is not in the catalog.", job.TenantId, agentName);
                         continue;
                     }
 

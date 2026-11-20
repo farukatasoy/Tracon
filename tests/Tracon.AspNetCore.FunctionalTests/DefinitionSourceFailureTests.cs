@@ -72,13 +72,23 @@ public sealed class DefinitionSourceFailureTests
     {
         var provider = Provider();
         var reading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sourceWasCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var source = new InMemoryDefinitionSource("stalling-definitions")
         {
             BeforeRead = async cancellationToken =>
             {
                 reading.TrySetResult();
 
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
+                }
+                catch (OperationCanceledException)
+                {
+                    sourceWasCancelled.TrySetResult();
+
+                    throw;
+                }
             },
         };
 
@@ -95,6 +105,10 @@ public sealed class DefinitionSourceFailureTests
         await gaveUp.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(async () => await call);
+
+        // The caller's cancel reached the source's own read: the lookup forwards the request's token, so a stalled
+        // source does not hold the request after the caller left.
+        await sourceWasCancelled.Task.WaitAsync(TestContext.Current.CancellationToken);
 
         provider.Requests.ShouldBeEmpty();
         (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery())).ShouldBeEmpty();

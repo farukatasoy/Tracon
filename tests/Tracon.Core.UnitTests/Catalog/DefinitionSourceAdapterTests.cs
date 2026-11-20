@@ -10,7 +10,7 @@ namespace Tracon.Core.UnitTests.Catalog;
 /// </summary>
 public sealed class DefinitionSourceAdapterTests
 {
-    private const string Name = "adapted-agent";
+    internal const string Name = "adapted-agent";
 
     [Fact]
     public async Task A_definition_returned_under_another_name_is_refused_as_a_contract_violation()
@@ -80,6 +80,132 @@ public sealed class DefinitionSourceAdapterTests
     }
 
     [Fact]
+    public async Task The_compiled_agent_cache_is_keyed_by_the_ambient_tenant()
+    {
+        // One definition, returned to both tenants. The definition's content is the same, so only the tenant can
+        // tell the two compilations apart: a tenant-bound tool (vector search) binds the tenant at compile time, and
+        // a cache that ignored the tenant would hand the first tenant's agent to the second.
+        var tenant = new FixedTenantContext();
+        var adapter = DefinitionSourceAdapters.Wrap(new InMemoryDefinitionSource().Add(TestData.Definition(Name)), tenant);
+
+        var first = (await adapter.ResolveAsync(Name, cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var again = (await adapter.ResolveAsync(Name, cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        tenant.TenantId = "other-tenant";
+
+        var other = (await adapter.ResolveAsync(Name, cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        again.ShouldBeSameAs(first);
+        other.ShouldNotBeSameAs(first);
+    }
+
+    [Fact]
+    public async Task A_cancelled_token_stops_a_resolve_with_values_as_a_cancellation_not_a_source_failure()
+    {
+        var catalog = Catalog(new InMemoryDefinitionSource().Add(TestData.Definition(Name)));
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        var failure = await Should.ThrowAsync<OperationCanceledException>(
+            async () => await catalog.ResolveAsync(
+                Name,
+                new AgentResolveOptions { Parameters = new Dictionary<string, string>(StringComparer.Ordinal) },
+                cancelled.Token));
+
+        failure.ShouldNotBeOfType<TraconAgentSourceException>();
+    }
+
+    [Fact]
+    public async Task A_source_that_does_not_keep_a_history_answers_a_pinned_resolve_with_values_in_its_own_words()
+    {
+        var catalog = Catalog(new InMemoryDefinitionSource().Add(TestData.Definition(Name)));
+
+        // With and without a value the answer is the history error, not "unknown parameter".
+        foreach (var values in new[]
+        {
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["anything"] = "x" },
+        })
+        {
+            var failure = await Should.ThrowAsync<TraconException>(
+                async () => await catalog.ResolveAsync(
+                    Name,
+                    new AgentResolveOptions { Version = 1, Parameters = values },
+                    TestContext.Current.CancellationToken));
+
+            failure.ShouldNotBeOfType<TraconParameterException>();
+            failure.Message.ShouldContain("does not keep version history", Case.Sensitive);
+        }
+    }
+
+    [Fact]
+    public async Task A_missing_version_with_values_is_reported_as_a_missing_version()
+    {
+        var catalog = Catalog(new VersionedInMemoryDefinitionSource().Add(TestData.Definition(Name)));
+
+        var failure = await Should.ThrowAsync<TraconException>(
+            async () => await catalog.ResolveAsync(
+                Name,
+                new AgentResolveOptions
+                {
+                    Version = 9,
+                    Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["anything"] = "x" },
+                },
+                TestContext.Current.CancellationToken));
+
+        failure.ShouldNotBeOfType<TraconParameterException>();
+        failure.Message.ShouldContain("Version 9", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_failing_opaque_source_answers_a_resolve_with_values_as_a_source_failure_not_unknown_parameters()
+    {
+        // The lookup cannot tell whether a source whose listing throws holds the name, so it takes it as holding it.
+        // The values are checked only after the catalog resolved the agent, so the failure is the answer.
+        var failing = new ThrowingOpaqueSource();
+        var catalog = CatalogOver([failing]);
+
+        var failure = await Should.ThrowAsync<TraconAgentSourceException>(
+            async () => await catalog.ResolveAsync(
+                Name,
+                new AgentResolveOptions { Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["anything"] = "x" } },
+                TestContext.Current.CancellationToken));
+
+        failure.SourceName.ShouldBe("throwing-opaque");
+    }
+
+    [Fact]
+    public async Task A_resolve_with_values_for_an_agent_a_source_built_itself_refuses_every_name_as_unknown()
+    {
+        var catalog = CatalogOver([new HoldingOpaqueSource()]);
+
+        var failure = await Should.ThrowAsync<TraconParameterException>(
+            async () => await catalog.ResolveAsync(
+                Name,
+                new AgentResolveOptions { Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["anything"] = "x" } },
+                TestContext.Current.CancellationToken));
+
+        failure.UnknownParameters.ShouldBe(["anything"]);
+
+        // An empty set is the same agent as a call without values.
+        (await catalog.ResolveAsync(
+            Name,
+            new AgentResolveOptions { Parameters = new Dictionary<string, string>(StringComparer.Ordinal) },
+            TestContext.Current.CancellationToken)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task A_resolve_with_values_for_a_name_no_source_holds_returns_null()
+    {
+        var catalog = Catalog(new InMemoryDefinitionSource().Add(TestData.Definition(Name)));
+
+        (await catalog.ResolveAsync(
+            "nobody",
+            new AgentResolveOptions { Parameters = new Dictionary<string, string>(StringComparer.Ordinal) },
+            TestContext.Current.CancellationToken)).ShouldBeNull();
+    }
+
+    [Fact]
     public async Task A_resolve_with_values_compiles_for_them_and_carries_the_final_set_for_the_recorder()
     {
         var definition = TestData.Definition(Name) with
@@ -133,6 +259,47 @@ public sealed class DefinitionSourceAdapterTests
 
     private static CompositeAgentCatalog Catalog(InMemoryDefinitionSource source, TraconMetrics? metrics = null)
         => Catalog([source], metrics);
+
+    private static CompositeAgentCatalog CatalogOver(IAgentSource[] sources)
+    {
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
+        var lookup = new AgentDefinitionLookup(sources, new AgentSourceFailures(NullLogger.Instance));
+        var factory = new ParameterizedAgentFactory(lookup, compiler, [], TestData.DefaultOptionsMonitor());
+
+        return new CompositeAgentCatalog(sources, [], NullLogger<CompositeAgentCatalog>.Instance, metrics: null, lookup, factory);
+    }
+
+    /// <summary>An opaque source whose listing and resolution both throw.</summary>
+    private sealed class ThrowingOpaqueSource : IAgentSource
+    {
+        public string Name => "throwing-opaque";
+
+        public int Priority => 10;
+
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("raw upstream failure");
+
+        public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("raw upstream failure");
+    }
+
+    /// <summary>An opaque source that lists one agent and builds it itself.</summary>
+    private sealed class HoldingOpaqueSource : IAgentSource
+    {
+        public string Name => "holding-opaque";
+
+        public int Priority => 10;
+
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<AgentDescriptor>)
+            [
+                new AgentDescriptor { Name = DefinitionSourceAdapterTests.Name, Origin = AgentDefinitionOrigin.Custom, SourceName = Name },
+            ]);
+
+        public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default)
+            => new(new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry())
+                .Compile(TestData.Definition(agentName)));
+    }
 
     private static CompositeAgentCatalog Catalog(InMemoryDefinitionSource[] definitionSources, TraconMetrics? metrics = null)
     {

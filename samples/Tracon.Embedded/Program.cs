@@ -93,6 +93,19 @@ tracon.AddAgent(new AgentDefinition
     ToolNames = ["current_account", "account_balance", "delete_account"],
 });
 
+// An agent whose instructions name a value the host's own code supplies per run. The job worker
+// (Jobs/EmbeddedJobWorker.cs) hands the text to IAgentCatalog.ResolveAsync with
+// AgentResolveOptions.Parameters; the run records it, so a replay repeats it.
+tracon.AddAgent(new AgentDefinition
+{
+    Name = "summarizer",
+    DisplayName = "Embedded Summarizer",
+    Description = "Summarizes the article a host job hands it.",
+    Instructions = "Summarize the following article in two sentences.\n\n{{articleContent}}",
+    Parameters = [new AgentParameter { Name = "articleContent", Kind = AgentParameterKind.Text, Required = true }],
+    Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
+});
+
 // Persistence is OPTIONAL. Without a connection string this sample
 // keeps running fully in memory, exactly as before — CI never depends on a
 // database. With one, the host's OWN schema (HostDbContext) and Tracon's
@@ -158,7 +171,7 @@ app.MapPost("/jobs", (EnqueueJobRequest request, EmbeddedJobQueue queue) =>
         return Results.Problem(title: "Tenant key invalid", statusCode: StatusCodes.Status400BadRequest);
     }
 
-    queue.Enqueue(new EmbeddedJob(request.TenantId, request.UserId, request.Message));
+    queue.Enqueue(new EmbeddedJob(request.TenantId, request.UserId, request.Message, request.ArticleContent));
 
     return Results.Accepted();
 });

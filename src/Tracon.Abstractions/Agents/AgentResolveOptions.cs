@@ -46,6 +46,11 @@ public sealed record AgentResolveOptions
     /// <c>MaxParameterValueLength</c> throw <see cref="TraconParameterException"/> from
     /// <see cref="IAgentCatalog.ResolveAsync"/>; no provider call happens and no run row is written.
     /// </para>
+    /// <para>
+    /// The recorder finds the final value set on the agent through <c>GetService</c>, so a decorator you register
+    /// must forward <c>GetService</c> to the agent it wraps (a type that derives from <c>DelegatingAIAgent</c> does).
+    /// A wrapper that hides it leaves the run without recorded values, and a replay cannot repeat it.
+    /// </para>
     /// </remarks>
     public IReadOnlyDictionary<string, string>? Parameters { get; init; }
 }

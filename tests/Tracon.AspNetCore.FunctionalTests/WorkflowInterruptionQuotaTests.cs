@@ -192,7 +192,13 @@ public sealed class WorkflowInterruptionQuotaTests
         await started.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
-        var claimed = (await runs.ClaimOrphanedRunsAsync(TimeSpan.FromMilliseconds(1), 10, TestContext.Current.CancellationToken))
+        // The run beat its heart when it started, and the tool body signals a moment later. A claim that asks for one
+        // millisecond of silence can land inside that moment on a fast machine and find nothing: it is repeated until the
+        // run has been silent for the threshold. A claim that finds nothing changes nothing, so asking again is safe.
+        var claimed = (await WaitUntil.ValueAsync(
+                async () => await runs.ClaimOrphanedRunsAsync(TimeSpan.FromMilliseconds(1), 10, TestContext.Current.CancellationToken),
+                static rows => rows.Count > 0,
+                "the run that waits in its tool to be silent for the threshold"))
             .ShouldHaveSingleItem("the run that waits in its tool is the one the reconciliation claims");
 
         await host.Services.GetRequiredService<InterruptedRunQuotaWriter>().RecordAsync(claimed, ran: null, TestContext.Current.CancellationToken);

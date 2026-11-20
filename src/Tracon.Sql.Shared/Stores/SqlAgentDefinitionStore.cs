@@ -125,6 +125,12 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(definition);
 
+        if (string.IsNullOrWhiteSpace(definition.Name))
+        {
+            throw new ArgumentException("An agent definition needs a name; the catalog looks a definition up by it.", nameof(definition));
+        }
+
+
         var payload = JsonSerializer.Serialize(
             AgentDefinitionPayload.FromDefinition(definition),
             TraconJsonContext.Default.AgentDefinitionPayload);

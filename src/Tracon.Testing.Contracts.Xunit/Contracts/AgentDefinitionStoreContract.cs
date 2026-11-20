@@ -88,6 +88,18 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         saved.Origin.ShouldBe(AgentDefinitionOrigin.Database);
     }
 
+    /// <summary>
+    /// A definition with no usable name is refused when it is saved. The catalog looks a definition up by name and
+    /// refuses a blank one, so a definition saved under a blank name would be stored and could never be read back.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task SaveAsync_refuses_a_blank_name(string name)
+    {
+        await Should.ThrowAsync<ArgumentException>(async () => await Store.SaveAsync(TestData.Definition(name)));
+    }
+
     [Fact]
     public async Task ListVersionsAsync_orders_newest_to_oldest()
     {

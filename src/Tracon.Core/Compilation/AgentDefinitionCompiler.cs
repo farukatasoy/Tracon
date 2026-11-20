@@ -399,6 +399,13 @@ public sealed partial class AgentDefinitionCompiler
     /// </exception>
     /// <remarks>
     /// <para>
+    /// <strong>This method only compiles.</strong> It does not check the values (a missing required one, a name the
+    /// schema does not declare, a value over <c>MaxParameterValueLength</c>), does not apply the catalog's decorators
+    /// (so the run is not recorded and not governed), and writes no values to the run record. To run an agent with
+    /// values from your own code, resolve it with <see cref="AgentResolveOptions.Parameters"/> in
+    /// <see cref="IAgentCatalog.ResolveAsync"/>, which does all four.
+    /// </para>
+    /// <para>
     /// The bound text is written into a definition <em>copy</em>:
     /// <see cref="AgentDefinition.InstructionsByCulture"/> is cleared (culture
     /// resolution already happened, once, right here) and

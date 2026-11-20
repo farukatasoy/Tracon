@@ -60,6 +60,45 @@ public sealed class SetupCredentialSourceTests
             ("key-two-0002", "https://two.example/"));
     }
 
+    [Fact]
+    public void A_keyless_provider_does_not_warn_for_a_name_with_no_value_while_no_key_is_in_use()
+    {
+        var configuration = Configuration();
+        using var logs = new Logs();
+        var source = Source(null, null, KeyName, null, configuration, logs.Logger, keyless: true);
+
+        source.Current().ApiKey.ShouldBe(SetupCredentialSource.KeylessPlaceholder);
+        source.Current().ApiKey.ShouldBe(SetupCredentialSource.KeylessPlaceholder);
+        logs.Messages.ShouldBeEmpty();
+
+        // The day the key exists it is used.
+        configuration[KeyName] = "key-later-0001";
+
+        source.Current().ApiKey.ShouldBe("key-later-0001");
+    }
+
+    [Fact]
+    public void A_keyless_provider_still_warns_for_a_key_that_was_in_use_and_went_blank_or_a_value_that_cannot_be_used()
+    {
+        var configuration = Configuration((KeyName, "key-one-0001"));
+        using var logs = new Logs();
+        var source = Source(null, null, KeyName, null, configuration, logs.Logger, keyless: true);
+
+        source.Current().ApiKey.ShouldBe("key-one-0001");
+
+        configuration[KeyName] = "  ";
+
+        source.Current().ApiKey.ShouldBe("key-one-0001");
+        logs.Messages.Count.ShouldBe(1);
+
+        var unusable = Configuration((KeyName, "key\nwith a line break"));
+        using var unusableLogs = new Logs();
+
+        Source(null, null, KeyName, null, unusable, unusableLogs.Logger, keyless: true).Current();
+
+        unusableLogs.Messages.Count.ShouldBe(1);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

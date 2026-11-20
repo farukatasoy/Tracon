@@ -321,7 +321,7 @@ internal static class StrictConsumerProject
                 /// <returns>The answer text.</returns>
                 public async Task<string> AskAsync(string customerId, string question, CancellationToken cancellationToken)
                 {
-                    var agent = await _catalog.ResolveAsync("support", culture: null, cancellationToken).ConfigureAwait(false);
+                    var agent = await _catalog.ResolveAsync("support", cancellationToken: cancellationToken).ConfigureAwait(false);
 
                     if (agent is null)
                     {
@@ -356,7 +356,7 @@ internal static class StrictConsumerProject
             /// <returns>The answer text.</returns>
             public async Task<string> AskAsync(string customerId, string question, CancellationToken cancellationToken)
             {
-                var agent = await catalog.ResolveAsync("support", culture: null, cancellationToken).ConfigureAwait(false);
+                var agent = await catalog.ResolveAsync("support", cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 if (agent is null)
                 {

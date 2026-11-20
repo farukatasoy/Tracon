@@ -52,7 +52,35 @@ namespace Tracon;
 /// Implement <see cref="IVersionedAgentDefinitionSource"/> as well when the source keeps a version
 /// history. Without it, a run pinned to a version of one of this source's agents is refused.
 /// </para>
+/// <para>
+/// A source that ignores the ambient tenant serves the same definitions to every tenant, which is how a host
+/// shares agents it owns across tenants; the built-in database store is per tenant and cannot.
+/// </para>
 /// </remarks>
+/// <example>
+/// <code>
+/// public sealed class StaticDefinitionSource : IAgentDefinitionSource
+/// {
+///     private static readonly AgentDefinition Support = new()
+///     {
+///         Name = "support",
+///         Instructions = "Answer support questions for {{customer}}.",
+///         Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true }],
+///         Model = new ModelBinding { Provider = "openai", Model = "gpt-4o-mini" },
+///     };
+///
+///     public string Name =&gt; "static";
+///
+///     public int Priority =&gt; 50;
+///
+///     public ValueTask&lt;IReadOnlyList&lt;AgentDefinition&gt;&gt; ListAsync(CancellationToken cancellationToken = default)
+///         =&gt; new([Support]);
+///
+///     public ValueTask&lt;AgentDefinition?&gt; GetAsync(string agentName, CancellationToken cancellationToken = default)
+///         =&gt; new(string.Equals(agentName, Support.Name, StringComparison.Ordinal) ? Support : null);
+/// }
+/// </code>
+/// </example>
 public interface IAgentDefinitionSource
 {
     /// <summary>Gets the name of the source, used for diagnostics and user interface badges.</summary>

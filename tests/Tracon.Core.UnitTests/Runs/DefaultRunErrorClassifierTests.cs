@@ -26,6 +26,12 @@ public sealed class DefaultRunErrorClassifierTests
     [InlineData("Tracon.TraconException", "Agent 'timeout-bot' has no persistent definition; a code-defined agent cannot be continued.", RunErrorClass.Unknown)]
     [InlineData("Tracon.TraconException", "Tool 'rate-limit-lookup' is not registered.", RunErrorClass.ToolError)]
     [InlineData("Tracon.TraconException", "Agent 'rate-limit-bot' was not found.", RunErrorClass.Unknown)]
+
+    // The refusal of supplied parameter values names the caller's own parameters. A parameter called "timeout",
+    // "quota" or "rate limit" must not decide the class: only the identity may.
+    [InlineData("invalid_parameters", "The parameters are invalid for agent 'a'. Unknown parameter 'timeout'.", RunErrorClass.Unknown)]
+    [InlineData("invalid_parameters", "The parameters are invalid for agent 'a'. Missing required parameter 'rate limit'.", RunErrorClass.Unknown)]
+    [InlineData("invalid_parameters", "The parameters are invalid for agent 'a'. Unknown parameter 'quota exceeded'.", RunErrorClass.Unknown)]
     [InlineData("System.TimeoutException", "the operation timed out", RunErrorClass.Timeout)]
     [InlineData("System.Exception", "the operation has timed out", RunErrorClass.Timeout)]
     [InlineData("System.OperationCanceledException", "canceled", RunErrorClass.Canceled)]

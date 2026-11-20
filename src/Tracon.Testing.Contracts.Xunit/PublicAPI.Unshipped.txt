@@ -1373,3 +1373,4 @@ abstract Tracon.Testing.Contracts.AgentSources.TenantAwareAgentDefinitionSourceC
 abstract Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.KnownVersion.get -> int
 virtual Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.UnknownAgentName.get -> string!
 virtual Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.UnknownVersion.get -> int
+Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_refuses_a_blank_name(string! name) -> System.Threading.Tasks.Task!

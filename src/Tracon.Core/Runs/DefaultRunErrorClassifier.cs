@@ -91,6 +91,12 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         [TraconTenantProviderRefusedException.TenantProviderRefusedErrorType] = RunErrorClass.TenantProviderRefused,
         ["Tracon.TenantProviderRefusedException"] = RunErrorClass.TenantProviderRefused,
         [ProviderFailureNormalizer.CredentialUnsupportedErrorType] = RunErrorClass.TenantProviderRefused,
+
+        // Supplied parameter values the agent's schema refuses. The text names the caller's own parameters, so
+        // only the identity may classify it: a parameter called "timeout" would read as a timeout, and a workflow
+        // node would retry a refusal that can never succeed. Unknown is the honest class: it is the caller's input,
+        // not a provider, tool or limit.
+        [TraconParameterException.InvalidParametersErrorType] = RunErrorClass.Unknown,
     };
 
     /// <inheritdoc />

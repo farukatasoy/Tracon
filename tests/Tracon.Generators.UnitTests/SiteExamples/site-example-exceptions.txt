@@ -9,9 +9,9 @@ concepts/agents.md#53a5fd0d | CS1002: ; expected
 concepts/governance.md#a6869dcf | CS0246: The type or namespace name 'IOrderRepository' could not be found (are you missing a using directive or an assembly reference?)
 concepts/governance.md#7a3dbcdf | CS0103: The name 'LookUpSessionIds' does not exist in the current context
 concepts/runs.md#2f07892c | CS0246: The type or namespace name 'Channel<>' could not be found (are you missing a using directive or an assembly reference?)
+concepts/sessions.md#89d0e49b | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
 concepts/starting-runs.md#87ffd461 | CS0246: The type or namespace name 'IHttpContextAccessor' could not be found (are you missing a using directive or an assembly reference?)
 concepts/starting-runs.md#62edf14e | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
-concepts/sessions.md#89d0e49b | CS0246: The type or namespace name 'IYourOwnershipService' could not be found (are you missing a using directive or an assembly reference?)
 concepts/tools.md#a66094c1 | CS0103: The name 'CallerHasPermission' does not exist in the current context
 concepts/tools.md#21e95d6d | CS8635: Unexpected character sequence '...'
 concepts/tools.md#d93ec2d7 | CS0103: The name 'GetReport' does not exist in the current context
@@ -74,7 +74,6 @@ guides/hosted-tools.md#0a92a9be | CS0103: The name 'Docs' does not exist in the 
 guides/inbound-triggers.md#aa2107a0 | CS0103: The name 'rawBody' does not exist in the current context
 guides/mcp-across-instances.md#6b548b4b | CS1061: 'IServiceCollection' does not contain a definition for 'AddStackExchangeRedisCache' and no accessible extension method 'AddStackExchangeRedisCache' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
 guides/model-providers.md#4cbee201 | CS1002: ; expected
-guides/write-your-own-provider.md#62d1404c | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
 guides/model-providers.md#08f83e42 | CS1002: ; expected
 guides/observability.md#f70b7335 | CS1061: 'IServiceCollection' does not contain a definition for 'AddOpenTelemetry' and no accessible extension method 'AddOpenTelemetry' accepting a first argument of type 'IServiceCollection' could be found (are you missing a using directive or an assembly reference?)
 guides/openai-api.md#811b9f54 | CS0103: The name 'client' does not exist in the current context
@@ -98,13 +97,14 @@ guides/write-your-own-agent-decorator.md#6301caad | CS0246: The type or namespac
 guides/write-your-own-agent-decorator.md#3992b781 | CS0246: The type or namespace name 'ILogger<>' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-agent-decorator.md#20bf4a04 | CS0246: The type or namespace name 'NightlyReportJobHandler' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-agent-decorator.md#5504ffdf | CS0246: The type or namespace name 'AuditingAgentDecorator' could not be found (are you missing a using directive or an assembly reference?)
-guides/write-your-own-agent-source.md#a9fd7499 | CS0246: The type or namespace name 'GitAgentSourceOptions' could not be found (are you missing a using directive or an assembly reference?)
-guides/write-your-own-agent-source.md#3ad5d6ef | CS0246: The type or namespace name 'GitAgentSource' could not be found (are you missing a using directive or an assembly reference?)
-guides/write-your-own-agent-source.md#450c6fe5 | CS0103: The name '_repository' does not exist in the current context
-guides/write-your-own-agent-source.md#3a7f92b9 | CS0246: The type or namespace name 'GitAgentSource' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-source.md#4be79edd | CS0246: The type or namespace name 'GitAgentSourceOptions' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-source.md#88661327 | CS0246: The type or namespace name 'GitAgentDefinitionSource' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-source.md#68d82415 | CS0246: The type or namespace name 'GitAgentSourceOptions' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-agent-source.md#45ec6984 | CS0246: The type or namespace name 'GitAgentDefinitionSource' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-job-handler.md#0ca5e761 | CS0246: The type or namespace name 'ILogger<>' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-job-handler.md#20bf4a04 | CS0246: The type or namespace name 'NightlyReportJobHandler' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-job-handler.md#38d09a5b | CS0246: The type or namespace name 'NightlyReportJobHandler' could not be found (are you missing a using directive or an assembly reference?)
+guides/write-your-own-provider.md#62d1404c | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-script-executor.md#8ed401d8 | CS0246: The type or namespace name 'HttpClient' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-script-executor.md#82e8e888 | CS0246: The type or namespace name 'RunnerServiceScriptExecutor' could not be found (are you missing a using directive or an assembly reference?)
 guides/write-your-own-script-executor.md#581ba9b0 | CS0246: The type or namespace name 'RunnerServiceScriptExecutor' could not be found (are you missing a using directive or an assembly reference?)

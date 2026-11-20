@@ -94,6 +94,19 @@ public sealed class TraconOptions
     /// schema for a concern that is really about the request, not the definition.
     /// Applies to a value from <c>AgentRunRequest.Parameters</c> and to an eval
     /// case's own <c>EvalCase.Parameters</c> alike - both feed the same binder.
+    /// <para>
+    /// The default is <c>4096</c> bytes. The smallest valid value is <c>1</c>; a smaller one fails the options
+    /// check when the options are validated (at host start for a host that runs the options start-up
+    /// validation, otherwise on first use). There is no upper bound: the value is held in the run record when
+    /// <c>RunRecording:RecordRunInput</c> is on and is sent to the model whole, so the practical limits are the
+    /// model's context window and the storage of the run input, and over HTTP the web server's request size.
+    /// </para>
+    /// <para>
+    /// Every entry that binds values checks it: the run endpoint, a queued run, a batch item, an eval case, a
+    /// workflow run, a replay, and <see cref="IAgentCatalog.ResolveAsync"/> with
+    /// <see cref="AgentResolveOptions.Parameters"/>. <c>AgentDefinitionCompiler.CompileParameterizedAsync</c> does
+    /// not: it binds what it is given.
+    /// </para>
     /// </remarks>
     public int MaxParameterValueLength { get; set; } = 4 * 1024;
 }

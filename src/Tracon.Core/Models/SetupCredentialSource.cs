@@ -18,7 +18,8 @@ namespace Tracon;
 /// A value that is missing, blank or unusable (an address that is not absolute, a key an HTTP header cannot carry)
 /// does not fail the call. The last valid value stays in use and one warning names the configuration key, never its
 /// value; the next valid value is picked up without a restart. The first valid value is the one the host was set up
-/// with, so a host that starts with a literal key and a name that has no value yet keeps the literal.
+/// with, so a host that starts with a literal key and a name that has no value yet keeps the literal. A provider that
+/// can run without a key (<c>keyless</c>) does not warn for a name that has no value while no key is in use.
 /// </para>
 /// <para>
 /// The names are the operator's own settings, written in code or in the host's configuration. They are not fenced
@@ -170,7 +171,14 @@ internal sealed class SetupCredentialSource
                 else if (!keyBad || !string.Equals(previous.RawKey, rawKey, StringComparison.Ordinal))
                 {
                     keyBad = true;
-                    LogUnusable(_apiKeyName, "key");
+
+                    // A server that asks for no key may name the configuration key it would be read from before any
+                    // value exists. No value, with no key in use yet, is the state that server runs in, not a fault.
+                    // A key that was in use and went blank, or a value that is there and unusable, is still worth saying.
+                    if (!(Keyless && string.IsNullOrWhiteSpace(rawKey) && key is null))
+                    {
+                        LogUnusable(_apiKeyName, "key");
+                    }
                 }
             }
 

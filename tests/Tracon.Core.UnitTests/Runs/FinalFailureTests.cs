@@ -28,6 +28,16 @@ public sealed class FinalFailureTests
         FinalFailure.IsFinal(new AggregateException(new TimeoutException("first"), refusal)).ShouldBeTrue();
     }
 
+    [Fact]
+    public void Parameter_values_the_schema_refuses_are_final()
+    {
+        // The same values go to the same schema on the next attempt, so a retry only repeats the refusal.
+        var refusal = new TraconParameterException("The parameters are invalid.", [], ["extra"], []);
+
+        FinalFailure.IsFinal(refusal).ShouldBeTrue();
+        FinalFailure.IsFinal(new InvalidOperationException("outer", refusal)).ShouldBeTrue();
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.BadRequest)]
     [InlineData(HttpStatusCode.Unauthorized)]

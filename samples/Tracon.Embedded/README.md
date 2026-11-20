@@ -62,6 +62,18 @@ curl -s -X POST http://localhost:5082/jobs \
 curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/tracon/api/runs | jq '.[0]'
 ```
 
+The same worker also shows how a host hands one run text of its own. A job that carries
+`articleContent` runs the `summarizer` agent, whose instructions name `{{articleContent}}`. The worker
+passes the text to `IAgentCatalog.ResolveAsync` in `AgentResolveOptions.Parameters`; the catalog checks it
+against the agent's schema, compiles the agent for exactly that text, and the run records it, so
+`POST /tracon/api/runs/{id}/replay` sends the same text again:
+
+```bash
+curl -s -X POST http://localhost:5082/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{"tenantId":"acme","userId":"user-42","message":"Summarize it.","articleContent":"Tides follow the moon."}'
+```
+
 ## The event bridge: drop, never block
 
 Enqueue several jobs quickly and the 8-item channel overflows — the bridge

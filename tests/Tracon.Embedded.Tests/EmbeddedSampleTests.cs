@@ -122,6 +122,32 @@ public sealed class EmbeddedSampleTests
     }
 
     /// <summary>
+    /// A job that carries article text runs the <c>summarizer</c> agent with the text bound as its parameter, and the
+    /// run records the text, so a replay of the run sends it again.
+    /// </summary>
+    [Fact]
+    public async Task A_job_with_article_text_binds_it_into_the_summarizer_and_records_it()
+    {
+        await using var host = new EmbeddedSampleHost();
+        using var client = host.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            new Uri("jobs", UriKind.Relative),
+            new { tenantId = "acme", userId = "user-42", message = "Summarize it.", articleContent = "Tides follow the moon." });
+
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Accepted);
+
+        var run = await PollForRunAsync(host, "acme");
+
+        run.AgentName.ShouldBe("summarizer");
+        run.Status.ShouldBe(RunStatus.Completed);
+
+        var input = await host.Services.GetRequiredService<IRunInputStore>().GetAsync("acme", run.Id);
+
+        input.ShouldNotBeNull().Parameters.ShouldNotBeNull().ShouldContainKeyAndValue("articleContent", "Tides follow the moon.");
+    }
+
+    /// <summary>
     /// The tenant header is the host's own identity layer, so the host answers a value that is not a tenant
     /// identifier. Every Tracon store refuses such a value, and a request that reached one would fail with a
     /// <c>500</c> instead of a <c>400</c>.

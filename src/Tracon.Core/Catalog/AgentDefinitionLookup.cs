@@ -89,10 +89,9 @@ internal sealed class AgentDefinitionLookup
         => origin == AgentDefinitionOrigin.Code ? "code" : "database";
 
     /// <summary>
-    /// Whether an opaque source holds a name. A source whose listing fails is taken to hold it: the
-    /// catalog resolves the agent next, records the failure and raises it, so the failure is
-    /// reported once, in the catalog's own words, and this lookup does not pick another source's
-    /// schema over the one that failed.
+    /// Whether an opaque source holds a name. A source whose listing fails is taken to hold it, so this
+    /// lookup never picks another source's schema over the one that failed. The failure is recorded here under
+    /// <c>list</c>; the catalog resolves the agent next and records and raises its own, in its own words.
     /// </summary>
     private async ValueTask<bool> HoldsAsync(IAgentSource source, string agentName, CancellationToken cancellationToken)
     {

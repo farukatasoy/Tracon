@@ -31,6 +31,10 @@ namespace Tracon;
 /// any call.
 /// </description></item>
 /// <item><description>
+/// <c>invalid_parameters</c>: the supplied values do not satisfy the agent's schema,
+/// and the next attempt sends the same values to the same schema.
+/// </description></item>
+/// <item><description>
 /// <c>upstream_error</c> whose status is a permanent 4xx
 /// (<see cref="ProviderHttpStatus.IsPermanent"/>): every 4xx except 408 and 429.
 /// </description></item>
@@ -52,6 +56,9 @@ internal static class FinalFailure
     {
         TraconOutputTruncatedException.OutputTruncatedErrorType,
         TraconTenantProviderRefusedException.TenantProviderRefusedErrorType,
+
+        // The same values against the same schema get the same refusal.
+        TraconParameterException.InvalidParametersErrorType,
     };
 
     /// <summary>Determines whether repeating the work that failed gets the same answer.</summary>

@@ -152,6 +152,79 @@ public sealed class LiveSetupKeyRotationTests
     }
 
     [Fact]
+    public async Task A_blank_key_warns_once_even_when_both_openai_surfaces_and_a_judge_read_it()
+    {
+        // One blank value is one change of state. The two OpenAI surfaces, the judge and the health check all read the
+        // same setup, so a second warning for the same blank value would mean two readers each kept their own state.
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        var configuration = Configuration((KeyName, "key-one"));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseOpenAI(options =>
+                {
+                    options.Endpoint = server.BaseAddress;
+                    options.ApiKeyConfigurationName = KeyName;
+                })
+                .AddAgent(Agent("chat-agent", OpenAIProviderNames.ChatCompletions))
+                .AddAgent(Agent("responses-agent", OpenAIProviderNames.Responses)),
+            configureServices: services => services.AddSingleton(configuration));
+
+        await RunAsync(host, "chat-agent");
+        await RunAsync(host, "responses-agent");
+
+        configuration[KeyName] = "   ";
+
+        var registry = host.Services.GetRequiredService<IModelProviderRegistry>();
+        using var judge = await registry.CreateSetupChatClientAsync(
+            new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "fake-local-model" },
+            TestContext.Current.CancellationToken);
+
+        await RunAsync(host, "chat-agent");
+        await RunAsync(host, "responses-agent");
+        await judge.GetResponseAsync([new ChatMessage(ChatRole.User, "judge")], cancellationToken: TestContext.Current.CancellationToken);
+
+        using (await host.Client.GetAsync(new Uri("/tracon/api/models/health/openai?refresh=true", UriKind.Relative), TestContext.Current.CancellationToken))
+        {
+        }
+
+        var warnings = host.Logs.Entries.Where(static entry => entry.Contains(KeyName, StringComparison.Ordinal)).ToList();
+
+        warnings.Count.ShouldBe(1, string.Join('\n', warnings));
+    }
+
+    [Fact]
+    public async Task A_keyless_compatible_endpoint_that_names_a_key_with_no_value_does_not_warn()
+    {
+        // A compatible server may ask for no key. Naming the configuration key it would be read from is a promise to
+        // pick one up the day it exists, not a promise that one exists, so the absence is not worth a warning.
+        await using var server = await FakeOpenAiCompatibleServer.StartAsync();
+        var configuration = Configuration((EndpointName, server.BaseAddress.ToString()));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseOpenAICompatible("local-llm", options =>
+                {
+                    options.Endpoint = server.BaseAddress;
+                    options.ApiKeyConfigurationName = KeyName;
+                })
+                .AddAgent(Agent(AgentName, "local-llm")),
+            configureServices: services => services.AddSingleton(configuration));
+
+        await RunAsync(host);
+        await RunAsync(host);
+
+        host.Logs.Entries.Where(static entry => entry.Contains(KeyName, StringComparison.Ordinal)).ShouldBeEmpty();
+
+        // The day the key exists it is sent.
+        configuration[KeyName] = "key-later";
+
+        await RunAsync(host);
+
+        server.ReceivedAuthorizationHeaders[^1].ShouldBe("Bearer key-later");
+    }
+
+    [Fact]
     public async Task The_setup_client_a_judge_and_a_summarizer_take_follows_the_rotation_too()
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();

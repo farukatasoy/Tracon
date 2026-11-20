@@ -207,6 +207,23 @@ public sealed class CatalogParameterBindingTests
     }
 
     [Fact]
+    public async Task A_cancelled_resolve_with_values_throws_cancellation_and_leaves_no_run_row()
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider);
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(
+                Required,
+                new AgentResolveOptions { Parameters = Values("customer", "Acme") },
+                cancelled.Token));
+
+        await AssertNothingRanAsync(host, provider);
+    }
+
+    [Fact]
     public async Task A_name_no_source_holds_resolves_to_null_even_with_values()
     {
         var provider = Provider();

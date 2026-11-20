@@ -137,8 +137,8 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     /// recording wrapper writes to the run record.
     /// </para>
     /// <para>
-    /// An agent that declares no schema has nothing to bind. The values are still checked, so a name it
-    /// does not declare is refused, and an empty set resolves the agent exactly as a call without values.
+    /// An agent that declares no schema has nothing to bind. It resolves exactly as a call without values, and the
+    /// values are then checked against the empty schema, so a name it does not declare is refused.
     /// </para>
     /// </remarks>
     private async ValueTask<AIAgent?> ResolveBoundAsync(
@@ -157,19 +157,31 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         var factory = _parameterFactory ?? throw new TraconException(
             "This catalog was built without a parameter factory, so it cannot bind parameter values.");
 
-        var schema = found.Definition?.Parameters ?? [];
-        var validation = factory.Validate(schema, values);
+        if (found.Definition is not { Parameters.Count: > 0 } definition)
+        {
+            // Nothing to bind: the agent has no definition to read a schema from (an agent a source built itself, a
+            // factory agent, a version the source does not hold) or its schema is empty. It resolves exactly as
+            // without values, so a failing source, a missing version and a source that keeps no history answer in
+            // their own words. The values are checked afterwards: a name no schema declares is unknown.
+            var plain = await ResolveAsync(agentName, options with { Parameters = null }, cancellationToken).ConfigureAwait(false);
+
+            if (factory.Validate([], values) is { IsValid: false } unknown)
+            {
+                throw ParameterValueSet.Failure(
+                    $"The parameters are invalid for agent '{agentName}'. {ParameterValueSet.Describe(unknown)}",
+                    unknown);
+            }
+
+            return plain;
+        }
+
+        var validation = factory.Validate(definition.Parameters, values);
 
         if (!validation.IsValid)
         {
             throw ParameterValueSet.Failure(
                 $"The parameters are invalid for agent '{agentName}'. {ParameterValueSet.Describe(validation)}",
                 validation);
-        }
-
-        if (found.Definition is not { Parameters.Count: > 0 })
-        {
-            return await ResolveAsync(agentName, options with { Parameters = null }, cancellationToken).ConfigureAwait(false);
         }
 
         var source = found.Source!;

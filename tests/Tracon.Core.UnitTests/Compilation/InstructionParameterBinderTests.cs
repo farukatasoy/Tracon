@@ -15,6 +15,43 @@ public sealed class InstructionParameterBinderTests
         result.ShouldBe("Hello Acme, welcome.");
     }
 
+    [Theory]
+    [InlineData("Article: {{ articleContent }}")]
+    [InlineData("Article: {{articleContent }}")]
+    [InlineData("Article: {{\tarticleContent\t}}")]
+    [InlineData("Article: {{   articleContent   }}")]
+    public void A_placeholder_spaced_inside_its_braces_is_substituted_like_the_unspaced_one(string template)
+    {
+        var result = InstructionParameterBinder.Bind(
+            template,
+            [Text("articleContent")],
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["articleContent"] = "Tides follow the moon." });
+
+        result.ShouldBe("Article: Tides follow the moon.");
+    }
+
+    [Fact]
+    public void A_name_split_by_a_line_break_inside_the_braces_is_not_a_placeholder()
+    {
+        var result = InstructionParameterBinder.Bind(
+            "Article: {{\narticleContent\n}}",
+            [Text("articleContent")],
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["articleContent"] = "x" });
+
+        result.ShouldBe("Article: {{\narticleContent\n}}");
+    }
+
+    [Fact]
+    public void A_spaced_placeholder_in_a_json_string_is_still_escaped_for_json()
+    {
+        var result = InstructionParameterBinder.Bind(
+            "{\"customer\": \"{{ customer }}\"}",
+            [Text("customer")],
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "say \"hi\"" });
+
+        result.ShouldBe("{\"customer\": \"say \\\"hi\\\"\"}");
+    }
+
     [Fact]
     public void Missing_value_falls_back_to_default()
     {

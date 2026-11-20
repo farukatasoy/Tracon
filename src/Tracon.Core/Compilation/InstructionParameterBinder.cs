@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Tracon;
 
 /// <summary>
-/// Substitutes <c>{{name}}</c> placeholders in an instructions text with
+/// Substitutes <c>{{name}}</c> (or <c>{{ name }}</c>) placeholders in an instructions text with
 /// concrete values.
 /// </summary>
 /// <remarks>
@@ -36,9 +36,16 @@ internal static class InstructionParameterBinder
     /// <summary>
     /// Matches a placeholder in the form <c>{{name}}</c>, where <c>name</c> is a
     /// valid identifier: a letter or underscore, then letters, digits, or underscores.
+    /// Spaces and tabs inside the braces are allowed (<c>{{ name }}</c>).
     /// </summary>
+    /// <remarks>
+    /// A prompt written for a template engine usually spaces its placeholders. Reading only the unspaced form
+    /// left <c>{{ name }}</c> in the text sent to the model, with the value nowhere, and the schema check
+    /// said nothing because it matched with the same pattern. Line breaks are not allowed inside the braces:
+    /// a placeholder is one token on one line.
+    /// </remarks>
     internal static readonly Regex PlaceholderPattern = new(
-        @"\{\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}\}",
+        @"\{\{[ \t]*(?<name>[A-Za-z_][A-Za-z0-9_]*)[ \t]*\}\}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
 

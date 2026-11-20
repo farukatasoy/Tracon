@@ -29,6 +29,20 @@ public sealed class AgentParameterValidatorTests
     }
 
     [Fact]
+    public void A_spaced_placeholder_is_read_like_an_unspaced_one_so_an_undeclared_one_is_rejected()
+    {
+        var undeclared = TestData.Definition() with
+        {
+            Instructions = "Hello {{ customer }}.",
+            Parameters = [Param("other")],
+        };
+        var declared = undeclared with { Parameters = [Param("customer")] };
+
+        AgentParameterValidator.ValidateSchema(undeclared).ShouldContain(error => error.Contains("customer", StringComparison.Ordinal));
+        AgentParameterValidator.ValidateSchema(declared).ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Declared_placeholder_used_in_instructions_passes()
     {
         var definition = TestData.Definition() with
