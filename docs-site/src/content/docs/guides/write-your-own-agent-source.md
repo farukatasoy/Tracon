@@ -40,6 +40,20 @@ for the same type registers it once.
 | Definition source | You own an `AgentDefinition` in Git, object storage, or another database | Call `AgentDefinitionCompiler.CompileCachedAsync()` |
 | Agent source | You already own a runnable MAF `AIAgent` | Return the agent directly |
 
+### A source's agent takes no parameter values
+
+`ResolveAsync` receives the agent name and the culture. It receives nothing that a run
+supplies. Tracon reads a [parameter schema](/concepts/agents/#parameters) only from a
+definition that is registered in code or saved in the management database. A run that
+sends `parameters` to an agent of your source is therefore refused with `400`, and each
+value is named as unknown. This is also true when the definition that your source
+compiles declares the parameter.
+
+The compiler binds the `DefaultValue` of each parameter. A required parameter that has
+no default fails every run before the model is called. Give each parameter of such a
+definition a default. To give one run its own text, send the text in the run's
+messages.
+
 For a definition source, let the compiler own dependency fingerprints and the BYOK
 cache bypass. Do not repeat that logic in your source.
 

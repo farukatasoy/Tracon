@@ -79,7 +79,11 @@ A run supplies values on the `parameters` field of `POST /api/agents/{name}/run`
 parameter with no value and no `DefaultValue` stops the run before it starts, and
 names the missing parameter; a value for a name the schema does not declare is
 rejected too, not silently dropped. This holds for a definition saved through the
-API and for one registered in code with `AddAgent`.
+API and for one registered in code with `AddAgent`. Tracon reads the schema from
+those two places only. An agent from a factory or a
+[custom agent source](/guides/write-your-own-agent-source/#a-sources-agent-takes-no-parameter-values)
+has no schema that Tracon can read, so a run that supplies a value for it is refused
+as unknown.
 
 These ways to start a run carry values too:
 
@@ -101,11 +105,27 @@ parameter recording) cannot be repeated when the agent declares parameters: runn
 it on the defaults would change the instructions. That refusal says so.
 
 Every other entry point carries no values: the OpenAI-compatible endpoints, MCP, A2A,
-an agent called by another agent, and voice. Those runs bind each parameter's
+an agent called by another agent, voice, and an agent that your own .NET code resolves
+from `IAgentCatalog` and runs in-process. Those runs bind each parameter's
 `DefaultValue`, and an agent with a required parameter that has no default does not
 run there. Where a request enters, it is refused (`400` with `missingParameters`);
 where there is no request to refuse, the run fails before any model call and names
 the parameter. Such a run records no values, so it cannot be replayed.
+
+`IAgentCatalog.ResolveAsync` has no argument for parameter values. .NET code that runs
+a catalog agent itself has two ways to give one run text of its own:
+
+- **Send the text in the run's messages.** The run records its messages, so a replay
+  sends the text again.
+- **Append the text to the instructions** with `ChatClientAgentRunOptions`, as
+  [model options for one run](/guides/any-maf-feature/#add-an-option-a-provider-or-a-ring-with-an-agent-extension)
+  describes. The model receives the text, but the run records only its messages and
+  parameter values. A replay or a continuation runs without the appended text.
+
+To bind parameter values from .NET, start the run on a path that carries them: the run
+endpoint (the `Tracon.Client` request has a `Parameters` property), an
+[agent batch item](/guides/background-work/#give-an-item-its-own-values), or a workflow
+(`WorkflowRunRequest.Parameters`).
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security
