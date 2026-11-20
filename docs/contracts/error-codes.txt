@@ -43,6 +43,7 @@ tool_timeout
 tracon.job.approval-save-failed
 tracon.job.attempts-exhausted
 tracon.job.handler-activation-failed
+tracon.job.host-tenant-scope-failed
 tracon.job.max-duration-exceeded
 tracon.job.session-save-failed
 tracon.job.unknown-handler-key

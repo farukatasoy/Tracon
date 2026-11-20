@@ -36,7 +36,7 @@ internal sealed class JobWorkerBackgroundService(
     ILogger<JobWorkerBackgroundService>? logger = null,
     TraconMetrics? metrics = null,
     IWebhookPublisher? webhookPublisher = null,
-    IJobTenantCapSource? tenantCapSource = null) : BackgroundService, ISwitchedLoop
+    JobTenantBindings? tenancy = null) : BackgroundService, ISwitchedLoop
 {
     /// <summary>
     /// The handler-key metric tag published for a job whose key no handler is
@@ -251,7 +251,7 @@ internal sealed class JobWorkerBackgroundService(
                             Owner = _ownerId,
                             LeaseDuration = options.LeaseDuration,
                             Lanes = lanes,
-                            TenantCap = tenantCapSource?.Current,
+                            TenantCap = tenancy?.CapSource?.Current,
                         },
                         ct),
                     CallBudgetOf(options.LeaseDuration),
@@ -452,6 +452,42 @@ internal sealed class JobWorkerBackgroundService(
         // to precede the container call -- a scoped dependency may read
         // ITenantContext while it is being constructed.
         using var tenantScope = AmbientTenantScope.Begin(job.TenantId);
+
+        // The host's own tenant scope, opened next to Tracon's, in this same body for the same reason: a value the host
+        // writes to an AsyncLocal does not come back from an async helper. A host that throws leaves nobody to own the
+        // job's outcome, so it is closed here as a job that never reached its handler.
+        IDisposable? hostScope;
+
+        try
+        {
+            hostScope = tenancy?.HostScope?.Begin(job.TenantId);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+        {
+            var scopeRef = SafeErrorText.NewCorrelationId();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(
+                    exception,
+                    "The host's tenant scope could not be opened for job {JobId}. (ref: {CorrelationId})",
+                    job.Id,
+                    scopeRef);
+            }
+
+            await FailWithoutRunningAsync(
+                job,
+                JobErrorCodes.Format(JobErrorCodes.HostTenantScopeFailed, scopeRef),
+                _clock.GetUtcNow(),
+                startedAt,
+                job.HandlerKey,
+                CallBudgetOf(options.LeaseDuration),
+                stoppingToken).ConfigureAwait(false);
+
+            return;
+        }
+
+        using var hostScopeEnd = new HostScopeEnd(hostScope, logger, job.Id, stoppingToken);
 
         // 🚨 One scope per EXECUTION, not per process: two jobs running in
         // parallel, and two attempts of the same job, each get their own
@@ -2088,6 +2124,33 @@ internal sealed class JobWorkerBackgroundService(
         /// went on would be refused (the job is closed or requeued) and read as a lost lease.
         /// </summary>
         public void Settled() => renewal.Stop();
+    }
+
+    /// <summary>
+    /// Ends the host's scope when the job's execution ends. A scope that throws on <c>Dispose</c> is logged and changes
+    /// nothing about the job: the host's mistake must not undo a result the job already wrote.
+    /// </summary>
+    private sealed class HostScopeEnd(IDisposable? scope, ILogger? logger, Guid jobId, CancellationToken stoppingToken) : IDisposable
+    {
+        public void Dispose()
+        {
+            if (scope is null)
+            {
+                return;
+            }
+
+            try
+            {
+                scope.Dispose();
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+            {
+                if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                {
+                    logger.LogWarning(exception, "The host's tenant scope threw when it ended for job {JobId}.", jobId);
+                }
+            }
+        }
     }
 
     /// <summary>What one fenced finalization step came to.</summary>

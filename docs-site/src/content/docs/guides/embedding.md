@@ -396,35 +396,37 @@ tree).
 
 ### Your own tenant scope does not follow a queued run
 
-A queued or scheduled run starts on Tracon's job worker, with no request. The worker
-opens `AmbientTenantScope` for the job's tenant, so `TraconRunContext.Current.TenantId`
-is that tenant. Your application's own ambient tenant does not change: a framework
-service that a request middleware sets still holds what the worker has, which is no
-tenant. A tool that reads your own tenant-filtered data opens your framework's scope
-from the run's tenant, in its own body, around that read. Below, the two delegates stand
-for your framework's scope call and your own query:
+A queued or scheduled run starts on Tracon's job worker, with no request. The worker opens
+`AmbientTenantScope` for the job's tenant, so `TraconRunContext.Current.TenantId` is that tenant.
+Your application's own ambient tenant does not change: a framework service that a request middleware
+sets still holds what the worker has, which is no tenant. A tool that reads your own tenant-filtered data
+then reads the rows that belong to no tenant, and nothing says so.
+
+`IHostTenantScope` closes the gap in one place. Register it, and the worker calls it for every job, right
+after it opens its own scope and before it builds the container scope the job runs in. It disposes what
+you return when the job ends. The handler, the agent's tools and decorators, and the sub-agents it calls
+all run inside your scope:
 
 ```csharp
-public sealed class OpenOrderCount(
-    Func<string?, IDisposable> beginYourTenantScope,
-    Func<CancellationToken, Task<int>> countOpenOrders)
+public sealed class AcmeTenantScope(Func<string, IDisposable> changeCurrentTenant) : IHostTenantScope
 {
-    public async Task<int> CountAsync(CancellationToken cancellationToken)
-    {
-        var scope = TraconRunContext.Current
-            ?? throw new InvalidOperationException("The tool ran outside a run.");
-
-        using (beginYourTenantScope(scope.TenantId))
-        {
-            return await countOpenOrders(cancellationToken);
-        }
-    }
+    // Your framework's own call; the identifier is Tracon's (lower case), mapped to your key here.
+    public IDisposable? Begin(string tenantId) => changeCurrentTenant(tenantId);
 }
 ```
 
-The same code is correct on a run that a request starts, where both values already
-agree. The tool takes both when it is built, not at call time (see
-[A tool that takes a dependency](/guides/from-maf-hosting/#a-tool-that-takes-a-dependency)).
+Register it with `services.AddSingleton<IHostTenantScope, AcmeTenantScope>()`. There is no default:
+without a registration the worker calls nothing. The implementation is a singleton and is called
+concurrently, once for each job, so it must not hold a scoped service. `Begin` is synchronous on purpose:
+a value you write to an `AsyncLocal` inside it reaches the job, and an asynchronous method would lose it.
+
+If `Begin` throws, the job fails before it runs, with the code `tracon.job.host-tenant-scope-failed`, and it is
+not tried again: an application that does not know the tenant will not know it on the next attempt.
+If `Dispose` throws, the error is logged and the job's result stays as it was. Only the job worker
+calls it: every other path that runs a tool (a request, a voice session, an A2A call) starts from a request,
+where your middleware has already opened your scope. A tool that must also work on a host that did not
+register the interface can still open the framework's scope itself from `TraconRunContext.Current.TenantId`,
+in its own body.
 
 ### Start an agent run from your own code, with values
 

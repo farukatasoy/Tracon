@@ -137,6 +137,9 @@ public static class TraconErrorTypes
     /// <summary>The job was leased again past its attempt limit.</summary>
     public const string JobAttemptsExhausted = "tracon.job.attempts-exhausted";
 
+    /// <summary>The host's tenant scope (<see cref="IHostTenantScope"/>) could not be opened for the job's tenant.</summary>
+    public const string JobHostTenantScopeFailed = "tracon.job.host-tenant-scope-failed";
+
     /// <summary>The attempt ran longer than the job's time limit.</summary>
     public const string JobMaxDurationExceededCode = "tracon.job.max-duration-exceeded";
 

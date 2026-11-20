@@ -307,6 +307,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.JobHandlerRegistry | Singleton | Factory",
         "Tracon.ITraconStartupCheck | Singleton | Tracon.JobHandlerRegistryValidator",
         "Tracon.IJobDispatcher | Singleton | Factory",
+        "Tracon.JobTenantBindings | Singleton | Factory",
         "Tracon.JobWorkerBackgroundService | Singleton | Tracon.JobWorkerBackgroundService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.GatedLoop`1[Tracon.JobWorkerBackgroundService]",
         "Tracon.JobQueueDepthObserver | Singleton | Factory",

@@ -66,6 +66,17 @@ public static class JobErrorCodes
     public const string AttemptsExhausted = TraconErrorTypes.JobAttemptsExhausted;
 
     /// <summary>
+    /// The host's tenant scope (<see cref="IHostTenantScope"/>) threw when the worker asked it to open the scope of the
+    /// job's tenant, so the job failed without ever being executed.
+    /// </summary>
+    /// <remarks>
+    /// The job is failed rather than released: an application that does not know the tenant will not know it on the
+    /// next attempt either, and a job that re-leased forever would hide the mistake. The exception's own detail goes
+    /// to the log, under the correlation id the message carries.
+    /// </remarks>
+    public const string HostTenantScopeFailed = TraconErrorTypes.JobHostTenantScopeFailed;
+
+    /// <summary>
     /// The attempt ran longer than the job's time limit
     /// (<see cref="JobRecord.MaxDuration"/>, or
     /// <c>TraconSchedulingOptions.MaxDurationByHandlerKey</c> for its key), the worker

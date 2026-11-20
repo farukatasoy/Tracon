@@ -99,7 +99,7 @@ public sealed class JobWorkerTenantCapTests
             new SchemaReadyGate([]),
             new NotDraining(),
             logger: NullLogger<JobWorkerBackgroundService>.Instance,
-            tenantCapSource: capSource);
+            tenancy: new JobTenantBindings(capSource, HostScope: null));
 
     private static async Task<Guid> EnqueueAsync(IJobStore jobs, string tenantId, DateTimeOffset scheduledFor)
     {

@@ -436,6 +436,12 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<IRunAttributionContext>()));
 
+        // The two tenant concerns of the worker, taken together so its constructor does not grow for each: the
+        // ceiling the workflows package names, and the scope the host opens (both optional, both null when nobody made one).
+        services.TryAddSingleton(static provider => new JobTenantBindings(
+            provider.GetService<IJobTenantCapSource>(),
+            provider.GetService<IHostTenantScope>()));
+
         // Behind a gate: a host that serves requests and leaves the jobs to a
         // worker process (RunWorker = false) does not build the worker at all.
         services.TryAddGatedLoop<JobWorkerBackgroundService>();

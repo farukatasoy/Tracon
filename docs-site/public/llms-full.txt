@@ -51,9 +51,9 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Agent extensions | Code that sets a Microsoft Agent Framework option, adds an `AIContextProvider` or a chat client ring, or wraps the compiled agent, while the agent keeps the model rings, the tenant's key, egress, and cost | `AddAgentExtension(name, configure)`; a definition selects it in AgentDefinition.ExtensionNames | Code defines, data selects. The compiler refuses a change to what the definition or the tenant owns (tool chain, chat history, file access, model settings). A tool a provider adds skips the tool chain |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
 | Definition transfer | Export agents, workflows, skills and MCP servers as one file; import it with a dry run first, version pins translated, nothing written unless the whole file is valid | `tracon export/import` | No history, run, `secret`, token or plain header value travels ([guide](/guides/move-definitions/)) |
-| Custom agent source | Lists agents from a repository or external runtime, and builds each agent itself | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API. The agent is opaque: it takes no parameter values |
+| Agent source | Lists agents from a repository or external runtime, and builds each agent itself | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API. The agent is opaque: it takes no parameter values |
 | Definition source | Returns agent definitions from Git, an object store, or your own database; Tracon compiles them | `AddAgentDefinitionSource<T>()`, instance, or factory | Parameters, cache, version pins and descriptor work as for a stored agent. A lower `Priority` than the database wins the name. Read-only in the management API |
-| Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
+| Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | `IAgentDefinitionValidator`, `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only; a response cut off at the output limit fails as `OutputTruncated` and is never repaired (plain text completes with a `tracon.output.truncated` event); OpenAI and Azure OpenAI take `strictJsonSchema`, and `POST /api/agents/validate` shows the schema each provider receives |
 | Agent graph | An agent calls other agents as tasks or tools, at a pinned version if set | `CallableAgents` | `SubAgents.CallMode` picks background tasks or one tool each. Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns. Each call also has a two-layer wait limit (`SubAgentSettings`, or the installation-wide default): a cooperative deadline, then a hard cutoff that abandons a child that ignores cancellation |
@@ -203,7 +203,7 @@ production behavior.
 | Suite grading seam | `AddEvalEvaluatorFactory<T>()` or an instance | Replaces the MAF `LocalEvaluator` an eval suite is graded with |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
 | Eval run comparison | `GET /api/evals/runs/{id}/diff` or `IEvalStore.DiffRunsAsync` | Two runs of a suite align case by case into six buckets; added and dropped cases are never counted as regressions |
-| Relative CI gate | `tracon eval --baseline <runId\|previous> --max-regressions <n>` | A build fails on the cases that broke against an earlier run, not only on an absolute pass rate |
+| Relative CI gate | `tracon eval --baseline`, `--max-regressions` | A build fails on the cases that broke against an earlier run, not only on an absolute pass rate |
 | Experiments | Experiment API and console | Stable traffic assignment compares agent versions and reports each arm separately |
 | Canary rollback | Explicit canary policy | A background scan can stop or roll back a canary when its configured rule fails |
 
@@ -287,7 +287,7 @@ conditional or separately mapped, so they are not all represented by the generat
 
 | Capability | What it gives you | Enable or bind it | Boundary |
 |---|---|---|---|
-| Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `ITenantStore` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request |
+| Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `ITenantStore`, `IHostTenantScope` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request; `IHostTenantScope` opens your own tenant scope around each queued job |
 | Run attribution | Attributes a run to your own user and job labels | `IRunAttributionContext` | Unset by default; the columns stay `NULL` until you register one |
 | Tool authorization | Decides whether a caller may invoke a specific tool | `IToolAuthorizationHandler`; per tenant, a [tool policy](/concepts/tools/#per-tenant-tool-policy) in front of it | Allows every call by default; a thrown exception denies the call. A tenant with no policy passes the policy unless `Tracon:Tools:RequireTenantPolicy` is on |
 | Run and session authorization | Decides whether a caller may start a run, reach an existing run's resources, or read/list/delete/branch/speak into a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call and is logged as an error. Called explicitly at every run-starting endpoint, at every message an A2A agent receives and every MCP tool call, and at every run-resource endpoint, not one shared filter |
@@ -12406,35 +12406,37 @@ tree).
 
 ### Your own tenant scope does not follow a queued run
 
-A queued or scheduled run starts on Tracon's job worker, with no request. The worker
-opens `AmbientTenantScope` for the job's tenant, so `TraconRunContext.Current.TenantId`
-is that tenant. Your application's own ambient tenant does not change: a framework
-service that a request middleware sets still holds what the worker has, which is no
-tenant. A tool that reads your own tenant-filtered data opens your framework's scope
-from the run's tenant, in its own body, around that read. Below, the two delegates stand
-for your framework's scope call and your own query:
+A queued or scheduled run starts on Tracon's job worker, with no request. The worker opens
+`AmbientTenantScope` for the job's tenant, so `TraconRunContext.Current.TenantId` is that tenant.
+Your application's own ambient tenant does not change: a framework service that a request middleware
+sets still holds what the worker has, which is no tenant. A tool that reads your own tenant-filtered data
+then reads the rows that belong to no tenant, and nothing says so.
+
+`IHostTenantScope` closes the gap in one place. Register it, and the worker calls it for every job, right
+after it opens its own scope and before it builds the container scope the job runs in. It disposes what
+you return when the job ends. The handler, the agent's tools and decorators, and the sub-agents it calls
+all run inside your scope:
 
 ```csharp
-public sealed class OpenOrderCount(
-    Func<string?, IDisposable> beginYourTenantScope,
-    Func<CancellationToken, Task<int>> countOpenOrders)
+public sealed class AcmeTenantScope(Func<string, IDisposable> changeCurrentTenant) : IHostTenantScope
 {
-    public async Task<int> CountAsync(CancellationToken cancellationToken)
-    {
-        var scope = TraconRunContext.Current
-            ?? throw new InvalidOperationException("The tool ran outside a run.");
-
-        using (beginYourTenantScope(scope.TenantId))
-        {
-            return await countOpenOrders(cancellationToken);
-        }
-    }
+    // Your framework's own call; the identifier is Tracon's (lower case), mapped to your key here.
+    public IDisposable? Begin(string tenantId) => changeCurrentTenant(tenantId);
 }
 ```
 
-The same code is correct on a run that a request starts, where both values already
-agree. The tool takes both when it is built, not at call time (see
-[A tool that takes a dependency](/guides/from-maf-hosting/#a-tool-that-takes-a-dependency)).
+Register it with `services.AddSingleton<IHostTenantScope, AcmeTenantScope>()`. There is no default:
+without a registration the worker calls nothing. The implementation is a singleton and is called
+concurrently, once for each job, so it must not hold a scoped service. `Begin` is synchronous on purpose:
+a value you write to an `AsyncLocal` inside it reaches the job, and an asynchronous method would lose it.
+
+If `Begin` throws, the job fails before it runs, with the code `tracon.job.host-tenant-scope-failed`, and it is
+not tried again: an application that does not know the tenant will not know it on the next attempt.
+If `Dispose` throws, the error is logged and the job's result stays as it was. Only the job worker
+calls it: every other path that runs a tool (a request, a voice session, an A2A call) starts from a request,
+where your middleware has already opened your scope. A tool that must also work on a host that did not
+register the interface can still open the framework's scope itself from `TraconRunContext.Current.TenantId`,
+in its own body.
 
 ### Start an agent run from your own code, with values
 
@@ -12489,9 +12491,12 @@ if (report.Valid)
 }
 else
 {
-    foreach (var message in report.Messages.Where(static message => message.Severity == ValidationSeverity.Error))
+    foreach (var message in report.Messages)
     {
-        Console.Error.WriteLine($"{message.Code} at {message.Path}: {message.Message}");
+        if (message.Severity == ValidationSeverity.Error)
+        {
+            Console.Error.WriteLine($"{message.Code} at {message.Path}: {message.Message}");
+        }
     }
 }
 ```

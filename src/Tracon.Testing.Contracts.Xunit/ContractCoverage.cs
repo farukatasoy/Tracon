@@ -39,6 +39,9 @@ public static class ContractCoverage
     /// <summary>The namespace holding agent-source contracts.</summary>
     public const string AgentSourceContracts = "Tracon.Testing.Contracts.AgentSources";
 
+    /// <summary>The namespace holding the contracts of the host's tenant scope.</summary>
+    public const string TenancyContracts = "Tracon.Testing.Contracts.Tenancy";
+
     /// <summary>The namespace holding custom tool contracts.</summary>
     public const string ToolContracts = "Tracon.Testing.Contracts.Tools";
 

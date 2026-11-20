@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A queued run's tools can read your own tenant scope: `IHostTenantScope`.** The job worker opened Tracon's `AmbientTenantScope` for a job and left your application's own scope (the current tenant of your multi-tenant framework) as it was, so a tool that read your tenant-filtered data read the rows of no tenant. The workaround was to open the framework's scope in every tool. Register `IHostTenantScope` (`services.AddSingleton<IHostTenantScope, YourScope>()`) and the worker calls `Begin(tenantId)` for every job, after it opens its own scope and before it creates the container scope, and disposes the result when the job ends. If `Begin` throws, the job fails before it runs with `tracon.job.host-tenant-scope-failed` and is not tried again. Without a registration nothing changes. `HostTenantScopeContract` in `Tracon.Testing.Contracts.Xunit` checks an implementation.
+  What to do:
+  - **If your tools open the framework's scope themselves, you can keep them as they are or remove that code once you register the interface.**
+
 - **Your own code can validate a definition before it saves it: `IAgentDefinitionValidator`.** `IAgentDefinitionStore.SaveAsync` stores what it is given, so a seed or a migrator saved a definition that could not be compiled (an Anthropic model with a `Temperature`, a tool nobody registered) and the first resolve of the agent failed. The HTTP writers and the import ran the check; your own code had no way to. `ValidateAsync(definition)` returns the same report as `POST /api/agents/validate` (`AgentValidationReport`, `ValidationMessage`, `ValidationSeverity` and `ResponseSchemaReport` are now public types, with the same JSON). It reads the registries and the ambient tenant, writes nothing and calls no model.
   What to do:
   - **If you write definitions from code, call it first and save only a report with `Valid` true.** Read the warnings too.

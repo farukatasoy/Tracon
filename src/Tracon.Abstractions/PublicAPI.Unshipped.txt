@@ -6044,3 +6044,7 @@ static Tracon.ResponseSchemaReport.operator !=(Tracon.ResponseSchemaReport? left
 static Tracon.ResponseSchemaReport.operator ==(Tracon.ResponseSchemaReport? left, Tracon.ResponseSchemaReport? right) -> bool
 static Tracon.ValidationMessage.operator !=(Tracon.ValidationMessage? left, Tracon.ValidationMessage? right) -> bool
 static Tracon.ValidationMessage.operator ==(Tracon.ValidationMessage? left, Tracon.ValidationMessage? right) -> bool
+Tracon.IHostTenantScope
+Tracon.IHostTenantScope.Begin(string! tenantId) -> System.IDisposable?
+const Tracon.JobErrorCodes.HostTenantScopeFailed = "tracon.job.host-tenant-scope-failed" -> string!
+const Tracon.TraconErrorTypes.JobHostTenantScopeFailed = "tracon.job.host-tenant-scope-failed" -> string!

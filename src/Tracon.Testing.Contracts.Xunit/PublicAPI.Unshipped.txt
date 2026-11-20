@@ -1374,3 +1374,14 @@ abstract Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceCon
 virtual Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.UnknownAgentName.get -> string!
 virtual Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.UnknownVersion.get -> int
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.SaveAsync_refuses_a_blank_name(string! name) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract
+Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.A_scope_opened_inside_another_restores_the_outer_tenant_when_it_ends() -> void
+Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.A_scope_that_ends_in_one_flow_does_not_end_the_scope_of_another() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.Begin_makes_the_tenant_current_and_dispose_puts_the_previous_one_back() -> void
+Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.Disposing_a_scope_twice_does_no_harm() -> void
+Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.HostTenantScopeContract() -> void
+Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.Two_flows_of_two_tenants_open_at_the_same_moment_each_see_their_own() -> System.Threading.Tasks.Task!
+abstract Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.CreateScope() -> Tracon.IHostTenantScope!
+abstract Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.ReadHostTenant() -> string?
+const Tracon.Testing.Contracts.ContractCoverage.TenancyContracts = "Tracon.Testing.Contracts.Tenancy" -> string!
+virtual Tracon.Testing.Contracts.Tenancy.HostTenantScopeContract.TenantKey(string! tenantId) -> string!
