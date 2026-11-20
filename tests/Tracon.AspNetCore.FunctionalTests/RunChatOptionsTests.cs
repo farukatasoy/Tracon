@@ -29,7 +29,7 @@ public sealed class RunChatOptionsTests
     {
         var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, static cfg => cfg.EchoesUserMessage());
         await using var host = await StartAsync(provider);
-        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         var exception = await Should.ThrowAsync<ArgumentException>(
             () => agent.RunAsync("hi", session: null, new ChatClientAgentRunOptions(new ChatOptions { ModelId = "other-model" })));
@@ -44,7 +44,7 @@ public sealed class RunChatOptionsTests
     {
         var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, static cfg => cfg.EchoesUserMessage());
         await using var host = await StartAsync(provider);
-        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         await agent.RunAsync(
             "hi",
@@ -71,7 +71,7 @@ public sealed class RunChatOptionsTests
     {
         var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, static cfg => cfg.EchoesUserMessage());
         await using var host = await StartAsync(provider);
-        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         var exception = await Should.ThrowAsync<ArgumentException>(
             () => agent.RunAsync("hi", session: null, new ChatClientAgentRunOptions(new ChatOptions { Seed = 42 })));

@@ -53,7 +53,7 @@ public sealed class ContosoProviderRunTests
         await using var host = BuildHost();
 
         var catalog = host.GetRequiredService<IAgentCatalog>();
-        var agent = await catalog.ResolveAsync(AgentName, culture: null, TestContext.Current.CancellationToken);
+        var agent = await catalog.ResolveAsync(AgentName, cancellationToken: TestContext.Current.CancellationToken);
 
         agent.ShouldNotBeNull();
 
@@ -84,7 +84,7 @@ public sealed class ContosoProviderRunTests
 
         var catalog = host.GetRequiredService<IAgentCatalog>();
         var agent = await catalog.ResolveAsync(
-            "contoso-shouted-binding", culture: null, TestContext.Current.CancellationToken);
+            "contoso-shouted-binding", cancellationToken: TestContext.Current.CancellationToken);
 
         agent.ShouldNotBeNull();
         (await agent.RunAsync("still routed")).Text.ShouldContain("still routed");
@@ -110,7 +110,7 @@ public sealed class ContosoProviderRunTests
 
         var exception = await Should.ThrowAsync<TraconCompilationException>(
             async () => await catalog.ResolveAsync(
-                "bound-to-nothing", culture: null, TestContext.Current.CancellationToken));
+                "bound-to-nothing", cancellationToken: TestContext.Current.CancellationToken));
 
         exception.Message.ShouldContain(ContosoModelProvider.ProviderName);
     }

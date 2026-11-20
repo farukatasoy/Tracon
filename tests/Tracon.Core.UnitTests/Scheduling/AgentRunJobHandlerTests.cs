@@ -553,10 +553,7 @@ public sealed class AgentRunJobHandlerTests
         public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
             => new((IReadOnlyList<AgentDescriptor>)[]);
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
-            => throw failure;
-
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, AgentResolveOptions? options = null, CancellationToken cancellationToken = default)
             => throw failure;
     }
 
@@ -568,16 +565,9 @@ public sealed class AgentRunJobHandlerTests
         public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
             => new((IReadOnlyList<AgentDescriptor>)[]);
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, AgentResolveOptions? options = null, CancellationToken cancellationToken = default)
         {
-            Resolutions.Add((null, culture));
-
-            return new(agent);
-        }
-
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
-        {
-            Resolutions.Add((version, culture));
+            Resolutions.Add((options?.Version, options?.Culture));
 
             return new(agent);
         }

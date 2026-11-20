@@ -240,7 +240,7 @@ public sealed class SubAgentTimeoutTests
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
         var exception = await Should.ThrowAsync<TraconCompilationException>(
-            async () => await catalog.ResolveAsync("yonlendirici", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("yonlendirici", cancellationToken: CancellationToken.None));
 
         exception.AgentName.ShouldBe("yonlendirici");
         exception.Message.ShouldContain(nameof(SubAgentSettings.WaitTimeout));
@@ -274,7 +274,7 @@ public sealed class SubAgentTimeoutTests
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        return (await catalog.ResolveAsync("yonlendirici", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        return (await catalog.ResolveAsync("yonlendirici", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
     }
 
     /// <summary>Reads the root run's event types without requiring a wait-limit event.</summary>

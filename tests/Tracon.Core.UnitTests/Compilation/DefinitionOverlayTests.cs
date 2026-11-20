@@ -62,8 +62,8 @@ public sealed class DefinitionOverlayTests
         await Should.ThrowAsync<NotSupportedException>(async () => await store.SaveAsync(Agent("a")));
         await Should.ThrowAsync<NotSupportedException>(async () => await store.DeleteAsync("a"));
         await Should.ThrowAsync<NotSupportedException>(async () => await store.RollbackAsync("a", 1));
-        await Should.ThrowAsync<NotSupportedException>(async () => await catalog.ResolveAsync("a", culture: null, CancellationToken.None));
-        await Should.ThrowAsync<NotSupportedException>(async () => await catalog.ResolveAsync("a", version: 1));
+        await Should.ThrowAsync<NotSupportedException>(async () => await catalog.ResolveAsync("a", cancellationToken: CancellationToken.None));
+        await Should.ThrowAsync<NotSupportedException>(async () => await catalog.ResolveAsync("a", new AgentResolveOptions { Version = 1 }));
     }
 
     [Fact]
@@ -86,10 +86,7 @@ public sealed class DefinitionOverlayTests
         public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
             => ValueTask.FromResult<IReadOnlyList<AgentDescriptor>>([]);
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
-            => ValueTask.FromResult<AIAgent?>(null);
-
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, AgentResolveOptions? options = null, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<AIAgent?>(null);
     }
 }

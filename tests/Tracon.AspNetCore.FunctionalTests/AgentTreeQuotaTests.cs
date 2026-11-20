@@ -132,7 +132,7 @@ public sealed class AgentTreeQuotaTests
         await using var host = await StartAsync(publisher);
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var researcher = (await catalog.ResolveAsync("arastirmaci", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var researcher = (await catalog.ResolveAsync("arastirmaci", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         await researcher.RunAsync("direct");
 
@@ -145,7 +145,7 @@ public sealed class AgentTreeQuotaTests
     private static async Task RunRouterAsync(TraconTestHost host, bool streaming)
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var router = (await catalog.ResolveAsync("yonlendirici", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var router = (await catalog.ResolveAsync("yonlendirici", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         if (streaming)
         {

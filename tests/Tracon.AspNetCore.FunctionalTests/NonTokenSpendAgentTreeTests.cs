@@ -86,7 +86,7 @@ public sealed class NonTokenSpendAgentTreeTests
     private static async Task RunRouterAsync(TraconTestHost host)
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var router = (await catalog.ResolveAsync("yonlendirici", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var router = (await catalog.ResolveAsync("yonlendirici", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         var response = await router.RunAsync("start");
 

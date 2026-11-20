@@ -139,10 +139,7 @@ public sealed class AgentVersionPinTests
             return new ValueTask<IReadOnlyList<AgentDescriptor>>(descriptors);
         }
 
-        public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
-            => throw new NotSupportedException("the pin check never compiles an agent");
-
-        public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+        public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(string agentName, AgentResolveOptions? options = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("the pin check never compiles an agent");
     }
 }

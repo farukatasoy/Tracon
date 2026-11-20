@@ -527,21 +527,14 @@ internal sealed class WorkflowTestHost
                 }),
             ]);
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, AgentResolveOptions? options = null, CancellationToken cancellationToken = default)
         {
-            calls.Enqueue((agentName, null));
+            calls.Enqueue((agentName, options?.Version));
 
-            return new(agents.GetValueOrDefault(agentName));
-        }
-
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
-        {
-            calls.Enqueue((agentName, version));
-
-            // A pinned resolution answers with the agent registered for that version when the test
+            // A pinned resolution answers with the agent registered for that options?.Version when the test
             // registered one, and with the plain agent otherwise (the way every test before the
             // pins behaved).
-            return new(version is { } pinned && versionedAgents.TryGetValue((agentName, pinned), out var agent)
+            return new(options?.Version is { } pinned && versionedAgents.TryGetValue((agentName, pinned), out var agent)
                 ? agent
                 : agents.GetValueOrDefault(agentName));
         }

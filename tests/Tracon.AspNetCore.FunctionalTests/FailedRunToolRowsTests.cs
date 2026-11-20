@@ -132,7 +132,7 @@ public sealed class FailedRunToolRowsTests
             .AddAgent(AgentDefinitionFor(First)));
 
         var agent = (await host.Services.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(Agent, culture: null, CancellationToken.None)).ShouldNotBeNull();
+            .ResolveAsync(Agent, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         using var cancellation = new CancellationTokenSource();
 
@@ -362,7 +362,7 @@ public sealed class FailedRunToolRowsTests
         });
 
         var agent = (await host.Services.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(Agent, culture: null, CancellationToken.None)).ShouldNotBeNull();
+            .ResolveAsync(Agent, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         (await agent.RunAsync("start")).Text.ShouldContain("Delegated: Child saw:", Case.Sensitive);
 

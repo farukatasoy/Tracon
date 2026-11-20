@@ -71,7 +71,7 @@ public sealed class HarnessApprovalContinuationTests
         await using var host = await StartAsync(harness: true, () => Interlocked.Increment(ref calls));
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var agent = (await catalog.ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await catalog.ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
         var session = await agent.CreateSessionAsync();
 
         var first = await agent.RunAsync([new ChatMessage(ChatRole.User, "Cancel ORD-7.")], session);

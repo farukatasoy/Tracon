@@ -55,7 +55,7 @@ public sealed class OrderFulfillmentToolRunTests
 
         await using var provider = services.BuildServiceProvider();
         var agent = await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(
-            "fulfillment", culture: null, TestContext.Current.CancellationToken)
+            "fulfillment", cancellationToken: TestContext.Current.CancellationToken)
             ?? throw new InvalidOperationException("The fulfillment agent was not registered.");
 
         var response = await agent.RunAsync("Submit order ORD-42.");
@@ -84,7 +84,7 @@ public sealed class OrderFulfillmentToolRunTests
 
         await using var provider = services.BuildServiceProvider();
         var agent = await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(
-            "preview", culture: null, TestContext.Current.CancellationToken)
+            "preview", cancellationToken: TestContext.Current.CancellationToken)
             ?? throw new InvalidOperationException("The preview agent was not registered.");
 
         var response = await agent.RunAsync("Preview order ORD-43.");
@@ -123,7 +123,7 @@ public sealed class OrderFulfillmentToolRunTests
 
         await using var provider = services.BuildServiceProvider();
         var agent = await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(
-            "preview-guarded", culture: null, TestContext.Current.CancellationToken)
+            "preview-guarded", cancellationToken: TestContext.Current.CancellationToken)
             ?? throw new InvalidOperationException("The preview-guarded agent was not registered.");
 
         var response = await agent.RunAsync($"Preview order {CardNumber}.");

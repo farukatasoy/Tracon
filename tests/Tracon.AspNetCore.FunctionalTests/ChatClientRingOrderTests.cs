@@ -104,7 +104,7 @@ public sealed class ChatClientRingOrderTests
             .AddAgentExtension("twice", static context => context.UseChatClient(ChatClientSlot.ModelCall, static inner => new TwiceRing(inner)))
             .AddAgent(Definition(["twice"])));
 
-        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
         var options = new TraconRunOptions { Budget = new AgentRunBudget { MaxTotalTokens = 15 } };
 
         await Should.ThrowAsync<TraconRunBudgetExceededException>(async () => await agent.RunAsync(
@@ -207,7 +207,7 @@ public sealed class ChatClientRingOrderTests
                 }),
             configureServices: static services => services.AddDistributedMemoryCache());
 
-        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         var first = await agent.RunAsync("Hello there", cancellationToken: TestContext.Current.CancellationToken);
         var second = await agent.RunAsync("hello THERE", cancellationToken: TestContext.Current.CancellationToken);

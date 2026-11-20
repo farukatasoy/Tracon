@@ -127,7 +127,7 @@ public sealed class AgentDecoratorRegistrationTests
             decorators.Select(decorator => decorator.WithSink(applied)),
             NullLogger<CompositeAgentCatalog>.Instance);
 
-        await catalog.ResolveAsync("alpha", culture: null, CancellationToken.None);
+        await catalog.ResolveAsync("alpha", cancellationToken: CancellationToken.None);
 
         // CompositeAgentCatalog sorts by descending Order and wraps the previous
         // step's result each time, so the HIGHEST Order runs FIRST and ends up

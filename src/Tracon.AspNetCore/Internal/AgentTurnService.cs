@@ -294,8 +294,8 @@ internal static class AgentTurnService
             else
             {
                 agent = assignment is null
-                    ? await catalog.ResolveAsync(name, request.Culture, cancellationToken).ConfigureAwait(false)
-                    : await catalog.ResolveAsync(name, assignment.Version, request.Culture, cancellationToken).ConfigureAwait(false);
+                    ? await catalog.ResolveAsync(name, new AgentResolveOptions { Culture = request.Culture }, cancellationToken).ConfigureAwait(false)
+                    : await catalog.ResolveAsync(name, new AgentResolveOptions { Version = assignment.Version, Culture = request.Culture }, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (TraconException ex)

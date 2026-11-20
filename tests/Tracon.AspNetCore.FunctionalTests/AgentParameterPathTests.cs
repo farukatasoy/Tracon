@@ -212,7 +212,7 @@ public sealed class AgentParameterPathTests
         await using var host = await StartAsync(provider, queueWorker: false);
 
         var agent = await host.Services.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(Required, culture: null, CancellationToken.None);
+            .ResolveAsync(Required, cancellationToken: CancellationToken.None);
 
         var exception = await Should.ThrowAsync<TraconException>(async () => await agent!.RunAsync("hi"));
 

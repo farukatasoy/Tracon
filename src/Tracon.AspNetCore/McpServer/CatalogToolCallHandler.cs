@@ -14,7 +14,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The agent is resolved with <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>;
+/// The agent is resolved with <see cref="IAgentCatalog.ResolveAsync(string, AgentResolveOptions?, CancellationToken)"/>;
 /// the returned agent is already wrapped with <c>RunRecordingAgent</c>, so this
 /// call produces a normal <c>runs</c> row and normal quota consumption — a
 /// second recording path is NOT written.
@@ -82,7 +82,7 @@ internal static class CatalogToolCallHandler
 
         try
         {
-            agent = await catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false);
+            agent = await catalog.ResolveAsync(agentName, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (TraconException ex) when (UncompilableAgentCall.Matches(ex))
         {

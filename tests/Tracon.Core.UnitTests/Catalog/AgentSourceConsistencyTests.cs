@@ -21,7 +21,7 @@ public sealed class AgentSourceConsistencyTests
         var source = new UnlistedResolveSource("ghost", "phantom-agent");
         var catalog = new CompositeAgentCatalog([source], [], NullLogger<CompositeAgentCatalog>.Instance);
 
-        var agent = await catalog.ResolveAsync("phantom-agent", culture: null, CancellationToken.None);
+        var agent = await catalog.ResolveAsync("phantom-agent", cancellationToken: CancellationToken.None);
 
         agent.ShouldNotBeNull();
     }
@@ -33,7 +33,7 @@ public sealed class AgentSourceConsistencyTests
         var decorator = new SpyDecorator();
         var catalog = new CompositeAgentCatalog([source], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
-        await catalog.ResolveAsync("phantom-agent", culture: null, CancellationToken.None);
+        await catalog.ResolveAsync("phantom-agent", cancellationToken: CancellationToken.None);
 
         var descriptor = decorator.LastDescriptor.ShouldNotBeNull();
         descriptor.Name.ShouldBe("phantom-agent");
@@ -54,7 +54,7 @@ public sealed class AgentSourceConsistencyTests
 
         var catalog = new CompositeAgentCatalog([source], [], NullLogger<CompositeAgentCatalog>.Instance, metrics);
 
-        await catalog.ResolveAsync("phantom-agent", culture: null, CancellationToken.None);
+        await catalog.ResolveAsync("phantom-agent", cancellationToken: CancellationToken.None);
 
         collector.Values(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
     }

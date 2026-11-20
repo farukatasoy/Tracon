@@ -16,7 +16,7 @@ namespace Tracon;
 /// The same HTTP-independent path used by the HTTP layer and
 /// <see cref="AgentBatchJobHandler"/> to resolve and run an agent is followed
 /// here: each case is run in a <strong>new session</strong> (session: null) on
-/// the agent resolved via <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>.
+/// the agent resolved via <see cref="IAgentCatalog.ResolveAsync(string, AgentResolveOptions?, CancellationToken)"/>.
 /// Since the agent is already wrapped by the run-recording decorator, each
 /// case naturally produces its own <c>runs</c> row.
 /// </para>
@@ -193,9 +193,9 @@ internal sealed class EvalJobHandler(
         // Eval is independent of the concept of an experiment: it runs against
         // a fixed version, not a variant.
         var agent = agentVersion is { } version
-            ? await catalog.ResolveAsync(suite.AgentName, version, culture: null, cancellationToken).ConfigureAwait(false)
+            ? await catalog.ResolveAsync(suite.AgentName, new AgentResolveOptions { Version = version }, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"Version {version} of agent '{suite.AgentName}' was not found.")
-            : await catalog.ResolveAsync(suite.AgentName, culture: null, cancellationToken).ConfigureAwait(false)
+            : await catalog.ResolveAsync(suite.AgentName, cancellationToken: cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException(
                     $"No agent named '{suite.AgentName}' exists in the catalog. The eval suite's agent may have been deleted.");
 

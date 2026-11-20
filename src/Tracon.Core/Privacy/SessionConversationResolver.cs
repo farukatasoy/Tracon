@@ -108,7 +108,7 @@ internal sealed class SessionConversationResolver
                 continue;
             }
 
-            var agent = await _catalog.ResolveAsync(record.AgentName, culture: null, cancellationToken).ConfigureAwait(false);
+            var agent = await _catalog.ResolveAsync(record.AgentName, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (agent is null)
             {

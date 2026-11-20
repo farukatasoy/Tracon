@@ -32,9 +32,9 @@ public sealed class FactoryAgentUnregisteredProviderTests
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
         var definition = await Should.ThrowAsync<TraconCompilationException>(async () =>
-            await catalog.ResolveAsync(DefinitionAgentName, culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync(DefinitionAgentName, cancellationToken: TestContext.Current.CancellationToken));
         var factory = await Should.ThrowAsync<TraconCompilationException>(async () =>
-            await catalog.ResolveAsync(FactoryAgentName, culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync(FactoryAgentName, cancellationToken: TestContext.Current.CancellationToken));
 
         factory.AgentName.ShouldBe(FactoryAgentName);
         factory.Message.ShouldStartWith($"Agent '{FactoryAgentName}' could not be compiled: ", Case.Sensitive);

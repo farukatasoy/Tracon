@@ -346,7 +346,7 @@ public sealed class BackgroundChildQuotaTests
     private static async Task RunRouterAsync(TraconTestHost host, bool streaming)
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var router = (await catalog.ResolveAsync("yonlendirici", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var router = (await catalog.ResolveAsync("yonlendirici", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         if (streaming)
         {

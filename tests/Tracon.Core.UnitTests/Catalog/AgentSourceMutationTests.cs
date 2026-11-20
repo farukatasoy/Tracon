@@ -38,7 +38,7 @@ public sealed class AgentSourceMutationTests
         var decorator = new SpyDecorator();
         var catalog = new CompositeAgentCatalog([source], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
-        await catalog.ResolveAsync(MutableSource.AgentName, culture: null, CancellationToken.None);
+        await catalog.ResolveAsync(MutableSource.AgentName, cancellationToken: CancellationToken.None);
         var descriptor = decorator.LastDescriptor.ShouldNotBeNull();
 
         source.Mutate();

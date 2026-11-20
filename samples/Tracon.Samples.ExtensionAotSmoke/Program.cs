@@ -65,7 +65,7 @@ var result = await tool.InvokeAsync(new AIFunctionArguments(StringComparer.Ordin
 // and the Contoso model echoes the last message it is sent, which is the memory.
 var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 var sessions = host.Services.GetRequiredService<AgentSessionManager>();
-var memoryAgent = await catalog.ResolveAsync("memory-agent", culture: null, CancellationToken.None)
+var memoryAgent = await catalog.ResolveAsync("memory-agent", cancellationToken: CancellationToken.None)
     ?? throw new InvalidOperationException("The memory agent was not found.");
 
 var first = await sessions.GetOrCreateSessionAsync(memoryAgent, "aot-session-1");

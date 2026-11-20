@@ -302,7 +302,7 @@ internal sealed class RunReplayService
                 "ACTUALLY run and produce side effects.");
         }
 
-        var agent = await _catalog.ResolveAsync(source.AgentName, culture: null, cancellationToken).ConfigureAwait(false);
+        var agent = await _catalog.ResolveAsync(source.AgentName, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         if (agent is null)
         {

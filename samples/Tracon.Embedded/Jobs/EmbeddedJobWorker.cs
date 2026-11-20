@@ -30,7 +30,7 @@ internal sealed class EmbeddedJobWorker(
             {
                 try
                 {
-                    var agent = await catalog.ResolveAsync("assistant", culture: null, stoppingToken).ConfigureAwait(false);
+                    var agent = await catalog.ResolveAsync("assistant", cancellationToken: stoppingToken).ConfigureAwait(false);
 
                     if (agent is null)
                     {

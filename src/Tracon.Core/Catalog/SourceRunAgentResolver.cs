@@ -47,12 +47,12 @@ internal static class SourceRunAgentResolver
         if (sourceVersion is { } version &&
             await KeepsVersionHistoryAsync(catalog, agentName, cancellationToken).ConfigureAwait(false))
         {
-            var pinned = await catalog.ResolveAsync(agentName, version, culture, cancellationToken).ConfigureAwait(false);
+            var pinned = await catalog.ResolveAsync(agentName, new AgentResolveOptions { Version = version, Culture = culture }, cancellationToken).ConfigureAwait(false);
 
             return (pinned, version);
         }
 
-        var current = await catalog.ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
+        var current = await catalog.ResolveAsync(agentName, new AgentResolveOptions { Culture = culture }, cancellationToken).ConfigureAwait(false);
 
         return (current, null);
     }

@@ -171,7 +171,7 @@ internal sealed class LiveVoiceSessionLauncher
         try
         {
             var resolved = await _catalog
-                .ResolveAsync(request.AgentName, culture: null, cancellationToken)
+                .ResolveAsync(request.AgentName, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             if (resolved is null)
@@ -203,7 +203,7 @@ internal sealed class LiveVoiceSessionLauncher
             _provider,
             request,
             agent.Agent,
-            cancellationToken => catalog.ResolveAsync(agentName, culture: null, cancellationToken),
+            cancellationToken => catalog.ResolveAsync(agentName, cancellationToken: cancellationToken),
             agent.Session,
             options,
             _store,

@@ -74,8 +74,8 @@ internal sealed class CallableAgentResolver
     /// </exception>
     public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture, CancellationToken cancellationToken = default)
         => version is null
-            ? ResolveCatalog().ResolveAsync(agentName, culture, cancellationToken)
-            : ResolveCatalog().ResolveAsync(agentName, version, culture, cancellationToken);
+            ? ResolveCatalog().ResolveAsync(agentName, new AgentResolveOptions { Culture = culture }, cancellationToken)
+            : ResolveCatalog().ResolveAsync(agentName, new AgentResolveOptions { Version = version, Culture = culture }, cancellationToken);
 
     /// <summary>Finds the first agent version pin of a workflow definition that cannot be honoured.</summary>
     /// <param name="definition">The definition to check.</param>

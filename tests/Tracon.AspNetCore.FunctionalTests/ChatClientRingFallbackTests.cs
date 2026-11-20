@@ -161,7 +161,7 @@ public sealed class ChatClientRingFallbackTests
                 options.CircuitBreaker.BreakDuration = TimeSpan.FromMinutes(5);
             }));
 
-        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         await Should.ThrowAsync<Exception>(() => agent.RunAsync("first", cancellationToken: TestContext.Current.CancellationToken));
         var second = await Should.ThrowAsync<Exception>(() => agent.RunAsync("second", cancellationToken: TestContext.Current.CancellationToken));

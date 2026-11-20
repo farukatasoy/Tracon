@@ -89,7 +89,7 @@ public sealed class NonTokenSpendTests
             configureOptions: options => options.AgentGraph.MaxTotalCost = 1m);
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var narrator = (await catalog.ResolveAsync("narrator", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var narrator = (await catalog.ResolveAsync("narrator", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         await Should.ThrowAsync<TraconRunBudgetExceededException>(() => narrator.RunAsync("go"));
     }
@@ -347,7 +347,7 @@ public sealed class NonTokenSpendTests
     private static async Task RunAgentAsync(TraconTestHost host)
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var narrator = (await catalog.ResolveAsync("narrator", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var narrator = (await catalog.ResolveAsync("narrator", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         var response = await narrator.RunAsync("go");
 

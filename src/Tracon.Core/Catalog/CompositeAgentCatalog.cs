@@ -95,10 +95,20 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     }
 
     /// <inheritdoc />
-    public async ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
+    public async ValueTask<AIAgent?> ResolveAsync(
+        string agentName,
+        AgentResolveOptions? options = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
 
+        return options?.Version is { } version
+            ? await ResolveVersionAsync(agentName, version, options.Culture, cancellationToken).ConfigureAwait(false)
+            : await ResolveCurrentAsync(agentName, options?.Culture, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<AIAgent?> ResolveCurrentAsync(string agentName, string? culture, CancellationToken cancellationToken)
+    {
         foreach (var source in _sources)
         {
             AIAgent? agent;
@@ -155,20 +165,12 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         return null;
     }
 
-    /// <inheritdoc />
-    public async ValueTask<AIAgent?> ResolveAsync(
+    private async ValueTask<AIAgent?> ResolveVersionAsync(
         string agentName,
-        int? version,
-        string? culture = null,
-        CancellationToken cancellationToken = default)
+        int version,
+        string? culture,
+        CancellationToken cancellationToken)
     {
-        if (version is null)
-        {
-            return await ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
-        }
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
-
         foreach (var source in _sources)
         {
             // If this source does not define the agent, continue with the next source.
@@ -212,19 +214,19 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
                 if (source is IDescribingAgentSource describing)
                 {
                     var described = await describing
-                        .ResolveDescribedAsync(agentName, version.Value, culture, cancellationToken)
+                        .ResolveDescribedAsync(agentName, version, culture, cancellationToken)
                         .ConfigureAwait(false)
-                        ?? throw new TraconException($"Version {version.Value} of agent '{agentName}' was not found.");
+                        ?? throw new TraconException($"Version {version} of agent '{agentName}' was not found.");
 
                     agent = described.Agent;
                     descriptor = Freeze(described.Descriptor);
                 }
                 else
                 {
-                    agent = await versioned.ResolveVersionAsync(agentName, version.Value, culture, cancellationToken).ConfigureAwait(false)
-                        ?? throw new TraconException($"Version {version.Value} of agent '{agentName}' was not found.");
+                    agent = await versioned.ResolveVersionAsync(agentName, version, culture, cancellationToken).ConfigureAwait(false)
+                        ?? throw new TraconException($"Version {version} of agent '{agentName}' was not found.");
 
-                    descriptor = descriptor with { Version = version.Value };
+                    descriptor = descriptor with { Version = version };
                 }
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
@@ -259,7 +261,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     /// <returns>
     /// <see langword="true"/> when the first source in priority order that
     /// lists the name is an <see cref="IVersionedAgentSource"/> — the same
-    /// source <see cref="ResolveAsync(string, int?, string?, CancellationToken)"/>
+    /// source <see cref="ResolveAsync(string, AgentResolveOptions?, CancellationToken)"/>
     /// pins against; <see langword="false"/> when it is not, or when no source
     /// lists the name.
     /// </returns>

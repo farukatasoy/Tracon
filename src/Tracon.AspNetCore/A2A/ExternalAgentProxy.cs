@@ -315,7 +315,7 @@ internal sealed class ExternalAgentProxy : AIAgent
 
         try
         {
-            resolved = await catalog.ResolveAsync(_agentName, culture: null, cancellationToken).ConfigureAwait(false);
+            resolved = await catalog.ResolveAsync(_agentName, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (TraconException ex) when (UncompilableAgentCall.Matches(ex))
         {

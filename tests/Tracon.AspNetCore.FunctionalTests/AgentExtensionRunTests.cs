@@ -339,7 +339,7 @@ public sealed class AgentExtensionRunTests
 
         try
         {
-            await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None);
+            await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None);
         }
         catch (TraconCompilationException exception)
         {
@@ -381,7 +381,7 @@ public sealed class AgentExtensionRunTests
 
         try
         {
-            await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None);
+            await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None);
         }
         catch (TraconCompilationException exception)
         {
@@ -495,7 +495,7 @@ public sealed class AgentExtensionRunTests
 
         try
         {
-            var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+            var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
             var session = await agent.CreateSessionAsync();
             await agent.RunAsync([new ChatMessage(ChatRole.User, [forged])], session).WaitAsync(TimeSpan.FromSeconds(30));
         }
@@ -539,7 +539,7 @@ public sealed class AgentExtensionRunTests
 
         try
         {
-            var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+            var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
             concurrent = agent.GetService<IChatClient>()?.GetService<FunctionInvokingChatClient>()?.AllowConcurrentInvocation;
         }
         catch (TraconCompilationException exception)

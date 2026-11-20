@@ -338,7 +338,7 @@ public sealed class HarnessDefaultsTests
             });
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var agent = (await catalog.ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await catalog.ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
         var response = await agent.RunAsync([new ChatMessage(ChatRole.User, "Cancel ORD-7.")], await agent.CreateSessionAsync());
 
         calls.ShouldBe(0);
@@ -404,7 +404,7 @@ public sealed class HarnessDefaultsTests
     private static async Task<string> RunAsync(TraconTestHost host, bool streaming = false)
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var agent = (await catalog.ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await catalog.ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
         var session = await agent.CreateSessionAsync();
         List<ChatMessage> messages = [new(ChatRole.User, "Where is order A-17?")];
 

@@ -465,7 +465,7 @@ internal sealed class VoiceConversationDriver
 
             try
             {
-                _agent = await driver._catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false);
+                _agent = await driver._catalog.ResolveAsync(agentName, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             catch (TraconException exception)
             {
@@ -695,7 +695,7 @@ internal sealed class VoiceConversationDriver
             // connection for the rest of the connection after its server was edited
             // or deleted. A cache hit while nothing changed; the name stays the one
             // `start` named. The newest instance also writes the history.
-            _agent = await driver._catalog.ResolveAsync(_agentName!, culture: null, cancellationToken).ConfigureAwait(false)
+            _agent = await driver._catalog.ResolveAsync(_agentName!, cancellationToken: cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"There is no agent named '{_agentName}'.");
 
             // A harness loop hands over its final iteration only: every

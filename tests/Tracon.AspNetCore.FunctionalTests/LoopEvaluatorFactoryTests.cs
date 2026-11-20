@@ -177,7 +177,7 @@ public sealed class LoopEvaluatorFactoryTests
                 })));
 
         var agent = (await host.Services.GetRequiredService<IAgentCatalog>()
-                .ResolveAsync(AgentName, culture: null, CancellationToken.None))
+                .ResolveAsync(AgentName, cancellationToken: CancellationToken.None))
             .ShouldNotBeNull();
         var session = await agent.CreateSessionAsync();
 
@@ -203,7 +203,7 @@ public sealed class LoopEvaluatorFactoryTests
     private static async Task RunAsync(TraconTestHost host)
     {
         var agent = (await host.Services.GetRequiredService<IAgentCatalog>()
-                .ResolveAsync(AgentName, culture: null, CancellationToken.None))
+                .ResolveAsync(AgentName, cancellationToken: CancellationToken.None))
             .ShouldNotBeNull();
         var session = await agent.CreateSessionAsync();
 

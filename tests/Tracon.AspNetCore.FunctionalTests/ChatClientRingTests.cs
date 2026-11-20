@@ -109,7 +109,7 @@ public sealed class ChatClientRingTests
                 },
             });
 
-        var agent = await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, TestContext.Current.CancellationToken);
+        var agent = await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: TestContext.Current.CancellationToken);
         agent.ShouldNotBeNull();
 
         // The agent holds two model clients: its own and the summarizer. Only its own took the ring.
@@ -207,7 +207,7 @@ public sealed class ChatClientRingTests
         provider.Requests.ShouldBeEmpty();
 
         // An agent with no ring still compiles on the host's registry.
-        var plain = await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync("plain-agent", culture: null, TestContext.Current.CancellationToken);
+        var plain = await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync("plain-agent", cancellationToken: TestContext.Current.CancellationToken);
         plain.ShouldNotBeNull();
     }
 
@@ -233,7 +233,7 @@ public sealed class ChatClientRingTests
                 Origin = AgentDefinitionOrigin.Code,
             }));
 
-        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
         using var cancellation = new CancellationTokenSource();
 
         var run = agent.RunAsync("wait", cancellationToken: cancellation.Token);
@@ -253,7 +253,7 @@ public sealed class ChatClientRingTests
 
         try
         {
-            await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, TestContext.Current.CancellationToken);
+            await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: TestContext.Current.CancellationToken);
         }
         catch (TraconCompilationException exception)
         {

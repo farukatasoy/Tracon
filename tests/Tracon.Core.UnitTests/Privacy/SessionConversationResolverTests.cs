@@ -308,7 +308,7 @@ public sealed class SessionConversationResolverTests
         public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
             => new(Array.Empty<AgentDescriptor>());
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, AgentResolveOptions? options = null, CancellationToken cancellationToken = default)
         {
             Resolutions++;
 
@@ -326,9 +326,6 @@ public sealed class SessionConversationResolverTests
 
             return new(_agents.GetValueOrDefault(agentName));
         }
-
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
-            => ResolveAsync(agentName, culture, cancellationToken);
     }
 
     private sealed class ListLogger : ILogger<SessionConversationResolver>

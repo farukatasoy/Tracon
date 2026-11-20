@@ -260,10 +260,7 @@ public sealed class ForeignCancellationEndpointTests
                 ? throw new TaskCanceledException("the agent source timed out")
                 : new((IReadOnlyList<AgentDescriptor>)[new AgentDescriptor { Name = "alpha", Origin = AgentDefinitionOrigin.Code, SourceName = "code" }]);
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
-            => throw new NotSupportedException();
-
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, AgentResolveOptions? options = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 

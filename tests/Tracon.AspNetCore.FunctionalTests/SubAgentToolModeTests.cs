@@ -291,7 +291,7 @@ public sealed class SubAgentToolModeTests
         read.ShouldContain("\"callMode\":\"Tool\"", Case.Sensitive);
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var agent = (await catalog.ResolveAsync("stored-router", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await catalog.ResolveAsync("stored-router", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         (await agent.RunAsync("start")).Text.ShouldContain("Delegated: Sub task done", Case.Sensitive);
         ToolNames(provider, RouterModel).ShouldAllBe(names => names.Contains(ChildTool, StringComparer.Ordinal));
@@ -465,7 +465,7 @@ public sealed class SubAgentToolModeTests
     private static async Task<string> RunRouterAsync(TraconTestHost host, bool streaming)
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var agent = (await catalog.ResolveAsync("yonlendirici", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await catalog.ResolveAsync("yonlendirici", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         if (!streaming)
         {

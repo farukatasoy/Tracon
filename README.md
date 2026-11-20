@@ -122,7 +122,7 @@ builder.AddTracon()
        .UseUI();                              // embedded console
 
 // Run with a durable session
-var agent = await catalog.ResolveAsync("support", culture: null, CancellationToken.None);
+var agent = await catalog.ResolveAsync("support", cancellationToken: CancellationToken.None);
 var session = await sessions.GetOrCreateSessionAsync(agent!, "customer-42");
 var response = await agent!.RunAsync("Where is my order?", session);
 await sessions.SaveSessionAsync(agent, session);

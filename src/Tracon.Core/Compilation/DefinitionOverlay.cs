@@ -142,14 +142,9 @@ internal sealed class OverlayAgentCatalog : IAgentCatalog
         => _overlay.MergeDescriptors(await _inner.ListAsync(cancellationToken).ConfigureAwait(false));
 
     /// <inheritdoc />
-    public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
-        => throw Refused();
-
-    /// <inheritdoc />
     public ValueTask<AIAgent?> ResolveAsync(
         string agentName,
-        int? version,
-        string? culture = null,
+        AgentResolveOptions? options = null,
         CancellationToken cancellationToken = default)
         => throw Refused();
 

@@ -310,7 +310,7 @@ public sealed class LoopIterationFrameTests
         await using var host = await StartAsync(provider, MarkerLoop(maxIterations: 6));
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var agent = (await catalog.ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await catalog.ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         var options = new TraconRunOptions
         {

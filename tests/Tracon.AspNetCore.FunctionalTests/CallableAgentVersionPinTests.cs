@@ -105,7 +105,7 @@ public sealed class CallableAgentVersionPinTests
         await UpdateRouterAsync(host, SubAgentCallMode.Tool, new CallableAgentReference { Name = Researcher });
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var pinnedParent = (await catalog.ResolveAsync(Router, version: 1, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var pinnedParent = (await catalog.ResolveAsync(Router, new AgentResolveOptions { Version = 1 }, CancellationToken.None)).ShouldNotBeNull();
 
         _ = await pinnedParent.RunAsync("start");
 
@@ -117,7 +117,7 @@ public sealed class CallableAgentVersionPinTests
         // The router's model calls the callee once more, then answers as before.
         provider.ForModel(RouterModel, static router => router.CallsTool(Researcher, new { query = "sub task" }));
 
-        var currentParent = (await catalog.ResolveAsync(Router, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var currentParent = (await catalog.ResolveAsync(Router, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         _ = await currentParent.RunAsync("start");
 
@@ -147,7 +147,7 @@ public sealed class CallableAgentVersionPinTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
         var failure = await Should.ThrowAsync<TraconCompilationException>(
-            async () => await catalog.ResolveAsync(Router, culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync(Router, cancellationToken: CancellationToken.None));
 
         failure.AgentName.ShouldBe(Router);
         failure.Message.ShouldContain("pins callable agent 'researcher' to version 1", Case.Sensitive);
@@ -562,7 +562,7 @@ public sealed class CallableAgentVersionPinTests
     private static async Task RunRouterAsync(TraconTestHost host, bool streaming)
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
-        var agent = (await catalog.ResolveAsync(Router, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        var agent = (await catalog.ResolveAsync(Router, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         if (!streaming)
         {

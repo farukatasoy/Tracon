@@ -10,7 +10,7 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// It follows the same HTTP-independent path as the HTTP layer to resolve and run
-/// agents. An agent resolved by <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>
+/// agents. An agent resolved by <see cref="IAgentCatalog.ResolveAsync(string, AgentResolveOptions?, CancellationToken)"/>
 /// is already wrapped in the run-recording decorator, so every run writes a normal
 /// <c>runs</c> row through <see cref="IRunStore"/>. It processes items <strong>in sequence</strong>
 /// because provider rate limits would constrain parallelism. Parallelism between jobs
@@ -52,7 +52,7 @@ internal sealed class AgentBatchJobHandler(
         using var attribution = queued is null ? null : AmbientRunAttributionScope.Begin(queued.UserId, queued.Labels);
 
         // Resolved once up front so a job naming no agent fails as a whole, as before.
-        var probe = await catalog.ResolveAsync(context.Job.TargetName, culture: null, cancellationToken).ConfigureAwait(false)
+        var probe = await catalog.ResolveAsync(context.Job.TargetName, cancellationToken: cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException(
                 $"The agent named '{context.Job.TargetName}' was not found. The job will be marked as failed.");
 
@@ -125,7 +125,7 @@ internal sealed class AgentBatchJobHandler(
                 // server edit or delete had closed - every later item called it. A
                 // cache hit while nothing changed. An item whose agent no longer
                 // resolves fails on its own, like an item whose run fails.
-                var agent = await catalog.ResolveAsync(context.Job.TargetName, culture: null, cancellationToken).ConfigureAwait(false)
+                var agent = await catalog.ResolveAsync(context.Job.TargetName, cancellationToken: cancellationToken).ConfigureAwait(false)
                     ?? throw new TraconException($"The agent named '{context.Job.TargetName}' no longer exists.");
 
                 IReadOnlyDictionary<string, string>? recordedValues = null;

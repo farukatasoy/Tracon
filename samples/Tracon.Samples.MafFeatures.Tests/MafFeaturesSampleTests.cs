@@ -36,7 +36,7 @@ public sealed class MafFeaturesSampleTests
         await using var host = BuildHost(provider, new ModelBinding { Provider = "fake", Model = "fake-model" });
 
         var agent = await host.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(agentName, culture: null, TestContext.Current.CancellationToken);
+            .ResolveAsync(agentName, cancellationToken: TestContext.Current.CancellationToken);
         agent.ShouldNotBeNull();
 
         var response = await agent.RunAsync("What does acme have open?", cancellationToken: TestContext.Current.CancellationToken);
@@ -61,7 +61,7 @@ public sealed class MafFeaturesSampleTests
         await BindTenantKeyAsync(host, "byok");
 
         var agent = await host.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(MafFeaturesRegistration.SupportAgentName, culture: null, TestContext.Current.CancellationToken);
+            .ResolveAsync(MafFeaturesRegistration.SupportAgentName, cancellationToken: TestContext.Current.CancellationToken);
         agent.ShouldNotBeNull();
 
         await agent.RunAsync("Can I refund 250?", cancellationToken: TestContext.Current.CancellationToken);
@@ -87,7 +87,7 @@ public sealed class MafFeaturesSampleTests
         await using var host = BuildHost(provider, new ModelBinding { Provider = "fake", Model = "fake-model" });
 
         var agent = await host.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(MafFeaturesRegistration.SupportAgentName, culture: null, TestContext.Current.CancellationToken);
+            .ResolveAsync(MafFeaturesRegistration.SupportAgentName, cancellationToken: TestContext.Current.CancellationToken);
         agent.ShouldNotBeNull();
 
         var response = await agent.RunAsync("What does acme have open?", cancellationToken: TestContext.Current.CancellationToken);
@@ -114,7 +114,7 @@ public sealed class MafFeaturesSampleTests
         await BindTenantKeyAsync(host, "byok");
 
         var agent = await host.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(InvoiceAssistantSource.AgentName, culture: null, TestContext.Current.CancellationToken);
+            .ResolveAsync(InvoiceAssistantSource.AgentName, cancellationToken: TestContext.Current.CancellationToken);
         agent.ShouldNotBeNull();
 
         await agent.RunAsync("Is invoice 7 paid?", cancellationToken: TestContext.Current.CancellationToken);
@@ -140,7 +140,7 @@ public sealed class MafFeaturesSampleTests
         await BindTenantKeyAsync(host, "byok");
 
         var agent = await host.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(OrderAssistantRegistration.AgentName, culture: null, TestContext.Current.CancellationToken);
+            .ResolveAsync(OrderAssistantRegistration.AgentName, cancellationToken: TestContext.Current.CancellationToken);
         agent.ShouldNotBeNull();
 
         await agent.RunAsync("Is order 1042 open?", cancellationToken: TestContext.Current.CancellationToken);
@@ -174,7 +174,7 @@ public sealed class MafFeaturesSampleTests
         {
             _ = attempt;
 
-            var agent = await catalog.ResolveAsync(PlainOrderAssistantRegistration.AgentName, culture: null, TestContext.Current.CancellationToken);
+            var agent = await catalog.ResolveAsync(PlainOrderAssistantRegistration.AgentName, cancellationToken: TestContext.Current.CancellationToken);
             agent.ShouldNotBeNull();
             await agent.RunAsync("Is order 1042 open?", cancellationToken: TestContext.Current.CancellationToken);
         }
@@ -209,9 +209,9 @@ public sealed class MafFeaturesSampleTests
 
         // Both build the client with the asynchronous call, which checks the policy.
         await Should.ThrowAsync<TraconTenantProviderRefusedException>(async () =>
-            await catalog.ResolveAsync(InvoiceAssistantSource.AgentName, culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync(InvoiceAssistantSource.AgentName, cancellationToken: TestContext.Current.CancellationToken));
         await Should.ThrowAsync<TraconTenantProviderRefusedException>(async () =>
-            await catalog.ResolveAsync(OrderAssistantRegistration.AgentName, culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync(OrderAssistantRegistration.AgentName, cancellationToken: TestContext.Current.CancellationToken));
 
         provider.Keys.ShouldBeEmpty();
     }
@@ -230,7 +230,7 @@ public sealed class MafFeaturesSampleTests
         // The factory's synchronous call does not check it: the agent runs against a provider
         // the tenant may not use. This is the loss the guide names.
         var plainAgent = await host.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(PlainOrderAssistantRegistration.AgentName, culture: null, TestContext.Current.CancellationToken);
+            .ResolveAsync(PlainOrderAssistantRegistration.AgentName, cancellationToken: TestContext.Current.CancellationToken);
         plainAgent.ShouldNotBeNull();
 
         await plainAgent.RunAsync("Is order 1042 open?", cancellationToken: TestContext.Current.CancellationToken);

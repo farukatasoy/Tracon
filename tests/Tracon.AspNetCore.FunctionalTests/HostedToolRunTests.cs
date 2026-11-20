@@ -486,7 +486,7 @@ public sealed class HostedToolRunTests
     }
 
     private static async Task<AIAgent> ResolveAsync(TraconTestHost host)
-        => (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        => (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
     private static async Task RunAsync(TraconTestHost host, bool streaming)
     {

@@ -108,9 +108,9 @@ public sealed class FactoryAgentModelTests
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
         await Should.ThrowAsync<TraconTenantProviderRefusedException>(async () =>
-            await catalog.ResolveAsync(DefinitionAgentName, culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync(DefinitionAgentName, cancellationToken: TestContext.Current.CancellationToken));
         await Should.ThrowAsync<TraconTenantProviderRefusedException>(async () =>
-            await catalog.ResolveAsync(FactoryAgentName, culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync(FactoryAgentName, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -228,7 +228,7 @@ public sealed class FactoryAgentModelTests
         using var canceled = new CancellationTokenSource();
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        var resolving = catalog.ResolveAsync("waiting-agent", culture: null, canceled.Token).AsTask();
+        var resolving = catalog.ResolveAsync("waiting-agent", cancellationToken: canceled.Token).AsTask();
 
         await canceled.CancelAsync();
 
@@ -243,9 +243,9 @@ public sealed class FactoryAgentModelTests
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
         var sync = await Should.ThrowAsync<TraconAgentSourceException>(async () =>
-            await catalog.ResolveAsync("throwing-agent", culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync("throwing-agent", cancellationToken: TestContext.Current.CancellationToken));
         var asynchronous = await Should.ThrowAsync<TraconAgentSourceException>(async () =>
-            await catalog.ResolveAsync("throwing-async-agent", culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync("throwing-async-agent", cancellationToken: TestContext.Current.CancellationToken));
 
         asynchronous.Message.ShouldBe(sync.Message);
         asynchronous.InnerException.ShouldBeOfType<InvalidOperationException>();
@@ -259,7 +259,7 @@ public sealed class FactoryAgentModelTests
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
         var exception = await Should.ThrowAsync<TraconException>(async () =>
-            await catalog.ResolveAsync("null-agent", culture: null, TestContext.Current.CancellationToken));
+            await catalog.ResolveAsync("null-agent", cancellationToken: TestContext.Current.CancellationToken));
 
         exception.Message.ShouldContain("null-agent");
     }

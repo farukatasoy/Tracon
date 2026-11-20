@@ -305,7 +305,7 @@ public static partial class TraconBuilderExtensions
     ///                        throw new InvalidOperationException("The run tree has no room for the reviewer.");
     ///                    }
     ///
-    ///                    var reviewer = await catalog.ResolveAsync("reviewer", culture: null, cancellationToken)
+    ///                    var reviewer = await catalog.ResolveAsync("reviewer", cancellationToken: cancellationToken)
     ///                        ?? throw new InvalidOperationException("No agent named 'reviewer'.");
     ///                    var options = scope is null ? null : new TraconRunOptions
     ///                    {

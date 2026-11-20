@@ -66,7 +66,7 @@ internal sealed class DraftReviewCriterion(IAgentCatalog catalog) : LoopEvaluato
             throw new InvalidOperationException("The run tree has no room left for the reviewer run.");
         }
 
-        var reviewer = await catalog.ResolveAsync(ReviewerAgent, culture: null, cancellationToken).ConfigureAwait(false)
+        var reviewer = await catalog.ResolveAsync(ReviewerAgent, cancellationToken: cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"No agent named '{ReviewerAgent}' is registered.");
 
         var options = scope is null

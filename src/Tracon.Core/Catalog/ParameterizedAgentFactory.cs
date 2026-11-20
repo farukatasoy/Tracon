@@ -13,7 +13,7 @@ namespace Tracon;
 /// <strong>This is the one place the "compile outside the catalog" sequence
 /// lives.</strong> A parameterized run bypasses <see cref="CompiledAgentCache"/>
 /// (the cache key has no notion of a value), which means it also bypasses
-/// <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/> and the
+/// <see cref="IAgentCatalog.ResolveAsync(string, AgentResolveOptions?, CancellationToken)"/> and the
 /// decorator chain the catalog applies. The caller therefore has to find the
 /// definition (code first), compile with the values, and apply
 /// <see cref="AgentDecoratorPipeline"/> by hand or the run goes out with no

@@ -55,7 +55,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([broken, lowerPriority], [], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<TraconAgentSourceException>(
-            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("shared", cancellationToken: CancellationToken.None));
 
         lowerPriority.ResolveCalls.ShouldBe(0);
     }
@@ -67,7 +67,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
 
         var exception = await Should.ThrowAsync<TraconAgentSourceException>(
-            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("shared", cancellationToken: CancellationToken.None));
 
         exception.SourceName.ShouldBe("broken");
         exception.ErrorType.ShouldBe(TraconAgentSourceException.SourceFailedErrorType);
@@ -86,7 +86,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
 
         (await Should.ThrowAsync<DbException>(
-            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None)))
+            async () => await catalog.ResolveAsync("shared", cancellationToken: CancellationToken.None)))
             .ShouldBeSameAs(failure);
     }
 
@@ -110,7 +110,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
 
         (await Should.ThrowAsync<Exception>(
-            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None)))
+            async () => await catalog.ResolveAsync("shared", cancellationToken: CancellationToken.None)))
             .ShouldBeSameAs(failure);
     }
 
@@ -122,9 +122,9 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([source], [new ThrowingDecorator(failure)], NullLogger<CompositeAgentCatalog>.Instance);
 
         (await Should.ThrowAsync<Exception>(
-            async () => await catalog.ResolveAsync("beta", culture: null, CancellationToken.None))).ShouldBeSameAs(failure);
+            async () => await catalog.ResolveAsync("beta", cancellationToken: CancellationToken.None))).ShouldBeSameAs(failure);
         (await Should.ThrowAsync<Exception>(
-            async () => await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None))).ShouldBeSameAs(failure);
+            async () => await catalog.ResolveAsync("beta", new AgentResolveOptions { Version = 1 }, CancellationToken.None))).ShouldBeSameAs(failure);
     }
 
     public static TheoryData<Exception> AllStoreFailures => new()
@@ -165,7 +165,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<TraconAgentSourceException>(
-            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("shared", cancellationToken: CancellationToken.None));
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([broken], [], logger, metrics);
 
         await Should.ThrowAsync<DbException>(
-            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("shared", cancellationToken: CancellationToken.None));
 
         collector.Values(TraconDiagnostics.AgentSourceFailureCounterName).ShouldBe([1]);
         logger.Entries.ShouldContain(entry => entry.Level == LogLevel.Error && entry.Exception is DbException);
@@ -192,9 +192,9 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([source], [new ThrowingDecorator(new InjectedDbException())], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<DbException>(
-            async () => await catalog.ResolveAsync("beta", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("beta", cancellationToken: CancellationToken.None));
         await Should.ThrowAsync<DbException>(
-            async () => await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("beta", new AgentResolveOptions { Version = 1 }, CancellationToken.None));
     }
 
     // A "real" cancellation is one whose token the CALLER cancelled. An
@@ -232,7 +232,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<OperationCanceledException>(
-            async () => await catalog.ResolveAsync("shared", culture: null, caller.Token));
+            async () => await catalog.ResolveAsync("shared", cancellationToken: caller.Token));
     }
 
     [Fact]
@@ -242,7 +242,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
 
         var exception = await Should.ThrowAsync<TraconAgentSourceException>(
-            async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("shared", cancellationToken: CancellationToken.None));
 
         exception.InnerException.ShouldBeOfType<TaskCanceledException>();
     }
@@ -265,7 +265,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([healthy], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
         var exception = await Should.ThrowAsync<TraconAgentSourceException>(
-            async () => await catalog.ResolveAsync("alpha", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("alpha", cancellationToken: CancellationToken.None));
 
         exception.SourceName.ShouldBe("code");
         exception.ErrorType.ShouldBe(TraconAgentSourceException.SourceFailedErrorType);
@@ -282,7 +282,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([healthy], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<OperationCanceledException>(
-            async () => await catalog.ResolveAsync("alpha", culture: null, caller.Token));
+            async () => await catalog.ResolveAsync("alpha", cancellationToken: caller.Token));
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([healthy], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<TraconAgentSourceException>(
-            async () => await catalog.ResolveAsync("alpha", culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("alpha", cancellationToken: CancellationToken.None));
     }
 
     private sealed class ThrowingDecorator(Exception exception) : IAgentDecorator
@@ -313,7 +313,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([source], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
         var exception = await Should.ThrowAsync<TraconAgentSourceException>(
-            async () => await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("beta", new AgentResolveOptions { Version = 1 }, CancellationToken.None));
 
         exception.SourceName.ShouldBe("database");
         exception.ErrorType.ShouldBe(TraconAgentSourceException.SourceFailedErrorType);
@@ -330,7 +330,7 @@ public sealed class AgentSourceFaultIsolationTests
         var catalog = new CompositeAgentCatalog([source], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<OperationCanceledException>(
-            async () => await catalog.ResolveAsync("beta", 1, culture: null, caller.Token));
+            async () => await catalog.ResolveAsync("beta", new AgentResolveOptions { Version = 1 }, caller.Token));
     }
 
     private sealed class HealthyVersionedSource(string name, int priority, string agentName, params int[] versions) : IVersionedAgentSource

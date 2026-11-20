@@ -180,7 +180,7 @@ if (hasPersistence)
             return Results.Problem(title: "Tenant key invalid", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var agent = await catalog.ResolveAsync("assistant", culture: null, cancellationToken).ConfigureAwait(false);
+        var agent = await catalog.ResolveAsync("assistant", cancellationToken: cancellationToken).ConfigureAwait(false);
 
         if (agent is null)
         {

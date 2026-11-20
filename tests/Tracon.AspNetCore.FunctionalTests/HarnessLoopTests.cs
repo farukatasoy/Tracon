@@ -1075,7 +1075,7 @@ public sealed class HarnessLoopTests
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        return (await catalog.ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        return (await catalog.ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
     }
 
     private static async Task<RunRecord> RootRunAsync(TraconTestHost host)

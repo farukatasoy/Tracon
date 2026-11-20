@@ -55,7 +55,7 @@ public sealed class CompositeAgentCatalogTests
 
         var catalog = CreateCatalog(database, code);
 
-        (await catalog.ResolveAsync("shared", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("shared", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         code.ResolveCalls.ShouldBe(1);
         database.ResolveCalls.ShouldBe(0);
@@ -66,7 +66,7 @@ public sealed class CompositeAgentCatalogTests
     {
         var catalog = CreateCatalog(new StubSource("code", priority: 0, "alpha"));
 
-        (await catalog.ResolveAsync("missing", culture: null, CancellationToken.None)).ShouldBeNull();
+        (await catalog.ResolveAsync("missing", cancellationToken: CancellationToken.None)).ShouldBeNull();
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class CompositeAgentCatalogTests
             [decorator],
             NullLogger<CompositeAgentCatalog>.Instance);
 
-        await catalog.ResolveAsync("alpha", culture: null, CancellationToken.None);
+        await catalog.ResolveAsync("alpha", cancellationToken: CancellationToken.None);
 
         decorator.DecorateCalls.ShouldBe(1);
         decorator.LastDescriptor.ShouldNotBeNull();
@@ -90,7 +90,7 @@ public sealed class CompositeAgentCatalogTests
     {
         var catalog = CreateCatalog(new StubSource("code", priority: 0, "alpha"));
 
-        await Should.ThrowAsync<ArgumentException>(async () => await catalog.ResolveAsync("  ", culture: null, CancellationToken.None));
+        await Should.ThrowAsync<ArgumentException>(async () => await catalog.ResolveAsync("  ", cancellationToken: CancellationToken.None));
     }
 
     // --- Version selection ---
@@ -101,7 +101,7 @@ public sealed class CompositeAgentCatalogTests
         var source = new VersionedStubSource("database", 100, "beta", 1, 2);
         var catalog = CreateCatalog(source);
 
-        var agent = await catalog.ResolveAsync("beta", 2, culture: null, CancellationToken.None);
+        var agent = await catalog.ResolveAsync("beta", new AgentResolveOptions { Version = 2 }, CancellationToken.None);
 
         agent.ShouldNotBeNull();
         source.LastRequestedVersion.ShouldBe(2);
@@ -113,7 +113,7 @@ public sealed class CompositeAgentCatalogTests
         var source = new VersionedStubSource("database", 100, "beta", 1, 2);
         var catalog = CreateCatalog(source);
 
-        var agent = await catalog.ResolveAsync("beta", (int?)null, culture: null, CancellationToken.None);
+        var agent = await catalog.ResolveAsync("beta", new AgentResolveOptions { Version = (int?)null }, CancellationToken.None);
 
         agent.ShouldNotBeNull();
     }
@@ -123,7 +123,7 @@ public sealed class CompositeAgentCatalogTests
     {
         var catalog = CreateCatalog(new StubSource("code", priority: 0, "alpha"));
 
-        await Should.ThrowAsync<TraconException>(async () => await catalog.ResolveAsync("alpha", 1, culture: null, CancellationToken.None));
+        await Should.ThrowAsync<TraconException>(async () => await catalog.ResolveAsync("alpha", new AgentResolveOptions { Version = 1 }, CancellationToken.None));
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class CompositeAgentCatalogTests
         var source = new VersionedStubSource("database", 100, "beta", 1);
         var catalog = CreateCatalog(source);
 
-        await Should.ThrowAsync<TraconException>(async () => await catalog.ResolveAsync("beta", 99, culture: null, CancellationToken.None));
+        await Should.ThrowAsync<TraconException>(async () => await catalog.ResolveAsync("beta", new AgentResolveOptions { Version = 99 }, CancellationToken.None));
     }
 
     // --- A run that carries on an earlier run pins its version only where it can ---
@@ -229,12 +229,12 @@ public sealed class CompositeAgentCatalogTests
         var capture = new CapturingDecorator();
         var catalog = new CompositeAgentCatalog([source], [capture], NullLogger<CompositeAgentCatalog>.Instance);
 
-        (await catalog.ResolveAsync("gamma", 1, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("gamma", new AgentResolveOptions { Version = 1 }, CancellationToken.None)).ShouldNotBeNull();
 
         capture.Last!.Version.ShouldBe(1);
         capture.Last.Model!.Model.ShouldBe("model-v1");
 
-        (await catalog.ResolveAsync("gamma", culture: null, CancellationToken.None)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("gamma", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
         capture.Last!.Version.ShouldBe(2);
         capture.Last.Model!.Model.ShouldBe("model-v2");
@@ -249,7 +249,7 @@ public sealed class CompositeAgentCatalogTests
             [capture],
             NullLogger<CompositeAgentCatalog>.Instance);
 
-        (await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("beta", new AgentResolveOptions { Version = 1 }, CancellationToken.None)).ShouldNotBeNull();
 
         capture.Last!.Version.ShouldBe(1);
     }
@@ -287,12 +287,9 @@ public sealed class CompositeAgentCatalogTests
                 new AgentDescriptor { Name = "gamma", Origin = origin, SourceName = "host" },
             ]);
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
-            => new((AIAgent?)null);
-
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, AgentResolveOptions? options = null, CancellationToken cancellationToken = default)
         {
-            RequestedVersion = version;
+            RequestedVersion = options?.Version;
 
             return new((AIAgent?)null);
         }

@@ -194,7 +194,7 @@ internal static class OpenAIResponsesEndpoints
 
         try
         {
-            agent = await catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false);
+            agent = await catalog.ResolveAsync(agentName, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (TraconException ex)
         {

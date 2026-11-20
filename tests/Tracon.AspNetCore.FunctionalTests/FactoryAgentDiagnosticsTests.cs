@@ -39,8 +39,8 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("outside-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
-        (await catalog.ResolveAsync("outside-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("outside-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("outside-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         var warning = Warnings(host).ShouldHaveSingleItem();
         warning.ShouldContain("outside-agent");
@@ -56,9 +56,9 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        await catalog.ResolveAsync("first-agent", culture: null, TestContext.Current.CancellationToken);
-        await catalog.ResolveAsync("second-agent", culture: null, TestContext.Current.CancellationToken);
-        await catalog.ResolveAsync("first-agent", culture: null, TestContext.Current.CancellationToken);
+        await catalog.ResolveAsync("first-agent", cancellationToken: TestContext.Current.CancellationToken);
+        await catalog.ResolveAsync("second-agent", cancellationToken: TestContext.Current.CancellationToken);
+        await catalog.ResolveAsync("first-agent", cancellationToken: TestContext.Current.CancellationToken);
 
         var warnings = Warnings(host);
         warnings.Count.ShouldBe(2);
@@ -102,7 +102,7 @@ public sealed class FactoryAgentDiagnosticsTests
             foreach (var name in barriers.Keys)
             {
                 await Task.WhenAll(Enumerable.Range(0, callers).Select(_ => Task.Factory.StartNew(
-                    () => catalog.ResolveAsync(name, culture: null, TestContext.Current.CancellationToken).AsTask(),
+                    () => catalog.ResolveAsync(name, cancellationToken: TestContext.Current.CancellationToken).AsTask(),
                     TestContext.Current.CancellationToken,
                     TaskCreationOptions.LongRunning,
                     TaskScheduler.Default).Unwrap()));
@@ -139,8 +139,8 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("registry-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
-        (await catalog.ResolveAsync("registry-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("registry-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("registry-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         var warning = Warnings(host).ShouldHaveSingleItem();
         warning.ShouldContain("registry-agent");
@@ -164,7 +164,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("wrapped-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("wrapped-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         var warning = Warnings(host).ShouldHaveSingleItem();
         warning.ShouldContain("declares none");
@@ -203,7 +203,7 @@ public sealed class FactoryAgentDiagnosticsTests
             foreach (var name in barriers.Keys)
             {
                 await Task.WhenAll(Enumerable.Range(0, callers).Select(_ => Task.Factory.StartNew(
-                    () => catalog.ResolveAsync(name, culture: null, TestContext.Current.CancellationToken).AsTask(),
+                    () => catalog.ResolveAsync(name, cancellationToken: TestContext.Current.CancellationToken).AsTask(),
                     TestContext.Current.CancellationToken,
                     TaskCreationOptions.LongRunning,
                     TaskScheduler.Default).Unwrap()));
@@ -237,7 +237,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("declared-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("declared-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         Warnings(host).ShouldBeEmpty();
     }
@@ -261,7 +261,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("declared-wrapped-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("declared-wrapped-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         Warnings(host).ShouldBeEmpty();
     }
@@ -279,8 +279,8 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("mismatched-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
-        (await catalog.ResolveAsync("mismatched-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("mismatched-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("mismatched-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         var warning = Warnings(host).ShouldHaveSingleItem();
         warning.ShouldContain("mismatched-agent");
@@ -297,7 +297,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("declared-outside-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("declared-outside-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         var warning = Warnings(host).ShouldHaveSingleItem();
         warning.ShouldContain("declared-outside-agent");
@@ -315,7 +315,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("declared-clientless-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("declared-clientless-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         Warnings(host).ShouldBeEmpty();
     }
@@ -330,7 +330,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("plain-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("plain-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         Warnings(host).ShouldBeEmpty();
     }
@@ -345,7 +345,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("broken-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("broken-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         Warnings(host).ShouldBeEmpty();
     }
@@ -359,7 +359,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("broken-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("broken-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         host.Logs.Entries
             .Where(static line => line.StartsWith("Debug Tracon.CodeAgentSource ", StringComparison.Ordinal))
@@ -375,7 +375,7 @@ public sealed class FactoryAgentDiagnosticsTests
 
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        (await catalog.ResolveAsync("declared-agent", culture: null, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await catalog.ResolveAsync("declared-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
 
         Warnings(host).ShouldBeEmpty();
     }

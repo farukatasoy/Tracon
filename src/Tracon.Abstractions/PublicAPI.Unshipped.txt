@@ -956,8 +956,6 @@ Tracon.HarnessSettings.MaximumIterationsPerRequest.get -> int?
 Tracon.HarnessSettings.MaximumIterationsPerRequest.init -> void
 Tracon.IAgentCatalog
 Tracon.IAgentCatalog.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.AgentDescriptor!>!>
-Tracon.IAgentCatalog.ResolveAsync(string! agentName, int? version, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
-Tracon.IAgentCatalog.ResolveAsync(string! agentName, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 Tracon.IAgentDecorator
 Tracon.IAgentDecorator.Decorate(Microsoft.Agents.AI.AIAgent! agent, Tracon.AgentDescriptor! descriptor) -> Microsoft.Agents.AI.AIAgent!
 Tracon.IAgentDecorator.Order.get -> int
@@ -5959,3 +5957,17 @@ Tracon.TraconTenantQuotaExceededException.Period.init -> void
 Tracon.TraconTenantQuotaExceededException.TraconTenantQuotaExceededException() -> void
 Tracon.TraconTenantQuotaExceededException.TraconTenantQuotaExceededException(string! message) -> void
 Tracon.TraconTenantQuotaExceededException.TraconTenantQuotaExceededException(string! message, System.Exception! innerException) -> void
+Tracon.AgentResolveOptions
+Tracon.AgentResolveOptions.<Clone>$() -> Tracon.AgentResolveOptions!
+Tracon.AgentResolveOptions.AgentResolveOptions() -> void
+Tracon.AgentResolveOptions.Culture.get -> string?
+Tracon.AgentResolveOptions.Culture.init -> void
+Tracon.AgentResolveOptions.Equals(Tracon.AgentResolveOptions? other) -> bool
+Tracon.AgentResolveOptions.Version.get -> int?
+Tracon.AgentResolveOptions.Version.init -> void
+Tracon.IAgentCatalog.ResolveAsync(string! agentName, Tracon.AgentResolveOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+override Tracon.AgentResolveOptions.Equals(object? obj) -> bool
+override Tracon.AgentResolveOptions.GetHashCode() -> int
+override Tracon.AgentResolveOptions.ToString() -> string!
+static Tracon.AgentResolveOptions.operator !=(Tracon.AgentResolveOptions? left, Tracon.AgentResolveOptions? right) -> bool
+static Tracon.AgentResolveOptions.operator ==(Tracon.AgentResolveOptions? left, Tracon.AgentResolveOptions? right) -> bool

@@ -839,7 +839,7 @@ public sealed class AgentReviewLoopTests
     private static async Task RunWriterAsync(TraconTestHost host, string message)
     {
         var agent = (await host.Services.GetRequiredService<IAgentCatalog>()
-                .ResolveAsync(WriterName, culture: null, CancellationToken.None))
+                .ResolveAsync(WriterName, cancellationToken: CancellationToken.None))
             .ShouldNotBeNull();
         var session = await agent.CreateSessionAsync();
 

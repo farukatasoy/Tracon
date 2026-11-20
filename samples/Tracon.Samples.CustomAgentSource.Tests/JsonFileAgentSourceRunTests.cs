@@ -47,7 +47,7 @@ public sealed class JsonFileAgentSourceRunTests
         descriptor.Origin.ShouldBe(AgentDefinitionOrigin.Custom);
         descriptor.SourceName.ShouldBe(JsonFileAgentSource.SourceName);
 
-        var agent = await catalog.ResolveAsync("greeter", culture: null, TestContext.Current.CancellationToken);
+        var agent = await catalog.ResolveAsync("greeter", cancellationToken: TestContext.Current.CancellationToken);
         agent.ShouldNotBeNull();
 
         var response = await agent.RunAsync("hello from the sample");
@@ -105,7 +105,7 @@ public sealed class JsonFileAgentSourceRunTests
         await using var provider = services.BuildServiceProvider();
         var catalog = provider.GetRequiredService<IAgentCatalog>();
 
-        var agent = await catalog.ResolveAsync("no-such-agent", culture: null, TestContext.Current.CancellationToken);
+        var agent = await catalog.ResolveAsync("no-such-agent", cancellationToken: TestContext.Current.CancellationToken);
 
         agent.ShouldBeNull();
     }

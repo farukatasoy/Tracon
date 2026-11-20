@@ -636,7 +636,7 @@ public sealed class ToolBudgetGateTests
 
     private static async Task<AIAgent> ResolveAgentAsync(TraconTestHost host)
         => (await host.Services.GetRequiredService<IAgentCatalog>()
-            .ResolveAsync(Agent, culture: null, CancellationToken.None)).ShouldNotBeNull();
+            .ResolveAsync(Agent, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
 
     private static async Task<AgentResponse> RunAgentAsync(TraconTestHost host)
         => await (await ResolveAgentAsync(host)).RunAsync("go");

@@ -12,7 +12,7 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// Follows the same pattern as <see cref="AgentBatchJobHandler"/>: the agent is
-/// resolved through <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>,
+/// resolved through <see cref="IAgentCatalog.ResolveAsync(string, AgentResolveOptions?, CancellationToken)"/>,
 /// the resolved agent is already wrapped by the recording decorator, and the
 /// run is written to <see cref="IRunStore"/> as a normal <c>runs</c> row.
 /// </para>
@@ -121,7 +121,7 @@ internal sealed class AgentRunJobHandler(
             var suppliedValues = ReadOptionalParameters(context.Job.Payload);
             documents = ReadOptionalDocuments(context.Job.Payload);
 
-            agent = await catalog.ResolveAsync(context.Job.TargetName, arm.Version, culture, cancellationToken).ConfigureAwait(false)
+            agent = await catalog.ResolveAsync(context.Job.TargetName, new AgentResolveOptions { Version = arm.Version, Culture = culture }, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException(
                     $"No agent named '{context.Job.TargetName}' was found. The job will be marked as failed.");
 

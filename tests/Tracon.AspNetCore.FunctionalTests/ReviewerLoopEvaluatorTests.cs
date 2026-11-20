@@ -145,7 +145,7 @@ public sealed class ReviewerLoopEvaluatorTests
     internal static async Task RunAsync(TraconTestHost host)
     {
         var agent = (await host.Services.GetRequiredService<IAgentCatalog>()
-                .ResolveAsync(WriterName, culture: null, CancellationToken.None))
+                .ResolveAsync(WriterName, cancellationToken: CancellationToken.None))
             .ShouldNotBeNull();
         var session = await agent.CreateSessionAsync();
 
@@ -214,7 +214,7 @@ internal sealed class ReviewerCriterion(
             throw new InvalidOperationException("The run tree has no room for the reviewer.");
         }
 
-        var reviewer = await catalog.ResolveAsync(reviewerName, culture: null, cancellationToken).ConfigureAwait(false)
+        var reviewer = await catalog.ResolveAsync(reviewerName, cancellationToken: cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"No agent named '{reviewerName}'.");
 
         var options = scope is null
