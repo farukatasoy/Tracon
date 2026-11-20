@@ -78,7 +78,7 @@ Every extension point is documented on <https://tracon.dev>.
 flowchart TD
     REQ["POST /api/agents/{name}/run<br/>or /v1/responses"]
     ACCESS["Access filter<br/>loopback · bearer · policy"]
-    RESOLVE["IAgentCatalog.ResolveAsync(name, culture)<br/>sources by priority: code → MAF bridge → definition store"]
+    RESOLVE["IAgentCatalog.ResolveAsync(name, options)<br/>sources by priority: code → MAF bridge → definition store"]
     COMPILE["AgentDefinitionCompiler + CompiledAgentCache<br/>tenant egress and per-tenant credentials resolve here"]
     REC["RunRecordingAgent · order 0<br/>opens the root span, writes run events"]
     OTEL["OpenTelemetryAgent · order 10"]

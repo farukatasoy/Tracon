@@ -87,6 +87,11 @@ Tracon does the rest, the same way it does for an agent saved in the database:
 - It refuses a definition that comes back under a name other than the one asked for, and records it as
   an `agent_source_contract` failure.
 
+A definition source that ignores the ambient tenant serves the same definitions to every tenant. That is the way to give
+all tenants of a multi-tenant host one set of agents the host owns, which the built-in database store, being per tenant,
+cannot do: each tenant's run compiles the shared definition for itself. A source that reads `ITenantContext` serves
+each tenant its own.
+
 Implement `IVersionedAgentDefinitionSource` as well when the source keeps a version history. It adds
 `GetVersionAsync(name, version)`. Without it, a run that is pinned to a version of the source's agents is
 refused: an A/B experiment arm, a callable agent with a fixed version, or a workflow step with a pin. The
@@ -201,6 +206,5 @@ isolated; resolution failures stop so a lower-priority agent cannot run by mista
 ## Read next
 
 - [Agents](/concepts/agents/) — the catalog and agent-definition model
-- [Model providers](/guides/model-providers/) — write a custom model provider
 - [Reference: IAgentDefinitionSource](/api/tracon.iagentdefinitionsource/) — the definition source contract
 - [Reference: IAgentSource](/api/tracon.iagentsource/) — the agent source contract

@@ -176,7 +176,7 @@ script.
 | Key relative to `Tracon` | Default | Meaning |
 |---|---:|---|
 | `DefaultTenantId` | `default` | Tenant used when no request resolver supplies one |
-| `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value in a run request or eval case |
+| `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value. The smallest valid value is `1`; there is no upper bound, so the limits are your model's context window, the run input storage and, over HTTP, the web server's request size. Every entry that binds values checks it (run, queued run, batch item, eval case, workflow run, replay and `IAgentCatalog.ResolveAsync` with `Parameters`) |
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree; enforced between model turns, mid-run |

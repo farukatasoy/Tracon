@@ -51,6 +51,13 @@ to the model call). Place a decorator that has to observe or veto everything
 below it at a low value; place one that has to sit close to the model call
 itself at a high value.
 
+A wrapper you write must forward `GetService` to the agent it wraps, which a type that derives
+from `DelegatingAIAgent` does without any code. Tracon finds three markers on an agent through
+`GetService`: the run-recording wrapper reads the parameter values a resolve bound
+(`AgentResolveOptions.Parameters`), and the entry points read whether the agent still needs values.
+A wrapper that does not forward hides them: the run is not given its values in the record and a replay
+cannot repeat it.
+
 A decorator can also add Microsoft Agent Framework middleware with
 `AIAgentBuilder`: run middleware, `UseAIContextProviders`, or
 function-invocation middleware that sees each tool call. The agent keeps every

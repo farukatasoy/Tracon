@@ -1021,7 +1021,7 @@ for (const file of collect(sourceRoot).filter((entry) => entry.endsWith('Options
   if (['obj', 'bin'].some((segment) => file.includes(`/${segment}/`))) continue;
 
   const text = readFileSync(file, 'utf8');
-  const owners = [...text.matchAll(/public sealed class (\w+)/g)].map(([, name]) => name);
+  const owners = [...text.matchAll(/public sealed (?:class|record) (\w+)/g)].map(([, name]) => name);
   const sections = [...text.matchAll(/SectionName = "([^"]+)"/g)].map(([, name]) => name);
   const context = [...owners, ...sections];
 

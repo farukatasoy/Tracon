@@ -51,7 +51,8 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Agent extensions | Code that sets a Microsoft Agent Framework option, adds an `AIContextProvider` or a chat client ring, or wraps the compiled agent, while the agent keeps the model rings, the tenant's key, egress, and cost | `AddAgentExtension(name, configure)`; a definition selects it in AgentDefinition.ExtensionNames | Code defines, data selects. The compiler refuses a change to what the definition or the tenant owns (tool chain, chat history, file access, model settings). A tool a provider adds skips the tool chain |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
 | Definition transfer | Export agents, workflows, skills and MCP servers as one file; import it with a dry run first, version pins translated, nothing written unless the whole file is valid | `tracon export/import` | No history, run, `secret`, token or plain header value travels ([guide](/guides/move-definitions/)) |
-| Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
+| Custom agent source | Lists agents from a repository or external runtime, and builds each agent itself | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API. The agent is opaque: it takes no parameter values |
+| Agent definition source | Returns agent definitions from Git, an object store, or your own database; Tracon compiles them | `AddAgentDefinitionSource<T>()`, instance, or factory | Parameters, cache, version pins and descriptor work as for a stored agent. A lower `Priority` than the database wins the name. Read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only; a response cut off at the output limit fails as `OutputTruncated` and is never repaired (plain text completes with a `tracon.output.truncated` event); OpenAI and Azure OpenAI take `strictJsonSchema`, and `POST /api/agents/validate` shows the schema each provider receives |
@@ -64,7 +65,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
 | Request fields | Temperature, top-p, seed, top-k, stop sequences, penalties, tool mode, parallel tool calls, and reasoning output are part of the definition | `ModelBinding` | Unset sends nothing; a provider states what its API surface sends (`ISamplingSupport`), and a field it would drop, on the primary model or a fallback, fails to compile and validation |
 | Tool-call loop | The loop that runs a turn's tool calls: concurrency, tolerated failed turns, and what an unknown tool does | `ModelBinding.ToolLoop` | `AllowConcurrentToolCalls` is off by default; each call still gets its own authorization, result, and metric; a fallback link takes the whole object |
-| Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values | `AgentDefinition.Parameters` | Value substitution only — no expression, condition, loop, or field access |
+| Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values, from the HTTP run request or from your own code | `AgentDefinition.Parameters`, `AgentResolveOptions.Parameters` | Value substitution only — no expression, condition, loop, or field access. The run records the values, so a replay repeats them |
 | Workflow and queued run parameters | A workflow declares a schema; each agent step binds the values its own schema names; queued runs, batch items, replay, continuation and approval resume carry or repeat values | `WorkflowDefinition.Parameters`, `WorkflowRunRequest.Parameters`, `GetRunParameters()`, `RunReplayRequest.Parameters` | A run that recorded no values is not repeated for an agent with parameters; a code-defined workflow declares its schema in `WorkflowRegistrationOptions.Parameters`; `jobs.payload` is not content-protected |
 | Shared instructions blocks | One definition's instructions prepended to another's at compile time | `AgentDefinition.SharedInstructionsName` | A block cannot reference another block |
 
@@ -438,14 +439,22 @@ new AgentDefinition
 }
 ```
 
+A placeholder is `{{name}}`, and spaces or tabs inside the braces are allowed (`{{ name }}`). The name is
+a letter or underscore followed by letters, digits or underscores, and it must be declared in
+`Parameters`: an undeclared one is a compile error. Nothing else is substituted. A single-brace
+`{name}`, a dotted `{{a.b}}` and a placeholder split over two lines stay in the text as written, so
+a prompt that was written for another template engine needs its placeholders rewritten to `{{name}}`.
+
 A run supplies values on the `parameters` field of `POST /api/agents/{name}/run` (and
 `/estimate`, which checks the same values without calling a model). A required
 parameter with no value and no `DefaultValue` stops the run before it starts, and
 names the missing parameter; a value for a name the schema does not declare is
 rejected too, not silently dropped. This holds for a definition saved through the
-API and for one registered in code with `AddAgent`. Tracon reads the schema from
-those two places only. An agent from a factory or a
-[custom agent source](/guides/write-your-own-agent-source/#a-sources-agent-takes-no-parameter-values)
+API, for one registered in code with `AddAgent`, and for one a
+[custom definition source](/guides/write-your-own-agent-source/#return-a-definition-and-tracon-compiles-it)
+returns. Tracon reads the schema from the source that holds the name, the same source
+the catalog runs. An agent from a factory or from a
+[custom agent source that builds its own `AIAgent`](/guides/write-your-own-agent-source/#a-sources-agent-takes-no-parameter-values)
 has no schema that Tracon can read, so a run that supplies a value for it is refused
 as unknown.
 
@@ -470,26 +479,55 @@ it on the defaults would change the instructions. That refusal says so.
 
 Every other entry point carries no values: the OpenAI-compatible endpoints, MCP, A2A,
 an agent called by another agent, voice, and an agent that your own .NET code resolves
-from `IAgentCatalog` and runs in-process. Those runs bind each parameter's
+from `IAgentCatalog` without values. Those runs bind each parameter's
 `DefaultValue`, and an agent with a required parameter that has no default does not
 run there. Where a request enters, it is refused (`400` with `missingParameters`);
 where there is no request to refuse, the run fails before any model call and names
 the parameter. Such a run records no values, so it cannot be replayed.
 
-`IAgentCatalog.ResolveAsync` has no argument for parameter values. .NET code that runs
-a catalog agent itself has two ways to give one run text of its own:
+A value may be at most `Tracon:MaxParameterValueLength` UTF-8 bytes. The default is `4096`, the smallest valid
+setting is `1`, and there is no upper bound; raise it for a value that is a whole document, and
+remember that the value is sent to the model whole and kept in the run record. Every entry that binds values
+checks it.
 
-- **Send the text in the run's messages.** The run records its messages, so a replay
-  sends the text again.
-- **Append the text to the instructions** with `ChatClientAgentRunOptions`, as
-  [model options for one run](/guides/any-maf-feature/#add-an-option-a-provider-or-a-ring-with-an-agent-extension)
-  describes. The model receives the text, but the run records only its messages and
-  parameter values. A replay or a continuation runs without the appended text.
+### Give a value from .NET code
 
-To bind parameter values from .NET, start the run on a path that carries them: the run
-endpoint (the `Tracon.Client` request has a `Parameters` property), an
-[agent batch item](/guides/background-work/#give-an-item-its-own-values), or a workflow
-(`WorkflowRunRequest.Parameters`).
+Your own code that runs a catalog agent hands the values to `ResolveAsync`:
+
+```csharp
+var catalog = provider.GetRequiredService<IAgentCatalog>();
+var articleText = "Tides follow the moon.";
+
+var summarizer = await catalog.ResolveAsync(
+    "summarizer",
+    new AgentResolveOptions
+    {
+        Parameters = new Dictionary<string, string> { ["articleContent"] = articleText },
+    });
+
+var response = await summarizer!.RunAsync("Summarize the article.");
+```
+
+The values go through the same checks as `POST /api/agents/{name}/run`. A required value
+that is missing, a name the agent does not declare and a value over
+`MaxParameterValueLength` throw `TraconParameterException` from `ResolveAsync`. The
+exception lists the names in `MissingParameters`, `UnknownParameters` and
+`TooLongParameters`, and its message names parameters and never repeats a value. No
+provider is called and no run row is written.
+
+The agent you get back is compiled for exactly those values, so it is not shared through
+the compiled-agent cache, and it still carries every decorator the catalog applies: run
+recording, telemetry and tool approval. The run records the final value set, defaults
+included, beside its input. A replay, a continuation and a tool-approval resume repeat it.
+
+- `Parameters = null` binds nothing. The agent is the cached one with the defaults applied,
+  and the run records no values.
+- `Parameters = new Dictionary<string, string>()` binds the defaults and records them, so
+  the run can be replayed.
+- An agent that declares no parameters accepts only an empty set. Any name is unknown.
+
+Pass `Version` and `Culture` in the same options to pin a definition version and pick an
+instruction culture. The values are checked against the schema of that version.
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security
@@ -537,11 +575,12 @@ The catalog merges registered sources, in priority order:
 ```mermaid
 flowchart LR
     accTitle: Agent catalog sources
-    accDescr: Code registrations, database definitions, and custom sources merge into one catalog, with lower priority values winning name collisions.
+    accDescr: Code registrations, database definitions, custom definition sources and custom agent sources merge into one catalog, with lower priority values winning name collisions.
     C["Code<br/>AddAgent(definition) or AddAgent(name, model, factory)"] --> CAT["IAgentCatalog"]
     D["Database<br/>definitions written through the API"] --> CAT
-    X["Custom<br/>IAgentSource registration"] --> CAT
-    CAT --> R["ResolveAsync(name)"]
+    G["Custom definitions<br/>IAgentDefinitionSource registration"] --> CAT
+    X["Custom agents<br/>IAgentSource registration"] --> CAT
+    CAT --> R["ResolveAsync(name, options)"]
 ```
 
 `AddAgent(name, model, factory)` is a code registration too — the factory returns a MAF
@@ -569,16 +608,30 @@ Framework feature](/guides/any-maf-feature/) compares the doors, and [Move an ag
 from AddAIAgent to Tracon](/guides/from-maf-hosting/) maps the MAF hosting calls to
 them.
 
-An application can add an `IAgentSource` for definitions stored outside Tracon or
-for agents owned by another runtime. Custom-source agents are visible in the console
-but remain read-only in the management API. See [write your own agent
-source](/guides/write-your-own-agent-source/) for the lifecycle, priority, tenancy,
-and contract-test rules.
+An application can add an `IAgentDefinitionSource` for definitions stored outside
+Tracon, in Git or an object store or its own database. The source returns the
+`AgentDefinition` and Tracon compiles it, so parameters, the compiled-agent cache,
+version pins and the descriptor work as they do for a stored agent. For agents owned
+by another runtime, or built by your own code, it can add an `IAgentSource` instead.
+Custom-source agents are visible in the console but remain read-only in the management
+API. See [write your own agent source](/guides/write-your-own-agent-source/) for the
+lifecycle, priority, tenancy, and contract-test rules.
 
 On a name clash the higher-priority source wins and the other is dropped from the
 list. **Code wins.** That is why the API refuses to store a definition under a name a
 code agent already uses: the stored definition would never resolve, and a silent
 shadow is worse than a `409`.
+
+The built-in database store is **per tenant**: a definition saved under one tenant is not found under another,
+and there is no shared layer. A host that owns definitions every tenant should run (a table of its own, a
+repository) returns them from an `IAgentDefinitionSource` that ignores the ambient tenant, or registers them in code
+with `AddAgent`. Tracon compiles the same definition for each tenant; the compiled agents stay apart by tenant.
+
+The run endpoint follows the same order. A custom source with a lower `Priority` value
+than the database wins a name the database also holds, and `POST /api/agents/{name}/run`
+runs that source's agent, with that agent's parameter schema. Earlier releases read the
+schema from the code registrations and then the database, so a stored definition that
+declared parameters pulled the run away from the source that had won the name.
 
 A code-defined agent has no stored definition and no version history — its history is
 your source history. The API reports that distinctly: `GET /api/agents/{name}` still
@@ -12374,6 +12427,31 @@ The same code is correct on a run that a request starts, where both values alrea
 agree. The tool takes both when it is built, not at call time (see
 [A tool that takes a dependency](/guides/from-maf-hosting/#a-tool-that-takes-a-dependency)).
 
+### Start an agent run from your own code, with values
+
+Your host's own background worker or API can run a catalog agent without an HTTP call. When the agent's
+instructions name a value the run needs (`{{articleContent}}`), pass the value to the resolve:
+
+```csharp
+var catalog = provider.GetRequiredService<IAgentCatalog>();
+var articleText = "Tides follow the moon.";
+
+var summarizer = await catalog.ResolveAsync(
+    "summarizer",
+    new AgentResolveOptions
+    {
+        Parameters = new Dictionary<string, string> { ["articleContent"] = articleText },
+    });
+
+await summarizer!.RunAsync("Summarize it.");
+```
+
+The catalog checks the values against the agent's schema, compiles the agent for exactly those
+values, and still applies every decorator, so the run is recorded, governed and replayable with the
+same text. Open your own tenant and attribution scope around the call, in the worker's own body,
+as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
+`TraconParameterException` carries. `samples/Tracon.Embedded` runs this from its job worker.
+
 ## Two data planes, one connection pool or two
 
 Your application's own schema and Tracon's tables can live in the same
@@ -21163,6 +21241,13 @@ to the model call). Place a decorator that has to observe or veto everything
 below it at a low value; place one that has to sit close to the model call
 itself at a high value.
 
+A wrapper you write must forward `GetService` to the agent it wraps, which a type that derives
+from `DelegatingAIAgent` does without any code. Tracon finds three markers on an agent through
+`GetService`: the run-recording wrapper reads the parameter values a resolve bound
+(`AgentResolveOptions.Parameters`), and the entry points read whether the agent still needs values.
+A wrapper that does not forward hides them: the run is not given its values in the record and a replay
+cannot repeat it.
+
 A decorator can also add Microsoft Agent Framework middleware with
 `AIAgentBuilder`: run middleware, `UseAIContextProviders`, or
 function-invocation middleware that sees each tool call. The agent keeps every
@@ -21272,10 +21357,12 @@ builder.Services.AddSingleton<IProviderRetryClassifier, AcmeRetryClassifier>();
 
 Source: https://tracon.dev/guides/write-your-own-agent-source/
 
-`IAgentSource` is the catalog extension point. Use it when agent definitions do not
-live in the management database, or when an agent is backed by another runtime.
-Register it through `AddAgentSource()`; the catalog keeps the normal decorator chain,
-so recording, telemetry, and approval behavior still apply.
+Two interfaces add agents to the catalog. `IAgentDefinitionSource` returns an
+`AgentDefinition` and Tracon compiles it. `IAgentSource` returns an `AIAgent` that your
+own code built. Use the first when the agent is a definition that lives in Git, an
+object store or a database of your own. Use the second when another runtime owns the
+agent, or when your code builds it. Both keep the normal decorator chain, so recording,
+telemetry and approval behavior still apply.
 
 A complete, buildable definition source lives in
 `samples/Tracon.Samples.CustomAgentSource` — it reads `AgentDefinition` JSON files
@@ -21283,60 +21370,99 @@ from a directory, uses only published packages (`PackageReference`, not a
 project-internal type), and its test project runs the official contract suite plus a
 real agent run. Read its source alongside this guide.
 
-`AddAgentSource` has three overloads. The generic one resolves the source's own
-constructor dependencies (including its own settings, registered separately) through DI:
+`AddAgentDefinitionSource` and `AddAgentSource` each have three overloads. The generic
+one resolves the source's own constructor dependencies (including its own settings,
+registered separately) through DI:
 
 ```csharp
 builder.Services.AddSingleton(new GitAgentSourceOptions { RepositoryUrl = url });
 builder.AddTracon()
-       .AddAgentSource<GitAgentSource>();
+       .AddAgentDefinitionSource<GitAgentDefinitionSource>();
 ```
 
 Pass a ready instance, or a factory, when the source needs something that does not
 belong in the container as its own singleton:
 
 ```csharp
-builder.AddTracon().AddAgentSource(sp => new GitAgentSource(repositoryPath, sp.GetRequiredService<AgentDefinitionCompiler>()));
+builder.AddTracon().AddAgentDefinitionSource(sp => new GitAgentDefinitionSource(repositoryPath, sp.GetRequiredService<ITenantContext>()));
 ```
 
-All three register the source as a **singleton**; calling the generic overload twice
-for the same type registers it once.
+All six register the source as a **singleton**; calling a generic overload twice for the
+same type registers it once.
 
 ## Choose the source shape
 
-| Shape | Use it when | Resolve behavior |
+| Shape | Use it when | What you write |
 |---|---|---|
-| Definition source | You own an `AgentDefinition` in Git, object storage, or another database | Call `AgentDefinitionCompiler.CompileCachedAsync()` |
-| Agent source | You already own a runnable MAF `AIAgent` | Return the agent directly |
-
-### A source's agent takes no parameter values
-
-`ResolveAsync` receives the agent name and the culture. It receives nothing that a run
-supplies. Tracon reads a [parameter schema](/concepts/agents/#parameters) only from a
-definition that is registered in code or saved in the management database. A run that
-sends `parameters` to an agent of your source is therefore refused with `400`, and each
-value is named as unknown. This is also true when the definition that your source
-compiles declares the parameter.
-
-The compiler binds the `DefaultValue` of each parameter. A required parameter that has
-no default fails every run before the model is called. Give each parameter of such a
-definition a default. To give one run its own text, send the text in the run's
-messages.
-
-For a definition source, let the compiler own dependency fingerprints and the BYOK
-cache bypass. Do not repeat that logic in your source.
+| Definition source (`IAgentDefinitionSource`) | You own an `AgentDefinition` in Git, object storage, or another database | Return the definition. Tracon compiles it |
+| Agent source (`IAgentSource`) | You already own a runnable MAF `AIAgent` | Return the agent directly |
 
 ```mermaid
 flowchart LR
     accTitle: The two source shapes
-    accDescr: A definition source hands an AgentDefinition to the compiler, which builds the agent with the model rings, the tenant key and the cost. An agent source builds its own agent; it gets the same model rings, tenant key and egress policy from CreateChatClientAsync, and the cost from the model named in its descriptor. The catalog applies Tracon's decorators to both.
-    DEF["Definition source<br/>AgentDefinition"] --> COMP["AgentDefinitionCompiler<br/>CompileCachedAsync"]
+    accDescr: A definition source hands an AgentDefinition to Tracon, which compiles it with the model rings, the tenant key, the cost, the parameter values and the cache. An agent source builds its own agent; it gets the same model rings, tenant key and egress policy from CreateChatClientAsync, and the cost from the model named in its descriptor. The catalog applies Tracon's decorators to both.
+    DEF["Definition source<br/>AgentDefinition"] --> COMP["Tracon compiles it<br/>parameters · cache · versions"]
     COMP --> CAT["Catalog decorators"]
     OWN["Agent source<br/>your AIAgent"] --> CLIENT["CreateChatClientAsync<br/>rings · tenant key · egress"]
     OWN --> DESC["AgentDescriptor.Model<br/>cost"]
     CLIENT --> CAT
     DESC --> CAT
 ```
+
+### Return a definition and Tracon compiles it
+
+A definition source has two methods besides its name and priority. `ListAsync` returns every
+definition and `GetAsync` returns one:
+
+```csharp
+public sealed class GitAgentDefinitionSource(GitAgentSourceOptions options) : IAgentDefinitionSource
+{
+    public string Name => "git";
+
+    public int Priority => AgentSourcePriority.Database - 1;
+
+    public async ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken ct = default)
+        => await _repository.ReadAllAsync(ct);
+
+    public async ValueTask<AgentDefinition?> GetAsync(string agentName, CancellationToken ct = default)
+        => await _repository.ReadAsync(agentName, ct);
+}
+```
+
+Tracon does the rest, the same way it does for an agent saved in the database:
+
+- It compiles the definition, caches the compiled agent by the definition's content and the tenant,
+  and applies the tenant's provider key and egress policy.
+- It builds the catalog descriptor from the definition you returned, so the agent and its descriptor
+  never describe two versions.
+- It reads the definition's [parameter schema](/concepts/agents/#parameters). A run, a queued run, a
+  batch item, a replay and a workflow step bind the values the schema declares, and
+  `AgentResolveOptions.Parameters` does the same for your own code.
+- It refuses a definition that comes back under a name other than the one asked for, and records it as
+  an `agent_source_contract` failure.
+
+A definition source that ignores the ambient tenant serves the same definitions to every tenant. That is the way to give
+all tenants of a multi-tenant host one set of agents the host owns, which the built-in database store, being per tenant,
+cannot do: each tenant's run compiles the shared definition for itself. A source that reads `ITenantContext` serves
+each tenant its own.
+
+Implement `IVersionedAgentDefinitionSource` as well when the source keeps a version history. It adds
+`GetVersionAsync(name, version)`. Without it, a run that is pinned to a version of the source's agents is
+refused: an A/B experiment arm, a callable agent with a fixed version, or a workflow step with a pin. The
+catalog never serves the current definition under a pin, because that would measure the wrong version.
+
+### A source's agent takes no parameter values
+
+`IAgentSource.ResolveAsync` receives the agent name and the culture. It receives nothing that a run
+supplies. Tracon reads a [parameter schema](/concepts/agents/#parameters) only from a definition: one
+registered in code, saved in the management database, or returned by an `IAgentDefinitionSource`. The agent
+an `IAgentSource` builds is opaque to Tracon. A run that sends `parameters` to it is refused with `400`, and
+each value is named as unknown. `AgentResolveOptions.Parameters` throws `TraconParameterException` for it,
+for the same reason.
+
+If the agent is a definition that you compile yourself, return the definition from an
+`IAgentDefinitionSource` instead and drop the compile call. To give one run of an opaque agent its own
+text, send the text in the run's messages.
 
 For an agent source, the compiler does not run, so two things are yours. Build the
 chat client with `IModelProviderRegistry.CreateChatClientAsync` inside
@@ -21355,36 +21481,27 @@ factory the same chat client, with the tenant's key and egress policy, and names
 model for the run record. [Use any Microsoft Agent Framework
 feature](/guides/any-maf-feature/) says when each shape fits.
 
-```csharp
-public async ValueTask<AIAgent?> ResolveAsync(string name, string? culture = null, CancellationToken ct = default)
-{
-    var definition = await _repository.GetAsync(name, ct);
-    return definition is null
-        ? null
-        : await _compiler.CompileCachedAsync(definition, _cache, _tenants.TenantId, culture, ct);
-}
-```
-
 ## Source contract
 
-Sources are singleton and calls can run concurrently. Keep no request or run state in
-fields, and do not capture scoped services. `ListAsync()` is on the run path: it must
-be repeatable and side-effect free. Tracon does not add a global snapshot, timeout,
-retry, or circuit breaker for a source.
+Both interfaces follow the same rules. Sources are singleton and calls can run
+concurrently. Keep no request or run state in fields, and do not capture scoped services.
+`ListAsync()` is on the run path: it must be repeatable and side-effect free. Tracon does not
+add a global snapshot, timeout, retry, or circuit breaker for a source.
 
-`ListAsync()` and `ResolveAsync()` must describe the same agent set: a name
-`ResolveAsync()` resolves has to appear in `ListAsync()`, and vice versa. Return stable
-descriptors and never mutate one — or its nested collections — after returning it. The
-catalog defensively copies each descriptor at its own boundary too, but that is
-belt-and-suspenders, not a license to violate the contract; a source that shares a
-mutable list with the catalog is still a bug the copy merely contains.
+`ListAsync()` and `ResolveAsync()` (or `GetAsync()` for a definition source) must describe the
+same agent set: a name one returns has to appear in the other. Return stable values and never
+mutate one — or its nested collections — after returning it. The catalog defensively copies each
+descriptor at its own boundary too, but that is belt-and-suspenders, not a license to violate the
+contract; a source that shares a mutable list with the catalog is still a bug the copy merely
+contains.
 
-If the source builds agents from an `AgentDefinition`, copy the fields the host reads off the
-descriptor: `SkillNames` and `Skills` for the A2A and MCP exposure check, and `ExtensionNames`
-for the catalog. A descriptor that names skills and leaves `Skills` empty reads as "the read
-approval is on", and the host refuses to expose the agent even when the definition turned the
-approval off. A descriptor without `ExtensionNames` lists an agent compiled with an extension
-as one without it.
+An agent source that builds agents from an `AgentDefinition` has to copy the fields the host reads
+off the descriptor: `SkillNames` and `Skills` for the A2A and MCP exposure check, and
+`ExtensionNames` for the catalog. A descriptor that names skills and leaves `Skills` empty reads as
+"the read approval is on", and the host refuses to expose the agent even when the definition turned
+the approval off. A descriptor without `ExtensionNames` lists an agent compiled with an extension
+as one without it. A definition source copies nothing: Tracon builds the descriptor from the
+definition.
 
 Honor the `CancellationToken` you are given — Tracon adds no timeout of its own, so
 an uncancellable source blocks its caller indefinitely. A genuine
@@ -21395,7 +21512,9 @@ as `TaskCanceledException` — is a source failure like any other, so listing sk
 source and resolution fails with `TraconAgentSourceException`.
 
 A source can be global or tenant-aware; when it reads `ITenantContext`, any local cache
-must include the tenant identity. Startup and background calls see the default tenant.
+must include the tenant identity. Startup and background calls see the default tenant. For a
+definition source, Tracon adds the tenant to the key of its compiled-agent cache, so a tenant-aware
+source needs only to return each tenant its own definitions.
 
 ## Priority and management API
 
@@ -21415,32 +21534,34 @@ source owns.
 ```csharp
 using Tracon.Testing.Contracts.AgentSources;
 
-public sealed class GitAgentSourceTests : AgentSourceContract
+public sealed class GitAgentDefinitionSourceTests : AgentDefinitionSourceContract
 {
     protected override string KnownAgentName => "support";
-    protected override ValueTask<IAgentSource> CreateSourceAsync()
-        => new(new GitAgentSource(/* test repository and services */));
+    protected override ValueTask<IAgentDefinitionSource> CreateSourceAsync()
+        => new(new GitAgentDefinitionSource(/* test repository */));
 }
 ```
 
-Derive `VersionedAgentSourceContract` when your source implements
-`IVersionedAgentSource`. Derive `TenantAwareAgentSourceContract` when its list changes
-by tenant. The suite checks repeatability, concurrency, cancellation, descriptor
-integrity, and list/resolve consistency without a network call.
+Derive `VersionedAgentDefinitionSourceContract` when your source implements
+`IVersionedAgentDefinitionSource`. Derive `TenantAwareAgentDefinitionSourceContract` when its list changes
+by tenant. The suite checks repeatability, concurrency, cancellation, name integrity, and list/get
+consistency without a network call. An `IAgentSource` has the matching `AgentSourceContract` family.
 
 ## Scale and operations
 
-`GET /api/agents` is not paged. Resolution also scans the winning source's list, and
-version resolution can list each source until it finds the owner. A source holding many
-definitions should keep its own correctly invalidated cache. Source failures appear in
+`GET /api/agents` is not paged. A definition source's `GetAsync()` runs on every resolve and on
+every run request that reads the schema, so a source holding many definitions should keep its
+own correctly invalidated cache. For an agent source, resolution scans the winning source's list,
+and the run endpoint lists an agent source once more to learn whether it holds the name; version
+resolution can list each source until it finds the owner. Source failures appear in
 logs, diagnostics, and the `tracon.agent_source.failures` metric. List failures are
 isolated; resolution failures stop so a lower-priority agent cannot run by mistake.
 
 ## Read next
 
 - [Agents](/concepts/agents/) — the catalog and agent-definition model
-- [Model providers](/guides/model-providers/) — write a custom model provider
-- [Reference: IAgentSource](/api/tracon.iagentsource/) — full API contract
+- [Reference: IAgentDefinitionSource](/api/tracon.iagentdefinitionsource/) — the definition source contract
+- [Reference: IAgentSource](/api/tracon.iagentsource/) — the agent source contract
 
 ---
 
@@ -23565,7 +23686,7 @@ Add these when you need them.
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
 | `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents. It takes the AG-UI SDK, which the other packages never see |
 | `Tracon.Testing` | You write tests against agents — fakes, not mocks |
-| `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
+| `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IAgentDefinitionSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
 | `Tracon.Templates` | `dotnet new tracon-api` |
 
 `Tracon.OpenAI`, `Tracon.Azure`, and `Tracon.Google` also expose optional
@@ -24862,7 +24983,7 @@ script.
 | Key relative to `Tracon` | Default | Meaning |
 |---|---:|---|
 | `DefaultTenantId` | `default` | Tenant used when no request resolver supplies one |
-| `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value in a run request or eval case |
+| `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value. The smallest valid value is `1`; there is no upper bound, so the limits are your model's context window, the run input storage and, over HTTP, the web server's request size. Every entry that binds values checks it (run, queued run, batch item, eval case, workflow run, replay and `IAgentCatalog.ResolveAsync` with `Parameters`) |
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree; enforced between model turns, mid-run |

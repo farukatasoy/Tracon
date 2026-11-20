@@ -74,6 +74,12 @@ new AgentDefinition
 }
 ```
 
+A placeholder is `{{name}}`, and spaces or tabs inside the braces are allowed (`{{ name }}`). The name is
+a letter or underscore followed by letters, digits or underscores, and it must be declared in
+`Parameters`: an undeclared one is a compile error. Nothing else is substituted. A single-brace
+`{name}`, a dotted `{{a.b}}` and a placeholder split over two lines stay in the text as written, so
+a prompt that was written for another template engine needs its placeholders rewritten to `{{name}}`.
+
 A run supplies values on the `parameters` field of `POST /api/agents/{name}/run` (and
 `/estimate`, which checks the same values without calling a model). A required
 parameter with no value and no `DefaultValue` stops the run before it starts, and
@@ -114,20 +120,27 @@ run there. Where a request enters, it is refused (`400` with `missingParameters`
 where there is no request to refuse, the run fails before any model call and names
 the parameter. Such a run records no values, so it cannot be replayed.
 
+A value may be at most `Tracon:MaxParameterValueLength` UTF-8 bytes. The default is `4096`, the smallest valid
+setting is `1`, and there is no upper bound; raise it for a value that is a whole document, and
+remember that the value is sent to the model whole and kept in the run record. Every entry that binds values
+checks it.
+
 ### Give a value from .NET code
 
 Your own code that runs a catalog agent hands the values to `ResolveAsync`:
 
 ```csharp
-var agent = await catalog.ResolveAsync(
+var catalog = provider.GetRequiredService<IAgentCatalog>();
+var articleText = "Tides follow the moon.";
+
+var summarizer = await catalog.ResolveAsync(
     "summarizer",
     new AgentResolveOptions
     {
         Parameters = new Dictionary<string, string> { ["articleContent"] = articleText },
-    },
-    cancellationToken);
+    });
 
-var response = await agent!.RunAsync("Summarize the article.");
+var response = await summarizer!.RunAsync("Summarize the article.");
 ```
 
 The values go through the same checks as `POST /api/agents/{name}/run`. A required value
@@ -243,6 +256,11 @@ On a name clash the higher-priority source wins and the other is dropped from th
 list. **Code wins.** That is why the API refuses to store a definition under a name a
 code agent already uses: the stored definition would never resolve, and a silent
 shadow is worse than a `409`.
+
+The built-in database store is **per tenant**: a definition saved under one tenant is not found under another,
+and there is no shared layer. A host that owns definitions every tenant should run (a table of its own, a
+repository) returns them from an `IAgentDefinitionSource` that ignores the ambient tenant, or registers them in code
+with `AddAgent`. Tracon compiles the same definition for each tenant; the compiled agents stay apart by tenant.
 
 The run endpoint follows the same order. A custom source with a lower `Priority` value
 than the database wins a name the database also holds, and `POST /api/agents/{name}/run`

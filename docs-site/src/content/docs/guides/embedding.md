@@ -426,6 +426,31 @@ The same code is correct on a run that a request starts, where both values alrea
 agree. The tool takes both when it is built, not at call time (see
 [A tool that takes a dependency](/guides/from-maf-hosting/#a-tool-that-takes-a-dependency)).
 
+### Start an agent run from your own code, with values
+
+Your host's own background worker or API can run a catalog agent without an HTTP call. When the agent's
+instructions name a value the run needs (`{{articleContent}}`), pass the value to the resolve:
+
+```csharp
+var catalog = provider.GetRequiredService<IAgentCatalog>();
+var articleText = "Tides follow the moon.";
+
+var summarizer = await catalog.ResolveAsync(
+    "summarizer",
+    new AgentResolveOptions
+    {
+        Parameters = new Dictionary<string, string> { ["articleContent"] = articleText },
+    });
+
+await summarizer!.RunAsync("Summarize it.");
+```
+
+The catalog checks the values against the agent's schema, compiles the agent for exactly those
+values, and still applies every decorator, so the run is recorded, governed and replayable with the
+same text. Open your own tenant and attribution scope around the call, in the worker's own body,
+as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
+`TraconParameterException` carries. `samples/Tracon.Embedded` runs this from its job worker.
+
 ## Two data planes, one connection pool or two
 
 Your application's own schema and Tracon's tables can live in the same
