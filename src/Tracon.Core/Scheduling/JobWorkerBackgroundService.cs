@@ -456,11 +456,21 @@ internal sealed class JobWorkerBackgroundService(
         // The host's own tenant scope, opened next to Tracon's, in this same body for the same reason: a value the host
         // writes to an AsyncLocal does not come back from an async helper. A host that throws leaves nobody to own the
         // job's outcome, so it is closed here as a job that never reached its handler.
-        IDisposable? hostScope;
+        //
+        // Host code runs off the lease loop: this method starts on the loop's thread, and a Begin that waits (a tenant
+        // lookup) would hold every lane and every tenant behind it. The yield moves the rest of this job's flow to the
+        // pool with the values already written, Tracon's own scope among them, so nothing else changes.
+        IDisposable? hostScope = null;
 
         try
         {
-            hostScope = tenancy?.HostScope?.Begin(job.TenantId);
+            if (tenancy?.HostScope is { } hostTenantScope)
+            {
+                await Task.Yield();
+
+                // The canonical form Tracon's own scope holds, whatever spelling the store handed back.
+                hostScope = hostTenantScope.Begin(AmbientTenantScope.Normalize(job.TenantId));
+            }
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {

@@ -421,12 +421,17 @@ concurrently, once for each job, so it must not hold a scoped service. `Begin` i
 a value you write to an `AsyncLocal` inside it reaches the job, and an asynchronous method would lose it.
 
 If `Begin` throws, the job fails before it runs, with the code `tracon.job.host-tenant-scope-failed`, and it is
-not tried again: an application that does not know the tenant will not know it on the next attempt.
-If `Dispose` throws, the error is logged and the job's result stays as it was. Only the job worker
-calls it: every other path that runs a tool (a request, a voice session, an A2A call) starts from a request,
-where your middleware has already opened your scope. A tool that must also work on a host that did not
-register the interface can still open the framework's scope itself from `TraconRunContext.Current.TenantId`,
-in its own body.
+not tried again: an application that does not know the tenant will not know it on the next attempt. The run that was
+queued for the job keeps the status it was queued with; the failed job is the record. If `Dispose` throws, the error
+is logged and the job's result stays as it was. `Begin` runs on a pool thread of the job's own flow, not on the loop
+that leases jobs, so a call that waits holds the slot of that job and delays no other.
+`HostTenantScopeContract` in `Tracon.Testing.Contracts.Xunit` checks an implementation.
+
+Only the job worker calls it. A run that a request starts runs inside the scope your request middleware opened. Two
+paths run a tool after their request has returned: a streamed A2A turn that outlives the caller, and an MCP
+task-mode call. They start inside the request's flow, so a scope that your framework keeps in an `AsyncLocal` reaches
+them; a scope bound to the request's `HttpContext` does not. A tool that can run on those paths keeps opening the
+framework's scope itself, from `TraconRunContext.Current.TenantId`, in its own body.
 
 ### Start an agent run from your own code, with values
 

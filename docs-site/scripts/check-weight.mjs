@@ -75,8 +75,13 @@ const MIN_HEADROOM = 2 * CI_BUILD_GAP;
 // `MarksAStartedRunAlive` with its scenario. Eight public members, each a name and a one-line summary, and the class summary
 // now says that the page grows and where to read instead. About 4.9% headroom, which also covers the roughly 60 B by which a CI
 // build differs from a local one.
+// Raised to 67 500 B on 2026-11-20: 64 719 B gzip, 719 B over the ceiling above, after the class took
+// AddChatClientProvider (four overloads, because the public API analyzer refuses two overloads with an optional
+// parameter; the three that take a catalog or a factory carry a summary and a pointer to the first). About 4.3%
+// headroom, which also covers the roughly 60 B by which a CI build differs from a local one. A static class
+// cannot be split across pages.
 const PAGE_CEILINGS = new Map([
-  ['api/tracon.traconbuilderextensions/index.html', 64_000],
+  ['api/tracon.traconbuilderextensions/index.html', 67_500],
   ['api/tracon.testing.contracts.storage.runstorecontract/index.html', 67_500],
 ]);
 

@@ -276,7 +276,7 @@ conditional or separately mapped, so they are not all represented by the generat
 
 | Capability | What it gives you | Enable or bind it | Boundary |
 |---|---|---|---|
-| Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `ITenantStore`, `IHostTenantScope` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request; `IHostTenantScope` opens your own tenant scope around each queued job |
+| Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `IHostTenantScope`, `ITenantStore` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request; `IHostTenantScope` opens your own tenant scope around each queued job |
 | Run attribution | Attributes a run to your own user and job labels | `IRunAttributionContext` | Unset by default; the columns stay `NULL` until you register one |
 | Tool authorization | Decides whether a caller may invoke a specific tool | `IToolAuthorizationHandler`; per tenant, a [tool policy](/concepts/tools/#per-tenant-tool-policy) in front of it | Allows every call by default; a thrown exception denies the call. A tenant with no policy passes the policy unless `Tracon:Tools:RequireTenantPolicy` is on |
 | Run and session authorization | Decides whether a caller may start a run, reach an existing run's resources, or read/list/delete/branch/speak into a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call and is logged as an error. Called explicitly at every run-starting endpoint, at every message an A2A agent receives and every MCP tool call, and at every run-resource endpoint, not one shared filter |

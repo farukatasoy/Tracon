@@ -15,9 +15,14 @@ namespace Tracon;
 /// <para>
 /// The worker calls <see cref="Begin"/> for the job's tenant after it opens its own scope and before it creates the
 /// container scope the job runs in, and disposes the result when the job ends, whatever way it ends. Everything the
-/// job runs sees it: the handler, the agent's tools and decorators, and the sub-agents it calls. Only the job worker
-/// calls it. A run that a request starts already runs inside your framework's own scope, which your request middleware
-/// opened, and the other background paths of Tracon run no tool.
+/// job runs sees it: the handler, the agent's tools and decorators, and the sub-agents it calls.
+/// </para>
+/// <para>
+/// Only the job worker calls it. A run that a request starts runs inside your framework's own scope, which your request
+/// middleware opened. Two paths run a tool after their request has returned: a streamed A2A turn that outlives the
+/// caller, and an MCP task-mode call. They start inside the request's flow, so a scope that your framework keeps in an
+/// <c>AsyncLocal</c> reaches them; a scope bound to the request's <c>HttpContext</c> does not, and a tool that can run
+/// on those paths opens your framework's scope itself from <c>TraconRunContext.Current.TenantId</c>.
 /// </para>
 ///
 /// <para><strong>Lifetime and threading</strong></para>
@@ -25,7 +30,9 @@ namespace Tracon;
 /// An implementation is a <strong>singleton</strong>, resolved once when the worker starts, and it is called
 /// <strong>concurrently</strong>: two jobs of two tenants can begin at the same moment. It must not capture a scoped
 /// service. <see cref="Begin"/> is synchronous on purpose. It runs in the worker's own method body, so a value it
-/// writes to an <c>AsyncLocal</c> reaches the job; an asynchronous method would lose the value on its way back.
+/// writes to an <c>AsyncLocal</c> reaches the job; an asynchronous method would lose the value on its way back. It runs
+/// on a pool thread of the job's own flow, not on the loop that leases jobs, so a call that waits holds the slot of
+/// this job and delays no other.
 /// </para>
 ///
 /// <para><strong>Tenant mode</strong></para>
@@ -39,6 +46,7 @@ namespace Tracon;
 /// <para>
 /// A <see cref="Begin"/> that throws fails the job before it runs, with <see cref="JobErrorCodes.HostTenantScopeFailed"/>,
 /// and the job is not retried: an application that does not know the tenant will not know it on the next attempt either.
+/// A run that was queued for the job keeps the status it was queued with; the failed job is the record.
 /// A <see cref="IDisposable.Dispose"/> that throws is logged and changes nothing about the job's result. No delivery
 /// guarantee applies to the scope itself: it is opened for each attempt of a job, so a job that is leased again opens it again.
 /// </para>
