@@ -5971,3 +5971,20 @@ override Tracon.AgentResolveOptions.GetHashCode() -> int
 override Tracon.AgentResolveOptions.ToString() -> string!
 static Tracon.AgentResolveOptions.operator !=(Tracon.AgentResolveOptions? left, Tracon.AgentResolveOptions? right) -> bool
 static Tracon.AgentResolveOptions.operator ==(Tracon.AgentResolveOptions? left, Tracon.AgentResolveOptions? right) -> bool
+Tracon.AgentResolveOptions.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.AgentResolveOptions.Parameters.init -> void
+Tracon.IAgentDefinitionSource
+Tracon.IAgentDefinitionSource.GetAsync(string! agentName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentDefinition?>
+Tracon.IAgentDefinitionSource.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.AgentDefinition!>!>
+Tracon.IAgentDefinitionSource.Name.get -> string!
+Tracon.IAgentDefinitionSource.Priority.get -> int
+Tracon.IVersionedAgentDefinitionSource
+Tracon.IVersionedAgentDefinitionSource.GetVersionAsync(string! agentName, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentDefinition?>
+Tracon.TraconParameterException
+Tracon.TraconParameterException.MissingParameters.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.TraconParameterException.TooLongParameters.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.TraconParameterException.TraconParameterException(string! message, System.Collections.Generic.IReadOnlyList<string!>! missingParameters, System.Collections.Generic.IReadOnlyList<string!>! unknownParameters, System.Collections.Generic.IReadOnlyList<string!>! tooLongParameters) -> void
+Tracon.TraconParameterException.UnknownParameters.get -> System.Collections.Generic.IReadOnlyList<string!>!
+const Tracon.TraconErrorTypes.InvalidParameters = "invalid_parameters" -> string!
+const Tracon.TraconParameterException.InvalidParametersErrorType = "invalid_parameters" -> string!
+override Tracon.TraconParameterException.ErrorType.get -> string!

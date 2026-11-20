@@ -1,5 +1,3 @@
-using System.Data.Common;
-using System.Runtime.ExceptionServices;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Logging;
 
@@ -19,19 +17,30 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     private readonly IAgentSource[] _sources;
     private readonly IAgentDecorator[] _decorators;
     private readonly ILogger<CompositeAgentCatalog> _logger;
-    private readonly TraconMetrics? _metrics;
+    private readonly AgentSourceFailures _failures;
+    private readonly AgentDefinitionLookup _lookup;
+    private readonly ParameterizedAgentFactory? _parameterFactory;
 
     /// <summary>Initializes a new composite catalog.</summary>
     /// <param name="sources">The agent sources.</param>
     /// <param name="decorators">The decorators applied to resolved agents.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="metrics">The source-failure metrics recorder.</param>
+    /// <param name="lookup">
+    /// Finds the definition behind a name for a resolve that binds parameter values. When
+    /// <see langword="null"/> the catalog walks its own sources.
+    /// </param>
+    /// <param name="parameterFactory">
+    /// Compiles an agent for a set of parameter values. Without it the catalog cannot bind values.
+    /// </param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public CompositeAgentCatalog(
         IEnumerable<IAgentSource> sources,
         IEnumerable<IAgentDecorator> decorators,
         ILogger<CompositeAgentCatalog> logger,
-        TraconMetrics? metrics = null)
+        TraconMetrics? metrics = null,
+        AgentDefinitionLookup? lookup = null,
+        ParameterizedAgentFactory? parameterFactory = null)
     {
         ArgumentNullException.ThrowIfNull(sources);
         ArgumentNullException.ThrowIfNull(decorators);
@@ -40,7 +49,9 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         _sources = [.. sources.OrderBy(static source => source.Priority)];
         _decorators = [.. decorators.OrderByDescending(static decorator => decorator.Order)];
         _logger = logger;
-        _metrics = metrics;
+        _failures = new AgentSourceFailures(logger, metrics);
+        _lookup = lookup ?? new AgentDefinitionLookup(_sources, _failures);
+        _parameterFactory = parameterFactory;
     }
 
     /// <inheritdoc />
@@ -58,7 +69,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
-                RecordSourceFailure(source, "list", exception, LogLevel.Error);
+                _failures.Record(source, "list", exception, LogLevel.Error);
                 continue;
             }
 
@@ -102,9 +113,99 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
 
+        if (options?.Parameters is { } values)
+        {
+            return await ResolveBoundAsync(agentName, options, values, cancellationToken).ConfigureAwait(false);
+        }
+
         return options?.Version is { } version
             ? await ResolveVersionAsync(agentName, version, options.Culture, cancellationToken).ConfigureAwait(false)
             : await ResolveCurrentAsync(agentName, options?.Culture, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Resolves an agent for one set of parameter values: finds the definition the catalog would run,
+    /// checks the values against its schema, compiles for exactly those values, and applies the same
+    /// decorators every other resolve applies.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The compiled agent is never shared: <see cref="CompiledAgentCache"/> has no notion of a value in
+    /// its key. The decorators are applied here with the catalog's own failure handling, so a failing
+    /// source or decorator is recorded on the same counter and raised in the same shape as on the
+    /// other paths. The agent carries the final value set (<c>BoundParameterValues</c>), which the run
+    /// recording wrapper writes to the run record.
+    /// </para>
+    /// <para>
+    /// An agent that declares no schema has nothing to bind. The values are still checked, so a name it
+    /// does not declare is refused, and an empty set resolves the agent exactly as a call without values.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<AIAgent?> ResolveBoundAsync(
+        string agentName,
+        AgentResolveOptions options,
+        IReadOnlyDictionary<string, string> values,
+        CancellationToken cancellationToken)
+    {
+        var found = await _lookup.FindAsync(agentName, options.Version, cancellationToken).ConfigureAwait(false);
+
+        if (!found.Held)
+        {
+            return null;
+        }
+
+        var factory = _parameterFactory ?? throw new TraconException(
+            "This catalog was built without a parameter factory, so it cannot bind parameter values.");
+
+        var schema = found.Definition?.Parameters ?? [];
+        var validation = factory.Validate(schema, values);
+
+        if (!validation.IsValid)
+        {
+            throw ParameterValueSet.Failure(
+                $"The parameters are invalid for agent '{agentName}'. {ParameterValueSet.Describe(validation)}",
+                validation);
+        }
+
+        if (found.Definition is not { Parameters.Count: > 0 })
+        {
+            return await ResolveAsync(agentName, options with { Parameters = null }, cancellationToken).ConfigureAwait(false);
+        }
+
+        var source = found.Source!;
+        AIAgent agent;
+        AgentDescriptor descriptor;
+
+        try
+        {
+            agent = await factory
+                .CompileBoundAsync(found, options.Culture, values, markValues: true, cancellationToken)
+                .ConfigureAwait(false);
+            descriptor = Freeze(ParameterizedAgentFactory.Describe(found));
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            throw _failures.Handle(source, "resolve", exception);
+        }
+
+        return Decorate(source, agent, descriptor, cancellationToken);
+    }
+
+    private AIAgent Decorate(IAgentSource source, AIAgent agent, AgentDescriptor descriptor, CancellationToken cancellationToken)
+    {
+        foreach (var decorator in _decorators)
+        {
+            try
+            {
+                agent = decorator.Decorate(agent, descriptor);
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+            {
+                throw _failures.Handle(source, "decorate", exception);
+            }
+        }
+
+        return agent;
     }
 
     private async ValueTask<AIAgent?> ResolveCurrentAsync(string agentName, string? culture, CancellationToken cancellationToken)
@@ -144,22 +245,10 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
-                throw HandleSourceFailure(source, "resolve", exception);
+                throw _failures.Handle(source, "resolve", exception);
             }
 
-            foreach (var decorator in _decorators)
-            {
-                try
-                {
-                    agent = decorator.Decorate(agent, descriptor);
-                }
-                catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
-                {
-                    throw HandleSourceFailure(source, "decorate", exception);
-                }
-            }
-
-            return agent;
+            return Decorate(source, agent, descriptor, cancellationToken);
         }
 
         return null;
@@ -183,7 +272,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
-                throw HandleSourceFailure(source, "resolve", exception);
+                throw _failures.Handle(source, "resolve", exception);
             }
 
             if (descriptor is null)
@@ -196,8 +285,8 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             if (source is not IVersionedAgentSource versioned)
             {
                 throw new TraconException(
-                    $"Agent '{agentName}' comes from source '{source.Name}' and does not keep version history " +
-                    "(code source). Runs or experiments against a specific version are not supported for this agent.");
+                    $"Agent '{agentName}' comes from source '{source.Name}' and does not keep version history. " +
+                    "Runs or experiments against a specific version are not supported for this agent.");
             }
 
             AIAgent agent;
@@ -231,22 +320,10 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
-                throw HandleSourceFailure(source, "resolve", exception);
+                throw _failures.Handle(source, "resolve", exception);
             }
 
-            foreach (var decorator in _decorators)
-            {
-                try
-                {
-                    agent = decorator.Decorate(agent, descriptor);
-                }
-                catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
-                {
-                    throw HandleSourceFailure(source, "decorate", exception);
-                }
-            }
-
-            return agent;
+            return Decorate(source, agent, descriptor, cancellationToken);
         }
 
         return null;
@@ -279,7 +356,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
-                throw HandleSourceFailure(source, "resolve", exception);
+                throw _failures.Handle(source, "resolve", exception);
             }
 
             if (descriptor is not null)
@@ -303,7 +380,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             return Freeze(descriptor);
         }
 
-        RecordContractViolation(source, "consistency", $"resolved '{agentName}' but did not list it.", LogLevel.Warning);
+        _failures.RecordContractViolation(source, "consistency", $"resolved '{agentName}' but did not list it.", LogLevel.Warning);
 
         return new AgentDescriptor
         {
@@ -331,71 +408,6 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         return null;
     }
 
-    /// <summary>
-    /// Records a source failure and re-throws it — normalized, unless it was already a
-    /// normalized or otherwise-Tracon error.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <see cref="TraconException"/> (any subtype — <see cref="TraconAgentSourceException"/>
-    /// itself, or a compilation error such as <c>TraconCompilationException</c> that
-    /// <c>AgentDefinitionCompiler.CompileCachedAsync</c> raised while the source built the
-    /// agent) is already a safe, normalized Tracon error: it carries no raw
-    /// third-party text, and a caller further up may be matching its SPECIFIC type (the
-    /// run endpoint's <c>400</c>/<c>502</c> split reads <see cref="TraconException.ErrorType"/>).
-    /// Re-wrapping it here would both lose that type and misreport an ordinary
-    /// compilation problem as an "agent source failure" it is not. Only a genuinely raw,
-    /// unexpected exception — the actual case source isolation exists to contain — gets wrapped.
-    /// </para>
-    /// <para>
-    /// A store failure (<see cref="StoreFailure.Is"/>: a provider's <see cref="DbException"/>, a pool that ran
-    /// dry, a connect that timed out) is not wrapped either. It says the persistence store could not
-    /// answer (a tenant's provider binding or egress policy is read while the agent is compiled),
-    /// not that the source broke its contract; wrapped, the run endpoint reported it as <c>400 Agent
-    /// compilation failed</c> and the caller went to fix an agent that was fine. It is recorded like
-    /// any source failure and then reaches the caller as it is, where the host answers <c>503</c>.
-    /// The host asks the same question, so the two cannot disagree about which failures those are.
-    /// </para>
-    /// </remarks>
-    private TraconAgentSourceException HandleSourceFailure(IAgentSource source, string operation, Exception exception)
-    {
-        RecordSourceFailure(source, operation, exception, LogLevel.Error);
-
-        if (exception is TraconException || StoreFailure.Is(exception))
-        {
-            // Always throws; the exception this method appears to return is never
-            // actually reached in that case. Callers still write `throw
-            // HandleSourceFailure(...)` — a return type of Exception, not void, is what
-            // lets the compiler see the "always throws" invariant `agent`/`descriptor`
-            // definite-assignment checks further down each caller need.
-            ExceptionDispatchInfo.Capture(exception).Throw();
-        }
-
-        return new TraconAgentSourceException(
-            source.Name,
-            TraconAgentSourceException.SourceFailedErrorType,
-            $"Agent source '{source.Name}' failed during {operation} ({TraconAgentSourceException.SourceFailedErrorType}).",
-            exception);
-    }
-
-    private void RecordContractViolation(IAgentSource source, string operation, string detail, LogLevel level = LogLevel.Error)
-    {
-        var exception = new TraconAgentSourceException(
-            source.Name,
-            TraconAgentSourceException.SourceContractErrorType,
-            $"Agent source '{source.Name}' violated its contract during {operation}: {detail}");
-        RecordSourceFailure(source, operation, exception, level);
-    }
-
-    private void RecordSourceFailure(IAgentSource source, string operation, Exception exception, LogLevel level)
-    {
-        _metrics?.RecordAgentSourceFailure(source.Name, operation);
-        if (_logger.IsEnabled(level))
-        {
-            _logger.Log(level, exception, "Agent source '{SourceName}' failed during {Operation}.", source.Name, operation);
-        }
-    }
-
     private List<AgentDescriptor>? FreezeAndValidate(IAgentSource source, IReadOnlyList<AgentDescriptor> descriptors)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -405,13 +417,13 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         {
             if (string.IsNullOrWhiteSpace(descriptor.Name))
             {
-                RecordContractViolation(source, "list", "returned a descriptor with an empty name.");
+                _failures.RecordContractViolation(source, "list", "returned a descriptor with an empty name.");
                 return null;
             }
 
             if (!names.Add(descriptor.Name))
             {
-                RecordContractViolation(source, "list", $"returned '{descriptor.Name}' more than once.");
+                _failures.RecordContractViolation(source, "list", $"returned '{descriptor.Name}' more than once.");
                 return null;
             }
 

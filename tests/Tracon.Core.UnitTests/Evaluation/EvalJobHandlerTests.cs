@@ -648,7 +648,7 @@ public sealed class EvalJobHandlerTests
         AgentDefinitionCompiler compiler,
         TraconOptions? options = null,
         params IAgentDecorator[] decorators)
-        => new([], definitions, compiler, decorators, new StaticOptionsMonitor<TraconOptions>(options ?? new TraconOptions()));
+        => new(TestLookups.OverStore(definitions, compiler), compiler, decorators, new StaticOptionsMonitor<TraconOptions>(options ?? new TraconOptions()));
 
     private static AgentDefinitionCompiler CreateCompiler()
         => new(TestData.Providers(new FakeModelProvider()), TestData.Registry());

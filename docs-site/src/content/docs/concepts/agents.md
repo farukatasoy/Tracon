@@ -79,9 +79,11 @@ A run supplies values on the `parameters` field of `POST /api/agents/{name}/run`
 parameter with no value and no `DefaultValue` stops the run before it starts, and
 names the missing parameter; a value for a name the schema does not declare is
 rejected too, not silently dropped. This holds for a definition saved through the
-API and for one registered in code with `AddAgent`. Tracon reads the schema from
-those two places only. An agent from a factory or a
-[custom agent source](/guides/write-your-own-agent-source/#a-sources-agent-takes-no-parameter-values)
+API, for one registered in code with `AddAgent`, and for one a
+[custom definition source](/guides/write-your-own-agent-source/#return-a-definition-and-tracon-compiles-it)
+returns. Tracon reads the schema from the source that holds the name, the same source
+the catalog runs. An agent from a factory or from a
+[custom agent source that builds its own `AIAgent`](/guides/write-your-own-agent-source/#a-sources-agent-takes-no-parameter-values)
 has no schema that Tracon can read, so a run that supplies a value for it is refused
 as unknown.
 
@@ -106,26 +108,48 @@ it on the defaults would change the instructions. That refusal says so.
 
 Every other entry point carries no values: the OpenAI-compatible endpoints, MCP, A2A,
 an agent called by another agent, voice, and an agent that your own .NET code resolves
-from `IAgentCatalog` and runs in-process. Those runs bind each parameter's
+from `IAgentCatalog` without values. Those runs bind each parameter's
 `DefaultValue`, and an agent with a required parameter that has no default does not
 run there. Where a request enters, it is refused (`400` with `missingParameters`);
 where there is no request to refuse, the run fails before any model call and names
 the parameter. Such a run records no values, so it cannot be replayed.
 
-`IAgentCatalog.ResolveAsync` has no argument for parameter values. .NET code that runs
-a catalog agent itself has two ways to give one run text of its own:
+### Give a value from .NET code
 
-- **Send the text in the run's messages.** The run records its messages, so a replay
-  sends the text again.
-- **Append the text to the instructions** with `ChatClientAgentRunOptions`, as
-  [model options for one run](/guides/any-maf-feature/#add-an-option-a-provider-or-a-ring-with-an-agent-extension)
-  describes. The model receives the text, but the run records only its messages and
-  parameter values. A replay or a continuation runs without the appended text.
+Your own code that runs a catalog agent hands the values to `ResolveAsync`:
 
-To bind parameter values from .NET, start the run on a path that carries them: the run
-endpoint (the `Tracon.Client` request has a `Parameters` property), an
-[agent batch item](/guides/background-work/#give-an-item-its-own-values), or a workflow
-(`WorkflowRunRequest.Parameters`).
+```csharp
+var agent = await catalog.ResolveAsync(
+    "summarizer",
+    new AgentResolveOptions
+    {
+        Parameters = new Dictionary<string, string> { ["articleContent"] = articleText },
+    },
+    cancellationToken);
+
+var response = await agent!.RunAsync("Summarize the article.");
+```
+
+The values go through the same checks as `POST /api/agents/{name}/run`. A required value
+that is missing, a name the agent does not declare and a value over
+`MaxParameterValueLength` throw `TraconParameterException` from `ResolveAsync`. The
+exception lists the names in `MissingParameters`, `UnknownParameters` and
+`TooLongParameters`, and its message names parameters and never repeats a value. No
+provider is called and no run row is written.
+
+The agent you get back is compiled for exactly those values, so it is not shared through
+the compiled-agent cache, and it still carries every decorator the catalog applies: run
+recording, telemetry and tool approval. The run records the final value set, defaults
+included, beside its input. A replay, a continuation and a tool-approval resume repeat it.
+
+- `Parameters = null` binds nothing. The agent is the cached one with the defaults applied,
+  and the run records no values.
+- `Parameters = new Dictionary<string, string>()` binds the defaults and records them, so
+  the run can be replayed.
+- An agent that declares no parameters accepts only an empty set. Any name is unknown.
+
+Pass `Version` and `Culture` in the same options to pin a definition version and pick an
+instruction culture. The values are checked against the schema of that version.
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security
@@ -173,11 +197,12 @@ The catalog merges registered sources, in priority order:
 ```mermaid
 flowchart LR
     accTitle: Agent catalog sources
-    accDescr: Code registrations, database definitions, and custom sources merge into one catalog, with lower priority values winning name collisions.
+    accDescr: Code registrations, database definitions, custom definition sources and custom agent sources merge into one catalog, with lower priority values winning name collisions.
     C["Code<br/>AddAgent(definition) or AddAgent(name, model, factory)"] --> CAT["IAgentCatalog"]
     D["Database<br/>definitions written through the API"] --> CAT
-    X["Custom<br/>IAgentSource registration"] --> CAT
-    CAT --> R["ResolveAsync(name)"]
+    G["Custom definitions<br/>IAgentDefinitionSource registration"] --> CAT
+    X["Custom agents<br/>IAgentSource registration"] --> CAT
+    CAT --> R["ResolveAsync(name, options)"]
 ```
 
 `AddAgent(name, model, factory)` is a code registration too — the factory returns a MAF
@@ -205,16 +230,25 @@ Framework feature](/guides/any-maf-feature/) compares the doors, and [Move an ag
 from AddAIAgent to Tracon](/guides/from-maf-hosting/) maps the MAF hosting calls to
 them.
 
-An application can add an `IAgentSource` for definitions stored outside Tracon or
-for agents owned by another runtime. Custom-source agents are visible in the console
-but remain read-only in the management API. See [write your own agent
-source](/guides/write-your-own-agent-source/) for the lifecycle, priority, tenancy,
-and contract-test rules.
+An application can add an `IAgentDefinitionSource` for definitions stored outside
+Tracon, in Git or an object store or its own database. The source returns the
+`AgentDefinition` and Tracon compiles it, so parameters, the compiled-agent cache,
+version pins and the descriptor work as they do for a stored agent. For agents owned
+by another runtime, or built by your own code, it can add an `IAgentSource` instead.
+Custom-source agents are visible in the console but remain read-only in the management
+API. See [write your own agent source](/guides/write-your-own-agent-source/) for the
+lifecycle, priority, tenancy, and contract-test rules.
 
 On a name clash the higher-priority source wins and the other is dropped from the
 list. **Code wins.** That is why the API refuses to store a definition under a name a
 code agent already uses: the stored definition would never resolve, and a silent
 shadow is worse than a `409`.
+
+The run endpoint follows the same order. A custom source with a lower `Priority` value
+than the database wins a name the database also holds, and `POST /api/agents/{name}/run`
+runs that source's agent, with that agent's parameter schema. Earlier releases read the
+schema from the code registrations and then the database, so a stored definition that
+declared parameters pulled the run away from the source that had won the name.
 
 A code-defined agent has no stored definition and no version history — its history is
 your source history. The API reports that distinctly: `GET /api/agents/{name}` still

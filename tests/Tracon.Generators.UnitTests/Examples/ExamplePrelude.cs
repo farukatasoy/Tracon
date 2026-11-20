@@ -19,7 +19,7 @@ namespace Tracon.Generators.UnitTests.Examples;
 /// <para>
 /// A handful of blocks name a type that exists only to illustrate an extension
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
-/// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>,
+/// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>, <c>GitAgentDefinitionSource</c>,
 /// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>, <c>PolicyContextExtension</c>, <c>ModelCallLogChatClient</c>,
 /// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>, <c>TtsSettings</c>,
 /// <c>StudioSpeechSynthesizer</c>, <c>OnPremiseTranscriber</c>, <c>StudioTextToSpeechClient</c>, <c>StudioSpeechToTextClient</c>, <c>NarrationSettings</c>): "a
@@ -212,6 +212,18 @@ internal static class ExamplePrelude
             public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default) => default;
 
             public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default) => default;
+        }
+
+        // Stands in for "your own agent definition source", named in one <example> only.
+        internal sealed class GitAgentDefinitionSource : IAgentDefinitionSource
+        {
+            public string Name => "git";
+
+            public int Priority => 0;
+
+            public ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default) => default;
+
+            public ValueTask<AgentDefinition?> GetAsync(string agentName, CancellationToken cancellationToken = default) => default;
         }
 
         // Stands in for "your own run/session authorization handler", named in

@@ -6,16 +6,18 @@ namespace Tracon;
 /// <summary>
 /// Builds an agent for a run that carries parameter values, on every path that
 /// does not go through <c>POST /api/agents/{name}/run</c>: a queued run, a
-/// batch item, an approval resume, a workflow step.
+/// batch item, an approval resume, a workflow step — and, for the catalog's own bound
+/// resolve, the compile half of the sequence.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <strong>This is the one place the "compile outside the catalog" sequence
 /// lives.</strong> A parameterized run bypasses <see cref="CompiledAgentCache"/>
-/// (the cache key has no notion of a value), which means it also bypasses
-/// <see cref="IAgentCatalog.ResolveAsync(string, AgentResolveOptions?, CancellationToken)"/> and the
-/// decorator chain the catalog applies. The caller therefore has to find the
-/// definition (code first), compile with the values, and apply
+/// (the cache key has no notion of a value), which means it also bypasses the
+/// decorator chain the catalog applies on
+/// <see cref="IAgentCatalog.ResolveAsync(string, AgentResolveOptions?, CancellationToken)"/>.
+/// The caller therefore has to find the
+/// definition, compile with the values, and apply
 /// <see cref="AgentDecoratorPipeline"/> by hand or the run goes out with no
 /// recording, no telemetry and no tool-approval gate. Four more callers
 /// would have been four more copies of that sequence.
@@ -26,37 +28,37 @@ namespace Tracon;
 /// definition and the culture, both part of the cache key. The factory then only
 /// reports the final value set so the run can record it.
 /// </para>
+/// <para>
+/// The definition is found by <see cref="AgentDefinitionLookup"/>, which walks the agent sources in
+/// the catalog's own order, so the schema this factory binds is the schema of the agent the catalog
+/// would run.
+/// </para>
 /// </remarks>
 internal sealed class ParameterizedAgentFactory
 {
-    private readonly CodeAgentRegistration[] _codeRegistrations;
-    private readonly IAgentDefinitionStore _definitions;
+    private readonly AgentDefinitionLookup _lookup;
     private readonly AgentDefinitionCompiler _compiler;
     private readonly IAgentDecorator[] _decorators;
     private readonly IOptionsMonitor<TraconOptions> _options;
 
     /// <summary>Creates a new factory.</summary>
-    /// <param name="codeRegistrations">The agents registered in code.</param>
-    /// <param name="definitions">The definition store.</param>
+    /// <param name="lookup">Finds the definition behind an agent name.</param>
     /// <param name="compiler">The definition compiler.</param>
     /// <param name="decorators">The wrappers the catalog would apply.</param>
     /// <param name="options">The runtime settings, for <see cref="TraconOptions.MaxParameterValueLength"/>.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public ParameterizedAgentFactory(
-        IEnumerable<CodeAgentRegistration> codeRegistrations,
-        IAgentDefinitionStore definitions,
+        AgentDefinitionLookup lookup,
         AgentDefinitionCompiler compiler,
         IEnumerable<IAgentDecorator> decorators,
         IOptionsMonitor<TraconOptions> options)
     {
-        ArgumentNullException.ThrowIfNull(codeRegistrations);
-        ArgumentNullException.ThrowIfNull(definitions);
+        ArgumentNullException.ThrowIfNull(lookup);
         ArgumentNullException.ThrowIfNull(compiler);
         ArgumentNullException.ThrowIfNull(decorators);
         ArgumentNullException.ThrowIfNull(options);
 
-        _codeRegistrations = [.. codeRegistrations];
-        _definitions = definitions;
+        _lookup = lookup;
         _compiler = compiler;
 
         // The same order CompositeAgentCatalog uses: the larger Order is applied
@@ -69,12 +71,15 @@ internal sealed class ParameterizedAgentFactory
     /// <param name="agentName">The agent name.</param>
     /// <param name="version">A pinned version, or <see langword="null"/> for the current one.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The definition (<see langword="null"/> for a factory agent or an unknown name) and its origin.</returns>
-    public ValueTask<(AgentDefinition? Definition, AgentDefinitionOrigin Origin)> FindAsync(
+    /// <returns>
+    /// Where the name lives and, when the agent has one, its definition (<see langword="null"/> for a
+    /// factory agent, an opaque source's agent or an unknown name).
+    /// </returns>
+    public ValueTask<FoundDefinition> FindAsync(
         string agentName,
         int? version,
         CancellationToken cancellationToken)
-        => AgentDefinitionLookup.FindAsync(_codeRegistrations, _definitions, agentName, version, cancellationToken);
+        => _lookup.FindAsync(agentName, version, cancellationToken);
 
     /// <summary>Checks supplied values against a schema with the configured length limit.</summary>
     /// <param name="schema">The schema.</param>
@@ -152,31 +157,64 @@ internal sealed class ParameterizedAgentFactory
     /// <summary>
     /// Compiles a definition with values and applies the decorator chain.
     /// </summary>
-    /// <param name="definition">The source definition.</param>
-    /// <param name="origin">Where <paramref name="definition"/> comes from.</param>
+    /// <param name="found">The definition to compile and where it comes from.</param>
     /// <param name="culture">The instruction culture.</param>
     /// <param name="values">The values to bind.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The decorated agent, ready to run.</returns>
     /// <exception cref="TraconCompilationException">The definition cannot be compiled.</exception>
     public async ValueTask<AIAgent> CompileAsync(
-        AgentDefinition definition,
-        AgentDefinitionOrigin origin,
+        FoundDefinition found,
         string? culture,
         IReadOnlyDictionary<string, string>? values,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(definition);
+        var agent = await CompileBoundAsync(found, culture, values, markValues: false, cancellationToken).ConfigureAwait(false);
+
+        return AgentDecoratorPipeline.Apply(agent, Describe(found), _decorators);
+    }
+
+    /// <summary>
+    /// Compiles a definition with values and stops before the decorator chain: the catalog applies
+    /// its own, with its own failure handling.
+    /// </summary>
+    /// <param name="found">The definition to compile and where it comes from.</param>
+    /// <param name="culture">The instruction culture.</param>
+    /// <param name="values">The values to bind.</param>
+    /// <param name="markValues">
+    /// Whether the agent carries the final value set as a <c>BoundParameterValues</c> marker, for a caller
+    /// that has no run option to put it in.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The compiled agent, not yet decorated.</returns>
+    /// <exception cref="TraconCompilationException">The definition cannot be compiled.</exception>
+    public async ValueTask<AIAgent> CompileBoundAsync(
+        FoundDefinition found,
+        string? culture,
+        IReadOnlyDictionary<string, string>? values,
+        bool markValues,
+        CancellationToken cancellationToken)
+    {
+        var definition = found.Definition
+            ?? throw new ArgumentException("The agent has no definition to compile.", nameof(found));
 
         var agent = await _compiler
             .CompileParameterizedAsync(definition, culture, values, cancellationToken)
             .ConfigureAwait(false);
 
-        return AgentDecoratorPipeline.Apply(
-            agent,
-            AgentDescriptorProjection.FromDefinition(definition, origin, AgentDefinitionLookup.SourceName(origin)),
-            _decorators);
+        return markValues
+            ? new BoundParameterValues(agent, ParameterValueSet.Resolve(definition.Parameters, values))
+            : agent;
     }
+
+    /// <summary>The catalog summary of the definition a bound agent was compiled from.</summary>
+    /// <param name="found">The definition and where it comes from.</param>
+    /// <returns>The summary the decorators read.</returns>
+    public static AgentDescriptor Describe(FoundDefinition found)
+        => AgentDescriptorProjection.FromDefinition(
+            found.Definition ?? throw new ArgumentException("The agent has no definition to describe.", nameof(found)),
+            found.Origin,
+            found.Source?.Name ?? AgentDefinitionLookup.BuiltInSourceName(found.Origin));
 
     /// <summary>
     /// Prepares an agent run for a name and the values a caller supplied.
@@ -191,7 +229,7 @@ internal sealed class ParameterizedAgentFactory
     /// "resolve it from the catalog as before"), and the final value set to
     /// record (<see langword="null"/> when the agent declares no schema).
     /// </returns>
-    /// <exception cref="TraconException">
+    /// <exception cref="TraconParameterException">
     /// The values do not satisfy the schema: a required one is missing, a name
     /// is not declared, or a value is over the length limit. The message names
     /// parameters only, never values.
@@ -203,7 +241,8 @@ internal sealed class ParameterizedAgentFactory
         IReadOnlyDictionary<string, string>? supplied,
         CancellationToken cancellationToken)
     {
-        var (definition, origin) = await FindAsync(agentName, version, cancellationToken).ConfigureAwait(false);
+        var found = await FindAsync(agentName, version, cancellationToken).ConfigureAwait(false);
+        var definition = found.Definition;
         var schema = definition?.Parameters ?? [];
 
         // An agent with no schema rejects any supplied value as unknown, and a
@@ -212,8 +251,9 @@ internal sealed class ParameterizedAgentFactory
 
         if (!validation.IsValid)
         {
-            throw new TraconException(
-                $"The run's parameters are invalid for agent '{agentName}'. {ParameterValueSet.Describe(validation)}");
+            throw ParameterValueSet.Failure(
+                $"The run's parameters are invalid for agent '{agentName}'. {ParameterValueSet.Describe(validation)}",
+                validation);
         }
 
         if (definition is null || schema.Count == 0)
@@ -229,7 +269,7 @@ internal sealed class ParameterizedAgentFactory
             return new ParameterBinding(null, final);
         }
 
-        var agent = await CompileAsync(definition, origin, culture, supplied, cancellationToken).ConfigureAwait(false);
+        var agent = await CompileAsync(found, culture, supplied, cancellationToken).ConfigureAwait(false);
 
         return new ParameterBinding(agent, final);
     }

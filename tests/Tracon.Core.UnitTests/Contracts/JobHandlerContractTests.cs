@@ -118,8 +118,7 @@ public sealed class EvalJobHandlerContractTests : JobHandlerContract
             evalStore,
             new AnyNameAgentCatalog(new ContractAgent()),
             new ParameterizedAgentFactory(
-                [],
-                new InMemoryAgentDefinitionStore(),
+                TestLookups.Empty(),
                 new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry()),
                 [],
                 new StaticOptionsMonitor<TraconOptions>(new TraconOptions())),

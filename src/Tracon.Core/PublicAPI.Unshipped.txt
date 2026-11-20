@@ -926,3 +926,6 @@ Tracon.AgentExtensionContext.UseChatClient(Tracon.ChatClientSlot slot, System.Fu
 Tracon.ChatClientSlot
 Tracon.ChatClientSlot.ModelCall = 0 -> Tracon.ChatClientSlot
 Tracon.ChatClientSlot.Turn = 1 -> Tracon.ChatClientSlot
+static Tracon.TraconBuilderExtensions.AddAgentDefinitionSource(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IAgentDefinitionSource!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentDefinitionSource(this Tracon.ITraconBuilder! builder, Tracon.IAgentDefinitionSource! source) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentDefinitionSource<TSource>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!

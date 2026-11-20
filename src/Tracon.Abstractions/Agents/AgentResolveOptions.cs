@@ -2,7 +2,7 @@ namespace Tracon;
 
 /// <summary>
 /// Chooses what <see cref="IAgentCatalog.ResolveAsync"/> returns for an agent name: which
-/// definition version and which instruction culture.
+/// definition version, which instruction culture and which parameter values.
 /// </summary>
 /// <remarks>
 /// A resolve input is a property here, not a new overload on the catalog, so the catalog
@@ -26,4 +26,26 @@ public sealed record AgentResolveOptions
     /// definition's default instructions.
     /// </summary>
     public string? Culture { get; init; }
+
+    /// <summary>
+    /// Gets the parameter values to bind into the definition's instructions at resolve time.
+    /// <see langword="null"/> binds no values: the definition's defaults apply and no values are recorded.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A non-<see langword="null"/> dictionary, even an empty one, is checked against the definition's
+    /// parameter schema with the same rules as <c>POST /api/agents/{name}/run</c>. The agent is then
+    /// compiled for exactly these values and is not shared through the compiled-agent cache. The
+    /// decorators the catalog applies (run recording, telemetry, tool approval) still apply. The run
+    /// records the final value set, defaults included, so replay and continuation repeat it. An empty
+    /// dictionary therefore means "bind the defaults and record them".
+    /// </para>
+    /// <para>
+    /// An agent whose source declares no parameter schema rejects every supplied name as unknown.
+    /// A required value that is missing, a name the schema does not declare and a value over
+    /// <c>MaxParameterValueLength</c> throw <see cref="TraconParameterException"/> from
+    /// <see cref="IAgentCatalog.ResolveAsync"/>; no provider call happens and no run row is written.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
 }

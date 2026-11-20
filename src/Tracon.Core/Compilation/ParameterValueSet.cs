@@ -96,6 +96,35 @@ internal static class ParameterValueSet
     }
 
     /// <summary>
+    /// Turns a failed validation into the error a caller catches, with the violating names by kind.
+    /// </summary>
+    /// <param name="message">The message; it names parameters and never repeats a value.</param>
+    /// <param name="result">The failed validation.</param>
+    /// <returns>The error to throw.</returns>
+    public static TraconParameterException Failure(string message, AgentParameterValidationResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        var missing = new List<string>();
+        var unknown = new List<string>();
+        var tooLong = new List<string>();
+
+        foreach (var error in result.Errors)
+        {
+            var target = error.Code switch
+            {
+                AgentParameterValidator.MissingParameterCode => missing,
+                AgentParameterValidator.ValueTooLongCode => tooLong,
+                _ => unknown,
+            };
+
+            target.Add(error.ParameterName);
+        }
+
+        return new TraconParameterException(message, missing, unknown, tooLong);
+    }
+
+    /// <summary>
     /// Describes a failed validation in one sentence per violation.
     /// </summary>
     /// <param name="result">The failed validation.</param>

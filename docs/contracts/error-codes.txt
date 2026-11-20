@@ -17,6 +17,7 @@ eval_run_diff_unavailable
 external_call_rejected
 handoff_limit_exceeded
 interrupted
+invalid_parameters
 invalid_request_error
 invalid_run_attribution
 job_max_duration_exceeded

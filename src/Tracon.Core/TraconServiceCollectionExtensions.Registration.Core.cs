@@ -574,9 +574,19 @@ public static partial class TraconServiceCollectionExtensions
         // The one place a parameterized run is compiled outside the catalog
         // Queued runs, batch items, approval resumes and workflow steps
         // all share it, so the decorator chain is applied in one spot.
+        services.TryAddSingleton(static provider => new AgentSourceFailures(
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CompositeAgentCatalog>>(),
+            provider.GetRequiredService<TraconMetrics>()));
+
+        // Finds the definition behind a name the way the catalog resolves it: the sources in priority order,
+        // the first one that holds the name. The parameter gate, the queue, eval, replay and every other
+        // path that binds values read the schema from here, so they cannot disagree with the catalog.
+        services.TryAddSingleton(static provider => new AgentDefinitionLookup(
+            provider.GetServices<IAgentSource>(),
+            provider.GetRequiredService<AgentSourceFailures>()));
+
         services.TryAddSingleton(static provider => new ParameterizedAgentFactory(
-            provider.GetServices<CodeAgentRegistration>(),
-            provider.GetRequiredService<IAgentDefinitionStore>(),
+            provider.GetRequiredService<AgentDefinitionLookup>(),
             provider.GetRequiredService<AgentDefinitionCompiler>(),
             provider.GetServices<IAgentDecorator>(),
             provider.GetRequiredService<Microsoft.Extensions.Options.IOptionsMonitor<TraconOptions>>()));
@@ -660,7 +670,9 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetServices<IAgentSource>(),
             provider.GetServices<IAgentDecorator>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CompositeAgentCatalog>>(),
-            provider.GetRequiredService<TraconMetrics>()));
+            provider.GetRequiredService<TraconMetrics>(),
+            provider.GetRequiredService<AgentDefinitionLookup>(),
+            provider.GetRequiredService<ParameterizedAgentFactory>()));
 
         // Graceful-shutdown drain. Registered LAST among
         // IHostedService implementations: the generic host stops hosted

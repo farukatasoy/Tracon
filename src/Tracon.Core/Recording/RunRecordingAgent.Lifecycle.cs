@@ -239,8 +239,10 @@ public sealed partial class RunRecordingAgent
             attribution.UserId,
             attribution.Labels,
 
-            // The record of what the caller bound; see TraconRunOptions.ParameterValues.
-            runOptions?.ParameterValues);
+            // The record of what the caller bound; see TraconRunOptions.ParameterValues. An agent the catalog
+            // compiled for resolve-time values carries the same record as a marker (BoundParameterValues);
+            // the run option wins when both exist.
+            runOptions?.ParameterValues ?? InnerAgent.GetService<BoundParameterValues>()?.Values);
     }
 
     /// <summary>

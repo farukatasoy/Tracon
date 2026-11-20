@@ -34,6 +34,9 @@ public static class TraconErrorTypes
     /// <summary>An agent definition did not compile (<see cref="TraconCompilationException"/>).</summary>
     public const string CompilationFailed = "compilation_failed";
 
+    /// <summary>Supplied parameter values do not satisfy the agent's parameter schema (<see cref="TraconParameterException"/>).</summary>
+    public const string InvalidParameters = "invalid_parameters";
+
     /// <summary>The model provider could not be reached (<see cref="TraconProviderUnavailableException"/>).</summary>
     public const string ProviderUnavailable = "provider_unavailable";
 

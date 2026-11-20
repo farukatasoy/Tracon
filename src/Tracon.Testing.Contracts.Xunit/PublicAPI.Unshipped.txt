@@ -1341,3 +1341,35 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventsAsync_without_an_e
 virtual Tracon.Testing.Contracts.Storage.RunStoreContract.AppendsEventGroupsAtomically.get -> bool
 virtual Tracon.Testing.Contracts.Storage.RunStoreContract.PromotesQueuedRunsAtomically.get -> bool
 Tracon.Testing.Contracts.Storage.RunStoreContract.Records_written_with_an_expected_tenant_read_back_without_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.A_fetched_agent_is_listed() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.A_pre_cancelled_token_is_honored() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.AgentDefinitionSourceContract() -> void
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Every_listed_agent_can_be_fetched_under_its_own_name() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Known_agent_returns_a_definition_under_the_name_it_was_asked_for() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Listed_names_are_unique_and_valid() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Listing_is_repeatable() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Listing_is_safe_under_concurrency() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Lookup_is_safe_under_concurrency() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Name_is_not_empty() -> void
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Priority_is_stable_across_calls() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Source.get -> Tracon.IAgentDefinitionSource!
+Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.Unknown_agent_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.TenantAwareAgentDefinitionSourceContract
+Tracon.Testing.Contracts.AgentSources.TenantAwareAgentDefinitionSourceContract.Another_tenants_agent_cannot_be_fetched() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.TenantAwareAgentDefinitionSourceContract.TenantAwareAgentDefinitionSourceContract() -> void
+Tracon.Testing.Contracts.AgentSources.TenantAwareAgentDefinitionSourceContract.Tenant_lists_do_not_leak_between_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract
+Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.A_version_of_an_unknown_agent_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.Known_version_returns_a_definition_under_the_name_it_was_asked_for() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.Unknown_version_returns_null() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.VersionedAgentDefinitionSourceContract() -> void
+Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.VersionedSource.get -> Tracon.IVersionedAgentDefinitionSource!
+abstract Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.CreateSourceAsync() -> System.Threading.Tasks.ValueTask<Tracon.IAgentDefinitionSource!>
+abstract Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.KnownAgentName.get -> string!
+abstract Tracon.Testing.Contracts.AgentSources.TenantAwareAgentDefinitionSourceContract.UseTenantAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<string!>
+abstract Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.KnownVersion.get -> int
+virtual Tracon.Testing.Contracts.AgentSources.AgentDefinitionSourceContract.UnknownAgentName.get -> string!
+virtual Tracon.Testing.Contracts.AgentSources.VersionedAgentDefinitionSourceContract.UnknownVersion.get -> int

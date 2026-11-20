@@ -760,10 +760,10 @@ public sealed class ChildAgentInvoker : AIAgent
             return (await ResolveAsync(version, scope.Culture, cancellationToken).ConfigureAwait(false), null);
         }
 
-        var (definition, origin) = await factory.FindAsync(_childName, version, cancellationToken)
+        var found = await factory.FindAsync(_childName, version, cancellationToken)
             .ConfigureAwait(false);
 
-        if (definition is not { Parameters.Count: > 0 })
+        if (found.Definition is not { Parameters.Count: > 0 } definition)
         {
             return (await ResolveAsync(version, scope.Culture, cancellationToken).ConfigureAwait(false), null);
         }
@@ -788,7 +788,7 @@ public sealed class ChildAgentInvoker : AIAgent
         }
 
         var bound = await factory
-            .CompileAsync(definition, origin, scope.Culture, stepValues, cancellationToken)
+            .CompileAsync(found, scope.Culture, stepValues, cancellationToken)
             .ConfigureAwait(false);
 
         return (bound, final);

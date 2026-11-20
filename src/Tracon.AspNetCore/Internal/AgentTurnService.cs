@@ -168,9 +168,6 @@ internal static class AgentTurnService
         var attachmentStore = services.GetRequiredService<IAttachmentStore>();
         var tenantContext = services.GetRequiredService<ITenantContext>();
         var experimentAssignment = services.GetRequiredService<ExperimentAssignmentResolver>();
-        var definitionStore = services.GetRequiredService<IAgentDefinitionStore>();
-        var compiler = services.GetRequiredService<AgentDefinitionCompiler>();
-        var decorators = services.GetServices<IAgentDecorator>();
         var optionsMonitor = services.GetRequiredService<IOptionsMonitor<TraconOptions>>();
 
         // Approval decisions and tool results are valid requests on their own:
@@ -252,7 +249,7 @@ internal static class AgentTurnService
         // Problem null) for the overwhelming majority of agents that declare
         // no parameter schema at all.
         var parameterGate = await AgentParameterGate
-            .CheckAsync(optionsMonitor, definitionStore, httpContext.RequestServices, name, assignment?.Version, request.Parameters, cancellationToken)
+            .CheckAsync(optionsMonitor, httpContext.RequestServices, name, assignment?.Version, request.Parameters, cancellationToken)
             .ConfigureAwait(false);
 
         if (parameterGate.Problem is { } parameterProblem)
@@ -266,54 +263,44 @@ internal static class AgentTurnService
         // provider fails here. The response has not started yet, so we can
         // still return a proper ProblemDetails - this is not possible once the
         // stream has started.
+        //
+        // The values go to the catalog, which binds them, bypasses
+        // CompiledAgentCache for them and applies the same decorators every other
+        // resolve applies (run recording, telemetry, tool approval). This block
+        // used to compile the stored definition itself and apply the decorators by
+        // hand, which also meant it ran the STORED definition even when a custom
+        // source outranked it. The gate above answers the early 400 and reads the
+        // schema through the same lookup the catalog uses, so the two agree.
         try
         {
-            if (parameterGate.Definition is { Parameters.Count: > 0 } sourceDefinition)
-            {
-                // 🚨 A parameterized run bypasses CompiledAgentCache entirely:
-                // two runs of the same agent with different parameter values
-                // must never share one compiled instance, and the cache has
-                // no notion of "value" in its key. Unlike a tenant-specific
-                // provider credential (BYOK), which only bypasses the cache
-                // while staying inside IAgentCatalog.ResolveAsync, THIS bypass
-                // skips the catalog entirely - so it must apply the SAME
-                // AgentDecoratorPipeline by hand, or the run goes out
-                // undecorated: no recording, no telemetry, no tool-approval gate.
-                agent = await compiler
-                    .CompileParameterizedAsync(sourceDefinition, request.Culture, request.Parameters, cancellationToken)
-                    .ConfigureAwait(false);
-
-                agent = AgentDecoratorPipeline.Apply(
-                    agent,
-                    AgentDescriptorProjection.FromDefinition(
-                        sourceDefinition,
-                        parameterGate.Origin,
-                        AgentDefinitionLookup.SourceName(parameterGate.Origin)),
-                    decorators);
-            }
-            else
-            {
-                agent = assignment is null
-                    ? await catalog.ResolveAsync(name, new AgentResolveOptions { Culture = request.Culture }, cancellationToken).ConfigureAwait(false)
-                    : await catalog.ResolveAsync(name, new AgentResolveOptions { Version = assignment.Version, Culture = request.Culture }, cancellationToken).ConfigureAwait(false);
-            }
+            agent = await catalog
+                .ResolveAsync(
+                    name,
+                    new AgentResolveOptions
+                    {
+                        Version = assignment?.Version,
+                        Culture = request.Culture,
+                        Parameters = request.Parameters,
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (TraconParameterException ex)
+        {
+            // Raced a change of the schema between the gate and the resolve: the same 400 the gate gives.
+            return TurnPreparation.Refused(Results.Problem(
+                title: "Invalid run parameters",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["missingParameters"] = ex.MissingParameters,
+                    ["unknownParameters"] = ex.UnknownParameters,
+                    ["tooLongParameters"] = ex.TooLongParameters,
+                }));
         }
         catch (TraconException ex)
         {
-            // 🚨 A parameterized run bypasses IAgentCatalog entirely (see the
-            // remark above), so a decorator or source failure here never
-            // passes through CompositeAgentCatalog.HandleSourceFailure - the
-            // one place that already logs and records the
-            // tracon.agent_source.failures metric for the same
-            // exception type. Without this, the failure is silently
-            // swallowed into a 400 with no server-side trace at all.
-            if (ex is TraconAgentSourceException)
-            {
-                httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("Tracon.AgentEndpoints")
-                    .LogError(ex, "Decorating a parameterized run of agent '{AgentName}' failed.", name);
-            }
-
             return TurnPreparation.Refused(Results.Problem(
                 title: "Agent compilation failed",
                 detail: ex.Message,

@@ -7,6 +7,11 @@ namespace Tracon;
 /// code, stored in the database, and registered by the application.
 /// </summary>
 /// <remarks>
+/// <para>Implement this interface when your code builds the <c>AIAgent</c> itself. When the agent is a
+/// definition — instructions, a model, tool names — implement <see cref="IAgentDefinitionSource"/>
+/// instead: Tracon compiles the definition, so parameter values, the compiled-agent cache and version
+/// pinning work for it. An agent this interface returns is opaque to Tracon, so it declares no
+/// parameters and every parameter value supplied for it is refused as unknown.</para>
 /// <para>Sources are singleton instances. Calls can run concurrently, so an implementation
 /// must be thread-safe and must not keep request or run state in instance fields. Do not
 /// capture scoped services; create a scope from <see cref="IServiceProvider"/> when needed.</para>

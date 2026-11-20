@@ -44,13 +44,13 @@ var tracon = builder.AddTracon()
 // Conversation memory: the host's own vector store and the user a run belongs to.
 builder.Services.AddSingleton<VectorStore>(new InMemoryVectorStore());
 builder.Services.AddSingleton<IRunAttributionContext>(new FixedUser("aot-user"));
-builder.Services.AddSingleton(new JsonFileAgentSourceOptions { Directory = directory.FullName });
-tracon.AddAgentSource<JsonFileAgentSource>();
+builder.Services.AddSingleton(new JsonFileAgentDefinitionSourceOptions { Directory = directory.FullName });
+tracon.AddAgentDefinitionSource<JsonFileAgentDefinitionSource>();
 
 using var host = builder.Build();
 await host.StartAsync();
 
-var source = host.Services.GetServices<IAgentSource>().OfType<JsonFileAgentSource>().Single();
+var source = host.Services.GetServices<IAgentSource>().Single(static candidate => string.Equals(candidate.Name, JsonFileAgentDefinitionSource.SourceName, StringComparison.Ordinal));
 var descriptors = await source.ListAsync();
 var tool = host.Services.GetServices<TraconToolRegistration>()
     .Select(static registration => registration.Function)

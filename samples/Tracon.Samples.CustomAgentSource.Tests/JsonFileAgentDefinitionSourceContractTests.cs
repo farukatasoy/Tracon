@@ -1,23 +1,21 @@
-using Tracon.Testing;
 using Tracon.Testing.Contracts.AgentSources;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Tracon.Samples.CustomAgentSource.Tests;
 
 /// <summary>
-/// Runs Tracon's official agent-source contract against the sample source.
+/// Runs Tracon's official definition-source contract against the sample source.
 /// </summary>
 /// <remarks>
 /// The base class ships in the Tracon.Testing.Contracts.Xunit package; every
 /// scenario it declares runs here without being redeclared. This is the whole claim
-/// the sample exists to prove: an <see cref="IAgentSource"/> written outside the
+/// the sample exists to prove: an <see cref="IAgentDefinitionSource"/> written outside the
 /// repository can be verified with published artifacts only.
 /// </remarks>
-public sealed class JsonFileAgentSourceContractTests : AgentSourceContract
+public sealed class JsonFileAgentDefinitionSourceContractTests : AgentDefinitionSourceContract
 {
     protected override string KnownAgentName => "known-agent";
 
-    protected override async ValueTask<IAgentSource> CreateSourceAsync()
+    protected override async ValueTask<IAgentDefinitionSource> CreateSourceAsync()
     {
         var directory = Directory.CreateTempSubdirectory("tracon-json-source-contract-").FullName;
 
@@ -31,13 +29,6 @@ public sealed class JsonFileAgentSourceContractTests : AgentSourceContract
             }
             """);
 
-        var services = new ServiceCollection();
-        var tracon = services.AddTracon().AddModelProvider(new FakeModelProvider().EchoesUserMessage());
-        tracon.Services.AddSingleton(new JsonFileAgentSourceOptions { Directory = directory });
-        tracon.AddAgentSource<JsonFileAgentSource>();
-
-        var provider = services.BuildServiceProvider();
-
-        return provider.GetServices<IAgentSource>().OfType<JsonFileAgentSource>().Single();
+        return new JsonFileAgentDefinitionSource(new JsonFileAgentDefinitionSourceOptions { Directory = directory });
     }
 }

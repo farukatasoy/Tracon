@@ -175,9 +175,10 @@ internal sealed class EvalJobHandler(
         //
         // The same lookup as the /run gate: a definition registered in code
         // wins over a stored one, as it does in the catalog.
-        var (sourceDefinition, sourceOrigin) = await parameterized
+        var sourceFound = await parameterized
             .FindAsync(suite.AgentName, agentVersion, cancellationToken)
             .ConfigureAwait(false);
+        var sourceDefinition = sourceFound.Definition;
 
         // The version is pinned: an eval run must answer "how good is this
         // version", even if the definition is updated while the run is in
@@ -279,8 +280,7 @@ internal sealed class EvalJobHandler(
                 evalRun,
                 evalCase,
                 agent,
-                sourceDefinition,
-                sourceOrigin,
+                sourceFound,
                 agentVersion,
                 evaluator,
                 suite.Name,
@@ -430,8 +430,7 @@ internal sealed class EvalJobHandler(
         EvalRun evalRun,
         EvalCase evalCase,
         AIAgent agent,
-        AgentDefinition? sourceDefinition,
-        AgentDefinitionOrigin sourceOrigin,
+        FoundDefinition sourceFound,
         int? agentVersion,
         IAgentEvaluator evaluator,
         string evalName,
@@ -450,7 +449,7 @@ internal sealed class EvalJobHandler(
         // parameterless case run against a parameterless agent (the
         // overwhelming majority) never reaches AgentParameterValidator at
         // all: schema.Count == 0 short-circuits inside ValidateValues.
-        if (sourceDefinition is { Parameters.Count: > 0 } schemaDefinition)
+        if (sourceFound.Definition is { Parameters.Count: > 0 } schemaDefinition)
         {
             var validation = parameterized.Validate(schemaDefinition.Parameters, evalCase.Parameters);
 
@@ -492,7 +491,7 @@ internal sealed class EvalJobHandler(
             // chain itself - otherwise this case's run would go out
             // undecorated: no run recording, no telemetry.
             agent = await parameterized
-                .CompileAsync(schemaDefinition, sourceOrigin, culture: null, evalCase.Parameters, cancellationToken)
+                .CompileAsync(sourceFound, culture: null, evalCase.Parameters, cancellationToken)
                 .ConfigureAwait(false);
 
             boundValues = ParameterValueSet.Resolve(schemaDefinition.Parameters, evalCase.Parameters);

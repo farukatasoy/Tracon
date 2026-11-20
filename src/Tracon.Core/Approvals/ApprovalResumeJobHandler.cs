@@ -220,11 +220,11 @@ internal sealed class ApprovalResumeJobHandler(
             return (resolved, null);
         }
 
-        var (definition, origin) = await parameterFactory
+        var found = await parameterFactory
             .FindAsync(agentName, pinnedVersion, cancellationToken)
             .ConfigureAwait(false);
 
-        if (definition is not { Parameters.Count: > 0 })
+        if (found.Definition is not { Parameters.Count: > 0 } definition)
         {
             return (resolved, null);
         }
@@ -252,7 +252,7 @@ internal sealed class ApprovalResumeJobHandler(
         }
 
         var bound = await parameterFactory
-            .CompileAsync(definition, origin, culture: null, recorded.Values, cancellationToken)
+            .CompileAsync(found, culture: null, recorded.Values, cancellationToken)
             .ConfigureAwait(false);
 
         return (bound, recorded.Values);

@@ -6,7 +6,7 @@ namespace Tracon;
 /// A source that exposes definitions from <see cref="IAgentDefinitionStore"/> in the catalog.
 /// Agents created through the UI come from this source.
 /// </summary>
-internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource, IDescribingAgentSource
+internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource, IDescribingAgentSource, IDefinitionBackedSource
 {
     private readonly IAgentDefinitionStore _store;
     private readonly AgentDefinitionCompiler _compiler;
@@ -44,6 +44,36 @@ internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource, IDescr
 
     /// <inheritdoc />
     public int Priority => AgentSourcePriority.Database;
+
+    /// <inheritdoc />
+    public AgentDefinitionOrigin Origin => AgentDefinitionOrigin.Database;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A pinned version the store does not hold still holds the name when the agent exists, so the
+    /// catalog reports the missing version instead of falling through to another source.
+    /// </remarks>
+    public async ValueTask<HeldDefinition?> FindDefinitionAsync(string agentName, int? version, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (version is { } pinned)
+        {
+            if (await _store.GetVersionAsync(agentName, pinned, cancellationToken).ConfigureAwait(false) is { } versioned)
+            {
+                return new HeldDefinition(versioned);
+            }
+
+            return await _store.GetAsync(agentName, cancellationToken).ConfigureAwait(false) is null
+                ? null
+                : new HeldDefinition(null);
+        }
+
+        return await _store.GetAsync(agentName, cancellationToken).ConfigureAwait(false) is { } current
+            ? new HeldDefinition(current)
+            : null;
+    }
 
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)

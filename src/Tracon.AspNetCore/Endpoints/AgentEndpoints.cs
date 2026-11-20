@@ -189,7 +189,6 @@ internal static class AgentEndpoints
                 IRunStore runStore,
                 ITenantContext tenantContext,
                 ExperimentAssignmentResolver experimentAssignment,
-                IAgentDefinitionStore definitionStore,
                 IOptionsMonitor<TraconAsyncRunOptions> asyncRunOptions,
                 IOptionsMonitor<TraconOptions> optionsMonitor,
                 ITraconDrainState drainState,
@@ -236,7 +235,6 @@ internal static class AgentEndpoints
                         experimentAssignment,
                         attributionContext,
                         asyncRunOptions.CurrentValue,
-                        definitionStore,
                         optionsMonitor,
                         prefix,
                         httpContext,
@@ -356,7 +354,6 @@ internal static class AgentEndpoints
     private static async Task<IResult> EstimateAsync(
         string name,
         IAgentCatalog catalog,
-        IAgentDefinitionStore definitionStore,
         ContextWindowEstimator estimator,
         IOptionsMonitor<TraconOptions> optionsMonitor,
         HttpContext httpContext,
@@ -374,7 +371,7 @@ internal static class AgentEndpoints
         // Same gate, same error shape as POST /api/agents/{name}/run - see
         // AgentParameterGate.
         if ((await AgentParameterGate
-                .CheckAsync(optionsMonitor, definitionStore, httpContext.RequestServices, name, version: null, request!.Parameters, cancellationToken)
+                .CheckAsync(optionsMonitor, httpContext.RequestServices, name, version: null, request!.Parameters, cancellationToken)
                 .ConfigureAwait(false)).Problem is { } parameterProblem)
         {
             return parameterProblem;
@@ -782,7 +779,6 @@ internal static class AgentEndpoints
         ExperimentAssignmentResolver experimentAssignment,
         IRunAttributionContext? attributionContext,
         TraconAsyncRunOptions options,
-        IAgentDefinitionStore definitionStore,
         IOptionsMonitor<TraconOptions> optionsMonitor,
         string prefix,
         HttpContext httpContext,
@@ -871,7 +867,7 @@ internal static class AgentEndpoints
         if (request.Parameters is { Count: > 0 })
         {
             var parameterGate = await AgentParameterGate
-                .CheckAsync(optionsMonitor, definitionStore, httpContext.RequestServices, name, assignment?.Version, request.Parameters, cancellationToken)
+                .CheckAsync(optionsMonitor, httpContext.RequestServices, name, assignment?.Version, request.Parameters, cancellationToken)
                 .ConfigureAwait(false);
 
             if (parameterGate.Problem is { } parameterProblem)

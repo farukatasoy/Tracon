@@ -331,6 +331,8 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.AgentSessionManager | Singleton | Factory",
         "Tracon.SessionDeletion | Singleton | Factory",
         "Tracon.ConversationBranchService | Singleton | Factory",
+        "Tracon.AgentSourceFailures | Singleton | Factory",
+        "Tracon.AgentDefinitionLookup | Singleton | Factory",
         "Tracon.ParameterizedAgentFactory | Singleton | Factory",
         "Tracon.RunReplayService | Singleton | Factory",
         "Tracon.IAgentSource | Singleton | Tracon.CodeAgentSource",

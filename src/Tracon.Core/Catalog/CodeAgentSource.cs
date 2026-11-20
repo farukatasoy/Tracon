@@ -12,7 +12,7 @@ namespace Tracon;
 /// Its priority is 0, the highest. If a database definition has the same name,
 /// code wins because it is validated at build time while the database definition is run-time data.
 /// </remarks>
-internal sealed partial class CodeAgentSource : IAgentSource
+internal sealed partial class CodeAgentSource : IAgentSource, IDefinitionBackedSource
 {
     private readonly Dictionary<string, CodeAgentRegistration> _registrations;
     private readonly AgentDefinitionCompiler _compiler;
@@ -82,6 +82,27 @@ internal sealed partial class CodeAgentSource : IAgentSource
 
     /// <inheritdoc />
     public int Priority => AgentSourcePriority.Code;
+
+    /// <inheritdoc />
+    public AgentDefinitionOrigin Origin => AgentDefinitionOrigin.Code;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A definition registered in code is the schema of its agent. A factory agent holds its name and
+    /// has no definition. Code has no version history, so a pinned version holds the name and no
+    /// definition: the catalog refuses the pinned resolve itself.
+    /// </remarks>
+    public ValueTask<HeldDefinition?> FindDefinitionAsync(string agentName, int? version, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_registrations.TryGetValue(agentName, out var registration))
+        {
+            return new ValueTask<HeldDefinition?>((HeldDefinition?)null);
+        }
+
+        return new ValueTask<HeldDefinition?>(new HeldDefinition(version is null ? registration.Definition : null));
+    }
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)

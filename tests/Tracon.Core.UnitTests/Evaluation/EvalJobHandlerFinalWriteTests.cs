@@ -203,8 +203,7 @@ public sealed class EvalJobHandlerFinalWriteTests
             store,
             new SingleAgentCatalog(new ChatClientAgent(chat, new ChatClientAgentOptions { Name = AgentName })),
             new ParameterizedAgentFactory(
-                [],
-                new InMemoryAgentDefinitionStore(),
+                TestLookups.Empty(),
                 new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry()),
                 [],
                 new StaticOptionsMonitor<TraconOptions>(new TraconOptions())),

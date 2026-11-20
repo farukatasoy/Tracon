@@ -352,11 +352,11 @@ internal sealed class RunReplayService
         // applies the decorator chain the catalog would have.
         if (agent.GetService<UnboundParameterGuard>() is not null && _parameterFactory is { } factory)
         {
-            var (codeDefinition, origin) = await factory
+            var found = await factory
                 .FindAsync(source.AgentName, version: null, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (codeDefinition is { Parameters.Count: > 0 })
+            if (found.Definition is { Parameters.Count: > 0 } codeDefinition)
             {
                 var decided = DecideValues(codeDefinition, source.Id, input, request);
 
@@ -366,7 +366,7 @@ internal sealed class RunReplayService
                 }
 
                 agent = await factory
-                    .CompileAsync(codeDefinition, origin, culture: null, decided.Values, cancellationToken)
+                    .CompileAsync(found, culture: null, decided.Values, cancellationToken)
                     .ConfigureAwait(false);
                 catalogValues = decided.Values;
 

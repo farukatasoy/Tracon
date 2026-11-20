@@ -111,7 +111,7 @@ internal sealed class DefinitionOverlay
         => AgentDescriptorProjection.FromDefinition(
             definition,
             AgentDefinitionOrigin.Database,
-            AgentDefinitionLookup.SourceName(AgentDefinitionOrigin.Database));
+            AgentDefinitionLookup.BuiltInSourceName(AgentDefinitionOrigin.Database));
 }
 
 /// <summary>An <see cref="IAgentCatalog"/> that lists the target's agents with a <see cref="DefinitionOverlay"/> laid over them.</summary>

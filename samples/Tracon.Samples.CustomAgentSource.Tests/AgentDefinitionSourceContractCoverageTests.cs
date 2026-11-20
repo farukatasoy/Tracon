@@ -8,25 +8,26 @@ namespace Tracon.Samples.CustomAgentSource.Tests;
 /// documents why it does not.
 /// </summary>
 /// <remarks>
-/// The sample source implements only the base <see cref="IAgentSource"/> contract —
-/// it is not versioned and not tenant-aware — so <c>VersionedAgentSourceContract</c>
-/// and <c>TenantAwareAgentSourceContract</c> are out of scope for it; the built-in
-/// <c>DefinitionStoreAgentSource</c> already covers those in
+/// The sample source implements only the base <see cref="IAgentDefinitionSource"/> contract —
+/// it is not versioned and not tenant-aware — so the versioned and tenant-aware definition suites
+/// are out of scope for it, and so is the whole family for <see cref="IAgentSource"/>, which is a
+/// different seam (a source that builds its own agent). The built-in sources already cover those in
 /// <c>tests/Tracon.Core.UnitTests</c>.
 /// </remarks>
-public sealed class AgentSourceContractCoverageTests
+public sealed class AgentDefinitionSourceContractCoverageTests
 {
-    /// <summary>
-    /// Contracts this project deliberately does not exercise, and why.
-    /// <c>DefinitionStoreAgentSource</c> already covers both in
-    /// <c>tests/Tracon.Core.UnitTests</c>.
-    /// </summary>
+    /// <summary>Contracts this project deliberately does not exercise, and why.</summary>
     private static readonly string[] Exemptions =
     [
         // The sample source keeps no version history.
-        "VersionedAgentSourceContract",
+        "VersionedAgentDefinitionSourceContract",
 
         // The sample source is global: every tenant reads the same directory.
+        "TenantAwareAgentDefinitionSourceContract",
+
+        // The sample is a definition source, not a source that builds its own agent.
+        "AgentSourceContract",
+        "VersionedAgentSourceContract",
         "TenantAwareAgentSourceContract",
     ];
 

@@ -44,6 +44,11 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         { "AddAgentSource<T>", "IAgentSource|Singleton|type:SnapshotSource" },
         { "AddAgentSource(instance)", "IAgentSource|Singleton|instance:SnapshotSource ; IAgentSource|Singleton|instance:SnapshotSource" },
         { "AddAgentSource(factory)", "IAgentSource|Singleton|factory ; IAgentSource|Singleton|factory" },
+        // A definition source reaches the catalog through an adapter registered as a factory; the generic
+        // overload also records the source type and a marker, so a second call adds nothing.
+        { "AddAgentDefinitionSource<T>", "DefinitionSourceRegistered`1|Singleton|instance:DefinitionSourceRegistered`1 ; SnapshotDefinitionSource|Singleton|type:SnapshotDefinitionSource ; IAgentSource|Singleton|factory" },
+        { "AddAgentDefinitionSource(instance)", "IAgentSource|Singleton|factory ; IAgentSource|Singleton|factory" },
+        { "AddAgentDefinitionSource(factory)", "IAgentSource|Singleton|factory ; IAgentSource|Singleton|factory" },
         { "AddAgentDecorator<T>", "IAgentDecorator|Singleton|type:SnapshotDecorator" },
         { "AddAgentDecorator(instance)", "IAgentDecorator|Singleton|instance:SnapshotDecorator ; IAgentDecorator|Singleton|instance:SnapshotDecorator" },
         { "AddAgentDecorator(factory)", "IAgentDecorator|Singleton|factory ; IAgentDecorator|Singleton|factory" },
@@ -190,6 +195,9 @@ public sealed class TraconBuilderRegistrationSnapshotTests
             "AddAgentSource<T>" => builder.AddAgentSource<SnapshotSource>(),
             "AddAgentSource(instance)" => builder.AddAgentSource(new SnapshotSource()),
             "AddAgentSource(factory)" => builder.AddAgentSource(static _ => new SnapshotSource()),
+            "AddAgentDefinitionSource<T>" => builder.AddAgentDefinitionSource<SnapshotDefinitionSource>(),
+            "AddAgentDefinitionSource(instance)" => builder.AddAgentDefinitionSource(new SnapshotDefinitionSource()),
+            "AddAgentDefinitionSource(factory)" => builder.AddAgentDefinitionSource(static _ => new SnapshotDefinitionSource()),
             "AddAgentDecorator<T>" => builder.AddAgentDecorator<SnapshotDecorator>(),
             "AddAgentDecorator(instance)" => builder.AddAgentDecorator(new SnapshotDecorator()),
             "AddAgentDecorator(factory)" => builder.AddAgentDecorator(static _ => new SnapshotDecorator()),
@@ -253,6 +261,19 @@ public sealed class TraconBuilderRegistrationSnapshotTests
     private sealed class SnapshotJobHandler : IJobHandler
     {
         public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+    }
+
+    private sealed class SnapshotDefinitionSource : IAgentDefinitionSource
+    {
+        public string Name => "snapshot-definitions";
+
+        public int Priority => 0;
+
+        public ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<AgentDefinition>>([]);
+
+        public ValueTask<AgentDefinition?> GetAsync(string agentName, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<AgentDefinition?>(null);
     }
 
     private sealed class SnapshotSource : IAgentSource

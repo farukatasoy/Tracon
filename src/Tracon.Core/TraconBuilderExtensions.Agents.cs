@@ -338,6 +338,86 @@ public static partial class TraconBuilderExtensions
         return builder;
     }
 
+    /// <summary>Registers a custom agent definition source as a singleton.</summary>
+    /// <typeparam name="TSource">The definition source implementation type.</typeparam>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para>
+    /// The source returns <see cref="AgentDefinition"/>s and Tracon compiles them, so the agents take
+    /// parameter values, share the compiled-agent cache, can be pinned to a version when the source
+    /// implements <see cref="IVersionedAgentDefinitionSource"/>, and describe themselves in the catalog
+    /// exactly as agents saved in the database do. Use <see cref="AddAgentSource{TSource}(ITraconBuilder)"/>
+    /// instead when your code builds the <c>AIAgent</c> itself.
+    /// </para>
+    /// <para>
+    /// Calling this method more than once for the same source type has no effect. The source can
+    /// serve global or tenant-aware agents. It must be thread-safe because the catalog calls its
+    /// methods concurrently.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddAgentDefinitionSource&lt;GitAgentDefinitionSource&gt;();
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddAgentDefinitionSource<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSource>(this ITraconBuilder builder)
+        where TSource : class, IAgentDefinitionSource
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        var services = builder.Services;
+
+        // One adapter per source type: the marker is the "already registered" check.
+        if (services.Any(static descriptor => descriptor.ServiceType == typeof(DefinitionSourceRegistered<TSource>)))
+        {
+            return builder;
+        }
+
+        services.AddSingleton(new DefinitionSourceRegistered<TSource>());
+        services.TryAddSingleton<TSource>();
+        services.AddSingleton<IAgentSource>(
+            static provider => DefinitionSourceAgentSource.Create(provider.GetRequiredService<TSource>(), provider));
+
+        return builder;
+    }
+
+    /// <summary>Registers a configured custom agent definition source as a singleton.</summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="source">The definition source instance.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <remarks>See <see cref="AddAgentDefinitionSource{TSource}(ITraconBuilder)"/>.</remarks>
+    public static ITraconBuilder AddAgentDefinitionSource(this ITraconBuilder builder, IAgentDefinitionSource source)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(source);
+
+        builder.Services.AddSingleton<IAgentSource>(provider => DefinitionSourceAgentSource.Create(source, provider));
+        return builder;
+    }
+
+    /// <summary>Registers a custom agent definition source factory as a singleton.</summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="factory">The factory that creates the source.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
+    /// <remarks>See <see cref="AddAgentDefinitionSource{TSource}(ITraconBuilder)"/>.</remarks>
+    public static ITraconBuilder AddAgentDefinitionSource(this ITraconBuilder builder, Func<IServiceProvider, IAgentDefinitionSource> factory)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        builder.Services.AddSingleton<IAgentSource>(provider => DefinitionSourceAgentSource.Create(factory(provider), provider));
+        return builder;
+    }
+
+    /// <summary>Marks a definition source type as registered, so a second call for it adds nothing.</summary>
+    /// <typeparam name="TSource">The source type.</typeparam>
+    private sealed class DefinitionSourceRegistered<TSource>;
+
     /// <summary>Registers a custom agent decorator as a singleton.</summary>
     /// <typeparam name="TDecorator">The decorator implementation type.</typeparam>
     /// <param name="builder">The Tracon configuration chain.</param>
