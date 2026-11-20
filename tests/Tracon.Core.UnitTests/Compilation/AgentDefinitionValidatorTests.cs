@@ -38,6 +38,19 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
+    public async Task A_provider_name_in_another_letter_case_is_the_provider_the_registry_serves()
+    {
+        // The registry matches the provider name ignoring letter case, so a definition that a run serves must not be
+        // reported as naming an unknown model.
+        var (validator, _, _) = CreateValidator();
+
+        var definition = TestData.Definition() with { Model = TestData.Binding(provider: TestData.Binding().Provider.ToUpperInvariant()) };
+        var report = await validator.ValidateAsync(definition);
+
+        report.Messages.Where(static message => string.Equals(message.Code, "unknown_model", StringComparison.Ordinal)).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task One_validation_builds_the_model_client_the_model_and_the_output_limit_checks_share()
     {
         var provider = new FakeModelProvider();

@@ -192,7 +192,7 @@ internal sealed partial class AgentDefinitionValidator : IAgentDefinitionValidat
 
         foreach (var provider in providers)
         {
-            if (string.Equals(provider.Name, definition.Model.Provider, StringComparison.Ordinal))
+            if (string.Equals(provider.Name, definition.Model.Provider, StringComparison.OrdinalIgnoreCase))
             {
                 registered = true;
                 break;

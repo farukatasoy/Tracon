@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Validation matches the provider name ignoring letter case, as a run does.** `POST /api/agents/validate` reported `unknown_model` for a definition whose `provider` differs from the registered name only in letter case (`OpenAI` for `openai`), although the registry serves that agent and a run answers. The report and the run now agree.
+
 - **A queued run's tools can read your own tenant scope: `IHostTenantScope`.** The job worker opened Tracon's `AmbientTenantScope` for a job and left your application's own scope (the current tenant of your multi-tenant framework) as it was, so a tool that read your tenant-filtered data read the rows of no tenant. The workaround was to open the framework's scope in every tool. Register `IHostTenantScope` (`services.AddSingleton<IHostTenantScope, YourScope>()`) and the worker calls `Begin(tenantId)` for every job, after it opens its own scope and before it creates the container scope, and disposes the result when the job ends. If `Begin` throws, the job fails before it runs with `tracon.job.host-tenant-scope-failed` and is not tried again. Without a registration nothing changes. `HostTenantScopeContract` in `Tracon.Testing.Contracts.Xunit` checks an implementation.
   What to do:
   - **If your tools open the framework's scope themselves, you can keep them as they are or remove that code once you register the interface.**
