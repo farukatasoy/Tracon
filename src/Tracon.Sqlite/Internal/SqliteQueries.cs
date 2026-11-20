@@ -579,8 +579,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE r.id = @id AND r.tenant_id = @tenant_id;
             """;
 
+        // 🚨 The page is cut BEFORE the correlated subqueries of the column list run. Written the plain way
+        // (LIMIT/OFFSET at the end of one SELECT), SQLite runs every subquery for the rows OFFSET skips too, about 20 µs
+        // for each skipped row: skipping 5 000 rows cost about 100 ms, and a scan of the whole table (the cost
+        // recalculation) was quadratic. The inner SELECT filters, orders and cuts; the outer one reads only the rows
+        // of the page, and sorts them again because a derived table promises no order.
         SelectRuns = $"""
             SELECT {runColumns}
+            FROM (
+            SELECT r.*
             FROM {Schema}runs AS r
             WHERE r.tenant_id = @tenant_id
               AND (@agent_name IS NULL OR r.agent_name = @agent_name)
@@ -611,7 +618,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                  OR (@parent_run_id IS NULL AND (@only_root_runs = 0 OR r.parent_run_id IS NULL))
               )
             ORDER BY r.started_at DESC, r.id DESC
-            LIMIT @take OFFSET @skip;
+            LIMIT @take OFFSET @skip
+            ) AS r
+            ORDER BY r.started_at DESC, r.id DESC;
             """;
 
         // scored_runs/positive_rate: matchedRunScoresFilter repeats
