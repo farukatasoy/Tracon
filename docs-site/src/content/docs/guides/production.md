@@ -305,7 +305,9 @@ Start with an explicit classification:
 | Sessions and conversations | No configuration age limit by default |
 
 `Tracon:Retention:Enabled` defaults to `false`. With no explicit database policy,
-nothing is deleted automatically. When you enable configuration defaults, run events
+nothing is eligible for deletion. Eligible rows are deleted only when the
+`tracon.retention` job runs, and nothing schedules it: call `POST /api/retention/run` or
+save a recurring schedule for it, on a host that runs the job worker. When you enable configuration defaults, run events
 default to 30 days, tool invocations to 90 days, traces to 14 days, completed jobs to
 30 days, idempotency keys to one day, and run inputs to 30 days. Session and
 conversation deletion still require an explicit policy.
@@ -816,7 +818,7 @@ irreversible action. Test the crash boundary, not only the successful path.
 | Jobs do not move | Confirm a worker is enabled, shares the same SQL database, and passed the schema-ready gate |
 | A job restarted by itself | A worker holding its lease died or stalled past `LeaseDuration`; check `Attempt` and the worker's own liveness before suspecting the handler |
 | Runs are slow but the model is not | Check registered `IRunEventSink` implementations; sink dispatch is inline and its latency is paid per event |
-| Database volume grows without bound | Retention is off by default; create and preview policies, then verify cleanup history and archival behavior |
+| Database volume grows without bound | Retention is off by default and nothing schedules the cleanup job; create and preview policies, schedule the `tracon.retention` job, then verify cleanup history and archival behavior |
 | Cost dashboards are empty | Confirm the provider reported token usage and that the exact model has a price; unknown cost is not zero |
 
 ## Read next

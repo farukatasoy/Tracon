@@ -27,6 +27,7 @@ public sealed class AgentSourceMutationTests
         descriptor.ToolNames.ShouldBe(["initial-tool"]);
         descriptor.SkillNames.ShouldBe(["initial-skill"]);
         descriptor.CallableAgentNames.ShouldBe(["initial-agent"]);
+        descriptor.Parameters.Select(static p => p.Name).ShouldBe(["initial-parameter"]);
         descriptor.Model!.ProviderSettings.Keys.ShouldBe(["initial-key"]);
         descriptor.Model!.Fallbacks.Select(static f => f.Provider).ShouldBe(["initial-fallback"]);
     }
@@ -46,6 +47,7 @@ public sealed class AgentSourceMutationTests
         descriptor.ToolNames.ShouldBe(["initial-tool"]);
         descriptor.SkillNames.ShouldBe(["initial-skill"]);
         descriptor.CallableAgentNames.ShouldBe(["initial-agent"]);
+        descriptor.Parameters.Select(static p => p.Name).ShouldBe(["initial-parameter"]);
         descriptor.Model!.ProviderSettings.Keys.ShouldBe(["initial-key"]);
         descriptor.Model!.Fallbacks.Select(static f => f.Provider).ShouldBe(["initial-fallback"]);
     }
@@ -58,6 +60,7 @@ public sealed class AgentSourceMutationTests
         private readonly List<string> _toolNames = ["initial-tool"];
         private readonly List<string> _skillNames = ["initial-skill"];
         private readonly List<string> _callableAgentNames = ["initial-agent"];
+        private readonly List<AgentParameter> _parameters = [new AgentParameter { Name = "initial-parameter", Kind = AgentParameterKind.Text }];
         private readonly Dictionary<string, JsonElement> _providerSettings =
             new(StringComparer.OrdinalIgnoreCase) { ["initial-key"] = JsonDocument.Parse("\"v\"").RootElement };
         private readonly List<ModelFallback> _fallbacks = [new ModelFallback { Provider = "initial-fallback", Model = "initial-model" }];
@@ -72,6 +75,7 @@ public sealed class AgentSourceMutationTests
             _toolNames.Add("added-tool");
             _skillNames.Add("added-skill");
             _callableAgentNames.Add("added-agent");
+            _parameters.Add(new AgentParameter { Name = "added-parameter", Kind = AgentParameterKind.Text });
             _providerSettings["added-key"] = JsonDocument.Parse("\"v2\"").RootElement;
             _fallbacks.Add(new ModelFallback { Provider = "added-fallback", Model = "added-model" });
         }
@@ -87,6 +91,7 @@ public sealed class AgentSourceMutationTests
                     ToolNames = _toolNames,
                     SkillNames = _skillNames,
                     CallableAgentNames = _callableAgentNames,
+                    Parameters = _parameters,
                     Model = new ModelBinding
                     {
                         Provider = "fake",

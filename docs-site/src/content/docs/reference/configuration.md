@@ -719,7 +719,14 @@ rows by age like any other.
 Configuration cannot switch off a target that has a default age: an empty value or a
 JSON `null` leaves the default in place. To switch one off, save a disabled retention
 policy for it, or set its `MaxAgeDays` to `null` in
-`Configure<TraconRetentionOptions>(...)`.
+`Configure<TraconRetentionOptions>(...)`. `Enabled` is one flag for all of them: configuration has
+no `Enabled` of its own for a single target, which is what the two ways above are for.
+
+A default or a policy makes rows eligible for deletion; it does not delete them. The
+`tracon.retention` job deletes, and nothing schedules it by itself: call
+`POST /api/retention/run` or save a recurring schedule for the `tracon.retention`
+handler, on a host that runs the job worker. See
+[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever).
 
 ## Endpoint options are code-only
 

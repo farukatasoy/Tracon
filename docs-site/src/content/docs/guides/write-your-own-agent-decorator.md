@@ -92,8 +92,9 @@ public sealed class ToolCallLogDecorator(ILogger<ToolCallLogDecorator> logger) :
 ```
 
 Give such a decorator an `Order` above `0`. Run recording (`Order` 0) hands the
-agents inside it a plain `AgentRunOptions`. A decorator outside it receives
-`TraconRunOptions`, and MAF's function-invocation middleware rejects that type
+agents inside it a plain `AgentRunOptions`, or a `ChatClientAgentRunOptions` when the run
+carries instructions of its own (`TraconRunOptions.AdditionalInstructions`). A decorator outside
+it receives `TraconRunOptions`, and MAF's function-invocation middleware rejects that type
 with `NotSupportedException`.
 
 A decorator must be thread-safe — the catalog can decorate agents

@@ -105,6 +105,10 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         return result;
     }
 
+    /// <inheritdoc />
+    public ValueTask<AgentDescriptor?> DescribeAsync(string agentName, CancellationToken cancellationToken = default)
+        => FindDescriptorAsync(agentName, cancellationToken);
+
     /// <summary>
     /// Finds the descriptor of one agent, the one <see cref="ListAsync"/> would list for the name, without listing
     /// the sources that can describe a name on their own.
@@ -518,5 +522,6 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             SkillNames = [.. descriptor.SkillNames],
             ExtensionNames = [.. descriptor.ExtensionNames],
             CallableAgentNames = [.. descriptor.CallableAgentNames],
+            Parameters = [.. descriptor.Parameters],
         };
 }

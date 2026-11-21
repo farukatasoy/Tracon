@@ -456,7 +456,9 @@ The catalog checks the values against the agent's schema, compiles the agent for
 values, and still applies every decorator, so the run is recorded, governed and replayable with the
 same text. Open your own tenant and attribution scope around the call, in the worker's own body,
 as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
-`TraconParameterException` carries. `samples/Tracon.Embedded` runs this from its job worker.
+`TraconParameterException` carries. To check what an agent declares before you run it, call
+`catalog.DescribeAsync(name)`: [Ask what an agent declares](/concepts/agents/#ask-what-an-agent-declares).
+`samples/Tracon.Embedded` runs this from its job worker.
 
 ### Check a definition before you save it
 
@@ -498,7 +500,9 @@ else
 
 The report lists every finding, not the first. A finding with `Warning` severity leaves `Valid` true;
 read it too, for example `single_brace_placeholder` when the instructions write `{customer}` and the
-agent declares a parameter `customer` (the placeholder is `{{customer}}`). The report never calls a
+agent declares a parameter `customer` (the placeholder is `{{customer}}`). The warning fires only for a
+name the agent declares, so a JSON example in the instructions stays quiet; the
+[parameters section](/concepts/agents/#parameters) lists what the validator does not report. The report never calls a
 model and writes nothing. It reads the model credential and the egress policy of the ambient tenant, so
 call it inside the tenant the definition belongs to. The codes are the ones `POST /api/agents/validate`
 returns and never change inside a major version.

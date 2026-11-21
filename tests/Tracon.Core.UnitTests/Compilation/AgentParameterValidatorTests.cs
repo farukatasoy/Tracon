@@ -164,6 +164,15 @@ public sealed class AgentParameterValidatorTests
     }
 
     [Fact]
+    public void An_empty_string_counts_as_a_supplied_value_for_a_required_parameter()
+    {
+        var schema = new[] { Param("customer", required: true) };
+        var values = new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = string.Empty };
+
+        AgentParameterValidator.ValidateValues(schema, values).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
     public void Unknown_value_is_never_silently_dropped()
     {
         var schema = new[] { Param("customer") };

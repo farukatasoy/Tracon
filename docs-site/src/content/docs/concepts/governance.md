@@ -638,10 +638,12 @@ Recorded runs accumulate. A retention policy sets an age or row limit per target
 events, tool calls, traces, jobs, webhook deliveries, eval results, checkpoints,
 attachments, sessions, and more.
 
-A database policy takes precedence. When none exists and retention is enabled in
-configuration, Tracon falls back to its target defaults, including 30 days for
-run events and 14 days for spans. With retention disabled, nothing is removed. A
-policy with `enabled: false` is configured but paused.
+A database policy takes precedence, and an enabled one applies whether or not
+retention is enabled in configuration. When a target has none and retention is
+enabled in configuration, Tracon falls back to the default of every target at
+once, including 30 days for run events and 14 days for spans; the flag cannot turn
+on only some of them. With retention disabled and no policy, nothing is eligible
+for deletion. A policy with `enabled: false` is configured but paused.
 
 When a policy has `archive: true`, cleanup first sends its batch to the registered
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
@@ -686,7 +688,11 @@ warning with the number of rows kept — never a tenant or a location. Register 
 `IAttachmentStorage` that wrote the bytes, and the next run deletes the bytes and the rows.
 
 No endpoint deletes synchronously. Preview first — it is the only way to see the size
-of a deletion before it happens — then run, which queues a job.
+of a deletion before it happens — then run, which queues a job. Rows are deleted only
+when the `tracon.retention` job runs, and nothing schedules it for you: call `run`,
+or save a recurring schedule for the `tracon.retention` handler (see
+[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever)).
+A host that runs no job worker deletes nothing.
 
 ```bash
 curl 'http://localhost:5081/tracon/api/retention/preview'

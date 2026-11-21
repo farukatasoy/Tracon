@@ -12,7 +12,9 @@ namespace Tracon;
 /// No HTTP endpoint carries such options: a definition version, an experiment variant or a
 /// declared parameter changes a run, so the definition stays the record of what ran. Microsoft
 /// Agent Framework itself sends them, and so can code that calls a catalog agent. The handoff step
-/// of a workflow gives its agent the handoff tools and instructions this way.
+/// of a workflow gives its agent the handoff tools and instructions this way. Code that runs an agent
+/// with <see cref="TraconRunOptions"/> adds instructions for one run with
+/// <see cref="TraconRunOptions.AdditionalInstructions"/>, which reaches the agent as the same options.
 /// </para>
 /// <para>
 /// The rule is the extension rule (<see cref="AgentOptionsGuard"/>) applied to one run, and it

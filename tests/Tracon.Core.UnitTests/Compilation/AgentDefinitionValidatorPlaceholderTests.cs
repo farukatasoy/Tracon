@@ -79,6 +79,15 @@ public sealed class AgentDefinitionValidatorPlaceholderTests
     }
 
     [Fact]
+    public async Task A_declared_parameter_that_no_placeholder_uses_is_not_reported()
+    {
+        var report = await ValidateAsync("Answer briefly.", [Customer]);
+
+        report.Valid.ShouldBeTrue();
+        report.Messages.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Two_declared_names_in_single_braces_are_two_warnings()
     {
         var report = await ValidateAsync(

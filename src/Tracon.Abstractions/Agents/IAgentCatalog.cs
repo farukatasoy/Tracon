@@ -24,6 +24,47 @@ public interface IAgentCatalog
     ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Describes one agent without resolving it: whether an agent of that name exists for the current tenant, and
+    /// what it declares. Nothing is compiled and no run is written.
+    /// </summary>
+    /// <param name="agentName">The agent name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The descriptor <see cref="ListAsync"/> would list for the name, <see cref="AgentDescriptor.Parameters"/> included;
+    /// <see langword="null"/> when no source holds it.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// Use it before <see cref="ResolveAsync"/> when the caller has to know what an agent expects: a name that is
+    /// declared, a parameter that is required, the default of one that is not. The same source wins the name as in
+    /// <see cref="ListAsync"/>, a definition the host keeps for every tenant is visible inside a tenant, and another
+    /// tenant's definition is not.
+    /// </para>
+    /// <para>
+    /// A source that fails is skipped, as in <see cref="ListAsync"/>, so <see langword="null"/> can also mean that the
+    /// source that holds the name failed; the failure is logged. A canceled call throws.
+    /// The default implementation reads <see cref="ListAsync"/> and searches it. The catalog Tracon supplies asks
+    /// the sources that can describe one name for that name alone, so it does not read the whole listing.
+    /// </para>
+    /// </remarks>
+    async ValueTask<AgentDescriptor?> DescribeAsync(string agentName, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
+
+        var listed = await ListAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var descriptor in listed)
+        {
+            if (string.Equals(descriptor.Name, agentName, StringComparison.Ordinal))
+            {
+                return descriptor;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Resolves the agent with the given name. The returned agent is wrapped by the run
     /// recording decorator; every run is written into <see cref="IRunStore"/>.
     /// </summary>

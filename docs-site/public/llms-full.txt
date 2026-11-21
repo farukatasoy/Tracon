@@ -446,13 +446,20 @@ a letter or underscore followed by letters, digits or underscores, and it must b
 a prompt that was written for another template engine needs its placeholders rewritten to `{{name}}`.
 Validation warns about the likeliest mistake: a single-brace `{name}` of a parameter that the agent declares
 is reported as `single_brace_placeholder` (a warning, so the definition stays valid), by
-`POST /api/agents/validate` and by `IAgentDefinitionValidator`.
+`POST /api/agents/validate` and by `IAgentDefinitionValidator`. The warning is narrow on
+purpose. It fires only for the single-brace form of a name the agent declares, so a JSON example
+(`{ "level": 0 }`), a brace around a name the agent does not declare (`{other}`) and `{{{name}}}`
+stay quiet, an agent that declares no parameters is not checked at all, and every
+`InstructionsByCulture` variant is. A declared parameter that no placeholder uses is not an error and
+produces no message either.
 
 A run supplies values on the `parameters` field of `POST /api/agents/{name}/run` (and
 `/estimate`, which checks the same values without calling a model). A required
 parameter with no value and no `DefaultValue` stops the run before it starts, and
 names the missing parameter; a value for a name the schema does not declare is
-rejected too, not silently dropped. This holds for a definition saved through the
+rejected too, not silently dropped. An empty string counts as a value: a required parameter
+given `""` is accepted, and an optional one given `""` is substituted as empty text, not as its
+`DefaultValue`. Leave the name out to get the default. This holds for a definition saved through the
 API, for one registered in code with `AddAgent`, and for one a
 [custom definition source](/guides/write-your-own-agent-source/#return-a-definition-and-tracon-compiles-it)
 returns. Tracon reads the schema from the source that holds the name, the same source
@@ -531,6 +538,35 @@ included, beside its input. A replay, a continuation and a tool-approval resume 
 
 Pass `Version` and `Culture` in the same options to pin a definition version and pick an
 instruction culture. The values are checked against the schema of that version.
+
+### Ask what an agent declares
+
+To learn whether an agent exists for the current tenant and which parameters it declares, ask the
+catalog to describe it. Nothing is compiled and no run row is written:
+
+```csharp
+var catalog = provider.GetRequiredService<IAgentCatalog>();
+var described = await catalog.DescribeAsync("summarizer");
+
+if (described is null)
+{
+    // No source holds the name for this tenant.
+}
+else
+{
+    foreach (var parameter in described.Parameters)
+    {
+        // parameter.Name, parameter.Required and parameter.DefaultValue.
+    }
+}
+```
+
+`Parameters` is also on every descriptor `ListAsync` returns. The same source wins the name as
+in the listing, a definition the host keeps for every tenant is visible inside a tenant, and another
+tenant's definition is not. An agent a custom `IAgentSource` builds itself, and an agent registered
+from a factory, declare nothing Tracon can read: their list is empty unless the source fills it, and
+Tracon checks no value against what a source lists. A source that fails is skipped, as in the listing,
+so `null` can also mean that the source holding the name failed; the failure is logged.
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security
@@ -2466,10 +2502,12 @@ Recorded runs accumulate. A retention policy sets an age or row limit per target
 events, tool calls, traces, jobs, webhook deliveries, eval results, checkpoints,
 attachments, sessions, and more.
 
-A database policy takes precedence. When none exists and retention is enabled in
-configuration, Tracon falls back to its target defaults, including 30 days for
-run events and 14 days for spans. With retention disabled, nothing is removed. A
-policy with `enabled: false` is configured but paused.
+A database policy takes precedence, and an enabled one applies whether or not
+retention is enabled in configuration. When a target has none and retention is
+enabled in configuration, Tracon falls back to the default of every target at
+once, including 30 days for run events and 14 days for spans; the flag cannot turn
+on only some of them. With retention disabled and no policy, nothing is eligible
+for deletion. A policy with `enabled: false` is configured but paused.
 
 When a policy has `archive: true`, cleanup first sends its batch to the registered
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
@@ -2514,7 +2552,11 @@ warning with the number of rows kept — never a tenant or a location. Register 
 `IAttachmentStorage` that wrote the bytes, and the next run deletes the bytes and the rows.
 
 No endpoint deletes synchronously. Preview first — it is the only way to see the size
-of a deletion before it happens — then run, which queues a job.
+of a deletion before it happens — then run, which queues a job. Rows are deleted only
+when the `tracon.retention` job runs, and nothing schedules it for you: call `run`,
+or save a recurring schedule for the `tracon.retention` handler (see
+[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever)).
+A host that runs no job worker deletes nothing.
 
 ```bash
 curl 'http://localhost:5081/tracon/api/retention/preview'
@@ -2932,8 +2974,10 @@ replace or compose with your own rules — see
 
 A model call that fails throws `ProviderInvocationException`, a `TraconException` with
 error type `upstream_error`. Three properties answer what a job or a pipeline step asks:
-`Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when it
-answered nothing) and `IsTransient`.
+`Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when the
+failure carried none) and `IsTransient`. A failure with no status is one of three things:
+the provider answered nothing, it answered with a body the client could not read, or the
+request was never sent. `IsTransient` tells the last from the other two.
 
 ```csharp
 async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken cancellationToken)
@@ -2946,7 +2990,7 @@ async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken ca
     }
     catch (ProviderInvocationException failure) when (failure.IsTransient)
     {
-        // No answer, timeout, 429 or 5xx: a later try can succeed. The caller schedules one.
+        // No answer, timeout, 429, 5xx or an unreadable answer: a later try can succeed. The caller schedules one.
         return false;
     }
     catch (ProviderInvocationException failure)
@@ -2959,10 +3003,21 @@ async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken ca
 
 `IsTransient` is the decision the model fallback chain makes to move a call to the next
 provider, so your retry and Tracon's do not disagree about which failure is worth another
-try. No answer from the provider (a refused connection, a timeout), a `429` and a `5xx`
-are transient. Every other `4xx` is not, and neither is a failure that happened before a
-request was sent. A `401` or `403` is not transient: a key the provider refuses stays
-refused until it is replaced.
+try. No answer from the provider (a refused connection, a timeout), a `429`, a `5xx` and an
+answer the client could not read (a `200` with an empty body, a body cut short or a page
+that is not JSON, which a gateway or a dropped connection produces) are transient. Every
+other `4xx` is not, and neither is a failure that happened before a request was sent. A
+`401` or `403` is not transient: a key the provider refuses stays refused until it is
+replaced.
+
+Two stream shapes are not recognized as an unreadable answer: an OpenAI stream whose body is empty or not an event
+stream ends with no update and no error, and a Google stream that ends inside a segment raises an error with no
+line number; both keep their old answer.
+
+Two differences from the chain are worth knowing. The chain asks a registered
+`IProviderRetryClassifier` first; `IsTransient` does not. And a streamed call that already
+delivered an update never moves to the next provider, though `IsTransient` can be `true`
+for the failure that ended it.
 
 `Message` is a fixed sentence with the provider, the fault type and the status; it does
 not carry the provider's own words. `InnerException` and `ToString()` do, with the key of
@@ -4151,12 +4206,13 @@ produces.
 ### Starting a run from .NET with explicit identity
 
 `TraconRunOptions` is the .NET-side counterpart of the run request. It is not a
-configuration section: it is passed per call, and all but the last property answer
+configuration section: it is passed per call, and most properties answer
 "which run is this, and where does it sit in a larger story".
 
 | Property | What it sets |
 |---|---|
 | `RunId` | The identifier to record this run under. Supply your own when the caller already has one; otherwise Tracon generates it |
+| `AdditionalInstructions` | Instructions for this run only, appended to the agent's own on a new line. Use it with `RunId` when the code adds a rule and has to find the run record afterwards. It is trusted caller text: do not pass text an end user wrote. The run does not record it, so a replay, an automatic continuation and a resumed approval run without it |
 | `ParentRunId` · `RootRunId` · `Depth` | The run's place in a call tree. The child-agent invoker fills these in; set them yourself only when you drive a tree by hand |
 | `AgentVersion` | The definition version this run used, when you resolved a specific one |
 | `ExperimentId` | The experiment this run is a sample of, so results group correctly |
@@ -4169,7 +4225,7 @@ configuration section: it is passed per call, and all but the last property answ
 Leave every property unset for an ordinary run: Tracon then records a root run with
 a generated id, and the values above are filled in by the components that own them.
 
-The last one is a hook rather than an identity, and it exists because the status and the
+`BeforePendingApprovalIsPublished` is a hook rather than an identity, and it exists because the status and the
 request become visible at different moments. A run closes inside the agent call, so
 without it the status is published first and
 [`GET /api/approvals/pending`](/http-api/approvals/) answers an empty list for a run that
@@ -7414,10 +7470,12 @@ A recorded run is data, and recorded runs accumulate. Retention policies set an 
 or row limit per target — run events, tool calls, traces, jobs, webhook deliveries,
 eval results, checkpoints, and more.
 
-Database policies take precedence. When no database policy exists and
-`Tracon:Retention:Enabled` is true, configuration falls back to built-in target
-defaults, such as 30 days for run events and 14 days for spans. With retention
-disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
+Database policies take precedence, and an enabled one applies whether or not
+`Tracon:Retention:Enabled` is set. When a target has no database policy and
+`Tracon:Retention:Enabled` is true, configuration falls back to the built-in
+default of every target at once, such as 30 days for run events and 14 days for
+spans; the flag cannot turn on only some of them. With retention disabled and no
+policy, nothing is eligible for deletion. An `archive: true` policy also deletes nothing when no
 `IArchiveSink` is registered; data loss is the failure mode the worker avoids. With a
 sink, each batch deletes only the rows the sink received — see
 [Retention](/concepts/governance/#retention). A database policy saved without `enabled`
@@ -7428,6 +7486,18 @@ Cleanup runs through the job queue. Preview a policy before you execute it:
 ```bash
 curl 'http://localhost:5081/tracon/api/retention/preview'
 curl -X POST 'http://localhost:5081/tracon/api/retention/run'
+```
+
+A policy or a default only says what is eligible. Rows are deleted when the
+`tracon.retention` job runs, and nothing schedules that job for you: call the `run`
+endpoint, or save a recurring schedule for it. A host that runs no job worker
+deletes nothing, because the job waits in the queue. A job sweeps the tenant that
+queued it, so a schedule saved for a tenant cleans that tenant.
+
+```bash
+curl -X PUT 'http://localhost:5081/tracon/api/schedules/nightly-retention' \
+  -H 'Content-Type: application/json' \
+  -d '{ "handlerKey": "tracon.retention", "targetName": "*", "cron": "0 3 * * *", "enabled": true }'
 ```
 
 ## Durability also enables governance
@@ -8696,8 +8766,10 @@ What to know about this door:
   an agent. A tool that your own provider adds skips them. The run record still shows the
   call.
 - **A replay that plays tools back does not run the extension**, for the same reason.
-- **Model options for one run follow the same rule.** Code can run a catalog agent with
-  `ChatClientAgentRunOptions`. The run may add instructions and tool declarations, and it may
+- **Model options for one run follow the same rule.** To add instructions to one run, set
+  `TraconRunOptions.AdditionalInstructions`: it carries the run's identifier too, so the code can find
+  the run record afterwards. For any other option, code can run a catalog agent with
+  `ChatClientAgentRunOptions`, which carries no identifier. The run may add instructions and tool declarations, and it may
   turn parallel tool calls off (`AllowMultipleToolCalls = false`), which a handoff step does. A
   model id, a sampling setting, a tool mode, a response format, a chat client factory, or a tool
   that runs throws `ArgumentException` before the run starts. No HTTP endpoint takes model options for one run. To change a run, change the
@@ -11155,7 +11227,7 @@ every page — three sizes for three questions, published on the documentation s
   what**: one line per hand-written page, with its title, address, and subject. At
   most 28 KiB; the build refuses a larger file.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 2200 KB. The capability map states the same figure.
+  page concatenated, about 2300 KB. The capability map states the same figure.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
@@ -12559,7 +12631,9 @@ The catalog checks the values against the agent's schema, compiles the agent for
 values, and still applies every decorator, so the run is recorded, governed and replayable with the
 same text. Open your own tenant and attribution scope around the call, in the worker's own body,
 as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
-`TraconParameterException` carries. `samples/Tracon.Embedded` runs this from its job worker.
+`TraconParameterException` carries. To check what an agent declares before you run it, call
+`catalog.DescribeAsync(name)`: [Ask what an agent declares](/concepts/agents/#ask-what-an-agent-declares).
+`samples/Tracon.Embedded` runs this from its job worker.
 
 ### Check a definition before you save it
 
@@ -12601,7 +12675,9 @@ else
 
 The report lists every finding, not the first. A finding with `Warning` severity leaves `Valid` true;
 read it too, for example `single_brace_placeholder` when the instructions write `{customer}` and the
-agent declares a parameter `customer` (the placeholder is `{{customer}}`). The report never calls a
+agent declares a parameter `customer` (the placeholder is `{{customer}}`). The warning fires only for a
+name the agent declares, so a JSON example in the instructions stays quiet; the
+[parameters section](/concepts/agents/#parameters) lists what the validator does not report. The report never calls a
 model and writes nothing. It reads the model credential and the egress policy of the ambient tenant, so
 call it inside the tenant the definition belongs to. The codes are the ones `POST /api/agents/validate`
 returns and never change inside a major version.
@@ -18126,7 +18202,9 @@ Start with an explicit classification:
 | Sessions and conversations | No configuration age limit by default |
 
 `Tracon:Retention:Enabled` defaults to `false`. With no explicit database policy,
-nothing is deleted automatically. When you enable configuration defaults, run events
+nothing is eligible for deletion. Eligible rows are deleted only when the
+`tracon.retention` job runs, and nothing schedules it: call `POST /api/retention/run` or
+save a recurring schedule for it, on a host that runs the job worker. When you enable configuration defaults, run events
 default to 30 days, tool invocations to 90 days, traces to 14 days, completed jobs to
 30 days, idempotency keys to one day, and run inputs to 30 days. Session and
 conversation deletion still require an explicit policy.
@@ -18637,7 +18715,7 @@ irreversible action. Test the crash boundary, not only the successful path.
 | Jobs do not move | Confirm a worker is enabled, shares the same SQL database, and passed the schema-ready gate |
 | A job restarted by itself | A worker holding its lease died or stalled past `LeaseDuration`; check `Attempt` and the worker's own liveness before suspecting the handler |
 | Runs are slow but the model is not | Check registered `IRunEventSink` implementations; sink dispatch is inline and its latency is paid per event |
-| Database volume grows without bound | Retention is off by default; create and preview policies, then verify cleanup history and archival behavior |
+| Database volume grows without bound | Retention is off by default and nothing schedules the cleanup job; create and preview policies, schedule the `tracon.retention` job, then verify cleanup history and archival behavior |
 | Cost dashboards are empty | Confirm the provider reported token usage and that the exact model has a price; unknown cost is not zero |
 
 ## Read next
@@ -18737,7 +18815,9 @@ cancellation, `TraconContentBlockedException`, an exhausted run budget, a missin
 attachment, or a tool failure. The status is read from
 `HttpRequestException.StatusCode` or from an `HTTP nnn` exception message, the same
 rule the fallback chain uses; a failure whose status cannot be read counts as a
-connection failure does. After the break duration, new calls can probe recovery;
+connection failure does, and so does an answer the client could not read (a `200` with an
+empty body, a body cut short or a page that is not JSON), which points at a gateway or a
+broken provider. After the break duration, new calls can probe recovery;
 a successful probe closes the circuit.
 
 | Setting | Default | Validation |
@@ -18781,7 +18861,8 @@ primary provider's client. If the fallback model needs its own provider settings
 or rejects one of the primary's sampling settings, give it a separate agent.
 
 The chain tries the next link only for a transient failure: the local circuit
-already open, a `5xx`/`429` response, or a bare connection error. It never falls
+already open, a `5xx`/`429` response, a bare connection error, or an answer the client
+could not read (a `200` with an empty body, a body cut short or a page that is not JSON). It never falls
 back on an authentication error (`401`/`403`), on any other permanent `4xx` (every
 `4xx` except `408` and `429`, for example a `404` for an unknown model name), or on a
 canceled request — masking a misconfigured key or a bad request behind a silent
@@ -18850,6 +18931,7 @@ belongs to .NET itself. What that means when you write a provider:
 | Message carries `429`, `too many requests`, or `rate limit` | Yes |
 | Message carries `HTTP 5xx` | Yes |
 | A transport/SDK-client type with no permanent `4xx` (usually no status at all) | Yes — treated as a connection failure |
+| A JSON failure of the provider's own client while it read the answer (a `200` with an empty body, a body cut short or a page that is not JSON) | Yes — the call reached the provider and the answer was lost or garbled on the way back. A JSON failure raised anywhere else, by a tool or while a request was written, is not retried. Two stream shapes are not recognized yet: an OpenAI stream whose body is empty or not an event stream ends with no update and no error, and a Google stream that ends inside a segment raises an error that carries no line number |
 | Anything else | No — the retry set is closed and positive |
 
 :::caution[A timeout is not a cancellation]
@@ -19389,7 +19471,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 |---|---|
 | Every call fails fast with provider unavailable | Inspect the provider circuit and `RetryAfter`; fix upstream health before adding retries |
 | A run's response came from an unexpected model | Check the run's events for `ModelFallbackUsed`; the primary provider was unavailable for that call |
-| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a permanent `4xx` such as `401`, `403`, or `404`, or a canceled request, never retries by design |
+| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error/unreadable answer) — a permanent `4xx` such as `401`, `403`, or `404`, or a canceled request, never retries by design |
 | The same idempotency key returns `422` | Method, path, or raw JSON bytes changed; reuse the original serialization or issue a new key for a new operation |
 | A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another. A reservation whose process died is taken over by the next request once it is older than `ReservationTimeout` (one hour by default) |
 | An idempotent request returns `400` | Remove streaming or shorten the key to `MaxKeyLength` |
@@ -21472,8 +21554,9 @@ public sealed class ToolCallLogDecorator(ILogger<ToolCallLogDecorator> logger) :
 ```
 
 Give such a decorator an `Order` above `0`. Run recording (`Order` 0) hands the
-agents inside it a plain `AgentRunOptions`. A decorator outside it receives
-`TraconRunOptions`, and MAF's function-invocation middleware rejects that type
+agents inside it a plain `AgentRunOptions`, or a `ChatClientAgentRunOptions` when the run
+carries instructions of its own (`TraconRunOptions.AdditionalInstructions`). A decorator outside
+it receives `TraconRunOptions`, and MAF's function-invocation middleware rejects that type
 with `NotSupportedException`.
 
 A decorator must be thread-safe — the catalog can decorate agents
@@ -25723,7 +25806,14 @@ rows by age like any other.
 Configuration cannot switch off a target that has a default age: an empty value or a
 JSON `null` leaves the default in place. To switch one off, save a disabled retention
 policy for it, or set its `MaxAgeDays` to `null` in
-`Configure<TraconRetentionOptions>(...)`.
+`Configure<TraconRetentionOptions>(...)`. `Enabled` is one flag for all of them: configuration has
+no `Enabled` of its own for a single target, which is what the two ways above are for.
+
+A default or a policy makes rows eligible for deletion; it does not delete them. The
+`tracon.retention` job deletes, and nothing schedules it by itself: call
+`POST /api/retention/run` or save a recurring schedule for the `tracon.retention`
+handler, on a host that runs the job worker. See
+[Keeping it from growing forever](/getting-started/persistence/#keeping-it-from-growing-forever).
 
 ## Endpoint options are code-only
 
@@ -33454,6 +33544,14 @@ target with no database policy or enabled configuration default has no deletion 
 User-data targets such as sessions, conversations, and document embeddings have no
 default age even when the subsystem is enabled.
 
+### Retention is enabled and nothing is deleted
+
+A policy or a default makes rows eligible; the `tracon.retention` job deletes them, and
+nothing schedules that job by itself. Call `POST /api/retention/run` or save a recurring
+schedule for the `tracon.retention` handler. The job waits in the queue on a host that
+runs no job worker, so check that a worker is running, then read
+`GET /api/retention/history` for what each run deleted.
+
 ### Diagnostics or health is missing from my deployment
 
 They use different integration points:
@@ -33665,9 +33763,10 @@ live conversation mode.
 
 When the selected agent declares a parameter schema, the playground renders a form
 for it above the message box — one field per parameter, generated from the schema.
-The Run button is disabled while a required field is empty; this is the same rule
-the server enforces (a run with a missing required value never starts), surfaced
-before the round trip instead of after it.
+The Run button is disabled while a required field that has no default is empty or only spaces, so a run
+with a missing required value is caught before the round trip. The console is stricter than the server:
+the server accepts an empty string as a value, so a required parameter given `""` over HTTP or
+from code starts the run.
 
 When the agent runs a [loop](/concepts/agents/#run-until-the-work-is-done), the reply
 holds every iteration. The playground draws a divider after each iteration the loop

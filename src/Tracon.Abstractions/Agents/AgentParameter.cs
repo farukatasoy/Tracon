@@ -15,8 +15,9 @@ namespace Tracon;
 /// even if another variant does not use it.
 /// </para>
 /// <para>
-/// A schema entry that never appears in the instructions text is not an error;
-/// the reverse direction (used but undeclared) is what compilation rejects.
+/// A schema entry that never appears in the instructions text is not an error and
+/// the validator reports nothing for it; the reverse direction (used but undeclared)
+/// is what compilation rejects.
 /// </para>
 /// </remarks>
 public sealed record AgentParameter
@@ -29,13 +30,15 @@ public sealed record AgentParameter
 
     /// <summary>
     /// Gets whether a run must supply this parameter. A run missing a required
-    /// parameter with no <c>DefaultValue</c> does not start.
+    /// parameter with no <c>DefaultValue</c> does not start. An empty string counts as a
+    /// supplied value, so a required parameter given one is accepted.
     /// </summary>
     public bool Required { get; init; }
 
     /// <summary>
     /// Gets the value used when a run does not supply this parameter. Applies
-    /// whether or not <c>Required</c> is set.
+    /// whether or not <c>Required</c> is set. A run that supplies an empty string has
+    /// supplied a value, so the placeholder is replaced with empty text and not with this default.
     /// </summary>
     public string? DefaultValue { get; init; }
 

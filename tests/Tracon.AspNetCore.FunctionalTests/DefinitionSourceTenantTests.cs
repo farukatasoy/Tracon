@@ -140,6 +140,42 @@ public sealed class DefinitionSourceTenantTests
         }
     }
 
+    [Fact]
+    public async Task Describing_an_agent_inside_a_tenant_reads_that_tenants_schema_and_no_other()
+    {
+        var provider = Provider();
+        var (host, source) = await StartAsync(provider);
+
+        await using (host)
+        {
+            source.Add(
+                Definition("param-agent", "A on {{topic}}.") with { Parameters = [Required("topic")] },
+                "tenant-a");
+            source.Add(
+                Definition("param-agent", "B on {{subject}}.") with { Parameters = [Required("subject")] },
+                "tenant-b");
+            source.Add(Definition("tenant-a-only", "Only tenant A."), "tenant-a");
+
+            var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+            using (AmbientTenantScope.Begin("tenant-a"))
+            {
+                (await catalog.DescribeAsync("param-agent", TestContext.Current.CancellationToken)).ShouldNotBeNull()
+                    .Parameters.ShouldHaveSingleItem().Name.ShouldBe("topic");
+                (await catalog.DescribeAsync("tenant-a-only", TestContext.Current.CancellationToken)).ShouldNotBeNull();
+            }
+
+            using (AmbientTenantScope.Begin("tenant-b"))
+            {
+                (await catalog.DescribeAsync("param-agent", TestContext.Current.CancellationToken)).ShouldNotBeNull()
+                    .Parameters.ShouldHaveSingleItem().Name.ShouldBe("subject");
+                (await catalog.DescribeAsync("tenant-a-only", TestContext.Current.CancellationToken)).ShouldBeNull();
+            }
+
+            provider.Requests.ShouldBeEmpty("describing an agent never calls the model");
+        }
+    }
+
     private static AgentParameter Required(string name) => new() { Name = name, Kind = AgentParameterKind.Text, Required = true };
 
     private static AgentDefinition Definition(string name, string instructions) => new()

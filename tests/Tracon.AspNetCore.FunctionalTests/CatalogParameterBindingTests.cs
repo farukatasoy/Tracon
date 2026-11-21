@@ -237,6 +237,44 @@ public sealed class CatalogParameterBindingTests
             TestContext.Current.CancellationToken)).ShouldBeNull();
     }
 
+    [Fact]
+    public async Task Describing_an_agent_returns_the_parameters_it_declares_and_writes_no_run()
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider);
+
+        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+
+        var required = (await catalog.DescribeAsync(Required, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var defaults = (await catalog.DescribeAsync(DefaultsOnly, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        var coded = (await catalog.DescribeAsync(InCode, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        var parameter = required.Parameters.ShouldHaveSingleItem();
+
+        parameter.Name.ShouldBe("customer");
+        parameter.Required.ShouldBeTrue();
+        defaults.Parameters.ShouldHaveSingleItem().DefaultValue.ShouldBe("friend");
+        coded.Parameters.ShouldHaveSingleItem().Required.ShouldBeTrue();
+        (await catalog.DescribeAsync("no-such-agent", TestContext.Current.CancellationToken)).ShouldBeNull();
+
+        await AssertNothingRanAsync(host, provider);
+    }
+
+    [Fact]
+    public async Task Describing_an_agent_gives_the_listing_the_same_descriptor()
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(provider);
+
+        var catalog = host.Services.GetRequiredService<IAgentCatalog>();
+        var listed = (await catalog.ListAsync(TestContext.Current.CancellationToken)).Single(static descriptor => string.Equals(descriptor.Name, Required, StringComparison.Ordinal));
+        var described = (await catalog.DescribeAsync(Required, TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        described.SourceName.ShouldBe(listed.SourceName);
+        described.Version.ShouldBe(listed.Version);
+        described.Parameters.ShouldBe(listed.Parameters);
+    }
+
     private static Dictionary<string, string> Values(params string[] pairs)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);

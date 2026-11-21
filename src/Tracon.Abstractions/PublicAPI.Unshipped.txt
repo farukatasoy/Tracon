@@ -73,6 +73,8 @@ Tracon.AgentDescriptor.Name.get -> string!
 Tracon.AgentDescriptor.Name.init -> void
 Tracon.AgentDescriptor.Origin.get -> Tracon.AgentDefinitionOrigin
 Tracon.AgentDescriptor.Origin.init -> void
+Tracon.AgentDescriptor.Parameters.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentParameter!>!
+Tracon.AgentDescriptor.Parameters.init -> void
 Tracon.AgentDescriptor.SkillNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.AgentDescriptor.SkillNames.init -> void
 Tracon.AgentDescriptor.Skills.get -> Tracon.SkillSettings?
@@ -955,6 +957,7 @@ Tracon.HarnessSettings.MaxOutputTokens.init -> void
 Tracon.HarnessSettings.MaximumIterationsPerRequest.get -> int?
 Tracon.HarnessSettings.MaximumIterationsPerRequest.init -> void
 Tracon.IAgentCatalog
+Tracon.IAgentCatalog.DescribeAsync(string! agentName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentDescriptor?>
 Tracon.IAgentCatalog.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.AgentDescriptor!>!>
 Tracon.IAgentDecorator
 Tracon.IAgentDecorator.Decorate(Microsoft.Agents.AI.AIAgent! agent, Tracon.AgentDescriptor! descriptor) -> Microsoft.Agents.AI.AIAgent!
@@ -3874,6 +3877,8 @@ Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException() -> vo
 Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException(string! message) -> void
 Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException(string! message, System.Exception! innerException) -> void
 Tracon.TraconRunOptions
+Tracon.TraconRunOptions.AdditionalInstructions.get -> string?
+Tracon.TraconRunOptions.AdditionalInstructions.init -> void
 Tracon.TraconRunOptions.AgentVersion.get -> int?
 Tracon.TraconRunOptions.AgentVersion.init -> void
 Tracon.TraconRunOptions.BeforePendingApprovalIsPublished.get -> System.Func<System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>!, System.Collections.Generic.IReadOnlyDictionary<string!, Tracon.ToolApprovalPresentation?>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>?

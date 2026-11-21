@@ -29,6 +29,8 @@ internal sealed class RetentionProfileCheck : IProductionProfileCheck
                 setting,
                 "off, so no configured retention default deletes anything and recorded data grows without a bound",
                 $"set {setting} to true and give each target a maximum age, or write an explicit policy " +
-                "per target through IRetentionPolicyStore");
+                "per target through IRetentionPolicyStore; either way rows are deleted only when the " +
+                "tracon.retention job runs, and nothing schedules it: add a recurring schedule for it or call " +
+                "POST /api/retention/run, on a host that runs the job worker");
     }
 }

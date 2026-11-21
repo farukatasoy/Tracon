@@ -5,7 +5,7 @@ namespace Tracon;
 
 /// <summary>
 /// Run options that let the caller determine a run's identifier, its place
-/// in the tree, and its budget.
+/// in the tree, and its budget, and add instructions for that one run.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -27,6 +27,8 @@ namespace Tracon;
 /// This type <em>carries no</em> public <c>ChatOptions</c>. Tracon's own
 /// endpoints resolve the model options from the agent definition, so a run that
 /// starts at an endpoint cannot change them. Code that runs an agent directly can
+/// add instructions for one run with <see cref="AdditionalInstructions"/> and keep the
+/// identifier it chose with <see cref="RunId"/>. For any other per-run model option it can
 /// pass Microsoft Agent Framework's <c>ChatClientAgentRunOptions</c> instead; that
 /// run then has no identifier, tree position, or budget that the caller sets. The
 /// run-recording wrapper refuses such options when they set what the definition
@@ -54,6 +56,7 @@ public sealed class TraconRunOptions : AgentRunOptions
         : base(other)
     {
         RunId = other.RunId;
+        AdditionalInstructions = other.AdditionalInstructions;
         ParentRunId = other.ParentRunId;
         RootRunId = other.RootRunId;
         Depth = other.Depth;
@@ -88,6 +91,30 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// the storage index.
     /// </remarks>
     public Guid? RunId { get; init; }
+
+    /// <summary>
+    /// Instructions to append to the agent's own for this run only. <see langword="null"/> or white space adds nothing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The text follows the definition's instructions, after a line break, in the system instructions the model
+    /// receives. It does not replace them, it is not a parameter value (<c>{{name}}</c> placeholders in it are not bound),
+    /// and it is not part of the definition: the next run of the same agent does not carry it, and the definition
+    /// stays the record of what an agent is. A sub-agent the run calls does not receive it, and an agent that a
+    /// source builds itself reads it only if it reads the run options of Microsoft Agent Framework.
+    /// </para>
+    /// <para>
+    /// Use it when a rule belongs to the caller and not to the agent, and give <see cref="RunId"/> in the same call
+    /// when the code has to find the run record afterwards.
+    /// </para>
+    /// <para>
+    /// Treat the text as trusted: a guard that checks the user's messages does not read system instructions, so text
+    /// that came from an end user must not be passed here. The run does not record the text. A replay, an automatic
+    /// continuation after an interruption and a resumed approval run without it, so a run that depends on it cannot
+    /// be repeated from its record. With <c>RecordSensitiveData</c> on, a trace can carry it as system instructions.
+    /// </para>
+    /// </remarks>
+    public string? AdditionalInstructions { get; init; }
 
     /// <summary>
     /// The identifier of the run that started this run. <see langword="null"/>
@@ -260,7 +287,8 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// A workflow step is Tracon's sub-agent wrapper, and the wrapper builds these options itself.
     /// Microsoft Agent Framework's handoff step gives its agent the handoff tools and instructions on
     /// <c>ChatClientAgentRunOptions</c>; without this member the wrapper dropped them, and no workflow
-    /// handed off. The wrapper checks them with the same rule as a caller's own run options.
+    /// handed off. The wrapper checks them with the same rule as a caller's own run options. A caller
+    /// adds instructions through <see cref="AdditionalInstructions"/>, which follow these.
     /// </remarks>
     internal ChatOptions? ChatOptions { get; init; }
 

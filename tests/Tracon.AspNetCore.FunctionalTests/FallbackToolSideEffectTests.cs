@@ -286,6 +286,53 @@ public sealed class FallbackToolSideEffectTests
         ChargeProbeTool.Calls.ShouldBe(2);
     }
 
+    [Fact]
+    public async Task A_tool_that_keeps_failing_with_a_json_error_does_not_move_the_call_to_the_fallback()
+    {
+        // A JSON failure raised by a tool is not a provider failure: the tool loop sits below the fallback chain, but
+        // above the ring that marks what the provider client threw. Moving the call on would run the tool's body again.
+        JsonFailingProbeTool.Reset();
+
+        var primary = new StepModelProvider(
+            "primary-provider-json",
+            Step.CallTool("read_report", "reportId", "R-1"),
+            Step.CallTool("read_report", "reportId", "R-1"),
+            Step.CallTool("read_report", "reportId", "R-1"),
+            Step.CallTool("read_report", "reportId", "R-1"),
+            Step.Text("never reached"));
+
+        var fallback = new StepModelProvider("fallback-provider-json", Step.Text("from the fallback"));
+
+        await using var host = await TraconTestHost.StartAsync(builder => builder
+            .AddModelProvider(primary)
+            .AddModelProvider(fallback)
+            .AddToolsFrom(typeof(JsonFailingProbeTool))
+            .AddAgent(new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Read the report when asked.",
+                Model = new ModelBinding
+                {
+                    Provider = "primary-provider-json",
+                    Model = "primary-model",
+                    Fallbacks = [new ModelFallback { Provider = "fallback-provider-json", Model = "fallback-model" }],
+                },
+                ToolNames = ["read_report"],
+            }));
+
+        using var response = await PostBufferedAsync(host, new AgentRunRequest { Message = "please read R-1" });
+
+        response.IsSuccessStatusCode.ShouldBeFalse("the tool kept failing, so the run did too");
+        JsonFailingProbeTool.Calls.ShouldBeGreaterThan(3, "the loop gives up only after its consecutive-error limit, so the tool ran more than three times");
+
+        var store = host.Services.GetRequiredService<IRunStore>();
+        var run = (await store.QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        var events = await ReadEventsAsync(host, run.Id);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        events.ShouldNotContain(static e => e.Type == RunEventType.ModelFallbackUsed, "a tool's JSON failure never switches the model");
+    }
+
     private static async Task<HttpResponseMessage> PostBufferedAsync(TraconTestHost host, AgentRunRequest body)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, Run) { Content = JsonContent.Create(body) };
@@ -402,5 +449,25 @@ file static class ChargeProbeTool
         Volatile.Write(ref _lastOrderId, orderId);
 
         return $"{orderId}: charged {Guid.NewGuid():N}";
+    }
+}
+
+/// <summary>A real registered tool whose body fails the way a JSON reader does, and counts how many times it ran.</summary>
+file static class JsonFailingProbeTool
+{
+    private static int _calls;
+
+    public static int Calls => Volatile.Read(ref _calls);
+
+    public static void Reset() => Volatile.Write(ref _calls, 0);
+
+    [TraconTool("read_report", "Reads a stored report.")]
+    public static string ReadReport(string reportId)
+    {
+        _ = Interlocked.Increment(ref _calls);
+
+        using var document = System.Text.Json.JsonDocument.Parse(string.Empty);
+
+        return $"{reportId}: {document.RootElement}";
     }
 }

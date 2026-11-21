@@ -181,6 +181,39 @@ public sealed class RetentionEndpointTests
         job.TargetName.ShouldBe("run_events");
     }
 
+    /// <summary>
+    /// Nothing schedules the cleanup by itself; the documented way to make it recur is a schedule for the retention
+    /// handler. The recipe on the site is the request this test sends: a schedule saved with the wildcard target
+    /// queues the same sweep as the run endpoint.
+    /// </summary>
+    [Fact]
+    public async Task A_recurring_schedule_for_the_retention_handler_queues_the_sweep()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var saved = await host.Client.PutAsJsonAsync(
+            "/tracon/api/schedules/nightly-retention",
+            new JobScheduleSaveRequest
+            {
+                HandlerKey = JobHandlerKeys.Retention,
+                TargetName = "*",
+                Cron = "0 3 * * *",
+                Enabled = true,
+            });
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+
+        using var triggered = await host.Client.PostAsJsonAsync("/tracon/api/schedules/nightly-retention/trigger", new { });
+
+        triggered.EnsureSuccessStatusCode();
+
+        var jobId = (await TraconTestHost.ReadJsonAsync(triggered)).GetProperty("id").GetGuid();
+        var job = await host.Services.GetRequiredService<IJobStore>().GetAsync("default", jobId);
+
+        job.ShouldNotBeNull().HandlerKey.ShouldBe(JobHandlerKeys.Retention);
+        job.TargetName.ShouldBe("*");
+    }
+
     [Fact]
     public async Task Empty_history_returns_empty_list()
     {

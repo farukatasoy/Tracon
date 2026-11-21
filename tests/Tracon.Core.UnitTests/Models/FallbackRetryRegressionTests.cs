@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 
 namespace Tracon.Core.UnitTests.Models;
 
@@ -140,6 +141,31 @@ public sealed class FallbackRetryRegressionTests
         ];
         yield return [new FakeClientResultException("HTTP 408 (request_timeout)"), true, "408 is not a permanent 4xx and still retries"];
         yield return [new InvalidOperationException("something nobody anticipated"), false, "an unrecognized failure never retries by default"];
+        yield return [MarkedAsUnreadable(), true, "an answer the provider client could not read retries"];
+        yield return [UnreadableBody(), false, "a JSON failure that did not come out of the provider client never retries"];
+    }
+
+    private static JsonException UnreadableBody()
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(string.Empty);
+        }
+        catch (JsonException exception)
+        {
+            return exception;
+        }
+
+        throw new InvalidOperationException("The body was expected to be unreadable.");
+    }
+
+    private static JsonException MarkedAsUnreadable()
+    {
+        var exception = UnreadableBody();
+
+        UnreadableProviderResponse.MarkWhenUnreadable(exception);
+
+        return exception;
     }
 
     [Theory]

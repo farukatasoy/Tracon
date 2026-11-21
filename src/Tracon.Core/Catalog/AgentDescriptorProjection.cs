@@ -43,6 +43,7 @@ internal static class AgentDescriptorProjection
             ExtensionNames = definition.ExtensionNames,
             CallableAgentNames = [.. definition.CallableAgents.Select(static agent => agent.Name)],
             UsesHarness = definition.Harness is not null,
+            Parameters = definition.Parameters,
             UpdatedAt = definition.UpdatedAt,
         };
     }

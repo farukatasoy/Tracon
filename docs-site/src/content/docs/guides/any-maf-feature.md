@@ -294,8 +294,10 @@ What to know about this door:
   an agent. A tool that your own provider adds skips them. The run record still shows the
   call.
 - **A replay that plays tools back does not run the extension**, for the same reason.
-- **Model options for one run follow the same rule.** Code can run a catalog agent with
-  `ChatClientAgentRunOptions`. The run may add instructions and tool declarations, and it may
+- **Model options for one run follow the same rule.** To add instructions to one run, set
+  `TraconRunOptions.AdditionalInstructions`: it carries the run's identifier too, so the code can find
+  the run record afterwards. For any other option, code can run a catalog agent with
+  `ChatClientAgentRunOptions`, which carries no identifier. The run may add instructions and tool declarations, and it may
   turn parallel tool calls off (`AllowMultipleToolCalls = false`), which a handoff step does. A
   model id, a sampling setting, a tool mode, a response format, a chat client factory, or a tool
   that runs throws `ArgumentException` before the run starts. No HTTP endpoint takes model options for one run. To change a run, change the

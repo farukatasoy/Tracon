@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -84,6 +86,124 @@ public sealed class RunChatOptionsTests
         provider.Requests.ShouldHaveSingleItem().Options.ShouldNotBeNull().AllowMultipleToolCalls.ShouldBe(false);
     }
 
+    /// <summary>
+    /// Added instructions and the identifier of the run travel in one options object, on the buffered and the
+    /// streamed path: the model reads the definition's instructions and then the run's, and the record is kept
+    /// under the identifier the caller chose.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Added_instructions_follow_the_definitions_and_the_run_is_recorded_under_the_chosen_identifier(bool streaming)
+    {
+        var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, static cfg => cfg.EchoesUserMessage());
+        await using var host = await StartAsync(provider);
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
+        var runId = TraconId.NewId();
+        var options = new TraconRunOptions { RunId = runId, AdditionalInstructions = "RUN-NOTE" };
+
+        if (streaming)
+        {
+            await foreach (var update in agent.RunStreamingAsync("hi", session: null, options, TestContext.Current.CancellationToken))
+            {
+                _ = update;
+            }
+        }
+        else
+        {
+            await agent.RunAsync("hi", session: null, options, TestContext.Current.CancellationToken);
+        }
+
+        var request = provider.Requests.ShouldHaveSingleItem().Options.ShouldNotBeNull();
+
+        request.Instructions.ShouldBe("Answer briefly.\nRUN-NOTE");
+        request.ModelId.ShouldBe(ModelName);
+        request.Temperature.ShouldBe(0.25f, "what the definition owns survives the merge");
+
+        var run = (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+        run.Id.ShouldBe(runId);
+        run.Status.ShouldBe(RunStatus.Completed);
+    }
+
+    /// <summary>The identifier the caller chose names the record of a run that fails, too.</summary>
+    [Fact]
+    public async Task A_run_that_fails_is_recorded_under_the_chosen_identifier()
+    {
+        await using var host = await TraconTestHost.StartAsync(builder => builder
+            .AddModelProvider(new ThrowingModelProvider())
+            .AddAgent(new AgentDefinition
+            {
+                Name = "failing-run-agent",
+                Instructions = "Answer briefly.",
+                Model = new ModelBinding { Provider = "kirik", Model = "kirik-1" },
+                Origin = AgentDefinitionOrigin.Code,
+            }));
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync("failing-run-agent", cancellationToken: CancellationToken.None)).ShouldNotBeNull();
+        var runId = TraconId.NewId();
+
+        await Should.ThrowAsync<Exception>(
+            () => agent.RunAsync("hi", session: null, new TraconRunOptions { RunId = runId, AdditionalInstructions = "RUN-NOTE" }, TestContext.Current.CancellationToken));
+
+        var run = (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+        run.Id.ShouldBe(runId);
+        run.Status.ShouldBe(RunStatus.Failed);
+    }
+
+    /// <summary>
+    /// The text is for one run: the next run of the agent does not carry it, and the record of the run does not hold
+    /// it (a replay therefore runs without it, which the options' remarks say).
+    /// </summary>
+    [Fact]
+    public async Task Added_instructions_are_for_one_run_and_the_record_does_not_hold_them()
+    {
+        var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, static cfg => cfg.EchoesUserMessage());
+        await using var host = await StartAsync(provider);
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
+        var runId = TraconId.NewId();
+
+        await agent.RunAsync("hi", session: null, new TraconRunOptions { RunId = runId, AdditionalInstructions = "RUN-NOTE" }, TestContext.Current.CancellationToken);
+        await agent.RunAsync("hi again", session: null, new TraconRunOptions(), TestContext.Current.CancellationToken);
+
+        provider.Requests.Select(static request => request.Options!.Instructions).ShouldBe(["Answer briefly.\nRUN-NOTE", "Answer briefly."]);
+
+        var store = host.Services.GetRequiredService<IRunStore>();
+        var input = await host.Services.GetRequiredService<IRunInputStore>().GetAsync(
+            host.Services.GetRequiredService<ITenantContext>().TenantId,
+            runId,
+            TestContext.Current.CancellationToken);
+
+        input.ShouldNotBeNull().Messages.ShouldAllBe(static message => !message.Text.Contains("RUN-NOTE", StringComparison.Ordinal));
+
+        await foreach (var runEvent in store.ReadEventsAsync(runId, cancellationToken: TestContext.Current.CancellationToken))
+        {
+            (runEvent.Text ?? string.Empty).ShouldNotContain("RUN-NOTE", Case.Sensitive);
+            (runEvent.Payload ?? string.Empty).ShouldNotContain("RUN-NOTE", Case.Sensitive);
+        }
+    }
+
+    /// <summary>
+    /// A replay repeats the run from its record, and the record holds no added instructions: the replayed request
+    /// carries the definition's instructions only. The limit is written in the options' remarks, and this pins it.
+    /// </summary>
+    [Fact]
+    public async Task A_replay_runs_without_the_added_instructions()
+    {
+        var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, static cfg => cfg.EchoesUserMessage());
+        await using var host = await StartAsync(provider);
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, cancellationToken: CancellationToken.None)).ShouldNotBeNull();
+        var runId = TraconId.NewId();
+
+        await agent.RunAsync("hi", session: null, new TraconRunOptions { RunId = runId, AdditionalInstructions = "RUN-NOTE" }, TestContext.Current.CancellationToken);
+
+        using var replay = await host.Client.PostAsJsonAsync($"/tracon/api/runs/{runId}/replay", new { toolMode = "LiveTools" }, TestContext.Current.CancellationToken);
+
+        replay.StatusCode.ShouldBe(HttpStatusCode.OK, await replay.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        provider.Requests.Count.ShouldBe(2);
+        provider.Requests[^1].Options.ShouldNotBeNull().Instructions.ShouldBe("Answer briefly.");
+    }
+
     private static Task<TraconTestHost> StartAsync(FakeModelProvider provider)
         => TraconTestHost.StartAsync(builder => builder
             .AddModelProvider(provider)
@@ -91,7 +211,7 @@ public sealed class RunChatOptionsTests
             {
                 Name = AgentName,
                 Instructions = "Answer briefly.",
-                Model = new ModelBinding { Provider = ProviderName, Model = ModelName },
+                Model = new ModelBinding { Provider = ProviderName, Model = ModelName, Temperature = 0.25f },
                 Origin = AgentDefinitionOrigin.Code,
             }));
 }

@@ -36,8 +36,9 @@ internal static class RetentionEndpoints
             .WithSummary("Lists a tenant's retention policies.")
             .WithDescription(
                 "Only targets that have an explicit policy appear here. A target missing from " +
-                "the list is not cleaned up at all — absence means 'keep forever', not 'use a " +
-                "default'. A policy is also kept while switched off, so 'enabled: false' is a " +
+                "the list has no database policy: when 'Tracon:Retention:Enabled' is on, the " +
+                "configuration default for the target applies, and otherwise nothing is cleaned " +
+                "up. A policy is also kept while switched off, so 'enabled: false' is a " +
                 "configured-but-paused policy and is different from having none.");
 
         builder.MapGet("/api/retention/preview", PreviewAsync)
@@ -59,7 +60,10 @@ internal static class RetentionEndpoints
             .WithName("TraconRunRetention")
             .WithTags("Tracon", "Retention")
             .WithSummary("Runs the cleanup now.")
-            .WithDescription("Does not run synchronously: an tracon.retention job is enqueued and processed from the queue.");
+            .WithDescription(
+                "Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, " +
+                "so nothing is deleted on a host that runs no job worker. Nothing schedules this job by " +
+                "itself: call this endpoint or add a recurring schedule for the tracon.retention handler.");
 
         builder.MapGet("/api/retention/history", HistoryAsync)
             .RequireRole(roles.Admin)
@@ -84,7 +88,8 @@ internal static class RetentionEndpoints
             .WithDescription(
                 "Two different failures are reported differently: an unrecognized target name " +
                 "returns 400 and lists the valid targets, while a valid target with no policy " +
-                "configured returns 404. Read that 404 as 'this data is never cleaned up'.");
+                "configured returns 404. That 404 says there is no database policy for the target: when " +
+                "'Tracon:Retention:Enabled' is on, the configuration default of the target still applies.");
 
         builder.MapPut("/api/retention/{target}", SaveAsync)
             .RequireRole(roles.Admin)
@@ -109,8 +114,10 @@ internal static class RetentionEndpoints
             .WithTags("Tracon", "Retention")
             .WithSummary("Deletes the retention policy for a target.")
             .WithDescription(
-                "Removing a policy stops the cleanup for that target; it deletes no data and " +
-                "restores none that was already deleted. To pause a cleanup while keeping the " +
+                "Removing a policy removes its limits; it deletes no data and restores none that was " +
+                "already deleted. The configuration default of the target applies in its place when " +
+                "'Tracon:Retention:Enabled' is on, and nothing is cleaned up otherwise. To pause a " +
+                "cleanup while keeping the " +
                 "limits, save the policy with 'enabled: false' instead. The removal is written " +
                 "to the audit trail. An unrecognized target returns 400, a target with no " +
                 "policy returns 404.");

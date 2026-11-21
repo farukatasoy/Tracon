@@ -127,6 +127,7 @@ internal sealed partial class CodeAgentSource : IAgentSource, IDefinitionBackedS
                 ExtensionNames = registration.Definition?.ExtensionNames ?? [],
                 CallableAgentNames = registration.Definition is { } coded ? [.. coded.CallableAgents.Select(static agent => agent.Name)] : [],
                 UsesHarness = registration.Definition?.Harness is not null,
+                Parameters = registration.Definition?.Parameters ?? [],
             });
         }
 

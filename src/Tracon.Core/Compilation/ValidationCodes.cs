@@ -141,7 +141,11 @@ internal static class ValidationCodes
     /// <summary>Validation finding <c>value_too_long</c>.</summary>
     public const string ValueTooLong = "value_too_long";
 
-    /// <summary>Validation finding <c>single_brace_placeholder</c>.</summary>
+    /// <summary>
+    /// Validation finding <c>single_brace_placeholder</c>: the instructions write the single-brace form of a
+    /// parameter the definition declares. It is not reported for a JSON example, for a brace around a name the
+    /// definition does not declare, or for a definition that declares no parameters.
+    /// </summary>
     public const string SingleBracePlaceholder = "single_brace_placeholder";
 
     /// <summary>Validation finding <c>duplicate_hosted_tool_kind</c>.</summary>

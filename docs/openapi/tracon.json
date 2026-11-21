@@ -5847,7 +5847,7 @@
           "Retention"
         ],
         "summary": "Lists a tenant\u0027s retention policies.",
-        "description": "Only targets that have an explicit policy appear here. A target missing from the list is not cleaned up at all \u2014 absence means \u0027keep forever\u0027, not \u0027use a default\u0027. A policy is also kept while switched off, so \u0027enabled: false\u0027 is a configured-but-paused policy and is different from having none.",
+        "description": "Only targets that have an explicit policy appear here. A target missing from the list has no database policy: when \u0027Tracon:Retention:Enabled\u0027 is on, the configuration default for the target applies, and otherwise nothing is cleaned up. A policy is also kept while switched off, so \u0027enabled: false\u0027 is a configured-but-paused policy and is different from having none.",
         "operationId": "TraconListRetentionPolicies",
         "responses": {
           "200": {
@@ -5908,7 +5908,7 @@
           "Retention"
         ],
         "summary": "Runs the cleanup now.",
-        "description": "Does not run synchronously: an tracon.retention job is enqueued and processed from the queue.",
+        "description": "Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, so nothing is deleted on a host that runs no job worker. Nothing schedules this job by itself: call this endpoint or add a recurring schedule for the tracon.retention handler.",
         "operationId": "TraconRunRetention",
         "parameters": [
           {
@@ -5999,7 +5999,7 @@
           "Retention"
         ],
         "summary": "Gets the retention policy for a single target.",
-        "description": "Two different failures are reported differently: an unrecognized target name returns 400 and lists the valid targets, while a valid target with no policy configured returns 404. Read that 404 as \u0027this data is never cleaned up\u0027.",
+        "description": "Two different failures are reported differently: an unrecognized target name returns 400 and lists the valid targets, while a valid target with no policy configured returns 404. That 404 says there is no database policy for the target: when \u0027Tracon:Retention:Enabled\u0027 is on, the configuration default of the target still applies.",
         "operationId": "TraconGetRetentionPolicy",
         "parameters": [
           {
@@ -6081,7 +6081,7 @@
           "Retention"
         ],
         "summary": "Deletes the retention policy for a target.",
-        "description": "Removing a policy stops the cleanup for that target; it deletes no data and restores none that was already deleted. To pause a cleanup while keeping the limits, save the policy with \u0027enabled: false\u0027 instead. The removal is written to the audit trail. An unrecognized target returns 400, a target with no policy returns 404.",
+        "description": "Removing a policy removes its limits; it deletes no data and restores none that was already deleted. The configuration default of the target applies in its place when \u0027Tracon:Retention:Enabled\u0027 is on, and nothing is cleaned up otherwise. To pause a cleanup while keeping the limits, save the policy with \u0027enabled: false\u0027 instead. The removal is written to the audit trail. An unrecognized target returns 400, a target with no policy returns 404.",
         "operationId": "TraconDeleteRetentionPolicy",
         "parameters": [
           {
@@ -9385,6 +9385,13 @@
             "type": "boolean",
             "description": "Gets whether the harness capabilities are enabled."
           },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentParameter"
+            },
+            "description": "Gets the parameters the definition declares, in declaration order: the names a run can pass, which of\nthem are required, and the default of each."
+          },
           "updatedAt": {
             "type": [
               "null",
@@ -9469,14 +9476,14 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Gets whether a run must supply this parameter. A run missing a required\nparameter with no \u0060DefaultValue\u0060 does not start."
+            "description": "Gets whether a run must supply this parameter. A run missing a required\nparameter with no \u0060DefaultValue\u0060 does not start. An empty string counts as a\nsupplied value, so a required parameter given one is accepted."
           },
           "defaultValue": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Gets the value used when a run does not supply this parameter. Applies\nwhether or not \u0060Required\u0060 is set."
+            "description": "Gets the value used when a run does not supply this parameter. Applies\nwhether or not \u0060Required\u0060 is set. A run that supplies an empty string has\nsupplied a value, so the placeholder is replaced with empty text and not with this default."
           },
           "description": {
             "type": [

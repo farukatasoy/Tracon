@@ -558,6 +558,14 @@ target with no database policy or enabled configuration default has no deletion 
 User-data targets such as sessions, conversations, and document embeddings have no
 default age even when the subsystem is enabled.
 
+### Retention is enabled and nothing is deleted
+
+A policy or a default makes rows eligible; the `tracon.retention` job deletes them, and
+nothing schedules that job by itself. Call `POST /api/retention/run` or save a recurring
+schedule for the `tracon.retention` handler. The job waits in the queue on a host that
+runs no job worker, so check that a worker is running, then read
+`GET /api/retention/history` for what each run deleted.
+
 ### Diagnostics or health is missing from my deployment
 
 They use different integration points:

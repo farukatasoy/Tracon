@@ -691,6 +691,13 @@ internal enum FallbackSkipReason
     /// overloaded", because the two have different responses.
     /// </remarks>
     Timeout = 6,
+
+    /// <summary>The provider answered and the client could not read the answer (empty, cut short or not JSON).</summary>
+    /// <remarks>
+    /// Distinct from <see cref="TransportError"/>, where nothing came back, and from <see cref="HttpError"/>, where
+    /// the answer carried a retryable status: this answer carried a success status and a body no client could use.
+    /// </remarks>
+    UnreadableResponse = 7,
 }
 
 /// <summary>Maps <see cref="FallbackSkipReason"/> to its stable wire value.</summary>
@@ -707,6 +714,7 @@ internal static class FallbackSkipReasonExtensions
         FallbackSkipReason.TransportError => "transport_error",
         FallbackSkipReason.Classifier => "classifier",
         FallbackSkipReason.Timeout => "timeout",
+        FallbackSkipReason.UnreadableResponse => "unreadable_response",
 
         // Unreachable through FallbackChatClient (an event is only written
         // once a link was actually skipped), but a total switch keeps the
@@ -742,6 +750,17 @@ internal static class FallbackSkipReasonExtensions
 /// <see cref="AggregateException"/>), not just the outermost exception — the
 /// same lesson (real SDKs don't throw the type you'd guess) applied one
 /// layer deeper.
+/// </para>
+/// <para>
+/// <strong>An answer that arrived and could not be read is not a type, it is a
+/// provenance.</strong> A <c>200</c> with an empty body, a body cut short or a
+/// page that is not JSON makes the SDK throw a JSON reader failure, which no
+/// type or text rule can tell from the same exception raised by a tool or by the
+/// writing of a request. <see cref="ProviderFailureTaggingChatClient"/> sits
+/// directly above the provider client, where only the client's own exceptions
+/// pass, and marks the reader failure there (<see cref="UnreadableProviderResponse"/>);
+/// the rule reads that mark and nothing else, so a tool's JSON failure never
+/// moves a call to another provider.
 /// </para>
 /// <para>
 /// The list is a closed, positive set: an unrecognized failure does
@@ -830,7 +849,11 @@ internal static partial class FallbackRetryClassifier
 
         foreach (var candidate in ProviderFailureGraph.Frames(exception))
         {
-            if (RateLimitPattern().IsMatch(candidate.Message))
+            // A JSON reader message quotes the byte position it stopped at, and a text rule could take that number for a
+            // status, so the text rule skips the reader's own frames and the tag that carries its message.
+            if (candidate is not JsonException
+                && candidate is not ForeignProviderInvocationException { Original: JsonException }
+                && RateLimitPattern().IsMatch(candidate.Message))
             {
                 return FallbackSkipReason.RateLimited;
             }
@@ -843,6 +866,18 @@ internal static partial class FallbackRetryClassifier
                     return FallbackSkipReason.RateLimited;
                 case >= 500 and <= 599:
                     return FallbackSkipReason.HttpError;
+            }
+        }
+
+        // An answer that arrived and could not be read (empty, cut short, not JSON) carries no status and no transport
+        // type. The ring directly above the provider client marked it. The mark is read after the vetoes above (a
+        // permanent status or an auth failure anywhere in the graph still wins) and after the status rules, so a gateway
+        // page that came with a 502 keeps the reason it always had.
+        foreach (var candidate in ProviderFailureGraph.Frames(exception))
+        {
+            if (UnreadableProviderResponse.IsMarked(candidate))
+            {
+                return FallbackSkipReason.UnreadableResponse;
             }
         }
 

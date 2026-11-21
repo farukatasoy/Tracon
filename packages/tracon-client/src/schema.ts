@@ -1981,7 +1981,7 @@ export interface paths {
         };
         /**
          * Lists a tenant's retention policies.
-         * @description Only targets that have an explicit policy appear here. A target missing from the list is not cleaned up at all — absence means 'keep forever', not 'use a default'. A policy is also kept while switched off, so 'enabled: false' is a configured-but-paused policy and is different from having none.
+         * @description Only targets that have an explicit policy appear here. A target missing from the list has no database policy: when 'Tracon:Retention:Enabled' is on, the configuration default for the target applies, and otherwise nothing is cleaned up. A policy is also kept while switched off, so 'enabled: false' is a configured-but-paused policy and is different from having none.
          */
         get: operations["TraconListRetentionPolicies"];
         put?: never;
@@ -2023,7 +2023,7 @@ export interface paths {
         put?: never;
         /**
          * Runs the cleanup now.
-         * @description Does not run synchronously: an tracon.retention job is enqueued and processed from the queue.
+         * @description Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, so nothing is deleted on a host that runs no job worker. Nothing schedules this job by itself: call this endpoint or add a recurring schedule for the tracon.retention handler.
          */
         post: operations["TraconRunRetention"];
         delete?: never;
@@ -2061,7 +2061,7 @@ export interface paths {
         };
         /**
          * Gets the retention policy for a single target.
-         * @description Two different failures are reported differently: an unrecognized target name returns 400 and lists the valid targets, while a valid target with no policy configured returns 404. Read that 404 as 'this data is never cleaned up'.
+         * @description Two different failures are reported differently: an unrecognized target name returns 400 and lists the valid targets, while a valid target with no policy configured returns 404. That 404 says there is no database policy for the target: when 'Tracon:Retention:Enabled' is on, the configuration default of the target still applies.
          */
         get: operations["TraconGetRetentionPolicy"];
         /**
@@ -2072,7 +2072,7 @@ export interface paths {
         post?: never;
         /**
          * Deletes the retention policy for a target.
-         * @description Removing a policy stops the cleanup for that target; it deletes no data and restores none that was already deleted. To pause a cleanup while keeping the limits, save the policy with 'enabled: false' instead. The removal is written to the audit trail. An unrecognized target returns 400, a target with no policy returns 404.
+         * @description Removing a policy removes its limits; it deletes no data and restores none that was already deleted. The configuration default of the target applies in its place when 'Tracon:Retention:Enabled' is on, and nothing is cleaned up otherwise. To pause a cleanup while keeping the limits, save the policy with 'enabled: false' instead. The removal is written to the audit trail. An unrecognized target returns 400, a target with no policy returns 404.
          */
         delete: operations["TraconDeleteRetentionPolicy"];
         options?: never;
@@ -3203,6 +3203,11 @@ export interface components {
             /** @description Gets whether the harness capabilities are enabled. */
             usesHarness?: boolean;
             /**
+             * @description Gets the parameters the definition declares, in declaration order: the names a run can pass, which of
+             *     them are required, and the default of each.
+             */
+            parameters?: components["schemas"]["AgentParameter"][];
+            /**
              * Format: date-time
              * @description Gets the time of the last change (UTC).
              */
@@ -3252,12 +3257,14 @@ export interface components {
             kind: components["schemas"]["AgentParameterKind"];
             /**
              * @description Gets whether a run must supply this parameter. A run missing a required
-             *     parameter with no `DefaultValue` does not start.
+             *     parameter with no `DefaultValue` does not start. An empty string counts as a
+             *     supplied value, so a required parameter given one is accepted.
              */
             required?: boolean;
             /**
              * @description Gets the value used when a run does not supply this parameter. Applies
-             *     whether or not `Required` is set.
+             *     whether or not `Required` is set. A run that supplies an empty string has
+             *     supplied a value, so the placeholder is replaced with empty text and not with this default.
              */
             defaultValue?: null | string;
             /** @description Gets a short description shown to the person authoring a run. */

@@ -81,13 +81,20 @@ a letter or underscore followed by letters, digits or underscores, and it must b
 a prompt that was written for another template engine needs its placeholders rewritten to `{{name}}`.
 Validation warns about the likeliest mistake: a single-brace `{name}` of a parameter that the agent declares
 is reported as `single_brace_placeholder` (a warning, so the definition stays valid), by
-`POST /api/agents/validate` and by `IAgentDefinitionValidator`.
+`POST /api/agents/validate` and by `IAgentDefinitionValidator`. The warning is narrow on
+purpose. It fires only for the single-brace form of a name the agent declares, so a JSON example
+(`{ "level": 0 }`), a brace around a name the agent does not declare (`{other}`) and `{{{name}}}`
+stay quiet, an agent that declares no parameters is not checked at all, and every
+`InstructionsByCulture` variant is. A declared parameter that no placeholder uses is not an error and
+produces no message either.
 
 A run supplies values on the `parameters` field of `POST /api/agents/{name}/run` (and
 `/estimate`, which checks the same values without calling a model). A required
 parameter with no value and no `DefaultValue` stops the run before it starts, and
 names the missing parameter; a value for a name the schema does not declare is
-rejected too, not silently dropped. This holds for a definition saved through the
+rejected too, not silently dropped. An empty string counts as a value: a required parameter
+given `""` is accepted, and an optional one given `""` is substituted as empty text, not as its
+`DefaultValue`. Leave the name out to get the default. This holds for a definition saved through the
 API, for one registered in code with `AddAgent`, and for one a
 [custom definition source](/guides/write-your-own-agent-source/#return-a-definition-and-tracon-compiles-it)
 returns. Tracon reads the schema from the source that holds the name, the same source
@@ -166,6 +173,35 @@ included, beside its input. A replay, a continuation and a tool-approval resume 
 
 Pass `Version` and `Culture` in the same options to pin a definition version and pick an
 instruction culture. The values are checked against the schema of that version.
+
+### Ask what an agent declares
+
+To learn whether an agent exists for the current tenant and which parameters it declares, ask the
+catalog to describe it. Nothing is compiled and no run row is written:
+
+```csharp
+var catalog = provider.GetRequiredService<IAgentCatalog>();
+var described = await catalog.DescribeAsync("summarizer");
+
+if (described is null)
+{
+    // No source holds the name for this tenant.
+}
+else
+{
+    foreach (var parameter in described.Parameters)
+    {
+        // parameter.Name, parameter.Required and parameter.DefaultValue.
+    }
+}
+```
+
+`Parameters` is also on every descriptor `ListAsync` returns. The same source wins the name as
+in the listing, a definition the host keeps for every tenant is visible inside a tenant, and another
+tenant's definition is not. An agent a custom `IAgentSource` builds itself, and an agent registered
+from a factory, declare nothing Tracon can read: their list is empty unless the source fills it, and
+Tracon checks no value against what a source lists. A source that fails is skipped, as in the listing,
+so `null` can also mean that the source holding the name failed; the failure is logged.
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security

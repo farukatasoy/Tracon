@@ -65,6 +65,18 @@ public sealed class SilentGapWarningTests
     }
 
     [Fact]
+    public async Task The_retention_warning_says_a_job_deletes_and_nothing_schedules_it()
+    {
+        await using var host = await TraconTestHost.StartAsync(environment: Environments.Production);
+
+        var entry = host.Logs.Entries
+            .Single(candidate => candidate.Contains(RetentionFragment, StringComparison.Ordinal));
+
+        entry.ShouldContain("tracon.retention", Case.Sensitive);
+        entry.ShouldContain("nothing schedules it", Case.Sensitive);
+    }
+
+    [Fact]
     public async Task Development_with_retention_disabled_stays_quiet()
     {
         await using var host = await TraconTestHost.StartAsync(environment: Environments.Development);

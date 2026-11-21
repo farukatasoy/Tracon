@@ -88,7 +88,9 @@ cancellation, `TraconContentBlockedException`, an exhausted run budget, a missin
 attachment, or a tool failure. The status is read from
 `HttpRequestException.StatusCode` or from an `HTTP nnn` exception message, the same
 rule the fallback chain uses; a failure whose status cannot be read counts as a
-connection failure does. After the break duration, new calls can probe recovery;
+connection failure does, and so does an answer the client could not read (a `200` with an
+empty body, a body cut short or a page that is not JSON), which points at a gateway or a
+broken provider. After the break duration, new calls can probe recovery;
 a successful probe closes the circuit.
 
 | Setting | Default | Validation |
@@ -132,7 +134,8 @@ primary provider's client. If the fallback model needs its own provider settings
 or rejects one of the primary's sampling settings, give it a separate agent.
 
 The chain tries the next link only for a transient failure: the local circuit
-already open, a `5xx`/`429` response, or a bare connection error. It never falls
+already open, a `5xx`/`429` response, a bare connection error, or an answer the client
+could not read (a `200` with an empty body, a body cut short or a page that is not JSON). It never falls
 back on an authentication error (`401`/`403`), on any other permanent `4xx` (every
 `4xx` except `408` and `429`, for example a `404` for an unknown model name), or on a
 canceled request — masking a misconfigured key or a bad request behind a silent
@@ -201,6 +204,7 @@ belongs to .NET itself. What that means when you write a provider:
 | Message carries `429`, `too many requests`, or `rate limit` | Yes |
 | Message carries `HTTP 5xx` | Yes |
 | A transport/SDK-client type with no permanent `4xx` (usually no status at all) | Yes — treated as a connection failure |
+| A JSON failure of the provider's own client while it read the answer (a `200` with an empty body, a body cut short or a page that is not JSON) | Yes — the call reached the provider and the answer was lost or garbled on the way back. A JSON failure raised anywhere else, by a tool or while a request was written, is not retried. Two stream shapes are not recognized yet: an OpenAI stream whose body is empty or not an event stream ends with no update and no error, and a Google stream that ends inside a segment raises an error that carries no line number |
 | Anything else | No — the retry set is closed and positive |
 
 :::caution[A timeout is not a cancellation]
@@ -740,7 +744,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 |---|---|
 | Every call fails fast with provider unavailable | Inspect the provider circuit and `RetryAfter`; fix upstream health before adding retries |
 | A run's response came from an unexpected model | Check the run's events for `ModelFallbackUsed`; the primary provider was unavailable for that call |
-| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a permanent `4xx` such as `401`, `403`, or `404`, or a canceled request, never retries by design |
+| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error/unreadable answer) — a permanent `4xx` such as `401`, `403`, or `404`, or a canceled request, never retries by design |
 | The same idempotency key returns `422` | Method, path, or raw JSON bytes changed; reuse the original serialization or issue a new key for a new operation |
 | A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another. A reservation whose process died is taken over by the next request once it is older than `ReservationTimeout` (one hour by default) |
 | An idempotent request returns `400` | Remove streaming or shorten the key to `MaxKeyLength` |

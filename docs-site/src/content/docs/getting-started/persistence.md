@@ -414,10 +414,12 @@ A recorded run is data, and recorded runs accumulate. Retention policies set an 
 or row limit per target — run events, tool calls, traces, jobs, webhook deliveries,
 eval results, checkpoints, and more.
 
-Database policies take precedence. When no database policy exists and
-`Tracon:Retention:Enabled` is true, configuration falls back to built-in target
-defaults, such as 30 days for run events and 14 days for spans. With retention
-disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
+Database policies take precedence, and an enabled one applies whether or not
+`Tracon:Retention:Enabled` is set. When a target has no database policy and
+`Tracon:Retention:Enabled` is true, configuration falls back to the built-in
+default of every target at once, such as 30 days for run events and 14 days for
+spans; the flag cannot turn on only some of them. With retention disabled and no
+policy, nothing is eligible for deletion. An `archive: true` policy also deletes nothing when no
 `IArchiveSink` is registered; data loss is the failure mode the worker avoids. With a
 sink, each batch deletes only the rows the sink received — see
 [Retention](/concepts/governance/#retention). A database policy saved without `enabled`
@@ -428,6 +430,18 @@ Cleanup runs through the job queue. Preview a policy before you execute it:
 ```bash
 curl 'http://localhost:5081/tracon/api/retention/preview'
 curl -X POST 'http://localhost:5081/tracon/api/retention/run'
+```
+
+A policy or a default only says what is eligible. Rows are deleted when the
+`tracon.retention` job runs, and nothing schedules that job for you: call the `run`
+endpoint, or save a recurring schedule for it. A host that runs no job worker
+deletes nothing, because the job waits in the queue. A job sweeps the tenant that
+queued it, so a schedule saved for a tenant cleans that tenant.
+
+```bash
+curl -X PUT 'http://localhost:5081/tracon/api/schedules/nightly-retention' \
+  -H 'Content-Type: application/json' \
+  -d '{ "handlerKey": "tracon.retention", "targetName": "*", "cron": "0 3 * * *", "enabled": true }'
 ```
 
 ## Durability also enables governance

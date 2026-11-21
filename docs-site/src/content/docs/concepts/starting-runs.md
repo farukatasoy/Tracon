@@ -159,12 +159,13 @@ produces.
 ### Starting a run from .NET with explicit identity
 
 `TraconRunOptions` is the .NET-side counterpart of the run request. It is not a
-configuration section: it is passed per call, and all but the last property answer
+configuration section: it is passed per call, and most properties answer
 "which run is this, and where does it sit in a larger story".
 
 | Property | What it sets |
 |---|---|
 | `RunId` | The identifier to record this run under. Supply your own when the caller already has one; otherwise Tracon generates it |
+| `AdditionalInstructions` | Instructions for this run only, appended to the agent's own on a new line. Use it with `RunId` when the code adds a rule and has to find the run record afterwards. It is trusted caller text: do not pass text an end user wrote. The run does not record it, so a replay, an automatic continuation and a resumed approval run without it |
 | `ParentRunId` · `RootRunId` · `Depth` | The run's place in a call tree. The child-agent invoker fills these in; set them yourself only when you drive a tree by hand |
 | `AgentVersion` | The definition version this run used, when you resolved a specific one |
 | `ExperimentId` | The experiment this run is a sample of, so results group correctly |
@@ -177,7 +178,7 @@ configuration section: it is passed per call, and all but the last property answ
 Leave every property unset for an ordinary run: Tracon then records a root run with
 a generated id, and the values above are filled in by the components that own them.
 
-The last one is a hook rather than an identity, and it exists because the status and the
+`BeforePendingApprovalIsPublished` is a hook rather than an identity, and it exists because the status and the
 request become visible at different moments. A run closes inside the agent call, so
 without it the status is published first and
 [`GET /api/approvals/pending`](/http-api/approvals/) answers an empty list for a run that

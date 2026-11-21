@@ -128,7 +128,8 @@ internal sealed class CircuitBreakingChatClient(
     /// <para>
     /// 401 and 403 count: the shared credential gets the same answer for every
     /// caller, so an invalid key still opens the circuit. 408, 429, 5xx
-    /// and a failure without a status (connection refused, DNS) count. Every
+    /// and a failure without a status (connection refused, DNS, an answer
+    /// the client could not read) count. Every
     /// other 4xx rejects the request and gets the same answer on a healthy
     /// provider, so it does not count. The status is read with
     /// <see cref="ProviderHttpStatus"/>, the same reader the fallback chain and

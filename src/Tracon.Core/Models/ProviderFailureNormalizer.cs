@@ -335,6 +335,8 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner, Provid
         }
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
         {
+            UnreadableProviderResponse.MarkWhenUnreadable(exception);
+
             throw new ForeignProviderInvocationException(exception, mask);
         }
     }
@@ -359,6 +361,8 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner, Provid
         }
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
         {
+            UnreadableProviderResponse.MarkWhenUnreadable(exception);
+
             throw new ForeignProviderInvocationException(exception, mask);
         }
 
@@ -380,6 +384,8 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner, Provid
                 }
                 catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
                 {
+                    UnreadableProviderResponse.MarkWhenUnreadable(exception);
+
                     throw new ForeignProviderInvocationException(exception, mask);
                 }
 
@@ -403,8 +409,9 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner, Provid
 /// A caller that retries (a job queue, a pipeline step) asks one question of a failed model call: is it worth sending
 /// again. <see cref="IsTransient"/> answers it with the decision the model fallback chain uses to move to the next
 /// provider, so the caller and Tracon do not disagree about which failure is worth another try: no answer from the
-/// provider (a refused connection, a name that did not resolve, a stream that broke), a timeout, a <c>429</c> and a
-/// <c>5xx</c> are transient; any other <c>4xx</c> (a <c>400</c> the provider rejected, a <c>401</c> or <c>403</c> for a
+/// provider (a refused connection, a name that did not resolve, a stream that broke), a timeout, a <c>429</c>, a
+/// <c>5xx</c> and an answer the client could not read (a <c>200</c> with an empty body, a body cut short or a page that
+/// is not JSON) are transient; any other <c>4xx</c> (a <c>400</c> the provider rejected, a <c>401</c> or <c>403</c> for a
 /// key that is wrong, a <c>404</c> for a model that does not exist) gets the same answer on every attempt until
 /// something outside the call changes, and so does a failure that happened before a request was sent (an argument the
 /// client refused, a body it could not serialize).
@@ -439,7 +446,9 @@ public sealed class ProviderInvocationException : TraconException
     /// <summary>Gets the HTTP status the provider answered with, or <see langword="null"/> when the failure carried none.</summary>
     /// <remarks>
     /// A failure with no status got no answer from the provider (a refused connection, a name that did not resolve, a
-    /// stream that broke) or never sent a request. <see cref="IsTransient"/> tells which.
+    /// stream that broke), got an answer the client could not read (a <c>200</c> with an empty body, a body cut short or
+    /// a page that is not JSON), or never sent a request. <see cref="IsTransient"/> tells the last one apart from the
+    /// others.
     /// </remarks>
     public int? StatusCode { get; private init; }
 
@@ -447,11 +456,15 @@ public sealed class ProviderInvocationException : TraconException
     /// Gets a value indicating whether sending the same call again can change the answer.
     /// </summary>
     /// <remarks>
-    /// <see langword="true"/> for a failure that got no answer from the provider (connection, timeout) and for a
-    /// <c>429</c> or a <c>5xx</c>. <see langword="false"/> for any other <c>4xx</c>, a <c>401</c> and a <c>403</c> included
-    /// (a key the provider refuses stays refused until it is replaced, and a retry before that spends a call to learn it
-    /// again), and for a failure that happened before a request was sent. The same decision moves a call to the next
-    /// model in <c>ModelBinding.Fallbacks</c>.
+    /// <see langword="true"/> for a failure that got no answer from the provider (connection, timeout), for an answer the
+    /// client could not read (an empty body, a body cut short or a page that is not JSON, which a gateway or a dropped
+    /// connection produces and the next try usually does not), and for a <c>429</c> or a <c>5xx</c>.
+    /// <see langword="false"/> for any other <c>4xx</c>, a <c>401</c> and a <c>403</c> included (a key the provider
+    /// refuses stays refused until it is replaced, and a retry before that spends a call to learn it again), and for a
+    /// failure that happened before a request was sent. A stream that ends with no update and no error, and a failure
+    /// the client reports without a JSON reader failure, are not recognized as an unreadable answer. The same decision moves a call to the next model in
+    /// <c>ModelBinding.Fallbacks</c>, with two differences: a retry classifier registered with the host is asked first
+    /// by the chain and not by this property, and a streamed call that already delivered an update never moves on.
     /// </remarks>
     public bool IsTransient => FallbackRetryClassifier.IsRetryable(Original);
 

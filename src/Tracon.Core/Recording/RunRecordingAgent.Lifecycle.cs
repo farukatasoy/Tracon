@@ -38,9 +38,12 @@ public sealed partial class RunRecordingAgent
     /// <see cref="TraconRunOptions"/>.
     /// </para>
     /// <para>
-    /// The one exception is a run that a workflow step was given model options for
-    /// (a handoff step's tools and instructions): those go inward on
-    /// <c>ChatClientAgentRunOptions</c>, the only type the agent reads them from.
+    /// The exceptions are a run that a workflow step was given model options for
+    /// (a handoff step's tools and instructions) and a run the caller gave
+    /// <see cref="TraconRunOptions.AdditionalInstructions"/>: those go inward on
+    /// <c>ChatClientAgentRunOptions</c>, the only type the agent reads them from. When both are
+    /// present the text of the workflow step comes first and the caller's follows, on a new line,
+    /// as Microsoft Agent Framework joins an agent's instructions and a run's.
     /// </para>
     /// </remarks>
     // The copy names each base property by hand. RunOptionsHandoffTests fails
@@ -53,9 +56,20 @@ public sealed partial class RunRecordingAgent
             return options;
         }
 
-        AgentRunOptions inner = traconOptions.ChatOptions is { } chatOptions
-            ? new ChatClientAgentRunOptions(chatOptions.Clone())
-            : new AgentRunOptions();
+        // Cloned first: the caller's own object is never changed.
+        var chatOptions = traconOptions.ChatOptions?.Clone();
+
+        if (!string.IsNullOrWhiteSpace(traconOptions.AdditionalInstructions))
+        {
+            chatOptions ??= new Microsoft.Extensions.AI.ChatOptions();
+            chatOptions.Instructions = string.IsNullOrWhiteSpace(chatOptions.Instructions)
+                ? traconOptions.AdditionalInstructions
+                : $"{chatOptions.Instructions}\n{traconOptions.AdditionalInstructions}";
+        }
+
+        AgentRunOptions inner = chatOptions is null
+            ? new AgentRunOptions()
+            : new ChatClientAgentRunOptions(chatOptions);
 
         // MEAI001: Microsoft.Extensions.AI marks the continuation token
         // experimental. It is copied, not read: dropping it would silently

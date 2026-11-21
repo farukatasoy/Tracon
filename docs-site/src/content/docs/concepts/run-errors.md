@@ -53,8 +53,10 @@ replace or compose with your own rules — see
 
 A model call that fails throws `ProviderInvocationException`, a `TraconException` with
 error type `upstream_error`. Three properties answer what a job or a pipeline step asks:
-`Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when it
-answered nothing) and `IsTransient`.
+`Provider`, `StatusCode` (the HTTP status the provider answered with, `null` when the
+failure carried none) and `IsTransient`. A failure with no status is one of three things:
+the provider answered nothing, it answered with a body the client could not read, or the
+request was never sent. `IsTransient` tells the last from the other two.
 
 ```csharp
 async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken cancellationToken)
@@ -67,7 +69,7 @@ async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken ca
     }
     catch (ProviderInvocationException failure) when (failure.IsTransient)
     {
-        // No answer, timeout, 429 or 5xx: a later try can succeed. The caller schedules one.
+        // No answer, timeout, 429, 5xx or an unreadable answer: a later try can succeed. The caller schedules one.
         return false;
     }
     catch (ProviderInvocationException failure)
@@ -80,10 +82,21 @@ async Task<bool> TryRunAsync(AIAgent agent, string message, CancellationToken ca
 
 `IsTransient` is the decision the model fallback chain makes to move a call to the next
 provider, so your retry and Tracon's do not disagree about which failure is worth another
-try. No answer from the provider (a refused connection, a timeout), a `429` and a `5xx`
-are transient. Every other `4xx` is not, and neither is a failure that happened before a
-request was sent. A `401` or `403` is not transient: a key the provider refuses stays
-refused until it is replaced.
+try. No answer from the provider (a refused connection, a timeout), a `429`, a `5xx` and an
+answer the client could not read (a `200` with an empty body, a body cut short or a page
+that is not JSON, which a gateway or a dropped connection produces) are transient. Every
+other `4xx` is not, and neither is a failure that happened before a request was sent. A
+`401` or `403` is not transient: a key the provider refuses stays refused until it is
+replaced.
+
+Two stream shapes are not recognized as an unreadable answer: an OpenAI stream whose body is empty or not an event
+stream ends with no update and no error, and a Google stream that ends inside a segment raises an error with no
+line number; both keep their old answer.
+
+Two differences from the chain are worth knowing. The chain asks a registered
+`IProviderRetryClassifier` first; `IsTransient` does not. And a streamed call that already
+delivered an update never moves to the next provider, though `IsTransient` can be `true`
+for the failure that ended it.
 
 `Message` is a fixed sentence with the provider, the fault type and the status; it does
 not carry the provider's own words. `InnerException` and `ToString()` do, with the key of

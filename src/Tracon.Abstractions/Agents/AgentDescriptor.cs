@@ -67,6 +67,17 @@ public sealed record AgentDescriptor
     /// <summary>Gets whether the harness capabilities are enabled.</summary>
     public bool UsesHarness { get; init; }
 
+    /// <summary>
+    /// Gets the parameters the definition declares, in declaration order: the names a run can pass, which of
+    /// them are required, and the default of each.
+    /// </summary>
+    /// <remarks>
+    /// Empty for an agent that declares none, and for an agent a source builds itself unless the source fills it.
+    /// The catalog reads a schema only from a definition it compiles, so it refuses every parameter value for an
+    /// agent a source builds, whatever the source lists here.
+    /// </remarks>
+    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+
     /// <summary>Gets the time of the last change (UTC).</summary>
     public DateTimeOffset? UpdatedAt { get; init; }
 }

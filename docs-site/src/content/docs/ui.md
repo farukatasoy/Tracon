@@ -144,9 +144,10 @@ live conversation mode.
 
 When the selected agent declares a parameter schema, the playground renders a form
 for it above the message box — one field per parameter, generated from the schema.
-The Run button is disabled while a required field is empty; this is the same rule
-the server enforces (a run with a missing required value never starts), surfaced
-before the round trip instead of after it.
+The Run button is disabled while a required field that has no default is empty or only spaces, so a run
+with a missing required value is caught before the round trip. The console is stricter than the server:
+the server accepts an empty string as a value, so a required parameter given `""` over HTTP or
+from code starts the run.
 
 When the agent runs a [loop](/concepts/agents/#run-until-the-work-is-done), the reply
 holds every iteration. The playground draws a divider after each iteration the loop

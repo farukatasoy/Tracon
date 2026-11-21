@@ -12500,7 +12500,7 @@ namespace Tracon.Client.Generated
         /// Lists a tenant's retention policies.
         /// </summary>
         /// <remarks>
-        /// Only targets that have an explicit policy appear here. A target missing from the list is not cleaned up at all — absence means 'keep forever', not 'use a default'. A policy is also kept while switched off, so 'enabled: false' is a configured-but-paused policy and is different from having none.
+        /// Only targets that have an explicit policy appear here. A target missing from the list has no database policy: when 'Tracon:Retention:Enabled' is on, the configuration default for the target applies, and otherwise nothing is cleaned up. A policy is also kept while switched off, so 'enabled: false' is a configured-but-paused policy and is different from having none.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -12660,7 +12660,7 @@ namespace Tracon.Client.Generated
         /// Runs the cleanup now.
         /// </summary>
         /// <remarks>
-        /// Does not run synchronously: an tracon.retention job is enqueued and processed from the queue.
+        /// Does not run synchronously: a tracon.retention job is enqueued and processed from the queue, so nothing is deleted on a host that runs no job worker. Nothing schedules this job by itself: call this endpoint or add a recurring schedule for the tracon.retention handler.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -12835,7 +12835,7 @@ namespace Tracon.Client.Generated
         /// Gets the retention policy for a single target.
         /// </summary>
         /// <remarks>
-        /// Two different failures are reported differently: an unrecognized target name returns 400 and lists the valid targets, while a valid target with no policy configured returns 404. Read that 404 as 'this data is never cleaned up'.
+        /// Two different failures are reported differently: an unrecognized target name returns 400 and lists the valid targets, while a valid target with no policy configured returns 404. That 404 says there is no database policy for the target: when 'Tracon:Retention:Enabled' is on, the configuration default of the target still applies.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -13014,7 +13014,7 @@ namespace Tracon.Client.Generated
         /// Deletes the retention policy for a target.
         /// </summary>
         /// <remarks>
-        /// Removing a policy stops the cleanup for that target; it deletes no data and restores none that was already deleted. To pause a cleanup while keeping the limits, save the policy with 'enabled: false' instead. The removal is written to the audit trail. An unrecognized target returns 400, a target with no policy returns 404.
+        /// Removing a policy removes its limits; it deletes no data and restores none that was already deleted. The configuration default of the target applies in its place when 'Tracon:Retention:Enabled' is on, and nothing is cleaned up otherwise. To pause a cleanup while keeping the limits, save the policy with 'enabled: false' instead. The removal is written to the audit trail. An unrecognized target returns 400, a target with no policy returns 404.
         /// </remarks>
         /// <returns>No Content</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -19188,6 +19188,13 @@ namespace Tracon.Client.Generated
         public bool UsesHarness { get; set; } = default!;
 
         /// <summary>
+        /// Gets the parameters the definition declares, in declaration order: the names a run can pass, which of
+        /// <br/>them are required, and the default of each.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = new System.Collections.Generic.List<AgentParameter>();
+
+        /// <summary>
         /// Gets the time of the last change (UTC).
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("updatedAt")]
@@ -19285,14 +19292,16 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Gets whether a run must supply this parameter. A run missing a required
-        /// <br/>parameter with no `DefaultValue` does not start.
+        /// <br/>parameter with no `DefaultValue` does not start. An empty string counts as a
+        /// <br/>supplied value, so a required parameter given one is accepted.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("required")]
         public bool Required { get; set; } = default!;
 
         /// <summary>
         /// Gets the value used when a run does not supply this parameter. Applies
-        /// <br/>whether or not `Required` is set.
+        /// <br/>whether or not `Required` is set. A run that supplies an empty string has
+        /// <br/>supplied a value, so the placeholder is replaced with empty text and not with this default.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("defaultValue")]
         public string? DefaultValue { get; set; } = default!;

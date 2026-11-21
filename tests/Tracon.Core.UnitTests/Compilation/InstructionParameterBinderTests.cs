@@ -15,6 +15,19 @@ public sealed class InstructionParameterBinderTests
         result.ShouldBe("Hello Acme, welcome.");
     }
 
+    [Fact]
+    public void An_empty_value_replaces_the_placeholder_with_empty_text_and_not_with_the_default()
+    {
+        var schema = new[] { Text("tone") with { DefaultValue = "formal" } };
+
+        var result = InstructionParameterBinder.Bind(
+            "Use a {{tone}} tone.",
+            schema,
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["tone"] = string.Empty });
+
+        result.ShouldBe("Use a  tone.");
+    }
+
     [Theory]
     [InlineData("Article: {{ articleContent }}")]
     [InlineData("Article: {{articleContent }}")]
