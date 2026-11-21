@@ -1222,11 +1222,12 @@ internal sealed class OpenedTurn
                 .RecordCanceledTurnAsync(_turn.Agent, _session, asked, partialAnswer, CancellationToken.None)
                 .ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
-            // Observability does not break functionality: the cancellation already ended the turn, and a store that fails
-            // (a database error is not one of Tracon's own exceptions) must not turn the end of a disconnected request
-            // into a fault.
+            // Every exception: no token governs this write (it runs after the request's own token was canceled, with
+            // CancellationToken.None), so a timeout inside the store is a failure like any other, and a store that
+            // fails (a database error is not one of Tracon's own exceptions) must not turn the end of a disconnected
+            // request into a fault. Observability does not break functionality.
             AuthorizationGateDiagnostics.CreateLogger(httpContext, "Tracon.Sessions").LogWarning(
                 exception,
                 "The canceled turn of run '{RunId}' could not be written to the session history.",
