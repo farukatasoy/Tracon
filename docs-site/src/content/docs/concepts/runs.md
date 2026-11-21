@@ -71,6 +71,19 @@ at their own rates, so a run's total is the sum of all four terms and never only
 first two. A counter the provider did not report is `null`, not `0`. A model with no
 write rate keeps its written tokens in `inputCost`, as before the rate existed.
 
+A run that ends `Failed` or `Canceled` keeps the tokens the provider reported before it
+ended. Every model call counts once, however the run ended: the calls of a tool loop whose
+third call failed, an answer a content filter or the output limit cut off, a stream that
+dropped after it reported its usage, a run a budget stopped, a run its caller canceled. The
+run's `usage`, its `cost` and the tokens the tenant's quota counts carry that total, the same
+as for a run that completed. A call that failed reports nothing and adds nothing; when a
+fallback model answered instead, only its answer counts, and the cost is priced at that
+model. When no usage was reported before the run ended (it failed on its first call, the
+provider reports no counts, or a stream was canceled before its usage arrived), `usage` is
+`null`, not `0`, `cost` is unknown, and the quota counts the run with no tokens. A child
+agent run writes its own usage on its own row, and the run above it never adds it a second
+time: `treeUsage` is where the two are added.
+
 A run can spend tokens on more than one model: the context compaction
 summarizer and the judge of an `aiJudge` loop criterion can run on models of
 their own. Their tokens are in the run's `usage`, and the tenant's quota

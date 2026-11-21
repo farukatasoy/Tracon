@@ -199,12 +199,15 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
                 return response;
             }
 
-            // 🚨 Every response that is NOT the one this method returns must
-            // fold its usage into the side channel here - the returned
-            // response's usage is already counted through the normal path,
-            // but a response that is superseded by a repair, or that is the
-            // last one before this method throws, has no other way to reach
-            // the run's recorded usage.
+            // 🚨 Every response that is NOT the one this method returns folds its
+            // usage into the side channel here: the returned response's usage is
+            // already counted through the normal path, but a response that a repair
+            // supersedes has no other way to reach the usage of a run that ends
+            // with the repaired answer. A run that ends in an exception reads the
+            // usage ring of the model pipeline instead, which counted every
+            // attempt once, so this fold is not read for it (the recorder's
+            // AgentModelUsage); an agent whose model does not go through that
+            // pipeline still has this fold as its only source.
             TraconRunContext.Current?.ExtraUsage?.Add(response.Usage);
 
             await RejectedAsync(format, reason, attempt, maxAttempts, repairSuppressed, cancellationToken).ConfigureAwait(false);

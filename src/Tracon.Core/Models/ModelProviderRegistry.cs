@@ -549,6 +549,14 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // the cache and every usage tracker above see the same counts and none of them prices a negative one.
         chatClient = new UsageSanitizingChatClient(chatClient);
 
+        // 🚨 Every response the provider billed is added to the running run's observed usage, right above the sanitizer
+        // and below every ring that can reject, replace or repeat a response: a response the finish-reason detector
+        // turns into an error, a turn of the tool-call loop, a fallback link's answer. The run recorder reads a run's
+        // usage from its answer, and a run that ends in an exception or a cancellation has none; this is the count
+        // that run keeps (ObservedUsageChatClient). The compaction summarizer and the loop judge go through this
+        // ring too and are left alone by it: their tokens are counted under the model that answered them.
+        chatClient = new ObservedUsageChatClient(chatClient);
+
         // The concurrency limiter sits closest to the wire: it must see every
         // REAL network call, including every turn of the tool-call loop, not
         // just one call per agent turn — the same "does it need every call?"

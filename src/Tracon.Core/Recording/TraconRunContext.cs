@@ -262,6 +262,19 @@ public sealed record AgentRunScope
     internal SideChannelUsageAccumulator? ExtraUsage { get; init; }
 
     /// <summary>
+    /// Gets the accumulator that adds up the usage of every response the provider billed to the agent's own
+    /// model during the run, as each response arrives.
+    /// </summary>
+    /// <remarks>
+    /// The write surface is the usage ring of the model pipeline (<c>ObservedUsageChatClient</c>); the read side
+    /// is <c>RunRecordingAgent.CompleteAsync</c>, which uses it for a run that ends in an exception or a
+    /// cancellation, because such a run has no answer to read its usage from. Same ambient-write/scoped-read
+    /// pattern as <see cref="ExtraUsage"/>, and a separate accumulator: a run that answers keeps the usage of its answer,
+    /// and adding this one to it would count the same calls twice.
+    /// </remarks>
+    internal ObservedUsageAccumulator? ObservedUsage { get; init; }
+
+    /// <summary>
     /// Gets the non-token metrics reported by tools, keyed by call identity.
     /// </summary>
     /// <remarks>

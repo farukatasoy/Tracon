@@ -200,6 +200,10 @@ public sealed partial class RunRecordingAgent
             Culture = runOptions?.Culture,
             Writer = writer,
             ExtraUsage = new SideChannelUsageAccumulator(),
+
+            // A fresh one for every run, a sub-run included: the model pipeline adds to the accumulator of the scope the
+            // call runs in, and a sub-run's own scope keeps its calls off the run that called it.
+            ObservedUsage = new ObservedUsageAccumulator(),
             ToolUsage = new ToolUsageAccumulator(),
             HostedCalls = new HostedCallLedger(),
             ContextRecord = new ContextRecordClaim(),
@@ -308,7 +312,8 @@ public sealed partial class RunRecordingAgent
             UserId: start.UserId,
             NonTokenCost: start.Scope.NonTokenCost,
             HostedCalls: start.Scope.HostedCalls,
-            ToolCalls: start.Scope.ToolCalls);
+            ToolCalls: start.Scope.ToolCalls,
+            ObservedUsage: start.Scope.ObservedUsage);
 
     /// <summary>
     /// Reads the run's attribution.

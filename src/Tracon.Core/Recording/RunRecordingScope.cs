@@ -23,4 +23,5 @@ internal sealed record RunRecordingScope(
     string? UserId,
     NonTokenCostAccumulator? NonTokenCost,
     HostedCallLedger? HostedCalls = null,
-    ToolCallLedger? ToolCalls = null);
+    ToolCallLedger? ToolCalls = null,
+    ObservedUsageAccumulator? ObservedUsage = null);

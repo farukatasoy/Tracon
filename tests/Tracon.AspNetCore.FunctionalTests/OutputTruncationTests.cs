@@ -49,7 +49,7 @@ public sealed class OutputTruncationTests
         provider.Calls.ShouldBe(1);
 
         // 🚨 The tokens were spent even though the response never reached the
-        // recorder: without the fold the run said it cost nothing.
+        // recorder: without the usage count of the model pipeline the run said it cost nothing.
         run.Usage.ShouldNotBeNull();
         run.Usage.InputTokens.ShouldBe(40);
         run.Usage.OutputTokens.ShouldBe(200);
@@ -98,9 +98,9 @@ public sealed class OutputTruncationTests
     public async Task A_repair_turn_cut_at_the_limit_ends_the_run_on_attempt_two_and_keeps_both_turns_usage()
     {
         // Audit finding: the truncation catch on a REPAIR turn had no end-to-end
-        // test. The first answer is invalid JSON, so the validator folds its
-        // usage and asks again; the repair answer is cut off, so the detector
-        // folds that one. Both turns were paid for, and the run says so.
+        // test. The first answer is invalid JSON, so the validator asks again; the
+        // repair answer is cut off, so the detector fails the run. The model pipeline
+        // counted both turns once. Both were paid for, and the run says so.
         var provider = new FinishReasonModelProvider()
             .Text("not json at all", ChatFinishReason.Stop, inputTokens: 40, outputTokens: 20)
             .Text("{\"title\": \"An unfinish", ChatFinishReason.Length, inputTokens: 60, outputTokens: 200);
@@ -332,9 +332,9 @@ public sealed class OutputTruncationTests
     [Fact]
     public async Task A_filtered_empty_response_still_records_the_tokens_it_spent()
     {
-        // The same fold as a truncated response, found while measuring it: the
-        // recorder writes no usage for a run that ended in an exception, so a
-        // filtered run said it spent nothing although the input was billed.
+        // The same as a truncated response, found while measuring it: the recorder
+        // read no usage for a run that ended in an exception, so a filtered run said
+        // it spent nothing although the input was billed.
         var provider = new FinishReasonModelProvider()
             .Text(string.Empty, ChatFinishReason.ContentFilter, inputTokens: 900, outputTokens: 0);
 

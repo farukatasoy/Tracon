@@ -439,7 +439,7 @@ public sealed class HarnessLoopTests
         root.Error.Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
 
         // audit: the run's usage is what the three turns spent, not null.
-        // A run that ends in an exception has scope.ExtraUsage as its only usage source.
+        // A run that ends in an exception has no response; the model pipeline counted each turn.
         root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(3 * UsagePerTurn);
 
         // In this mode the turn at the ceiling is evaluated: as many events as turns.
