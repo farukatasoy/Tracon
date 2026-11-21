@@ -762,6 +762,14 @@ same agent's tools, so it takes the whole `ToolLoop` of the primary model.
 | `MaximumConsecutiveErrors` | `3` | How many failed tool turns in a row the loop tolerates before it rethrows; `0` rethrows the first |
 | `TerminateOnUnknownCalls` | `false` | Ends the loop and hands the call back when the model asks for a tool the agent does not have; by default the model sees an error result |
 
+### How many rounds the loop runs
+
+The loop stops after 40 rounds of tool calls, and `ToolLoop` has no member to change that
+number. The 41st model request offers no function tools, so the model has to answer in
+text; the run then ends as `Completed`. A model that asks for a tool anyway gets no
+further request: the run still ends `Completed`, and its answer has no text. A
+[harness agent](/concepts/agents/) sets its own limit with `MaximumIterationsPerRequest`.
+
 ### Concurrent tool calls
 
 By default, independent tool calls returned in the same turn run one after another.

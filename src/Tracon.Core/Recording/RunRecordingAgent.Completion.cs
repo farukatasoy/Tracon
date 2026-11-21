@@ -112,7 +112,8 @@ public sealed partial class RunRecordingAgent
     /// <see cref="RunStatus.AwaitingApproval"/>). Anything either step throws fails the run, as for approvals:
     /// a request that could not be recorded is one nobody can answer.
     /// </remarks>
-    private static async ValueTask PublishPendingToolInputAsync(
+    private async ValueTask PublishPendingToolInputAsync(
+        RunRecordingScope scope,
         AgentSession? session,
         AgentRunOptions? options,
         IReadOnlyList<PendingToolInput> pending,
@@ -121,6 +122,9 @@ public sealed partial class RunRecordingAgent
     {
         if (pending.Count == 0)
         {
+            // No input is pending, but a turn that waits on an approval may still hold a call nobody answered.
+            RecordUnansweredCalls(scope, session, skippedCalls);
+
             return;
         }
 
@@ -133,10 +137,41 @@ public sealed partial class RunRecordingAgent
     }
 
     /// <summary>
-    /// Puts the results of the calls an earlier run of the session left without one in front of the run's messages.
+    /// Leaves the calls a finished run made and got no result for (typically the call of a client-side tool the
+    /// caller runs) with the session, so the next run closes the ones its own messages do not answer.
+    /// </summary>
+    /// <remarks>
+    /// Bookkeeping must not fail an answer the model already gave: when the session's state bag cannot take the
+    /// write, the run ends as it would have and the failure is logged. The cost is that the next run of that session
+    /// may meet a call with no result; the provider says so and that run records it.
+    /// </remarks>
+    private void RecordUnansweredCalls(RunRecordingScope scope, AgentSession? session, IReadOnlyList<string> calls)
+    {
+        try
+        {
+            ToolInputSessionBridge.RecordUnansweredCalls(session, calls);
+        }
+        // No token governs this write: it is a synchronous call on an object in memory, so every failure is its own.
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Run {RunId} could not leave its {Count} unanswered tool call(s) with the session; the next run of the session may start with a call that has no result.",
+                scope.Writer.RunId,
+                calls.Count);
+        }
+    }
+
+    /// <summary>
+    /// Puts the results of the calls an earlier run of the session left without one in front of the run's messages,
+    /// except the calls the run's own messages answer.
     /// </summary>
     private static IEnumerable<ChatMessage> WithClosedSkippedCalls(IEnumerable<ChatMessage> messages, AgentSession? session)
-        => ToolInputSessionBridge.CloseSkippedCalls(session) is { } closing ? [closing, .. messages] : messages;
+    {
+        var incoming = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
+
+        return ToolInputSessionBridge.CloseSkippedCalls(session, incoming) is { } closing ? [closing, .. incoming] : incoming;
+    }
 
     /// <summary>Reads the calls of a finished run that never got a result.</summary>
     private static IReadOnlyList<string> SkippedCalls(IEnumerable<ChatMessage> produced)

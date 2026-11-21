@@ -37,12 +37,11 @@ internal static class ToolInputSessionBridge
     /// <summary>The session state key the framework's approval binding keeps its pending requests under.</summary>
     internal const string PendingApprovalRequestsKey = "_pendingApprovalRequests";
 
-    /// <summary>The session state key Tracon keeps the calls that never ran under.</summary>
+    /// <summary>The session state key Tracon keeps the calls that were made and never got a result under.</summary>
     internal const string SkippedCallsKey = "Tracon.ToolInput.SkippedCalls";
 
-    /// <summary>What a call that was skipped because the run paused tells the model.</summary>
-    internal const string SkippedCallResult =
-        "This call did not run: the run paused while the user answered a request from another tool.";
+    /// <summary>What a call that was made and never answered tells the model.</summary>
+    internal const string SkippedCallResult = "The call was not answered.";
 
     /// <summary>Records the suspended calls as pending requests of the session.</summary>
     /// <param name="session">The run's session; a run without one cannot be answered and records nothing.</param>
@@ -58,16 +57,7 @@ internal static class ToolInputSessionBridge
             return;
         }
 
-        if (skippedCalls.Count > 0)
-        {
-            var known = session.StateBag.TryGetValue<List<string>>(SkippedCallsKey, out var earlier, TraconCoreJsonContext.Default.Options) &&
-                        earlier is not null
-                ? earlier
-                : [];
-
-            known.AddRange(skippedCalls.Where(id => !known.Contains(id, StringComparer.Ordinal)));
-            session.StateBag.SetValue(SkippedCallsKey, known, TraconCoreJsonContext.Default.Options);
-        }
+        RecordUnansweredCalls(session, skippedCalls);
 
         var options = AIJsonUtilities.DefaultOptions;
 
@@ -85,17 +75,53 @@ internal static class ToolInputSessionBridge
     }
 
     /// <summary>
-    /// Takes the calls an earlier run left without a result and builds the message that gives each one.
+    /// Leaves the calls a finished run made and never got a result for with the session, so the next run closes them.
+    /// </summary>
+    /// <param name="session">The run's session; a run without one records nothing.</param>
+    /// <param name="calls">The identities of the calls with no result.</param>
+    /// <remarks>
+    /// Calls to a client-side tool end every turn that asks for one this way: the model's answer holds the call and
+    /// the caller runs it. The caller answers with the result, or does not, and types a new message instead; a
+    /// provider refuses a history that holds a call without a result in either case, so the next run settles it
+    /// (<see cref="CloseSkippedCalls"/>). The calls are merged with the ones an earlier run left.
+    /// </remarks>
+    public static void RecordUnansweredCalls(AgentSession? session, IReadOnlyList<string> calls)
+    {
+        if (session is null || calls.Count == 0)
+        {
+            return;
+        }
+
+        var known = session.StateBag.TryGetValue<List<string>>(SkippedCallsKey, out var earlier, TraconCoreJsonContext.Default.Options) &&
+                    earlier is not null
+            ? earlier
+            : [];
+
+        known.AddRange(calls.Where(id => !known.Contains(id, StringComparer.Ordinal)));
+        session.StateBag.SetValue(SkippedCallsKey, known, TraconCoreJsonContext.Default.Options);
+    }
+
+    /// <summary>
+    /// Takes the calls an earlier run left without a result and builds the message that gives each one,
+    /// except the ones this run answers.
     /// </summary>
     /// <param name="session">The run's session.</param>
+    /// <param name="incoming">The messages the run starts with.</param>
     /// <returns>The tool message to put before the run's own messages; <see langword="null"/> when no call is waiting.</returns>
     /// <remarks>
+    /// <para>
     /// Every run of the session does this, whatever started it: the user may answer the form, ignore it and type a
-    /// message, or approve a queued call first. A provider refuses a history that holds a call without a result in
-    /// every one of those cases. The marker is taken, not copied: a run that fails does not save the session, so
-    /// the marker stays with the stored session and the next run closes the calls.
+    /// message, send the result of a client-side tool, or approve a queued call first. A provider refuses a history
+    /// that holds a call without a result in every one of those cases. The marker is taken, not copied: a run that
+    /// fails does not save the session, so the marker stays with the stored session and the next run closes the calls.
+    /// </para>
+    /// <para>
+    /// A call the incoming messages carry a result for is answered by this run and is left alone: closing it would give
+    /// it a second result, and the provider refuses that as well. Nothing is marked as answered ahead of the caller: a
+    /// result counts only when it is in the messages the run was given.
+    /// </para>
     /// </remarks>
-    public static ChatMessage? CloseSkippedCalls(AgentSession? session)
+    public static ChatMessage? CloseSkippedCalls(AgentSession? session, IReadOnlyList<ChatMessage> incoming)
     {
         if (session is null ||
             !session.StateBag.TryGetValue<List<string>>(SkippedCallsKey, out var skipped, TraconCoreJsonContext.Default.Options) ||
@@ -106,8 +132,14 @@ internal static class ToolInputSessionBridge
 
         session.StateBag.TryRemoveValue(SkippedCallsKey);
 
-        return new ChatMessage(
-            ChatRole.Tool,
-            [.. skipped.Select(static id => (AIContent)new FunctionResultContent(id, SkippedCallResult))]);
+        var answered = new HashSet<string>(
+            incoming.SelectMany(static message => message.Contents).OfType<FunctionResultContent>().Select(static result => result.CallId),
+            StringComparer.Ordinal);
+
+        var open = skipped.Where(id => !answered.Contains(id)).Distinct(StringComparer.Ordinal).ToList();
+
+        return open.Count == 0
+            ? null
+            : new ChatMessage(ChatRole.Tool, [.. open.Select(static id => (AIContent)new FunctionResultContent(id, SkippedCallResult))]);
     }
 }

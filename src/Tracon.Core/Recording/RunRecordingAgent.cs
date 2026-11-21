@@ -182,7 +182,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
                 // A turn that waits on an approval AND on a tool's input announces both; the
                 // status stays AwaitingApproval.
-                await PublishPendingToolInputAsync(session, options, PendingToolInputs(start.Scope), SkippedCalls(response.Messages), cancellationToken)
+                await PublishPendingToolInputAsync(scope, session, options, PendingToolInputs(start.Scope), SkippedCalls(response.Messages), cancellationToken)
                     .ConfigureAwait(false);
 
                 await CompleteAsync(
@@ -202,7 +202,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             // wrote, not from the tool results — a result that merely looks like a request is not one.
             if (PendingToolInputs(start.Scope) is { Count: > 0 } pendingInputs)
             {
-                await PublishPendingToolInputAsync(session, options, pendingInputs, SkippedCalls(response.Messages), cancellationToken)
+                await PublishPendingToolInputAsync(scope, session, options, pendingInputs, SkippedCalls(response.Messages), cancellationToken)
                     .ConfigureAwait(false);
 
                 await CompleteAsync(
@@ -216,6 +216,10 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
                 return response;
             }
+
+            // The model's answer may end with a call of a client-side tool: the caller runs it and answers in its next
+            // request, or types a new message instead. The session is told before the status is published.
+            RecordUnansweredCalls(scope, session, SkippedCalls(response.Messages));
 
             await CompleteAsync(scope, RunStatus.Completed, usage, null, cancellationToken)
                 .ConfigureAwait(false);
@@ -491,15 +495,20 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                     .ConfigureAwait(false);
 
                 // The same rule as the buffered path: both are announced, the status stays AwaitingApproval.
-                await PublishPendingToolInputAsync(session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
+                await PublishPendingToolInputAsync(scope, session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (streamingStatus == RunStatus.AwaitingInput)
             {
                 closingPayload = BuildAwaitingToolInputPayload(pendingInputs);
 
-                await PublishPendingToolInputAsync(session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
+                await PublishPendingToolInputAsync(scope, session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
                     .ConfigureAwait(false);
+            }
+            else if (streamingStatus == RunStatus.Completed)
+            {
+                // The same note as the buffered path: the answer may end with a call nobody has answered yet.
+                RecordUnansweredCalls(scope, session, skippedCalls.Skipped());
             }
 
             await CompleteAsync(
