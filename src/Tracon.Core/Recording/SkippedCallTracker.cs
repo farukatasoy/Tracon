@@ -9,7 +9,8 @@ namespace Tracon;
 /// A tool that suspends for user input stops the function-invocation loop (<c>Terminate</c>). The loop runs
 /// the calls of a turn one after the other, so a call queued behind the suspended one never runs and has no
 /// result; a provider refuses a history with such a call. The run that suspended knows which calls those are;
-/// <see cref="ToolInputSessionBridge"/> hands them to the next run of the session.
+/// <see cref="ToolInputSessionBridge"/> hands them to the next run of the session. The call of a client-side tool
+/// is another such call: the turn ends with it and the caller answers in its next request, or does not.
 /// </remarks>
 internal sealed class SkippedCallTracker
 {
@@ -55,5 +56,5 @@ internal sealed class SkippedCallTracker
 
     /// <summary>Gets the calls that were made and never answered.</summary>
     /// <returns>The call identities, in no particular order.</returns>
-    public IReadOnlyList<string> Skipped() => [.. _called.Where(id => !_settled.Contains(id))];
+    public IReadOnlyList<string> Skipped() => _called.Count == 0 ? [] : [.. _called.Where(id => !_settled.Contains(id))];
 }

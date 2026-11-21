@@ -61,7 +61,10 @@ A few rules follow directly from this being an HTTP round trip, not a callback:
   an MCP server's [request for input](/concepts/tools/#a-server-asks-the-user-for-input),
   which also travels as the input of the next request.
 - **An unknown or already-answered `callId` is rejected** (`400`/`409`) before the
-  response starts streaming, not silently ignored.
+  response starts streaming, not silently ignored. The HTTP endpoint and the
+  [AG-UI endpoint](/guides/ag-ui/) check it. An agent you run from .NET code does not:
+  you build its messages yourself, so a tool message that answers no call is yours to
+  get right, and Tracon does not match it against the pending calls for you.
 - **A failure is still an answer.** If the browser could not fulfil the call — a
   permission was denied, an element was not found — send `errorMessage` instead of
   `result`. The model sees the failure as ordinary tool output and can recover
@@ -71,6 +74,10 @@ A few rules follow directly from this being an HTTP round trip, not a callback:
 { "callId": "call_abc", "errorMessage": "The user denied camera access." }
 ```
 
+A result you send as a string reaches the model as you wrote it on the request that
+carries it, and on later requests the session replays it from its history as JSON text,
+so `SEL-1` is then shown to the model as `"SEL-1"`.
+
 A client-side tool cannot also `RequiresApproval`. Approval defers a server-side
 call; a client-side tool has no server-side call to defer. `AddClientTool` never
 exposes the flag, and a direct registration that tries to combine them fails at
@@ -79,6 +86,42 @@ startup with a clear message.
 Every result passes through the same [content guard](/concepts/governance/)
 pipeline as any other message before it reaches the model — nothing new to configure,
 but nothing exempted either.
+
+## When the model asks for a server tool and a client-side tool together
+
+A model may answer with a call to a tool that runs on your server and a call to a
+client-side tool in the same turn. Tracon runs the server tool first and holds the
+client call back. The model reads the server tool's result and asks for the client
+call again, and that call reaches the caller as an ordinary pending call. Every call
+in the history then has a result when the next request goes to the provider, which
+providers such as OpenAI insist on: they answer `400` to a history with a call that
+has none.
+
+The price is small and you should know it:
+
+- **One more model call** for that turn: the model is asked again after the server
+  tool ran.
+- **The second ask may differ.** The model may ask for the client call with other
+  arguments than it first chose, or decide it no longer needs it. If it does not ask
+  again, nothing is waiting for the caller and the turn ends with its answer.
+- **The parallel intent is gone.** The client call always comes after the server tool,
+  never beside it.
+
+An answer that asks for client calls only, or for server calls only, is not touched. A
+server tool that [requires approval](/concepts/tools/) still waits for its approval
+first, and the client call comes back after you approve. It works the same for every
+agent, whether you define it, build it with a harness, or build it in code over the
+client Tracon hands you.
+
+## A call you do not answer
+
+The user may not wait for the browser: a new message can arrive while a client call is
+still pending. Tracon closes that call with the result `The call was not answered.`
+and then adds the new message, so the history stays one the provider accepts. A request
+that carries the result is not closed that way: it answers the call. After a call was
+closed, a result for it is refused as already answered (`409`). The same closing
+happens on the AG-UI endpoint and for an agent you run from .NET code, and it survives
+a restart when sessions live in a database.
 
 ## A front end that speaks AG-UI
 

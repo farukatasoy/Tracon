@@ -673,6 +673,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             chatClient,
             _loggerFactory?.CreateLogger<MessageSourceRecordingChatClient>());
 
+        // 🚨 The mixed-call ring sits directly under the loop: the loop stops at the first declaration-only (client)
+        // call and hands back EVERY call of that iteration, so a server call that shared the response would never run
+        // and the next request would carry it without a result. The ring withholds the client calls of such a
+        // response; the loop runs the server calls and the model asks for the client call again. The rings below
+        // it (budget, usage, hosted tools, telemetry) still see the whole answer the provider gave. It belongs here,
+        // not on the agent: every agent over this pipeline (a plain one, a harness agent, a factory agent) goes
+        // through this method.
+        chatClient = new MixedCallWithholdingChatClient(chatClient);
+
         // binding.ToolLoop configures THIS SAME FunctionInvokingChatClient
         // instance - the one that actually drives the tool-call loop.
         // AllowConcurrentToolCalls is false by default: the loop runs one
