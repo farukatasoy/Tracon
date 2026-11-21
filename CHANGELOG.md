@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **An AG-UI front end can supply run parameters when the host allows it: `TraconAGUIOptions.AcceptForwardedParameters`.** The AG-UI request could carry no value for an agent's parameters, so an agent with a required parameter could not be started from it. `MapTraconAGUI(pattern, options => options.AcceptForwardedParameters = true)` reads `forwardedProps.parameters` (strings only) and checks the values like those of `POST /api/agents/{name}/run`: an unknown name, a missing required value or a value over the length limit is answered `400`. The values are recorded with the run and replayed. The option is off by default. The tenant, the session and the agent never come from `forwardedProps`.
+  What to do:
+  - **If a browser can reach the endpoint, turn it on only for parameters you accept from the browser.** A value becomes part of the instructions, which the content guard does not read.
+
+- **No AG-UI frame carries `rawEvent` any more.** Every text and tool frame carried the framework's raw update (the model, the response identifier, the author name, the extra properties and the full contents). The same record is in `GET /api/runs/{id}/events`, which needs the operator role the browser should not hold.
+  What to do:
+  - **If a front end reads `rawEvent`, read the event's own fields.** The full record of a run is `GET /api/runs/{id}/events`.
+
+- **A chat front end has a key scope of its own: `ChatRun`.** The AG-UI endpoint asked for `RunsWrite`, which also opens about thirty other endpoints. It now accepts `ChatRun` or `RunsWrite`, and a key that holds only `ChatRun` reaches nothing else. A key without `ChatRun` cannot create one. The scope applies to API keys only; a claims principal passes on its role, and the guide shows how the host narrows the management group with its own policy.
+  What to do:
+  - **If a browser holds a `RunsWrite` key only to chat, replace it with a `ChatRun` key.**
+  - **If you regenerate a client from the OpenAPI document, regenerate it now.** `ApiKeyScope` has a new member.
+
 - **A failed or canceled run keeps the tokens it spent.** Its `usage`, its `cost` and the tokens the tenant's quota counts now hold every model call the provider reported before the run ended in an exception or a cancellation: a tool loop whose third call failed, a content-filtered or cut-off answer, a dropped stream, a run a budget stopped. Before, such a run recorded `usage: null`, counted `runs: 1, tokens: 0` and left the cost unknown. A run that reports no usage still records `null`, not zero, and a run that completes is unchanged. There is no API change.
 
 - **Deleting a session, and the retention period of the sessions, now delete the session's chat history on SQL storage.** `DeleteSessionAsync`, `DELETE /api/sessions/{id}`, `DELETE /v1/conversations/{id}`, the session store bridge and the `sessions` retention target removed the session record and left its conversation (`conversations`, `conversation_items`) behind: the id of that conversation lives only in the session's state, so once the record was gone nothing named the history. The history is now deleted with its session, before the record, by tenant and id, on SQLite, PostgreSQL and SQL Server; in-memory storage keeps the history in the record and is unchanged. There is no schema change. A run that has no session still leaves a conversation of its own, and a run that is still writing when its session is deleted writes its conversation again.
