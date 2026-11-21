@@ -554,14 +554,16 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
     {
         var requirement = httpContext.GetEndpoint()?.Metadata.GetMetadata<ApiKeyScopeRequirement>();
 
-        if (requirement is null || record.Scopes.Contains(requirement.Scope))
+        if (requirement is null || requirement.IsMetBy(record.Scopes))
         {
             return null;
         }
 
         return TypedResults.Problem(
             title: "Insufficient scope",
-            detail: $"This endpoint requires the '{requirement.Scope}' scope; the key does not carry it.",
+            detail: requirement.AlsoAccepted.Count == 0
+                ? $"This endpoint requires the '{requirement.Scope}' scope; the key does not carry it."
+                : $"This endpoint requires the {requirement.Describe()} scope; the key carries neither.",
             statusCode: StatusCodes.Status403Forbidden);
     }
 

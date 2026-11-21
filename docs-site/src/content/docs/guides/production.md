@@ -802,6 +802,9 @@ Server) and sets its eviction there, or lowers the cap with
 - [ ] Run `tracon state-check` with the new tool version against a copy of
       production data before every upgrade, and know what a `3` means (above).
 - [ ] Register `IDataSubjectResolver` if data subject export/erasure requests are part of your compliance posture.
+- [ ] If a browser front end speaks [AG-UI](/guides/ag-ui/) to this host, give it an API key that holds only `ChatRun`,
+      narrow the management group with a stricter policy when its users hold the `Operator` role, and leave
+      `AcceptForwardedParameters` off unless you accept that the browser writes part of an agent's instructions.
 - [ ] Keep skill scripts and diagnostics disabled unless their operational need is explicit.
 - [ ] Decide private network egress deliberately, and move every stored configuration
       key name under its allowed prefix before upgrading.

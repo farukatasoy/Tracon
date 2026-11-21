@@ -31,7 +31,8 @@ app.MapTraconAGUI();
 ```
 
 `MapTraconAGUI` needs `MapTracon` first. It inherits the access protection from there: loopback by default, the bearer token,
-your authorization policy, the `Operator` role and the `runs:write` API key scope.
+your authorization policy and the `Operator` role. An API key needs the `ChatRun` or the `RunsWrite` scope; a key that holds
+only `ChatRun` opens this endpoint and no other, so it is the key to give a browser front end.
 
 The endpoint is `POST /tracon/agui/{agentName}`. The body is an AG-UI `RunAgentInput` and the answer is
 `text/event-stream`, one `data:` frame per AG-UI event.
@@ -53,13 +54,30 @@ curl -N -X POST http://localhost:5081/tracon/agui/assistant \
 | `tools` | Must name every client-side tool the agent carries. The schema is always the code's. A tool the agent does not carry is ignored. |
 | `resume` | Answers a tool approval (`{ "approved": true, "reason": "...", "remember": false }`) or a request for user input (the requested fields). |
 | `context` | Becomes run documents, kept apart from the instructions. |
-| `state`, `forwardedProps` | Not used. |
+| `forwardedProps.parameters` | The values of the agent's run parameters, an object of strings. Read only when the host turned on `AcceptForwardedParameters` (see below). |
+| `state`, the rest of `forwardedProps` | Not used. |
+
+## Run parameters
+
+An agent can declare parameters its instructions fill with values a run supplies. An AG-UI request cannot supply them
+unless the host allows it, because a value becomes part of the agent's instructions, which the content guard does not read:
+
+```csharp
+app.MapTraconAGUI("/tracon/agui", options => options.AcceptForwardedParameters = true);
+```
+
+With the option on, the values are checked like the `parameters` of `POST /api/agents/{name}/run`: a name the schema does not
+declare, a missing required value and a value over `MaxParameterValueLength` are each a `400`, and so is a value that is not a
+string. The values are recorded with the run, so a replay repeats them. The tenant, the session and the agent are never read
+from `forwardedProps`. Turn the option on only when the host accepts that the browser writes part of an agent's instructions,
+and declare only the parameters the front end needs.
 
 ## What comes back
 
 The first event after `RUN_STARTED` is a `CUSTOM` event named `tracon.run` that carries the Tracon run id. A tool that waits for
 approval, and an MCP server that asks the user for input, end the run with an interrupt in `RUN_FINISHED`. A failure after the
-stream began is a `RUN_ERROR` event that carries a correlation id the server log has.
+stream began is a `RUN_ERROR` event that carries a correlation id the server log has. No event carries `rawEvent`: the provider's
+raw update does not reach the browser.
 
 ## Notes
 

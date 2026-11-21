@@ -477,7 +477,7 @@ authority is `role ∩ scopes`.
 | Scope | Opens |
 |---|---|
 | `RunsRead` | Run summaries, event streams, statistics, traces, and other run reads |
-| `RunsWrite` | Starting and cancelling runs and deciding approvals |
+| `RunsWrite` | Starting and cancelling runs and deciding approvals; it also opens the AG-UI endpoint |
 | `AgentsRead` | Agent, skill, tool, and model catalog reads, and exporting definitions |
 | `AgentsAdmin` | Agent, skill and MCP server definition writes, version rollback, and importing definitions (a file with workflows also needs `WorkflowsAdmin`) |
 | `ExternalInvoke` | Explicitly exposed MCP-server and A2A invocation surfaces |
@@ -493,6 +493,7 @@ authority is `role ∩ scopes`.
 | `PlatformAdmin` | Platform configuration writes and retention execution; with `SecurityAdmin`, granting a stored skill script in a multi-tenant host |
 | `SecurityAdmin` | API keys, skill-script grants (reading the content hash to grant needs `AgentsRead` too), and MCP OAuth start |
 | `AuditRead` | Audit-trail reads |
+| `ChatRun` | Starting a run through the AG-UI endpoint, and nothing else; a key made for a chat front end holds only this |
 
 `SecurityAdmin` can create or extend authority. Grant it rarely. API keys are stored
 hashed and the plaintext value is returned only at creation.

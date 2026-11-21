@@ -180,6 +180,7 @@ export const trOperations: Pick<Messages, keyof typeof enOperations> = {
   "apiKeys.scope.PlatformAdmin": 'platform:admin',
   "apiKeys.scope.SecurityAdmin": 'security:admin',
   "apiKeys.scope.AuditRead": 'audit:read',
+  "apiKeys.scope.ChatRun": 'chat:run',
   "apiKeys.notice": 'Bir kapsam, bearer token\'ın zaten yapabildiğini daraltır; rol politikalarının yerine hiçbir zaman geçmez.',
   "tenantProviders.title": 'Kiracı sağlayıcı anahtarları',
   "tenantProviders.tenantId": 'Kiracı',

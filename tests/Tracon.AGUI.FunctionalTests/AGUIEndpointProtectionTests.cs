@@ -15,7 +15,7 @@ namespace Tracon.AGUI.FunctionalTests;
 /// <remarks>
 /// The claim is not that a filter exists but that a front end cannot reach an agent through this endpoint that it could not
 /// reach through <c>POST /api/agents/{name}/run</c>: loopback by default, the bearer token, the authorization policy, the
-/// <c>Operator</c> role and the <c>runs:write</c> key scope.
+/// <c>Operator</c> role and a run scope on an API key (<c>ChatRun</c> or <c>RunsWrite</c>, which <c>AGUIApiKeyScopeTests</c> covers).
 /// </remarks>
 public sealed class AGUIEndpointProtectionTests
 {
@@ -151,7 +151,42 @@ public sealed class AGUIEndpointProtectionTests
     }
 
     [Fact]
-    public async Task An_API_key_needs_the_runs_write_scope()
+    public async Task A_stricter_policy_on_the_management_group_leaves_the_AG_UI_endpoint_on_the_Operator_role()
+    {
+        // The recipe for a chat front end whose users hold the Operator role: the host narrows the group MapTracon returns,
+        // and the AG-UI endpoint, which is mapped beside it and not inside it, keeps the role policy alone.
+        static void Configure(IServiceCollection services)
+        {
+            services
+                .AddAuthentication("Test")
+                .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", configureOptions: null);
+            services.AddAuthorizationBuilder()
+                .AddPolicy(TraconPolicies.Reader, static policy => policy.RequireAssertion(static _ => true))
+                .AddPolicy(TraconPolicies.Operator, static policy => policy.RequireAssertion(static _ => true))
+                .AddPolicy(TraconPolicies.Admin, static policy => policy.RequireAssertion(static _ => true))
+                .AddPolicy("StaffOnly", static policy => policy.RequireAssertion(static _ => false));
+        }
+
+        await using var open = await AGUITestHost.StartAsync(TestAgents.AddEcho, configureServices: Configure);
+        await using var narrowed = await AGUITestHost.StartAsync(
+            TestAgents.AddEcho,
+            configureServices: Configure,
+            configureManagement: static group => group.RequireAuthorization("StaffOnly"));
+
+        // Without the narrowing, the same caller reads the management API: this is what the recipe takes away.
+        using var readsRuns = await open.Client.GetAsync(new Uri("/tracon/api/runs", UriKind.Relative), TestContext.Current.CancellationToken);
+        readsRuns.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var refused = await narrowed.Client.GetAsync(new Uri("/tracon/api/runs", UriKind.Relative), TestContext.Current.CancellationToken);
+        refused.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        var chat = await narrowed.RunAsync(TestAgents.Echo, AGUIInputs.User("t-narrowed", "hello"));
+        chat.Status.ShouldBe(HttpStatusCode.OK, chat.Body);
+        chat.Text.ShouldBe("Echo: hello");
+    }
+
+    [Fact]
+    public async Task An_API_key_without_a_run_scope_is_refused_and_one_with_RunsWrite_is_not()
     {
         await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);
 

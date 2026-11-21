@@ -175,6 +175,7 @@ export const enOperations = {
   "apiKeys.scope.PlatformAdmin": 'platform:admin',
   "apiKeys.scope.SecurityAdmin": 'security:admin',
   "apiKeys.scope.AuditRead": 'audit:read',
+  "apiKeys.scope.ChatRun": 'chat:run',
   "apiKeys.notice": 'A scope narrows what the bearer token can already do; it never replaces role policies.',
   "tenantProviders.title": 'Tenant provider keys',
   "tenantProviders.tenantId": 'Tenant',

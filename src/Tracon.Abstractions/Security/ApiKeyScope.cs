@@ -86,4 +86,11 @@ public enum ApiKeyScope
 
     /// <summary>Audit trail reads.</summary>
     AuditRead = 16,
+
+    /// <summary>
+    /// Starting a run through the AG-UI endpoint (<c>MapTraconAGUI</c>) and nothing else: the key for a chat front end
+    /// that must not reach the management API. The AG-UI endpoint accepts this scope or <see cref="RunsWrite"/>, so a key
+    /// that holds <see cref="RunsWrite"/> keeps working there; no other endpoint accepts this scope.
+    /// </summary>
+    ChatRun = 17,
 }

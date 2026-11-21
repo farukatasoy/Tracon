@@ -11213,7 +11213,8 @@
           "PlatformRead",
           "PlatformAdmin",
           "SecurityAdmin",
-          "AuditRead"
+          "AuditRead",
+          "ChatRun"
         ],
         "description": "An authority scope an API key may open."
       },

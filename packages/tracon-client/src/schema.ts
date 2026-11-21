@@ -3800,7 +3800,7 @@ export interface components {
          * @description An authority scope an API key may open.
          * @enum {unknown}
          */
-        ApiKeyScope: "RunsRead" | "RunsWrite" | "AgentsRead" | "AgentsAdmin" | "ExternalInvoke" | "KnowledgeRead" | "KnowledgeAdmin" | "WorkflowsRead" | "WorkflowsAdmin" | "EvalsRead" | "EvalsAdmin" | "ExperimentsRead" | "ExperimentsAdmin" | "PlatformRead" | "PlatformAdmin" | "SecurityAdmin" | "AuditRead";
+        ApiKeyScope: "RunsRead" | "RunsWrite" | "AgentsRead" | "AgentsAdmin" | "ExternalInvoke" | "KnowledgeRead" | "KnowledgeAdmin" | "WorkflowsRead" | "WorkflowsAdmin" | "EvalsRead" | "EvalsAdmin" | "ExperimentsRead" | "ExperimentsAdmin" | "PlatformRead" | "PlatformAdmin" | "SecurityAdmin" | "AuditRead" | "ChatRun";
         /** @description Request body for deciding a pending approval request. */
         ApprovalDecisionRequest: {
             /** @description Gets whether the request was approved. */

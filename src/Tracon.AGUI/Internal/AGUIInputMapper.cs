@@ -22,6 +22,10 @@ namespace Tracon;
 /// call are the ones registered in code; <c>tools</c> only says which client-side tools this front end can run, and the schema is
 /// the code's. System and developer messages are not read for the same reason: the agent's instructions are the agent's.
 /// </para>
+/// <para>
+/// The one way a request reaches the instructions is the host's choice: with <c>AcceptForwardedParameters</c> on,
+/// <c>forwardedProps.parameters</c> fills the placeholders the agent's own schema declares, and nothing else.
+/// </para>
 /// </remarks>
 internal static class AGUIInputMapper
 {
@@ -36,6 +40,9 @@ internal static class AGUIInputMapper
 
     /// <summary>The reason an approval carries when the user dismissed the interrupt without deciding.</summary>
     internal const string DismissedReason = "The user dismissed the approval request.";
+
+    /// <summary>The property of <c>forwardedProps</c> that carries the run parameters.</summary>
+    internal const string ForwardedParametersProperty = "parameters";
 
     /// <summary>Refuses a request whose thread cannot be a session or whose lists carry a null element.</summary>
     /// <param name="input">The request body.</param>
@@ -88,6 +95,52 @@ internal static class AGUIInputMapper
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Reads the run parameters the front end supplied in <c>forwardedProps.parameters</c>.
+    /// </summary>
+    /// <param name="input">The request body.</param>
+    /// <returns>The values, or the refusal of a shape that cannot be parameters.</returns>
+    /// <remarks>
+    /// <para>
+    /// Only the <c>parameters</c> property is read; the rest of <c>forwardedProps</c> is the front end's own and is ignored,
+    /// so the tenant, the session and the agent cannot come from here. A value that is not a JSON string is refused rather
+    /// than converted: the run parameters are text, and a number that became <c>"1"</c> or an object that became its JSON
+    /// would put something into the instructions the front end did not write. The refusal names the parameter and never
+    /// quotes a value. The names and the values are checked against the agent's schema afterwards, by the same check the
+    /// management API's run endpoint makes.
+    /// </para>
+    /// </remarks>
+    public static ParameterMapping ReadParameters(RunAgentInput input)
+    {
+        if (input.ForwardedProperties is not { ValueKind: JsonValueKind.Object } forwarded ||
+            !forwarded.TryGetProperty(ForwardedParametersProperty, out var supplied) ||
+            supplied.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return ParameterMapping.None;
+        }
+
+        if (supplied.ValueKind != JsonValueKind.Object)
+        {
+            return ParameterMapping.Refused(
+                $"'forwardedProps.{ForwardedParametersProperty}' must be an object whose values are strings.");
+        }
+
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var parameter in supplied.EnumerateObject())
+        {
+            if (parameter.Value.ValueKind != JsonValueKind.String)
+            {
+                return ParameterMapping.Refused(
+                    $"The value of the parameter '{parameter.Name}' in 'forwardedProps.{ForwardedParametersProperty}' must be a string.");
+            }
+
+            values[parameter.Name] = parameter.Value.GetString()!;
+        }
+
+        return values.Count == 0 ? ParameterMapping.None : ParameterMapping.Mapped(values);
     }
 
     /// <summary>Reads the new input of the request: the message, the client-side tool results and the documents.</summary>
@@ -447,6 +500,38 @@ internal static class AGUIInputMapper
 
         return text?.ToString();
     }
+}
+
+/// <summary>The outcome of <see cref="AGUIInputMapper.ReadParameters"/>.</summary>
+internal readonly struct ParameterMapping
+{
+    private ParameterMapping(IResult? problem, IReadOnlyDictionary<string, string>? values)
+    {
+        Problem = problem;
+        Values = values;
+    }
+
+    /// <summary>Gets the outcome of a request that supplies no parameter.</summary>
+    public static ParameterMapping None { get; } = new(null, null);
+
+    /// <summary>Gets the refusal; <see langword="null"/> when the values were read.</summary>
+    public IResult? Problem { get; }
+
+    /// <summary>Gets the values the front end supplied; <see langword="null"/> when it supplied none.</summary>
+    public IReadOnlyDictionary<string, string>? Values { get; }
+
+    /// <summary>Creates the outcome of values that were read.</summary>
+    /// <param name="values">The values.</param>
+    /// <returns>The outcome.</returns>
+    public static ParameterMapping Mapped(IReadOnlyDictionary<string, string> values) => new(null, values);
+
+    /// <summary>Creates the outcome of a shape that cannot be parameters.</summary>
+    /// <param name="detail">What is wrong with it.</param>
+    /// <returns>The outcome.</returns>
+    public static ParameterMapping Refused(string detail)
+        => new(
+            Results.Problem(title: "Invalid run parameters", detail: detail, statusCode: StatusCodes.Status400BadRequest),
+            null);
 }
 
 /// <summary>The outcome of <see cref="AGUIInputMapper.CheckToolsAsync"/>.</summary>
