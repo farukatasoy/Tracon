@@ -72,6 +72,12 @@ internal static class AGUIEventStream
                 error.Message = known.Message;
             }
 
+            // The converter copies the provider's own update into every event (the model id, the response id, the author name,
+            // the additional properties and the whole contents). The front end has no use for it that the event itself does
+            // not give, and a browser is no place for it. It is cleared on the AG-UI event, which the converter made for this
+            // stream; the update it was read from is the agent's and the session's history is built from it.
+            aguiEvent.RawEvent = null;
+
             yield return aguiEvent;
 
             if (!runEventSent && aguiEvent is RunStartedEvent)

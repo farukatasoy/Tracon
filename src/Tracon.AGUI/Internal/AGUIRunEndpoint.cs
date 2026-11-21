@@ -27,9 +27,16 @@ internal static class AGUIRunEndpoint
     /// <summary>Handles one AG-UI run request.</summary>
     /// <param name="agentName">The agent the path names.</param>
     /// <param name="httpContext">The request.</param>
+    /// <param name="acceptForwardedParameters">
+    /// Whether <c>forwardedProps.parameters</c> supplies the run parameters, as the host decided when it mapped the endpoint.
+    /// </param>
     /// <param name="cancellationToken">The request's cancellation token.</param>
     /// <returns>The refusal, or the event stream.</returns>
-    public static async Task<IResult> HandleAsync(string agentName, HttpContext httpContext, CancellationToken cancellationToken)
+    public static async Task<IResult> HandleAsync(
+        string agentName,
+        HttpContext httpContext,
+        bool acceptForwardedParameters,
+        CancellationToken cancellationToken)
     {
         if (AgentTurnService.CheckDrain(httpContext) is { } drainProblem)
         {
@@ -82,9 +89,19 @@ internal static class AGUIRunEndpoint
             input.RunId = Guid.NewGuid().ToString("N");
         }
 
-        LogIgnoredInput(httpContext, input);
+        // Off, forwardedProps is the front end's own and is not read at all: the request is what it always was. On, only the
+        // `parameters` property is read, and its shape is refused here like any other body the endpoint cannot map; whether
+        // the names and the values fit the agent is the turn preparation's check, the one the run endpoint makes.
+        var parameters = acceptForwardedParameters ? AGUIInputMapper.ReadParameters(input) : ParameterMapping.None;
 
-        var request = AGUIInputMapper.MapQueue(input);
+        if (parameters.Problem is { } parametersProblem)
+        {
+            return parametersProblem;
+        }
+
+        LogIgnoredInput(httpContext, input, acceptForwardedParameters);
+
+        var request = AGUIInputMapper.MapQueue(input) with { Parameters = parameters.Values };
 
         if (await AgentTurnService
                 .CheckRunGatesAsync(agentName, request, httpContext, cancellationToken)
@@ -148,9 +165,15 @@ internal static class AGUIRunEndpoint
         return new AGUIRunStream(opened, input, turn.RunId, tools.Ignored);
     }
 
-    private static void LogIgnoredInput(HttpContext httpContext, RunAgentInput input)
+    // The log says that something was ignored and never what it held: forwardedProps can carry a run parameter's value.
+    private static void LogIgnoredInput(HttpContext httpContext, RunAgentInput input, bool acceptForwardedParameters)
     {
-        if (!IsPresent(input.State) && !IsPresent(input.ForwardedProperties))
+        var state = IsPresent(input.State);
+
+        // Taken, forwardedProps is read for `parameters` alone; the rest of it is the front end's and is not worth a line.
+        var forwardedProps = !acceptForwardedParameters && IsPresent(input.ForwardedProperties);
+
+        if (!state && !forwardedProps)
         {
             return;
         }
@@ -160,7 +183,8 @@ internal static class AGUIRunEndpoint
         if (logger.IsEnabled(LogLevel.Debug))
         {
             logger.LogDebug(
-                "An AG-UI request carried 'state' or 'forwardedProps'; Tracon does not use them. Thread {ThreadId}.",
+                "An AG-UI request carried {Ignored}; Tracon does not use it. Thread {ThreadId}.",
+                state && forwardedProps ? "'state' and 'forwardedProps'" : state ? "'state'" : "'forwardedProps'",
                 input.ThreadId);
         }
     }

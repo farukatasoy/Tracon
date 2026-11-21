@@ -152,6 +152,7 @@ describe('catalogues', () => {
       'apiKeys.scope.PlatformAdmin',
       'apiKeys.scope.SecurityAdmin',
       'apiKeys.scope.AuditRead',
+      'apiKeys.scope.ChatRun',
       'triggers.secret',
       'triggers.targetKind.agent',
       'triggers.targetKind.workflow',

@@ -38,6 +38,7 @@ const SCOPES: ApiKeyScope[] = [
   'PlatformAdmin',
   'SecurityAdmin',
   'AuditRead',
+  'ChatRun',
 ];
 
 /**

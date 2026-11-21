@@ -111,6 +111,10 @@ These ways to start a run carry values too:
   [Background work](/guides/background-work/#give-an-item-its-own-values)
 - a **workflow step** receives the values its own schema declares from the workflow's
   run, see [Workflow parameters](/concepts/workflow-parameters/)
+- an **AG-UI run** takes them from `forwardedProps.parameters`, only when the host turned on
+  `AcceptForwardedParameters`. They are checked like the `parameters` field, and the same rules apply; see
+  [Run parameters](/guides/ag-ui/#run-parameters). Left off, as it is by default, AG-UI carries no values and
+  an agent with a required parameter cannot be started from it
 
 A run records the values it was bound with — the supplied ones with the defaults
 applied — beside its input. A **replay**, an **automatic continuation** after a crash

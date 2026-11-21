@@ -89,7 +89,7 @@ for example, a key with only `RunsWrite` cannot
 administer agents no matter what role the caller has.
 
 The [compatibility reference](/reference/compatibility/#api-key-scopes)
-lists all 17 values and the capability each one grants.
+lists every value and the capability each one grants.
 
 A key also proves which tenant is calling — which is why it outranks any claim or
 header for tenant resolution. A secret is proof; a header is a claim.

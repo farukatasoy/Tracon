@@ -276,6 +276,9 @@ Check both authorization dimensions:
 Scopes narrow roles. They never grant a missing role. JSON scope names use PascalCase,
 such as `RunsWrite`, not `runs:write`. Keys are managed under `/api/api-keys`.
 
+The [AG-UI endpoint](/guides/ag-ui/#who-can-call-the-endpoint) accepts a key with `ChatRun` or `RunsWrite`. `ChatRun`
+opens that endpoint and no other, so a chat key that `/api/runs` refuses with `403` is working as designed.
+
 ### MCP server or A2A invocation returns `403`
 
 External protocol surfaces require `ExternalInvoke`. An internal automation key with

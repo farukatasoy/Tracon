@@ -282,6 +282,7 @@ Tracon.ApiKeyScope
 Tracon.ApiKeyScope.AgentsAdmin = 3 -> Tracon.ApiKeyScope
 Tracon.ApiKeyScope.AgentsRead = 2 -> Tracon.ApiKeyScope
 Tracon.ApiKeyScope.AuditRead = 16 -> Tracon.ApiKeyScope
+Tracon.ApiKeyScope.ChatRun = 17 -> Tracon.ApiKeyScope
 Tracon.ApiKeyScope.EvalsAdmin = 10 -> Tracon.ApiKeyScope
 Tracon.ApiKeyScope.EvalsRead = 9 -> Tracon.ApiKeyScope
 Tracon.ApiKeyScope.ExperimentsAdmin = 12 -> Tracon.ApiKeyScope

@@ -46,7 +46,9 @@ internal sealed class AGUITestHost : IAsyncDisposable
         Action<IServiceCollection>? configureServices = null,
         Action<TraconEndpointOptions>? configureEndpoints = null,
         Action<WebApplication>? configureApp = null,
-        string pattern = Pattern)
+        string pattern = Pattern,
+        Action<TraconAGUIOptions>? configureAGUI = null,
+        Action<IEndpointConventionBuilder>? configureManagement = null)
     {
         var logs = new ListLoggerProvider();
 
@@ -66,8 +68,18 @@ internal sealed class AGUITestHost : IAsyncDisposable
 
         configureApp?.Invoke(app);
 
-        app.MapTracon("/tracon", configureEndpoints);
-        app.MapTraconAGUI(pattern);
+        var management = app.MapTracon("/tracon", configureEndpoints);
+
+        configureManagement?.Invoke(management);
+
+        if (configureAGUI is null)
+        {
+            app.MapTraconAGUI(pattern);
+        }
+        else
+        {
+            app.MapTraconAGUI(pattern, configureAGUI);
+        }
 
         await app.StartAsync();
 

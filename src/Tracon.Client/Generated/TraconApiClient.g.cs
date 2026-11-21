@@ -20674,6 +20674,9 @@ namespace Tracon.Client.Generated
         [System.Runtime.Serialization.EnumMember(Value = @"AuditRead")]
         AuditRead = 16,
 
+        [System.Runtime.Serialization.EnumMember(Value = @"ChatRun")]
+        ChatRun = 17,
+
     }
 
     /// <summary>

@@ -1,4 +1,10 @@
 #nullable enable
 Tracon.TraconAGUIEndpointRouteBuilderExtensions
 const Tracon.TraconAGUIEndpointRouteBuilderExtensions.DefaultPattern = "/tracon/agui" -> string!
-static Tracon.TraconAGUIEndpointRouteBuilderExtensions.MapTraconAGUI(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/agui") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconAGUIEndpointRouteBuilderExtensions.MapTraconAGUI(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconAGUIEndpointRouteBuilderExtensions.MapTraconAGUI(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern) -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconAGUIEndpointRouteBuilderExtensions.MapTraconAGUI(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern, System.Action<Tracon.TraconAGUIOptions!>! configure) -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+Tracon.TraconAGUIOptions
+Tracon.TraconAGUIOptions.AcceptForwardedParameters.get -> bool
+Tracon.TraconAGUIOptions.AcceptForwardedParameters.set -> void
+Tracon.TraconAGUIOptions.TraconAGUIOptions() -> void
