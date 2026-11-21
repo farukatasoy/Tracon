@@ -476,6 +476,10 @@ These ways to start a run carry values too:
   [Background work](/guides/background-work/#give-an-item-its-own-values)
 - a **workflow step** receives the values its own schema declares from the workflow's
   run, see [Workflow parameters](/concepts/workflow-parameters/)
+- an **AG-UI run** takes them from `forwardedProps.parameters`, only when the host turned on
+  `AcceptForwardedParameters`. They are checked like the `parameters` field, and the same rules apply; see
+  [Run parameters](/guides/ag-ui/#run-parameters). Left off, as it is by default, AG-UI carries no values and
+  an agent with a required parameter cannot be started from it
 
 A run records the values it was bound with — the supplied ones with the defaults
 applied — beside its input. A **replay**, an **automatic continuation** after a crash
@@ -7729,7 +7733,7 @@ for example, a key with only `RunsWrite` cannot
 administer agents no matter what role the caller has.
 
 The [compatibility reference](/reference/compatibility/#api-key-scopes)
-lists all 17 values and the capability each one grants.
+lists every value and the capability each one grants.
 
 A key also proves which tenant is calling — which is why it outranks any claim or
 header for tenant resolution. A secret is proof; a header is a claim.
@@ -8409,8 +8413,9 @@ app.MapTraconAGUI();
 ```
 
 `MapTraconAGUI` must come after `MapTracon`. It inherits the same access protection from there: loopback
-by default, the bearer token, your authorization policy, the `Operator` role and the `runs:write` API key
-scope. The path is `/tracon/agui` unless you pass another prefix.
+by default, the bearer token, your authorization policy and the `Operator` role. An API key also needs a
+run scope, `ChatRun` or `RunsWrite` — see [Who can call the endpoint](#who-can-call-the-endpoint). The path is
+`/tracon/agui` unless you pass another prefix.
 
 The body is an AG-UI `RunAgentInput` and the answer is `text/event-stream`, one `data:` frame per event:
 
@@ -8447,6 +8452,49 @@ const runtime = new CopilotRuntime({
 When the browser itself calls the endpoint, add its origin to `AllowedOrigins`: the AG-UI path gets the
 same [CORS answer](/guides/client-side-tools/#cors) as the rest of Tracon, and nothing wider.
 
+## Who can call the endpoint
+
+The endpoint passes the same doors as `POST /api/agents/{name}/run`: loopback, the bearer token, your
+authorization policy and the `Operator` role. What a browser front end adds is the scope of an API key.
+
+| Caller | What opens the endpoint |
+|---|---|
+| An API key | The `ChatRun` scope **or** the `RunsWrite` scope |
+| A claims principal (cookie, JWT, OpenID Connect) | The `Operator` role. A scope belongs to an API key, so a claims principal is gated by role alone |
+| The static `AuthToken` | The token. It carries no scope |
+
+`ChatRun` opens this endpoint and no other. A key that holds only `ChatRun` is refused with `403` by every
+management endpoint that asks for a scope — runs, sessions, agents, approvals, API keys — exactly as a key
+that lacks the scope of that endpoint is. It is the key to put in a front end's hands. Create one in the
+console or through the API:
+
+```bash
+curl -X POST http://localhost:5081/tracon/api/api-keys \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"shop-chat","scopes":["ChatRun"]}'
+```
+
+The answer carries the key once, in `plaintextKey`. A key that holds `RunsWrite` keeps working: the scope still
+opens this endpoint, so an existing deployment changes nothing. It also opens many other endpoints — starting
+runs elsewhere, cancelling them, deciding approvals, deleting sessions — which is why a key that only chats should
+hold `ChatRun` instead.
+
+A claims principal needs the `Operator` role, and a role cannot tell this endpoint from the rest of the management
+API: a user who may chat can usually read runs and sessions as well. If your chat users hold `Operator` and must not
+see the management API, narrow the group that `MapTracon` returns with a stricter policy. `MapTraconAGUI` is mapped
+beside that group, not inside it, so it keeps the role policy and your base policy and none of the extra one:
+
+```csharp
+// "TraconAccess" lets every signed-in user in; "TraconStaff" is the people who may use the management API.
+app.MapTracon("/tracon", options =>
+{
+    options.AllowRemoteAccess = true;
+    options.RequireAuthorization("TraconAccess");
+}).RequireAuthorization("TraconStaff");
+
+app.MapTraconAGUI();
+```
+
 ## How a request is read
 
 ```mermaid
@@ -8467,9 +8515,65 @@ flowchart LR
 | `tools` | Must name every client-side tool the agent carries. The schema is always the one in code |
 | `resume` | Answers a tool approval or a request for user input |
 | `context` | Becomes run documents, kept apart from the instructions |
-| `state`, `forwardedProps` | Not used |
+| `forwardedProps.parameters` | The run's [parameter values](#run-parameters), only when the host turned on `AcceptForwardedParameters` |
+| `state`, the rest of `forwardedProps` | Not used |
 
 Text is the only input kind read: image, audio, video and document parts of a message are ignored.
+
+## Run parameters
+
+An agent can declare [parameters](/concepts/agents/#parameters): named placeholders in its instructions that a run
+fills with values. An AG-UI request cannot supply them unless the host allows it, because **a value becomes part
+of the agent's instructions**. The option is off by default:
+
+```csharp
+app.MapTracon();
+app.MapTraconAGUI("/tracon/agui", options => options.AcceptForwardedParameters = true);
+```
+
+With it on, the front end sends the values in `forwardedProps.parameters`, an object whose values are all strings.
+For an agent whose instructions read `Hello {{customer}}, answer in a {{tone}} tone.`:
+
+```json
+{
+  "threadId": "t1",
+  "runId": "r1",
+  "messages": [{ "id": "m1", "role": "user", "content": "Where is my order?" }],
+  "tools": [],
+  "context": [],
+  "forwardedProps": { "parameters": { "customer": "Priya Shah", "tone": "formal" } }
+}
+```
+
+- **Checked like a run from the management API.** A name the agent's schema does not declare, a required parameter
+  with no value and no default, and a value over `Tracon:MaxParameterValueLength` (4096 UTF-8 bytes by default) are each
+  a `400` before anything runs, with the same problem body as `POST /api/agents/{name}/run`
+  (`unknownParameters`, `missingParameters`, `tooLongParameters`).
+- **Strings only.** A value that is a number, a boolean, `null`, an object or an array is a `400` titled
+  `Invalid run parameters`, and so is a `parameters` that is not an object. Tracon does not convert a value: a number
+  that became `"1"` would put into the instructions something the front end did not write. `parameters` left out, set
+  to `null` or set to `{}` supplies nothing.
+- **Every request sends them.** Each request takes the values it carries, so the turns of one thread can differ. The
+  request that answers an approval, or sends the result of a front-end tool, is a request like any other: without a
+  required value it is refused.
+- **Recorded with the run.** The values are kept in the run's protected input record, so a replay, an automatic
+  continuation and the resume after an approval repeat them.
+- **Only `parameters` is read.** The tenant, the session (the thread) and the agent never come from `forwardedProps`.
+  Every other key in it is the front end's own, and ignored.
+- **Names in the log, never values.** What Tracon logs and what a `RUN_ERROR` or a refusal says names the parameter
+  and never quotes its value.
+
+Off, `forwardedProps` is not read at all: an agent with a required parameter cannot be started from AG-UI, and an
+agent whose parameters all have defaults runs on the defaults.
+
+:::caution[A value is part of the instructions]
+The instructions are the trusted channel to the model, and the content guard does not read them: it inspects what
+users send and what the model answers. A browser that can set a parameter writes part of the instructions, within
+the length limit and the name the schema declares. Turn the option on only when the host accepts that for this
+front end. Keep the schema narrow: declare only the parameters the front end needs, keep `MaxParameterValueLength`
+low, and prefer a parameter whose value is a short identifier or a choice from a list your agent's instructions
+can name, not free text.
+:::
 
 ## Front-end tools
 
@@ -8557,6 +8661,11 @@ says what failed. The provider's address and the exception text never reach the 
 holds them under a correlation reference, which an exception Tracon does not recognize also puts at the end
 of the message as `(ref: …)`.
 
+No frame carries `rawEvent`. The protocol lets an event hold the provider's own update, and the converter
+fills it with the model id, the response id, the author name, the additional properties and the whole
+contents of the update. A browser has no use for that and should not see it, so Tracon removes it from every
+event. Read the event's own fields instead; the full record of a run is `GET /api/runs/{id}/events`.
+
 A front end that closes the connection mid-run stops the run, and the run is recorded as `Canceled`.
 
 ## Limits
@@ -8564,8 +8673,9 @@ A front end that closes the connection mid-run stops the run, and the run is rec
 - One thread, one run at a time. Two overlapping runs of the same thread behave as on the management API: the
   second to save loses, and its stream ends with `RUN_ERROR`.
 - No `Idempotency-Key` and no `Prefer: respond-async`: an AG-UI run is always live.
-- No run parameters and no culture: an agent with a required [parameter](/concepts/agents/#parameters) cannot be started
-  from AG-UI, and instructions resolve in the agent's default culture.
+- No culture: instructions resolve in the agent's default culture. An agent with a required
+  [parameter](/concepts/agents/#parameters) cannot be started from AG-UI unless the host turned on
+  [`AcceptForwardedParameters`](#run-parameters).
 - Attachments are not read; only the text of a message is.
 - The package is not Native AOT compatible.
 
@@ -8573,7 +8683,7 @@ A front end that closes the connection mid-run stops the run, and the run is rec
 
 - [Client-side tools and the embeddable widget](/guides/client-side-tools/) — how the front-end tool mechanic works without AG-UI.
 - [Governance](/concepts/governance/) — what an approval is and where its rules and audit trail live.
-- [Security](/getting-started/security/) — the access layers `MapTraconAGUI` inherits.
+- [Security](/getting-started/security/) — the access layers `MapTraconAGUI` inherits, and API-key scopes.
 
 ---
 
@@ -11088,7 +11198,10 @@ A few rules follow directly from this being an HTTP round trip, not a callback:
   an MCP server's [request for input](/concepts/tools/#a-server-asks-the-user-for-input),
   which also travels as the input of the next request.
 - **An unknown or already-answered `callId` is rejected** (`400`/`409`) before the
-  response starts streaming, not silently ignored.
+  response starts streaming, not silently ignored. The HTTP endpoint and the
+  [AG-UI endpoint](/guides/ag-ui/) check it. An agent you run from .NET code does not:
+  you build its messages yourself, so a tool message that answers no call is yours to
+  get right, and Tracon does not match it against the pending calls for you.
 - **A failure is still an answer.** If the browser could not fulfil the call — a
   permission was denied, an element was not found — send `errorMessage` instead of
   `result`. The model sees the failure as ordinary tool output and can recover
@@ -11098,6 +11211,10 @@ A few rules follow directly from this being an HTTP round trip, not a callback:
 { "callId": "call_abc", "errorMessage": "The user denied camera access." }
 ```
 
+A result you send as a string reaches the model as you wrote it on the request that
+carries it, and on later requests the session replays it from its history as JSON text,
+so `SEL-1` is then shown to the model as `"SEL-1"`.
+
 A client-side tool cannot also `RequiresApproval`. Approval defers a server-side
 call; a client-side tool has no server-side call to defer. `AddClientTool` never
 exposes the flag, and a direct registration that tries to combine them fails at
@@ -11106,6 +11223,42 @@ startup with a clear message.
 Every result passes through the same [content guard](/concepts/governance/)
 pipeline as any other message before it reaches the model — nothing new to configure,
 but nothing exempted either.
+
+## When the model asks for a server tool and a client-side tool together
+
+A model may answer with a call to a tool that runs on your server and a call to a
+client-side tool in the same turn. Tracon runs the server tool first and holds the
+client call back. The model reads the server tool's result and asks for the client
+call again, and that call reaches the caller as an ordinary pending call. Every call
+in the history then has a result when the next request goes to the provider, which
+providers such as OpenAI insist on: they answer `400` to a history with a call that
+has none.
+
+The price is small and you should know it:
+
+- **One more model call** for that turn: the model is asked again after the server
+  tool ran.
+- **The second ask may differ.** The model may ask for the client call with other
+  arguments than it first chose, or decide it no longer needs it. If it does not ask
+  again, nothing is waiting for the caller and the turn ends with its answer.
+- **The parallel intent is gone.** The client call always comes after the server tool,
+  never beside it.
+
+An answer that asks for client calls only, or for server calls only, is not touched. A
+server tool that [requires approval](/concepts/tools/) still waits for its approval
+first, and the client call comes back after you approve. It works the same for every
+agent, whether you define it, build it with a harness, or build it in code over the
+client Tracon hands you.
+
+## A call you do not answer
+
+The user may not wait for the browser: a new message can arrive while a client call is
+still pending. Tracon closes that call with the result `The call was not answered.`
+and then adds the new message, so the history stays one the provider accepts. A request
+that carries the result is not closed that way: it answers the call. After a call was
+closed, a result for it is refused as already answered (`409`). The same closing
+happens on the AG-UI endpoint and for an agent you run from .NET code, and it survives
+a restart when sessions live in a database.
 
 ## A front end that speaks AG-UI
 
@@ -15658,6 +15811,14 @@ same agent's tools, so it takes the whole `ToolLoop` of the primary model.
 | `MaximumConsecutiveErrors` | `3` | How many failed tool turns in a row the loop tolerates before it rethrows; `0` rethrows the first |
 | `TerminateOnUnknownCalls` | `false` | Ends the loop and hands the call back when the model asks for a tool the agent does not have; by default the model sees an error result |
 
+### How many rounds the loop runs
+
+The loop stops after 40 rounds of tool calls, and `ToolLoop` has no member to change that
+number. The 41st model request offers no function tools, so the model has to answer in
+text; the run then ends as `Completed`. A model that asks for a tool anyway gets no
+further request: the run still ends `Completed`, and its answer has no text. A
+[harness agent](/concepts/agents/) sets its own limit with `MaximumIterationsPerRequest`.
+
 ### Concurrent tool calls
 
 By default, independent tool calls returned in the same turn run one after another.
@@ -18850,6 +19011,9 @@ Server) and sets its eviction there, or lowers the cap with
 - [ ] Run `tracon state-check` with the new tool version against a copy of
       production data before every upgrade, and know what a `3` means (above).
 - [ ] Register `IDataSubjectResolver` if data subject export/erasure requests are part of your compliance posture.
+- [ ] If a browser front end speaks [AG-UI](/guides/ag-ui/) to this host, give it an API key that holds only `ChatRun`,
+      narrow the management group with a stricter policy when its users hold the `Operator` role, and leave
+      `AcceptForwardedParameters` off unless you accept that the browser writes part of an agent's instructions.
 - [ ] Keep skill scripts and diagnostics disabled unless their operational need is explicit.
 - [ ] Decide private network egress deliberately, and move every stored configuration
       key name under its allowed prefix before upgrading.
@@ -24977,7 +25141,7 @@ authority is `role ∩ scopes`.
 | Scope | Opens |
 |---|---|
 | `RunsRead` | Run summaries, event streams, statistics, traces, and other run reads |
-| `RunsWrite` | Starting and cancelling runs and deciding approvals |
+| `RunsWrite` | Starting and cancelling runs and deciding approvals; it also opens the AG-UI endpoint |
 | `AgentsRead` | Agent, skill, tool, and model catalog reads, and exporting definitions |
 | `AgentsAdmin` | Agent, skill and MCP server definition writes, version rollback, and importing definitions (a file with workflows also needs `WorkflowsAdmin`) |
 | `ExternalInvoke` | Explicitly exposed MCP-server and A2A invocation surfaces |
@@ -24993,6 +25157,7 @@ authority is `role ∩ scopes`.
 | `PlatformAdmin` | Platform configuration writes and retention execution; with `SecurityAdmin`, granting a stored skill script in a multi-tenant host |
 | `SecurityAdmin` | API keys, skill-script grants (reading the content hash to grant needs `AgentsRead` too), and MCP OAuth start |
 | `AuditRead` | Audit-trail reads |
+| `ChatRun` | Starting a run through the AG-UI endpoint, and nothing else; a key made for a chat front end holds only this |
 
 `SecurityAdmin` can create or extend authority. Grant it rarely. API keys are stored
 hashed and the plaintext value is returned only at creation.
@@ -33435,6 +33600,9 @@ Check both authorization dimensions:
 
 Scopes narrow roles. They never grant a missing role. JSON scope names use PascalCase,
 such as `RunsWrite`, not `runs:write`. Keys are managed under `/api/api-keys`.
+
+The [AG-UI endpoint](/guides/ag-ui/#who-can-call-the-endpoint) accepts a key with `ChatRun` or `RunsWrite`. `ChatRun`
+opens that endpoint and no other, so a chat key that `/api/runs` refuses with `403` is working as designed.
 
 ### MCP server or A2A invocation returns `403`
 

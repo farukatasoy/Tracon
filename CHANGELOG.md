@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **A model answer that asks for a server tool and a client-side tool together now runs the server tool, and a client call nobody answers is closed.** The tool loop stopped at the client call and left the server call without a result, so the next request failed at a strict provider (`400`, answered `502` by Tracon). A new message sent while a client call was pending failed the same way. Tracon now sets the client call aside, runs the server tool and lets the model ask again, which costs one more model call, and the model may ask with other arguments. A pending client call is closed with `The call was not answered.` when the next request is a new message and carries no result for it. Tool results the model skipped read `The call was not answered.` too. A string result is sent as plain text in the request that carries it and replays as JSON text from the next request on.
+  What to do:
+  - **If your front end sends a new message while a client call is pending, expect the call to close.** A later result for it is refused with `409`.
+  - **If you match the old skipped-call text, match the new one.**
+
 - **An AG-UI front end can supply run parameters when the host allows it: `TraconAGUIOptions.AcceptForwardedParameters`.** The AG-UI request could carry no value for an agent's parameters, so an agent with a required parameter could not be started from it. `MapTraconAGUI(pattern, options => options.AcceptForwardedParameters = true)` reads `forwardedProps.parameters` (strings only) and checks the values like those of `POST /api/agents/{name}/run`: an unknown name, a missing required value or a value over the length limit is answered `400`. The values are recorded with the run and replayed. The option is off by default. The tenant, the session and the agent never come from `forwardedProps`.
   What to do:
   - **If a browser can reach the endpoint, turn it on only for parameters you accept from the browser.** A value becomes part of the instructions, which the content guard does not read.
