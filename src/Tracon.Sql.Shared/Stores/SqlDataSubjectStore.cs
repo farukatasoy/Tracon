@@ -53,7 +53,14 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
         _context = context;
         _dialect = context.Dialect;
         _storage = storage;
-        _contentErasers = contentErasers is null ? [] : [.. contentErasers];
+
+        // The history of a session reaches this store through the conversation ids of the scope, which the HTTP endpoint fills,
+        // and the conversations target below deletes them inside the transaction, with the audit entry. The eraser that deletes
+        // a session's history for the other two paths would delete the same rows first, outside that transaction, and the report
+        // would name them twice.
+        _contentErasers = contentErasers is null
+            ? []
+            : [.. contentErasers.Where(static eraser => eraser is not SessionChatHistoryEraser)];
     }
 
     /// <inheritdoc />

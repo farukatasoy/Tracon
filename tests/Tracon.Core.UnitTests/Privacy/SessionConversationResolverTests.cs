@@ -189,6 +189,45 @@ public sealed class SessionConversationResolverTests
     }
 
     [Fact]
+    public async Task A_caller_that_deletes_reads_the_state_of_a_session_whose_agent_the_catalog_refuses_to_compile()
+    {
+        // A data subject request fails on such an agent (the test above). Deleting a session, or expiring it, must not:
+        // the session could then never be deleted until the configuration is repaired.
+        _catalog.Register("support");
+        _catalog.Refuse("doomed-agent", new TraconException("Tracon:ProviderKeys:missing-on-purpose has no value."));
+        await SaveAsync("doomed", "doomed-agent", ConversationB);
+        await SaveAsync("found", "support", ConversationA);
+
+        var lookup = await Resolver().ResolveForDeletionAsync(["doomed", "found"], TestContext.Current.CancellationToken);
+
+        lookup.ConversationIds.ShouldBe([ConversationB, ConversationA]);
+        lookup.Unresolved.ShouldBe(0);
+        _logger.Warnings.ShouldHaveSingleItem().ShouldContain("doomed");
+    }
+
+    [Fact]
+    public async Task A_caller_that_deletes_counts_a_session_the_catalog_refuses_and_whose_state_has_another_shape()
+    {
+        _catalog.Refuse("doomed-agent", new TraconException("Tracon:ProviderKeys:missing-on-purpose has no value."));
+        await SaveStateAsync("doomed", "doomed-agent", JsonDocument.Parse("{}").RootElement.Clone());
+
+        var lookup = await Resolver().ResolveForDeletionAsync(["doomed"], TestContext.Current.CancellationToken);
+
+        lookup.ConversationIds.ShouldBeEmpty();
+        lookup.Unresolved.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_caller_that_deletes_still_fails_on_a_failure_that_is_not_the_catalogs_refusal()
+    {
+        _catalog.Refuse("flaky-agent", new InvalidOperationException("catalog is down"));
+        await SaveAsync("flaky", "flaky-agent", ConversationA);
+
+        await Should.ThrowAsync<InvalidOperationException>(async () =>
+            await Resolver().ResolveForDeletionAsync(["flaky"], TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task A_failure_that_is_not_the_catalogs_refusal_is_not_swallowed()
     {
         _catalog.Refuse("flaky-agent", new InvalidOperationException("catalog is down"));

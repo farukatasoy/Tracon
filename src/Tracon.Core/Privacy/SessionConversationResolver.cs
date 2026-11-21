@@ -84,9 +84,39 @@ internal sealed class SessionConversationResolver
     /// The catalog refuses to compile the agent of a session. Nothing is returned: the caller
     /// must not act on a partial answer.
     /// </exception>
-    public async ValueTask<SessionConversationLookup> ResolveAsync(
+    public ValueTask<SessionConversationLookup> ResolveAsync(
         IReadOnlyList<string> sessionIds,
         CancellationToken cancellationToken = default)
+        => ResolveCoreAsync(sessionIds, readStoredStateWhenAgentIsRefused: false, cancellationToken);
+
+    /// <summary>
+    /// Resolves the internal conversation id of every session that has one, for a caller that deletes the sessions and
+    /// must not be stopped by an agent the catalog refuses to compile.
+    /// </summary>
+    /// <param name="sessionIds">The session ids to look up.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The resolved conversation ids, and how many sessions could not be looked up. The ids are
+    /// fewer than <paramref name="sessionIds"/> when a session does not exist, has no
+    /// conversation yet, or could not be looked up.
+    /// </returns>
+    /// <remarks>
+    /// The same lookup as <see cref="ResolveAsync"/>, with one difference: a session whose agent the catalog refuses to compile
+    /// (a provider key with no value, an egress policy that no longer allows the provider) is read from its stored state, as a
+    /// session whose agent is not registered is. A data subject request fails in that case, because an erasure that skipped
+    /// the session would delete the rest and leave its conversation behind. Deleting a session or expiring it by its retention
+    /// period must not fail for the same reason: the session could then never be deleted until the configuration is repaired,
+    /// and one such session would hold every other expired session of its batch.
+    /// </remarks>
+    public ValueTask<SessionConversationLookup> ResolveForDeletionAsync(
+        IReadOnlyList<string> sessionIds,
+        CancellationToken cancellationToken = default)
+        => ResolveCoreAsync(sessionIds, readStoredStateWhenAgentIsRefused: true, cancellationToken);
+
+    private async ValueTask<SessionConversationLookup> ResolveCoreAsync(
+        IReadOnlyList<string> sessionIds,
+        bool readStoredStateWhenAgentIsRefused,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(sessionIds);
 
@@ -108,7 +138,23 @@ internal sealed class SessionConversationResolver
                 continue;
             }
 
-            var agent = await _catalog.ResolveAsync(record.AgentName, cancellationToken: cancellationToken).ConfigureAwait(false);
+            AIAgent? agent;
+
+            try
+            {
+                agent = await _catalog.ResolveAsync(record.AgentName, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (TraconException ex) when (readStoredStateWhenAgentIsRefused)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Session '{SessionId}' names agent '{AgentName}', which the catalog cannot compile; its internal " +
+                    "conversation is read from the stored state instead.",
+                    sessionId,
+                    record.AgentName);
+
+                agent = null;
+            }
 
             if (agent is null)
             {

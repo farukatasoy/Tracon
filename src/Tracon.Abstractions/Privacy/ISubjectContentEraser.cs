@@ -11,6 +11,9 @@ namespace Tracon;
 /// <c>InternalsVisibleTo</c>, and <c>Tracon.Core</c> implements it. A copy of a session's content
 /// is erased with the session, whichever way the session goes: an erasure of its data subject,
 /// <c>DELETE /api/sessions/{id}</c>, or its retention period.
+/// The eraser of the chat history that SQL storage keeps is the one that stays out of the erasure of a data subject: that
+/// erasure deletes the conversations its scope names inside its own transaction, so running the eraser as well would delete
+/// the same rows a second time, outside the transaction, and report them under two names.
 /// </remarks>
 internal interface ISubjectContentEraser
 {

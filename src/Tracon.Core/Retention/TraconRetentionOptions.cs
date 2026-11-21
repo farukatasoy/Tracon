@@ -63,7 +63,7 @@ public sealed class TraconRetentionOptions
     /// <summary>
     /// Gets the default for <see cref="RetentionTargets.Sessions"/>. Its
     /// <see cref="RetentionTargetOptions.MaxAgeDays"/> defaults to <see langword="null"/>:
-    /// this is user data, supported but disabled.
+    /// this is user data, supported but disabled. An expired session takes its chat history with it.
     /// </summary>
     public RetentionTargetOptions Sessions { get; } = new();
 

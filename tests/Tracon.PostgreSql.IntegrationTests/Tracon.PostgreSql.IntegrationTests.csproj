@@ -53,6 +53,8 @@
     <Compile Include="../Shared/Infrastructure/RunStartRace.cs" Link="Infrastructure/Shared/RunStartRace.cs" />
     <!-- A stream over a connection with a round trip: written one chunk at a time, and in groups. -->
     <Compile Include="../Shared/Infrastructure/DeltaStreamOverLatency.cs" Link="Infrastructure/Shared/DeltaStreamOverLatency.cs" />
+    <!-- What deleting a session, the retention period of the sessions and the erasure of a data subject do with the chat history, written once for every SQL provider. -->
+    <Compile Include="../Shared/Infrastructure/SessionChatHistoryEraserContract.cs" Link="Infrastructure/Shared/SessionChatHistoryEraserContract.cs" />
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Infrastructure/Shared/ManualClock.cs" />
   </ItemGroup>
 

@@ -46,6 +46,20 @@ public sealed class RetentionPolicyResolverTests
     }
 
     [Fact]
+    public async Task A_configured_age_for_a_user_data_target_applies_like_the_age_of_any_other_target()
+    {
+        // Off by default is the absence of an age, not an exemption from configuration: the resolver does not read the
+        // list of user data targets, so an age set in configuration takes effect once retention is enabled.
+        var options = new TraconRetentionOptions { Enabled = true };
+        options.Sessions.MaxAgeDays = 90;
+        options.Conversations.MaxAgeDays = 365;
+        var resolver = Build(options);
+
+        (await resolver.ResolveAsync(Tenant, RetentionTargets.Sessions)).ShouldNotBeNull().MaxAgeDays.ShouldBe(90);
+        (await resolver.ResolveAsync(Tenant, RetentionTargets.Conversations)).ShouldNotBeNull().MaxAgeDays.ShouldBe(365);
+    }
+
+    [Fact]
     public async Task The_database_policy_wins_without_ever_looking_at_configuration()
     {
         var options = new TraconRetentionOptions { Enabled = true };
