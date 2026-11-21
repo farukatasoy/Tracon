@@ -71,15 +71,14 @@ internal sealed record LoopCriterionBinding(string Kind, LoopEvaluator Evaluator
 /// <para>
 /// <strong>A failed run keeps what the loop spent.</strong> A run that ends in an
 /// exception has no response, so the framework's usage total over every iteration
-/// is lost with it. The evaluator therefore sums each evaluated turn's usage itself
-/// and, only when it fails the run, adds the sum to the run's side-channel usage.
-/// On every other path the run's usage comes from its response or its stream, and
-/// adding the sum there too would count it twice.
+/// is lost with it. The usage ring of the model pipeline counted every turn as the provider
+/// answered it, so the failed run's usage, cost and quota entry say what the loop spent, and
+/// this evaluator keeps no sum of its own.
 /// </para>
 /// <para>
 /// <strong>The caller's stream sees the event it was recorded as.</strong> When the
 /// run's scope carries <see cref="TraconRunOptions.AfterLoopIterationRecorded"/>,
-/// the recorded event goes to it, after the run's usage is settled and outside the
+/// the recorded event goes to it, outside the
 /// criteria's <c>try</c>/<c>catch</c>. The evaluator runs between two iterations, while
 /// the caller waits for the next update, so the callback's write lands between the
 /// last update of this iteration and the first of the next. A run with no event
@@ -97,16 +96,12 @@ internal sealed record LoopCriterionBinding(string Kind, LoopEvaluator Evaluator
 /// </para>
 /// <para>
 /// The evaluator holds no state between calls; every decision is made from the
-/// <see cref="LoopContext"/> it is given, and the usage sum lives in that context's
-/// <see cref="LoopContext.AdditionalProperties"/>, so concurrent runs of one
+/// <see cref="LoopContext"/> it is given, so concurrent runs of one
 /// compiled agent cannot see each other's loop.
 /// </para>
 /// </remarks>
 internal sealed class RecordingLoopEvaluator : LoopEvaluator
 {
-    /// <summary>The <see cref="LoopContext.AdditionalProperties"/> key the run's usage sum lives under.</summary>
-    private const string UsageKey = "Tracon.RecordingLoopEvaluator.Usage";
-
     private readonly string _agentName;
     private readonly int _maxIterations;
     private readonly LoopOutcome _onExhausted;
@@ -157,8 +152,6 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
-
-        var usage = AccumulateUsage(context);
 
         LoopEvaluation? continuation = null;
         string? continuedBy = null;
@@ -252,17 +245,7 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                 context, continuedBy, continuation, failedCriterion, ceilingReached, failsRun, verdicts, cancellationToken)
             .ConfigureAwait(false);
 
-        if (failsRun)
-        {
-            // The run ends in the exception below. Without this its usage, cost and
-            // quota entry would say the loop spent nothing. 🚨 Correct only while the
-            // recorder writes NO usage for an exception-ended run: if it starts
-            // keeping the streamed usage there, this sum counts it twice.
-            TraconRunContext.Current?.ExtraUsage?.Add(usage);
-        }
-
-        // After the usage above, so a failing callback cannot cost the run its sum, and
-        // outside the criteria's try/catch: the callback writes to the caller's stream,
+        // Outside the criteria's try/catch: the callback writes to the caller's stream,
         // and its failure is no criterion failure (OnCriterionError would swallow it).
         if (recorded is not null
             && TraconRunContext.Current?.AfterLoopIterationRecorded is { } afterRecorded)
@@ -292,29 +275,6 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
         // Feedback: an evaluator may have answered with ContinueWithMessages,
         // and rebuilding would drop those messages on the floor.
         return continuation ?? LoopEvaluation.Stop();
-    }
-
-    /// <summary>Adds the turn that was just evaluated to the run's usage sum.</summary>
-    /// <param name="context">The loop run's context.</param>
-    /// <returns>The sum so far, or <see langword="null"/> when no turn reported usage.</returns>
-    private static UsageDetails? AccumulateUsage(LoopContext context)
-    {
-        var total = context.AdditionalProperties.TryGetValue(UsageKey, out var stored)
-            ? stored as UsageDetails
-            : null;
-
-        if (context.LastResponse?.Usage is { } turn)
-        {
-            if (total is null)
-            {
-                total = new UsageDetails();
-                context.AdditionalProperties[UsageKey] = total;
-            }
-
-            total.Add(turn);
-        }
-
-        return total;
     }
 
     /// <summary>The reviewers that approved a stopped iteration, as the event text names them; empty when there was none.</summary>

@@ -209,6 +209,17 @@ is not called again. One whose turn asked for approval but whose approval could 
 written fails with `tracon.job.approval-save-failed`, and its run closes `Failed`. Match
 on the code, never on the sentence around it.
 
+### A failed run still records what it spent
+
+A run that fails, or is canceled, keeps the tokens the provider reported before it ended.
+The run's `usage` and `cost`, and the tokens the tenant's quota counts, hold the total of
+every model call the run made: the calls before the one that failed, a response a content
+filter or the output limit turned into the error, and the usage of a stream that dropped after
+it reported its usage. Before, such a run said it spent nothing although the provider had
+billed the calls. A call that failed adds nothing, and a call is counted once however many layers
+read its answer. When the provider reported no usage, `usage` is `null`, not `0`. See
+[What a run carries](/concepts/runs/#what-a-run-carries) for how the cost is priced.
+
 ## Read next
 
 - [Runs and recording](/concepts/runs/) — what gets written, and when.

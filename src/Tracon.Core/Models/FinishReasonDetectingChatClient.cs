@@ -66,17 +66,15 @@ namespace Tracon;
 /// frame before <c>done</c>; this type is still the only place that decides.
 /// </para>
 /// <para>
-/// <strong>The tokens of a response this type rejects are folded into the
-/// run.</strong> The run recorder writes no usage for a run that ended in an
-/// exception — on the streaming path either, measured: the usage updates that
-/// already passed through are dropped with it — so the run's usage, cost and
-/// quota entry would say the call spent nothing; for a truncated response, a
-/// full output limit's worth of tokens. The same fold
-/// <see cref="StructuredResponseValidatingAgent"/> and
-/// <see cref="RecordingLoopEvaluator"/> use. A side-channel call is folded under
-/// its own model on the non-streaming path only:
-/// <see cref="SideChannelUsageTrackingChatClient"/> already counts a failed
-/// stream in its own <c>finally</c>.
+/// <strong>The tokens of a response this type rejects are not lost.</strong> The run recorder reads a run's
+/// usage from its answer and a run that ended in an exception has none, so the usage ring of the model pipeline
+/// (<see cref="ObservedUsageChatClient"/>), which sits below this type, counted the response before it was
+/// rejected, and the failed run's usage, cost and quota entry say what the call spent; for a truncated response, a
+/// full output limit's worth of tokens. This type adds nothing for the agent's own call. A side-channel call
+/// (the compaction summarizer, an <c>aiJudge</c> judge) is the exception: that ring leaves it alone because
+/// <see cref="SideChannelUsageTrackingChatClient"/> counts it under its own model, and that tracker sits above this
+/// type, so it never sees a non-streaming response this type rejects. The rejected response is folded under its own
+/// model here. A failed side-channel stream is already counted by that tracker's own <c>finally</c>.
 /// </para>
 /// </remarks>
 internal sealed class FinishReasonDetectingChatClient(string providerName, string modelName, IChatClient inner)
@@ -100,7 +98,7 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         {
             if (!HasFinalTurnContent(response))
             {
-                FoldRejectedUsage(response.Usage);
+                FoldRejectedSideChannelUsage(response.Usage);
                 throw Filtered(response.FinishReason);
             }
 
@@ -111,7 +109,7 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         {
             if (IsStructured(options))
             {
-                FoldRejectedUsage(response.Usage);
+                FoldRejectedSideChannelUsage(response.Usage);
                 throw Truncated(options, response.FinishReason);
             }
 
@@ -130,7 +128,6 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         ChatFinishReason? finishReason = null;
         var sawContent = false;
         var judgedByLink = false;
-        UsageDetails? usage = null;
 
         await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancellationToken)
             .ConfigureAwait(false))
@@ -154,16 +151,6 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
 
             sawContent = sawContent || HasContent(update.Contents);
 
-            foreach (var content in update.Contents)
-            {
-                if (content is UsageContent usageContent)
-                {
-                    // Summed into a fresh accumulator: one UsageContent per model
-                    // call, and no UsageDetails owned by an inner client is modified.
-                    (usage ??= new UsageDetails()).Add(usageContent.Details);
-                }
-            }
-
             yield return update;
         }
 
@@ -179,7 +166,6 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         {
             if (!sawContent)
             {
-                FoldRejectedStreamUsage(usage);
                 throw Filtered(finishReason);
             }
 
@@ -190,7 +176,6 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         {
             if (IsStructured(options))
             {
-                FoldRejectedStreamUsage(usage);
                 throw Truncated(options, finishReason);
             }
 
@@ -306,46 +291,23 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
         return false;
     }
 
-    /// <summary>Adds the usage of a response this type rejects to the running run.</summary>
+    /// <summary>Adds the usage of a side-channel response this type rejects to the running run.</summary>
     /// <remarks>
-    /// A side-channel call (the compaction summarizer, an <c>aiJudge</c> judge)
-    /// runs on its own binding: its share is priced at the model that answered
-    /// it, the same rule <see cref="SideChannelUsageTrackingChatClient"/> applies,
-    /// which cannot see this response once this type throws.
+    /// A side-channel call (the compaction summarizer, an <c>aiJudge</c> judge) runs on its own binding: its share
+    /// is priced at the model that answered it, the same rule <see cref="SideChannelUsageTrackingChatClient"/>
+    /// applies, which cannot see this response once this type throws. The agent's own call needs nothing here: the
+    /// usage ring below this type counted it (see the remarks of the type).
     /// </remarks>
-    private void FoldRejectedUsage(UsageDetails? usage)
-    {
-        if (usage is null || TraconRunContext.Current is not { ExtraUsage: { } accumulator } scope)
-        {
-            return;
-        }
-
-        if (scope.SideChannelFallback is { } sideChannel)
-        {
-            var (provider, model) = sideChannel.Current ?? (providerName, modelName);
-            accumulator.Add(usage, provider, model);
-            return;
-        }
-
-        accumulator.Add(usage);
-    }
-
-    /// <summary>Adds the usage of a rejected stream to the running run.</summary>
-    /// <remarks>
-    /// The agent's own call only. A side-channel stream is already counted by
-    /// <see cref="SideChannelUsageTrackingChatClient"/>, whose <c>finally</c> runs
-    /// for a failed stream too; folding it here would count it twice.
-    /// </remarks>
-    private static void FoldRejectedStreamUsage(UsageDetails? usage)
+    private void FoldRejectedSideChannelUsage(UsageDetails? usage)
     {
         if (usage is null
-            || TraconRunContext.Current is not { ExtraUsage: { } accumulator } scope
-            || scope.SideChannelFallback is not null)
+            || TraconRunContext.Current is not { ExtraUsage: { } accumulator, SideChannelFallback: { } sideChannel })
         {
             return;
         }
 
-        accumulator.Add(usage);
+        var (provider, model) = sideChannel.Current ?? (providerName, modelName);
+        accumulator.Add(usage, provider, model);
     }
 
     /// <summary>Writes the <see cref="RunEventCustomTypes.OutputTruncated"/> notice for a plain-text answer.</summary>

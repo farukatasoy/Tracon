@@ -62,6 +62,11 @@ public sealed class RunBudgetAccountingTests
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error!.Type.ShouldBe(TraconRunBudgetExceededException.RunBudgetExceededErrorType);
         run.Error.Class.ShouldBe(RunErrorClass.QuotaExceeded);
+
+        // The two turns the budget let through were billed, and the run that the budget stopped says so: its row holds
+        // the tokens the budget counted, not nothing.
+        run.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(budget.ConsumedTokens);
+        run.Usage.TotalTokens.ShouldBe(900);
     }
 
     [Fact]
@@ -101,6 +106,11 @@ public sealed class RunBudgetAccountingTests
         exception.ErrorType.ShouldBe(TraconRunBudgetExceededException.RunBudgetExceededErrorType);
         callCount.ShouldBe(2);
         budget.ConsumedTokens.ShouldBe(1_599);
+
+        // The streamed run keeps what the budget counted too.
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(budget.ConsumedTokens);
     }
 
     [Fact]

@@ -43,8 +43,8 @@ public sealed class ContentFilteredFinalTurnTests
         run.Error.Class.ShouldBe(RunErrorClass.ContentFiltered);
         provider.Calls.ShouldBe(2);
 
-        // Both turns were paid for, and the failed run says so: the loop sums them into the response the
-        // detector folds into the run.
+        // Both turns were paid for, and the failed run says so: the model pipeline counted each response as it
+        // arrived, the filtered one included, once.
         run.Usage.ShouldNotBeNull();
         run.Usage.InputTokens.ShouldBe(50);
         run.Usage.OutputTokens.ShouldBe(10);

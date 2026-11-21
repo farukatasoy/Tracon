@@ -198,13 +198,14 @@ public sealed partial class RunRecordingAgent
         var nonTokenCost = scope.NonTokenCost?.Seal();
 
         // The tokens a side-channel call spends (the compaction summarizer, the
-        // aiJudge loop judge, a discarded repair turn, the turns of a loop that
-        // failed its run) never reach the AgentResponse; if they are not added here,
-        // the run's usage, cost and quota entry stay incomplete. 🚨 They are kept
-        // apart by model: the agent's own model share joins the agent's
+        // aiJudge loop judge, a discarded repair turn) never reach the AgentResponse;
+        // if they are not added here, the run's usage, cost and quota entry stay
+        // incomplete. A run that ended without an answer reads the agent's own model
+        // from what the model pipeline observed instead (AgentModelUsage). 🚨 They are
+        // kept apart by model: the agent's own model share joins the agent's
         // usage, every other model's share is priced at that model below. The run's
         // usage is the sum of all of them.
-        var agentUsage = RunUsageSum.Add(usage, scope.ExtraUsage?.ToAgentModelUsage());
+        var agentUsage = AgentModelUsage(scope, status, usage);
         var otherModels = scope.ExtraUsage?.ToOtherModelUsages() ?? [];
         usage = agentUsage;
 
@@ -357,6 +358,41 @@ public sealed partial class RunRecordingAgent
         }
 
         scope.Activity.Dispose();
+    }
+
+    /// <summary>
+    /// Reads what the agent's own model spent in the run: the usage of the run's answer, or what the model
+    /// pipeline saw for a run that ends in an exception or a cancellation.
+    /// </summary>
+    /// <param name="scope">The run's recording scope.</param>
+    /// <param name="status">The status the run closes with.</param>
+    /// <param name="usage">The usage the recorder read from the run's answer or stream; <see langword="null"/> when there is none.</param>
+    /// <returns>The agent's own model share, or <see langword="null"/> when nothing reported usage.</returns>
+    /// <remarks>
+    /// <para>
+    /// A run that finishes with an answer keeps the usage of that answer, plus the share of a response the answer
+    /// does not carry (a rejected draft a structured-response repair replaced).
+    /// </para>
+    /// <para>
+    /// A run that is <see cref="RunStatus.Failed"/> or <see cref="RunStatus.Canceled"/> has no complete answer, or
+    /// ended on one it did not use. The provider billed the model calls that came before, and the model pipeline
+    /// counted every one of them once, whichever ring above it then rejected the response
+    /// (<see cref="ObservedUsageAccumulator"/>). That count is the whole share of the agent's own model: it already
+    /// holds what the answer's usage and the side channel's agent share would add, so neither is added to it. When
+    /// the pipeline observed nothing, the old reading stands: the answer's usage and the side channel's agent share,
+    /// and <see langword="null"/> when there is neither, so a run that spent nothing is not recorded as a run that
+    /// spent zero.
+    /// </para>
+    /// </remarks>
+    private static RunUsage? AgentModelUsage(RunRecordingScope scope, RunStatus status, RunUsage? usage)
+    {
+        if (status is RunStatus.Failed or RunStatus.Canceled
+            && scope.ObservedUsage?.ToRunUsage() is { } observed)
+        {
+            return observed;
+        }
+
+        return RunUsageSum.Add(usage, scope.ExtraUsage?.ToAgentModelUsage());
     }
 
     /// <summary>

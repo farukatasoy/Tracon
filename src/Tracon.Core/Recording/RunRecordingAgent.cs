@@ -231,6 +231,11 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // outage at all. Anything not cancelled by this
         // run's own source falls through to the failure path below and is
         // classified there.
+        //
+        // 🚨 `usage: null` on a run that ends without an answer does NOT mean "spent nothing": CompleteAsync reads what
+        // the model pipeline observed for such a run (AgentModelUsage), so the tokens the provider billed before the
+        // failure or the cancellation reach the row, the cost and the quota entry. The same holds at every
+        // failure and cancellation site of the streaming path below.
         catch (OperationCanceledException) when (cancellationSource.IsCancellationRequested)
         {
             await CompleteAsync(scope, RunStatus.Canceled, null, null, CancellationToken.None).ConfigureAwait(false);

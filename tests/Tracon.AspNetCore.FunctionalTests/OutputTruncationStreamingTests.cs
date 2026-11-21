@@ -35,9 +35,9 @@ public sealed class OutputTruncationStreamingTests
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error!.Class.ShouldBe(RunErrorClass.OutputTruncated);
 
-        // The recorder drops the usage updates that already streamed when the
-        // run ends in an exception. The detector sums them and folds them into
-        // the run before it throws, so the tokens are counted once.
+        // The usage updates that already streamed are not lost when the run ends
+        // in an exception: the model pipeline counted them as they passed, so the
+        // tokens are counted once.
         run.Usage.ShouldNotBeNull();
         run.Usage.OutputTokens.ShouldBe(200);
     }

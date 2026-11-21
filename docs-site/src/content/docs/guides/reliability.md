@@ -152,6 +152,10 @@ event naming the primary and fallback bindings, and cost and the `runs.model_id`
 column both reflect the model that actually answered — not the primary
 binding. `RunStatistics.ByModel` groups by the real model too.
 
+A call that fails on one link reports no usage and adds nothing to the run: only the
+link that answered counts, and a run that fails after a fallback answered keeps that
+answer's tokens.
+
 This applies to the agent's own model binding. The context compaction summarizer
 and the judge of an `aiJudge` loop criterion call models on bindings of their own,
 and those bindings can have fallbacks too. When one of them falls back, the run
@@ -327,6 +331,10 @@ running one.
 
 Canceling a root run propagates to its child runs. Canceling one child does not cancel
 the root or its siblings.
+
+A canceled run keeps the tokens its model reported before it stopped: its `usage`, its
+`cost` and the tokens the tenant's quota counts hold them, the same as for a run that
+failed. A run canceled before any usage arrived has `usage: null` and counts no tokens.
 
 ## Reconcile runs left behind by a crash
 
@@ -527,6 +535,10 @@ call from starting](#a-spent-budget-stops-a-tool-call-from-starting)). The run e
 which setting raises it. A cost limit falls back to the token limit for a
 model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
 measured, so it cannot be enforced.
+
+The run a budget stops keeps what it spent: its `usage` holds the tokens of the model calls
+before the refusal, and the tenant's quota and the run's cost count the same total. The call
+the budget refused never reached the provider and adds nothing.
 
 `MaxTotalCost` counts more than model tokens. What a workflow function node or a tool
 [reported beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
