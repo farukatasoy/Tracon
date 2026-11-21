@@ -256,6 +256,24 @@ public sealed class RunAdmissionTests
     }
 
     [Fact]
+    public async Task A_session_of_another_tenant_is_not_there_for_this_tenant_whoever_owns_it()
+    {
+        var tenant = new SwitchableTenant("acme");
+        var harness = new Harness(
+            ownership: new TraconSessionOwnershipOptions { Enabled = true },
+            userId: "u2",
+            tenantContext: tenant);
+
+        await harness.SaveSessionAsync("shared-id", ownerId: "u1");
+
+        (await harness.CheckAsync(sessionId: "shared-id")).Denial.ShouldBe(RunAdmissionDenial.SessionNotAuthorized, "acme holds the session and u1 owns it");
+
+        tenant.TenantId = "globex";
+
+        (await harness.CheckAsync(sessionId: "shared-id")).IsAllowed.ShouldBeTrue("globex holds no session with that id, so the run would open its own");
+    }
+
+    [Fact]
     public async Task A_blank_agent_name_is_refused()
     {
         await Should.ThrowAsync<ArgumentException>(async () => await new Harness().CheckAsync(agentName: " "));
@@ -280,14 +298,15 @@ public sealed class RunAdmissionTests
             IQuotaStore? quotaStore = null,
             QuotaEnforcer? quotas = null,
             ISessionStore? sessions = null,
-            bool failingQuotaStore = false)
+            bool failingQuotaStore = false,
+            ITenantContext? tenantContext = null)
         {
             _tenant = tenant;
             _handler = handler ?? new ScriptedHandler(_ => RunAuthorizationResult.Allow());
             _ownership = ownership;
             _attribution = attribution ?? new FixedAttribution(userId);
 
-            var tenants = new FixedTenantContext(tenant);
+            var tenants = tenantContext ?? new FixedTenantContext(tenant);
 
             Sessions = sessions ?? new InMemorySessionStore(tenants);
             QuotaStore = failingQuotaStore ? new FailingQuotaStore() : quotaStore ?? new InMemoryQuotaStore();
@@ -359,6 +378,11 @@ public sealed class RunAdmissionTests
                     Runs = 1,
                     OccurredAt = _clock.GetUtcNow(),
                 });
+    }
+
+    private sealed class SwitchableTenant(string tenantId) : ITenantContext
+    {
+        public string TenantId { get; set; } = tenantId;
     }
 
     private sealed class ScriptedHandler(Func<RunAuthorizationRequest, RunAuthorizationResult> decide) : IRunAuthorizationHandler

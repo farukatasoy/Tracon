@@ -1202,8 +1202,14 @@ internal sealed class OpenedTurn
             return;
         }
 
-        // Only what the user typed: approval responses and tool results answer calls of an earlier turn and are not part of it.
-        var asked = _messages.Where(static message => message.Role == ChatRole.User).ToList();
+        // Only what the user typed. An approval answer, a tool input answer and a tool result are sent as user messages too,
+        // but they answer a call of an earlier turn: written alone they would hand the next turn an answer without the call
+        // and result it belongs to.
+        var asked = _messages
+            .Where(static message => message.Role == ChatRole.User
+                && message.Contents.Count > 0
+                && message.Contents.All(static content => content is TextContent or DataContent or UriContent))
+            .ToList();
 
         if (asked.Count == 0)
         {
@@ -1216,9 +1222,11 @@ internal sealed class OpenedTurn
                 .RecordCanceledTurnAsync(_turn.Agent, _session, asked, partialAnswer, CancellationToken.None)
                 .ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is TraconException or InvalidOperationException or NotSupportedException or System.Text.Json.JsonException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Observability does not break functionality: the cancellation already ended the turn.
+            // Observability does not break functionality: the cancellation already ended the turn, and a store that fails
+            // (a database error is not one of Tracon's own exceptions) must not turn the end of a disconnected request
+            // into a fault.
             AuthorizationGateDiagnostics.CreateLogger(httpContext, "Tracon.Sessions").LogWarning(
                 exception,
                 "The canceled turn of run '{RunId}' could not be written to the session history.",

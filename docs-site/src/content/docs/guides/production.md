@@ -320,6 +320,7 @@ keep conversations for audit and expire sessions, the history of an expired sess
 gone with it. The `conversations` target removes every conversation whose last write
 is older than its age, whether or not a session still names it. It is the only target
 that reaches the conversations of runs that have no session.
+A session that is used again after the retention batch was read and before it is deleted loses its history too.
 
 Preview a retention rule before you execute it. If archival is enabled but no
 `IArchiveSink` is registered, Tracon does not delete the rows.

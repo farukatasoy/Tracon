@@ -1085,6 +1085,7 @@ internal static class AgentEndpoints
             // that streamed so far is the partial answer.
             OpenedTurn? opened = null;
             var sawUpdate = false;
+            var streamEnded = false;
             var partialAnswer = new System.Text.StringBuilder();
 
             try
@@ -1150,6 +1151,9 @@ internal static class AgentEndpoints
                     await writer.WriteEventAsync(sequence++, "update", payload, cancellationToken).ConfigureAwait(false);
                 }
 
+                // The model finished: a disconnect from here on is not a canceled turn, and the history already holds it.
+                streamEnded = true;
+
                 if (pending is not null)
                 {
                     await CloseUnanswerableRunAsync(httpContext).ConfigureAwait(false);
@@ -1188,7 +1192,7 @@ internal static class AgentEndpoints
             catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
                 // The client disconnected. No one is left to write to; the turn itself is kept only when the host asked for it.
-                if (opened is not null && sawUpdate)
+                if (opened is not null && sawUpdate && !streamEnded)
                 {
                     await opened.RecordCanceledTurnAsync(httpContext, partialAnswer.ToString()).ConfigureAwait(false);
                 }

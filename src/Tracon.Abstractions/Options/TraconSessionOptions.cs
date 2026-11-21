@@ -11,7 +11,7 @@ namespace Tracon;
 /// A turn that is canceled before it finishes leaves nothing in the session's history by default: the framework
 /// writes a turn's messages when the turn ends, and a canceled turn does not end. The next turn then answers
 /// as if the message had never been sent. <see cref="KeepCanceledTurns"/> changes that for the turns Tracon's own
-/// streaming endpoints cancel.
+/// streamed run endpoint and the AG-UI endpoint cancel.
 /// </para>
 /// </remarks>
 public sealed class TraconSessionOptions
@@ -20,7 +20,7 @@ public sealed class TraconSessionOptions
     public const string SectionName = "Tracon:Sessions";
 
     /// <summary>
-    /// Gets or sets a value indicating whether a streamed turn the client cancels after the model began to answer
+    /// Gets or sets a value indicating whether a turn the client cancels after the model began to answer, on the streamed run endpoint (<c>POST /api/agents/{name}/run</c>) and the AG-UI endpoint,
     /// is kept in the session's history. Off by default.
     /// </summary>
     /// <remarks>

@@ -260,7 +260,7 @@ public sealed class AgentSessionManager
             : await RestoreSessionAsync(agent, sessionId, record, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Reads the messages of a session's conversation, oldest first.</summary>
+    /// <summary>Reads the messages of a session's conversation, oldest first. The whole conversation is read on each call and the page is cut from it.</summary>
     /// <param name="agent">
     /// The agent the session belongs to. Its type decides how the stored state is read, as it does for
     /// <see cref="GetOrCreateSessionAsync"/>.

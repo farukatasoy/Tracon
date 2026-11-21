@@ -68,7 +68,7 @@ internal static class QuotaGate
 
         return Results.Problem(
             title: "Quota exceeded",
-            detail: decision.Reason ?? "The quota defined for this tenant has been exceeded.",
+            detail: decision.Reason ?? RunAdmissionRules.QuotaExceededDetail,
             statusCode: StatusCodes.Status429TooManyRequests,
             extensions: BuildExtensions(decision));
     }

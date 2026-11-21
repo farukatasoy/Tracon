@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -133,7 +134,7 @@ public sealed class CanceledTurnHistoryTests
     }
 
     [Fact]
-    public async Task The_option_is_off_by_default_and_binds_from_configuration()
+    public async Task The_option_is_off_by_default()
     {
         new TraconSessionOptions().KeepCanceledTurns.ShouldBeFalse();
 
@@ -145,6 +146,94 @@ public sealed class CanceledTurnHistoryTests
 
         host.Services.GetRequiredService<Microsoft.Extensions.Options.IOptionsMonitor<TraconSessionOptions>>()
             .CurrentValue.KeepCanceledTurns.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_store_that_fails_while_the_canceled_turn_is_written_leaves_the_end_of_the_request_untouched()
+    {
+        var model = new StreamThenHangModelProvider("stream-hang", Partial);
+
+        await using var host = await TraconTestHost.StartAsync(
+            builder => builder.AddModelProvider(model).AddAgent(Definition("stream-hang")),
+            configureServices: static services =>
+            {
+                services.Configure<TraconSessionOptions>(static options => options.KeepCanceledTurns = true);
+                services.Replace(ServiceDescriptor.Singleton<ISessionStore>(new WriteFailureSessionStore(new IOException("the disk is full"))));
+            });
+
+        await CancelStreamingTurnAsync(host, model, "lost with the store", SessionId);
+        await WaitForCanceledRunAsync(host, SessionId);
+
+        await WaitUntil.TrueAsync(
+            () => host.Logs.Entries.Any(static entry => entry.Contains("could not be written to the session history", StringComparison.Ordinal)),
+            "the failed write of the canceled turn to be logged, not thrown");
+    }
+
+    [Fact]
+    public async Task A_save_that_loses_a_race_while_the_canceled_turn_is_written_is_logged_and_not_thrown()
+    {
+        var model = new StreamThenHangModelProvider("stream-hang", Partial);
+
+        await using var host = await TraconTestHost.StartAsync(
+            builder => builder.AddModelProvider(model).AddAgent(Definition("stream-hang")),
+            configureServices: static services =>
+            {
+                services.Configure<TraconSessionOptions>(static options => options.KeepCanceledTurns = true);
+                services.Replace(ServiceDescriptor.Singleton<ISessionStore>(new WriteFailureSessionStore(new TraconSessionConflictException("another turn saved first"))));
+            });
+
+        await CancelStreamingTurnAsync(host, model, "lost the race", SessionId);
+        await WaitForCanceledRunAsync(host, SessionId);
+
+        await WaitUntil.TrueAsync(
+            () => host.Logs.Entries.Any(static entry => entry.Contains("could not be written to the session history", StringComparison.Ordinal)),
+            "the conflict of the canceled turn to be logged, not thrown");
+    }
+
+    [Fact]
+    public async Task The_first_canceled_turn_of_a_new_session_creates_the_record_and_its_owner_is_the_user_who_asked()
+    {
+        var model = new StreamThenHangModelProvider("stream-hang", Partial);
+
+        await using var host = await TraconTestHost.StartAsync(
+            builder => builder.AddModelProvider(model).AddAgent(Definition("stream-hang")),
+            configureServices: static services => services.Configure<TraconSessionOwnershipOptions>(static options => options.Enabled = true));
+
+        var manager = host.Services.GetRequiredService<AgentSessionManager>();
+        var agent = await ResolveAsync(host);
+
+        using (AmbientRunAttributionScope.Begin("user-a", labels: null))
+        {
+            var session = await manager.GetOrCreateSessionAsync(agent, "owned-1", TestContext.Current.CancellationToken);
+
+            await manager.RecordCanceledTurnAsync(
+                agent,
+                session,
+                [new ChatMessage(ChatRole.User, "who owns this?")],
+                partialAnswer: null,
+                TestContext.Current.CancellationToken);
+        }
+
+        var record = await host.Services.GetRequiredService<ISessionStore>().GetAsync("owned-1", TestContext.Current.CancellationToken);
+
+        record.ShouldNotBeNull().OwnerId.ShouldBe("user-a", "writing the turn is the first save, and the first save claims the session");
+    }
+
+    /// <summary>A store that reads nothing and fails every write with the exception it was given.</summary>
+    private sealed class WriteFailureSessionStore(Exception failure) : ISessionStore
+    {
+        public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default) => throw failure;
+
+        public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default) => throw failure;
+
+        public ValueTask<bool> TryUpdateAsync(SessionRecord record, long expectedVersion, CancellationToken cancellationToken = default) => throw failure;
+
+        public ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default) => new((SessionRecord?)null);
+
+        public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default) => new(false);
+
+        public ValueTask<IReadOnlyList<SessionRecord>> QueryAsync(SessionQuery query, CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<SessionRecord>)[]);
     }
 
     private static readonly Uri RunUri = new($"/tracon/api/agents/{AgentName}/run", UriKind.Relative);

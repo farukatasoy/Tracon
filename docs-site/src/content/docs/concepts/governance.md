@@ -661,8 +661,9 @@ default reads and deletes in two separate calls, which can delete a row that was
 archived. `RetentionStoreContract` in `Tracon.Testing.Contracts.Xunit` checks this.
 
 The `sessions` target also deletes the conversation memory of each expired session,
-when memory is set up, and the files of its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session).
-The batch is read first, the memory records and the files of its sessions are
+when memory is set up, the files of its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session)
+and, on SQL storage, the chat history of the session (its conversation and items).
+The batch is read first, the memory records, the files and the histories of its sessions are
 deleted tenant by tenant, and only then are the session rows deleted. If a store cannot
 delete, the run fails with the rows still in place, and the next run reads the same sessions.
 

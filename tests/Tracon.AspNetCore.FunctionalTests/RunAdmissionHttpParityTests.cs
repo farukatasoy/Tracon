@@ -23,12 +23,15 @@ public sealed class RunAdmissionHttpParityTests
 
     private static readonly Uri Run = new($"/tracon/api/agents/{Agent}/run", UriKind.Relative);
 
-    [Fact]
-    public async Task Another_users_session_is_refused_over_http_and_by_admission_in_the_same_words()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Another_users_session_is_refused_over_http_and_by_admission_in_the_same_words(bool sqlStorage)
     {
+        using var database = new TempSqliteDatabase("admission-parity");
         var identity = new SwitchableAttribution();
 
-        await using var host = await StartAsync(identity, handler: null);
+        await using var host = await StartAsync(identity, handler: null, sqlStorage ? database : null);
 
         identity.UserId = "a";
         (await PostAsync(host, "s1")).StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -137,9 +140,17 @@ public sealed class RunAdmissionHttpParityTests
             new AgentRunRequest { Message = "hello", SessionId = sessionId },
             TestContext.Current.CancellationToken);
 
-    private static Task<TraconTestHost> StartAsync(SwitchableAttribution identity, IRunAuthorizationHandler? handler)
+    private static Task<TraconTestHost> StartAsync(SwitchableAttribution identity, IRunAuthorizationHandler? handler, TempSqliteDatabase? database = null)
         => TraconTestHost.StartAsync(
-            builder => builder.AddAgent(TestData.Definition()),
+            builder =>
+            {
+                if (database is not null)
+                {
+                    builder.UseSqlite(database.ConnectionString);
+                }
+
+                builder.AddAgent(TestData.Definition());
+            },
             configureServices: services =>
             {
                 services.Configure<TraconSessionOwnershipOptions>(options => options.Enabled = true);

@@ -130,7 +130,7 @@ that builds its own chat history instead of taking the registered provider shows
 The messages come back in sequence order. That ordering is not cosmetic: the index of a message **is** the
 sequence number the branch endpoint takes.
 
-From your own code, ask the session manager. It reads the same history, a page at a time:
+From your own code, ask the session manager. It reads the same history and cuts the page you ask for; the whole conversation is read each call, so the cost grows with its length:
 
 ```csharp
 var sessions = provider.GetRequiredService<AgentSessionManager>();
@@ -162,11 +162,11 @@ user's message and the part of the answer that streamed are not in the history, 
 message had never been sent. Saving the session after the cancellation does not bring them back, because there is
 nothing to save. The run is recorded as `Canceled`.
 
-To keep such a turn, turn on `Tracon:Sessions:KeepCanceledTurns`. A **streamed** turn the client cancels after the model
-began to answer is then written: the user's message, and the text that had streamed with a note that the answer was cut
+To keep such a turn, turn on `Tracon:Sessions:KeepCanceledTurns`. A turn the client cancels after the model
+began to answer is then written, on the streamed `POST /api/agents/{name}/run` and on the AG-UI endpoint: the user's message, and the text that had streamed with a note that the answer was cut
 off, so the next turn sees what was asked and what the user saw. A cancel before the first piece of the answer writes
 nothing, because the message has not been accepted yet and the content guards have not necessarily screened it. A turn
-that is not streamed writes nothing. The kept text is user content: it is subject to the same retention and erasure as the
+that is not streamed writes nothing, and neither do the OpenAI-compatible endpoints, A2A and MCP. The kept text is user content: it is subject to the same retention and erasure as the
 rest of the history.
 
 A host that runs agents from its own code decides for itself and calls `AgentSessionManager.RecordCanceledTurnAsync` from the
@@ -406,7 +406,8 @@ messages, before the session record goes; in-memory storage keeps the history in
 a session does the same: `DELETE /api/sessions/{id}`, `DELETE /v1/conversations/{id}`, and the session store
 that Tracon registers for the Microsoft Agent Framework. The session record goes last, so a step that fails
 leaves the session in place and a repeat request finishes the work. A session that does not exist deletes
-nothing, and the attachments uploaded to its id stay.
+nothing, and the attachments uploaded to its id stay. If the stored state cannot be read, the history cannot be found: the
+session is deleted and the history stays, and the log says so.
 
 Two histories are not reached this way. A run that has no session leaves a conversation of its own that no session
 names, so deleting sessions does not delete it; the retention period for `conversations`, or a

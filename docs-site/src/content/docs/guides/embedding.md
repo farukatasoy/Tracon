@@ -474,7 +474,7 @@ A host that runs agents on behalf of a user asks `RunAdmission` itself, first:
 ```csharp
 var admission = provider.GetRequiredService<RunAdmission>();
 
-var decision = await admission.CheckAsync("summarizer", sessionId: "chat-42");
+var decision = await admission.CheckAsync("summarizer");
 
 if (decision.IsAllowed)
 {

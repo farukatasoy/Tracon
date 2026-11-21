@@ -372,7 +372,7 @@ export interface paths {
         post?: never;
         /**
          * Deletes a session.
-         * @description Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept — run history does not depend on the session still existing. If a registered IRunAuthorizationHandler denies the caller, the response is also 404, identical to a session that does not exist; with session ownership turned on, another user's session answers that same 404 and is left untouched.
+         * @description Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. On SQL storage the session's chat history (its conversation and items) is deleted with it, before the session record. Runs recorded under the session are kept — run history does not depend on the session still existing. If a registered IRunAuthorizationHandler denies the caller, the response is also 404, identical to a session that does not exist; with session ownership turned on, another user's session answers that same 404 and is left untouched.
          */
         delete: operations["TraconDeleteSession"];
         options?: never;

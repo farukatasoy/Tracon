@@ -43,6 +43,56 @@ public sealed class AGUICancellationTests
     }
 
     [Fact]
+    public async Task A_canceled_turn_the_model_had_started_to_answer_leaves_nothing_in_the_history_unless_the_host_asked_for_it()
+    {
+        const string partial = "The answer so far";
+        var model = new StreamThenHangModelProvider("stream-hang", partial);
+
+        await using var host = await AGUITestHost.StartAsync(
+            builder => builder
+                .AddModelProvider(model)
+                .AddAgent(TestAgents.Definition("stream-agent", "stream-hang")));
+
+        var body = JsonSerializer.Serialize(AGUIInputs.User("t-off", "forget this"), AGUIJsonSerializerContext.Default.RunAgentInput);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{AGUITestHost.Pattern}/stream-agent", UriKind.Relative))
+        {
+            Content = new StringContent(body, Encoding.UTF8, new MediaTypeHeaderValue("application/json")),
+        };
+
+        var response = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, TestContext.Current.CancellationToken);
+
+        await model.ChunkSent.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        using (var reader = new StreamReader(await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken)))
+        {
+            string? line;
+
+            do
+            {
+                line = await reader.ReadLineAsync(TestContext.Current.CancellationToken);
+            }
+            while (line is not null && !line.Contains(partial, StringComparison.Ordinal));
+        }
+
+        response.Dispose();
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+
+        await WaitUntil.ValueAsync(
+            async () => (await runs.QueryRunsAsync(new RunQuery { SessionId = "t-off" }, TestContext.Current.CancellationToken)).SingleOrDefault(),
+            static run => run is { Status: RunStatus.Canceled },
+            "the disconnected run to be recorded as canceled");
+
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>()
+            .ResolveAsync("stream-agent", cancellationToken: TestContext.Current.CancellationToken)).ShouldNotBeNull();
+
+        (await host.Services.GetRequiredService<AgentSessionManager>()
+            .ReadHistoryAsync(agent, "t-off", cancellationToken: TestContext.Current.CancellationToken))
+            .ShouldBeNull("the option is off: a turn that did not end writes nothing");
+    }
+
+    [Fact]
     public async Task A_canceled_turn_the_model_had_started_to_answer_is_kept_in_the_history_when_the_host_asked_for_it()
     {
         const string partial = "The answer so far";

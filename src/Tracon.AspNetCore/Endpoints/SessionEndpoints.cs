@@ -118,6 +118,8 @@ internal static class SessionEndpoints
                 "way they are cleaned up: an attachment may be uploaded before any session exists, " +
                 "so the link is deliberately not a database foreign key. The attachments are " +
                 "removed only after the session itself is found, so a 404 leaves no side effect. " +
+                "On SQL storage the session's chat history (its conversation and items) is deleted " +
+                "with it, before the session record. " +
                 "Runs recorded under the session are kept — run history does not depend on the " +
                 "session still existing. If a registered IRunAuthorizationHandler denies the " +
                 "caller, the response is also 404, identical to a session that does not exist; with " +
