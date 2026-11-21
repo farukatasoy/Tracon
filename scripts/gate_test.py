@@ -1690,6 +1690,26 @@ class GateTests(unittest.TestCase):
         self.assertEqual(verdicts, [("P", "N.S.Failing", False)])
         self.assertIn("REAL regression", output.getvalue())
 
+    def test_isolated_rerun_stops_at_its_limit_when_a_whole_project_is_red(self):
+        # A fixture that cannot start fails every test of its project at once. Rerunning each one alone
+        # started a container per test: 1875 failures kept one gate busy for hours. The diagnosis only
+        # needs a sample; the rest is named and left alone.
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            binary = root / "artifacts" / "bin" / "P" / "release"
+            binary.mkdir(parents=True)
+            (binary / "P").write_text("", encoding="utf-8")
+            runner = mock.Mock(return_value=mock.Mock(returncode=1))
+            failures = [gate.FailedTest("P", "release", f"N.S.Failing{index}") for index in range(gate.ISOLATED_RERUN_LIMIT + 30)]
+
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                verdicts = gate.isolate_failed_tests(failures, runner=runner, root=root)
+
+        self.assertEqual(runner.call_count, gate.ISOLATED_RERUN_LIMIT)
+        self.assertEqual(len(verdicts), gate.ISOLATED_RERUN_LIMIT)
+        self.assertIn("30 more failed tests were not rerun", output.getvalue())
+        self.assertIn("first failure", output.getvalue())
+
     def test_frontend_change_opens_the_frontend_in_the_inner_loop(self):
         self.assertTrue(gate.frontend_changed(["src/Tracon.UI/frontend/src/app.tsx"]))
         self.assertFalse(gate.frontend_changed(["src/Tracon.Core/Thing.cs"]))

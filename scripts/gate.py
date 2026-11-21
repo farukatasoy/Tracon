@@ -2063,13 +2063,19 @@ def record_test_durations(since: float, root: pathlib.Path = ROOT) -> pathlib.Pa
     return path
 
 
+#: How many failed tests the isolated rerun takes. A fixture that cannot start (a container, a port) fails every test
+#: of its project at once; one container per rerun then kept a gate busy for hours. A sample tells the two causes
+#: apart; the rest is only named.
+ISOLATED_RERUN_LIMIT = 20
+
+
 def isolate_failed_tests(
     failures: Sequence[FailedTest],
     *,
     runner: Runner = subprocess.run,
     root: pathlib.Path = ROOT,
 ) -> list[tuple[str, str, bool]]:
-    """Rerun every failed test ALONE and print the verdict.
+    """Rerun the first `ISOLATED_RERUN_LIMIT` failed tests ALONE and print the verdict.
 
     This is the three-step manual aid used while a defect is investigated. In this repo the
     class "fails in the full run, passes in isolation" was recorded SEVEN times, the seventh
@@ -2081,7 +2087,7 @@ def isolate_failed_tests(
     red stays red. All it gives is what the next step is.
     """
     verdicts: list[tuple[str, str, bool]] = []
-    for failure in failures:
+    for failure in failures[:ISOLATED_RERUN_LIMIT]:
         executable = root / "artifacts" / "bin" / failure.project / failure.output / failure.project
         # The TRX name of a `[Theory]` carries the arguments too, and they can contain
         # a DOT: `...A_provider_name_is_matched(savedAs: "a.b")`. The argument tail is
@@ -2104,6 +2110,11 @@ def isolate_failed_tests(
     print("\n🔬 Isolated rerun (diagnosis — does NOT change the exit code):")
     for label, name, passed in verdicts:
         print(f"   {'✅ PASSED in isolation' if passed else '❌ FAILED in isolation too'}  {label} · {name}")
+    skipped = len(failures) - ISOLATED_RERUN_LIMIT
+    if skipped > 0:
+        print(f"   ⚠️ {skipped} more failed tests were not rerun (limit {ISOLATED_RERUN_LIMIT})."
+              " When most of a project is red, read the first failure's exception in the log:"
+              " a fixture that did not start fails every test the same way.")
     if all(passed for _, _, passed in verdicts):
         print("   → All passed in isolation: the test carries a time, order, or shared-resource"
               " assumption, or there is a product race that shows only under load.")
