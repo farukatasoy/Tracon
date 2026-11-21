@@ -45,6 +45,14 @@ sequenceDiagram
 
 The caller drives it. Tracon does not decide when a conversation starts or ends.
 
+What the next turn finds depends on the save. A **new** session exists only in memory until you save it: a turn
+that runs on it and is never saved leaves a conversation no record names, and the next
+`GetOrCreateSessionAsync` opens a session with an empty history. For a session that already has a record, a SQL
+provider writes each turn to the conversation as the turn ends, so a later turn you did not save is still there; with
+the in-memory default the history is part of the saved state, and a turn you did not save is lost. A turn that is
+canceled writes nothing ([below](#a-canceled-turn)). The checks in front of the HTTP endpoints (run authorization,
+session owner, quota) are not part of these calls: ask [`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent).
+
 The identity stamp matters: the session id is written into the session's own state
 bag, so it survives serialization. A restored session knows which session it is, which
 is how the recording layer can put the right session id on a run without being told.
@@ -66,9 +74,15 @@ already reports as successful, with nothing anywhere saying so.
 Over HTTP that surfaces as `409 Conflict` on both `/api/agents/{name}/run` (a
 problem document whose `errorType` is `session_conflict`) and the OpenAI-compatible
 `/v1/responses` (an error envelope whose `error.type` is the same value). **Retry the
-turn**; the conflict means the conversation moved on, not that anything is broken. On
+turn** only after you have looked at what the conversation holds; the conflict means the conversation moved on, not that anything is broken. On
 a streaming request the response headers are already sent, so the same condition
 arrives as an `error` event in the stream instead of a status code.
+
+A refused save does not undo the turn. A SQL provider writes the turn's messages to the conversation as the turn ends,
+before the save, so the turn that lost the race is in the conversation the next turn reads. That is why a retry can send
+a message the conversation already holds: before you retry, read the history
+(`AgentSessionManager.ReadHistoryAsync`) and look. Two concurrent first turns of a new session each open their own
+conversation, and the loser's conversation is not reachable from any record.
 
 A request that **answers a pending call** (a tool approval, a tool input or a client tool
 result) takes the session's generation before it applies the answer. The call is pending in
@@ -106,20 +120,76 @@ restored after an upgrade.
 
 ## Reading a conversation back
 
-`GET /api/sessions/{sessionId}` returns metadata plus `messages` — but `messages` is
-`null` when the configured storage cannot expose a readable history. With in-memory
-storage the history lives inside an opaque provider blob; `state` always carries that
-raw blob, and it is not a chat log.
+`GET /api/sessions/{sessionId}` returns metadata plus `messages`, the conversation in order. The messages are
+read through the registered chat history provider, with in-memory storage and with a SQL provider alike, so
+they are what the agent itself sees, tool calls and tool results included. `messages` is `null` only when the
+history could not be read: the agent no longer exists, or it can no longer restore the stored state. An agent
+that builds its own chat history instead of taking the registered provider shows no messages on SQL storage.
+`state` always carries the raw session state, and it is not a chat log.
 
-With a SQL provider the history is stored as ordered items, so messages come back in
-sequence order. That ordering is not cosmetic: the index of a message **is** the
+The messages come back in sequence order. That ordering is not cosmetic: the index of a message **is** the
 sequence number the branch endpoint takes.
+
+From your own code, ask the session manager. It reads the same history, a page at a time:
+
+```csharp
+var sessions = provider.GetRequiredService<AgentSessionManager>();
+
+var page = await sessions.ReadHistoryAsync(agent, "chat-42", skip: 0, take: 50);
+
+foreach (var message in page ?? [])
+{
+    Console.WriteLine($"{message.Role}: {message.Text}");
+}
+```
+
+The result is `null` when the current tenant has no session with that id. `skip` counts messages from the start of
+the conversation. The call checks the tenant, not the owner: session ownership is a gate in front of the HTTP
+endpoints, so a host that shows a conversation to a user asks
+[`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent) first. Reading does not claim the
+session or save it.
 
 A provider-hosted live voice session writes into this same history: when it closes,
 the conversation's transcript is appended as ordinary user and assistant messages, so
 `GET /api/sessions/{sessionId}` shows what was actually said. That write is a
 retention decision and can be switched off — see
 [voice privacy and retention](/guides/voice/#privacy-and-retention).
+
+## A canceled turn
+
+A turn writes its messages to the history when it ends. A turn that is canceled does not end, so it writes nothing: the
+user's message and the part of the answer that streamed are not in the history, and the next turn answers as if the
+message had never been sent. Saving the session after the cancellation does not bring them back, because there is
+nothing to save. The run is recorded as `Canceled`.
+
+To keep such a turn, turn on `Tracon:Sessions:KeepCanceledTurns`. A **streamed** turn the client cancels after the model
+began to answer is then written: the user's message, and the text that had streamed with a note that the answer was cut
+off, so the next turn sees what was asked and what the user saw. A cancel before the first piece of the answer writes
+nothing, because the message has not been accepted yet and the content guards have not necessarily screened it. A turn
+that is not streamed writes nothing. The kept text is user content: it is subject to the same retention and erasure as the
+rest of the history.
+
+A host that runs agents from its own code decides for itself and calls `AgentSessionManager.RecordCanceledTurnAsync` from the
+place that catches the cancellation:
+
+```csharp
+var sessions = provider.GetRequiredService<AgentSessionManager>();
+var session = await sessions.GetOrCreateSessionAsync(agent, "chat-42");
+
+try
+{
+    await agent.RunAsync("Summarize it.", session);
+}
+catch (OperationCanceledException)
+{
+    // The write goes around the content guards: only keep a message the model had started to answer, or screen it yourself.
+    await sessions.RecordCanceledTurnAsync(
+        agent,
+        session,
+        [new ChatMessage(ChatRole.User, "Summarize it.")],
+        partialAnswer: null);
+}
+```
 
 ## Branching
 
@@ -207,7 +277,7 @@ client open a session under someone else's name.
 |---|---|
 | `GET /api/sessions` | Only the caller's own sessions, narrowed **before** paging, so `take=3` returns three of *their* sessions |
 | `GET`/`DELETE`/`POST …/branch` on another user's session | `404`, byte for byte identical to a session that does not exist |
-| Starting a run against another user's session | `403` — continuing a conversation reads its whole history back, so the run surface is guarded too |
+| Starting a run against another user's session over HTTP | `403` — continuing a conversation reads its whole history back, so the run surface is guarded too. A run you start from .NET code is not compared with the owner; ask [`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent) first |
 | A branch of your own session | The copy inherits **your** ownership; branching is a copy, not a handover |
 | No identity can be resolved | The session is not opened at all: `403` with `errorType` `session_owner_required` |
 

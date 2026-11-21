@@ -1081,9 +1081,15 @@ internal static class AgentEndpoints
 
             long sequence = 0;
 
+            // What a canceled turn keeps (Tracon:Sessions:KeepCanceledTurns): the model must have started to answer, and the text
+            // that streamed so far is the partial answer.
+            OpenedTurn? opened = null;
+            var sawUpdate = false;
+            var partialAnswer = new System.Text.StringBuilder();
+
             try
             {
-                var opened = await turn.OpenAsync(httpContext, cancellationToken).ConfigureAwait(false);
+                opened = await turn.OpenAsync(httpContext, cancellationToken).ConfigureAwait(false);
 
                 await writer.WriteEventAsync(
                     sequence++,
@@ -1137,6 +1143,9 @@ internal static class AgentEndpoints
 
                     sawIncomplete |= FinishReasonDetectingChatClient.IsIncomplete(update.FinishReason);
 
+                    sawUpdate = true;
+                    partialAnswer.Append(update.Text);
+
                     var payload = JsonSerializer.Serialize(update, AIJsonUtilities.DefaultOptions);
                     await writer.WriteEventAsync(sequence++, "update", payload, cancellationToken).ConfigureAwait(false);
                 }
@@ -1178,7 +1187,11 @@ internal static class AgentEndpoints
             // saw a clean, empty success.
             catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
             {
-                // The client disconnected. No one is left to write to.
+                // The client disconnected. No one is left to write to; the turn itself is kept only when the host asked for it.
+                if (opened is not null && sawUpdate)
+                {
+                    await opened.RecordCanceledTurnAsync(httpContext, partialAnswer.ToString()).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {

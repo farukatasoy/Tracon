@@ -6053,3 +6053,8 @@ Tracon.IHostTenantScope
 Tracon.IHostTenantScope.Begin(string! tenantId) -> System.IDisposable?
 const Tracon.JobErrorCodes.HostTenantScopeFailed = "tracon.job.host-tenant-scope-failed" -> string!
 const Tracon.TraconErrorTypes.JobHostTenantScopeFailed = "tracon.job.host-tenant-scope-failed" -> string!
+Tracon.TraconSessionOptions
+Tracon.TraconSessionOptions.KeepCanceledTurns.get -> bool
+Tracon.TraconSessionOptions.KeepCanceledTurns.set -> void
+Tracon.TraconSessionOptions.TraconSessionOptions() -> void
+const Tracon.TraconSessionOptions.SectionName = "Tracon:Sessions" -> string!

@@ -296,6 +296,7 @@ Tracon:SessionOwnership:Enabled
 Tracon:SessionOwnership:ManagementPolicy
 Tracon:SessionOwnership:RefuseUnownedSessions
 Tracon:SessionOwnership:RequireAuthenticatedOwner
+Tracon:Sessions:KeepCanceledTurns
 Tracon:SingletonExecution:Enabled
 Tracon:SingletonExecution:LeaseDuration
 Tracon:SingletonExecution:OwnerId

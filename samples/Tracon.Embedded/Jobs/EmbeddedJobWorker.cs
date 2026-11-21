@@ -19,6 +19,7 @@ namespace Tracon.Embedded;
 internal sealed class EmbeddedJobWorker(
     EmbeddedJobQueue queue,
     IAgentCatalog catalog,
+    RunAdmission admission,
     ILogger<EmbeddedJobWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -39,6 +40,21 @@ internal sealed class EmbeddedJobWorker(
                             Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["articleContent"] = article },
                         })
                         : ("assistant", null);
+
+                    // Running an agent from code passes none of the checks in front of the HTTP endpoints. This job
+                    // runs on behalf of a tenant and a user, so it asks them first: the run authorization handler, the
+                    // owner of a session it would continue (this job names none) and the tenant's quota.
+                    var decision = await admission.CheckAsync(agentName, cancellationToken: stoppingToken).ConfigureAwait(false);
+
+                    if (!decision.IsAllowed)
+                    {
+                        logger.LogWarning(
+                            "Job for tenant {TenantId} refused ({Denial}): {Reason}",
+                            job.TenantId,
+                            decision.Denial,
+                            decision.Reason);
+                        continue;
+                    }
 
                     var agent = await catalog.ResolveAsync(agentName, options, stoppingToken).ConfigureAwait(false);
 

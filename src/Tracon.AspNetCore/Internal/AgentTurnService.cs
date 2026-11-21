@@ -1186,6 +1186,46 @@ internal sealed class OpenedTurn
             _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals: null, onPendingInputs, onLoopIteration: null),
             cancellationToken);
 
+    /// <summary>
+    /// Keeps a turn the client canceled after the model began to answer, when the host asked for it
+    /// (<c>Tracon:Sessions:KeepCanceledTurns</c>): the user's message and the text that had streamed.
+    /// </summary>
+    /// <param name="httpContext">The request.</param>
+    /// <param name="partialAnswer">The text that had streamed when the client went away.</param>
+    /// <returns>The completion task. A failure to write is logged, never thrown: the turn is already over.</returns>
+    public async ValueTask RecordCanceledTurnAsync(HttpContext httpContext, string? partialAnswer)
+    {
+        if (_session is null ||
+            httpContext.RequestServices.GetService<Microsoft.Extensions.Options.IOptionsMonitor<TraconSessionOptions>>()
+                is not { CurrentValue.KeepCanceledTurns: true })
+        {
+            return;
+        }
+
+        // Only what the user typed: approval responses and tool results answer calls of an earlier turn and are not part of it.
+        var asked = _messages.Where(static message => message.Role == ChatRole.User).ToList();
+
+        if (asked.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await httpContext.RequestServices.GetRequiredService<AgentSessionManager>()
+                .RecordCanceledTurnAsync(_turn.Agent, _session, asked, partialAnswer, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is TraconException or InvalidOperationException or NotSupportedException or System.Text.Json.JsonException)
+        {
+            // Observability does not break functionality: the cancellation already ended the turn.
+            AuthorizationGateDiagnostics.CreateLogger(httpContext, "Tracon.Sessions").LogWarning(
+                exception,
+                "The canceled turn of run '{RunId}' could not be written to the session history.",
+                _turn.RunId);
+        }
+    }
+
     /// <summary>Saves the session after the run, recording a lost write race on the run before the exception goes on.</summary>
     /// <param name="httpContext">The request.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

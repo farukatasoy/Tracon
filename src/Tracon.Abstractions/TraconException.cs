@@ -422,8 +422,8 @@ public sealed class TraconWorkflowFunctionTimeoutException : TraconException
 }
 
 /// <summary>
-/// Thrown for the losing request when two concurrent first requests arrive for the
-/// same NEW session id.
+/// Thrown for the losing request when two turns of the same session meet at the save: two concurrent first requests for
+/// a NEW session id, or two turns that read the same version of an existing session.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -437,6 +437,12 @@ public sealed class TraconWorkflowFunctionTimeoutException : TraconException
 /// silently overwritten the winner's state; that was the actual defect. So the loser
 /// gets an explicit conflict error instead; a retry takes the normal (race-free)
 /// path and finds the winner's record ALREADY in place.
+/// </para>
+/// <para>
+/// A later save of an existing session is guarded the same way: it is refused when another turn advanced the
+/// record's version. The refusal does not undo the losing turn. A SQL history provider writes a turn's messages to the
+/// conversation when the turn ends, before the save, so the losing turn's messages are already in the conversation
+/// the next turn reads; a retry sends the user's message again into a conversation that holds it.
 /// </para>
 /// </remarks>
 public sealed class TraconSessionConflictException : TraconException

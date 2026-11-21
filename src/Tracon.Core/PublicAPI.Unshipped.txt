@@ -939,3 +939,40 @@ Tracon.ProviderInvocationException.Provider.get -> string!
 Tracon.ProviderInvocationException.StatusCode.get -> int?
 override Tracon.ProviderInvocationException.ErrorType.get -> string!
 override Tracon.ProviderInvocationException.ToString() -> string!
+Tracon.RunAdmission
+Tracon.RunAdmission.CheckAsync(string! agentName, string? sessionId = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunAdmissionDecision!>
+Tracon.RunAdmissionDecision
+Tracon.RunAdmissionDecision.<Clone>$() -> Tracon.RunAdmissionDecision!
+Tracon.RunAdmissionDecision.Denial.get -> Tracon.RunAdmissionDenial?
+Tracon.RunAdmissionDecision.Denial.init -> void
+Tracon.RunAdmissionDecision.Equals(Tracon.RunAdmissionDecision? other) -> bool
+Tracon.RunAdmissionDecision.IsAllowed.get -> bool
+Tracon.RunAdmissionDecision.IsAllowed.init -> void
+Tracon.RunAdmissionDecision.QuotaAgentName.get -> string?
+Tracon.RunAdmissionDecision.QuotaAgentName.init -> void
+Tracon.RunAdmissionDecision.QuotaLimit.get -> decimal?
+Tracon.RunAdmissionDecision.QuotaLimit.init -> void
+Tracon.RunAdmissionDecision.QuotaMetric.get -> Tracon.QuotaMetric?
+Tracon.RunAdmissionDecision.QuotaMetric.init -> void
+Tracon.RunAdmissionDecision.QuotaPeriod.get -> Tracon.QuotaPeriod?
+Tracon.RunAdmissionDecision.QuotaPeriod.init -> void
+Tracon.RunAdmissionDecision.QuotaResetsAt.get -> System.DateTimeOffset?
+Tracon.RunAdmissionDecision.QuotaResetsAt.init -> void
+Tracon.RunAdmissionDecision.QuotaUsed.get -> decimal?
+Tracon.RunAdmissionDecision.QuotaUsed.init -> void
+Tracon.RunAdmissionDecision.Reason.get -> string?
+Tracon.RunAdmissionDecision.Reason.init -> void
+Tracon.RunAdmissionDecision.RunAdmissionDecision() -> void
+Tracon.RunAdmissionDenial
+Tracon.RunAdmissionDenial.NotAuthorized = 0 -> Tracon.RunAdmissionDenial
+Tracon.RunAdmissionDenial.QuotaExceeded = 3 -> Tracon.RunAdmissionDenial
+Tracon.RunAdmissionDenial.SessionNotAuthorized = 1 -> Tracon.RunAdmissionDenial
+Tracon.RunAdmissionDenial.SessionOwnerRequired = 2 -> Tracon.RunAdmissionDenial
+override Tracon.RunAdmissionDecision.Equals(object? obj) -> bool
+override Tracon.RunAdmissionDecision.GetHashCode() -> int
+override Tracon.RunAdmissionDecision.ToString() -> string!
+static Tracon.RunAdmissionDecision.Allowed.get -> Tracon.RunAdmissionDecision!
+static Tracon.RunAdmissionDecision.operator !=(Tracon.RunAdmissionDecision? left, Tracon.RunAdmissionDecision? right) -> bool
+static Tracon.RunAdmissionDecision.operator ==(Tracon.RunAdmissionDecision? left, Tracon.RunAdmissionDecision? right) -> bool
+Tracon.AgentSessionManager.ReadHistoryAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionId, int skip = 0, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>?>
+Tracon.AgentSessionManager.RecordCanceledTurnAsync(Microsoft.Agents.AI.AIAgent! agent, Microsoft.Agents.AI.AgentSession! session, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>! requestMessages, string? partialAnswer = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask

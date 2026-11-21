@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -55,6 +56,10 @@ public sealed class AgentSessionManager
 
     private readonly ISessionStore _store;
     private readonly ITenantContext _tenantContext;
+    /// <summary>The note appended to an answer that was cut off by a cancellation, so the next turn knows it is partial.</summary>
+    internal const string CanceledAnswerNote = "[The response was canceled before it finished.]";
+
+    private readonly ChatHistoryProvider? _chatHistory;
     private readonly TimeProvider _timeProvider;
     private readonly IRunAttributionContext? _attributionContext;
     private readonly IOptionsMonitor<TraconSessionOwnershipOptions>? _ownershipOptions;
@@ -127,6 +132,10 @@ public sealed class AgentSessionManager
     /// The stores that keep a copy of a session's content outside the session store (conversation
     /// memory). A session's copy is erased before the session is deleted.
     /// </param>
+    /// <param name="chatHistory">
+    /// The chat history provider <see cref="ReadHistoryAsync"/> reads a conversation with; without one that
+    /// method cannot be used.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     internal AgentSessionManager(
         ISessionStore store,
@@ -134,7 +143,8 @@ public sealed class AgentSessionManager
         TimeProvider? timeProvider = null,
         IRunAttributionContext? attributionContext = null,
         IOptionsMonitor<TraconSessionOwnershipOptions>? ownershipOptions = null,
-        IEnumerable<ISubjectContentEraser>? contentErasers = null)
+        IEnumerable<ISubjectContentEraser>? contentErasers = null,
+        ChatHistoryProvider? chatHistory = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -145,6 +155,7 @@ public sealed class AgentSessionManager
         _attributionContext = attributionContext;
         _ownershipOptions = ownershipOptions;
         _contentErasers = contentErasers is null ? [] : [.. contentErasers];
+        _chatHistory = chatHistory;
     }
 
     /// <summary>
@@ -163,6 +174,20 @@ public sealed class AgentSessionManager
     /// Session ownership is on, this call would OPEN a new session, and no
     /// authenticated identity could be resolved to own it.
     /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Nothing is written to the store here, and the checks that stand in front of the HTTP endpoints (the run
+    /// authorization handler, the session owner, the tenant quota) are not made: ask <see cref="RunAdmission"/> for them.
+    /// </para>
+    /// <para>
+    /// What a later turn finds depends on <see cref="SaveSessionAsync"/>. A new session exists only in memory until it is
+    /// saved: a turn that runs on it and is never saved leaves a conversation no record names, and the next call opens
+    /// a session with an empty history. For a session that already has a record, a SQL history provider writes each turn
+    /// to the conversation as the turn ends, so a later turn that is not saved is still in the conversation the next
+    /// turn reads; with the in-memory default the history is part of the session's state, and a turn that is not saved
+    /// is lost. A turn that is canceled writes nothing; see <see cref="RecordCanceledTurnAsync"/>.
+    /// </para>
+    /// </remarks>
     public async ValueTask<AgentSession> GetOrCreateSessionAsync(
         AIAgent agent,
         string sessionId,
@@ -235,6 +260,128 @@ public sealed class AgentSessionManager
             : await RestoreSessionAsync(agent, sessionId, record, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Reads the messages of a session's conversation, oldest first.</summary>
+    /// <param name="agent">
+    /// The agent the session belongs to. Its type decides how the stored state is read, as it does for
+    /// <see cref="GetOrCreateSessionAsync"/>.
+    /// </param>
+    /// <param name="sessionId">The session identity.</param>
+    /// <param name="skip">How many messages to leave out from the start. The index of a message is its position in the conversation.</param>
+    /// <param name="take">How many messages to return at most, or <see langword="null"/> for all the rest.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The messages, in order, including the tool calls and tool results the turns produced; empty when the session
+    /// has no history yet. <see langword="null"/> when the current tenant has no session with that identity.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The history is read through the registered <c>ChatHistoryProvider</c>, so it is the one the agent itself
+    /// sees, and a protected store gives back readable messages. It is the same read the management API
+    /// (<c>GET /api/sessions/{id}</c>) answers from.
+    /// </para>
+    /// <para>
+    /// The call checks the tenant, not the owner. Session ownership is a gate in front of the HTTP endpoints; a host
+    /// that reads a conversation back to a user asks <see cref="RunAdmission"/> first, as it does before it runs an
+    /// agent. Reading does not claim the session, change it or save it. An agent that builds its own chat history
+    /// instead of taking the registered provider shows no messages when the history is kept in a SQL store.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="agent"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="sessionId"/> is blank.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="skip"/> or <paramref name="take"/> is negative.</exception>
+    /// <exception cref="InvalidOperationException">The manager was created without a chat history provider.</exception>
+    /// <exception cref="TraconException">The stored state cannot be restored by this agent.</exception>
+    public async ValueTask<IReadOnlyList<ChatMessage>?> ReadHistoryAsync(
+        AIAgent agent,
+        string sessionId,
+        int skip = 0,
+        int? take = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
+
+        if (take is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(take), take, "The number of messages to take cannot be negative.");
+        }
+
+        var chatHistory = _chatHistory
+            ?? throw new InvalidOperationException("This session manager has no chat history provider to read a conversation with.");
+
+        var session = await GetExistingSessionAsync(agent, sessionId, cancellationToken).ConfigureAwait(false);
+
+        if (session is null)
+        {
+            return null;
+        }
+
+        var messages = await ChatHistoryReader.ReadAsync(agent, session, chatHistory, cancellationToken).ConfigureAwait(false);
+
+        return skip == 0 && take is null
+            ? messages
+            : [.. messages.Skip(skip).Take(take ?? int.MaxValue)];
+    }
+
+    /// <summary>Writes the messages of a turn that was canceled before it finished, and saves the session.</summary>
+    /// <param name="agent">The agent the session belongs to.</param>
+    /// <param name="session">The open session of the canceled turn.</param>
+    /// <param name="requestMessages">The messages the turn was asked: the user's message.</param>
+    /// <param name="partialAnswer">
+    /// The text of the answer that had been produced when the turn was canceled, or <see langword="null"/> when none had.
+    /// A note that the answer was cut off is added to it.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// The cancellation token of the write. The turn's own token is canceled by now; pass
+    /// <see cref="CancellationToken.None"/> or a token of your own.
+    /// </param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// <para>
+    /// A turn writes its messages to the session's history when it ends. A turn that is canceled does not end, so
+    /// without this call the next turn answers as if the message had never been sent. Call it from the place that
+    /// catches the cancellation, for a turn that is worth keeping.
+    /// </para>
+    /// <para>
+    /// The write goes around the checks a run makes: the content guards have not necessarily screened
+    /// <paramref name="requestMessages"/> if the turn was canceled early, and a message that would have been refused
+    /// then becomes part of the history the next turns read. Write only a message the model has started to answer, or
+    /// screen it yourself. The messages are subject to the same retention and erasure as the rest of the history.
+    /// </para>
+    /// <para>
+    /// The save can conflict with another turn of the same session; the conflict is thrown as it is by
+    /// <see cref="SaveSessionAsync"/>, and the messages are already written by then.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="agent"/>, <paramref name="session"/> or <paramref name="requestMessages"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The manager was created without a chat history provider.</exception>
+    /// <exception cref="TraconSessionConflictException">Another turn changed the session first.</exception>
+    public async ValueTask RecordCanceledTurnAsync(
+        AIAgent agent,
+        AgentSession session,
+        IReadOnlyList<ChatMessage> requestMessages,
+        string? partialAnswer = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(requestMessages);
+
+        var chatHistory = _chatHistory
+            ?? throw new InvalidOperationException("This session manager has no chat history provider to write a conversation with.");
+
+        var trimmed = (partialAnswer ?? string.Empty).Trim();
+
+        IReadOnlyList<ChatMessage> response = trimmed.Length > 0
+            ? [new ChatMessage(ChatRole.Assistant, trimmed + "\n\n" + CanceledAnswerNote)]
+            : [];
+
+        await ChatHistoryReader.AppendAsync(agent, session, chatHistory, requestMessages, response, cancellationToken).ConfigureAwait(false);
+
+        await SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Turns a stored record back into a session and remembers which record
     /// (identity and generation) it was read from.
@@ -290,9 +437,8 @@ public sealed class AgentSessionManager
     /// The session has no identity because it was not opened with <see cref="GetOrCreateSessionAsync"/>.
     /// </exception>
     /// <exception cref="TraconSessionConflictException">
-    /// This was the FIRST save of a session that <see cref="GetOrCreateSessionAsync"/>
-    /// opened FRESH, and a concurrent request saved the same NEW session
-    /// identity before we did.
+    /// Another turn changed the session record since this session was read: the first save of a session opened fresh
+    /// lost to a concurrent save of the same identity, or a later save found the record's version advanced.
     /// </exception>
     /// <exception cref="TraconSessionOwnerRequiredException">
     /// Session ownership is on, this write would CLAIM ownership of a session,
@@ -330,6 +476,13 @@ public sealed class AgentSessionManager
     /// first write and carries it verbatim on every later one. The stores
     /// hold the same rule a second time, so an owner survives even a write
     /// this manager never saw.
+    /// </para>
+    /// <para>
+    /// A refused save does not undo the turn. A SQL history provider writes a turn's messages to the conversation as the
+    /// turn ends, before this save, so the turn that lost the race is in the conversation the next turn reads, even
+    /// though its session state was not saved. Two concurrent first turns of a new session each open their own
+    /// conversation, and the loser's is not reachable from any record. Retrying the turn after a conflict sends the user's
+    /// message again into a conversation that already holds it.
     /// </para>
     /// </remarks>
     public async ValueTask<string> SaveSessionAsync(

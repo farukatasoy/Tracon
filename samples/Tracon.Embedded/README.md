@@ -62,6 +62,10 @@ curl -s -X POST http://localhost:5082/jobs \
 curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/tracon/api/runs | jq '.[0]'
 ```
 
+The worker also asks `RunAdmission` before it runs an agent. A run started from code passes none of the checks in
+front of Tracon's HTTP endpoints, so a host that runs agents on behalf of a tenant asks them itself: a job for a tenant
+the host's directory does not know is refused with the handler's reason, and the run never starts.
+
 The same worker also shows how a host hands one run text of its own. A job that carries
 `articleContent` runs the `summarizer` agent, whose instructions name `{{articleContent}}`. The worker
 passes the text to `IAgentCatalog.ResolveAsync` in `AgentResolveOptions.Parameters`; the catalog checks it

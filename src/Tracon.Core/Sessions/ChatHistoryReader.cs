@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Tracon;
 
 /// <summary>
-/// Reads the chat history of a stored session.
+/// Reads the chat history of a stored session, and appends messages to it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -16,8 +16,8 @@ namespace Tracon;
 /// setup (<c>AddTracon</c> registers the provider explicitly).
 /// </para>
 /// <para>
-/// Both the management API (<c>/api/sessions/{id}</c>) and the OpenAI-compatible
-/// Conversations endpoint (<c>/v1/conversations/{id}/items</c>) read from here; the
+/// The session manager's history read, the management API (<c>/api/sessions/{id}</c>) and the
+/// OpenAI-compatible Conversations endpoint (<c>/v1/conversations/{id}/items</c>) read from here; the
 /// two endpoints must show the same truth.
 /// </para>
 /// </remarks>
@@ -121,5 +121,34 @@ internal static class ChatHistoryReader
         var messages = await chatHistory.InvokingAsync(context, cancellationToken).ConfigureAwait(false);
 
         return [.. messages];
+    }
+
+    /// <summary>Appends messages to the history of an open session, as the end of a turn would.</summary>
+    /// <param name="agent">The resolved agent.</param>
+    /// <param name="session">The open session.</param>
+    /// <param name="chatHistory">The registered chat history provider.</param>
+    /// <param name="requestMessages">The messages the turn was asked.</param>
+    /// <param name="responseMessages">The messages the turn answered with.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// The provider's own store method is protected, and the framework writes a turn's messages only when the turn ends,
+    /// so a turn that was cut short writes nothing by itself. This is the one place that suppresses the same
+    /// evaluation-only warning for the write; the session is not saved here.
+    /// </remarks>
+    public static async ValueTask AppendAsync(
+        AIAgent agent,
+        AgentSession session,
+        ChatHistoryProvider chatHistory,
+        IReadOnlyList<ChatMessage> requestMessages,
+        IReadOnlyList<ChatMessage> responseMessages,
+        CancellationToken cancellationToken)
+    {
+        // MAAI001: the InvokedContext constructor is marked "for evaluation purposes only".
+#pragma warning disable MAAI001
+        var context = new ChatHistoryProvider.InvokedContext(agent, session, requestMessages, responseMessages);
+#pragma warning restore MAAI001
+
+        await chatHistory.InvokedAsync(context, cancellationToken).ConfigureAwait(false);
     }
 }

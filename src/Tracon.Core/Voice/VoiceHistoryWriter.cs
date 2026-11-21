@@ -100,14 +100,7 @@ internal sealed class VoiceHistoryWriter
     {
         try
         {
-            // The MAAI001 rationale is the same as in ChatHistoryReader: there is no
-            // other public way to write to the history (StoreChatHistoryAsync is
-            // protected).
-#pragma warning disable MAAI001
-            var context = new ChatHistoryProvider.InvokedContext(agent, session, [], messages);
-#pragma warning restore MAAI001
-
-            await _chatHistory.InvokedAsync(context, CancellationToken.None).ConfigureAwait(false);
+            await ChatHistoryReader.AppendAsync(agent, session, _chatHistory, [], messages, CancellationToken.None).ConfigureAwait(false);
 
             await _sessions.SaveSessionAsync(agent, session, CancellationToken.None).ConfigureAwait(false);
         }

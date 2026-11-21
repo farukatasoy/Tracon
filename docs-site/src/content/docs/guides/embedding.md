@@ -453,12 +453,57 @@ await summarizer!.RunAsync("Summarize it.");
 ```
 
 The catalog checks the values against the agent's schema, compiles the agent for exactly those
-values, and still applies every decorator, so the run is recorded, governed and replayable with the
-same text. Open your own tenant and attribution scope around the call, in the worker's own body,
+values, and still applies every decorator, so the run is recorded, its tools are authorized and it is
+replayable with the same text. The run authorization handler, session ownership and the tenant quota are
+not part of this call: [ask them first](#ask-the-run-gates-before-you-run-an-agent). Open your own tenant and attribution scope around the call, in the worker's own body,
 as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
 `TraconParameterException` carries. To check what an agent declares before you run it, call
 `catalog.DescribeAsync(name)`: [Ask what an agent declares](/concepts/agents/#ask-what-an-agent-declares).
 `samples/Tracon.Embedded` runs this from its job worker.
+
+### Ask the run gates before you run an agent
+
+Three checks stand in front of Tracon's HTTP endpoints: the
+[run authorization handler](#6--run-and-session-authorization), session ownership and the tenant's quota.
+A run you start from your own code does not pass them. `catalog.ResolveAsync(...)` followed by `RunAsync`
+records the run and authorizes its tools, and that is all: queued runs, approval resumes and scheduled
+triggers start with no caller to check, so the checks sit at the doors that have one.
+
+A host that runs agents on behalf of a user asks `RunAdmission` itself, first:
+
+```csharp
+var admission = provider.GetRequiredService<RunAdmission>();
+
+var decision = await admission.CheckAsync("summarizer", sessionId: "chat-42");
+
+if (decision.IsAllowed)
+{
+    await agent.RunAsync("Summarize it.");
+}
+else
+{
+    // decision.Denial says which check refused; decision.Reason is the text the HTTP endpoints give.
+    Console.WriteLine($"{decision.Denial}: {decision.Reason}");
+}
+```
+
+The answer is the one the HTTP run endpoints give. The registered `IRunAuthorizationHandler` decides first
+(a handler that throws denies the run), then session ownership, then the quota. The tenant comes from your
+`ITenantContext`. The user comes from an open `AmbientRunAttributionScope`, and otherwise from
+`IRunAttributionContext`; that is the identity the session manager records as the owner of a session it
+opens, so the user who passes the check is the user who owns the session. A refusal is a value, not an
+exception. For a spent quota it carries the metric, the period, the limit, the amount used and when the
+counter resets.
+
+| Check | `RunAdmission` | A plain `RunAsync` |
+|---|---|---|
+| Run authorization handler | asked | not asked |
+| Session ownership | compared with the session's owner | the owner is recorded for a new session, never compared |
+| Tenant quota | read at the door | not read; the run's consumption is still counted when it ends |
+| Tool authorization | not its job | applied |
+
+`CheckAsync` runs no model, opens no session and spends no quota; you start the run. The quota is read at
+the door and counts runs that already ended, so simultaneous callers can pass it together.
 
 ### Check a definition before you save it
 

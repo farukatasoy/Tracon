@@ -364,6 +364,29 @@ public static partial class TraconServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Binds the <c>Tracon:Sessions</c> section.
+    /// </summary>
+    /// <param name="section">The configuration section.</param>
+    /// <param name="options">The settings to fill in.</param>
+    /// <remarks>
+    /// Bound BY HAND like every other section here. A missing section leaves every default in place.
+    /// </remarks>
+    private static void BindSessions(IConfigurationSection section, TraconSessionOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        var read = ConfigurationValueReader.For(section, options);
+
+        read.Boolean(
+            nameof(TraconSessionOptions.KeepCanceledTurns),
+            static o => o.KeepCanceledTurns,
+            static (o, v) => o.KeepCanceledTurns = v);
+    }
+
+    /// <summary>
     /// Binds the <c>Tracon:SessionOwnership</c> section.
     /// </summary>
     /// <param name="section">The configuration section.</param>

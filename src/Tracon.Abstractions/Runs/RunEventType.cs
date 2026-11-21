@@ -394,7 +394,8 @@ public enum RunEventType
 
     /// <summary>
     /// The run finished, but the session write that follows it lost a race and
-    /// nothing was saved to that session. <c>Text</c> carries the session id.
+    /// the session record was not changed. <c>Text</c> carries the session id. With a SQL
+    /// history provider the turn's messages were already written to the conversation.
     /// </summary>
     /// <remarks>
     /// <para>

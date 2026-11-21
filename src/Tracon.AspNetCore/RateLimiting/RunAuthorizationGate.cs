@@ -42,7 +42,7 @@ namespace Tracon;
 internal static class RunAuthorizationGate
 {
     /// <summary>The problem detail of a <c>403</c> produced because the handler threw.</summary>
-    internal const string FailedCheckDetail = "The run authorization check failed. Retry the request.";
+    internal const string FailedCheckDetail = RunAdmissionRules.FailedCheckDetail;
 
     /// <summary>The problem title of every <c>403</c> this gate produces itself.</summary>
     private const string NotAuthorizedTitle = "Run not authorized";
@@ -85,31 +85,25 @@ internal static class RunAuthorizationGate
             Access = RunAccess.Start,
         };
 
-        string? reason;
+        var outcome = await RunAdmissionRules.AuthorizeStartAsync(handler, request, cancellationToken).ConfigureAwait(false);
 
-        try
+        if (outcome.IsAllowed)
         {
-            var result = await handler.AuthorizeRunAsync(request, cancellationToken).ConfigureAwait(false);
-
-            if (result.IsAllowed)
-            {
-                return null;
-            }
-
-            reason = result.Reason;
+            return null;
         }
-        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+
+        if (outcome.Failure is { } failure)
         {
             // A consumer implementation reaches into its own policy and can
             // fail there. Fail-closed: the run does not start.
-            LogHandlerFailure(httpContext, exception, handler, request, agentName);
+            LogHandlerFailure(httpContext, failure, handler, request, agentName);
 
             return Failed(NotAuthorizedTitle);
         }
 
         return TypedResults.Problem(
             title: NotAuthorizedTitle,
-            detail: reason ?? "The registered IRunAuthorizationHandler denied this run.",
+            detail: outcome.Reason ?? RunAdmissionRules.HandlerDeniedDetail,
             statusCode: StatusCodes.Status403Forbidden);
     }
 

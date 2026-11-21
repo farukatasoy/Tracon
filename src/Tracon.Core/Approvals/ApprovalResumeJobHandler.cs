@@ -296,14 +296,7 @@ internal sealed class ApprovalResumeJobHandler(
         string requestId,
         CancellationToken cancellationToken)
     {
-        // MAAI001: InvokingContext constructor is marked "for evaluation purposes only".
-        // The rationale is the same as ChatHistoryReader: there is no other public
-        // way to read the history, and this call only reads it. This is the only use.
-#pragma warning disable MAAI001
-        var context = new Microsoft.Agents.AI.ChatHistoryProvider.InvokingContext(agent, session, []);
-#pragma warning restore MAAI001
-
-        var messages = await chatHistory.InvokingAsync(context, cancellationToken).ConfigureAwait(false);
+        var messages = await ChatHistoryReader.ReadAsync(agent, session, chatHistory, cancellationToken).ConfigureAwait(false);
 
         var answered = new HashSet<string>(StringComparer.Ordinal);
         ToolApprovalRequestContent? found = null;

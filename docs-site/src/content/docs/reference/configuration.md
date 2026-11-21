@@ -142,6 +142,7 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "<value>"
 | `Tracon:RunReconciliation` | `RunReconciliationOptions` | `AddTracon()` |
 | `Tracon:Scheduling` | `TraconSchedulingOptions` | `AddTracon()`; `UseScheduling()` can override from code |
 | `Tracon:SessionOwnership` | `TraconSessionOwnershipOptions` | `AddTracon()`; keys in [Sessions](/concepts/sessions/) |
+| `Tracon:Sessions` | `TraconSessionOptions` | `AddTracon()`; `KeepCanceledTurns`, see [A canceled turn](/concepts/sessions/#a-canceled-turn) |
 | `Tracon:SingletonExecution` | `SingletonExecutionOptions` | `AddTracon()` |
 | `Tracon:StructuredResponse` | `TraconStructuredResponseOptions` | `AddTracon()` |
 | `Tracon:TenantProviders` | `TraconTenantProviderOptions` | `AddTracon()` |

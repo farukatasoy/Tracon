@@ -23,9 +23,10 @@
 // Background work: Jobs/ runs an agent with NO HTTP request behind it, using
 // AmbientTenantScope and AmbientRunAttributionScope — the mandatory scenario
 // this sample exists to prove end to end. It calls AIAgent.RunAsync directly,
-// so it does NOT go through IRunAuthorizationHandler — that gate sits in front
-// of Tracon's OWN HTTP run endpoints (mapped below), not every code path
-// that can start a run.
+// which does NOT go through IRunAuthorizationHandler — that gate, like session
+// ownership and the tenant quota, sits in front of Tracon's OWN HTTP run
+// endpoints (mapped below), not every code path that can start a run. So the
+// worker asks RunAdmission first, and starts the run only when it allows it.
 //
 // GET /tracon/api/diagnostics (enabled below) reports all six as
 // isBuiltInDefault: false, naming this sample's own types — contrast with

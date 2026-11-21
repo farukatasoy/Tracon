@@ -554,7 +554,20 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<Microsoft.Extensions.Options.IOptionsMonitor<TraconSessionOwnershipOptions>>(),
             // The copy of a session's content a host's vector store keeps (conversation
             // memory). Empty unless UseConversationMemory was called.
-            provider.GetServices<ISubjectContentEraser>()));
+            provider.GetServices<ISubjectContentEraser>(),
+            provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>()));
+
+        // The questions the HTTP endpoints ask before a run starts, for a host that runs an agent in
+        // process. The session manager does not ask them (work with no caller has no identity), so a
+        // host calls this explicitly.
+        services.TryAddSingleton(static provider => new RunAdmission(
+            provider.GetRequiredService<IRunAuthorizationHandler>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetService<IRunAttributionContext>(),
+            provider.GetService<Microsoft.Extensions.Options.IOptionsMonitor<TraconSessionOwnershipOptions>>(),
+            provider.GetRequiredService<ISessionStore>(),
+            provider.GetService<QuotaEnforcer>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<RunAdmission>>()));
 
         // The one path that deletes a session for a caller — record, the
         // copy of its content and its attachments. Internal: the HTTP edge asks the gates

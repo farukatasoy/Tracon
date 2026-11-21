@@ -99,6 +99,11 @@ internal static class AGUIEventStream
         var enumerator = source.GetAsyncEnumerator(cancellationToken);
         var messageIds = new AGUIMessageIdStabilizer();
 
+        // What a canceled turn keeps (Tracon:Sessions:KeepCanceledTurns): the model must have started to answer, and the text
+        // that streamed so far is the partial answer.
+        var sawUpdate = false;
+        var partialAnswer = new System.Text.StringBuilder();
+
         await using (enumerator.ConfigureAwait(false))
         {
             while (true)
@@ -120,6 +125,19 @@ internal static class AGUIEventStream
 
                     throw;
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // The client went away. Nobody is left to write to; the turn is kept only when the host asked for it.
+                    if (sawUpdate)
+                    {
+                        await opened.RecordCanceledTurnAsync(httpContext, partialAnswer.ToString()).ConfigureAwait(false);
+                    }
+
+                    throw;
+                }
+
+                sawUpdate = true;
+                partialAnswer.Append(update.Text);
 
                 yield return messageIds.Apply(collector.Adapt(update.AsChatResponseUpdate()));
             }

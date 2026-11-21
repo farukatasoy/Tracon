@@ -271,53 +271,26 @@ internal static class SessionOwnershipGate
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(httpContext);
 
-        if (options?.CurrentValue is not { Enabled: true } settings ||
-            string.IsNullOrWhiteSpace(sessionId))
+        var verdict = await RunAdmissionRules
+            .CheckSessionAsync(
+                options?.CurrentValue,
+                store,
+                sessionId,
+                () => AuthorizationGateDiagnostics.ReadUserId(attribution, httpContext),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return verdict switch
         {
-            return null;
-        }
+            SessionOwnershipVerdict.OwnerRequired => Refused(
+                "Session owner required",
+                RunAdmissionRules.SessionOwnerRequiredDetail(sessionId!)),
 
-        var record = await store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
-        var userId = AuthorizationGateDiagnostics.ReadUserId(attribution, httpContext);
-
-        if (record is null)
-        {
-            // The run would OPEN this session. Refusing an unidentified caller
-            // here is the same decision AgentSessionManager makes at the write
-            // itself; making it now means the model is never called for a turn
-            // whose session cannot be kept.
-            return settings.RequireAuthenticatedOwner && userId is null
-                ? Refused(
-                    "Session owner required",
-                    $"Session '{sessionId}' cannot be opened: session ownership is on and no " +
-                    "authenticated identity could be resolved to own it.")
-                : null;
-        }
-
-        if (record.OwnerId is not { } ownerId)
-        {
-            // An unowned row from before ownership was turned on. Reachable by
-            // default; refused outright when the deployment asks for it.
-            //
-            // 🚨 No management exemption here, unlike DeniesAsync. That
-            // exemption exists so support can READ a row it already sees in the
-            // management listing; starting a run APPENDS to the conversation,
-            // and an operator continuing somebody's conversation as themselves
-            // is not the same act as reading it.
-            return settings.RefuseUnownedSessions ? RefusedAsAnotherUsers() : null;
-        }
-
-        if (string.Equals(ownerId, userId, StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        // 🚨 The SAME refusal an unowned row gets above, word for word.
-        // Wording that told the two apart would let a caller learn, from a
-        // response it is already allowed to see, which sessions predate
-        // ownership — and the client's action is identical either way: this
-        // session cannot carry the run.
-        return RefusedAsAnotherUsers();
+            // 🚨 One refusal for "not yours" and "nobody's", word for word: wording that told the two apart would
+            // let a caller learn which sessions predate ownership.
+            SessionOwnershipVerdict.NotAuthorized => RefusedAsAnotherUsers(),
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -328,7 +301,7 @@ internal static class SessionOwnershipGate
     private static ProblemHttpResult RefusedAsAnotherUsers()
         => Refused(
             "Session not authorized",
-            "The session named in this request belongs to another user.");
+            RunAdmissionRules.SessionNotAuthorizedDetail);
 
     /// <summary>
     /// Builds the <c>403</c> an ownership refusal returns from a run-starting

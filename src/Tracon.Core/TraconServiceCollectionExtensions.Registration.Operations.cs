@@ -226,6 +226,8 @@ public static partial class TraconServiceCollectionExtensions
                 options => BindStructuredResponse(configurationSection.GetSection("StructuredResponse"), options));
             services.Configure<TraconSessionOwnershipOptions>(
                 options => BindSessionOwnership(configurationSection.GetSection("SessionOwnership"), options));
+            services.Configure<TraconSessionOptions>(
+                options => BindSessions(configurationSection.GetSection("Sessions"), options));
             services.Configure<TraconWorkspaceOptions>(
                 options => BindWorkspace(configurationSection.GetSection("Workspace"), options));
 
