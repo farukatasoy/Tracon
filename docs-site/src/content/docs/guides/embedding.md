@@ -455,13 +455,13 @@ await summarizer!.RunAsync("Summarize it.");
 The catalog checks the values against the agent's schema, compiles the agent for exactly those
 values, and still applies every decorator, so the run is recorded, its tools are authorized and it is
 replayable with the same text. The run authorization handler, session ownership and the tenant quota are
-not part of this call: [ask them first](#ask-the-run-gates-before-you-run-an-agent). Open your own tenant and attribution scope around the call, in the worker's own body,
+not part of this call: [ask them first](#check-the-run-gates-before-you-run-an-agent). Open your own tenant and attribution scope around the call, in the worker's own body,
 as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
 `TraconParameterException` carries. To check what an agent declares before you run it, call
 `catalog.DescribeAsync(name)`: [Ask what an agent declares](/concepts/agents/#ask-what-an-agent-declares).
 `samples/Tracon.Embedded` runs this from its job worker.
 
-### Ask the run gates before you run an agent
+### Check the run gates before you run an agent
 
 Three checks stand in front of Tracon's HTTP endpoints: the
 [run authorization handler](#6--run-and-session-authorization), session ownership and the tenant's quota.

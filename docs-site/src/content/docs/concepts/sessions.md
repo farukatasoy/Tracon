@@ -51,7 +51,7 @@ that runs on it and is never saved leaves a conversation no record names, and th
 provider writes each turn to the conversation as the turn ends, so a later turn you did not save is still there; with
 the in-memory default the history is part of the saved state, and a turn you did not save is lost. A turn that is
 canceled writes nothing ([below](#a-canceled-turn)). The checks in front of the HTTP endpoints (run authorization,
-session owner, quota) are not part of these calls: ask [`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent).
+session owner, quota) are not part of these calls: ask [`RunAdmission`](/guides/embedding/#check-the-run-gates-before-you-run-an-agent).
 
 The identity stamp matters: the session id is written into the session's own state
 bag, so it survives serialization. A restored session knows which session it is, which
@@ -146,7 +146,7 @@ foreach (var message in page ?? [])
 The result is `null` when the current tenant has no session with that id. `skip` counts messages from the start of
 the conversation. The call checks the tenant, not the owner: session ownership is a gate in front of the HTTP
 endpoints, so a host that shows a conversation to a user asks
-[`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent) first. Reading does not claim the
+[`RunAdmission`](/guides/embedding/#check-the-run-gates-before-you-run-an-agent) first. Reading does not claim the
 session or save it.
 
 A provider-hosted live voice session writes into this same history: when it closes,
@@ -277,7 +277,7 @@ client open a session under someone else's name.
 |---|---|
 | `GET /api/sessions` | Only the caller's own sessions, narrowed **before** paging, so `take=3` returns three of *their* sessions |
 | `GET`/`DELETE`/`POST …/branch` on another user's session | `404`, byte for byte identical to a session that does not exist |
-| Starting a run against another user's session over HTTP | `403` — continuing a conversation reads its whole history back, so the run surface is guarded too. A run you start from .NET code is not compared with the owner; ask [`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent) first |
+| Starting a run against another user's session over HTTP | `403` — continuing a conversation reads its whole history back, so the run surface is guarded too. A run you start from .NET code is not compared with the owner; ask [`RunAdmission`](/guides/embedding/#check-the-run-gates-before-you-run-an-agent) first |
 | A branch of your own session | The copy inherits **your** ownership; branching is a copy, not a handover |
 | No identity can be resolved | The session is not opened at all: `403` with `errorType` `session_owner_required` |
 
