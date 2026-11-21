@@ -221,7 +221,7 @@ experiment, and automatic rollback is off until you configure it.
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
 | Session ownership | `Tracon:SessionOwnership` | A second boundary drawn under the tenant; off by default (`false`)<!-- claim:option TraconSessionOwnershipOptions.Enabled=false -->, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
-| Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; every run of a call tree adds its own tokens and cost when it ends, a background child after its root included; a crossed threshold can also be written into the triggering run's own event stream, off by default |
+| Quotas | Run admission at the HTTP endpoints; a host that runs agents in process asks `RunAdmission` | Enabled with an empty rule set, so no run is rejected until a rule exists; every run of a call tree adds its own tokens and cost when it ends, a background child after its root included; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant or globally; counted per instance, or for the whole deployment with `Tracon:RateLimit:Scope = Deployment` |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain that an HMAC key from `Tracon:Audit:ChainKeyId` signs; best-effort except for [eight fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
@@ -3130,6 +3130,17 @@ is not called again. One whose turn asked for approval but whose approval could 
 written fails with `tracon.job.approval-save-failed`, and its run closes `Failed`. Match
 on the code, never on the sentence around it.
 
+### A failed run still records what it spent
+
+A run that fails, or is canceled, keeps the tokens the provider reported before it ended.
+The run's `usage` and `cost`, and the tokens the tenant's quota counts, hold the total of
+every model call the run made: the calls before the one that failed, a response a content
+filter or the output limit turned into the error, and the usage of a stream that dropped after
+it reported its usage. Before, such a run said it spent nothing although the provider had
+billed the calls. A call that failed adds nothing, and a call is counted once however many layers
+read its answer. When the provider reported no usage, `usage` is `null`, not `0`. See
+[What a run carries](/concepts/runs/#what-a-run-carries) for how the cost is priced.
+
 ## Read next
 
 - [Runs and recording](/concepts/runs/) — what gets written, and when.
@@ -3207,6 +3218,19 @@ for each: `cachedInputCost` and `cacheWriteCost` are taken out of `inputCost` an
 at their own rates, so a run's total is the sum of all four terms and never only the
 first two. A counter the provider did not report is `null`, not `0`. A model with no
 write rate keeps its written tokens in `inputCost`, as before the rate existed.
+
+A run that ends `Failed` or `Canceled` keeps the tokens the provider reported before it
+ended. Every model call counts once, however the run ended: the calls of a tool loop whose
+third call failed, an answer a content filter or the output limit cut off, a stream that
+dropped after it reported its usage, a run a budget stopped, a run its caller canceled. The
+run's `usage`, its `cost` and the tokens the tenant's quota counts carry that total, the same
+as for a run that completed. A call that failed reports nothing and adds nothing; when a
+fallback model answered instead, only its answer counts, and the cost is priced at that
+model. When no usage was reported before the run ended (it failed on its first call, the
+provider reports no counts, or a stream was canceled before its usage arrived), `usage` is
+`null`, not `0`, `cost` is unknown, and the quota counts the run with no tokens. A child
+agent run writes its own usage on its own row, and the run above it never adds it a second
+time: `treeUsage` is where the two are added.
 
 A run can spend tokens on more than one model: the context compaction
 summarizer and the judge of an `aiJudge` loop criterion can run on models of
@@ -3740,6 +3764,14 @@ sequenceDiagram
 
 The caller drives it. Tracon does not decide when a conversation starts or ends.
 
+What the next turn finds depends on the save. A **new** session exists only in memory until you save it: a turn
+that runs on it and is never saved leaves a conversation no record names, and the next
+`GetOrCreateSessionAsync` opens a session with an empty history. For a session that already has a record, a SQL
+provider writes each turn to the conversation as the turn ends, so a later turn you did not save is still there; with
+the in-memory default the history is part of the saved state, and a turn you did not save is lost. A turn that is
+canceled writes nothing ([below](#a-canceled-turn)). The checks in front of the HTTP endpoints (run authorization,
+session owner, quota) are not part of these calls: ask [`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent).
+
 The identity stamp matters: the session id is written into the session's own state
 bag, so it survives serialization. A restored session knows which session it is, which
 is how the recording layer can put the right session id on a run without being told.
@@ -3761,9 +3793,15 @@ already reports as successful, with nothing anywhere saying so.
 Over HTTP that surfaces as `409 Conflict` on both `/api/agents/{name}/run` (a
 problem document whose `errorType` is `session_conflict`) and the OpenAI-compatible
 `/v1/responses` (an error envelope whose `error.type` is the same value). **Retry the
-turn**; the conflict means the conversation moved on, not that anything is broken. On
+turn** only after you have looked at what the conversation holds; the conflict means the conversation moved on, not that anything is broken. On
 a streaming request the response headers are already sent, so the same condition
 arrives as an `error` event in the stream instead of a status code.
+
+A refused save does not undo the turn. A SQL provider writes the turn's messages to the conversation as the turn ends,
+before the save, so the turn that lost the race is in the conversation the next turn reads. That is why a retry can send
+a message the conversation already holds: before you retry, read the history
+(`AgentSessionManager.ReadHistoryAsync`) and look. Two concurrent first turns of a new session each open their own
+conversation, and the loser's conversation is not reachable from any record.
 
 A request that **answers a pending call** (a tool approval, a tool input or a client tool
 result) takes the session's generation before it applies the answer. The call is pending in
@@ -3801,20 +3839,76 @@ restored after an upgrade.
 
 ## Reading a conversation back
 
-`GET /api/sessions/{sessionId}` returns metadata plus `messages` — but `messages` is
-`null` when the configured storage cannot expose a readable history. With in-memory
-storage the history lives inside an opaque provider blob; `state` always carries that
-raw blob, and it is not a chat log.
+`GET /api/sessions/{sessionId}` returns metadata plus `messages`, the conversation in order. The messages are
+read through the registered chat history provider, with in-memory storage and with a SQL provider alike, so
+they are what the agent itself sees, tool calls and tool results included. `messages` is `null` only when the
+history could not be read: the agent no longer exists, or it can no longer restore the stored state. An agent
+that builds its own chat history instead of taking the registered provider shows no messages on SQL storage.
+`state` always carries the raw session state, and it is not a chat log.
 
-With a SQL provider the history is stored as ordered items, so messages come back in
-sequence order. That ordering is not cosmetic: the index of a message **is** the
+The messages come back in sequence order. That ordering is not cosmetic: the index of a message **is** the
 sequence number the branch endpoint takes.
+
+From your own code, ask the session manager. It reads the same history, a page at a time:
+
+```csharp
+var sessions = provider.GetRequiredService<AgentSessionManager>();
+
+var page = await sessions.ReadHistoryAsync(agent, "chat-42", skip: 0, take: 50);
+
+foreach (var message in page ?? [])
+{
+    Console.WriteLine($"{message.Role}: {message.Text}");
+}
+```
+
+The result is `null` when the current tenant has no session with that id. `skip` counts messages from the start of
+the conversation. The call checks the tenant, not the owner: session ownership is a gate in front of the HTTP
+endpoints, so a host that shows a conversation to a user asks
+[`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent) first. Reading does not claim the
+session or save it.
 
 A provider-hosted live voice session writes into this same history: when it closes,
 the conversation's transcript is appended as ordinary user and assistant messages, so
 `GET /api/sessions/{sessionId}` shows what was actually said. That write is a
 retention decision and can be switched off — see
 [voice privacy and retention](/guides/voice/#privacy-and-retention).
+
+## A canceled turn
+
+A turn writes its messages to the history when it ends. A turn that is canceled does not end, so it writes nothing: the
+user's message and the part of the answer that streamed are not in the history, and the next turn answers as if the
+message had never been sent. Saving the session after the cancellation does not bring them back, because there is
+nothing to save. The run is recorded as `Canceled`.
+
+To keep such a turn, turn on `Tracon:Sessions:KeepCanceledTurns`. A **streamed** turn the client cancels after the model
+began to answer is then written: the user's message, and the text that had streamed with a note that the answer was cut
+off, so the next turn sees what was asked and what the user saw. A cancel before the first piece of the answer writes
+nothing, because the message has not been accepted yet and the content guards have not necessarily screened it. A turn
+that is not streamed writes nothing. The kept text is user content: it is subject to the same retention and erasure as the
+rest of the history.
+
+A host that runs agents from its own code decides for itself and calls `AgentSessionManager.RecordCanceledTurnAsync` from the
+place that catches the cancellation:
+
+```csharp
+var sessions = provider.GetRequiredService<AgentSessionManager>();
+var session = await sessions.GetOrCreateSessionAsync(agent, "chat-42");
+
+try
+{
+    await agent.RunAsync("Summarize it.", session);
+}
+catch (OperationCanceledException)
+{
+    // The write goes around the content guards: only keep a message the model had started to answer, or screen it yourself.
+    await sessions.RecordCanceledTurnAsync(
+        agent,
+        session,
+        [new ChatMessage(ChatRole.User, "Summarize it.")],
+        partialAnswer: null);
+}
+```
 
 ## Branching
 
@@ -3902,7 +3996,7 @@ client open a session under someone else's name.
 |---|---|
 | `GET /api/sessions` | Only the caller's own sessions, narrowed **before** paging, so `take=3` returns three of *their* sessions |
 | `GET`/`DELETE`/`POST …/branch` on another user's session | `404`, byte for byte identical to a session that does not exist |
-| Starting a run against another user's session | `403` — continuing a conversation reads its whole history back, so the run surface is guarded too |
+| Starting a run against another user's session over HTTP | `403` — continuing a conversation reads its whole history back, so the run surface is guarded too. A run you start from .NET code is not compared with the owner; ask [`RunAdmission`](/guides/embedding/#ask-the-run-gates-before-you-run-an-agent) first |
 | A branch of your own session | The copy inherits **your** ownership; branching is a copy, not a handover |
 | No identity can be resolved | The session is not opened at all: `403` with `errorType` `session_owner_required` |
 
@@ -4023,13 +4117,23 @@ Attachments are uploaded independently and referenced from messages; the bytes l
 storage and only a small reference travels with a message. The upload's type is
 decided by inspecting its magic bytes, not by the `Content-Type` the client claims.
 
-Deleting a session deletes the attachments it owns, the conversation memory records it produced
+Deleting a session deletes the attachments it owns, its chat history, the conversation memory records it produced
 (see [Context and memory](/guides/context-and-memory/#remember-a-user-across-sessions)), and the files of
-its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session). Every way to delete
+its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session). On SQL storage the chat
+history is a conversation of its own, and only the state of the session says which one, so Tracon deletes it, with its
+messages, before the session record goes; in-memory storage keeps the history inside the record. Every way to delete
 a session does the same: `DELETE /api/sessions/{id}`, `DELETE /v1/conversations/{id}`, and the session store
 that Tracon registers for the Microsoft Agent Framework. The session record goes last, so a step that fails
 leaves the session in place and a repeat request finishes the work. A session that does not exist deletes
-nothing, and the attachments uploaded to its id stay. You can also call
+nothing, and the attachments uploaded to its id stay.
+
+Two histories are not reached this way. A run that has no session leaves a conversation of its own that no session
+names, so deleting sessions does not delete it; the retention period for `conversations`, or a
+[data subject erasure](/concepts/governance/#data-subject-rights) that names the conversation, does. And a run that
+is still going when you delete its session writes its conversation again, with only that turn in it, so cancel the
+run before you delete the session.
+
+You can also call
 `DELETE /api/attachments/{id}` for one attachment, and the orphan-attachment retention
 target cleans uploads that never become part of a session. Individual deletion is a
 hard delete: an older message that still contains the reference will no longer be able
@@ -12628,12 +12732,57 @@ await summarizer!.RunAsync("Summarize it.");
 ```
 
 The catalog checks the values against the agent's schema, compiles the agent for exactly those
-values, and still applies every decorator, so the run is recorded, governed and replayable with the
-same text. Open your own tenant and attribution scope around the call, in the worker's own body,
+values, and still applies every decorator, so the run is recorded, its tools are authorized and it is
+replayable with the same text. The run authorization handler, session ownership and the tenant quota are
+not part of this call: [ask them first](#ask-the-run-gates-before-you-run-an-agent). Open your own tenant and attribution scope around the call, in the worker's own body,
 as above. [Give a value from .NET code](/concepts/agents/#give-a-value-from-net-code) lists what
 `TraconParameterException` carries. To check what an agent declares before you run it, call
 `catalog.DescribeAsync(name)`: [Ask what an agent declares](/concepts/agents/#ask-what-an-agent-declares).
 `samples/Tracon.Embedded` runs this from its job worker.
+
+### Ask the run gates before you run an agent
+
+Three checks stand in front of Tracon's HTTP endpoints: the
+[run authorization handler](#6--run-and-session-authorization), session ownership and the tenant's quota.
+A run you start from your own code does not pass them. `catalog.ResolveAsync(...)` followed by `RunAsync`
+records the run and authorizes its tools, and that is all: queued runs, approval resumes and scheduled
+triggers start with no caller to check, so the checks sit at the doors that have one.
+
+A host that runs agents on behalf of a user asks `RunAdmission` itself, first:
+
+```csharp
+var admission = provider.GetRequiredService<RunAdmission>();
+
+var decision = await admission.CheckAsync("summarizer", sessionId: "chat-42");
+
+if (decision.IsAllowed)
+{
+    await agent.RunAsync("Summarize it.");
+}
+else
+{
+    // decision.Denial says which check refused; decision.Reason is the text the HTTP endpoints give.
+    Console.WriteLine($"{decision.Denial}: {decision.Reason}");
+}
+```
+
+The answer is the one the HTTP run endpoints give. The registered `IRunAuthorizationHandler` decides first
+(a handler that throws denies the run), then session ownership, then the quota. The tenant comes from your
+`ITenantContext`. The user comes from an open `AmbientRunAttributionScope`, and otherwise from
+`IRunAttributionContext`; that is the identity the session manager records as the owner of a session it
+opens, so the user who passes the check is the user who owns the session. A refusal is a value, not an
+exception. For a spent quota it carries the metric, the period, the limit, the amount used and when the
+counter resets.
+
+| Check | `RunAdmission` | A plain `RunAsync` |
+|---|---|---|
+| Run authorization handler | asked | not asked |
+| Session ownership | compared with the session's owner | the owner is recorded for a new session, never compared |
+| Tenant quota | read at the door | not read; the run's consumption is still counted when it ends |
+| Tool authorization | not its job | applied |
+
+`CheckAsync` runs no model, opens no session and spends no quota; you start the run. The quota is read at
+the door and counts runs that already ended, so simultaneous callers can pass it together.
 
 ### Check a definition before you save it
 
@@ -18207,7 +18356,16 @@ nothing is eligible for deletion. Eligible rows are deleted only when the
 save a recurring schedule for it, on a host that runs the job worker. When you enable configuration defaults, run events
 default to 30 days, tool invocations to 90 days, traces to 14 days, completed jobs to
 30 days, idempotency keys to one day, and run inputs to 30 days. Session and
-conversation deletion still require an explicit policy.
+conversation deletion still need an age you set yourself, in configuration or in a
+database policy.
+
+Expiring a session also deletes its chat history, which is a conversation of its own
+in SQL storage, together with the files of its workspace and its conversation memory
+records. This happens whatever the rule for the `conversations` target says: if you
+keep conversations for audit and expire sessions, the history of an expired session is
+gone with it. The `conversations` target removes every conversation whose last write
+is older than its age, whether or not a session still names it. It is the only target
+that reaches the conversations of runs that have no session.
 
 Preview a retention rule before you execute it. If archival is enabled but no
 `IArchiveSink` is registered, Tracon does not delete the rows.
@@ -18879,6 +19037,10 @@ event naming the primary and fallback bindings, and cost and the `runs.model_id`
 column both reflect the model that actually answered — not the primary
 binding. `RunStatistics.ByModel` groups by the real model too.
 
+A call that fails on one link reports no usage and adds nothing to the run: only the
+link that answered counts, and a run that fails after a fallback answered keeps that
+answer's tokens.
+
 This applies to the agent's own model binding. The context compaction summarizer
 and the judge of an `aiJudge` loop criterion call models on bindings of their own,
 and those bindings can have fallbacks too. When one of them falls back, the run
@@ -19054,6 +19216,10 @@ running one.
 
 Canceling a root run propagates to its child runs. Canceling one child does not cancel
 the root or its siblings.
+
+A canceled run keeps the tokens its model reported before it stopped: its `usage`, its
+`cost` and the tokens the tenant's quota counts hold them, the same as for a run that
+failed. A run canceled before any usage arrived has `usage: null` and counts no tokens.
 
 ## Reconcile runs left behind by a crash
 
@@ -19254,6 +19420,10 @@ call from starting](#a-spent-budget-stops-a-tool-call-from-starting)). The run e
 which setting raises it. A cost limit falls back to the token limit for a
 model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
 measured, so it cannot be enforced.
+
+The run a budget stops keeps what it spent: its `usage` holds the tokens of the model calls
+before the refusal, and the tenant's quota and the run's cost count the same total. The call
+the budget refused never reached the provider and adds nothing.
 
 `MaxTotalCost` counts more than model tokens. What a workflow function node or a tool
 [reported beyond tokens](/concepts/workflow-function-nodes/#report-what-a-node-spent-beyond-tokens)
@@ -25229,6 +25399,7 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "<value>"
 | `Tracon:RunReconciliation` | `RunReconciliationOptions` | `AddTracon()` |
 | `Tracon:Scheduling` | `TraconSchedulingOptions` | `AddTracon()`; `UseScheduling()` can override from code |
 | `Tracon:SessionOwnership` | `TraconSessionOwnershipOptions` | `AddTracon()`; keys in [Sessions](/concepts/sessions/) |
+| `Tracon:Sessions` | `TraconSessionOptions` | `AddTracon()`; `KeepCanceledTurns`, see [A canceled turn](/concepts/sessions/#a-canceled-turn) |
 | `Tracon:SingletonExecution` | `SingletonExecutionOptions` | `AddTracon()` |
 | `Tracon:StructuredResponse` | `TraconStructuredResponseOptions` | `AddTracon()` |
 | `Tracon:TenantProviders` | `TraconTenantProviderOptions` | `AddTracon()` |
@@ -25785,8 +25956,8 @@ only after retention is enabled. A database policy for a target takes precedence
 | `WorkflowCheckpoints` | 7 days after completion; a waiting workflow's are kept | `false` |
 | `SkillScriptGrants` | 30 days after expiry or revocation | `false` |
 | `Attachments` | 7 days for orphaned rows: no session, and no waiting, running, or recently finished workflow run with the session id; stored bytes go first | `false` |
-| `Sessions` | Disabled, `null` | `false` |
-| `Conversations` | Disabled, `null` | `false` |
+| `Sessions` | Disabled, `null`; an expired session takes its chat history, workspace files and conversation memory with it | `false` |
+| `Conversations` | Disabled, `null`; removes every conversation older than its age, including those of runs without a session | `false` |
 | `IdempotencyKeys` | 1 day | `false` |
 | `RunInputs` | 30 days; a waiting workflow's row is kept | `false` |
 | `VoiceSessions` | 30 days | `false` |

@@ -2576,7 +2576,7 @@ namespace Tracon.Client.Generated
         /// Returns a session's metadata and chat history.
         /// </summary>
         /// <remarks>
-        /// 'messages' is the readable chat history and is null when the configured session storage cannot expose one — with an in-memory setup the history lives inside an opaque state blob. 'state' always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 — identical to a session that does not exist, so a denial never confirms the session's existence. With session ownership turned on, another user's session answers the same 404.
+        /// 'messages' is the readable chat history, read through the registered chat history provider with in-memory storage and with a SQL provider alike. It is null only when the history could not be read: the agent no longer exists or can no longer restore the stored state. 'state' always carries the raw session state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 — identical to a session that does not exist, so a denial never confirms the session's existence. With session ownership turned on, another user's session answers the same 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>

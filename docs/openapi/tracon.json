@@ -1182,7 +1182,7 @@
           "Sessions"
         ],
         "summary": "Returns a session\u0027s metadata and chat history.",
-        "description": "\u0027messages\u0027 is the readable chat history and is null when the configured session storage cannot expose one \u2014 with an in-memory setup the history lives inside an opaque state blob. \u0027state\u0027 always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 \u2014 identical to a session that does not exist, so a denial never confirms the session\u0027s existence. With session ownership turned on, another user\u0027s session answers the same 404.",
+        "description": "\u0027messages\u0027 is the readable chat history, read through the registered chat history provider with in-memory storage and with a SQL provider alike. It is null only when the history could not be read: the agent no longer exists or can no longer restore the stored state. \u0027state\u0027 always carries the raw session state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects. If a registered IRunAuthorizationHandler denies the caller, the response is 404 \u2014 identical to a session that does not exist, so a denial never confirms the session\u0027s existence. With session ownership turned on, another user\u0027s session answers the same 404.",
         "operationId": "TraconGetSession",
         "parameters": [
           {
