@@ -282,6 +282,7 @@ Tracon.RetentionRun.Id
 Tracon.RetentionRun.StartedAt
 Tracon.RetentionRun.Target
 Tracon.RetentionRun.TenantId
+Tracon.RunAdmissionDecision.IsAllowed
 Tracon.RunAgentStatistics.AgentName
 Tracon.RunAgentStatistics.FailedRuns
 Tracon.RunAgentStatistics.TotalRuns

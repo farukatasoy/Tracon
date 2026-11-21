@@ -177,6 +177,10 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconSessionOwnershipOptions>, TraconSessionOwnershipOptionsValidator>());
 
+        // How a conversation is written. Same rationale: carries its own SectionName and requires no
+        // separate Use...() call; a canceled turn is not kept until a deployment asks for it.
+        UnreadableConfigurationValidator.Add<TraconSessionOptions>(services);
+
         // Session workspace limits. Same rationale: carries its own SectionName, requires no
         // separate Use...() call. The workspace itself is off until a definition turns it on; the
         // limits apply only then.
