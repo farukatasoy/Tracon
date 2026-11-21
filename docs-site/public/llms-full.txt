@@ -8524,7 +8524,7 @@ Text is the only input kind read: image, audio, video and document parts of a me
 
 An agent can declare [parameters](/concepts/agents/#parameters): named placeholders in its instructions that a run
 fills with values. An AG-UI request cannot supply them unless the host allows it, because **a value becomes part
-of the agent's instructions**. The option is off by default:
+of the agent's instructions**. The option, `TraconAGUIOptions.AcceptForwardedParameters`, is off by default:
 
 ```csharp
 app.MapTracon();
