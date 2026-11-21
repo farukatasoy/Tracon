@@ -905,16 +905,34 @@ public sealed class AgentSessionManager
         public string? OwnerId { get; } = ownerId;
     }
 
-    /// <summary>Deletes the session, and the copy of its content that conversation memory keeps.</summary>
+    /// <summary>
+    /// Deletes the session, and the copies of its content that are not part of its record: its chat history on SQL storage,
+    /// the files of its workspace and the copy that conversation memory keeps.
+    /// </summary>
     /// <param name="sessionId">The session identity.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> if a deletion occurred.</returns>
     /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
     /// <remarks>
-    /// The copy goes FIRST and only for a session that exists: a copy that cannot be erased fails the
+    /// <para>
+    /// The copies go FIRST and only for a session that exists: a copy that cannot be erased fails the
     /// call with the session still in place, so a repeat call finds it and finishes the erasure. Erasing after
     /// the delete would leave a copy no repeat call could reach. The attachments of the session are not deleted
     /// here; <c>SessionDeletion</c> is the path that deletes them too.
+    /// </para>
+    /// <para>
+    /// With a SQL provider the chat history is a conversation of its own, and only the state of the session says which
+    /// one. It is read from the session's stored state (through the session's agent, or as JSON when that agent is gone or
+    /// cannot be compiled) and deleted with its messages before the record goes. A state that does not have the shape the
+    /// conversation id is read from leaves the history in place; the call logs it and still deletes the session. With
+    /// in-memory storage the history is part of the session's state and goes with the record.
+    /// </para>
+    /// <para>
+    /// A run that is still writing the history of the session when it is deleted writes its conversation again, with that
+    /// turn alone in it, and no session names it any more: cancel or wait for the run before the delete. A run that has no
+    /// session leaves a conversation of its own, which this call does not reach; the retention period for conversations
+    /// does.
+    /// </para>
     /// </remarks>
     public ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
         => DeleteSessionAsync(sessionId, null, cancellationToken);

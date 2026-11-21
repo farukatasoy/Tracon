@@ -310,6 +310,16 @@ internal static class SqlPersistenceRegistration
         // compiles; if not registered, MAF falls back to its in-memory default.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ChatHistoryProvider, SqlChatHistoryProvider>());
 
+        // The history of a session goes with the session: deleting it and the retention period of the sessions run this
+        // eraser before they delete the record, because only the record's state names the conversation. TryAdd, not Replace:
+        // it is one more eraser beside the others, and the two-argument overload is what lets the enumerable tell its
+        // implementations apart. The resolver is asked for lazily: this is built with the stores, and the catalog it needs is not.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubjectContentEraser, SessionChatHistoryEraser>(
+            static provider => new SessionChatHistoryEraser(
+                provider.GetRequiredService<SqlStoreContext>(),
+                () => provider.GetRequiredService<SessionConversationResolver>(),
+                provider.GetRequiredService<ILogger<SessionChatHistoryEraser>>())));
+
         // Attachments. When IAttachmentStorage is registered (S3/Blob), the
         // content lives there; this store only holds the metadata.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IAttachmentStore>(

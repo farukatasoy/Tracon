@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Agents.AI;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -15,7 +17,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <summary>
 /// Every path that deletes a session deletes the same things —
 /// the session record, the copy of its content that conversation memory keeps,
-/// and its attachments.
+/// its attachments, and (on SQL storage) its chat history.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -377,6 +379,149 @@ public sealed class SessionDeletionPathTests
             agent, new AgentSessionStoreKey(" "), TestContext.Current.CancellationToken));
     }
 
+    [Theory]
+    [MemberData(nameof(DeleteEndpoints))]
+    public async Task Deleting_a_session_deletes_its_chat_history_on_SQL_storage(string route)
+    {
+        using var database = new TempSqliteDatabase("session-history-delete");
+        await using var host = await StartOnSqliteAsync(database);
+        var conversationId = await CreateAndRunAsync(host);
+
+        Count(database, "conversations").ShouldBe(1, "the run wrote the chat history of the session");
+        Count(database, "conversation_items").ShouldBeGreaterThan(0);
+
+        using var deleted = await host.Client.DeleteAsync(
+            new Uri(string.Format(CultureInfo.InvariantCulture, route, conversationId), UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        deleted.IsSuccessStatusCode.ShouldBeTrue();
+        Count(database, "conversations").ShouldBe(0, "the history is named only by the state of the session, and the session is gone");
+        Count(database, "conversation_items").ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task The_bridge_deletes_the_chat_history_of_the_session_it_deletes_on_SQL_storage()
+    {
+        using var database = new TempSqliteDatabase("session-history-bridge");
+        await using var host = await StartOnSqliteAsync(database);
+        var (store, agent) = ResolveBridge(host);
+        var conversationId = await CreateAndRunAsync(host);
+
+        Count(database, "conversations").ShouldBe(1);
+
+        await store.DeleteSessionAsync(agent, new AgentSessionStoreKey(conversationId), TestContext.Current.CancellationToken);
+
+        Count(database, "conversations").ShouldBe(0);
+        Count(database, "conversation_items").ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Deleting_a_session_in_one_tenant_leaves_the_chat_history_of_the_same_id_in_another_tenant()
+    {
+        using var database = new TempSqliteDatabase("session-history-tenants");
+        await using var host = await TraconTestHost.StartAsync(builder => builder
+            .UseSqlite(database.ConnectionString)
+            .AddAgent(TestData.Definition())
+            .UseTenancy(static options =>
+            {
+                options.Enabled = true;
+                options.AllowHeaderResolution = true;
+            }));
+
+        await RunInTenantAsync(host, TenantAlfa, "shared-id");
+        await RunInTenantAsync(host, TenantBeta, "shared-id");
+        Count(database, "conversations").ShouldBe(2);
+
+        using (var deleted = await host.Client.SendAsync(
+            Request(HttpMethod.Delete, "/tracon/api/sessions/shared-id", TenantAlfa),
+            TestContext.Current.CancellationToken))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        Count(database, "conversations").ShouldBe(1, "tenant-beta's history is not tenant-alfa's to delete");
+        Count(database, "conversation_items").ShouldBeGreaterThan(0);
+
+        using var betaSession = await host.Client.SendAsync(
+            Request(HttpMethod.Get, "/tracon/api/sessions/shared-id", TenantBeta),
+            TestContext.Current.CancellationToken);
+
+        betaSession.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task The_retention_period_of_the_sessions_deletes_their_chat_history_through_the_registered_store()
+    {
+        using var database = new TempSqliteDatabase("session-history-retention");
+        await using var host = await StartOnSqliteAsync(database);
+        await CreateAndRunAsync(host);
+        Count(database, "conversations").ShouldBe(1);
+
+        var retention = host.Services.GetRequiredService<IRetentionStore>();
+
+        var deleted = await retention.DeleteBatchAsync(
+            RetentionTargets.Sessions,
+            tenantId: null,
+            DateTimeOffset.UtcNow.AddDays(1),
+            batchSize: 10,
+            TestContext.Current.CancellationToken);
+
+        deleted.ShouldBe(1);
+        Count(database, "conversations").ShouldBe(0);
+        Count(database, "conversation_items").ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_run_without_a_session_leaves_a_conversation_that_no_deletion_reaches()
+    {
+        // Measured limit: the run has no session record, so nothing names its conversation.
+        using var database = new TempSqliteDatabase("session-history-sessionless");
+        await using var host = await StartOnSqliteAsync(database);
+
+        using (var run = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents/kod-agent/run", UriKind.Relative),
+            new { message = "hello" },
+            TestContext.Current.CancellationToken))
+        {
+            run.EnsureSuccessStatusCode();
+            await run.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        }
+
+        Count(database, "sessions").ShouldBe(0, "no session was named, so none was saved");
+        Count(database, "conversations").ShouldBe(1);
+
+        var retention = host.Services.GetRequiredService<IRetentionStore>();
+
+        await retention.DeleteBatchAsync(
+            RetentionTargets.Sessions,
+            tenantId: null,
+            DateTimeOffset.UtcNow.AddDays(1),
+            batchSize: 10,
+            TestContext.Current.CancellationToken);
+
+        Count(database, "conversations").ShouldBe(1, "the sessions retention has no session to read the conversation from");
+    }
+
+    [Fact]
+    public async Task The_SQL_provider_adds_the_history_eraser_beside_the_others_and_in_memory_storage_has_none()
+    {
+        using var database = new TempSqliteDatabase("session-history-registration");
+
+        await using (var sql = await StartOnSqliteAsync(database))
+        {
+            // The eraser is internal to the provider, so it is found by its name.
+            var erasers = sql.Services.GetServices<ISubjectContentEraser>().Select(static eraser => eraser.GetType().Name).ToList();
+
+            erasers.ShouldContain("SessionChatHistoryEraser", StringComparer.Ordinal);
+            erasers.ShouldContain("SessionWorkspaceEraser", StringComparer.Ordinal, "the history eraser is one more, not a replacement");
+        }
+
+        await using var memory = await StartAsync();
+
+        memory.Services.GetServices<ISubjectContentEraser>().Select(static eraser => eraser.GetType().Name)
+            .ShouldNotContain("SessionChatHistoryEraser", StringComparer.Ordinal, "the history of an in-memory session is in its state and goes with the record");
+    }
+
     private static (TraconAgentSessionStore Store, AIAgent Agent) ResolveBridge(TraconTestHost host)
     {
         var agent = host.Services.GetRequiredService<AgentDefinitionCompiler>().Compile(TestData.Definition());
@@ -398,6 +543,33 @@ public sealed class SessionDeletionPathTests
         => TraconTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
             configureServices: configureServices);
+
+    private static Task<TraconTestHost> StartOnSqliteAsync(TempSqliteDatabase database)
+        => TraconTestHost.StartAsync(builder => builder
+            .UseSqlite(database.ConnectionString)
+            .AddAgent(TestData.Definition()));
+
+    /// <summary>Runs one turn of the agent in a named session of a tenant; the stream is read to its end, so the run is over.</summary>
+    private static async Task RunInTenantAsync(TraconTestHost host, string tenant, string sessionId)
+    {
+        using var request = Request(HttpMethod.Post, "/tracon/api/agents/kod-agent/run", tenant);
+        request.Content = JsonContent.Create(new { message = "hello", sessionId });
+
+        using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static long Count(TempSqliteDatabase database, string table)
+    {
+        using var connection = new SqliteConnection(database.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT COUNT(*) FROM tracon_{table}";
+
+        return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+    }
 
     private static async Task<string> CreateAndRunAsync(TraconTestHost host)
     {

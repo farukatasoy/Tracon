@@ -130,6 +130,9 @@ public sealed class SqlProviderRegistrationParityTests
             "says whether the provider's state is shared between processes, not where it is stored: each provider " +
             "Replaces Core's in-process default with its own value, and only the production profile reads it " +
             "(Tracon:Deployment:Instances above one)",
+        [typeof(ISubjectContentEraser)] =
+            "one of the erasers that delete the copy a session's content leaves outside its record; each provider " +
+            "adds its own beside the others (TryAddEnumerable), so no provider's registration replaces another's",
     };
 
     /// <summary>

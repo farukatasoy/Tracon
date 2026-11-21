@@ -50,9 +50,19 @@ public static class RetentionTargets
     public const string Attachments = "attachments";
 
     /// <summary>Serialized session state. User data; OFF by default.</summary>
+    /// <remarks>
+    /// An expired session goes with the copies of its content that live outside its record: its chat history (the
+    /// conversation a SQL provider keeps for it, with its messages), the files of its workspace and its conversation memory
+    /// records. They go whatever the rule for <see cref="Conversations"/> says.
+    /// </remarks>
     public const string Sessions = "sessions";
 
     /// <summary>Conversation history. Deletion cascades to its messages. User data; OFF by default.</summary>
+    /// <remarks>
+    /// The conversation of a session goes with the session when the <see cref="Sessions"/> target expires it. This target
+    /// removes every conversation whose last write is older than its age, whether or not a session still names it, and it
+    /// is the only target that reaches the conversations of runs that have no session.
+    /// </remarks>
     public const string Conversations = "conversations";
 
     /// <summary>
@@ -127,11 +137,16 @@ public static class RetentionTargets
 
     /// <summary>The targets that carry user data and are OFF by default.</summary>
     /// <remarks>
-    /// A policy can be created for these targets, but no row is deleted
-    /// unless <see cref="RetentionPolicy.Enabled"/> is explicitly set to
-    /// <see langword="true"/>. Configuration-based defaults
-    /// (<c>TraconRetentionOptions</c>) also do not apply to these
-    /// targets — only an explicit database policy takes effect.
+    /// <para>
+    /// Off by default means that no age is set for them, not that configuration is ignored. The configuration-based default
+    /// of each of these targets (<c>TraconRetentionOptions</c>) carries no <c>MaxAgeDays</c>, so nothing is deleted until an
+    /// operator sets one: either in configuration, which applies once <c>Enabled</c> is on and no database policy covers the
+    /// target, or in a database policy whose <see cref="RetentionPolicy.Enabled"/> is <see langword="true"/>.
+    /// </para>
+    /// <para>
+    /// The list is a classification, and nothing in the resolver reads it: these targets resolve like every other, a database
+    /// policy first and configuration only when there is none.
+    /// </para>
     /// </remarks>
     public static IReadOnlyList<string> UserDataTargets { get; } = [Sessions, Conversations];
 

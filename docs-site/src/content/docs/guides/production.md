@@ -310,7 +310,16 @@ nothing is eligible for deletion. Eligible rows are deleted only when the
 save a recurring schedule for it, on a host that runs the job worker. When you enable configuration defaults, run events
 default to 30 days, tool invocations to 90 days, traces to 14 days, completed jobs to
 30 days, idempotency keys to one day, and run inputs to 30 days. Session and
-conversation deletion still require an explicit policy.
+conversation deletion still need an age you set yourself, in configuration or in a
+database policy.
+
+Expiring a session also deletes its chat history, which is a conversation of its own
+in SQL storage, together with the files of its workspace and its conversation memory
+records. This happens whatever the rule for the `conversations` target says: if you
+keep conversations for audit and expire sessions, the history of an expired session is
+gone with it. The `conversations` target removes every conversation whose last write
+is older than its age, whether or not a session still names it. It is the only target
+that reaches the conversations of runs that have no session.
 
 Preview a retention rule before you execute it. If archival is enabled but no
 `IArchiveSink` is registered, Tracon does not delete the rows.

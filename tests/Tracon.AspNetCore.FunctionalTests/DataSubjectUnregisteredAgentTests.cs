@@ -47,6 +47,8 @@ public sealed class DataSubjectUnregisteredAgentTests
         reply.Json.GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
         reply.Json.GetProperty("rowsByTarget").GetProperty("sessions").GetInt32().ShouldBe(1);
         reply.Json.GetProperty("rowsByTarget").GetProperty("conversations").GetInt32().ShouldBe(1, "the conversation is in the count of what an erasure would delete");
+        reply.Json.GetProperty("rowsByTarget").TryGetProperty("session_chat_history", out _)
+            .ShouldBeFalse("the history of a session is counted once, under conversations: the eraser that deletes it with a session is not part of an erasure of a data subject");
 
         Count(database, Table.Sessions).ShouldBe(1);
         Count(database, Table.Conversations).ShouldBe(1);
@@ -78,7 +80,8 @@ public sealed class DataSubjectUnregisteredAgentTests
         using var after = JsonDocument.Parse(entry.GetProperty("after").GetString()!);
         after.RootElement.GetProperty("unresolvedConversations").GetInt32().ShouldBe(0);
         after.RootElement.GetProperty("rowsByTarget").GetProperty("sessions").GetInt32().ShouldBe(1);
-        after.RootElement.GetProperty("rowsByTarget").GetProperty("conversations").GetInt32().ShouldBe(1);
+        after.RootElement.GetProperty("rowsByTarget").GetProperty("conversations").GetInt32().ShouldBe(1, "the erasure deletes the conversation inside its transaction and counts it once");
+        after.RootElement.GetProperty("rowsByTarget").TryGetProperty("session_chat_history", out _).ShouldBeFalse();
 
         var verify = await SendAsync(host, HttpMethod.Get, "audit/verify");
         verify.Json.GetProperty("status").GetString().ShouldBe("Valid", verify.Body);

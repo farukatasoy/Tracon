@@ -398,13 +398,23 @@ Attachments are uploaded independently and referenced from messages; the bytes l
 storage and only a small reference travels with a message. The upload's type is
 decided by inspecting its magic bytes, not by the `Content-Type` the client claims.
 
-Deleting a session deletes the attachments it owns, the conversation memory records it produced
+Deleting a session deletes the attachments it owns, its chat history, the conversation memory records it produced
 (see [Context and memory](/guides/context-and-memory/#remember-a-user-across-sessions)), and the files of
-its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session). Every way to delete
+its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session). On SQL storage the chat
+history is a conversation of its own, and only the state of the session says which one, so Tracon deletes it, with its
+messages, before the session record goes; in-memory storage keeps the history inside the record. Every way to delete
 a session does the same: `DELETE /api/sessions/{id}`, `DELETE /v1/conversations/{id}`, and the session store
 that Tracon registers for the Microsoft Agent Framework. The session record goes last, so a step that fails
 leaves the session in place and a repeat request finishes the work. A session that does not exist deletes
-nothing, and the attachments uploaded to its id stay. You can also call
+nothing, and the attachments uploaded to its id stay.
+
+Two histories are not reached this way. A run that has no session leaves a conversation of its own that no session
+names, so deleting sessions does not delete it; the retention period for `conversations`, or a
+[data subject erasure](/concepts/governance/#data-subject-rights) that names the conversation, does. And a run that
+is still going when you delete its session writes its conversation again, with only that turn in it, so cancel the
+run before you delete the session.
+
+You can also call
 `DELETE /api/attachments/{id}` for one attachment, and the orphan-attachment retention
 target cleans uploads that never become part of a session. Individual deletion is a
 hard delete: an older message that still contains the reference will no longer be able

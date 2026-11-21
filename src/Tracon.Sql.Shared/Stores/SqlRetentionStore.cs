@@ -73,8 +73,8 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// </param>
     /// <param name="logger">The logger for a content delete that fails; optional.</param>
     /// <param name="contentErasers">
-    /// The stores that keep a copy of a session's content outside SQL (conversation memory). A
-    /// session's copy is erased before the session goes. Empty when none is set up.
+    /// The erasers of the copies of a session's content that are not part of its row (its chat history, the files of its
+    /// workspace, conversation memory). A session's copies are erased before the session goes. Empty when none is set up.
     /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlRetentionStore(
@@ -429,20 +429,22 @@ internal sealed class SqlRetentionStore : IRetentionStore
     }
 
     /// <summary>
-    /// Deletes one batch of expired sessions: the copy of each session's content that lives outside
-    /// SQL first, the row second.
+    /// Deletes one batch of expired sessions: the copies of each session's content that are not part of
+    /// its row first (its chat history, the files of its workspace, the copy a host's vector store keeps), the row second.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A plain batch <c>DELETE</c> never reads the ids, so the copy a host's vector store keeps would
-    /// stay behind for good: nothing would name its session any more. So the batch is READ, the copies of
-    /// its sessions are erased, and only then are its rows deleted, by their keys.
+    /// A plain batch <c>DELETE</c> never reads the ids, so the chat history and the copy a host's vector
+    /// store keeps would stay behind for good: nothing would name their session any more, and the id of the
+    /// history is in the state of the row. So the batch is READ, the copies of its sessions are erased, and only
+    /// then are its rows deleted, by their keys.
     /// </para>
     /// <para>
     /// A copy that cannot be erased fails the run with the rows still in place, so the next run reads
     /// the same sessions again. The keys are deleted with the target's condition checked again: a session
     /// that was used in between (and so no longer expired) stays. Its earlier turns are no longer
-    /// remembered, but the mistake runs in the safe direction: a copy never outlives its session's row.
+    /// remembered and its history starts again, but the mistake runs in the safe direction: a copy never
+    /// outlives its session's row.
     /// </para>
     /// </remarks>
     private async ValueTask<int> DeleteSessionBatchAsync(
