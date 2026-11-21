@@ -9,7 +9,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// as JSON text on the requests after it, which replay the history the session keeps.
 /// </summary>
 /// <remarks>
-/// The guide for client-side tools says so in one sentence. The session keeps a result as JSON, in memory as well as in a
+/// This pins what happens today, and the guide for client-side tools says it in one sentence; it is a description of the
+/// current behavior and not a promise, so a change that makes the replay send the same text every time changes this test. The session keeps a result as JSON, in memory as well as in a
 /// database, and the provider's adapter writes a string that comes back from that history as a JSON string, quotes
 /// included. A caller that wants the model to read the same characters every time sends text it can read either way.
 /// </remarks>

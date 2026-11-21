@@ -186,8 +186,9 @@ For an agent whose instructions read `Hello {{customer}}, answer in a {{tone}} t
   continuation and the resume after an approval repeat them.
 - **Only `parameters` is read.** The tenant, the session (the thread) and the agent never come from `forwardedProps`.
   Every other key in it is the front end's own, and ignored.
-- **Names in the log, never values.** What Tracon logs and what a `RUN_ERROR` or a refusal says names the parameter
-  and never quotes its value.
+- **Names in Tracon's own log lines, never values.** What Tracon itself logs and what a `RUN_ERROR` or a refusal says
+  names the parameter and never quotes its value. A model provider that answers with an error quoting the instructions
+  puts that text in the server log through the failure logger, so keep the server log as protected as the instructions.
 
 Off, `forwardedProps` is not read at all: an agent with a required parameter cannot be started from AG-UI, and an
 agent whose parameters all have defaults runs on the defaults.
@@ -290,7 +291,7 @@ of the message as `(ref: …)`.
 No frame carries `rawEvent`. The protocol lets an event hold the provider's own update, and the converter
 fills it with the model id, the response id, the author name, the additional properties and the whole
 contents of the update. A browser has no use for that and should not see it, so Tracon removes it from every
-event. Read the event's own fields instead; the full record of a run is `GET /api/runs/{id}/events`.
+event. Read the event's own fields instead. The raw update is on the `update` frame of the streamed `POST /api/agents/{name}/run`, which needs the operator role, and the record of a run is `GET /api/runs/{id}/events`.
 
 A front end that closes the connection mid-run stops the run, and the run is recorded as `Canceled`.
 

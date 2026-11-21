@@ -15,11 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   What to do:
   - **If a browser can reach the endpoint, turn it on only for parameters you accept from the browser.** A value becomes part of the instructions, which the content guard does not read.
 
-- **No AG-UI frame carries `rawEvent` any more.** Every text and tool frame carried the framework's raw update (the model, the response identifier, the author name, the extra properties and the full contents). The same record is in `GET /api/runs/{id}/events`, which needs the operator role the browser should not hold.
+- **No AG-UI frame carries `rawEvent` any more.** Every text and tool frame carried the framework's raw update (the model, the response identifier, the author name, the extra properties and the full contents). The text and the tool call are in the event's own fields; the raw update is on the `update` frame of the streamed `POST /api/agents/{name}/run`, which needs the operator role.
   What to do:
   - **If a front end reads `rawEvent`, read the event's own fields.** The full record of a run is `GET /api/runs/{id}/events`.
 
-- **A chat front end has a key scope of its own: `ChatRun`.** The AG-UI endpoint asked for `RunsWrite`, which also opens about thirty other endpoints. It now accepts `ChatRun` or `RunsWrite`, and a key that holds only `ChatRun` reaches nothing else. A key without `ChatRun` cannot create one. The scope applies to API keys only; a claims principal passes on its role, and the guide shows how the host narrows the management group with its own policy.
+- **A chat front end has a key scope of its own: `ChatRun`.** The AG-UI endpoint asked for `RunsWrite`, which also opens about thirty other endpoints. It now accepts `ChatRun` or `RunsWrite`, and a key that holds only `ChatRun` reaches no other endpoint that asks for a scope. A key without `ChatRun` cannot create one. The scope applies to API keys only; a claims principal passes on its role, and the guide shows how the host narrows the management group with its own policy.
   What to do:
   - **If a browser holds a `RunsWrite` key only to chat, replace it with a `ChatRun` key.**
   - **If you regenerate a client from the OpenAPI document, regenerate it now.** `ApiKeyScope` has a new member.

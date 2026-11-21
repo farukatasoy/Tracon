@@ -121,7 +121,9 @@ and then adds the new message, so the history stays one the provider accepts. A 
 that carries the result is not closed that way: it answers the call. After a call was
 closed, a result for it is refused as already answered (`409`). The same closing
 happens on the AG-UI endpoint and for an agent you run from .NET code, and it survives
-a restart when sessions live in a database.
+a restart when sessions live in a database. It needs run recording to be on (the
+default): with `Recording:Enabled` off the run is not wrapped, nothing is written to the
+session at the end of a run, and a pending call stays in the history.
 
 ## A front end that speaks AG-UI
 

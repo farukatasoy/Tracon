@@ -131,13 +131,28 @@ internal static class AGUIInputMapper
 
         foreach (var parameter in supplied.EnumerateObject())
         {
-            if (parameter.Value.ValueKind != JsonValueKind.String)
+            string name;
+            string? value;
+
+            try
             {
+                name = parameter.Name;
+                value = parameter.Value.ValueKind == JsonValueKind.String ? parameter.Value.GetString() : null;
+            }
+            catch (InvalidOperationException)
+            {
+                // A lone surrogate escape is legal JSON syntax but not text: the name or the value cannot be read as a string.
                 return ParameterMapping.Refused(
-                    $"The value of the parameter '{parameter.Name}' in 'forwardedProps.{ForwardedParametersProperty}' must be a string.");
+                    $"A name or a value in 'forwardedProps.{ForwardedParametersProperty}' is not valid text.");
             }
 
-            values[parameter.Name] = parameter.Value.GetString()!;
+            if (value is null)
+            {
+                return ParameterMapping.Refused(
+                    $"The value of the parameter '{name}' in 'forwardedProps.{ForwardedParametersProperty}' must be a string.");
+            }
+
+            values[name] = value;
         }
 
         return values.Count == 0 ? ParameterMapping.None : ParameterMapping.Mapped(values);

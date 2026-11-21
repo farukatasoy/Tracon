@@ -114,7 +114,7 @@ decisions can be overridden or composed with your own rules — see
 | Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |
 | Tool output size limit | `MaxOutputBytes` (per tool) or `Tools.DefaultMaxOutputBytes` (installation-wide) | A result over the byte limit is trimmed into a JSON envelope before the model sees it; unlimited by default |
 | Hosted tools | `AddHostedTool(...)` | A web search, code interpreter, or file search the model provider runs inside the model call; a definition selects it by name in `ToolNames`, and no approval, permission, or timeout applies. A provider states what its API surface runs (`IHostedToolSupport`); a kind it would drop fails to compile and validation. One tool per kind. Each call is priced with `Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall` and is a tool event. See [Hosted tools](/guides/hosted-tools/) |
-| Client-side tools | `AddClientTool(...)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults`. An agent carrying one cannot be replayed in any tool mode — its call was never recorded, so no mode can answer it |
+| Client-side tools | `AddClientTool(...)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults`. A model answer that asks for a client tool and a server tool together runs the server tool first and then asks again for the client call; a client call nobody answers is closed with `The call was not answered.` when the next request is a new message (run recording must be on). An agent carrying one cannot be replayed in any tool mode — its call was never recorded, so no mode can answer it |
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
@@ -273,7 +273,7 @@ graph instead of reporting it.
 | Embeddable chat widget | `Tracon.UI`'s `embed.js` asset (served once `UseUI()` is registered) | A page you embed the widget in, running under its own origin |
 | MCP client | `Tracon.Mcp` and `UseMcp()` | Agents that consume tools from remote MCP servers |
 | MCP server | `UseMcpServer()` and `MapTraconMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
-| AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. See [AG-UI front ends](/guides/ag-ui/) |
+| AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. `TraconAGUIOptions.AcceptForwardedParameters` (off by default) lets the front end send run parameters in `forwardedProps.parameters`; an API key with the `ChatRun` scope reaches this endpoint and no other that asks for a scope; no frame carries `rawEvent`. See [AG-UI front ends](/guides/ag-ui/) |
 | A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents; a `contextId` continues a conversation scoped to the caller |
 | Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients |
 | Live voice sessions | `UseLiveVoice()`, a live provider, and `MapTracon()` | Browsers that speak to a provider-hosted model over WebRTC while Tracon supervises the session |
@@ -8560,8 +8560,9 @@ For an agent whose instructions read `Hello {{customer}}, answer in a {{tone}} t
   continuation and the resume after an approval repeat them.
 - **Only `parameters` is read.** The tenant, the session (the thread) and the agent never come from `forwardedProps`.
   Every other key in it is the front end's own, and ignored.
-- **Names in the log, never values.** What Tracon logs and what a `RUN_ERROR` or a refusal says names the parameter
-  and never quotes its value.
+- **Names in Tracon's own log lines, never values.** What Tracon itself logs and what a `RUN_ERROR` or a refusal says
+  names the parameter and never quotes its value. A model provider that answers with an error quoting the instructions
+  puts that text in the server log through the failure logger, so keep the server log as protected as the instructions.
 
 Off, `forwardedProps` is not read at all: an agent with a required parameter cannot be started from AG-UI, and an
 agent whose parameters all have defaults runs on the defaults.
@@ -8664,7 +8665,7 @@ of the message as `(ref: …)`.
 No frame carries `rawEvent`. The protocol lets an event hold the provider's own update, and the converter
 fills it with the model id, the response id, the author name, the additional properties and the whole
 contents of the update. A browser has no use for that and should not see it, so Tracon removes it from every
-event. Read the event's own fields instead; the full record of a run is `GET /api/runs/{id}/events`.
+event. Read the event's own fields instead. The raw update is on the `update` frame of the streamed `POST /api/agents/{name}/run`, which needs the operator role, and the record of a run is `GET /api/runs/{id}/events`.
 
 A front end that closes the connection mid-run stops the run, and the run is recorded as `Canceled`.
 
@@ -11258,7 +11259,9 @@ and then adds the new message, so the history stays one the provider accepts. A 
 that carries the result is not closed that way: it answers the call. After a call was
 closed, a result for it is refused as already answered (`409`). The same closing
 happens on the AG-UI endpoint and for an agent you run from .NET code, and it survives
-a restart when sessions live in a database.
+a restart when sessions live in a database. It needs run recording to be on (the
+default): with `Recording:Enabled` off the run is not wrapped, nothing is written to the
+session at the end of a run, and a pending call stays in the history.
 
 ## A front end that speaks AG-UI
 

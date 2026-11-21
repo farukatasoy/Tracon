@@ -154,6 +154,25 @@ public sealed class AGUIParameterTests
     }
 
     [Fact]
+    public async Task A_value_that_is_not_valid_text_is_refused_with_a_400_and_not_a_server_error()
+    {
+        // A lone surrogate escape is legal JSON syntax but cannot be turned into a string.
+        var model = Model();
+        await using var host = await StartAsync(model, acceptParameters: true);
+
+        var body = """
+            {"threadId":"t-surrogate","runId":"r1","messages":[{"id":"m1","role":"user","content":"hi"}],"tools":[],"context":[],
+             "state":{},"forwardedProps":{"parameters":{"customer":"\ud800"}}}
+            """;
+
+        var response = await host.PostAsync(Agent, body);
+
+        response.Status.ShouldBe(HttpStatusCode.BadRequest, response.Body);
+        response.Problem.GetProperty("title").GetString().ShouldBe("Invalid run parameters");
+        model.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task A_null_or_empty_parameters_property_supplies_nothing()
     {
         var model = Model();

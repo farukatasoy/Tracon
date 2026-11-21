@@ -29,7 +29,8 @@ public sealed class TraconAGUIOptions
     /// end needs, and keep the value short. A host that can produce the value on its own server should do that instead.
     /// </para>
     /// <para>
-    /// The log and the <c>RUN_ERROR</c> text carry the names of parameters, never their values.
+    /// Tracon's own log lines and the <c>RUN_ERROR</c> text carry the names of parameters, never their values. An error that
+    /// a model provider returns can quote the instructions, and the server log then holds that text.
     /// </para>
     /// </remarks>
     public bool AcceptForwardedParameters { get; set; }
