@@ -657,6 +657,19 @@ tracon
         },
     })
 
+    // Asks for a server tool and the client-side tool in ONE answer. Over AG-UI the client call is held back and the
+    // stream says so with a CUSTOM `tracon.client_call_withheld` event; `get_order_status` carries no approval flag, so a
+    // policy (Tracon:Demo:ToolApprovalPolicy=get_order_status=Required) is what makes the run wait.
+    .AddAgent(new AgentDefinition
+    {
+        Name = "mixed-support",
+        DisplayName = "Mixed Caller (held-back client call demo)",
+        Description = "Asks for a server tool and a client-side tool in one answer.",
+        Instructions = "Look the order up and read the cart.",
+        Model = new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoMixedModel },
+        ToolNames = ["get_order_status", "read_shopping_cart"],
+    })
+
     // Asks for two priced `narrate` calls in one turn. With a small
     // Tracon:AgentGraph:MaxTotalCost the second call does not start.
     .AddAgent(new AgentDefinition
@@ -1981,6 +1994,13 @@ app.MapTraconA2A();
 // endpoint. `support` is the agent to try: it carries the client-side tool read_shopping_cart (the front end runs it) and
 // cancel_order (waits for approval, which arrives as an AG-UI interrupt). Like the two above it needs MapTracon first.
 app.MapTraconAGUI();
+
+// A second pattern for the same endpoint, to see the two answer side by side and the same pattern refused at start.
+// Off by default, like the other demo hooks; the value is the pattern, for example `/chat/agui`.
+if (builder.Configuration["Tracon:Demo:AGUIExtraPattern"] is { Length: > 0 } extraAgUiPattern)
+{
+    app.MapTraconAGUI(extraAgUiPattern);
+}
 
 app.Run();
 

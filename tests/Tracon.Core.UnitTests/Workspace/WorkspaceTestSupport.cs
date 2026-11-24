@@ -36,6 +36,7 @@ internal static class WorkspaceTestSupport
         services.AddSingleton(new BuiltInToolGovernance(
             new AllowAllToolAuthorizationHandler(),
             TestData.OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             new StaticOptionsMonitor<TraconOptions>(new TraconOptions()),
             attribution: null,

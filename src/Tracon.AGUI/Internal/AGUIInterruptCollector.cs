@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using AGUI.Abstractions;
 using Microsoft.Extensions.AI;
@@ -39,6 +40,7 @@ internal sealed class AGUIInterruptCollector
         }
         """).RootElement.Clone();
 
+    private readonly ConcurrentQueue<CustomEvent> _customEvents = new();
     private readonly List<ToolApprovalRequestContent> _requests = [];
     private IReadOnlyList<PendingApprovalAnnouncement> _approvals = [];
     private IReadOnlyList<PendingToolInputAnnouncement> _inputs = [];
@@ -63,6 +65,39 @@ internal sealed class AGUIInterruptCollector
         _inputs = announcements;
 
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Receives the run's record that the model asked for a client tool together with a server tool and Tracon held the client
+    /// call back, and keeps it for the stream as a <c>CUSTOM</c> event.
+    /// </summary>
+    /// <param name="runEvent">The recorded <see cref="RunEventCustomTypes.ClientCallWithheld"/> event.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A completed task.</returns>
+    /// <remarks>
+    /// Called on the flow of the model call, which is not the flow that writes the stream, so the event waits in a queue
+    /// until <see cref="TakeCustomEvents"/> hands it over. The value is the event's own payload: the call and the tool, never the
+    /// arguments.
+    /// </remarks>
+    public ValueTask OnClientCallWithheldAsync(RunEvent runEvent, CancellationToken cancellationToken)
+    {
+        _customEvents.Enqueue(new CustomEvent
+        {
+            Name = RunEventCustomTypes.ClientCallWithheld,
+            Value = JsonSerializer.SerializeToElement(new { toolCallId = runEvent.ToolCallId, toolName = runEvent.ToolName }),
+        });
+
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>Takes the <c>CUSTOM</c> events that are waiting, oldest first.</summary>
+    /// <returns>The events; empty when none is.</returns>
+    public IEnumerable<CustomEvent> TakeCustomEvents()
+    {
+        while (_customEvents.TryDequeue(out var customEvent))
+        {
+            yield return customEvent;
+        }
     }
 
     /// <summary>Rewrites an update before the AG-UI converter sees it.</summary>

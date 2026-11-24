@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -34,8 +36,20 @@ namespace Tracon;
 /// changed object out again. A mixed response is rebuilt from copies; the objects that carry no withheld call pass
 /// through as they are.
 /// </para>
+/// <para>
+/// <strong>What it records.</strong> Each withheld call is written to the run as a
+/// <see cref="RunEventCustomTypes.ClientCallWithheld"/> event, so a run that ended without the client call can be told from a
+/// run in which the model never asked for it, and handed to the surface that streams the run
+/// (<see cref="AgentRunScope.AfterClientCallWithheldRecorded"/>). The event is written once the model's answer is complete and
+/// before the loop reads it. A write that fails is logged and the answer goes on: the notice is observability, and it never
+/// costs the run its answer.
+/// </para>
 /// </remarks>
-internal sealed class MixedCallWithholdingChatClient(IChatClient innerClient) : DelegatingChatClient(innerClient)
+/// <param name="innerClient">The client below.</param>
+/// <param name="logger">The logger a failed notice is reported to; <see langword="null"/> reports nowhere.</param>
+internal sealed class MixedCallWithholdingChatClient(
+    IChatClient innerClient,
+    ILogger<MixedCallWithholdingChatClient>? logger = null) : DelegatingChatClient(innerClient)
 {
     /// <inheritdoc />
     public override async Task<ChatResponse> GetResponseAsync(
@@ -50,9 +64,16 @@ internal sealed class MixedCallWithholdingChatClient(IChatClient innerClient) : 
             return response;
         }
 
-        return kinds.IsMixed(response.Messages.SelectMany(static message => message.Contents))
-            ? Without(response, kinds)
-            : response;
+        var contents = response.Messages.SelectMany(static message => message.Contents).ToList();
+
+        if (!kinds.IsMixed(contents))
+        {
+            return response;
+        }
+
+        await RecordWithheldAsync(contents, kinds, cancellationToken).ConfigureAwait(false);
+
+        return Without(response, kinds);
     }
 
     /// <inheritdoc />
@@ -94,9 +115,64 @@ internal sealed class MixedCallWithholdingChatClient(IChatClient innerClient) : 
 
         var mixed = kinds.IsMixed(held.SelectMany(static update => update.Contents));
 
+        // Written before the held updates go out: the loop runs the server calls only after it has them all, and the
+        // surface that streams the run has the notice by the time the first result is known.
+        if (mixed)
+        {
+            await RecordWithheldAsync(held.SelectMany(static update => update.Contents), kinds, cancellationToken).ConfigureAwait(false);
+        }
+
         foreach (var update in held)
         {
             yield return mixed ? Without(update, kinds) : update;
+        }
+    }
+
+    /// <summary>Writes one notice for each call the answer loses, and hands each to the surface that streams the run.</summary>
+    /// <param name="contents">The contents of the whole answer.</param>
+    /// <param name="kinds">The tools the request declares.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <remarks>
+    /// Outside a recorded run, and in a side-channel call (the compaction summarizer, a judge: its answer is not the run's),
+    /// nothing is written. The scope is read here, on the flow of the model call, and not kept: a streamed answer is
+    /// produced piece by piece on the caller's flow.
+    /// </remarks>
+    private async ValueTask RecordWithheldAsync(IEnumerable<AIContent> contents, ToolKinds kinds, CancellationToken cancellationToken)
+    {
+        if (TraconRunContext.Current is not { Writer: { } writer, SideChannelFallback: null } scope)
+        {
+            return;
+        }
+
+        foreach (var call in contents.OfType<FunctionCallContent>().Where(kinds.IsWithheld))
+        {
+            try
+            {
+                var runEvent = await writer.AppendReservedAsync(
+                    new RunEventDraft(RunEventType.Custom)
+                    {
+                        CustomType = RunEventCustomTypes.ClientCallWithheld,
+                        ToolName = call.Name,
+                        ToolCallId = call.CallId,
+                        Text = $"The model asked for the client tool '{call.Name}' in the same answer as a tool that runs on the server; the call was held back and the model may ask for it again.",
+                        Payload = JsonSerializer.Serialize(
+                            new ClientCallWithheldEventPayload { ToolCallId = call.CallId, ToolName = call.Name },
+                            TraconCoreJsonContext.Default.ClientCallWithheldEventPayload),
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                if (scope.AfterClientCallWithheldRecorded is { } surface)
+                {
+                    await surface(runEvent, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+            {
+                if (logger is { } log && log.IsEnabled(LogLevel.Warning))
+                {
+                    log.LogWarning(exception, "The notice that a call to the client tool '{ToolName}' was held back could not be recorded.", call.Name);
+                }
+            }
         }
     }
 

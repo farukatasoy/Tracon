@@ -110,6 +110,7 @@ public sealed class McpDiscoveryLoopTests
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null);
 

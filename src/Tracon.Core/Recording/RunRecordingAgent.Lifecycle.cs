@@ -171,10 +171,26 @@ public sealed partial class RunRecordingAgent
             budget.Account = new TreeAccount(tenantId, agentName, attribution.UserId, _services.QuotaEnforcer);
         }
 
+        // The record of what the caller bound; see TraconRunOptions.ParameterValues. An agent the catalog
+        // compiled for resolve-time values carries the same record as a marker (BoundParameterValues);
+        // the run option wins when both exist. The run records it and a tool of the root run reads it from the
+        // scope: one value, read once, here, in this synchronous body.
+        var markedValues = InnerAgent.GetService<BoundParameterValues>();
+        var parameterValues = runOptions?.ParameterValues ?? markedValues?.Values;
+
         var scope = new AgentRunScope
         {
             RunId = runId,
             RootRunId = runOptions?.RootRunId ?? runId,
+
+            // A sub-agent receives no values (the same rule as a call from a direct run), so only a root has them. Who
+            // supplied them is the surface's to say; a marker without a surface's word is the embedding code's own call,
+            // and anything else is read as the client's.
+            Parameters = depth == 0 ? parameterValues : null,
+            ParameterSource = runOptions?.ParameterSource
+                ?? (runOptions?.ParameterValues is null && markedValues is not null
+                    ? ParameterValueSource.Caller
+                    : ParameterValueSource.Client),
             Depth = depth,
             AgentName = agentName,
             TenantId = tenantId,
@@ -230,6 +246,7 @@ public sealed partial class RunRecordingAgent
             ToolInputAnswers = runOptions?.ToolInputAnswers,
             ToolInputs = new ToolInputLedger(),
             AfterLoopIterationRecorded = depth == 0 ? runOptions?.AfterLoopIterationRecorded : null,
+            AfterClientCallWithheldRecorded = depth == 0 ? runOptions?.AfterClientCallWithheldRecorded : null,
         };
 
         return new RunStart(
@@ -257,10 +274,8 @@ public sealed partial class RunRecordingAgent
             attribution.UserId,
             attribution.Labels,
 
-            // The record of what the caller bound; see TraconRunOptions.ParameterValues. An agent the catalog
-            // compiled for resolve-time values carries the same record as a marker (BoundParameterValues);
-            // the run option wins when both exist.
-            runOptions?.ParameterValues ?? InnerAgent.GetService<BoundParameterValues>()?.Values);
+            // The same record the scope holds; see above.
+            parameterValues);
     }
 
     /// <summary>

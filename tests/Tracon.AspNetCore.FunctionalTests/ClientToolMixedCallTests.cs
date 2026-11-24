@@ -93,6 +93,31 @@ public sealed class ClientToolMixedCallTests
         run.Status.ShouldBe(RunStatus.Completed);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_client_call_that_was_set_aside_is_recorded_as_an_event_with_its_call_id_and_tool_name(bool streaming)
+    {
+        await using var rig = await StartAsync();
+        rig.Server
+            .ThenCalls((BackendCallId, BackendTool, "{}"), ("call_client_first", ClientTool, "{}"))
+            .ThenCalls(ClientCallOnly)
+            .ThenAnswers("final answer");
+
+        await rig.RunAsync(NewMessage("check order 7 and open the page"), streaming);
+
+        var run = (await rig.RunsAsync()).ShouldHaveSingleItem();
+        var events = await rig.EventsTextAsync(run.Id);
+
+        // One notice for the one call the answer lost, naming the call the model gave it and the tool, and no argument.
+        var notices = events.Split('\n').Where(static line => line.Contains("tracon.client_call_withheld", StringComparison.Ordinal)).ToList();
+
+        // The payload is JSON inside the event's JSON, so its quotes are escaped as " in the line.
+        notices.ShouldHaveSingleItem().ShouldContain("\\u0022toolCallId\\u0022:\\u0022call_client_first\\u0022", Case.Sensitive);
+        notices[0].ShouldContain($"\\u0022toolName\\u0022:\\u0022{ClientTool}\\u0022", Case.Sensitive);
+        notices[0].ShouldNotContain("arguments", Case.Sensitive);
+    }
+
     [Fact]
     public async Task The_model_may_ask_for_the_client_call_with_other_arguments_and_the_caller_gets_the_second_ones()
     {

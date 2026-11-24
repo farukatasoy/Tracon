@@ -91,6 +91,18 @@ internal sealed class EchoModelProvider : IModelProvider
             SupportsTools = true,
         },
 
+        // Asks for the first tool that runs on the server and the first tool that runs on the client in ONE answer,
+        // then answers with what the server tool returned. An AG-UI front end that declares a client-side tool sees
+        // Tracon hold the client call back, and a server tool that waits for approval ends the run at the approval.
+        new ModelDescriptor
+        {
+            Name = EchoMixedModel,
+            DisplayName = "Echo mixed caller (local, no network)",
+            ContextWindowTokens = 8_192,
+            MaxOutputTokens = 1_024,
+            SupportsTools = true,
+        },
+
         // Answers as the writer of the review-and-revise workflow: a JSON script, a revised one when the message asks
         // for a revision, and a script over the length limit when the brief says "#long".
         new ModelDescriptor
@@ -120,6 +132,9 @@ internal sealed class EchoModelProvider : IModelProvider
 
     /// <summary>The model that writes the script of the review-and-revise workflow as JSON.</summary>
     public const string EchoWriterModel = "echo-writer-1";
+
+    /// <summary>The model that asks for a server tool and a client-side tool in one answer.</summary>
+    public const string EchoMixedModel = "echo-mixed-1";
 
     public IChatClient CreateChatClient(ModelBinding binding)
     {
@@ -158,6 +173,15 @@ internal sealed class EchoModelProvider : IModelProvider
                 });
             }
 
+            if (string.Equals(_modelId, EchoMixedModel, StringComparison.Ordinal))
+            {
+                return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, MixedTurn(messages, options)))
+                {
+                    ModelId = _modelId,
+                    Usage = NarratorUsage,
+                });
+            }
+
             var reply = BuildReply(messages, options);
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, reply))
             {
@@ -187,6 +211,14 @@ internal sealed class EchoModelProvider : IModelProvider
             if (string.Equals(_modelId, EchoDelegatorModel, StringComparison.Ordinal))
             {
                 yield return new ChatResponseUpdate(ChatRole.Assistant, DelegatorTurn(messages, options)) { ModelId = _modelId };
+                yield return new ChatResponseUpdate(ChatRole.Assistant, [new UsageContent(NarratorUsage)]) { ModelId = _modelId };
+
+                yield break;
+            }
+
+            if (string.Equals(_modelId, EchoMixedModel, StringComparison.Ordinal))
+            {
+                yield return new ChatResponseUpdate(ChatRole.Assistant, MixedTurn(messages, options)) { ModelId = _modelId };
                 yield return new ChatResponseUpdate(ChatRole.Assistant, [new UsageContent(NarratorUsage)]) { ModelId = _modelId };
 
                 yield break;
@@ -254,6 +286,33 @@ internal sealed class EchoModelProvider : IModelProvider
             var text = messages.LastOrDefault(static message => message.Role == ChatRole.User)?.Text ?? "(empty request)";
 
             return [new FunctionCallContent("delegate-1", tool.Name, new Dictionary<string, object?>(StringComparer.Ordinal) { ["query"] = text })];
+        }
+
+        // The first tool that runs on the server and the first that runs on the client, together, the first time; the answer
+        // once a result is in the conversation. The server tool takes an order number, the client tool takes nothing.
+        private static List<AIContent> MixedTurn(IEnumerable<ChatMessage> messages, ChatOptions? options)
+        {
+            var results = messages.SelectMany(static message => message.Contents).OfType<FunctionResultContent>().ToList();
+
+            if (results.Count > 0)
+            {
+                return [new TextContent($"Echo mixed: {string.Join(' ', results.Select(static result => result.Result))}")];
+            }
+
+            var tools = options?.Tools?.OfType<AIFunctionDeclaration>().ToList() ?? [];
+            var server = tools.FirstOrDefault(static tool => tool is AIFunction);
+            var client = tools.FirstOrDefault(static tool => tool is not AIFunction);
+
+            if (server is null || client is null)
+            {
+                return [new TextContent("Echo mixed: both a server tool and a client-side tool must be offered.")];
+            }
+
+            return
+            [
+                new FunctionCallContent("mixed-server", server.Name, new Dictionary<string, object?>(StringComparer.Ordinal) { ["orderId"] = "ORD-7" }),
+                new FunctionCallContent("mixed-client", client.Name, new Dictionary<string, object?>(StringComparer.Ordinal)),
+            ];
         }
 
         private string BuildReply(IEnumerable<ChatMessage> messages, ChatOptions? options)

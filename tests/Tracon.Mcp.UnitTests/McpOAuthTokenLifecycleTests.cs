@@ -251,6 +251,7 @@ public sealed class McpOAuthTokenLifecycleTests
                 registry,
                 new AllowAllToolAuthorizationHandler(),
                 McpToolPolicyTestGates.Open(),
+                McpToolPolicyTestGates.NoApprovalPolicies(),
                 NoOpToolArgumentsValidator.Instance,
                 attribution: null),
             registry);

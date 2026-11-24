@@ -26,12 +26,14 @@ public sealed class ToolWrapperChainTests
         ToolDescriptor descriptor,
         IToolAuthorizationHandler? authorizationHandler = null,
         IToolArgumentsValidator? validator = null,
-        TenantToolPolicyGate? policyGate = null)
+        TenantToolPolicyGate? policyGate = null,
+        ToolApprovalPolicyRegistry? approvalPolicies = null)
         => ToolWrapperChain.Compose(
             registration,
             descriptor,
             authorizationHandler ?? new AllowAllToolAuthorizationHandler(),
             policyGate ?? TestData.OpenToolPolicy(),
+            approvalPolicies ?? TestData.NoApprovalPolicies(),
             validator ?? NoOpToolArgumentsValidator.Instance,
             defaultTimeout: TimeSpan.FromSeconds(30),
             defaultMaxOutputBytes: null,
@@ -39,6 +41,71 @@ public sealed class ToolWrapperChainTests
             NullLogger<AuthorizingAIFunction>.Instance,
             NullLogger<TimeoutAIFunction>.Instance,
             NullLogger<ValidatingAIFunction>.Instance);
+
+    private static ToolApprovalPolicyRegistry PolicyFor(string toolName)
+        => TestData.ApprovalPolicies((toolName, static _ => ToolApprovalPolicyDecision.Undecided));
+
+    [Fact]
+    public void A_tool_without_the_flag_waits_for_approval_when_its_name_has_a_policy()
+    {
+        var function = Compose(
+            new TraconToolRegistration(TestData.Tool("refund_order")),
+            Descriptor("refund_order"),
+            approvalPolicies: PolicyFor("refund_order"));
+
+        // The framework's loop finds the wrapper through every layer above it; the marker tells the evaluator why it is there.
+        function.GetService<ApprovalRequiredAIFunction>().ShouldNotBeNull();
+        function.GetService<PolicyGatedApprovalAIFunction>().ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void A_tool_without_the_flag_and_without_a_policy_has_no_approval_layer()
+    {
+        var function = Compose(
+            new TraconToolRegistration(TestData.Tool("lookup_order")),
+            Descriptor("lookup_order"),
+            approvalPolicies: PolicyFor("refund_order"));
+
+        function.GetService<ApprovalRequiredAIFunction>().ShouldBeNull();
+        function.GetService<PolicyGatedApprovalAIFunction>().ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_flagged_tool_is_wrapped_for_approval_without_the_marker_even_when_it_has_a_policy()
+    {
+        var function = Compose(
+            new TraconToolRegistration(TestData.Tool("refund_order")) { RequiresApproval = true },
+            Descriptor("refund_order", requiresApproval: true),
+            approvalPolicies: PolicyFor("refund_order"));
+
+        function.GetService<ApprovalRequiredAIFunction>().ShouldNotBeNull();
+        function.GetService<PolicyGatedApprovalAIFunction>().ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_tool_the_host_wrapped_for_approval_is_not_wrapped_a_second_time_for_its_policy()
+    {
+        var function = Compose(
+            new TraconToolRegistration(new ApprovalRequiredAIFunction(TestData.Tool("refund_order"))),
+            Descriptor("refund_order", requiresApproval: true),
+            approvalPolicies: PolicyFor("refund_order"));
+
+        function.GetService<ApprovalRequiredAIFunction>().ShouldNotBeNull();
+        function.GetService<PolicyGatedApprovalAIFunction>().ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_client_side_tool_is_left_alone_by_a_policy_for_its_name()
+    {
+        var declaration = AIFunctionFactory.Create(() => "ok", "pick_file").AsDeclarationOnly();
+
+        var function = Compose(
+            new TraconToolRegistration(declaration),
+            Descriptor("pick_file"),
+            approvalPolicies: PolicyFor("pick_file"));
+
+        function.ShouldBeSameAs(declaration);
+    }
 
     [Fact]
     public void A_code_defined_registration_and_an_mcp_style_registration_produce_the_same_wrapper_layers()

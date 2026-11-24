@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Tracon.Core.UnitTests.Models;
 
@@ -53,6 +54,160 @@ public sealed class MixedCallWithholdingChatClientTests
 
     private static Task<ChatResponse> AskAsync(MixedCallWithholdingChatClient ring, ChatOptions? options)
         => ring.GetResponseAsync([new ChatMessage(ChatRole.User, "go")], options, TestContext.Current.CancellationToken);
+
+    // --- The notice -------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Every_client_call_a_buffered_answer_loses_is_recorded_with_its_call_id_and_tool_name()
+    {
+        var (store, runId, scope) = await OpenRunAsync();
+        var ring = new MixedCallWithholdingChatClient(
+            new ScriptedClient(Answer(Call("s1", Server), Call("c1", Client), Call("c2", SecondClient))));
+
+        TraconRunContext.SetCurrent(scope);
+
+        try
+        {
+            await AskAsync(ring, Both());
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        var recorded = await WithheldEventsAsync(store, runId);
+
+        recorded.Count.ShouldBe(2);
+        recorded.Select(static runEvent => runEvent.ToolCallId).ShouldBe(["c1", "c2"]);
+        recorded.Select(static runEvent => runEvent.ToolName).ShouldBe([Client, SecondClient]);
+
+        // The payload names the call and the tool and nothing the model said.
+        using var payload = JsonDocument.Parse(recorded[0].Payload!);
+        payload.RootElement.GetProperty("toolCallId").GetString().ShouldBe("c1");
+        payload.RootElement.GetProperty("toolName").GetString().ShouldBe(Client);
+        payload.RootElement.EnumerateObject().Count().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Every_client_call_a_streamed_answer_loses_is_recorded()
+    {
+        var (store, runId, scope) = await OpenRunAsync();
+        var ring = new MixedCallWithholdingChatClient(new ScriptedClient(
+        [
+            new ChatResponseUpdate(ChatRole.Assistant, [Call("s1", Server)]),
+            new ChatResponseUpdate(ChatRole.Assistant, [Call("c1", Client)]) { FinishReason = ChatFinishReason.ToolCalls },
+        ]));
+
+        TraconRunContext.SetCurrent(scope);
+
+        try
+        {
+            await DrainAsync(ring, Both());
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        var recorded = await WithheldEventsAsync(store, runId);
+
+        recorded.ShouldHaveSingleItem().ToolCallId.ShouldBe("c1");
+        recorded[0].ToolName.ShouldBe(Client);
+    }
+
+    [Fact]
+    public async Task A_response_that_is_not_mixed_records_nothing()
+    {
+        var (store, runId, scope) = await OpenRunAsync();
+        var ring = new MixedCallWithholdingChatClient(new ScriptedClient(Answer(Call("c1", Client))));
+
+        TraconRunContext.SetCurrent(scope);
+
+        try
+        {
+            await AskAsync(ring, Both());
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        (await WithheldEventsAsync(store, runId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_mixed_answer_outside_a_run_is_still_cut_and_nothing_is_recorded()
+    {
+        // No scope is set: a direct call of the pipeline, a unit test, a caller that does not record.
+        var ring = new MixedCallWithholdingChatClient(new ScriptedClient(Answer(Call("s1", Server), Call("c1", Client))));
+
+        CallIds(await AskAsync(ring, Both())).ShouldBe(["s1"]);
+    }
+
+    [Fact]
+    public async Task The_surface_hook_receives_each_recorded_event_and_a_hook_that_throws_does_not_cost_the_answer()
+    {
+        var (store, runId, scope) = await OpenRunAsync();
+        var seen = new List<RunEvent>();
+        var ring = new MixedCallWithholdingChatClient(new ScriptedClient(Answer(Call("s1", Server), Call("c1", Client))));
+
+        TraconRunContext.SetCurrent(scope with
+        {
+            AfterClientCallWithheldRecorded = (runEvent, _) =>
+            {
+                seen.Add(runEvent);
+
+                throw new InvalidOperationException("The surface is gone.");
+            },
+        });
+
+        ChatResponse response;
+
+        try
+        {
+            response = await AskAsync(ring, Both());
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        CallIds(response).ShouldBe(["s1"]);
+        seen.ShouldHaveSingleItem().CustomType.ShouldBe(RunEventCustomTypes.ClientCallWithheld);
+        (await WithheldEventsAsync(store, runId)).ShouldHaveSingleItem();
+    }
+
+    /// <summary>
+    /// Opens a started run with an event writer. The caller sets the scope in its own body: an ambient write made inside this
+    /// async helper would not reach the caller.
+    /// </summary>
+    private static async Task<(InMemoryRunStore Store, Guid RunId, AgentRunScope Scope)> OpenRunAsync()
+    {
+        var store = new InMemoryRunStore();
+        var runId = TraconId.NewId();
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, runId, metrics: null);
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = runId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+
+        return (store, runId, new AgentRunScope { RunId = runId, RootRunId = runId, Writer = writer });
+    }
+
+    private static async Task<List<RunEvent>> WithheldEventsAsync(InMemoryRunStore store, Guid runId)
+    {
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in store.ReadEventsAsync(runId, 0, TestContext.Current.CancellationToken))
+        {
+            if (string.Equals(runEvent.CustomType, RunEventCustomTypes.ClientCallWithheld, StringComparison.Ordinal))
+            {
+                events.Add(runEvent);
+            }
+        }
+
+        return events;
+    }
 
     // --- Buffered ---------------------------------------------------------------------------------------------------
 

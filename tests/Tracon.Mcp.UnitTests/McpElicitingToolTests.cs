@@ -214,6 +214,7 @@ public sealed class McpElicitingToolTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,

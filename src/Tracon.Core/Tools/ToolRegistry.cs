@@ -86,6 +86,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
             registrations,
             provider.GetRequiredService<IToolAuthorizationHandler>(),
             provider.GetRequiredService<TenantToolPolicyGate>(),
+            provider.GetRequiredService<ToolApprovalPolicyRegistry>(),
             provider.GetRequiredService<IToolArgumentsValidator>(),
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
             provider.GetService<IRunAttributionContext>(),
@@ -100,6 +101,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     /// <param name="registrations">The tool registrations.</param>
     /// <param name="authorizationHandler">The authorization policy applied before every server-side call.</param>
     /// <param name="policyGate">The tenant tool policy applied before <paramref name="authorizationHandler"/>.</param>
+    /// <param name="approvalPolicies">The code-defined approval policies; a tool whose name has one asks for approval.</param>
     /// <param name="validator">The argument validation policy applied before every server-side call.</param>
     /// <param name="optionsMonitor">Supplies the installation's default tool timeout.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
@@ -117,6 +119,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
         IEnumerable<TraconToolRegistration> registrations,
         IToolAuthorizationHandler authorizationHandler,
         TenantToolPolicyGate policyGate,
+        ToolApprovalPolicyRegistry approvalPolicies,
         IToolArgumentsValidator validator,
         IOptionsMonitor<TraconOptions> optionsMonitor,
         IRunAttributionContext? attribution,
@@ -128,6 +131,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
         ArgumentNullException.ThrowIfNull(registrations);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
         ArgumentNullException.ThrowIfNull(policyGate);
+        ArgumentNullException.ThrowIfNull(approvalPolicies);
         ArgumentNullException.ThrowIfNull(validator);
         ArgumentNullException.ThrowIfNull(optionsMonitor);
         ArgumentNullException.ThrowIfNull(authorizingLogger);
@@ -156,7 +160,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
                 JsonSchema = registration.Function.JsonSchema.ValueKind == System.Text.Json.JsonValueKind.Undefined
                     ? null
                     : registration.Function.JsonSchema.GetRawText(),
-                RequiresApproval = RequiresApproval(registration),
+                RequiresApproval = RequiresApproval(registration, approvalPolicies),
                 Source = registration.Source,
                 RunsOnClient = registration.Function is not AIFunction,
                 Effect = registration.Effect,
@@ -171,6 +175,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
                 descriptor,
                 authorizationHandler,
                 policyGate,
+                approvalPolicies,
                 validator,
                 defaultTimeout,
                 defaultMaxOutputBytes,
@@ -202,17 +207,26 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
         return _tools.TryGetValue(name, out tool);
     }
 
-    /// <summary>Whether the tool asks for approval before it runs.</summary>
+    /// <summary>Whether the tool can ask for approval before it runs.</summary>
     /// <param name="registration">The registration.</param>
-    /// <returns><see langword="true"/> when the registration says so or the tool is already wrapped for approval.</returns>
+    /// <param name="approvalPolicies">The code-defined approval policies.</param>
+    /// <returns>
+    /// <see langword="true"/> when the registration says so, the tool is already wrapped for approval, or a code-defined
+    /// policy is registered for its name.
+    /// </returns>
     /// <remarks>
+    /// A policy can answer <see cref="ToolApprovalPolicyDecision.Required"/> for any call, and the answer depends on the
+    /// arguments, so the descriptor cannot say "never": it says what the surfaces that cannot ask a person need to know. The
+    /// external-surface guard and replay read it, and a tool with a policy is refused there the way a flagged one is. A
+    /// client-side tool has no body to hold back, so a policy for its name changes nothing.
     /// <see cref="FunctionInvokingChatClient"/> finds an <see cref="ApprovalRequiredAIFunction"/> through every
     /// wrapper, so a tool the consumer or the framework wrapped asks for approval whatever the registration says.
     /// Microsoft Agent Framework wraps by default (<c>DockerShellExecutor.AsAIFunction()</c>,
     /// <c>FileAccessProvider</c>). The descriptor said "no approval" for such a tool, and the external-surface
     /// guard and replay, which read the descriptor, let it through.
     /// </remarks>
-    private static bool RequiresApproval(TraconToolRegistration registration)
+    private static bool RequiresApproval(TraconToolRegistration registration, ToolApprovalPolicyRegistry approvalPolicies)
         => registration.RequiresApproval
-            || registration.Function.GetService<ApprovalRequiredAIFunction>() is not null;
+            || registration.Function.GetService<ApprovalRequiredAIFunction>() is not null
+            || (registration.Function is AIFunction && approvalPolicies.Contains(registration.Function.Name));
 }

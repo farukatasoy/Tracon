@@ -27,6 +27,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -35,6 +36,61 @@ public sealed class McpTenantToolsTests
             NullLogger<ValidatingAIFunction>.Instance);
 
         tools.Descriptors.ShouldHaveSingleItem().Effect.ShouldBe(ToolEffect.External);
+    }
+
+    [Fact]
+    public void An_mcp_tool_whose_name_has_an_approval_policy_is_held_for_approval_and_reported_so()
+    {
+        // The server declares no approval for the tool; only the host's code-defined policy holds it.
+        var registration = new TraconToolRegistration(AIFunctionFactory.Create(() => "ok", "github_delete_branch"))
+        {
+            Source = "github-mcp",
+            RequiresApproval = false,
+        };
+
+        var tools = McpTenantTools.Create(
+            [registration],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.ApprovalPolicies(("github_delete_branch", static _ => ToolApprovalPolicyDecision.Undecided)),
+            NoOpToolArgumentsValidator.Instance,
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
+
+        tools.Descriptors.ShouldHaveSingleItem().RequiresApproval.ShouldBeTrue();
+        tools.TryGet("github_delete_branch", out var tool).ShouldBeTrue();
+        tool!.GetService<ApprovalRequiredAIFunction>().ShouldNotBeNull();
+        tool.GetService<PolicyGatedApprovalAIFunction>().ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void An_mcp_tool_without_a_policy_and_without_the_flag_is_not_held()
+    {
+        var registration = new TraconToolRegistration(AIFunctionFactory.Create(() => "ok", "github_list_branches"))
+        {
+            Source = "github-mcp",
+        };
+
+        var tools = McpTenantTools.Create(
+            [registration],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.ApprovalPolicies(("github_delete_branch", static _ => ToolApprovalPolicyDecision.Required)),
+            NoOpToolArgumentsValidator.Instance,
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
+
+        tools.Descriptors.ShouldHaveSingleItem().RequiresApproval.ShouldBeFalse();
+        tools.TryGet("github_list_branches", out var tool).ShouldBeTrue();
+        tool!.GetService<ApprovalRequiredAIFunction>().ShouldBeNull();
     }
 
     [Fact]
@@ -63,6 +119,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -105,6 +162,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -130,6 +188,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -156,6 +215,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new DenyingHandler("Not authorized for remote tools."),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -193,6 +253,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             handler,
             McpToolPolicyTestGates.For(policies),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -250,6 +311,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -278,6 +340,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -307,6 +370,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -339,6 +403,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -365,6 +430,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -400,6 +466,7 @@ public sealed class McpTenantToolsTests
             NullLogger.Instance,
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TimeSpan.FromSeconds(30),
             attribution: null,
@@ -436,6 +503,7 @@ public sealed class McpTenantToolsTests
                     NullLogger.Instance,
                     new AllowAllToolAuthorizationHandler(),
                     McpToolPolicyTestGates.Open(),
+                    McpToolPolicyTestGates.NoApprovalPolicies(),
                     NoOpToolArgumentsValidator.Instance,
                     TimeSpan.FromSeconds(30),
                     attribution: null,

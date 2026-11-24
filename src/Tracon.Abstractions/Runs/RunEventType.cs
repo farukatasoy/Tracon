@@ -305,8 +305,9 @@ public enum RunEventType
     /// appears in the stream but <c>Payload</c> is <see langword="null"/>. Only
     /// <see cref="RunEventCustomTypes.QuotaThreshold"/>,
     /// <see cref="RunEventCustomTypes.OutputTruncated"/>,
-    /// <see cref="RunEventCustomTypes.OutputFiltered"/> and
-    /// <see cref="RunEventCustomTypes.ToolInputDeclined"/> are exempt.
+    /// <see cref="RunEventCustomTypes.OutputFiltered"/>,
+    /// <see cref="RunEventCustomTypes.ToolInputDeclined"/> and
+    /// <see cref="RunEventCustomTypes.ClientCallWithheld"/> are exempt.
     /// </summary>
     /// <remarks>
     /// The escape hatch for the otherwise closed set of event types above.

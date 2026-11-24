@@ -29,9 +29,6 @@ namespace Tracon;
 /// </remarks>
 internal static class AGUIInputMapper
 {
-    /// <summary>The longest thread identity accepted: the sessions table of SQL Server holds <c>nvarchar(200)</c>.</summary>
-    internal const int MaxThreadIdLength = 200;
-
     /// <summary>The longest list of ignored tool names a run records.</summary>
     internal const int MaxIgnoredToolNames = 50;
 
@@ -57,17 +54,19 @@ internal static class AGUIInputMapper
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (input.ThreadId.Length > MaxThreadIdLength)
+        // The thread is the session, so its identity follows the one rule every surface that opens a session follows, and the
+        // number is not written a second time here: a copy of it is a limit that drifts the day the first one moves.
+        if (input.ThreadId.Length > SessionIdLimits.MaxLength)
         {
             return Results.Problem(
                 title: "Thread identity too long",
-                detail: $"'threadId' cannot exceed {MaxThreadIdLength} characters.",
+                detail: $"'threadId' cannot exceed {SessionIdLimits.MaxLength} characters.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
         // SQL Server ignores trailing spaces in a key, the other stores do not: a thread named with an edge space would be
         // one session on one store and another on the next (the same rule as the session id of the run endpoint).
-        if (char.IsWhiteSpace(input.ThreadId[0]) || char.IsWhiteSpace(input.ThreadId[^1]))
+        if (SessionIdLimits.HasEdgeWhitespace(input.ThreadId))
         {
             return Results.Problem(
                 title: "Thread identity has surrounding whitespace",

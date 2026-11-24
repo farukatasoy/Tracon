@@ -46,6 +46,7 @@ public sealed class McpResponseLimitTransportTests
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null,
             egressGuard: new EgressSocketGuard(static () => new EgressAddressPolicy(AllowPrivateNetworkTargets: true, AllowLoopback: true)));

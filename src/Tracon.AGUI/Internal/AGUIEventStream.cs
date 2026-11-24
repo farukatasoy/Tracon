@@ -78,6 +78,17 @@ internal static class AGUIEventStream
             // stream; the update it was read from is the agent's and the session's history is built from it.
             aguiEvent.RawEvent = null;
 
+            // The run's own notices go out ahead of the event that follows them, so RUN_FINISHED, the interrupt of an
+            // approval included, comes after them. Never ahead of RUN_STARTED: the first model call can end before the
+            // converter has sent it, and a front end refuses an event that comes before the run has started.
+            if (runEventSent)
+            {
+                foreach (var notice in collector.TakeCustomEvents())
+                {
+                    yield return notice;
+                }
+            }
+
             yield return aguiEvent;
 
             if (!runEventSent && aguiEvent is RunStartedEvent)
@@ -101,7 +112,12 @@ internal static class AGUIEventStream
         HttpContext httpContext,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var source = opened.RunStreamingAsync(collector.OnApprovalsAsync, collector.OnInputsAsync, onLoopIteration: null, cancellationToken);
+        var source = opened.RunStreamingAsync(
+            collector.OnApprovalsAsync,
+            collector.OnInputsAsync,
+            onLoopIteration: null,
+            collector.OnClientCallWithheldAsync,
+            cancellationToken);
         var enumerator = source.GetAsyncEnumerator(cancellationToken);
         var messageIds = new AGUIMessageIdStabilizer();
 
@@ -168,7 +184,7 @@ internal static class AGUIEventStream
 
     // 🚨 A request timeout of the provider's HttpClient is a TaskCanceledException too, and the client is still waiting for
     // it. Only a cancellation the client asked for is not a failure.
-    private static bool IsFailure(Exception exception, CancellationToken cancellationToken)
+    internal static bool IsFailure(Exception exception, CancellationToken cancellationToken)
         => exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested;
 
     private static JsonSerializerOptions CreateConverterOptions()

@@ -495,6 +495,11 @@ rules are writable from the UI and are not allowed to loosen a policy that says
 `Required`. An unhandled exception in a policy is treated as `Required` and logged —
 a broken policy never silently releases a tool from approval.
 
+A policy decides for **every call of its tool, flagged or not**: a tool with a policy and no
+`RequiresApproval` waits when the policy says `Required` and runs when it says anything else. What that
+costs, and which surfaces it closes to the tool, is in
+[Hold a tool back with a policy](/guides/write-your-own-tool/#hold-a-tool-back-with-a-policy).
+
 ### Tool authorization
 
 Approval and authorization answer different questions. Approval asks "is this call okay

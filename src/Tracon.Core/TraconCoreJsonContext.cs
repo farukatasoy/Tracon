@@ -65,6 +65,9 @@ namespace Tracon;
 // The output filter notice's Custom run-event payload.
 [JsonSerializable(typeof(OutputFilteredEventPayload))]
 
+// The client call withheld notice's Custom run-event payload.
+[JsonSerializable(typeof(ClientCallWithheldEventPayload))]
+
 // The LoopIterationCompleted run-event payload.
 [JsonSerializable(typeof(LoopIterationCompletedEventPayload))]
 internal sealed partial class TraconCoreJsonContext : JsonSerializerContext;

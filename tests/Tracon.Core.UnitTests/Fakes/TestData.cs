@@ -36,6 +36,15 @@ internal static class TestData
     public static TenantToolPolicyGate OpenToolPolicy()
         => ToolPolicyGate(new InMemoryTenantToolPolicyStore());
 
+    /// <summary>The code-defined approval policies of a host that registered none.</summary>
+    public static ToolApprovalPolicyRegistry NoApprovalPolicies()
+        => new([]);
+
+    /// <summary>The code-defined approval policies of a host that registered these.</summary>
+    /// <param name="policies">The tool names and the policies registered for them.</param>
+    public static ToolApprovalPolicyRegistry ApprovalPolicies(params (string ToolName, Func<ToolApprovalContext, ToolApprovalPolicyDecision> Policy)[] policies)
+        => new(policies.Select(static policy => new ToolApprovalPolicyRegistration(policy.ToolName, policy.Policy)));
+
     /// <summary>The tenant tool policy gate over a store.</summary>
     /// <param name="store">The store the gate reads.</param>
     /// <param name="requirePolicy">The value of <c>Tracon:Tools:RequireTenantPolicy</c>.</param>
@@ -47,6 +56,7 @@ internal static class TestData
             tools.Select(static tool => new TraconToolRegistration(tool)),
             new AllowAllToolAuthorizationHandler(),
             OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             DefaultOptionsMonitor(),
             attribution: null,

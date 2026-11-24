@@ -10,13 +10,16 @@ internal static class BuiltInToolGovernanceTestSupport
     /// <param name="handler">The authorization handler; <see langword="null"/> allows every call.</param>
     /// <param name="validator">The argument validator; <see langword="null"/> accepts every call.</param>
     /// <param name="policyGate">The tenant tool policy gate; <see langword="null"/> is a host with no policy.</param>
+    /// <param name="approvalPolicies">The code-defined approval policies; <see langword="null"/> is a host with none.</param>
     public static BuiltInToolGovernance Create(
         IToolAuthorizationHandler? handler = null,
         IToolArgumentsValidator? validator = null,
-        TenantToolPolicyGate? policyGate = null)
+        TenantToolPolicyGate? policyGate = null,
+        ToolApprovalPolicyRegistry? approvalPolicies = null)
         => new(
             handler ?? new AllowAllToolAuthorizationHandler(),
             policyGate ?? Fakes.TestData.OpenToolPolicy(),
+            approvalPolicies ?? Fakes.TestData.NoApprovalPolicies(),
             validator ?? NoOpToolArgumentsValidator.Instance,
             new StaticOptionsMonitor<TraconOptions>(new TraconOptions()),
             attribution: null,

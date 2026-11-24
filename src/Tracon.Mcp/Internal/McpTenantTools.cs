@@ -126,6 +126,7 @@ internal sealed class McpTenantTools
     /// <param name="logger">The logger name collisions are reported to.</param>
     /// <param name="authorizationHandler">The authorization policy applied before every call.</param>
     /// <param name="policyGate">The tenant tool policy applied before <paramref name="authorizationHandler"/>.</param>
+    /// <param name="approvalPolicies">The code-defined approval policies; a tool whose name has one asks for approval.</param>
     /// <param name="validator">The argument validation policy applied before every call.</param>
     /// <param name="defaultTimeout">The timeout applied when a tool's own registration sets none.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
@@ -165,6 +166,7 @@ internal sealed class McpTenantTools
         ILogger logger,
         IToolAuthorizationHandler authorizationHandler,
         TenantToolPolicyGate policyGate,
+        ToolApprovalPolicyRegistry approvalPolicies,
         IToolArgumentsValidator validator,
         TimeSpan defaultTimeout,
         IRunAttributionContext? attribution,
@@ -211,7 +213,7 @@ internal sealed class McpTenantTools
                 JsonSchema = registration.Function.JsonSchema.ValueKind == System.Text.Json.JsonValueKind.Undefined
                     ? null
                     : registration.Function.JsonSchema.GetRawText(),
-                RequiresApproval = registration.RequiresApproval,
+                RequiresApproval = registration.RequiresApproval || approvalPolicies.Contains(name),
                 Source = registration.Source,
                 RunsOnClient = registration.Function is not AIFunction,
                 Effect = effect,
@@ -225,6 +227,7 @@ internal sealed class McpTenantTools
                 descriptor,
                 authorizationHandler,
                 policyGate,
+                approvalPolicies,
                 validator,
                 defaultTimeout,
                 defaultMaxOutputBytes,

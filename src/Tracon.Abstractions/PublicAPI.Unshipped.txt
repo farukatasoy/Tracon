@@ -1216,6 +1216,10 @@ Tracon.JobLease.JobId.init -> void
 Tracon.JobLease.JobLease() -> void
 Tracon.JobLease.Owner.get -> string!
 Tracon.JobLease.Owner.init -> void
+Tracon.ParameterValueSource
+Tracon.ParameterValueSource.Caller = 1 -> Tracon.ParameterValueSource
+Tracon.ParameterValueSource.Client = 0 -> Tracon.ParameterValueSource
+Tracon.ParameterValueSource.Host = 2 -> Tracon.ParameterValueSource
 Tracon.RateLimitScope
 Tracon.RateLimitScope.Deployment = 1 -> Tracon.RateLimitScope
 Tracon.RateLimitScope.Instance = 0 -> Tracon.RateLimitScope
@@ -5951,6 +5955,8 @@ Tracon.ToolDescriptor.HostedKind.init -> void
 const Tracon.ToolUsageUnits.Calls = "calls" -> string!
 const Tracon.RunEventCustomTypes.ToolInputDeclined = "tracon.tool.input.declined" -> string!
 const Tracon.RunEventCustomTypes.AGUIToolsIgnored = "tracon.agui.tools.ignored" -> string!
+const Tracon.RunEventCustomTypes.ClientCallWithheld = "tracon.client_call_withheld" -> string!
+const Tracon.TraconErrorTypes.ParameterResolutionFailed = "parameter_resolution_failed" -> string!
 const Tracon.TraconTenantQuotaExceededException.TenantQuotaExceededErrorType = "tenant_quota_exceeded" -> string!
 override Tracon.TraconTenantQuotaExceededException.ErrorType.get -> string!
 Tracon.TraconTenantQuotaExceededException

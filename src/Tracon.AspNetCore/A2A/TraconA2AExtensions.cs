@@ -74,6 +74,10 @@ public static class TraconA2AExtensions
 
         var endpointOptions = TraconEndpointRouteBuilderExtensions.RequireSharedEndpointOptions(endpoints, "A2A");
 
+        // A pattern mapped a second time fails here, naming it; the endpoint names of every other pattern carry it, because
+        // ASP.NET Core accepts a name once in the application.
+        var nameSuffix = EndpointMappingRegistry.Claim(endpoints, "A2A", pattern, DefaultPattern);
+
         ExternalSurfaceGuard.EnsureRemoteAccessNotCombined(
             endpointOptions.AllowRemoteAccess, "A2A", services.GetRequiredService<IApiKeyStore>());
 
@@ -123,7 +127,7 @@ public static class TraconA2AExtensions
             var interfacePath = pattern + agentPath;
 
             agentGroup.MapA2A(handler, "/")
-                .WithName($"TraconA2A_{agentName}")
+                .WithName($"TraconA2A_{agentName}{nameSuffix}")
                 .WithSummary($"Invokes the '{agentName}' agent over the agent-to-agent protocol.")
                 .WithDescription(
                     "The body is a JSON-RPC message in the A2A shape; this is not the management " +
@@ -156,7 +160,7 @@ public static class TraconA2AExtensions
                             address => BuildAgentCard(agentName, descriptor, address),
                             cardLastModified);
                     })
-                .WithName($"TraconA2AAgentCard_{agentName}")
+                .WithName($"TraconA2AAgentCard_{agentName}{nameSuffix}")
                 .WithSummary($"Returns the A2A agent card describing the '{agentName}' agent.")
                 .WithDescription(
                     "The card is how another agent discovers what this one accepts and returns: " +

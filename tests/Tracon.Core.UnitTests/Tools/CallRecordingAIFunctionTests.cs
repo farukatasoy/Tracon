@@ -147,6 +147,7 @@ public sealed class CallRecordingAIFunctionTests
             new ToolDescriptor { Name = "speak", Effect = ToolEffect.Read },
             new AllowAllToolAuthorizationHandler(),
             TestData.OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             defaultTimeout: TimeSpan.FromSeconds(30),
             defaultMaxOutputBytes: null,

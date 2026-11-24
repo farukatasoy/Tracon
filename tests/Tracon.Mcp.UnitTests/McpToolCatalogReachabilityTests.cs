@@ -42,6 +42,7 @@ public sealed class McpToolCatalogReachabilityTests
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null);
 
@@ -64,6 +65,7 @@ public sealed class McpToolCatalogReachabilityTests
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null);
 

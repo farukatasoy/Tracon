@@ -240,6 +240,7 @@ public sealed class BudgetGatingAIFunctionTests
             new ToolDescriptor { Name = tool.Name, Effect = ToolEffect.Read },
             handler,
             TestData.OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             defaultTimeout: TimeSpan.FromSeconds(30),
             defaultMaxOutputBytes: null,

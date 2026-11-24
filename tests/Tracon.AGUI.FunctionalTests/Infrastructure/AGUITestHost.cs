@@ -48,7 +48,8 @@ internal sealed class AGUITestHost : IAsyncDisposable
         Action<WebApplication>? configureApp = null,
         string pattern = Pattern,
         Action<TraconAGUIOptions>? configureAGUI = null,
-        Action<IEndpointConventionBuilder>? configureManagement = null)
+        Action<IEndpointConventionBuilder>? configureManagement = null,
+        Action<WebApplication>? afterMap = null)
     {
         var logs = new ListLoggerProvider();
 
@@ -81,6 +82,9 @@ internal sealed class AGUITestHost : IAsyncDisposable
             app.MapTraconAGUI(pattern, configureAGUI);
         }
 
+        // After the endpoint under test is mapped: a second mapping, or a second surface, a test brings.
+        afterMap?.Invoke(app);
+
         await app.StartAsync();
 
         return new AGUITestHost(app, app.GetTestClient(), logs, pattern);
@@ -90,8 +94,9 @@ internal sealed class AGUITestHost : IAsyncDisposable
     public async Task<AGUIResponse> RunAsync(
         string agentName,
         RunAgentInput input,
-        Action<HttpRequestMessage>? configure = null)
-        => await PostAsync(agentName, JsonSerializer.Serialize(input, AGUIJsonSerializerContext.Default.RunAgentInput), configure);
+        Action<HttpRequestMessage>? configure = null,
+        string? pattern = null)
+        => await PostAsync(agentName, JsonSerializer.Serialize(input, AGUIJsonSerializerContext.Default.RunAgentInput), configure, pattern: pattern);
 
     /// <summary>Posts a raw body, for the requests a typed input cannot express.</summary>
     /// <param name="agentName">The agent in the path.</param>
@@ -102,9 +107,10 @@ internal sealed class AGUITestHost : IAsyncDisposable
         string agentName,
         string body,
         Action<HttpRequestMessage>? configure = null,
-        string? contentType = "application/json")
+        string? contentType = "application/json",
+        string? pattern = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{_pattern}/{agentName}", UriKind.Relative))
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{pattern ?? _pattern}/{agentName}", UriKind.Relative))
         {
             Content = contentType is null
                 ? new ByteArrayContent(Encoding.UTF8.GetBytes(body))

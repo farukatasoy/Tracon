@@ -152,6 +152,10 @@ internal static class AgentTurnService
     /// refusal, or <see langword="null"/> to go on. A check made before the assignment would read another version than
     /// the run resolves.
     /// </param>
+    /// <param name="parameterSource">
+    /// Who supplied <see cref="AgentRunRequest.Parameters"/>: the front end (the default), or the host's own code that stood
+    /// in for it. A tool of the run reads it with the values.
+    /// </param>
     /// <returns>The turn that is ready to run, or the refusal to answer with.</returns>
     public static async ValueTask<TurnPreparation> PrepareAsync(
         string name,
@@ -160,7 +164,8 @@ internal static class AgentTurnService
         HttpContext httpContext,
         CancellationToken cancellationToken,
         string? surface = null,
-        Func<int?, ValueTask<IResult?>>? checkAssignedVersion = null)
+        Func<int?, ValueTask<IResult?>>? checkAssignedVersion = null,
+        ParameterValueSource parameterSource = ParameterValueSource.Client)
     {
         var services = httpContext.RequestServices;
         var catalog = services.GetRequiredService<IAgentCatalog>();
@@ -458,7 +463,7 @@ internal static class AgentTurnService
                 ? ParameterValueSet.Resolve(declared.Parameters, request.Parameters)
                 : null;
 
-        return TurnPreparation.Ready(new PreparedTurn(agent, name, request, attachments, prefix, runId, assignment, recordedValues, surface));
+        return TurnPreparation.Ready(new PreparedTurn(agent, name, request, attachments, prefix, runId, assignment, recordedValues, surface, parameterSource));
     }
 
     /// <summary>
@@ -768,6 +773,7 @@ internal sealed record PendingToolInputAnnouncement(
 /// <param name="assignment">The experiment arm the run was assigned to, if any.</param>
 /// <param name="parameterValues">The agent parameter values the run records, defaults included.</param>
 /// <param name="surface">The surface the request came in on, when it is not the management API's run endpoint.</param>
+/// <param name="parameterSource">Who supplied the parameter values; a tool of the run reads it with them.</param>
 internal sealed class PreparedTurn(
     Microsoft.Agents.AI.AIAgent agent,
     string agentName,
@@ -777,7 +783,8 @@ internal sealed class PreparedTurn(
     Guid runId,
     ExperimentAssignment? assignment,
     IReadOnlyDictionary<string, string>? parameterValues,
-    string? surface)
+    string? surface,
+    ParameterValueSource parameterSource)
 {
     /// <summary>Gets the resolved agent.</summary>
     public Microsoft.Agents.AI.AIAgent Agent => agent;
@@ -836,13 +843,18 @@ internal sealed class PreparedTurn(
     /// Called with each loop iteration event right after the run recorded it; <see langword="null"/> when the surface does
     /// not mirror them.
     /// </param>
+    /// <param name="onClientCallWithheld">
+    /// Called with each <see cref="RunEventCustomTypes.ClientCallWithheld"/> event right after the run recorded it;
+    /// <see langword="null"/> when the surface does not mirror them.
+    /// </param>
     /// <returns>The run options.</returns>
     internal TraconRunOptions CreateRunOptions(
         Microsoft.Agents.AI.AgentSession? session,
         IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? inputAnswers,
         Func<IReadOnlyList<PendingApprovalAnnouncement>, CancellationToken, ValueTask>? onPendingApprovals,
         Func<IReadOnlyList<PendingToolInputAnnouncement>, CancellationToken, ValueTask>? onPendingInputs,
-        Func<RunEvent, CancellationToken, ValueTask>? onLoopIteration)
+        Func<RunEvent, CancellationToken, ValueTask>? onLoopIteration,
+        Func<RunEvent, CancellationToken, ValueTask>? onClientCallWithheld)
         => new()
         {
             RunId = runId,
@@ -850,6 +862,10 @@ internal sealed class PreparedTurn(
             ExperimentId = assignment?.ExperimentId,
             Variant = assignment?.Variant,
             ParameterValues = parameterValues,
+
+            // Always said, whatever carried the values to the agent: an agent the catalog compiled for them keeps them in a
+            // marker, and a marker alone reads as the embedding code's own call.
+            ParameterSource = parameterSource,
 
             // The agent was resolved with this culture; the sub-agents it calls resolve with it too.
             Culture = request.Culture,
@@ -904,6 +920,9 @@ internal sealed class PreparedTurn(
 
             // The loop's iteration events go to the surface that streams the run, between two iterations.
             AfterLoopIterationRecorded = onLoopIteration,
+
+            // A client call the model's answer lost goes to the surface that streams the run, as the model call ends.
+            AfterClientCallWithheldRecorded = onClientCallWithheld,
         };
     /// <summary>
     /// Writes the identities of the answers just built (<see cref="AnsweredInterrupts"/>) into the session and saves it, so that a
@@ -1160,17 +1179,19 @@ internal sealed class OpenedTurn
     /// <param name="onPendingApprovals">Called right before the run publishes the tool approvals it waits for; <see langword="null"/> when the surface does not announce them.</param>
     /// <param name="onPendingInputs">Called right before the run publishes the tool inputs it waits for.</param>
     /// <param name="onLoopIteration">Called with each loop iteration event right after the run recorded it; <see langword="null"/> when the surface does not mirror them.</param>
+    /// <param name="onClientCallWithheld">Called with each event that records a client call the model's answer lost; <see langword="null"/> when the surface does not mirror them.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The updates.</returns>
     public IAsyncEnumerable<Microsoft.Agents.AI.AgentResponseUpdate> RunStreamingAsync(
         Func<IReadOnlyList<PendingApprovalAnnouncement>, CancellationToken, ValueTask>? onPendingApprovals,
         Func<IReadOnlyList<PendingToolInputAnnouncement>, CancellationToken, ValueTask>? onPendingInputs,
         Func<RunEvent, CancellationToken, ValueTask>? onLoopIteration,
+        Func<RunEvent, CancellationToken, ValueTask>? onClientCallWithheld,
         CancellationToken cancellationToken)
         => _turn.Agent.RunStreamingAsync(
             _messages,
             _session,
-            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals, onPendingInputs, onLoopIteration),
+            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals, onPendingInputs, onLoopIteration, onClientCallWithheld),
             cancellationToken);
 
     /// <summary>Runs the turn to its end.</summary>
@@ -1183,7 +1204,7 @@ internal sealed class OpenedTurn
         => _turn.Agent.RunAsync(
             _messages,
             _session,
-            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals: null, onPendingInputs, onLoopIteration: null),
+            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals: null, onPendingInputs, onLoopIteration: null, onClientCallWithheld: null),
             cancellationToken);
 
     /// <summary>

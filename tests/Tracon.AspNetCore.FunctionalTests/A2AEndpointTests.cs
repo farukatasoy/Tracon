@@ -26,6 +26,47 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
+    public async Task A_second_pattern_publishes_its_own_card_and_leaves_the_first_one_working()
+    {
+        // Every mapping used to name its endpoints after the agent alone; ASP.NET Core accepts a name once, and refuses at
+        // the first request that needs it, so a second mapping broke every endpoint of the host.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition())
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app =>
+            {
+                app.MapTraconA2A();
+                app.MapTraconA2A("/partner/a2a");
+            });
+
+        foreach (var pattern in new[] { "/tracon/a2a", "/partner/a2a" })
+        {
+            using var response = await host.Client.GetAsync(
+                new Uri($"{pattern}/kod-agent/.well-known/agent-card.json", UriKind.Relative));
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, pattern);
+        }
+    }
+
+    [Fact]
+    public async Task The_same_pattern_mapped_twice_fails_when_it_is_mapped_and_names_the_pattern()
+    {
+        var exception = await Should.ThrowAsync<InvalidOperationException>(() => TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition())
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app =>
+            {
+                app.MapTraconA2A();
+                app.MapTraconA2A("/tracon/a2a/");
+            }));
+
+        exception.Message.ShouldContain("/tracon/a2a");
+        exception.Message.ShouldContain("already");
+    }
+
+    [Fact]
     public async Task Sending_a_message_runs_the_agent_and_produces_a_runs_row()
     {
         await using var host = await TraconTestHost.StartAsync(

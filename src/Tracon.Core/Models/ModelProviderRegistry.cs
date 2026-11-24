@@ -680,7 +680,9 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // it (budget, usage, hosted tools, telemetry) still see the whole answer the provider gave. It belongs here,
         // not on the agent: every agent over this pipeline (a plain one, a harness agent, a factory agent) goes
         // through this method.
-        chatClient = new MixedCallWithholdingChatClient(chatClient);
+        chatClient = new MixedCallWithholdingChatClient(
+            chatClient,
+            _loggerFactory?.CreateLogger<MixedCallWithholdingChatClient>());
 
         // binding.ToolLoop configures THIS SAME FunctionInvokingChatClient
         // instance - the one that actually drives the tool-call loop.

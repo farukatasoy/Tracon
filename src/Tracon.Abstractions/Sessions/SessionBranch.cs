@@ -16,9 +16,10 @@ internal sealed record SessionBranchRequest
 
     /// <remarks>
     /// If the identifier comes from the caller, an existing session with the
-    /// same identifier is <strong>not overwritten</strong>; the request is rejected.
+    /// same identifier is <strong>not overwritten</strong>; the request is rejected. The identifier follows the rule
+    /// of every session identity: one to 200 characters with no whitespace at either end.
     /// </remarks>
-    [Description("The identifier of the new session to open. Generated if not given.")]
+    [Description("The identifier of the new session to open. Generated if not given. One to 200 characters, with no whitespace at either end.")]
     public string? NewSessionId { get; init; }
 }
 

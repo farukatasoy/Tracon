@@ -175,6 +175,17 @@ internal sealed class MixedCallRig : IAsyncDisposable
     public Task<List<ToolInvocationRecord>> ToolRowsAsync(Guid runId, string tenant = Tenant)
         => GetAsync<List<ToolInvocationRecord>>($"/tracon/api/runs/{runId}/tools", tenant);
 
+    /// <summary>The recorded events of one run, as the events endpoint writes them (event-stream text).</summary>
+    public async Task<string> EventsTextAsync(Guid runId, string tenant = Tenant)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"/tracon/api/runs/{runId}/events", UriKind.Relative));
+        request.Headers.Add("X-Tracon-Tenant", tenant);
+
+        using var response = await Host.Client.SendAsync(request, TestContext.Current.CancellationToken).ConfigureAwait(false);
+
+        return await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<T> GetAsync<T>(string uri, string tenant = Tenant)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(uri, UriKind.Relative));

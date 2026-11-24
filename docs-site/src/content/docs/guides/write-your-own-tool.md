@@ -165,6 +165,30 @@ dependency that must be new on every call, use `AddScopedTool`.
 `RequiredPermission`, `Timeout`, `SafeToRepeat`, `MaxOutputBytes`, and `Source`.
 Code-defined tools normally leave `Source` unset.
 
+## Hold a tool back with a policy
+
+`RequiresApproval` is not the only way to hold a tool back. A code-defined
+[approval policy](/concepts/governance/) registered with `AddToolApprovalPolicy("refund_order", ...)` decides for every
+call of the tool whether or not the flag is set: a tool with a policy waits for approval when the policy says `Required`,
+and runs without a person when it says `NotRequired` or has no opinion (`Undecided`). You do not have to set the flag as
+well, so a tool you forgot to flag is still held. Two things follow:
+
+- **Every call goes through the approval step**, `NotRequired` included: one more round of the model loop than a tool
+  without a policy.
+- **The tool is reported as asking for approval** (`requiresApproval` in `GET /api/tools`). An agent that carries it cannot
+  be exposed over [MCP or A2A](/guides/external-agents/), and a live replay of its runs is refused, as for a flagged tool.
+
+The host stops at start-up for a policy named for a hosted tool, which runs on the provider's side, where Tracon holds
+no call back. A name that no tool in code carries is allowed: a tool of an MCP server, or one a run brings with it, can
+arrive after the host has started. For a tool a run brings with it, a policy with no opinion falls to the data rules and
+asks when none matches. A policy holds only the tools that run through Tracon's tool chain: tools registered in code, tools of
+MCP servers and the tools Tracon adds to a run. It holds nothing for a client-side tool, the skill tools or an agent called as
+a tool.
+
+To read what a run was started for, a tool uses `TraconRunContext.Current?.Parameters` together with `ParameterSource`:
+a `Client` value is text the user chose and decides nothing about who may see or change what, while `Caller` and `Host`
+values were produced by your own code. See [Agents](/concepts/agents/#parameters).
+
 Do not replace `IToolRegistry`. It is Tracon's immutable startup snapshot and owns
 authorization, timeout, approval, and output truncation. Startup rejects an unverified
 replacement unless `Tools.AllowUnverifiedToolRegistry` is explicitly enabled.

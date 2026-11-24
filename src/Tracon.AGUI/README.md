@@ -49,12 +49,12 @@ curl -N -X POST http://localhost:5081/tracon/agui/assistant \
 
 | AG-UI field | What Tracon does |
 |---|---|
-| `threadId` | The session. At most 200 characters. It belongs to the tenant that opened it, and with `Tracon:SessionOwnership` on also to the user. |
+| `threadId` | The session. One to 200 characters with no whitespace at either end; dots, colons and every other character are allowed, and it is not the narrower rule of a workflow execution id. It belongs to the tenant that opened it, and with `Tracon:SessionOwnership` on also to the user. |
 | `messages` | Only the messages after the last assistant message are new. A user message is the run's message; a tool message answers a pending client-side tool call. Everything before is already in the session. System and developer messages are not read. |
 | `tools` | Must name every client-side tool the agent carries. The schema is always the code's. A tool the agent does not carry is ignored. |
 | `resume` | Answers a tool approval (`{ "approved": true, "reason": "...", "remember": false }`) or a request for user input (the requested fields). |
 | `context` | Becomes run documents, kept apart from the instructions. |
-| `forwardedProps.parameters` | The values of the agent's run parameters, an object of strings. Read only when the host turned on `AcceptForwardedParameters` (see below). |
+| `forwardedProps.parameters` | The values of the agent's run parameters, an object of strings. Read only when the host turned on `AcceptForwardedParameters` or set `ResolveParameters`, which reads it as untrusted input (see below). |
 | `state`, the rest of `forwardedProps` | Not used. |
 
 ## Run parameters
@@ -72,12 +72,33 @@ string. The values are recorded with the run, so a replay repeats them. The tena
 from `forwardedProps`. Turn the option on only when the host accepts that the browser writes part of an agent's instructions,
 and declare only the parameters the front end needs.
 
+A host that can produce the values on its own server sets `ResolveParameters` instead, which replaces the option:
+
+```csharp
+app.MapTraconAGUI("/tracon/agui", options =>
+    options.ResolveParameters = async (request, cancellationToken) =>
+        new Dictionary<string, string> { ["articleId"] = await LookupAsync(request.ThreadId, request.User, cancellationToken) });
+```
+
+It is called once per request, after the gates, with the agent, the thread, the caller and what the front end sent
+(untrusted). Only what it returns reaches the run, checked like any other values, and a tool of the run reads them from
+`TraconRunContext.Current.Parameters` with the source `ParameterValueSource.Host`. A resolver that throws ends the request
+with `500` and the error type `parameter_resolution_failed`, and no run starts.
+
+## Mapping more than one pattern
+
+The endpoint can be mapped under more than one pattern (`app.MapTraconAGUI("/partner/agui")`). The patterns share one
+rate-limit window. Mapping one pattern twice fails when it is mapped, with a message that names the pattern.
+
 ## What comes back
 
 The first event after `RUN_STARTED` is a `CUSTOM` event named `tracon.run` that carries the Tracon run id. A tool that waits for
 approval, and an MCP server that asks the user for input, end the run with an interrupt in `RUN_FINISHED`. A failure after the
 stream began is a `RUN_ERROR` event that carries a correlation id the server log has. No event carries `rawEvent`: the provider's
-raw update does not reach the browser.
+raw update does not reach the browser. When the model asks for a server tool and a client-side tool in one answer, Tracon
+holds the client call back and the stream carries a `CUSTOM` event named `tracon.client_call_withheld` with the call's
+`toolCallId` and `toolName`, before `RUN_FINISHED`; a server tool that waits for approval ends the run at the approval and
+the held client call does not run in that turn.
 
 ## Notes
 

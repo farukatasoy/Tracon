@@ -3313,8 +3313,8 @@ export interface components {
             /** @description User message. May be left empty only if IReadOnlyList&lt;ToolApprovalDecision&gt; AgentRunRequest.Approvals is sent. */
             message?: null | string;
             /**
-             * @description Session identifier. If not given, the run is sessionless and no history
-             *     is carried.
+             * @description Session identifier: one to 200 characters, with no whitespace at the start or the end; dots, colons and every other
+             *     character are allowed. If not given, the run is sessionless and no history is carried.
              */
             sessionId?: null | string;
             /**
@@ -7564,7 +7564,7 @@ export interface components {
              *     given, the whole conversation is copied.
              */
             upToSequence?: null | number | string;
-            /** @description The identifier of the new session to open. Generated if not given. */
+            /** @description The identifier of the new session to open. Generated if not given. One to 200 characters, with no whitespace at either end. */
             newSessionId?: null | string;
         };
         /** @description The result of branching. */

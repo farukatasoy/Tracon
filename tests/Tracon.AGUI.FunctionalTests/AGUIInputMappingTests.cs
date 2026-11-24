@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using AGUI.Abstractions;
 using Tracon.AGUI.FunctionalTests.Infrastructure;
@@ -15,6 +16,9 @@ namespace Tracon.AGUI.FunctionalTests;
 /// </remarks>
 public sealed class AGUIInputMappingTests
 {
+    // The longest session identity the management API takes; the thread of an AG-UI request is held to the same number.
+    private const int SessionLimit = 200;
+
     [Fact]
     public async Task A_message_is_a_recorded_run_and_streams_as_AG_UI_events()
     {
@@ -152,6 +156,56 @@ public sealed class AGUIInputMappingTests
 
         var exact = await host.RunAsync(TestAgents.Echo, AGUIInputs.User(new string('t', 200), "hi"));
         exact.Status.ShouldBe(HttpStatusCode.OK, "200 characters is the limit, not over it");
+    }
+
+    [Theory]
+    [InlineData("order:42.v1")]
+    [InlineData("a-b_c d.e:f/g")]
+    [InlineData("0123456789")]
+    public async Task A_thread_id_may_hold_any_character_the_session_rule_allows_dots_and_colons_included(string threadId)
+    {
+        // The rule of an agent session id is a length and a clean edge: nothing else is refused. It is not the narrower rule
+        // of a workflow execution identity (letters, digits, '-' and '_', 128 at most).
+        await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);
+
+        var response = await host.RunAsync(TestAgents.Echo, AGUIInputs.User(threadId, "hi"));
+
+        response.Status.ShouldBe(HttpStatusCode.OK, response.Body);
+    }
+
+    [Theory]
+    [InlineData("at the limit", true)]
+    [InlineData("over the limit", false)]
+    [InlineData("leading space", false)]
+    [InlineData("trailing tab", false)]
+    [InlineData("dots and colons", true)]
+    public async Task The_thread_id_rule_is_the_one_of_the_agent_run_endpoint(string kind, bool accepted)
+    {
+        // One rule, one place: whatever the run endpoint of the management API takes or turns away for a session id, this
+        // endpoint takes or turns away for a thread id.
+        var identity = kind switch
+        {
+            "at the limit" => "a:" + new string('b', SessionLimit - 2),
+            "over the limit" => "a." + new string('b', SessionLimit - 1),
+            "leading space" => " " + new string('b', 20),
+            "trailing tab" => new string('b', 20) + "\t",
+            _ => "order:42.v1",
+        };
+
+        await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);
+
+        var agUi = await host.RunAsync(TestAgents.Echo, AGUIInputs.User(identity, "hi"));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/tracon/api/agents/{TestAgents.Echo}/run", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hi", SessionId = identity }),
+        };
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+
+        using var management = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        (agUi.Status == HttpStatusCode.OK).ShouldBe(accepted, $"AG-UI answered {agUi.Status} for '{kind}'");
+        (management.StatusCode == HttpStatusCode.OK).ShouldBe(accepted, $"the run endpoint answered {management.StatusCode} for '{kind}'");
     }
 
     [Theory]

@@ -323,6 +323,33 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
+    public async Task A_tool_with_an_approval_policy_returns_409_with_LiveTools()
+    {
+        // The tool carries no flag: only a code-defined policy judges it. A live replay cannot ask a person, so it is refused
+        // the way a flagged tool is.
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddToolsFrom(typeof(ReplayProbeTools));
+            builder.AddToolApprovalPolicy("get_order_status", static _ => ToolApprovalPolicyDecision.NotRequired);
+
+            SaveDefinition(builder, new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Give a short answer.",
+                Model = TestData.Model(),
+                ToolNames = ["get_order_status"],
+            });
+        });
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "what is the status")]);
+
+        using var live = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "LiveTools" });
+        using var replayed = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "NoTools" });
+
+        live.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        replayed.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task A_tool_requiring_approval_on_a_code_sourced_agent_also_returns_409_with_LiveTools()
     {
         // The approval-tool guard only ran on the `definition is

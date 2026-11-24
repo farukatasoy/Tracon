@@ -49,6 +49,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly IToolAuthorizationHandler _authorizationHandler;
     private readonly TenantToolPolicyGate _policyGate;
+    private readonly ToolApprovalPolicyRegistry _approvalPolicies;
     private readonly IToolArgumentsValidator _validator;
     private readonly IRunAttributionContext? _attribution;
     private readonly EgressSocketGuard? _egressGuard;
@@ -84,6 +85,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         McpOAuthTokenCacheRegistry tokenCaches,
         IToolAuthorizationHandler authorizationHandler,
         TenantToolPolicyGate policyGate,
+        ToolApprovalPolicyRegistry approvalPolicies,
         IToolArgumentsValidator validator,
         IRunAttributionContext? attribution,
         EgressSocketGuard? egressGuard = null,
@@ -99,6 +101,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(tokenCaches);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
         ArgumentNullException.ThrowIfNull(policyGate);
+        ArgumentNullException.ThrowIfNull(approvalPolicies);
         ArgumentNullException.ThrowIfNull(validator);
 
         _servers = servers;
@@ -111,6 +114,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _tokenCaches = tokenCaches;
         _authorizationHandler = authorizationHandler;
         _policyGate = policyGate;
+        _approvalPolicies = approvalPolicies;
         _validator = validator;
         _attribution = attribution;
         _egressGuard = egressGuard;
@@ -227,6 +231,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         _logger,
                         _authorizationHandler,
                         _policyGate,
+                        _approvalPolicies,
                         _validator,
                         _coreOptions.Value.Tools.DefaultTimeout,
                         _attribution,

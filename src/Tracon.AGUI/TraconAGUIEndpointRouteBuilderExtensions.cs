@@ -117,10 +117,15 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
 
         // Read once, here: a flag changed after the endpoint is mapped must not loosen a running endpoint.
         var acceptForwardedParameters = options.AcceptForwardedParameters;
+        var resolveParameters = options.ResolveParameters;
 
         var services = endpoints.ServiceProvider;
         var endpointOptions = TraconEndpointRouteBuilderExtensions.RequireSharedEndpointOptions(endpoints, "AG-UI");
         var normalizedPattern = '/' + pattern.Trim('/');
+
+        // Before anything is mapped: a pattern that is mapped a second time fails here, naming the pattern, and the endpoint
+        // name of every other pattern carries it, because ASP.NET Core accepts a name once in the application.
+        var nameSuffix = EndpointMappingRegistry.Claim(endpoints, "AG-UI", normalizedPattern, DefaultPattern);
         var roles = TraconRolePolicies.Resolve(services, endpointOptions);
 
         // A browser front end runs on another origin more often than not (CopilotKit's dev server next to the API), so the
@@ -136,8 +141,9 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
         group.AddEndpointFilter(new TraconEndpointFilter(endpointOptions));
 
         // Off by default, like the management API's. The group counts its own window: an AG-UI
-        // request does not spend the management API's, with Scope Instance or Deployment alike.
-        if (TraconRateLimitFilter.ForAgUi(services) is { } rateLimitFilter)
+        // request does not spend the management API's, with Scope Instance or Deployment alike. One filter serves every
+        // mapping, so a second pattern shares the window of the first and does not add one of its own.
+        if (EndpointMappingRegistry.Shared(endpoints, "AG-UI.RateLimit", () => TraconRateLimitFilter.ForAgUi(services)) is { } rateLimitFilter)
         {
             group.AddEndpointFilter(rateLimitFilter);
         }
@@ -150,10 +156,10 @@ public static class TraconAGUIEndpointRouteBuilderExtensions
         group.MapPost(
                 "/{agentName}",
                 (string agentName, HttpContext httpContext, CancellationToken cancellationToken) =>
-                    AGUIRunEndpoint.HandleAsync(agentName, httpContext, acceptForwardedParameters, cancellationToken))
+                    AGUIRunEndpoint.HandleAsync(agentName, httpContext, acceptForwardedParameters, resolveParameters, cancellationToken))
             .RequireRole(roles.Operator)
             .RequireAnyApiKeyScope(ApiKeyScope.ChatRun, ApiKeyScope.RunsWrite)
-            .WithName("TraconAGUIRun")
+            .WithName("TraconAGUIRun" + nameSuffix)
             .WithSummary("Runs an agent for an AG-UI front end and streams the AG-UI events.")
             .WithDescription(
                 "The body is an AG-UI RunAgentInput; the answer is text/event-stream with one 'data:' frame per AG-UI event. " +

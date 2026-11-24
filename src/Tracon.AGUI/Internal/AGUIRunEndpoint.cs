@@ -30,12 +30,17 @@ internal static class AGUIRunEndpoint
     /// <param name="acceptForwardedParameters">
     /// Whether <c>forwardedProps.parameters</c> supplies the run parameters, as the host decided when it mapped the endpoint.
     /// </param>
+    /// <param name="resolveParameters">
+    /// The host's own code that decides the run parameters (<see cref="TraconAGUIOptions.ResolveParameters"/>); it replaces
+    /// <paramref name="acceptForwardedParameters"/> when set.
+    /// </param>
     /// <param name="cancellationToken">The request's cancellation token.</param>
     /// <returns>The refusal, or the event stream.</returns>
     public static async Task<IResult> HandleAsync(
         string agentName,
         HttpContext httpContext,
         bool acceptForwardedParameters,
+        Func<AGUIParameterRequest, CancellationToken, ValueTask<IReadOnlyDictionary<string, string>?>>? resolveParameters,
         CancellationToken cancellationToken)
     {
         if (AgentTurnService.CheckDrain(httpContext) is { } drainProblem)
@@ -92,22 +97,61 @@ internal static class AGUIRunEndpoint
         // Off, forwardedProps is the front end's own and is not read at all: the request is what it always was. On, only the
         // `parameters` property is read, and its shape is refused here like any other body the endpoint cannot map; whether
         // the names and the values fit the agent is the turn preparation's check, the one the run endpoint makes.
-        var parameters = acceptForwardedParameters ? AGUIInputMapper.ReadParameters(input) : ParameterMapping.None;
+        //
+        // With a resolver the front end's values are the resolver's input and nothing more: they are read for their shape
+        // here, and enter the run only if the resolver returns them.
+        var useResolver = resolveParameters is not null;
+        var parameters = acceptForwardedParameters || useResolver ? AGUIInputMapper.ReadParameters(input) : ParameterMapping.None;
 
         if (parameters.Problem is { } parametersProblem)
         {
             return parametersProblem;
         }
 
-        LogIgnoredInput(httpContext, input, acceptForwardedParameters);
+        LogIgnoredInput(httpContext, input, acceptForwardedParameters || useResolver);
 
-        var request = AGUIInputMapper.MapQueue(input) with { Parameters = parameters.Values };
+        var request = AGUIInputMapper.MapQueue(input) with { Parameters = useResolver ? null : parameters.Values };
 
         if (await AgentTurnService
                 .CheckRunGatesAsync(agentName, request, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } gateProblem)
         {
             return gateProblem;
+        }
+
+        // After the gates: a request that is turned away never reaches the host's code. The gates read no parameter, so
+        // the values can be decided after them without the gates being any the wiser.
+        var parameterSource = ParameterValueSource.Client;
+
+        if (resolveParameters is not null)
+        {
+            // The agent is known before the host's code is asked about it: the name is the caller's, and a resolver that is
+            // handed a name nothing carries would answer a failure of its own for what is a plain 404.
+            if (await httpContext.RequestServices.GetRequiredService<IAgentCatalog>()
+                    .DescribeAsync(agentName, cancellationToken)
+                    .ConfigureAwait(false) is null)
+            {
+                return Results.Problem(
+                    title: "Agent not found",
+                    detail: $"There is no agent named '{agentName}'.",
+                    statusCode: StatusCodes.Status404NotFound);
+            }
+
+            var resolved = await ResolveParametersAsync(
+                resolveParameters,
+                agentName,
+                input,
+                parameters.Values,
+                httpContext,
+                cancellationToken).ConfigureAwait(false);
+
+            if (resolved.Problem is { } resolverProblem)
+            {
+                return resolverProblem;
+            }
+
+            request = request with { Parameters = resolved.Values };
+            parameterSource = ParameterValueSource.Host;
         }
 
         var resume = await AGUIInputMapper.MapResumeAsync(input, httpContext, cancellationToken).ConfigureAwait(false);
@@ -138,7 +182,8 @@ internal static class AGUIRunEndpoint
                         .ConfigureAwait(false);
 
                     return tools.Problem;
-                })
+                },
+                parameterSource)
             .ConfigureAwait(false);
 
         if (preparation.Turn is not { } turn)
@@ -163,6 +208,75 @@ internal static class AGUIRunEndpoint
         }
 
         return new AGUIRunStream(opened, input, turn.RunId, tools.Ignored);
+    }
+
+    /// <summary>Runs the host's parameter resolver and checks what it returned for a value that cannot be one.</summary>
+    /// <remarks>
+    /// The answer to a resolver that failed never carries the front end's text or the exception's: the log line has the agent,
+    /// the thread and the exception, and the front end is told which kind of failure it was.
+    /// </remarks>
+    private static async ValueTask<(IResult? Problem, IReadOnlyDictionary<string, string>? Values)> ResolveParametersAsync(
+        Func<AGUIParameterRequest, CancellationToken, ValueTask<IReadOnlyDictionary<string, string>?>> resolveParameters,
+        string agentName,
+        RunAgentInput input,
+        IReadOnlyDictionary<string, string>? forwarded,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var supplied = await resolveParameters(
+                    new AGUIParameterRequest(
+                        agentName,
+                        input.ThreadId,
+                        httpContext.User,
+                        forwarded ?? new Dictionary<string, string>(StringComparer.Ordinal)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (supplied is null or { Count: 0 })
+            {
+                return (null, null);
+            }
+
+            // A copy, made inside the same guard as the call: the resolver may keep its dictionary and change it while it is
+            // read, and that is its failure as much as a throw is. A value that is not text cannot be checked against the
+            // schema, and a run must not start on a guess.
+            var copy = new Dictionary<string, string>(supplied.Count, StringComparer.Ordinal);
+
+            foreach (var (name, value) in supplied)
+            {
+                if (name is null || value is null)
+                {
+                    throw new InvalidOperationException("The parameter resolver returned a name or a value that is null.");
+                }
+
+                copy[name] = value;
+            }
+
+            return (null, copy);
+        }
+        catch (Exception exception) when (AGUIEventStream.IsFailure(exception, cancellationToken))
+        {
+            return (ResolverFailed(httpContext, agentName, input.ThreadId, exception), null);
+        }
+    }
+
+    private static IResult ResolverFailed(HttpContext httpContext, string agentName, string threadId, Exception exception)
+    {
+        httpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Tracon.AGUI")
+            .LogError(exception, "The AG-UI parameter resolver failed for agent '{AgentName}', thread {ThreadId}; the run was not started.", agentName, threadId);
+
+        return Results.Problem(
+            title: "Run parameters could not be resolved",
+            detail: "The host's parameter resolver failed, so the run was not started.",
+            statusCode: StatusCodes.Status500InternalServerError,
+            extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["errorType"] = TraconErrorTypes.ParameterResolutionFailed,
+            });
     }
 
     // The log says that something was ignored and never what it held: forwardedProps can carry a run parameter's value.

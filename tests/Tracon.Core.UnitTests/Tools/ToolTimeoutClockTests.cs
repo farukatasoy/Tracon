@@ -31,6 +31,7 @@ public sealed class ToolTimeoutClockTests
             Descriptor("slow_tool"),
             new AllowAllToolAuthorizationHandler(),
             TestData.OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             defaultTimeout: TimeSpan.FromSeconds(30),
             defaultMaxOutputBytes: null,
@@ -53,6 +54,7 @@ public sealed class ToolTimeoutClockTests
             [registration],
             new AllowAllToolAuthorizationHandler(),
             TestData.OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -127,6 +129,7 @@ public sealed class ToolTimeoutClockTests
         services.AddLogging();
         services.AddSingleton<IToolAuthorizationHandler>(new AllowAllToolAuthorizationHandler());
         services.AddSingleton(TestData.OpenToolPolicy());
+        services.AddSingleton(TestData.NoApprovalPolicies());
         services.AddSingleton<IToolArgumentsValidator>(NoOpToolArgumentsValidator.Instance);
         services.AddSingleton(TestData.DefaultOptionsMonitor());
         services.AddSingleton<IOptions<TraconImageOptions>>(Options.Create(new TraconImageOptions()));

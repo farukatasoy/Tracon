@@ -33,9 +33,17 @@ internal sealed class ToolApprovalPolicyRegistry
         }
     }
 
+    /// <summary>Gets the names of the tools a policy is registered for.</summary>
+    public IReadOnlyCollection<string> Names => _policies.Keys;
+
     /// <summary>Looks up the policy for a tool, if one is registered.</summary>
     /// <param name="toolName">The tool name.</param>
     /// <param name="policy">The policy delegate, when found.</param>
     public bool TryGet(string toolName, [NotNullWhen(true)] out Func<ToolApprovalContext, ToolApprovalPolicyDecision>? policy)
         => _policies.TryGetValue(toolName, out policy);
+
+    /// <summary>Tells whether a policy is registered for a tool.</summary>
+    /// <param name="toolName">The tool name.</param>
+    /// <returns><see langword="true"/> when one is.</returns>
+    public bool Contains(string toolName) => _policies.ContainsKey(toolName);
 }

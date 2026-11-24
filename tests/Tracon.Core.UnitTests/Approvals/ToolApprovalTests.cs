@@ -30,6 +30,7 @@ public sealed class ToolApprovalTests
             ],
             new AllowAllToolAuthorizationHandler(),
             TestData.OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -61,6 +62,7 @@ public sealed class ToolApprovalTests
             ],
             new AllowAllToolAuthorizationHandler(),
             TestData.OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -86,6 +88,7 @@ public sealed class ToolApprovalTests
             ],
             new AllowAllToolAuthorizationHandler(),
             TestData.OpenToolPolicy(),
+            TestData.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
             attribution: null,
@@ -469,6 +472,63 @@ public sealed class ToolApprovalTests
         (await evaluator.IsAutoApprovedAsync("support", Call("refund_order", ("amount", 50)))).ShouldBeTrue();
         (await evaluator.IsAutoApprovedAsync("support", Call("refund_order", ("amount", 500)))).ShouldBeFalse();
     }
+
+    [Theory]
+    [InlineData(ToolApprovalPolicyDecision.Undecided, true)]
+    [InlineData(ToolApprovalPolicyDecision.NotRequired, true)]
+    [InlineData(ToolApprovalPolicyDecision.Required, false)]
+    public async Task A_tool_held_only_by_its_policy_runs_unless_the_policy_says_Required(ToolApprovalPolicyDecision decision, bool approved)
+    {
+        // No flag on the registration: the tool waits for approval because its name has a policy, so a policy with no opinion
+        // has nothing to defer to and the call runs.
+        var policies = new[] { new ToolApprovalPolicyRegistration("refund_order", _ => decision) };
+        var tools = RegistryOf([new TraconToolRegistration(Function("refund_order"))], policies);
+
+        var evaluator = CreateEvaluator(new InMemoryToolApprovalRuleStore(), policies, tools);
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order"))).ShouldBe(approved);
+    }
+
+    [Fact]
+    public async Task A_flagged_tool_whose_policy_is_Undecided_still_defers_to_the_data_rules()
+    {
+        var policies = new[] { new ToolApprovalPolicyRegistration("refund_order", static _ => ToolApprovalPolicyDecision.Undecided) };
+        var tools = RegistryOf([new TraconToolRegistration(Function("refund_order")) { RequiresApproval = true }], policies);
+        var store = new InMemoryToolApprovalRuleStore();
+
+        var evaluator = CreateEvaluator(store, policies, tools);
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order"))).ShouldBeFalse();
+
+        await store.AddAsync(Rule("refund_order", agentName: "support", argumentsHash: null));
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order"))).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_policy_with_no_opinion_for_a_tool_the_registry_cannot_show_defers_to_the_data_rules()
+    {
+        // A tool a run brings with it is not in the registry. Its call keeps the path of a flagged tool.
+        var policies = new[] { new ToolApprovalPolicyRegistration("search_notes", static _ => ToolApprovalPolicyDecision.Undecided) };
+        var evaluator = CreateEvaluator(new InMemoryToolApprovalRuleStore(), policies, RegistryOf([], policies));
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("search_notes"))).ShouldBeFalse();
+    }
+
+    private static ToolRegistry RegistryOf(
+        IEnumerable<TraconToolRegistration> registrations,
+        IEnumerable<ToolApprovalPolicyRegistration> policies)
+        => new(
+            registrations,
+            new AllowAllToolAuthorizationHandler(),
+            TestData.OpenToolPolicy(),
+            new ToolApprovalPolicyRegistry(policies),
+            NoOpToolArgumentsValidator.Instance,
+            TestData.DefaultOptionsMonitor(),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance);
 
     private static ToolArgumentCondition ThresholdCondition(double max)
         => new()

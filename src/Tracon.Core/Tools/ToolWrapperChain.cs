@@ -14,6 +14,8 @@ namespace Tracon;
 /// <remarks>
 /// Composition order (outermost first): CallRecording -&gt; ExplainedFailure -&gt; BudgetGating -&gt;
 /// Authorizing -&gt; Validating -&gt; Timeout -&gt; ApprovalRequired -&gt; Truncating -&gt; the real function.
+/// ApprovalRequired is also present for a tool without the approval flag whose name has a code-defined policy, in a
+/// <see cref="PolicyGatedApprovalAIFunction"/> marker.
 /// CallRecording gates and changes nothing: it writes the call into the run's ledger when it starts and
 /// when it ends, and hands the result or the exception on as it received it. It sits outside ExplainedFailure
 /// so that it sees every call that reaches the chain, a refused one included, and the result the model reads.
@@ -51,6 +53,11 @@ internal static class ToolWrapperChain
     /// Every caller passes the container's gate: a tool source that built its chain without one would run every
     /// tool for every tenant.
     /// </param>
+    /// <param name="approvalPolicies">
+    /// The code-defined approval policies. A tool registered without <c>RequiresApproval</c> whose name has a policy is
+    /// wrapped for approval all the same, so the policy decides every call of it. Every caller passes the container's
+    /// registry: a tool source that left it out would run a tool its host holds behind a policy without asking.
+    /// </param>
     /// <param name="validator">The argument validation policy applied before every server-side call.</param>
     /// <param name="defaultTimeout">The timeout applied when the registration sets none.</param>
     /// <param name="defaultMaxOutputBytes">The output byte limit applied when the registration sets none.</param>
@@ -74,6 +81,7 @@ internal static class ToolWrapperChain
         ToolDescriptor descriptor,
         IToolAuthorizationHandler authorizationHandler,
         TenantToolPolicyGate policyGate,
+        ToolApprovalPolicyRegistry approvalPolicies,
         IToolArgumentsValidator validator,
         TimeSpan defaultTimeout,
         int? defaultMaxOutputBytes,
@@ -87,6 +95,7 @@ internal static class ToolWrapperChain
         ArgumentNullException.ThrowIfNull(descriptor);
         ArgumentNullException.ThrowIfNull(authorizationHandler);
         ArgumentNullException.ThrowIfNull(policyGate);
+        ArgumentNullException.ThrowIfNull(approvalPolicies);
         ArgumentNullException.ThrowIfNull(validator);
         ArgumentNullException.ThrowIfNull(authorizingLogger);
         ArgumentNullException.ThrowIfNull(timeoutLogger);
@@ -116,9 +125,16 @@ internal static class ToolWrapperChain
         // retaining the canonicalization boundary.
         AIFunction wrapped = new TruncatingAIFunction(invocable, effectiveMaxOutputBytes ?? int.MaxValue);
 
+        // A policy judges every call of its tool, but only a call that is already waiting for approval reaches the
+        // framework's approval rules. A tool without the flag never waits, so a policy that said Required for it changed
+        // nothing and the body ran. The tool is wrapped for approval because its name has a policy, and marked, so the
+        // evaluator can tell that its policy is the only reason it asks. A tool the host or the framework already wrapped
+        // asks without this.
         wrapped = registration.RequiresApproval
             ? new ApprovalRequiredAIFunction(wrapped)
-            : wrapped;
+            : invocable.GetService<ApprovalRequiredAIFunction>() is null && approvalPolicies.Contains(invocable.Name)
+                ? new PolicyGatedApprovalAIFunction(new ApprovalRequiredAIFunction(wrapped))
+                : wrapped;
 
         wrapped = new TimeoutAIFunction(
             wrapped,

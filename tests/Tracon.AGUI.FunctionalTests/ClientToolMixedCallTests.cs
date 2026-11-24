@@ -2,6 +2,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using AGUI.Abstractions;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AGUI.FunctionalTests.Infrastructure;
 using Tracon.Testing;
 
@@ -74,6 +75,95 @@ public sealed class ClientToolMixedCallTests
         second.Text.ShouldBe("Final: Shopping cart");
         executions.Value.ShouldBe(1, "the next request does not run the server tool again");
         model.Requests.ShouldAllBe(static request => Orphaned(request.Messages).Count == 0, "a call without a result reached the provider");
+    }
+
+    [Fact]
+    public async Task The_call_the_front_end_lost_is_announced_before_the_run_finishes_and_is_recorded_in_the_run()
+    {
+        var model = new FakeModelProvider("mixed-model")
+            .CallsTools((BackendTool, null), (TestAgents.OpenPage, new { url = "https://example.test" }))
+            .CallsTool(TestAgents.OpenPage, new { url = "https://example.test" })
+            .EchoesLastToolResult("Final: ");
+
+        await using var host = await AGUITestHost.StartAsync(builder => builder
+            .AddModelProvider(model)
+            .AddTool(Microsoft.Extensions.AI.AIFunctionFactory.Create(() => "order 7 shipped", BackendTool, "Looks an order up."))
+            .AddClientTool(TestAgents.OpenPage, "Opens a page in the user's browser.", System.Text.Json.JsonDocument.Parse(TestAgents.OpenPageSchema).RootElement.Clone())
+            .AddAgent(TestAgents.Definition(Agent, "mixed-model", BackendTool, TestAgents.OpenPage)));
+
+        var response = await host.RunAsync(
+            Agent,
+            AGUIInputs.User("t-notice", "look up order 7 and open the page", "r1", [AGUIInputs.Tool(TestAgents.OpenPage)]));
+
+        response.Status.ShouldBe(HttpStatusCode.OK, response.Body);
+
+        var notice = response.Events.OfType<CustomEvent>().Single(static custom => string.Equals(custom.Name, RunEventCustomTypes.ClientCallWithheld, StringComparison.Ordinal));
+        var withheldCallId = notice.Value!.Value.GetProperty("toolCallId").GetString().ShouldNotBeNull();
+
+        notice.Value!.Value.GetProperty("toolName").GetString().ShouldBe(TestAgents.OpenPage);
+        notice.Value!.Value.EnumerateObject().Count().ShouldBe(2, "the call and the tool, and nothing the model said");
+
+        var order = response.Events.ToList();
+
+        order.IndexOf(notice).ShouldBeGreaterThan(order.FindIndex(static e => e is RunStartedEvent));
+        order.IndexOf(notice).ShouldBeLessThan(order.FindIndex(static e => e is RunFinishedEvent), "the notice comes before the run finishes");
+
+        // The run's own record carries the same event: a front end that was not connected reads it there.
+        var store = host.Services.GetRequiredService<IRunStore>();
+        var recorded = new List<RunEvent>();
+
+        await foreach (var runEvent in store.ReadEventsAsync(response.TraconRunId, 0, TestContext.Current.CancellationToken))
+        {
+            if (string.Equals(runEvent.CustomType, RunEventCustomTypes.ClientCallWithheld, StringComparison.Ordinal))
+            {
+                recorded.Add(runEvent);
+            }
+        }
+
+        recorded.ShouldHaveSingleItem().ToolCallId.ShouldBe(withheldCallId);
+        recorded[0].ToolName.ShouldBe(TestAgents.OpenPage);
+    }
+
+    [Fact]
+    public async Task A_client_call_that_shares_an_answer_with_an_approval_is_announced_and_does_not_run_in_that_turn()
+    {
+        var executions = new StrongBox<int>();
+        var model = new FakeModelProvider("approval-model")
+            .CallsTools((TestAgents.CancelOrder, new { orderId = "ORD-7" }), (TestAgents.OpenPage, new { url = "https://example.test" }))
+            .EchoesLastToolResult();
+
+        await using var host = await AGUITestHost.StartAsync(builder => builder
+            .AddModelProvider(model)
+            .AddTool(
+                (Func<string, string>)(orderId =>
+                {
+                    Interlocked.Increment(ref executions.Value);
+
+                    return $"{orderId} canceled.";
+                }),
+                name: TestAgents.CancelOrder,
+                description: "Cancels an order.",
+                configure: options => options.RequiresApproval = true)
+            .AddClientTool(TestAgents.OpenPage, "Opens a page in the user's browser.", System.Text.Json.JsonDocument.Parse(TestAgents.OpenPageSchema).RootElement.Clone())
+            .AddAgent(TestAgents.Definition(Agent, "approval-model", TestAgents.CancelOrder, TestAgents.OpenPage)));
+
+        var response = await host.RunAsync(
+            Agent,
+            AGUIInputs.User("t-approval-notice", "cancel order 7 and open the page", "r1", [AGUIInputs.Tool(TestAgents.OpenPage)]));
+
+        response.Status.ShouldBe(HttpStatusCode.OK, response.Body);
+
+        // The run ends at the approval. The client call is not among the calls the front end is asked to run, and the notice
+        // says why: it came before the interrupt of RUN_FINISHED, not after it.
+        response.Interrupts.ShouldHaveSingleItem();
+        executions.Value.ShouldBe(0, "the approval has not been given");
+
+        var notice = response.Events.OfType<CustomEvent>().Single(static custom => string.Equals(custom.Name, RunEventCustomTypes.ClientCallWithheld, StringComparison.Ordinal));
+        var order = response.Events.ToList();
+
+        notice.Value!.Value.GetProperty("toolName").GetString().ShouldBe(TestAgents.OpenPage);
+        order.IndexOf(notice).ShouldBeLessThan(order.FindIndex(static e => e is RunFinishedEvent));
+        response.Events.OfType<ToolCallStartEvent>().ShouldNotContain(static start => string.Equals(start.ToolCallName, TestAgents.OpenPage, StringComparison.Ordinal));
     }
 
     [Fact]

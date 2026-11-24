@@ -9600,7 +9600,7 @@
               "null",
               "string"
             ],
-            "description": "Session identifier. If not given, the run is sessionless and no history\nis carried."
+            "description": "Session identifier: one to 200 characters, with no whitespace at the start or the end; dots, colons and every other\ncharacter are allowed. If not given, the run is sessionless and no history is carried."
           },
           "lane": {
             "type": [
@@ -18453,7 +18453,7 @@
               "null",
               "string"
             ],
-            "description": "The identifier of the new session to open. Generated if not given."
+            "description": "The identifier of the new session to open. Generated if not given. One to 200 characters, with no whitespace at either end."
           }
         },
         "description": "A request to branch a conversation from a specific point."

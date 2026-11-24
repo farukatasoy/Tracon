@@ -140,6 +140,30 @@ public sealed class McpServerEndpointTests
     }
 
     /// <summary>
+    /// A tool registered without the flag but judged by a code-defined approval policy can ask for a person too, so an external
+    /// caller, which cannot answer, cannot reach it.
+    /// </summary>
+    [Fact]
+    public async Task Agent_carrying_a_tool_with_an_approval_policy_cannot_be_exposed()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddTool(
+                    (Func<string, string>)CancelOrder,
+                    name: "cancel_order",
+                    description: "Cancels an order.")
+                .AddToolApprovalPolicy("cancel_order", static _ => ToolApprovalPolicyDecision.NotRequired)
+                .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
+                .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconMcpServer());
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => McpTestClient.SendAsync(host.Client, "/tracon/mcp", "tools/list"));
+
+        exception.Message.ShouldContain("cancel_order", Case.Sensitive);
+    }
+
+    /// <summary>
     /// The same boundary for a tool the framework wrapped for approval itself, the way
     /// <c>DockerShellExecutor.AsAIFunction()</c> does by default, with no <c>RequiresApproval</c> on the
     /// registration.

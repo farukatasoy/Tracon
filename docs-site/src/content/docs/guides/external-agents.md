@@ -142,9 +142,11 @@ with the exact `ExternalInvoke` scope. A static bearer token alone is rejected a
 startup. Create the key before enabling remote access.
 
 An exposed agent cannot contain an approval-required tool. A tool needs approval when its
-registration sets `RequiresApproval`, or when the function is already wrapped in
+registration sets `RequiresApproval`, when the function is already wrapped in
 `ApprovalRequiredAIFunction` — the default of Microsoft Agent Framework's
-`DockerShellExecutor.AsAIFunction()`. The application waits
+`DockerShellExecutor.AsAIFunction()` — or when a code-defined
+[approval policy](/concepts/governance/) is registered for its name: the policy can answer `Required` for any
+call, so the tool counts even when the registration sets no flag. The application waits
 until the catalog is queryable, checks the selected agents, and prevents MCP requests
 from running if an approval boundary would be crossed. An external protocol caller
 cannot act as the missing human. A tool that gains approval after the agent was exposed

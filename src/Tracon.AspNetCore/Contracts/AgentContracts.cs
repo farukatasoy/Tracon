@@ -332,9 +332,13 @@ public sealed record AgentRunRequest
     public string? Message { get; init; }
 
     /// <summary>
-    /// Session identifier. If not given, the run is sessionless and no history
-    /// is carried.
+    /// Session identifier: one to 200 characters, with no whitespace at the start or the end; dots, colons and every other
+    /// character are allowed. If not given, the run is sessionless and no history is carried.
     /// </summary>
+    /// <remarks>
+    /// The AG-UI <c>threadId</c> and every other identity that opens a session follow the same rule. It is not the rule of a
+    /// workflow execution identity (at most 128 letters, digits, <c>-</c> or <c>_</c>).
+    /// </remarks>
     public string? SessionId { get; init; }
 
     /// <summary>

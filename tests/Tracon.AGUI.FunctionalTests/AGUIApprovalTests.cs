@@ -70,6 +70,43 @@ public sealed class AGUIApprovalTests
     }
 
     [Fact]
+    public async Task A_tool_without_the_flag_waits_for_approval_when_its_policy_says_Required_and_runs_once_after_it_is_given()
+    {
+        // No RequiresApproval on the registration: only the code-defined policy holds the call. The interrupt, the answer
+        // and the one run of the body are the same as for a flagged tool.
+        var executions = new StrongBox<int>();
+        await using var host = await AGUITestHost.StartAsync(builder => builder
+            .AddModelProvider(new FakeModelProvider("approval-model").CallsTool(TestAgents.CancelOrder, new { orderId = "ORD-7" }).EchoesLastToolResult())
+            .AddTool(
+                (Func<string, string>)(orderId =>
+                {
+                    Interlocked.Increment(ref executions.Value);
+
+                    return $"{orderId} canceled.";
+                }),
+                name: TestAgents.CancelOrder,
+                description: "Cancels an order.")
+            .AddToolApprovalPolicy(TestAgents.CancelOrder, static _ => ToolApprovalPolicyDecision.Required)
+            .AddAgent(TestAgents.Definition(TestAgents.Approval, "approval-model", TestAgents.CancelOrder)));
+
+        var first = await host.RunAsync(TestAgents.Approval, AGUIInputs.User("t-policy", "cancel the order", "r1"));
+
+        first.Status.ShouldBe(HttpStatusCode.OK, first.Body);
+
+        var interrupt = first.Interrupts.ShouldHaveSingleItem();
+
+        interrupt.Reason.ShouldBe(InterruptReasons.ToolCall);
+        executions.Value.ShouldBe(0, "the policy holds the call");
+
+        var second = await ResumeAsync(host, "t-policy", "r2", AGUIInputs.Resolved(interrupt.Id!, new { approved = true }));
+
+        second.Status.ShouldBe(HttpStatusCode.OK, second.Body);
+        second.Finished.Outcome.ShouldBeOfType<RunFinishedSuccessOutcome>();
+        second.Text.ShouldContain("ORD-7 canceled.", Case.Sensitive);
+        executions.Value.ShouldBe(1, "the approved call runs once, and the policy does not hold it a second time");
+    }
+
+    [Fact]
     public async Task An_approval_runs_the_tool_and_the_audit_row_names_the_surface()
     {
         var (host, executions, first) = await StartPendingAsync("t-approve");

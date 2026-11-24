@@ -19438,8 +19438,8 @@ namespace Tracon.Client.Generated
         public string? Message { get; set; } = default!;
 
         /// <summary>
-        /// Session identifier. If not given, the run is sessionless and no history
-        /// <br/>is carried.
+        /// Session identifier: one to 200 characters, with no whitespace at the start or the end; dots, colons and every other
+        /// <br/>character are allowed. If not given, the run is sessionless and no history is carried.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("sessionId")]
         public string? SessionId { get; set; } = default!;
@@ -27749,7 +27749,7 @@ namespace Tracon.Client.Generated
         public long? UpToSequence { get; set; } = default!;
 
         /// <summary>
-        /// The identifier of the new session to open. Generated if not given.
+        /// The identifier of the new session to open. Generated if not given. One to 200 characters, with no whitespace at either end.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("newSessionId")]
         public string? NewSessionId { get; set; } = default!;

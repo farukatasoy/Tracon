@@ -27,6 +27,7 @@ model_not_found
 not_found_error
 orphaned
 output_truncated
+parameter_resolution_failed
 provider_credential_unsupported
 provider_unavailable
 replay_tool_mismatch

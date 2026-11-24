@@ -107,11 +107,27 @@ The price is small and you should know it:
 - **The parallel intent is gone.** The client call always comes after the server tool,
   never beside it.
 
-An answer that asks for client calls only, or for server calls only, is not touched. A
-server tool that [requires approval](/concepts/tools/) still waits for its approval
-first, and the client call comes back after you approve. It works the same for every
-agent, whether you define it, build it with a harness, or build it in code over the
-client Tracon hands you.
+An answer that asks for client calls only, or for server calls only, is not touched. It
+works the same for every agent, whether you define it, build it with a harness, or build
+it in code over the client Tracon hands you.
+
+Each held call is recorded, so you can tell a run that ended without the client call from a
+run in which the model never asked for it. The run gets a `tracon.client_call_withheld`
+event for each one, with the `toolCallId` the model gave the call and the `toolName`, never
+its arguments. On the [AG-UI endpoint](/guides/ag-ui/#when-a-client-call-is-held-back) the
+same event is sent to the front end as a `CUSTOM` event.
+
+### When the server tool waits for approval
+
+If the server tool [requires approval](/concepts/tools/), the run ends at the approval and
+the held client call does **not** run in that turn. Tracon does not remember it: after you
+approve, the run continues and the model decides what to do next. It may ask for the client
+call again, and then it reaches the caller as an ordinary pending call; if it does not, the
+call never runs. Nothing is waiting for the caller in between, and the
+`tracon.client_call_withheld` event is the only trace of the call. A front end that needs
+the client call after an approval should tell the model to ask for it again, in the agent's
+instructions: put the order the agent should follow there ("ask for the approval first, then
+open the page").
 
 ## A call you do not answer
 

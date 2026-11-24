@@ -65,7 +65,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
 | Request fields | Temperature, top-p, seed, top-k, stop sequences, penalties, tool mode, parallel tool calls, and reasoning output are part of the definition | `ModelBinding` | Unset sends nothing; a provider states what its API surface sends (`ISamplingSupport`), and a field it would drop, on the primary model or a fallback, fails to compile and validation |
 | Tool-call loop | The loop that runs a turn's tool calls: concurrency, tolerated failed turns, and what an unknown tool does | `ModelBinding.ToolLoop` | `AllowConcurrentToolCalls` is off by default; each call still gets its own authorization, result, and metric; a fallback link takes the whole object |
-| Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values, from the HTTP run request or from your own code | `AgentDefinition.Parameters`, `AgentResolveOptions` | Value substitution only — no expression, condition, loop, or field access. The run records the values, so a replay repeats them |
+| Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values, from the HTTP run request or from your own code | `AgentDefinition.Parameters`, `AgentResolveOptions`, `AgentRunScope.Parameters` and `ParameterSource` | Value substitution only — no expression, condition, loop, or field access. The run records the values, so a replay repeats them. A tool of the run reads them with who supplied them (`Client`, `Caller` or `Host`); a sub-agent receives none |
 | Workflow run parameters | A workflow declares a schema; each agent step binds the values its own schema names; queued runs, batch items, replay, continuation and approval resume carry or repeat values | `WorkflowDefinition.Parameters`, `WorkflowRunRequest.Parameters`, `GetRunParameters()`, `RunReplayRequest.Parameters` | A run that recorded no values is not repeated for an agent with parameters; a code-defined workflow declares its schema in `WorkflowRegistrationOptions.Parameters`; `jobs.payload` is not content-protected |
 | Shared instructions blocks | One definition's instructions prepended to another's at compile time | `AgentDefinition.SharedInstructionsName` | A block cannot reference another block |
 
@@ -111,7 +111,7 @@ decisions can be overridden or composed with your own rules — see
 | Scanned tools | `AddToolsFrom<T>()`, or the overload that takes a type | Only attributed methods become tools; this path uses reflection |
 | Scoped tools | `AddScopedTool` | Every call gets its own DI scope, closed when the call ends |
 | Argument validation | `IToolArgumentsValidator` | Runs before every call, code-defined or MCP; a rejection skips the real body |
-| Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |
+| Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()`, which holds a tool whether or not it is flagged | A sensitive call cannot execute until a person or standing rule decides it |
 | Tool output size limit | `MaxOutputBytes` (per tool) or `Tools.DefaultMaxOutputBytes` (installation-wide) | A result over the byte limit is trimmed into a JSON envelope before the model sees it; unlimited by default |
 | Hosted tools | `AddHostedTool(...)` | A web search, code interpreter, or file search the model provider runs inside the model call; a definition selects it by name in `ToolNames`, and no approval, permission, or timeout applies. A provider states what its API surface runs (`IHostedToolSupport`); a kind it would drop fails to compile and validation. One tool per kind. Each call is priced with `Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall` and is a tool event. See [Hosted tools](/guides/hosted-tools/) |
 | Client-side tools | `AddClientTool(...)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults`. A model answer that asks for a client tool and a server tool together runs the server tool first and then asks again for the client call; a client call nobody answers is closed with `The call was not answered.` when the next request is a new message (run recording must be on). An agent carrying one cannot be replayed in any tool mode — its call was never recorded, so no mode can answer it |
@@ -273,7 +273,7 @@ graph instead of reporting it.
 | Embeddable chat widget | `Tracon.UI`'s `embed.js` asset (served once `UseUI()` is registered) | A page you embed the widget in, running under its own origin |
 | MCP client | `Tracon.Mcp` and `UseMcp()` | Agents that consume tools from remote MCP servers |
 | MCP server | `UseMcpServer()` and `MapTraconMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
-| AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. `TraconAGUIOptions.AcceptForwardedParameters` (off by default) lets the front end send run parameters in `forwardedProps.parameters`; an API key with the `ChatRun` scope reaches this endpoint and no other that asks for a scope; no frame carries `rawEvent`. See [AG-UI front ends](/guides/ag-ui/) |
+| AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. `TraconAGUIOptions.AcceptForwardedParameters` (off by default) lets the front end send run parameters in `forwardedProps.parameters`, and `TraconAGUIOptions.ResolveParameters` lets your own code decide them on the server instead, read by the run as `Host` values; the endpoint can be mapped under more than one pattern; an API key with the `ChatRun` scope reaches this endpoint and no other that asks for a scope; no frame carries `rawEvent`. See [AG-UI front ends](/guides/ag-ui/) |
 | A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents; a `contextId` continues a conversation scoped to the caller |
 | Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients |
 | Live voice sessions | `UseLiveVoice()`, a live provider, and `MapTracon()` | Browsers that speak to a provider-hosted model over WebRTC while Tracon supervises the session |
@@ -477,9 +477,20 @@ These ways to start a run carry values too:
 - a **workflow step** receives the values its own schema declares from the workflow's
   run, see [Workflow parameters](/concepts/workflow-parameters/)
 - an **AG-UI run** takes them from `forwardedProps.parameters`, only when the host turned on
-  `AcceptForwardedParameters`. They are checked like the `parameters` field, and the same rules apply; see
-  [Run parameters](/guides/ag-ui/#run-parameters). Left off, as it is by default, AG-UI carries no values and
+  `AcceptForwardedParameters`, or from the host's own `ResolveParameters` code, which decides them on the server. They
+  are checked like the `parameters` field, and the same rules apply; see
+  [Run parameters](/guides/ag-ui/#run-parameters). With neither, as is the default, AG-UI carries no values and
   an agent with a required parameter cannot be started from it
+
+A tool of the run can read the values: `TraconRunContext.Current?.Parameters` holds the set the run was bound with
+(the supplied values with the defaults applied) and `ParameterSource` says who supplied them. **Read the two
+together.** A value of `ParameterValueSource.Client` is text a user, or a script in the user's browser, chose, and it
+carries no authority: a tool does not decide who may see or change something by it. `Caller` is your own embedding
+code (`AgentResolveOptions.Parameters`) and `Host` is a value the host's code produced on the server for the request
+(the [AG-UI resolver](/guides/ag-ui/#decide-the-values-on-the-server)). A run that repeats the values of an earlier
+request (a queued run, a resume from the approval inbox, a replay) reads them as `Client`, because the source is not
+stored with them. A sub-agent the run calls receives none, and for an agent that declares no parameters the set is
+`null`.
 
 A run records the values it was bound with — the supplied ones with the defaults
 applied — beside its input. A **replay**, an **automatic continuation** after a crash
@@ -2363,6 +2374,11 @@ rules are writable from the UI and are not allowed to loosen a policy that says
 `Required`. An unhandled exception in a policy is treated as `Required` and logged —
 a broken policy never silently releases a tool from approval.
 
+A policy decides for **every call of its tool, flagged or not**: a tool with a policy and no
+`RequiresApproval` waits when the policy says `Required` and runs when it says anything else. What that
+costs, and which surfaces it closes to the tool, is in
+[Hold a tool back with a policy](/guides/write-your-own-tool/#hold-a-tool-back-with-a-policy).
+
 ### Tool authorization
 
 Approval and authorization answer different questions. Approval asks "is this call okay
@@ -3532,8 +3548,11 @@ custom type can never collide with your own. Tracon writes these:
 [Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)),
 `tracon.citation` and `tracon.context` (see [Citations and message sources](#citations-and-message-sources)),
 `tracon.tool.input.declined` (a [server's request for input](/concepts/tools/#a-server-asks-the-user-for-input)
-that Tracon answered with `decline`) and `tracon.agui.tools.ignored` (tools an
-[AG-UI front end](/guides/ag-ui/#front-end-tools) declared that the agent does not carry).
+that Tracon answered with `decline`), `tracon.agui.tools.ignored` (tools an
+[AG-UI front end](/guides/ag-ui/#front-end-tools) declared that the agent does not carry) and
+`tracon.client_call_withheld` (a call to a [client-side tool](/guides/client-side-tools/#when-the-model-asks-for-a-server-tool-and-a-client-side-tool-together)
+that Tracon held back because the model asked for a server tool in the same answer; the payload is
+`toolCallId` and `toolName`).
 `AppendAsync` rejects any value under that prefix, so a `Custom` event carrying it can
 only have come from Tracon itself. `Payload` is yours too — Tracon makes no claim about
 its shape and never reads it.
@@ -3780,6 +3799,18 @@ session owner, quota) are not part of these calls: ask [`RunAdmission`](/guides/
 The identity stamp matters: the session id is written into the session's own state
 bag, so it survives serialization. A restored session knows which session it is, which
 is how the recording layer can put the right session id on a run without being told.
+
+## Session identifiers
+
+A session id is the one a client chooses on `POST /api/agents/{name}/run`, on a branch (`newSessionId`), in an
+OpenAI-compatible request and, on the [AG-UI endpoint](/guides/ag-ui/), as `threadId`. The rule is the same for every one
+of them: **1 to 200 characters, with no whitespace at the start or the end**. Nothing else is refused, so `order:42.v1`
+is a valid session id. The length is the narrowest column that stores it (SQL Server), and the edge rule exists because
+SQL Server ignores trailing spaces in a key and the other stores do not, so a thread would be one session on one store
+and two on another.
+
+It is not the rule of a [workflow execution id](/guides/background-work/#give-an-item-its-own-values), which is narrower
+(at most 128 letters, digits, `-` or `_`). An id that satisfies both, such as `order_42-v1`, works as either.
 
 ## Two turns at once
 
@@ -8417,6 +8448,20 @@ by default, the bearer token, your authorization policy and the `Operator` role.
 run scope, `ChatRun` or `RunsWrite` — see [Who can call the endpoint](#who-can-call-the-endpoint). The path is
 `/tracon/agui` unless you pass another prefix.
 
+You can map the endpoint under more than one pattern, for example one for your own front end and one for a
+partner's, with different settings for each:
+
+```csharp
+app.MapTraconAGUI();                                   // /tracon/agui
+app.MapTraconAGUI("/partner/agui", options => options.AcceptForwardedParameters = false);
+```
+
+Each pattern is a separate endpoint with its own settings, and both serve every agent. They share one
+[rate-limit](/concepts/governance/#quotas-and-rate-limits) window for the AG-UI group, so a second pattern does not
+double a client's budget. Mapping the **same** pattern twice (`/tracon/agui` and `/TRACON/agui/` are the same pattern)
+fails when the endpoint is mapped, with a message that names the pattern, instead of failing the first request that
+reaches the application.
+
 The body is an AG-UI `RunAgentInput` and the answer is `text/event-stream`, one `data:` frame per event:
 
 ```bash
@@ -8510,12 +8555,12 @@ flowchart LR
 
 | AG-UI field | What Tracon does |
 |---|---|
-| `threadId` | It is the session. At most 200 characters; a thread belongs to the tenant that opened it, and with session ownership on also to the user |
+| `threadId` | It is the session, so it follows the [session id rule](/concepts/sessions/#session-identifiers): 1 to 200 characters, no whitespace at either end, any other character (dots and colons included). A thread belongs to the tenant that opened it, and with session ownership on also to the user |
 | `messages` | The server keeps the conversation. Only the messages after the **last assistant message** are new input: the user's text, and the results of the client-side tool calls that message made. Earlier messages are already in the session and are not added again. System and developer messages are not read — the instructions are the agent's |
 | `tools` | Must name every client-side tool the agent carries. The schema is always the one in code |
 | `resume` | Answers a tool approval or a request for user input |
 | `context` | Becomes run documents, kept apart from the instructions |
-| `forwardedProps.parameters` | The run's [parameter values](#run-parameters), only when the host turned on `AcceptForwardedParameters` |
+| `forwardedProps.parameters` | The run's [parameter values](#run-parameters), only when the host turned on `AcceptForwardedParameters`; or the host's `ResolveParameters` code reads it as untrusted input |
 | `state`, the rest of `forwardedProps` | Not used |
 
 Text is the only input kind read: image, audio, video and document parts of a message are ignored.
@@ -8576,6 +8621,54 @@ low, and prefer a parameter whose value is a short identifier or a choice from a
 can name, not free text.
 :::
 
+### Decide the values on the server
+
+A parameter often names something the user is looking at: the article a chat is about, the account it belongs to. The
+browser knows it, but the browser is not the one to decide it. `TraconAGUIOptions.ResolveParameters` is host code that
+does, on the server, and **replaces** `AcceptForwardedParameters`:
+
+```csharp
+using System.Security.Claims;
+
+// Your own code: which article a thread is about, and whether this user may read it.
+public interface IArticleThreads
+{
+    Task<Article?> FindForThreadAsync(string threadId, ClaimsPrincipal user, CancellationToken cancellationToken);
+}
+
+public sealed record Article(Guid Id);
+
+var articles = app.ServiceProvider.GetRequiredService<IArticleThreads>();
+
+app.MapTraconAGUI("/tracon/agui", options =>
+    options.ResolveParameters = async (request, cancellationToken) =>
+    {
+        // request.AgentName, request.ThreadId, request.User, and request.ForwardedParameters:
+        // what the front end sent. It is untrusted input; nothing in it reaches the run unless you return it.
+        var article = await articles.FindForThreadAsync(request.ThreadId, request.User, cancellationToken);
+
+        return article is null
+            ? null
+            : new Dictionary<string, string> { ["articleId"] = article.Id.ToString("N") };
+    });
+```
+
+- **Only what you return reaches the run.** The front end's `forwardedProps.parameters` is the resolver's input and a
+  value of it enters the run only if the resolver returns it. A resolver that returns `null` or an empty set runs the
+  agent on its defaults.
+- **It runs after the gates.** The request has passed the endpoint's access protection, run authorization, session
+  ownership and quota first, so your code is never called for a caller that was turned away. It runs once per request,
+  with the request's cancellation token, and it serves every agent: tell them apart by `request.AgentName`.
+- **What it returns is checked.** Like every other source, an undeclared name, a missing required value and a value over
+  `MaxParameterValueLength` are a `400` before anything runs, and the values are recorded with the run.
+- **A tool reads them as the host's.** `TraconRunContext.Current.Parameters` holds the set and `ParameterSource` is
+  `ParameterValueSource.Host`, so a tool of the run may decide by them what a `Client` value never could. A run that
+  repeats them later, such as a resume from the approval inbox or a replay, reads them as `Client`: the source is not
+  stored with the values. An approval answered on this endpoint is a new request, and it asks the resolver again.
+- **It fails closed.** A resolver that throws, or returns a null name or value, ends the request with `500` and the error
+  type `parameter_resolution_failed`; no run starts. The answer carries neither the exception's text nor anything the
+  front end sent. The exception and the thread are in the server log, and the values never are.
+
 ## Front-end tools
 
 A tool that runs in the browser is a [client-side tool](/guides/client-side-tools/): its declaration lives
@@ -8594,6 +8687,22 @@ instruction:
   run records its name under the `tracon.agui.tools.ignored` event.
 
 A front end cannot add a tool or change a schema through this endpoint. Tools are defined only in code.
+
+### When a client call is held back
+
+A model can answer with a call to a [client-side tool](/guides/client-side-tools/) and a call to a tool that runs on
+the server in the same turn. Tracon runs the server tool and holds the client call back, so the model sees the server
+tool's result and may ask for the client call again. When it does so the stream carries a `CUSTOM` event for each call
+held back, so a front end can tell that a call it was never sent was dropped on purpose:
+
+```json
+{ "type": "CUSTOM", "name": "tracon.client_call_withheld", "value": { "toolCallId": "call_1", "toolName": "open_page" } }
+```
+
+It comes after `RUN_STARTED` and before `RUN_FINISHED`, including a `RUN_FINISHED` that carries an approval interrupt.
+That last case is the one to know: a server tool that waits for approval ends the run at the approval, and the held
+client call does not run in that turn. After the approval the model may ask for it again, or not at all. The same event
+is in the run's record (`GET /api/runs/{id}/events`) for a front end that was not connected.
 
 ## Approvals and requests for input
 
@@ -9921,7 +10030,8 @@ A workflow item's `sessionId` becomes the run's execution session, so you can
 correlate the run with your own record — a production id, say. The run, its
 `run.completed` webhook and a run that resumes it all carry that id. It is a
 correlation, not a de-duplication: two items with the same id are two runs. The id
-follows the session id rule — at most 128 letters, digits, `-` or `_` — and an item
+follows the workflow execution id rule — at most 128 letters, digits, `-` or `_`, which is narrower than the
+[session id rule](/concepts/sessions/#session-identifiers) of an agent — and an item
 that breaks it fails alone. An agent batch item that names a `sessionId` fails alone
 too: an agent batch runs every item without a session. For the same reason, an item
 whose run asks for a tool approval fails, and its run is closed as `Failed`: an
@@ -11245,11 +11355,27 @@ The price is small and you should know it:
 - **The parallel intent is gone.** The client call always comes after the server tool,
   never beside it.
 
-An answer that asks for client calls only, or for server calls only, is not touched. A
-server tool that [requires approval](/concepts/tools/) still waits for its approval
-first, and the client call comes back after you approve. It works the same for every
-agent, whether you define it, build it with a harness, or build it in code over the
-client Tracon hands you.
+An answer that asks for client calls only, or for server calls only, is not touched. It
+works the same for every agent, whether you define it, build it with a harness, or build
+it in code over the client Tracon hands you.
+
+Each held call is recorded, so you can tell a run that ended without the client call from a
+run in which the model never asked for it. The run gets a `tracon.client_call_withheld`
+event for each one, with the `toolCallId` the model gave the call and the `toolName`, never
+its arguments. On the [AG-UI endpoint](/guides/ag-ui/#when-a-client-call-is-held-back) the
+same event is sent to the front end as a `CUSTOM` event.
+
+### When the server tool waits for approval
+
+If the server tool [requires approval](/concepts/tools/), the run ends at the approval and
+the held client call does **not** run in that turn. Tracon does not remember it: after you
+approve, the run continues and the model decides what to do next. It may ask for the client
+call again, and then it reaches the caller as an ordinary pending call; if it does not, the
+call never runs. Nothing is waiting for the caller in between, and the
+`tracon.client_call_withheld` event is the only trace of the call. A front end that needs
+the client call after an approval should tell the model to ask for it again, in the agent's
+instructions: put the order the agent should follow there ("ask for the approval first, then
+open the page").
 
 ## A call you do not answer
 
@@ -13380,9 +13506,11 @@ with the exact `ExternalInvoke` scope. A static bearer token alone is rejected a
 startup. Create the key before enabling remote access.
 
 An exposed agent cannot contain an approval-required tool. A tool needs approval when its
-registration sets `RequiresApproval`, or when the function is already wrapped in
+registration sets `RequiresApproval`, when the function is already wrapped in
 `ApprovalRequiredAIFunction` — the default of Microsoft Agent Framework's
-`DockerShellExecutor.AsAIFunction()`. The application waits
+`DockerShellExecutor.AsAIFunction()` — or when a code-defined
+[approval policy](/concepts/governance/) is registered for its name: the policy can answer `Required` for any
+call, so the tool counts even when the registration sets no flag. The application waits
 until the catalog is queryable, checks the selected agents, and prevents MCP requests
 from running if an approval boundary would be crossed. An external protocol caller
 cannot act as the missing human. A tool that gains approval after the agent was exposed
@@ -23732,6 +23860,30 @@ dependency that must be new on every call, use `AddScopedTool`.
 `RequiredPermission`, `Timeout`, `SafeToRepeat`, `MaxOutputBytes`, and `Source`.
 Code-defined tools normally leave `Source` unset.
 
+## Hold a tool back with a policy
+
+`RequiresApproval` is not the only way to hold a tool back. A code-defined
+[approval policy](/concepts/governance/) registered with `AddToolApprovalPolicy("refund_order", ...)` decides for every
+call of the tool whether or not the flag is set: a tool with a policy waits for approval when the policy says `Required`,
+and runs without a person when it says `NotRequired` or has no opinion (`Undecided`). You do not have to set the flag as
+well, so a tool you forgot to flag is still held. Two things follow:
+
+- **Every call goes through the approval step**, `NotRequired` included: one more round of the model loop than a tool
+  without a policy.
+- **The tool is reported as asking for approval** (`requiresApproval` in `GET /api/tools`). An agent that carries it cannot
+  be exposed over [MCP or A2A](/guides/external-agents/), and a live replay of its runs is refused, as for a flagged tool.
+
+The host stops at start-up for a policy named for a hosted tool, which runs on the provider's side, where Tracon holds
+no call back. A name that no tool in code carries is allowed: a tool of an MCP server, or one a run brings with it, can
+arrive after the host has started. For a tool a run brings with it, a policy with no opinion falls to the data rules and
+asks when none matches. A policy holds only the tools that run through Tracon's tool chain: tools registered in code, tools of
+MCP servers and the tools Tracon adds to a run. It holds nothing for a client-side tool, the skill tools or an agent called as
+a tool.
+
+To read what a run was started for, a tool uses `TraconRunContext.Current?.Parameters` together with `ParameterSource`:
+a `Client` value is text the user chose and decides nothing about who may see or change what, while `Caller` and `Host`
+values were produced by your own code. See [Agents](/concepts/agents/#parameters).
+
 Do not replace `IToolRegistry`. It is Tracon's immutable startup snapshot and owns
 authorization, timeout, approval, and output truncation. Startup rejects an unverified
 replacement unless `Tools.AllowUnverifiedToolRegistry` is explicitly enabled.
@@ -24304,7 +24456,7 @@ Add these when you need them.
 | `Tracon.Google` | You call Gemini models, or speak and voice a two-voice dialogue with a Gemini text-to-speech model |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
-| `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents. It takes the AG-UI SDK, which the other packages never see |
+| `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents, under one pattern or several, and your code can decide an agent's run parameters on the server. It takes the AG-UI SDK, which the other packages never see |
 | `Tracon.Testing` | You write tests against agents — fakes, not mocks |
 | `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IAgentDefinitionSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
 | `Tracon.Templates` | `dotnet new tracon-api` |

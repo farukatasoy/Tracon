@@ -43,6 +43,20 @@ by default, the bearer token, your authorization policy and the `Operator` role.
 run scope, `ChatRun` or `RunsWrite` — see [Who can call the endpoint](#who-can-call-the-endpoint). The path is
 `/tracon/agui` unless you pass another prefix.
 
+You can map the endpoint under more than one pattern, for example one for your own front end and one for a
+partner's, with different settings for each:
+
+```csharp
+app.MapTraconAGUI();                                   // /tracon/agui
+app.MapTraconAGUI("/partner/agui", options => options.AcceptForwardedParameters = false);
+```
+
+Each pattern is a separate endpoint with its own settings, and both serve every agent. They share one
+[rate-limit](/concepts/governance/#quotas-and-rate-limits) window for the AG-UI group, so a second pattern does not
+double a client's budget. Mapping the **same** pattern twice (`/tracon/agui` and `/TRACON/agui/` are the same pattern)
+fails when the endpoint is mapped, with a message that names the pattern, instead of failing the first request that
+reaches the application.
+
 The body is an AG-UI `RunAgentInput` and the answer is `text/event-stream`, one `data:` frame per event:
 
 ```bash
@@ -136,12 +150,12 @@ flowchart LR
 
 | AG-UI field | What Tracon does |
 |---|---|
-| `threadId` | It is the session. At most 200 characters; a thread belongs to the tenant that opened it, and with session ownership on also to the user |
+| `threadId` | It is the session, so it follows the [session id rule](/concepts/sessions/#session-identifiers): 1 to 200 characters, no whitespace at either end, any other character (dots and colons included). A thread belongs to the tenant that opened it, and with session ownership on also to the user |
 | `messages` | The server keeps the conversation. Only the messages after the **last assistant message** are new input: the user's text, and the results of the client-side tool calls that message made. Earlier messages are already in the session and are not added again. System and developer messages are not read — the instructions are the agent's |
 | `tools` | Must name every client-side tool the agent carries. The schema is always the one in code |
 | `resume` | Answers a tool approval or a request for user input |
 | `context` | Becomes run documents, kept apart from the instructions |
-| `forwardedProps.parameters` | The run's [parameter values](#run-parameters), only when the host turned on `AcceptForwardedParameters` |
+| `forwardedProps.parameters` | The run's [parameter values](#run-parameters), only when the host turned on `AcceptForwardedParameters`; or the host's `ResolveParameters` code reads it as untrusted input |
 | `state`, the rest of `forwardedProps` | Not used |
 
 Text is the only input kind read: image, audio, video and document parts of a message are ignored.
@@ -202,6 +216,54 @@ low, and prefer a parameter whose value is a short identifier or a choice from a
 can name, not free text.
 :::
 
+### Decide the values on the server
+
+A parameter often names something the user is looking at: the article a chat is about, the account it belongs to. The
+browser knows it, but the browser is not the one to decide it. `TraconAGUIOptions.ResolveParameters` is host code that
+does, on the server, and **replaces** `AcceptForwardedParameters`:
+
+```csharp
+using System.Security.Claims;
+
+// Your own code: which article a thread is about, and whether this user may read it.
+public interface IArticleThreads
+{
+    Task<Article?> FindForThreadAsync(string threadId, ClaimsPrincipal user, CancellationToken cancellationToken);
+}
+
+public sealed record Article(Guid Id);
+
+var articles = app.ServiceProvider.GetRequiredService<IArticleThreads>();
+
+app.MapTraconAGUI("/tracon/agui", options =>
+    options.ResolveParameters = async (request, cancellationToken) =>
+    {
+        // request.AgentName, request.ThreadId, request.User, and request.ForwardedParameters:
+        // what the front end sent. It is untrusted input; nothing in it reaches the run unless you return it.
+        var article = await articles.FindForThreadAsync(request.ThreadId, request.User, cancellationToken);
+
+        return article is null
+            ? null
+            : new Dictionary<string, string> { ["articleId"] = article.Id.ToString("N") };
+    });
+```
+
+- **Only what you return reaches the run.** The front end's `forwardedProps.parameters` is the resolver's input and a
+  value of it enters the run only if the resolver returns it. A resolver that returns `null` or an empty set runs the
+  agent on its defaults.
+- **It runs after the gates.** The request has passed the endpoint's access protection, run authorization, session
+  ownership and quota first, so your code is never called for a caller that was turned away. It runs once per request,
+  with the request's cancellation token, and it serves every agent: tell them apart by `request.AgentName`.
+- **What it returns is checked.** Like every other source, an undeclared name, a missing required value and a value over
+  `MaxParameterValueLength` are a `400` before anything runs, and the values are recorded with the run.
+- **A tool reads them as the host's.** `TraconRunContext.Current.Parameters` holds the set and `ParameterSource` is
+  `ParameterValueSource.Host`, so a tool of the run may decide by them what a `Client` value never could. A run that
+  repeats them later, such as a resume from the approval inbox or a replay, reads them as `Client`: the source is not
+  stored with the values. An approval answered on this endpoint is a new request, and it asks the resolver again.
+- **It fails closed.** A resolver that throws, or returns a null name or value, ends the request with `500` and the error
+  type `parameter_resolution_failed`; no run starts. The answer carries neither the exception's text nor anything the
+  front end sent. The exception and the thread are in the server log, and the values never are.
+
 ## Front-end tools
 
 A tool that runs in the browser is a [client-side tool](/guides/client-side-tools/): its declaration lives
@@ -220,6 +282,22 @@ instruction:
   run records its name under the `tracon.agui.tools.ignored` event.
 
 A front end cannot add a tool or change a schema through this endpoint. Tools are defined only in code.
+
+### When a client call is held back
+
+A model can answer with a call to a [client-side tool](/guides/client-side-tools/) and a call to a tool that runs on
+the server in the same turn. Tracon runs the server tool and holds the client call back, so the model sees the server
+tool's result and may ask for the client call again. When it does so the stream carries a `CUSTOM` event for each call
+held back, so a front end can tell that a call it was never sent was dropped on purpose:
+
+```json
+{ "type": "CUSTOM", "name": "tracon.client_call_withheld", "value": { "toolCallId": "call_1", "toolName": "open_page" } }
+```
+
+It comes after `RUN_STARTED` and before `RUN_FINISHED`, including a `RUN_FINISHED` that carries an approval interrupt.
+That last case is the one to know: a server tool that waits for approval ends the run at the approval, and the held
+client call does not run in that turn. After the approval the model may ask for it again, or not at all. The same event
+is in the run's record (`GET /api/runs/{id}/events`) for a front end that was not connected.
 
 ## Approvals and requests for input
 

@@ -257,6 +257,26 @@ public static partial class RunEventCustomTypes
     public const string AGUIToolsIgnored = ReservedPrefix + "agui.tools.ignored";
 
     /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the notice a run records when the model asked for a tool that runs on the
+    /// server and for a tool that runs on the client in one answer, and Tracon held the client call back.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The tool loop stops at the first client call it meets and hands back every call of that answer unexecuted, so a server
+    /// call that shared the answer would never run. Tracon takes the client call out of the answer: the loop runs the server
+    /// call, and the model sees its result and may ask for the client call again. This event says that it happened, once for
+    /// each call held back, so a run that ended without the client call can be told from a run in which the model never
+    /// asked for it.
+    /// </para>
+    /// <para>
+    /// The payload is a JSON object with <c>toolCallId</c>, the identifier the model gave the call, and <c>toolName</c>. It
+    /// never carries the call's arguments. When the server call is one that waits for approval, the run ends at that approval
+    /// and the held call does not run in that turn; the model asks for it again after the approval, or not at all.
+    /// </para>
+    /// </remarks>
+    public const string ClientCallWithheld = ReservedPrefix + "client_call_withheld";
+
+    /// <summary>
     /// Checks whether <paramref name="customType"/> is a valid custom event
     /// type: 1-128 characters, lowercase ASCII letters, digits, <c>.</c>,
     /// <c>_</c>, or <c>-</c>, starting with a letter or digit.

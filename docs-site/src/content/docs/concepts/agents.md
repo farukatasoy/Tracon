@@ -112,9 +112,20 @@ These ways to start a run carry values too:
 - a **workflow step** receives the values its own schema declares from the workflow's
   run, see [Workflow parameters](/concepts/workflow-parameters/)
 - an **AG-UI run** takes them from `forwardedProps.parameters`, only when the host turned on
-  `AcceptForwardedParameters`. They are checked like the `parameters` field, and the same rules apply; see
-  [Run parameters](/guides/ag-ui/#run-parameters). Left off, as it is by default, AG-UI carries no values and
+  `AcceptForwardedParameters`, or from the host's own `ResolveParameters` code, which decides them on the server. They
+  are checked like the `parameters` field, and the same rules apply; see
+  [Run parameters](/guides/ag-ui/#run-parameters). With neither, as is the default, AG-UI carries no values and
   an agent with a required parameter cannot be started from it
+
+A tool of the run can read the values: `TraconRunContext.Current?.Parameters` holds the set the run was bound with
+(the supplied values with the defaults applied) and `ParameterSource` says who supplied them. **Read the two
+together.** A value of `ParameterValueSource.Client` is text a user, or a script in the user's browser, chose, and it
+carries no authority: a tool does not decide who may see or change something by it. `Caller` is your own embedding
+code (`AgentResolveOptions.Parameters`) and `Host` is a value the host's code produced on the server for the request
+(the [AG-UI resolver](/guides/ag-ui/#decide-the-values-on-the-server)). A run that repeats the values of an earlier
+request (a queued run, a resume from the approval inbox, a replay) reads them as `Client`, because the source is not
+stored with them. A sub-agent the run calls receives none, and for an agent that declares no parameters the set is
+`null`.
 
 A run records the values it was bound with — the supplied ones with the defaults
 applied — beside its input. A **replay**, an **automatic continuation** after a crash

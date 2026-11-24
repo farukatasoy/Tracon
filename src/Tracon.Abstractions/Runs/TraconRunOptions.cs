@@ -79,6 +79,8 @@ public sealed class TraconRunOptions : AgentRunOptions
         ToolInputAnswers = other.ToolInputAnswers;
         BeforePendingToolInputIsPublished = other.BeforePendingToolInputIsPublished;
         AfterLoopIterationRecorded = other.AfterLoopIterationRecorded;
+        AfterClientCallWithheldRecorded = other.AfterClientCallWithheldRecorded;
+        ParameterSource = other.ParameterSource;
     }
 
     /// <summary>
@@ -269,6 +271,17 @@ public sealed class TraconRunOptions : AgentRunOptions
     internal IReadOnlyDictionary<string, string>? ParameterValues { get; init; }
 
     /// <summary>
+    /// Gets where <see cref="ParameterValues"/> came from. <see langword="null"/> reads as
+    /// <see cref="ParameterValueSource.Client"/>: a surface that repeats the values of an earlier request does not know who
+    /// wrote them, and the least trusted answer is the safe one.
+    /// </summary>
+    /// <remarks>
+    /// Set by the surface that took the values from a request (a front end's, or the host's own code that stood in for it).
+    /// Never inherited by a sub-run: a sub-agent receives no values.
+    /// </remarks>
+    internal ParameterValueSource? ParameterSource { get; init; }
+
+    /// <summary>
     /// Gets the culture the run's agent was resolved with. <see langword="null"/> when none was requested.
     /// </summary>
     /// <remarks>
@@ -391,6 +404,22 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// </para>
     /// </remarks>
     internal Func<RunEvent, CancellationToken, ValueTask>? AfterLoopIterationRecorded { get; init; }
+
+    /// <summary>
+    /// Gets the callback the model pipeline hands each recorded <see cref="RunEventCustomTypes.ClientCallWithheld"/> event to.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The AG-UI endpoint sets it to send the event as a <c>CUSTOM</c> event of its stream, between the answer and the end of the
+    /// run, so a front end learns that a client call was held back without reading the run's events. It runs on the flow of the
+    /// model call and only when the run records its events. A failure of the callback is logged and the answer goes on: a
+    /// notice never costs the run its answer.
+    /// </para>
+    /// <para>
+    /// Never inherited: it reaches the scope of the root run only.
+    /// </para>
+    /// </remarks>
+    internal Func<RunEvent, CancellationToken, ValueTask>? AfterClientCallWithheldRecorded { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

@@ -20,8 +20,9 @@ namespace Tracon;
 /// run with its own record (a production id): the run, its
 /// <c>run.completed</c> webhook and a run that resumes it carry the same id. It
 /// is a correlation, not a de-duplication: two items with the same id are two
-/// runs. The id follows the session id rule (at most 128 letters, digits,
-/// <c>-</c> or <c>_</c>); an item that breaks it fails on its own. An agent batch
+/// runs. The id follows the workflow execution id rule (at most 128 letters, digits,
+/// <c>-</c> or <c>_</c>), which is narrower than the rule of an agent session id (up to 200
+/// characters, any character but whitespace at either end); an item that breaks it fails on its own. An agent batch
 /// item that names one fails too, because an agent batch runs without a session.
 /// </para>
 /// <para>

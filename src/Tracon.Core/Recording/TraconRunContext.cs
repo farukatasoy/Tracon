@@ -59,6 +59,30 @@ public sealed record AgentRunScope
     /// <summary>Gets the identity of the run at the root of the tree. Equal to <see cref="RunId"/> at the root.</summary>
     public required Guid RootRunId { get; init; }
 
+    /// <summary>
+    /// Gets the parameter values the root run of an agent was bound with: the final set, the schema's defaults included, the
+    /// same the run records. <see langword="null"/> for an agent that declares no parameters, for a sub-agent's run, and
+    /// outside a recorded run.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A tool reads it to know what the run was started for, such as the document a chat is about. Read
+    /// <see cref="ParameterSource"/> with it: a value of <see cref="ParameterValueSource.Client"/> is text the user chose and
+    /// carries no authority.
+    /// </para>
+    /// <para>
+    /// A sub-agent the run calls receives none, and its scope has none. A queued run, an approval resumed from the inbox and a
+    /// replay see the values their source run was bound with.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
+
+    /// <summary>
+    /// Gets where <see cref="Parameters"/> came from. <see cref="ParameterValueSource.Client"/>, the least trusted source, when
+    /// the scope says nothing.
+    /// </summary>
+    public ParameterValueSource ParameterSource { get; init; }
+
     /// <summary>Gets the depth in the tree. The root run is 0.</summary>
     public int Depth { get; init; }
 
@@ -239,6 +263,12 @@ public sealed record AgentRunScope
     /// stream of the run above it.
     /// </remarks>
     internal Func<RunEvent, CancellationToken, ValueTask>? AfterLoopIterationRecorded { get; init; }
+
+    /// <summary>
+    /// Gets the callback the model pipeline hands each recorded <see cref="RunEventCustomTypes.ClientCallWithheld"/> event to
+    /// (<see cref="TraconRunOptions.AfterClientCallWithheldRecorded"/>). Set on the root run only.
+    /// </summary>
+    internal Func<RunEvent, CancellationToken, ValueTask>? AfterClientCallWithheldRecorded { get; init; }
 
     /// <summary>
     /// Gets the event writer for this run. A sub-run writes its summary events here.

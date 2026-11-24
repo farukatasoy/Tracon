@@ -68,6 +68,7 @@ public sealed class McpOAuthStartAmbientTests
             new McpOAuthTokenCacheRegistry(),
             new AllowAllToolAuthorizationHandler(),
             McpToolPolicyTestGates.Open(),
+            McpToolPolicyTestGates.NoApprovalPolicies(),
             NoOpToolArgumentsValidator.Instance,
             attribution: null);
 

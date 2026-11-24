@@ -34,7 +34,9 @@ namespace Tracon;
 /// <strong>A code-defined policy runs before the data rules and can
 /// override them.</strong> Code is a security boundary; data — writable from the
 /// UI — is not allowed to loosen it. See <see cref="ToolApprovalContext"/> and
-/// <c>ITraconBuilder.AddToolApprovalPolicy(...)</c>.
+/// <c>ITraconBuilder.AddToolApprovalPolicy(...)</c>. A tool registered without the approval flag is
+/// held for approval because its name has a policy, and for such a tool
+/// <see cref="ToolApprovalPolicyDecision.Undecided"/> lets the call run.
 /// </para>
 /// </remarks>
 internal sealed class ToolApprovalRuleEvaluator
@@ -86,7 +88,8 @@ internal sealed class ToolApprovalRuleEvaluator
     /// data rule would otherwise auto-approve the call, and
     /// <see cref="ToolApprovalPolicyDecision.NotRequired"/> auto-approves even with no
     /// matching data rule. Only <see cref="ToolApprovalPolicyDecision.Undecided"/> (or no
-    /// registered policy) falls through to the data rules.
+    /// registered policy) falls through to the data rules, except for a tool that waits for approval only because its name has a
+    /// policy: for that one <see cref="ToolApprovalPolicyDecision.Undecided"/> lets the call run.
     /// </remarks>
     public async ValueTask<bool> IsAutoApprovedAsync(
         string agentName,
@@ -109,6 +112,14 @@ internal sealed class ToolApprovalRuleEvaluator
                     return true;
                 case ToolApprovalPolicyDecision.Undecided:
                 default:
+                    // A tool with no approval flag of its own asks only because a policy is registered for it. A policy
+                    // with no opinion leaves it as it was, which is to run: the data rules are for a tool that asks by
+                    // its registration, and a rule written for this one would never have been needed.
+                    if (IsGatedOnlyByPolicy(call.Name))
+                    {
+                        return true;
+                    }
+
                     break;
             }
         }
@@ -193,6 +204,18 @@ internal sealed class ToolApprovalRuleEvaluator
 
         return false;
     }
+
+    /// <summary>
+    /// Says whether a tool waits for approval only because a code-defined policy is registered for it
+    /// (<see cref="PolicyGatedApprovalAIFunction"/>).
+    /// </summary>
+    /// <param name="toolName">The tool name.</param>
+    /// <returns>
+    /// <see langword="false"/> for a tool the registry cannot show: a tool of a run's own sources is not in it, and a call to it
+    /// keeps the path of a flagged tool and asks when no data rule matches.
+    /// </returns>
+    private bool IsGatedOnlyByPolicy(string toolName)
+        => _tools.TryGet(toolName, out var tool) && tool.GetService<PolicyGatedApprovalAIFunction>() is not null;
 
     private ToolApprovalPolicyDecision EvaluatePolicy(
         Func<ToolApprovalContext, ToolApprovalPolicyDecision> policy,

@@ -379,8 +379,11 @@ custom type can never collide with your own. Tracon writes these:
 [Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)),
 `tracon.citation` and `tracon.context` (see [Citations and message sources](#citations-and-message-sources)),
 `tracon.tool.input.declined` (a [server's request for input](/concepts/tools/#a-server-asks-the-user-for-input)
-that Tracon answered with `decline`) and `tracon.agui.tools.ignored` (tools an
-[AG-UI front end](/guides/ag-ui/#front-end-tools) declared that the agent does not carry).
+that Tracon answered with `decline`), `tracon.agui.tools.ignored` (tools an
+[AG-UI front end](/guides/ag-ui/#front-end-tools) declared that the agent does not carry) and
+`tracon.client_call_withheld` (a call to a [client-side tool](/guides/client-side-tools/#when-the-model-asks-for-a-server-tool-and-a-client-side-tool-together)
+that Tracon held back because the model asked for a server tool in the same answer; the payload is
+`toolCallId` and `toolName`).
 `AppendAsync` rejects any value under that prefix, so a `Custom` event carrying it can
 only have come from Tracon itself. `Payload` is yours too — Tracon makes no claim about
 its shape and never reads it.

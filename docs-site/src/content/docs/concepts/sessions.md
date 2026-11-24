@@ -57,6 +57,18 @@ The identity stamp matters: the session id is written into the session's own sta
 bag, so it survives serialization. A restored session knows which session it is, which
 is how the recording layer can put the right session id on a run without being told.
 
+## Session identifiers
+
+A session id is the one a client chooses on `POST /api/agents/{name}/run`, on a branch (`newSessionId`), in an
+OpenAI-compatible request and, on the [AG-UI endpoint](/guides/ag-ui/), as `threadId`. The rule is the same for every one
+of them: **1 to 200 characters, with no whitespace at the start or the end**. Nothing else is refused, so `order:42.v1`
+is a valid session id. The length is the narrowest column that stores it (SQL Server), and the edge rule exists because
+SQL Server ignores trailing spaces in a key and the other stores do not, so a thread would be one session on one store
+and two on another.
+
+It is not the rule of a [workflow execution id](/guides/background-work/#give-an-item-its-own-values), which is narrower
+(at most 128 letters, digits, `-` or `_`). An id that satisfies both, such as `order_42-v1`, works as either.
+
 ## Two turns at once
 
 Neither save is unconditional, and both refuse rather than overwrite.

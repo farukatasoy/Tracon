@@ -180,4 +180,7 @@ public static class TraconErrorTypes
 
     /// <summary>The run stopped at a tool approval.</summary>
     public const string ApprovalRequired = "approval_required";
+
+    /// <summary>The host's own code that decides the run parameters of an AG-UI request failed, so no run started.</summary>
+    public const string ParameterResolutionFailed = "parameter_resolution_failed";
 }

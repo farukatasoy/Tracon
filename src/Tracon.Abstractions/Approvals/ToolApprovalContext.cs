@@ -9,7 +9,11 @@ namespace Tracon;
 /// (<c>Tracon.Core</c>). A policy runs <strong>before</strong> the data rules
 /// (<see cref="ToolApprovalRule"/>) and its decision, when not
 /// <see cref="ToolApprovalPolicyDecision.Undecided"/>, overrides them — a policy is a
-/// security boundary written in code, and data cannot loosen it.
+/// security boundary written in code, and data cannot loosen it. A policy judges every call of its tool,
+/// including a tool registered without <c>RequiresApproval</c>: that tool is held for approval because its
+/// name has a policy, so <see cref="ToolApprovalPolicyDecision.Required"/> makes it wait, and a policy that
+/// answers <see cref="ToolApprovalPolicyDecision.NotRequired"/> or <see cref="ToolApprovalPolicyDecision.Undecided"/> lets
+/// it run without a person.
 /// </remarks>
 public sealed class ToolApprovalContext
 {

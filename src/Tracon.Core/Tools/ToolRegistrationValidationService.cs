@@ -9,7 +9,8 @@ internal sealed class ToolRegistrationValidationService(
     IEnumerable<TraconToolRegistration> registrations,
     IOptions<TraconOptions> options,
     ILogger<ToolRegistrationValidationService> logger,
-    HostedToolRegistry? hostedTools = null) : ITraconStartupCheck
+    HostedToolRegistry? hostedTools = null,
+    ToolApprovalPolicyRegistry? approvalPolicies = null) : ITraconStartupCheck
 {
     /// <inheritdoc />
     public StartupCheckKind Kind => StartupCheckKind.Gate;
@@ -39,6 +40,8 @@ internal sealed class ToolRegistrationValidationService(
             }
         }
 
+        CheckApprovalPolicies();
+
         foreach (var registration in registrations)
         {
             if (registration.Timeout is { } timeout && timeout <= TimeSpan.Zero)
@@ -53,5 +56,43 @@ internal sealed class ToolRegistrationValidationService(
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// A policy holds a call back only where Tracon runs the call. A hosted tool runs on the provider's side: no call reaches
+    /// Tracon, so there is nothing to hold, and a policy named for one would read as a gate that is not there.
+    /// </summary>
+    /// <remarks>
+    /// A name that no registered tool carries is not an error. A tool of an MCP server is added per tenant after the host has
+    /// started, and the tools a run brings with it are not in the registry; a policy for either applies when the tool does.
+    /// The log names those policies so a misspelled name does not pass unseen, and says what a policy cannot hold: only a tool
+    /// that runs through the tool chain has a call to hold back, so a client-side tool, the skill tools and an agent called as
+    /// a tool are not held by one.
+    /// </remarks>
+    private void CheckApprovalPolicies()
+    {
+        if (approvalPolicies is null)
+        {
+            return;
+        }
+
+        var hosted = hostedTools?.Descriptors.Select(static descriptor => descriptor.Name).ToHashSet(StringComparer.Ordinal) ?? [];
+
+        foreach (var name in approvalPolicies.Names.OrderBy(static name => name, StringComparer.Ordinal))
+        {
+            if (hosted.Contains(name))
+            {
+                throw new TraconException(
+                    $"An approval policy is registered for '{name}', which is a hosted tool. A hosted tool runs on the " +
+                    "provider's side and no call reaches Tracon, so the policy could never hold one back. Remove the policy.");
+            }
+
+            if (!registry.TryGet(name, out _) && logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "An approval policy is registered for '{ToolName}', and no tool registered in code carries that name. It holds a tool of that name that an MCP server or a run brings with it. It holds nothing for a tool that does not run through Tracon's tool chain: a client-side tool, a skill tool or an agent called as a tool.",
+                    name);
+            }
+        }
     }
 }

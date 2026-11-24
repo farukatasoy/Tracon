@@ -375,7 +375,8 @@ A workflow item's `sessionId` becomes the run's execution session, so you can
 correlate the run with your own record — a production id, say. The run, its
 `run.completed` webhook and a run that resumes it all carry that id. It is a
 correlation, not a de-duplication: two items with the same id are two runs. The id
-follows the session id rule — at most 128 letters, digits, `-` or `_` — and an item
+follows the workflow execution id rule — at most 128 letters, digits, `-` or `_`, which is narrower than the
+[session id rule](/concepts/sessions/#session-identifiers) of an agent — and an item
 that breaks it fails alone. An agent batch item that names a `sessionId` fails alone
 too: an agent batch runs every item without a session. For the same reason, an item
 whose run asks for a tool approval fails, and its run is closed as `Failed`: an

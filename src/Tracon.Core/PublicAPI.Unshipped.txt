@@ -1,4 +1,8 @@
 #nullable enable
+Tracon.AgentRunScope.ParameterSource.get -> Tracon.ParameterValueSource
+Tracon.AgentRunScope.ParameterSource.init -> void
+Tracon.AgentRunScope.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.AgentRunScope.Parameters.init -> void
 const Tracon.TraconDiagnostics.RateLimitStoreFailureCounterName = "tracon.rate_limit.store_failures" -> string!
 const Tracon.TraconDiagnostics.Tags.Limiter = "tracon.rate_limit.limiter" -> string!
 Tracon.AgentDecoratorPipeline

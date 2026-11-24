@@ -31,6 +31,7 @@ internal sealed class BuiltInToolGovernance
 {
     private readonly IToolAuthorizationHandler _authorizationHandler;
     private readonly TenantToolPolicyGate _policyGate;
+    private readonly ToolApprovalPolicyRegistry _approvalPolicies;
     private readonly IToolArgumentsValidator _validator;
     private readonly IOptionsMonitor<TraconOptions> _options;
     private readonly IRunAttributionContext? _attribution;
@@ -42,6 +43,7 @@ internal sealed class BuiltInToolGovernance
     /// <summary>Creates the governance with the dependencies of the tool chain.</summary>
     /// <param name="authorizationHandler">The authorization policy applied before every server-side call.</param>
     /// <param name="policyGate">The tenant tool policy applied before <paramref name="authorizationHandler"/>.</param>
+    /// <param name="approvalPolicies">The code-defined approval policies; a tool whose name has one asks for approval.</param>
     /// <param name="validator">The argument validation policy applied before every server-side call.</param>
     /// <param name="options">Supplies the installation's default tool timeout and output limit.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
@@ -52,6 +54,7 @@ internal sealed class BuiltInToolGovernance
     public BuiltInToolGovernance(
         IToolAuthorizationHandler authorizationHandler,
         TenantToolPolicyGate policyGate,
+        ToolApprovalPolicyRegistry approvalPolicies,
         IToolArgumentsValidator validator,
         IOptionsMonitor<TraconOptions> options,
         IRunAttributionContext? attribution,
@@ -62,6 +65,7 @@ internal sealed class BuiltInToolGovernance
     {
         ArgumentNullException.ThrowIfNull(authorizationHandler);
         ArgumentNullException.ThrowIfNull(policyGate);
+        ArgumentNullException.ThrowIfNull(approvalPolicies);
         ArgumentNullException.ThrowIfNull(validator);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(authorizingLogger);
@@ -70,6 +74,7 @@ internal sealed class BuiltInToolGovernance
 
         _authorizationHandler = authorizationHandler;
         _policyGate = policyGate;
+        _approvalPolicies = approvalPolicies;
         _validator = validator;
         _options = options;
         _attribution = attribution;
@@ -89,6 +94,7 @@ internal sealed class BuiltInToolGovernance
         return new BuiltInToolGovernance(
             provider.GetRequiredService<IToolAuthorizationHandler>(),
             provider.GetRequiredService<TenantToolPolicyGate>(),
+            provider.GetRequiredService<ToolApprovalPolicyRegistry>(),
             provider.GetRequiredService<IToolArgumentsValidator>(),
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
             provider.GetService<IRunAttributionContext>(),
@@ -136,7 +142,7 @@ internal sealed class BuiltInToolGovernance
             JsonSchema = function.JsonSchema.ValueKind == System.Text.Json.JsonValueKind.Undefined
                 ? null
                 : function.JsonSchema.GetRawText(),
-            RequiresApproval = requiresApproval,
+            RequiresApproval = requiresApproval || _approvalPolicies.Contains(function.Name),
             RunsOnClient = false,
             Effect = effect,
         };
@@ -146,6 +152,7 @@ internal sealed class BuiltInToolGovernance
             descriptor,
             _authorizationHandler,
             _policyGate,
+            _approvalPolicies,
             _validator,
             _options.CurrentValue.Tools.DefaultTimeout,
             _options.CurrentValue.Tools.DefaultMaxOutputBytes,

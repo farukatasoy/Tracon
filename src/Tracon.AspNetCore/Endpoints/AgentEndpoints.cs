@@ -1125,6 +1125,7 @@ internal static class AgentEndpoints
                             "loop.iteration-completed",
                             RunNoticeMirror.Serialize(iteration),
                             hookCancellation).ConfigureAwait(false),
+                    onClientCallWithheld: null,
                     cancellationToken);
 
                 List<string>? pending = null;

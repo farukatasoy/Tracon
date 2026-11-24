@@ -8,3 +8,23 @@ Tracon.TraconAGUIOptions
 Tracon.TraconAGUIOptions.AcceptForwardedParameters.get -> bool
 Tracon.TraconAGUIOptions.AcceptForwardedParameters.set -> void
 Tracon.TraconAGUIOptions.TraconAGUIOptions() -> void
+Tracon.AGUIParameterRequest
+Tracon.AGUIParameterRequest.<Clone>$() -> Tracon.AGUIParameterRequest!
+Tracon.AGUIParameterRequest.AGUIParameterRequest(string! AgentName, string! ThreadId, System.Security.Claims.ClaimsPrincipal! User, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! ForwardedParameters) -> void
+Tracon.AGUIParameterRequest.AgentName.get -> string!
+Tracon.AGUIParameterRequest.AgentName.init -> void
+Tracon.AGUIParameterRequest.Deconstruct(out string! AgentName, out string! ThreadId, out System.Security.Claims.ClaimsPrincipal! User, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! ForwardedParameters) -> void
+Tracon.AGUIParameterRequest.Equals(Tracon.AGUIParameterRequest? other) -> bool
+Tracon.AGUIParameterRequest.ForwardedParameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Tracon.AGUIParameterRequest.ForwardedParameters.init -> void
+Tracon.AGUIParameterRequest.ThreadId.get -> string!
+Tracon.AGUIParameterRequest.ThreadId.init -> void
+Tracon.AGUIParameterRequest.User.get -> System.Security.Claims.ClaimsPrincipal!
+Tracon.AGUIParameterRequest.User.init -> void
+Tracon.TraconAGUIOptions.ResolveParameters.get -> System.Func<Tracon.AGUIParameterRequest!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyDictionary<string!, string!>?>>?
+Tracon.TraconAGUIOptions.ResolveParameters.set -> void
+override Tracon.AGUIParameterRequest.Equals(object? obj) -> bool
+override Tracon.AGUIParameterRequest.GetHashCode() -> int
+override Tracon.AGUIParameterRequest.ToString() -> string!
+static Tracon.AGUIParameterRequest.operator !=(Tracon.AGUIParameterRequest? left, Tracon.AGUIParameterRequest? right) -> bool
+static Tracon.AGUIParameterRequest.operator ==(Tracon.AGUIParameterRequest? left, Tracon.AGUIParameterRequest? right) -> bool

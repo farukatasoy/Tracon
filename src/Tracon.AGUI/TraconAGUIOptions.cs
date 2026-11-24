@@ -34,4 +34,36 @@ public sealed class TraconAGUIOptions
     /// </para>
     /// </remarks>
     public bool AcceptForwardedParameters { get; set; }
+
+    /// <summary>
+    /// The host's own code that decides the parameter values of an AG-UI run, on the server. Default <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set, it replaces <see cref="AcceptForwardedParameters"/>: the endpoint calls it once per request, after the run gates
+    /// and before the agent is resolved, with the agent, the thread, the caller and what the front end sent
+    /// (<see cref="AGUIParameterRequest"/>). <strong>Only what it returns reaches the run.</strong> The front end's own values
+    /// are an input of the resolver and enter the run only if the resolver returns them. A <see langword="null"/> or empty
+    /// result runs the agent with its defaults.
+    /// </para>
+    /// <para>
+    /// The values it returns are checked against the agent's schema and <c>MaxParameterValueLength</c> like any others, and are
+    /// recorded with the run. A tool of the run reads them from <c>TraconRunContext.Current.Parameters</c> with the source
+    /// <see cref="ParameterValueSource.Host"/>: they are the host's, not the browser's, so a tool may decide by them what a
+    /// <see cref="ParameterValueSource.Client"/> value could never decide. A run that repeats them later (an approval resumed
+    /// from the inbox, a replay) reads them as <see cref="ParameterValueSource.Client"/>: the source is not stored with the
+    /// values.
+    /// </para>
+    /// <para>
+    /// <strong>It fails closed.</strong> A resolver that throws ends the request with <c>500</c> and the error type
+    /// <c>parameter_resolution_failed</c>, and no run starts. Nothing the front end sent, and no message of the exception, is
+    /// in the answer. A resolver reads the tenant from <c>ITenantContext</c> itself, the same as a tool; it receives a
+    /// cancellation token that is the request's.
+    /// </para>
+    /// <para>
+    /// A resolver is called for every agent the endpoint serves. It tells them apart by <see cref="AGUIParameterRequest.AgentName"/>,
+    /// which is how a host accepts values for one agent and none for another.
+    /// </para>
+    /// </remarks>
+    public Func<AGUIParameterRequest, CancellationToken, ValueTask<IReadOnlyDictionary<string, string>?>>? ResolveParameters { get; set; }
 }

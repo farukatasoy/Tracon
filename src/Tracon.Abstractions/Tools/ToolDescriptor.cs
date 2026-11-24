@@ -25,7 +25,11 @@ public sealed record ToolDescriptor
     /// call waits for the user's approval. A code tool also reports
     /// <see langword="true"/> when its function is already wrapped in
     /// <c>ApprovalRequiredAIFunction</c>, whatever its registration says: the
-    /// framework asks for approval either way.
+    /// framework asks for approval either way. A tool a code-defined approval policy
+    /// (<c>AddToolApprovalPolicy</c>) is registered for reports <see langword="true"/> too: the
+    /// policy decides every call, and an answer of <c>Required</c> makes it wait. Such a tool
+    /// cannot be exposed over MCP or A2A, and a live replay of a run that called it is refused,
+    /// as for a tool that asks by its registration.
     /// </remarks>
     public bool RequiresApproval { get; init; }
 

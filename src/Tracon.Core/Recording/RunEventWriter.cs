@@ -804,7 +804,8 @@ public sealed class RunEventWriter
     /// <c>NoticeId</c> is the dedup key a client acts on), the output
     /// truncation notice (provider, cause and limit, never the answer), the
     /// output filter notice (the provider, never the answer), the
-    /// tool input decline notice (server, tool and a reason code, never a field) and the
+    /// tool input decline notice (server, tool and a reason code, never a field), the client call
+    /// withheld notice (the call and the tool, never the arguments) and the
     /// context notice (counts of messages by source, never a message). A new
     /// reserved type is NOT exempt until it is named here. The citation event is not: its
     /// title and snippet come from a source and can carry personal data.
@@ -814,6 +815,7 @@ public sealed class RunEventWriter
             or RunEventCustomTypes.OutputTruncated
             or RunEventCustomTypes.OutputFiltered
             or RunEventCustomTypes.ToolInputDeclined
+            or RunEventCustomTypes.ClientCallWithheld
             or RunEventCustomTypes.Context;
 
     /// <summary>Fans the event out to every registered, not-yet-failed sink.</summary>
